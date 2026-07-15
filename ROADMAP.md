@@ -10,6 +10,30 @@ I want this to feel like a natural extension of the canvas, not another stack of
 
 ## After that, in whatever order makes sense
 
+### One model library for every tool
+
+Moving between AI front ends shouldn't mean downloading the same models again or maintaining several copies of the same library. I want SugarSubstitute to recognize the model folders used by AUTOMATIC1111, Forge, ComfyUI, and other supported tools, then help you bring them together into one managed library.
+
+At first, that can mean connecting ComfyUI to the files where they already live. If you want to go further, SugarSubstitute should also be able to consolidate those folders for you, remove unnecessary duplication, and configure each supported tool to use the shared library.
+
+This needs to remain your library. SugarSubstitute should show you what it found, explain what it wants to move or connect, and let you preview the result before it changes anything. The goal is one organized collection that works everywhere you want to use it, without broken paths or hundreds of gigabytes of duplicate models.
+
+### Let CivitAI organize the library for you
+
+Once SugarSubstitute understands the library, it should be able to organize it using CivitAI metadata. I want you to be able to describe how you prefer your models arranged, then let SugarSubstitute sort checkpoints, LoRAs, VAEs, embeddings, ControlNet models, and other assets accordingly.
+
+That could mean organizing by model type, base model, architecture, creator, or whatever combination is useful to you. The rules should be yours, the proposed changes should be visible before they happen, and models SugarSubstitute can't identify should be set aside for review instead of guessed at.
+
+Downloading a model should eventually be enough. SugarSubstitute can identify it, retrieve its metadata, put it where you want it, and make it available across the tools connected to the managed library.
+
+### Walk you through your first workflow
+
+I want the first-run experience to continue past installation. SugarSubstitute should offer an interactive tutorial that walks you through building and running your first real workflow inside the actual editor.
+
+Instead of a slideshow explaining where buttons are, it should help you add a Cube, choose a model, write a prompt, generate an image, see the result arrive on the canvas, and save the workflow you just made. By the end, you should have something useful that belongs to you and understand the basic rhythm of working in SugarSubstitute.
+
+The tutorial should be easy to skip, easy to restart later, and aware of the setup you already have. Someone arriving with an established model library needs a different introduction from someone installing ComfyUI for the first time.
+
 ### Send images between workflows
 
 Outputs are often just the starting point for the next stage. I want to let you send an image directly from one workflow's canvas into a `Load Image` node on another workflow. Generate something, send it to your inpainting workflow, and keep working without saving it, finding it again, and loading it by hand.
