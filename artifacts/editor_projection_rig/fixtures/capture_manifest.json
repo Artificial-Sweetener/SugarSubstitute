@@ -1,0 +1,18 @@
+{
+  "captured_at": "2026-05-25T03:27:38+00:00",
+  "elapsed_ms": 2999.165,
+  "endpoint": "http://127.0.0.1:8188",
+  "fixture_hashes": {
+    "workflow_anima_baseline": "sha256:985297f77a05515a465861f57794aa8918f41c44d050f1fc5d574215537337d5",
+    "workflow_sdxl_baseline": "sha256:efecc170b1b24b5a57e966cbb8d32403cc20d95fcce64ff77009b09988d66098"
+  },
+  "scenario_ids": [
+    "workflow_sdxl_baseline",
+    "workflow_anima_baseline"
+  ],
+  "schema_version": 1,
+  "written": [
+    "artifacts\\editor_projection_rig\\fixtures\\workflow_sdxl_baseline.json",
+    "artifacts\\editor_projection_rig\\fixtures\\workflow_anima_baseline.json"
+  ]
+}

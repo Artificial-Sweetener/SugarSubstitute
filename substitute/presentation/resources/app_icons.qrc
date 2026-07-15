@@ -1,0 +1,13 @@
+<RCC>
+  <qresource prefix="/substitute/app/icon">
+    <file alias="16.png">app_icons/app_icon_16.png</file>
+    <file alias="20.png">app_icons/app_icon_20.png</file>
+    <file alias="24.png">app_icons/app_icon_24.png</file>
+    <file alias="32.png">app_icons/app_icon_32.png</file>
+    <file alias="40.png">app_icons/app_icon_40.png</file>
+    <file alias="48.png">app_icons/app_icon_48.png</file>
+    <file alias="64.png">app_icons/app_icon_64.png</file>
+    <file alias="128.png">app_icons/app_icon_128.png</file>
+    <file alias="256.png">app_icons/app_icon_256.png</file>
+  </qresource>
+</RCC>

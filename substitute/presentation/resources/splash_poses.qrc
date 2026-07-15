@@ -1,0 +1,33 @@
+<RCC>
+  <qresource prefix="/substitute/splash/poses">
+    <file alias="1.png">splash_poses/1.png</file>
+    <file alias="2.png">splash_poses/2.png</file>
+    <file alias="3.png">splash_poses/3.png</file>
+    <file alias="4.png">splash_poses/4.png</file>
+    <file alias="5.png">splash_poses/5.png</file>
+    <file alias="6.png">splash_poses/6.png</file>
+    <file alias="7.png">splash_poses/7.png</file>
+    <file alias="8.png">splash_poses/8.png</file>
+    <file alias="9.png">splash_poses/9.png</file>
+    <file alias="10.png">splash_poses/10.png</file>
+    <file alias="11.png">splash_poses/11.png</file>
+    <file alias="12.png">splash_poses/12.png</file>
+    <file alias="13.png">splash_poses/13.png</file>
+    <file alias="14.png">splash_poses/14.png</file>
+    <file alias="15.png">splash_poses/15.png</file>
+    <file alias="16.png">splash_poses/16.png</file>
+    <file alias="17.png">splash_poses/17.png</file>
+    <file alias="18.png">splash_poses/18.png</file>
+    <file alias="19.png">splash_poses/19.png</file>
+    <file alias="20.png">splash_poses/20.png</file>
+    <file alias="21.png">splash_poses/21.png</file>
+    <file alias="22.png">splash_poses/22.png</file>
+    <file alias="23.png">splash_poses/23.png</file>
+    <file alias="24.png">splash_poses/24.png</file>
+    <file alias="comfy.png">splash_poses/comfy.png</file>
+    <file alias="cubby.png">splash_poses/cubby.png</file>
+    <file alias="liz.png">splash_poses/liz.png</file>
+    <file alias="ren.png">splash_poses/ren.png</file>
+    <file alias="witchy.png">splash_poses/witchy.png</file>
+  </qresource>
+</RCC>

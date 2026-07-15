@@ -1,0 +1,36 @@
+repos:
+  - repo: local
+    hooks:
+      - id: license-headers
+        name: Maintain GPL license headers
+        entry: python tools/license_headers.py --write
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        # Avoid flipping EOLs for Windows shell scripts which should remain CRLF
+        exclude: >-
+          (\.bat$|\.cmd$|\.ps1$)
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-json
+        exclude: >-
+          ^(log/|tmp_comfycli\.json|.*/tsconfig\.json$)
+      - id: check-toml
+
+# To add Python formatters/linters later (optional):
+#   - repo: https://github.com/psf/black
+#     rev: 24.8.0
+#     hooks:
+#       - id: black
+#   - repo: https://github.com/astral-sh/ruff-pre-commit
+#     rev: v0.6.9
+#     hooks:
+#       - id: ruff

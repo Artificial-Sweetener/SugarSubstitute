@@ -1,0 +1,844 @@
+{
+  "budgets": {
+    "parenting.violations": {
+      "actual": 0,
+      "limit": 0,
+      "passed": true
+    },
+    "projection_incomplete": {
+      "actual": 0,
+      "limit": 0,
+      "passed": true
+    },
+    "settled_signature_mismatches": {
+      "actual": 1,
+      "limit": 0,
+      "passed": false
+    }
+  },
+  "iteration_reports": [
+    {
+      "counters": {
+        "cube.begin_build_cube_widget.calls": 3,
+        "cube.build_step.calls": 28,
+        "node_card.build.calls": 28,
+        "override.apply_global_overrides.calls": 1,
+        "override.apply_without_snapshot_fallback.calls": 1,
+        "override.materialize_default_overrides.calls": 1,
+        "override.rebuild_active_override_controls.calls": 1,
+        "override.rebuild_override_menu.calls": 1,
+        "override.sync_state_from_workflow.calls": 1,
+        "parenting.violations": 0,
+        "projection.build_ordered_widgets.calls": 1,
+        "projection.load_all_cubes.calls": 1,
+        "projection.prepare_projection.calls": 1,
+        "projection.refresh_visibility.calls": 1,
+        "projection.repopulate_layout.calls": 4,
+        "projection.reveal_projected_cube_build.calls": 3,
+        "projection.schedule_projected_cube_builds.calls": 1,
+        "shell.apply_generation_action_availability.calls": 1,
+        "shell.begin_editor_busy.calls": 1,
+        "shell.end_editor_busy.calls": 1,
+        "shell.projection_complete.calls": 1,
+        "shell.refresh_input_canvas_availability.calls": 1
+      },
+      "events": [
+        {
+          "at_ms": 13.639,
+          "details": {
+            "widget_count": 14
+          },
+          "name": "production_trace.start"
+        },
+        {
+          "at_ms": 13.784,
+          "name": "override.sync_state_from_workflow"
+        },
+        {
+          "at_ms": 13.816,
+          "name": "override.apply_without_snapshot_fallback"
+        },
+        {
+          "at_ms": 14.228,
+          "duration_ms": 67.937,
+          "name": "production.editor.prepare_projection"
+        },
+        {
+          "at_ms": 86.29,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image"
+          },
+          "duration_ms": 17.115,
+          "name": "production.cube.begin_build_cube_widget"
+        },
+        {
+          "at_ms": 103.995,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale"
+          },
+          "duration_ms": 11.458,
+          "name": "production.cube.begin_build_cube_widget"
+        },
+        {
+          "at_ms": 116.173,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer"
+          },
+          "duration_ms": 9.299,
+          "name": "production.cube.begin_build_cube_widget"
+        },
+        {
+          "at_ms": 86.274,
+          "duration_ms": 39.792,
+          "name": "production.editor.build_ordered_widgets"
+        },
+        {
+          "at_ms": 126.095,
+          "details": {
+            "ordered_widgets": 0
+          },
+          "duration_ms": 0.14,
+          "name": "production.editor.repopulate_layout"
+        },
+        {
+          "at_ms": 126.382,
+          "name": "shell.begin_editor_busy"
+        },
+        {
+          "at_ms": 126.386,
+          "details": {
+            "message": "Loading",
+            "workflow_id": "workflow_sdxl_baseline"
+          },
+          "name": "shell.begin_editor_busy.details"
+        },
+        {
+          "at_ms": 126.46,
+          "details": {
+            "projected_builds": 3
+          },
+          "duration_ms": 0.007,
+          "name": "production.editor.schedule_projected_cube_builds"
+        },
+        {
+          "at_ms": 13.94,
+          "details": {
+            "cube_entries": 3
+          },
+          "duration_ms": 112.535,
+          "name": "production.editor.load_all_cubes"
+        },
+        {
+          "at_ms": 129.164,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "positive_prompt"
+          },
+          "duration_ms": 25.636,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 129.034,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 0
+          },
+          "duration_ms": 31.308,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 164.186,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "negative_prompt"
+          },
+          "duration_ms": 78.369,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 164.08,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 1
+          },
+          "duration_ms": 85.09,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 254.742,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 3,
+            "node_class": "SimpleSyrup.SimpleLoadCheckpoint",
+            "node_name": "checkpoint"
+          },
+          "duration_ms": 56.944,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 254.627,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 2
+          },
+          "duration_ms": 62.336,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 321.851,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 1,
+            "node_class": "SimpleSyrup.PromptEncodeStyle",
+            "node_name": "prompt_encode_style"
+          },
+          "duration_ms": 17.605,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 321.742,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 3
+          },
+          "duration_ms": 21.71,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 346.739,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 5,
+            "node_class": "94f725d5-39bf-4060-be68-f573214a2055",
+            "node_name": "schedule_encode_prompts"
+          },
+          "duration_ms": 5.485,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 346.572,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 4
+          },
+          "duration_ms": 7.382,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 354.635,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 10,
+            "node_class": "VectorscopeCC",
+            "node_name": "vectorscopecc"
+          },
+          "duration_ms": 68.182,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 354.528,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 5
+          },
+          "duration_ms": 81.281,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 457.653,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 1,
+            "node_class": "Mahiro",
+            "node_name": "mahiro_cfg"
+          },
+          "duration_ms": 6.384,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 457.464,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 6
+          },
+          "duration_ms": 8.462,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 466.774,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 11,
+            "node_class": "244188e0-95d8-45d9-9beb-adafccf862d6",
+            "node_name": "ksampler"
+          },
+          "duration_ms": 87.064,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 466.628,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 7
+          },
+          "duration_ms": 102.52,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 601.04,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 2,
+            "node_class": "VAEDecode",
+            "node_name": "vae_decode"
+          },
+          "duration_ms": 1.296,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 600.905,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 8
+          },
+          "duration_ms": 1.647,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 602.784,
+          "details": {
+            "ordered_widgets": 1
+          },
+          "duration_ms": 51.9,
+          "name": "production.editor.repopulate_layout"
+        },
+        {
+          "at_ms": 602.679,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image"
+          },
+          "duration_ms": 56.427,
+          "name": "production.editor.reveal_projected_cube_build"
+        },
+        {
+          "at_ms": 661.233,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "positive_prompt"
+          },
+          "duration_ms": 26.807,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 661.086,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 0
+          },
+          "duration_ms": 33.336,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 696.962,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "negative_prompt"
+          },
+          "duration_ms": 32.203,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 696.824,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 1
+          },
+          "duration_ms": 37.928,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 737.667,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 3,
+            "node_class": "SimpleSyrup.SimpleLoadCheckpoint",
+            "node_name": "checkpoint"
+          },
+          "duration_ms": 65.287,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 737.518,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 2
+          },
+          "duration_ms": 71.645,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 814.947,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 1,
+            "node_class": "SimpleSyrup.PromptEncodeStyle",
+            "node_name": "prompt_encode_style"
+          },
+          "duration_ms": 19.599,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 814.768,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 3
+          },
+          "duration_ms": 24.578,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 842.524,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 4,
+            "node_class": "8a36fa26-de83-4e4f-a89f-0e5f545f3c0f",
+            "node_name": "upscale_by_factor"
+          },
+          "duration_ms": 7.762,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 842.291,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 4
+          },
+          "duration_ms": 8.364,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 851.336,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 5,
+            "node_class": "bc2b2877-06d7-4b9f-881a-9263df411f13",
+            "node_name": "schedule_encode_prompts"
+          },
+          "duration_ms": 6.118,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 851.199,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 5
+          },
+          "duration_ms": 8.771,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 861.17,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 7,
+            "node_class": "SimpleSyrup.VAEEncodeOptions",
+            "node_name": "vae_encode_options"
+          },
+          "duration_ms": 24.986,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 860.974,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 6
+          },
+          "duration_ms": 29.942,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 903.563,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 10,
+            "node_class": "VectorscopeCC",
+            "node_name": "vectorscopecc"
+          },
+          "duration_ms": 81.36,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 903.343,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 7
+          },
+          "duration_ms": 95.652,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1028.706,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 1,
+            "node_class": "Mahiro",
+            "node_name": "mahiro_cfg"
+          },
+          "duration_ms": 6.363,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1028.559,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 8
+          },
+          "duration_ms": 8.924,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1038.886,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 10,
+            "node_class": "SimpleSyrup.KSamplerExtras",
+            "node_name": "ksampler"
+          },
+          "duration_ms": 93.276,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1038.748,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 9
+          },
+          "duration_ms": 112.223,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1207.479,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 7,
+            "node_class": "SimpleSyrup.VAEDecodeOptions",
+            "node_name": "vae_decode_options"
+          },
+          "duration_ms": 47.009,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1207.041,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 10
+          },
+          "duration_ms": 61.945,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1269.569,
+          "details": {
+            "ordered_widgets": 2
+          },
+          "duration_ms": 188.937,
+          "name": "production.editor.repopulate_layout"
+        },
+        {
+          "at_ms": 1269.252,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale"
+          },
+          "duration_ms": 195.38,
+          "name": "production.editor.reveal_projected_cube_build"
+        },
+        {
+          "at_ms": 1483.861,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "positive_prompt"
+          },
+          "duration_ms": 28.132,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1483.684,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 0
+          },
+          "duration_ms": 35.056,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1521.64,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "negative_prompt"
+          },
+          "duration_ms": 44.828,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1521.482,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 1
+          },
+          "duration_ms": 54.56,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1581.279,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 3,
+            "node_class": "SimpleSyrup.SimpleLoadCheckpoint",
+            "node_name": "checkpoint"
+          },
+          "duration_ms": 86.94,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1581.074,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 2
+          },
+          "duration_ms": 94.188,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1683.358,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 1,
+            "node_class": "SimpleSyrup.PromptEncodeStyle",
+            "node_name": "prompt_encode_style"
+          },
+          "duration_ms": 25.16,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1683.185,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 3
+          },
+          "duration_ms": 32.857,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1720.446,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 5,
+            "node_class": "53f09d1e-0364-4cb3-b5e7-535f63d1323f",
+            "node_name": "schedule_encode_prompts"
+          },
+          "duration_ms": 8.536,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1720.261,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 4
+          },
+          "duration_ms": 13.46,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1734.732,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 10,
+            "node_class": "VectorscopeCC",
+            "node_name": "vectorscopecc"
+          },
+          "duration_ms": 104.458,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1734.57,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 5
+          },
+          "duration_ms": 125.499,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1888.829,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 1,
+            "node_class": "Mahiro",
+            "node_name": "mahiro_cfg"
+          },
+          "duration_ms": 8.026,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1888.646,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 6
+          },
+          "duration_ms": 11.892,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1901.619,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 23,
+            "node_class": "777c9bdf-a67c-4475-b84a-1c6c7b7c90bc",
+            "node_name": "detailer"
+          },
+          "duration_ms": 1.951,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1901.418,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 7
+          },
+          "duration_ms": 2.472,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1904.724,
+          "details": {
+            "ordered_widgets": 3
+          },
+          "duration_ms": 294.519,
+          "name": "production.editor.repopulate_layout"
+        },
+        {
+          "at_ms": 1904.091,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer"
+          },
+          "duration_ms": 298.757,
+          "name": "production.editor.reveal_projected_cube_build"
+        },
+        {
+          "at_ms": 2220.83,
+          "duration_ms": 20.747,
+          "name": "production.editor.refresh_visibility"
+        },
+        {
+          "at_ms": 2242.022,
+          "name": "override.materialize_default_overrides"
+        },
+        {
+          "at_ms": 2242.102,
+          "details": {
+            "use_cached_behavior_snapshot": true
+          },
+          "name": "override.apply_global_overrides"
+        },
+        {
+          "at_ms": 2242.239,
+          "name": "shell.refresh_input_canvas_availability"
+        },
+        {
+          "at_ms": 2242.245,
+          "name": "shell.apply_generation_action_availability"
+        },
+        {
+          "at_ms": 2242.323,
+          "name": "shell.projection_complete"
+        },
+        {
+          "at_ms": 2242.352,
+          "name": "shell.end_editor_busy"
+        },
+        {
+          "at_ms": 2242.356,
+          "details": {
+            "token": "'busy:workflow_sdxl_baseline:Loading'"
+          },
+          "name": "shell.end_editor_busy.details"
+        },
+        {
+          "at_ms": 13.671,
+          "details": {
+            "workflow_id": "workflow_sdxl_baseline"
+          },
+          "duration_ms": 2229.571,
+          "name": "production.total_elapsed_ms"
+        },
+        {
+          "at_ms": 2244.506,
+          "name": "override.rebuild_override_menu"
+        },
+        {
+          "at_ms": 2244.512,
+          "name": "override.rebuild_active_override_controls"
+        },
+        {
+          "at_ms": 2246.052,
+          "details": {
+            "projection_complete": true,
+            "widget_count": 1562,
+            "widget_delta": 1548
+          },
+          "name": "production_trace.end"
+        }
+      ],
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 1,
+      "mismatches": [
+        "settled_signature"
+      ],
+      "override_action_log": [
+        "begin_editor_busy",
+        "refresh_input_canvas_availability",
+        "apply_generation_action_availability",
+        "projection_complete",
+        "end_editor_busy"
+      ],
+      "parent_chain_violations": [],
+      "projection_completed": true,
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:18118e694e634838a226b9cd29cd4be654e9be8924481b5a89277074d52cb1a8",
+      "signature_matched": false,
+      "timings_ms": {
+        "production.cube.begin_build_cube_widget": 37.872,
+        "production.cube.build_step": 1265.028,
+        "production.editor.build_ordered_widgets": 39.792,
+        "production.editor.load_all_cubes": 112.535,
+        "production.editor.prepare_projection": 67.937,
+        "production.editor.refresh_visibility": 20.747,
+        "production.editor.repopulate_layout": 535.496,
+        "production.editor.reveal_projected_cube_build": 550.564,
+        "production.editor.schedule_projected_cube_builds": 0.007,
+        "production.node_card.build_node_card": 1065.766,
+        "production.total_elapsed_ms": 2229.571
+      },
+      "widget_count_after": 1562,
+      "widget_count_before": 14
+    }
+  ],
+  "iterations": 1,
+  "mode": "production_trace",
+  "scenario_ids": [
+    "workflow_sdxl_baseline"
+  ],
+  "schema_version": 1
+}

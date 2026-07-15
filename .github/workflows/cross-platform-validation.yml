@@ -1,0 +1,258 @@
+name: cross-platform validation
+
+on:
+  push:
+    branches:
+      - "agent/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.12"
+  UV_VERSION: "0.11.18"
+  TEST_VERSION: "0.9.0-test.${{ github.run_number }}"
+  TEST_TAG: "ci-${{ github.run_id }}-${{ github.run_attempt }}"
+  LINUX_QT_PACKAGES: >-
+    xvfb libegl1 libfontconfig1 libgl1 libxcb-cursor0 libxcb-icccm4
+    libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
+    libxcb-util1 libxcb-xkb1 libxkbcommon-x11-0 libxkbcommon0
+
+jobs:
+  quality:
+    name: Quality (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+          - name: Linux x64
+            os: ubuntu-24.04
+          - name: macOS Apple Silicon
+            os: macos-15
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Check license headers
+        run: python tools/license_headers.py --check
+      - name: Install Linux Qt runtime dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
+      - name: Install project and quality dependencies
+        run: python -m pip install -r requirements.txt pytest pytest-xdist ruff mypy pyinstaller uv==${{ env.UV_VERSION }}
+      - name: Verify runner architecture
+        shell: python
+        run: |
+          import platform
+          expected = "arm64" if "macOS" in "${{ matrix.name }}" else "x86_64"
+          actual = platform.machine().lower()
+          aliases = {"amd64": "x86_64", "aarch64": "arm64"}
+          assert aliases.get(actual, actual) == expected, (actual, expected)
+      - name: Run format and lint gates
+        run: python -m ruff format --check . && python -m ruff check .
+      - name: Run strict project typing contract
+        run: python -m mypy --strict --platform win32 --disable-error-code import-untyped --disable-error-code import-not-found --disable-error-code unused-ignore substitute tests
+      - name: Run complete Windows test suite
+        if: runner.os == 'Windows'
+        run: python -m pytest -n auto -q
+      - name: Verify fixed-window installer layout on Windows
+        if: runner.os == 'Windows'
+        run: >-
+          python -m pytest -q
+          tests/test_onboarding_window_contract.py
+          -k fixed_window_layout_budget
+      - name: Run portable installer and bootstrap contract
+        if: runner.os != 'Windows'
+        run: >-
+          python -m pytest -n auto -q
+          tests/test_application_runtime_services.py
+          tests/test_bootstrap_readiness_routing.py
+          tests/test_bootstrap_readiness_service.py
+          tests/test_installed_app_layout_runtime.py
+          tests/test_launcher_dev_install.py
+          tests/test_launcher_platform_targets.py
+          tests/test_linux_installer_builder.py
+          tests/test_native_process_smoke.py
+          tests/test_onboarding_flow_service.py
+          tests/test_release_payload_builder.py
+          tests/test_release_workflow_contract.py
+
+  build-windows:
+    name: Build and smoke Windows x64
+    needs: quality
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: python -m pip install -r requirements.txt pyinstaller uv==${{ env.UV_VERSION }}
+      - run: node scripts/update-release-versions.mjs ${{ env.TEST_VERSION }}
+      - name: Build launchers
+        shell: pwsh
+        run: |
+          python -m PyInstaller launcher\SugarSubstitute-Setup-Windows-x64.spec --noconfirm --clean
+          python -m PyInstaller launcher\SugarSubstitute-Windows-x64.spec --noconfirm --clean --distpath build\launcher-bundles
+          New-Item -ItemType Directory -Force build\ci\windows\launcher | Out-Null
+          New-Item -ItemType Directory -Force build\ci\windows\installer | Out-Null
+          Copy-Item build\launcher-bundles\SugarSubstitute build\ci\windows\launcher\SugarSubstitute -Recurse
+          Copy-Item dist\SugarSubstitute-Setup-Windows-x64.exe build\ci\windows\installer\SugarSubstitute-Installer-Windows-x64.exe
+      - name: Smoke setup executable
+        run: python tools/ci/native_process_smoke.py --env QT_QPA_PLATFORM=offscreen -- dist/SugarSubstitute-Setup-Windows-x64.exe --install-root=${{ runner.temp }}/SugarSubstitute
+      - uses: actions/upload-artifact@v6
+        with:
+          name: native-windows
+          path: build/ci/windows
+          if-no-files-found: error
+
+  build-macos:
+    name: Build and smoke macOS Apple Silicon
+    needs: quality
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: python -m pip install -r requirements.txt pyinstaller uv==${{ env.UV_VERSION }}
+      - run: node scripts/update-release-versions.mjs ${{ env.TEST_VERSION }}
+      - name: Build launchers and DMG
+        run: |
+          python tools/build_macos_icon.py --source substitute/presentation/resources/app_icons/source.png --output build/app_icon.icns
+          python -m PyInstaller launcher/SugarSubstitute-Setup-macOS-arm64.spec --noconfirm --clean
+          python -m PyInstaller launcher/SugarSubstitute-macOS-arm64.spec --noconfirm --clean --distpath build/launcher-bundles
+          codesign --force --deep --sign - "dist/SugarSubstitute Setup.app"
+          codesign --force --deep --sign - build/launcher-bundles/SugarSubstitute.app
+          codesign --verify --deep --strict "dist/SugarSubstitute Setup.app"
+          mkdir -p build/ci/macos/launcher build/ci/macos/installer
+          cp -R build/launcher-bundles/SugarSubstitute.app build/ci/macos/launcher/
+          python tools/build_macos_dmg.py --setup-app "dist/SugarSubstitute Setup.app" --output build/ci/macos/installer/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg
+      - name: Smoke setup app and mounted DMG
+        run: |
+          python tools/ci/native_process_smoke.py -- "dist/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup" --install-root=${{ runner.temp }}/SugarSubstitute
+          mkdir -p "${{ runner.temp }}/dmg"
+          hdiutil attach build/ci/macos/installer/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg -mountpoint "${{ runner.temp }}/dmg" -nobrowse
+          python tools/ci/native_process_smoke.py -- "${{ runner.temp }}/dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup" --install-root=${{ runner.temp }}/SugarSubstitute-dmg
+          hdiutil detach "${{ runner.temp }}/dmg"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: native-macos
+          path: build/ci/macos
+          if-no-files-found: error
+
+  build-linux:
+    name: Build and smoke Linux x64
+    needs: quality
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install native dependencies
+        run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
+      - run: python -m pip install -r requirements.txt pyinstaller uv==${{ env.UV_VERSION }}
+      - run: node scripts/update-release-versions.mjs ${{ env.TEST_VERSION }}
+      - name: Build launchers
+        run: |
+          python -m PyInstaller launcher/SugarSubstitute-Setup-Linux-x64.spec --noconfirm --clean
+          python -m PyInstaller launcher/SugarSubstitute-Linux-x64.spec --noconfirm --clean --distpath build/launcher-bundles
+          mkdir -p build/ci/linux/launcher build/ci/linux/installer build/tools
+          cp -R build/launcher-bundles/SugarSubstitute build/ci/linux/launcher/
+          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --output build/tools/appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          echo "a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0  build/tools/appimagetool" | sha256sum --check
+          chmod 755 build/tools/appimagetool
+          python tools/build_linux_installers.py --setup-bundle "dist/SugarSubstitute Setup" --icon substitute/presentation/resources/app_icons/app_icon_256.png --appimagetool build/tools/appimagetool --version ${{ env.TEST_VERSION }} --appimage-output build/ci/linux/installer/SugarSubstitute-Installer-Linux-x86_64.AppImage --deb-output build/ci/linux/installer/SugarSubstitute-Installer-Linux-amd64.deb
+      - name: Smoke raw, AppImage, and Debian setup launchers
+        run: |
+          python tools/ci/native_process_smoke.py -- xvfb-run -a "dist/SugarSubstitute Setup/SugarSubstitute Setup" --install-root=${{ runner.temp }}/SugarSubstitute-raw
+          python tools/ci/native_process_smoke.py --env APPIMAGE_EXTRACT_AND_RUN=1 -- xvfb-run -a build/ci/linux/installer/SugarSubstitute-Installer-Linux-x86_64.AppImage --install-root=${{ runner.temp }}/SugarSubstitute-appimage
+          sudo dpkg -i build/ci/linux/installer/SugarSubstitute-Installer-Linux-amd64.deb
+          python tools/ci/native_process_smoke.py -- xvfb-run -a sugarsubstitute-setup --install-root=${{ runner.temp }}/SugarSubstitute-deb
+          sudo dpkg -r sugarsubstitute
+      - uses: actions/upload-artifact@v6
+        with:
+          name: native-linux
+          path: build/ci/linux
+          if-no-files-found: error
+
+  assemble-release:
+    name: Assemble and publish private test release
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-24.04
+    outputs:
+      release-url: ${{ steps.publish.outputs.url }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/download-artifact@v7
+        with:
+          name: native-windows
+          path: build/native/windows
+      - uses: actions/download-artifact@v7
+        with:
+          name: native-macos
+          path: build/native/macos
+      - uses: actions/download-artifact@v7
+        with:
+          name: native-linux
+          path: build/native/linux
+      - name: Build release channel
+        run: |
+          python tools/build_release_payload.py build --version ${{ env.TEST_VERSION }} --channel test --output-dir .local-release-channel --asset-base-url "https://github.com/${{ github.repository }}/releases/download/${{ env.TEST_TAG }}" --platform-input windows_x64 build/native/windows/launcher/SugarSubstitute --installer-input windows_x64 exe build/native/windows/installer/SugarSubstitute-Installer-Windows-x64.exe --platform-input macos_arm64 build/native/macos/launcher --installer-input macos_arm64 dmg build/native/macos/installer/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg --platform-input linux_x64 build/native/linux/launcher/SugarSubstitute --installer-input linux_x64 appimage build/native/linux/installer/SugarSubstitute-Installer-Linux-x86_64.AppImage --installer-input linux_x64 deb build/native/linux/installer/SugarSubstitute-Installer-Linux-amd64.deb
+      - name: Publish and read back private prerelease
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ env.TEST_TAG }}" .local-release-channel/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Cross-platform validation ${{ env.TEST_VERSION }}" --notes "Automated private installer validation release." --prerelease
+          gh release view "${{ env.TEST_TAG }}" --repo "${{ github.repository }}" --json url,assets > build/release-readback.json
+          python -c 'import json; from pathlib import Path; p=json.loads(Path("build/release-readback.json").read_text()); names={a["name"] for a in p["assets"]}; expected={x.name for x in Path(".local-release-channel").iterdir() if x.is_file()}; assert names==expected,(names,expected); print("RELEASE_READBACK_OK",p["url"]); print("url="+p["url"], file=open("$GITHUB_OUTPUT","a"))'
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-channel
+          path: .local-release-channel
+          if-no-files-found: error
+          include-hidden-files: true
+
+  installed-app-smoke:
+    name: Installed app smoke (${{ matrix.name }})
+    needs: assemble-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+          - name: Linux x64
+            os: ubuntu-24.04
+          - name: macOS Apple Silicon
+            os: macos-15
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Linux Qt runtime dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
+      - run: python -m pip install -r requirements.txt uv==${{ env.UV_VERSION }}
+      - uses: actions/download-artifact@v7
+        with:
+          name: release-channel
+          path: .local-release-channel
+      - name: Prove clean install and production onboarding composition
+        run: python -m launcher.sugarsubstitute_launcher.dev_install --install-root "${{ runner.temp }}/SugarSubstitute" --release-root .local-release-channel --allow-non-default-clean

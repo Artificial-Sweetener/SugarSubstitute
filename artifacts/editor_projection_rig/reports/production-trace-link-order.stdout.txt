@@ -1,0 +1,3204 @@
+{
+  "budgets": {
+    "parenting.violations": {
+      "actual": 0,
+      "limit": 0,
+      "passed": true
+    },
+    "projection_incomplete": {
+      "actual": 0,
+      "limit": 0,
+      "passed": true
+    },
+    "settled_signature_mismatches": {
+      "actual": 0,
+      "limit": 0,
+      "passed": true
+    }
+  },
+  "iteration_reports": [
+    {
+      "actual_signature": {
+        "cube_sections": [
+          {
+            "alias": "Cube 1: SDXL/Text to Image",
+            "cube_id": "Artificial-Sweetener/Base-Cubes/SDXL/Text to Image.cube",
+            "node_cards": [
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "ckpt_name",
+                    "value_repr": "''",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "clip_skip",
+                    "value_repr": "False",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vae_name",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "SimpleSyrup.SimpleLoadCheckpoint",
+                "node_name": "checkpoint",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "batch_size",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "cfg",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "height",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "model",
+                    "value_repr": "['mahiro_cfg', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "negative",
+                    "value_repr": "['schedule_encode_prompts', 2]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "positive",
+                    "value_repr": "['schedule_encode_prompts', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "sampler_name",
+                    "value_repr": "'euler'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "scheduler",
+                    "value_repr": "'simple'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "seed",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "steps",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "width",
+                    "value_repr": "None",
+                    "visible": true
+                  }
+                ],
+                "node_class": "244188e0-95d8-45d9-9beb-adafccf862d6",
+                "node_name": "ksampler",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "model",
+                    "value_repr": "['vectorscopecc', 0]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "Mahiro",
+                "node_name": "mahiro_cfg",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "PrimitiveStringMultiline",
+                "node_name": "negative_prompt",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "PrimitiveStringMultiline",
+                "node_name": "positive_prompt",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "encode_style",
+                    "value_repr": "'A1111'",
+                    "visible": true
+                  }
+                ],
+                "node_class": "SimpleSyrup.PromptEncodeStyle",
+                "node_name": "prompt_encode_style",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "clip_in",
+                    "value_repr": "['checkpoint', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "model_in",
+                    "value_repr": "['checkpoint', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "negative_prompt",
+                    "value_repr": "['negative_prompt', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "positive_prompt",
+                    "value_repr": "['positive_prompt', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "prompt_prefix",
+                    "value_repr": "['prompt_encode_style', 0]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "94f725d5-39bf-4060-be68-f573214a2055",
+                "node_name": "schedule_encode_prompts",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "samples",
+                    "value_repr": "['ksampler', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "vae",
+                    "value_repr": "['checkpoint', 2]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "VAEDecode",
+                "node_name": "vae_decode",
+                "visible": false
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "alt",
+                    "value_repr": "True",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "b",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "brightness",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "contrast",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "g",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "method",
+                    "value_repr": "'Straight Abs.'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "model",
+                    "value_repr": "['schedule_encode_prompts', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "r",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "saturation",
+                    "value_repr": "1",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "scaling",
+                    "value_repr": "'Flat'",
+                    "visible": true
+                  }
+                ],
+                "node_class": "VectorscopeCC",
+                "node_name": "vectorscopecc",
+                "visible": true
+              }
+            ],
+            "version": "1.1.0"
+          },
+          {
+            "alias": "Cube 2: SDXL/Diffusion Upscale",
+            "cube_id": "Artificial-Sweetener/Base-Cubes/SDXL/Diffusion Upscale.cube",
+            "node_cards": [
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "ckpt_name",
+                    "value_repr": "'Flux\\\\flux1-dev-bnb-nf4.safetensors'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "clip_skip",
+                    "value_repr": "False",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vae_name",
+                    "value_repr": "'Use Checkpoint VAE'",
+                    "visible": true
+                  }
+                ],
+                "node_class": "SimpleSyrup.SimpleLoadCheckpoint",
+                "node_name": "checkpoint",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "cfg",
+                    "value_repr": "6.5",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "denoise",
+                    "value_repr": "0.2",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "latent_image",
+                    "value_repr": "['vae_encode_options', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "model",
+                    "value_repr": "['mahiro_cfg', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "negative",
+                    "value_repr": "['schedule_encode_prompts', 2]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "positive",
+                    "value_repr": "['schedule_encode_prompts', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "sampler_name",
+                    "value_repr": "'euler_ancestral'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "scheduler",
+                    "value_repr": "'normal'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "seed",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "steps",
+                    "value_repr": "12",
+                    "visible": true
+                  }
+                ],
+                "node_class": "SimpleSyrup.KSamplerExtras",
+                "node_name": "ksampler",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "model",
+                    "value_repr": "['vectorscopecc', 0]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "Mahiro",
+                "node_name": "mahiro_cfg",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "PrimitiveStringMultiline",
+                "node_name": "negative_prompt",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "PrimitiveStringMultiline",
+                "node_name": "positive_prompt",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "encode_style",
+                    "value_repr": "'A1111'",
+                    "visible": true
+                  }
+                ],
+                "node_class": "SimpleSyrup.PromptEncodeStyle",
+                "node_name": "prompt_encode_style",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "clip_in",
+                    "value_repr": "['checkpoint', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "model_in",
+                    "value_repr": "['checkpoint', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "negative_prompt",
+                    "value_repr": "['negative_prompt', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "positive_prompt",
+                    "value_repr": "['positive_prompt', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "prompt_prefix",
+                    "value_repr": "['prompt_encode_style', 0]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "bc2b2877-06d7-4b9f-881a-9263df411f13",
+                "node_name": "schedule_encode_prompts",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "image",
+                    "value_repr": "['@binding', 'input.value']",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "model_name",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "sampling",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "value",
+                    "value_repr": "None",
+                    "visible": true
+                  }
+                ],
+                "node_class": "8a36fa26-de83-4e4f-a89f-0e5f545f3c0f",
+                "node_name": "upscale_by_factor",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "overlap",
+                    "value_repr": "64",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "samples",
+                    "value_repr": "['ksampler', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "temporal_overlap",
+                    "value_repr": "8",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "temporal_size",
+                    "value_repr": "64",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "tile_size",
+                    "value_repr": "512",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "use_tiling",
+                    "value_repr": "False",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vae",
+                    "value_repr": "['checkpoint', 2]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "SimpleSyrup.VAEDecodeOptions",
+                "node_name": "vae_decode_options",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "overlap",
+                    "value_repr": "64",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "pixels",
+                    "value_repr": "['upscale_by_factor', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "temporal_overlap",
+                    "value_repr": "8",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "temporal_size",
+                    "value_repr": "64",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "tile_size",
+                    "value_repr": "512",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "use_tiling",
+                    "value_repr": "False",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vae",
+                    "value_repr": "['checkpoint', 2]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "SimpleSyrup.VAEEncodeOptions",
+                "node_name": "vae_encode_options",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "alt",
+                    "value_repr": "True",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "b",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "brightness",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "contrast",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "g",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "method",
+                    "value_repr": "'Straight Abs.'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "model",
+                    "value_repr": "['schedule_encode_prompts', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "r",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "saturation",
+                    "value_repr": "1",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "scaling",
+                    "value_repr": "'Flat'",
+                    "visible": true
+                  }
+                ],
+                "node_class": "VectorscopeCC",
+                "node_name": "vectorscopecc",
+                "visible": true
+              }
+            ],
+            "version": "2.0.0"
+          },
+          {
+            "alias": "Cube 3: SDXL/Automask Detailer",
+            "cube_id": "Artificial-Sweetener/Base-Cubes/SDXL/Automask Detailer.cube",
+            "node_cards": [
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "ckpt_name",
+                    "value_repr": "''",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "clip_skip",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vae_name",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "SimpleSyrup.SimpleLoadCheckpoint",
+                "node_name": "checkpoint",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "clamp_size",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "confidence_threshold",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "crop_factor",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "image",
+                    "value_repr": "['@binding', 'input.value']",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "model",
+                    "value_repr": "['mahiro_cfg', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "model_name",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "negative",
+                    "value_repr": "['schedule_encode_prompts', 2]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "positive",
+                    "value_repr": "['schedule_encode_prompts', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "post_dilation",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "scale_factor",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "seed",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "size_threshold",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "sort_order",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vae",
+                    "value_repr": "['checkpoint', 2]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "777c9bdf-a67c-4475-b84a-1c6c7b7c90bc",
+                "node_name": "detailer",
+                "visible": false
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "model",
+                    "value_repr": "['vectorscopecc', 0]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "Mahiro",
+                "node_name": "mahiro_cfg",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "PrimitiveStringMultiline",
+                "node_name": "negative_prompt",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "PrimitiveStringMultiline",
+                "node_name": "positive_prompt",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "encode_style",
+                    "value_repr": "'A1111'",
+                    "visible": true
+                  }
+                ],
+                "node_class": "SimpleSyrup.PromptEncodeStyle",
+                "node_name": "prompt_encode_style",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "clip_in",
+                    "value_repr": "['checkpoint', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "model_in",
+                    "value_repr": "['checkpoint', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "negative_prompt",
+                    "value_repr": "['negative_prompt', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "positive_prompt",
+                    "value_repr": "['positive_prompt', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "prompt_prefix",
+                    "value_repr": "['prompt_encode_style', 0]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "53f09d1e-0364-4cb3-b5e7-535f63d1323f",
+                "node_name": "schedule_encode_prompts",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "alt",
+                    "value_repr": "True",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "b",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "brightness",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "contrast",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "g",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "method",
+                    "value_repr": "'Straight Abs.'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "model",
+                    "value_repr": "['schedule_encode_prompts', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "r",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "saturation",
+                    "value_repr": "1",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "scaling",
+                    "value_repr": "'Flat'",
+                    "visible": true
+                  }
+                ],
+                "node_class": "VectorscopeCC",
+                "node_name": "vectorscopecc",
+                "visible": true
+              }
+            ],
+            "version": "1.0.0"
+          }
+        ],
+        "parent_chain_violations": [],
+        "workflow_id": "workflow_sdxl_baseline"
+      },
+      "counters": {
+        "behavior.build_snapshot.calls": 2,
+        "cube.begin_build_cube_widget.calls": 3,
+        "cube.build_step.calls": 28,
+        "node_card.build.calls": 28,
+        "override.apply_global_overrides.calls": 1,
+        "override.apply_without_snapshot_fallback.calls": 1,
+        "override.materialize_default_overrides.calls": 1,
+        "override.rebuild_active_override_controls.calls": 1,
+        "override.rebuild_override_menu.calls": 1,
+        "override.sync_state_from_workflow.calls": 1,
+        "parenting.violations": 0,
+        "projection.build_ordered_widgets.calls": 1,
+        "projection.load_all_cubes.calls": 1,
+        "projection.prepare_projection.calls": 1,
+        "projection.refresh_visibility.calls": 1,
+        "projection.repopulate_layout.calls": 2,
+        "projection.reveal_projected_cube_builds.calls": 1,
+        "projection.schedule_projected_cube_builds.calls": 1,
+        "shell.apply_generation_action_availability.calls": 1,
+        "shell.begin_editor_busy.calls": 1,
+        "shell.end_editor_busy.calls": 1,
+        "shell.projection_complete.calls": 1,
+        "shell.refresh_input_canvas_availability.calls": 1
+      },
+      "events": [
+        {
+          "at_ms": 12.357,
+          "details": {
+            "widget_count": 14
+          },
+          "name": "production_trace.start"
+        },
+        {
+          "at_ms": 12.637,
+          "name": "override.sync_state_from_workflow"
+        },
+        {
+          "at_ms": 12.703,
+          "name": "override.apply_without_snapshot_fallback"
+        },
+        {
+          "at_ms": 136.936,
+          "details": {
+            "callsite": "workflow_link_reconciliation_service.py:_populate_combined_indexes:116",
+            "cube_count": 3,
+            "node_search_text": "",
+            "override_hidden_field_key_count": 0,
+            "search_hidden_key_count": 0,
+            "search_matching_node_count": 0,
+            "stack_order_count": 3,
+            "workflow_override_count": 0
+          },
+          "duration_ms": 13.126,
+          "name": "production.behavior.build_snapshot"
+        },
+        {
+          "at_ms": 154.385,
+          "details": {
+            "callsite": "editor_panel_view.py:_build_behavior_snapshot:2064",
+            "cube_count": 3,
+            "node_search_text": "",
+            "override_hidden_field_key_count": 0,
+            "search_hidden_key_count": 0,
+            "search_matching_node_count": 0,
+            "stack_order_count": 3,
+            "workflow_override_count": 0
+          },
+          "duration_ms": 12.27,
+          "name": "production.behavior.build_snapshot"
+        },
+        {
+          "at_ms": 13.082,
+          "duration_ms": 153.727,
+          "name": "production.editor.prepare_projection"
+        },
+        {
+          "at_ms": 170.821,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image"
+          },
+          "duration_ms": 16.688,
+          "name": "production.cube.begin_build_cube_widget"
+        },
+        {
+          "at_ms": 188.085,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale"
+          },
+          "duration_ms": 9.086,
+          "name": "production.cube.begin_build_cube_widget"
+        },
+        {
+          "at_ms": 197.806,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer"
+          },
+          "duration_ms": 9.892,
+          "name": "production.cube.begin_build_cube_widget"
+        },
+        {
+          "at_ms": 170.804,
+          "duration_ms": 37.489,
+          "name": "production.editor.build_ordered_widgets"
+        },
+        {
+          "at_ms": 208.321,
+          "details": {
+            "ordered_widgets": 0
+          },
+          "duration_ms": 0.127,
+          "name": "production.editor.repopulate_layout"
+        },
+        {
+          "at_ms": 208.59,
+          "name": "shell.begin_editor_busy"
+        },
+        {
+          "at_ms": 208.611,
+          "details": {
+            "message": "Loading",
+            "workflow_id": "workflow_sdxl_baseline"
+          },
+          "name": "shell.begin_editor_busy.details"
+        },
+        {
+          "at_ms": 208.707,
+          "details": {
+            "projected_builds": 3
+          },
+          "duration_ms": 0.009,
+          "name": "production.editor.schedule_projected_cube_builds"
+        },
+        {
+          "at_ms": 12.934,
+          "details": {
+            "cube_entries": 3
+          },
+          "duration_ms": 195.79,
+          "name": "production.editor.load_all_cubes"
+        },
+        {
+          "at_ms": 211.217,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "positive_prompt"
+          },
+          "duration_ms": 26.926,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 211.091,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 0
+          },
+          "duration_ms": 33.883,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 249.045,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "negative_prompt"
+          },
+          "duration_ms": 29.848,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 248.924,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 1
+          },
+          "duration_ms": 37.707,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 289.734,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 3,
+            "node_class": "SimpleSyrup.SimpleLoadCheckpoint",
+            "node_name": "checkpoint"
+          },
+          "duration_ms": 49.282,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 289.624,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 2
+          },
+          "duration_ms": 54.776,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 350.49,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 1,
+            "node_class": "SimpleSyrup.PromptEncodeStyle",
+            "node_name": "prompt_encode_style"
+          },
+          "duration_ms": 20.453,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 350.38,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 3
+          },
+          "duration_ms": 25.388,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 379.142,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 5,
+            "node_class": "94f725d5-39bf-4060-be68-f573214a2055",
+            "node_name": "schedule_encode_prompts"
+          },
+          "duration_ms": 5.438,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 379.02,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 4
+          },
+          "duration_ms": 7.354,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 387.122,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 10,
+            "node_class": "VectorscopeCC",
+            "node_name": "vectorscopecc"
+          },
+          "duration_ms": 106.765,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 387.012,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 5
+          },
+          "duration_ms": 120.729,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 530.103,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 1,
+            "node_class": "Mahiro",
+            "node_name": "mahiro_cfg"
+          },
+          "duration_ms": 5.549,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 529.988,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 6
+          },
+          "duration_ms": 7.578,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 538.438,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 11,
+            "node_class": "244188e0-95d8-45d9-9beb-adafccf862d6",
+            "node_name": "ksampler"
+          },
+          "duration_ms": 87.14,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 538.318,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 7
+          },
+          "duration_ms": 100.796,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 669.704,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "field_count": 2,
+            "node_class": "VAEDecode",
+            "node_name": "vae_decode"
+          },
+          "duration_ms": 2.021,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 669.553,
+          "details": {
+            "cube_alias": "Cube 1: SDXL/Text to Image",
+            "next_index": 8
+          },
+          "duration_ms": 2.579,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 675.216,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "positive_prompt"
+          },
+          "duration_ms": 37.302,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 674.91,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 0
+          },
+          "duration_ms": 43.984,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 722.446,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "negative_prompt"
+          },
+          "duration_ms": 32.459,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 722.318,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 1
+          },
+          "duration_ms": 38.487,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 763.84,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 3,
+            "node_class": "SimpleSyrup.SimpleLoadCheckpoint",
+            "node_name": "checkpoint"
+          },
+          "duration_ms": 79.061,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 763.701,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 2
+          },
+          "duration_ms": 92.431,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 867.23,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 1,
+            "node_class": "SimpleSyrup.PromptEncodeStyle",
+            "node_name": "prompt_encode_style"
+          },
+          "duration_ms": 28.198,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 867.059,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 3
+          },
+          "duration_ms": 34.214,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 905.352,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 4,
+            "node_class": "8a36fa26-de83-4e4f-a89f-0e5f545f3c0f",
+            "node_name": "upscale_by_factor"
+          },
+          "duration_ms": 44.752,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 905.141,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 4
+          },
+          "duration_ms": 53.513,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 968.37,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 5,
+            "node_class": "bc2b2877-06d7-4b9f-881a-9263df411f13",
+            "node_name": "schedule_encode_prompts"
+          },
+          "duration_ms": 11.044,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 968.198,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 5
+          },
+          "duration_ms": 14.259,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 983.556,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 7,
+            "node_class": "SimpleSyrup.VAEEncodeOptions",
+            "node_name": "vae_encode_options"
+          },
+          "duration_ms": 26.881,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 983.421,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 6
+          },
+          "duration_ms": 32.703,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1029.852,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 10,
+            "node_class": "VectorscopeCC",
+            "node_name": "vectorscopecc"
+          },
+          "duration_ms": 97.174,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1029.649,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 7
+          },
+          "duration_ms": 124.303,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1213.273,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 1,
+            "node_class": "Mahiro",
+            "node_name": "mahiro_cfg"
+          },
+          "duration_ms": 6.751,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1213.077,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 8
+          },
+          "duration_ms": 11.035,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1224.967,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 10,
+            "node_class": "SimpleSyrup.KSamplerExtras",
+            "node_name": "ksampler"
+          },
+          "duration_ms": 91.527,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1224.828,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 9
+          },
+          "duration_ms": 108.566,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1378.417,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "field_count": 7,
+            "node_class": "SimpleSyrup.VAEDecodeOptions",
+            "node_name": "vae_decode_options"
+          },
+          "duration_ms": 27.388,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1378.257,
+          "details": {
+            "cube_alias": "Cube 2: SDXL/Diffusion Upscale",
+            "next_index": 10
+          },
+          "duration_ms": 33.574,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1446.743,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "positive_prompt"
+          },
+          "duration_ms": 58.143,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1446.492,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 0
+          },
+          "duration_ms": 67.178,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1516.705,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "negative_prompt"
+          },
+          "duration_ms": 43.325,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1516.55,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 1
+          },
+          "duration_ms": 51.207,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1572.294,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 3,
+            "node_class": "SimpleSyrup.SimpleLoadCheckpoint",
+            "node_name": "checkpoint"
+          },
+          "duration_ms": 125.62,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1572.08,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 2
+          },
+          "duration_ms": 142.931,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1726.85,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 1,
+            "node_class": "SimpleSyrup.PromptEncodeStyle",
+            "node_name": "prompt_encode_style"
+          },
+          "duration_ms": 27.641,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1726.671,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 3
+          },
+          "duration_ms": 36.1,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1766.77,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 5,
+            "node_class": "53f09d1e-0364-4cb3-b5e7-535f63d1323f",
+            "node_name": "schedule_encode_prompts"
+          },
+          "duration_ms": 12.096,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1766.595,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 4
+          },
+          "duration_ms": 15.111,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1784.216,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 10,
+            "node_class": "VectorscopeCC",
+            "node_name": "vectorscopecc"
+          },
+          "duration_ms": 105.13,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1783.784,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 5
+          },
+          "duration_ms": 126.077,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1940.897,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 1,
+            "node_class": "Mahiro",
+            "node_name": "mahiro_cfg"
+          },
+          "duration_ms": 13.369,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1940.703,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 6
+          },
+          "duration_ms": 19.319,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1960.984,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "field_count": 23,
+            "node_class": "777c9bdf-a67c-4475-b84a-1c6c7b7c90bc",
+            "node_name": "detailer"
+          },
+          "duration_ms": 134.289,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1960.805,
+          "details": {
+            "cube_alias": "Cube 3: SDXL/Automask Detailer",
+            "next_index": 7
+          },
+          "duration_ms": 134.965,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 2102.736,
+          "details": {
+            "ordered_widgets": 3
+          },
+          "duration_ms": 221.639,
+          "name": "production.editor.repopulate_layout"
+        },
+        {
+          "at_ms": 2101.314,
+          "details": {
+            "projected_builds": 3
+          },
+          "duration_ms": 249.477,
+          "name": "production.editor.reveal_projected_cube_builds"
+        },
+        {
+          "at_ms": 2366.008,
+          "duration_ms": 23.609,
+          "name": "production.editor.refresh_visibility"
+        },
+        {
+          "at_ms": 2389.852,
+          "name": "override.materialize_default_overrides"
+        },
+        {
+          "at_ms": 2389.884,
+          "details": {
+            "use_cached_behavior_snapshot": true
+          },
+          "name": "override.apply_global_overrides"
+        },
+        {
+          "at_ms": 2390.096,
+          "name": "shell.refresh_input_canvas_availability"
+        },
+        {
+          "at_ms": 2390.105,
+          "name": "shell.apply_generation_action_availability"
+        },
+        {
+          "at_ms": 2390.205,
+          "name": "shell.projection_complete"
+        },
+        {
+          "at_ms": 2390.246,
+          "name": "shell.end_editor_busy"
+        },
+        {
+          "at_ms": 2390.248,
+          "details": {
+            "token": "'busy:workflow_sdxl_baseline:Loading'"
+          },
+          "name": "shell.end_editor_busy.details"
+        },
+        {
+          "at_ms": 12.391,
+          "details": {
+            "workflow_id": "workflow_sdxl_baseline"
+          },
+          "duration_ms": 2378.444,
+          "name": "production.total_elapsed_ms"
+        },
+        {
+          "at_ms": 2393.143,
+          "name": "override.rebuild_override_menu"
+        },
+        {
+          "at_ms": 2393.15,
+          "name": "override.rebuild_active_override_controls"
+        },
+        {
+          "at_ms": 2395.433,
+          "details": {
+            "projection_complete": true,
+            "widget_count": 1630,
+            "widget_delta": 1616
+          },
+          "name": "production_trace.end"
+        }
+      ],
+      "expected_signature_hash": "sha256:d6b2227a04465fa68bc388be573da8d9df54a3186b599f49cb18ddf307796524",
+      "iteration": 1,
+      "mismatches": [],
+      "override_action_log": [
+        "begin_editor_busy",
+        "refresh_input_canvas_availability",
+        "apply_generation_action_availability",
+        "projection_complete",
+        "end_editor_busy"
+      ],
+      "parent_chain_violations": [],
+      "projection_completed": true,
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:d6b2227a04465fa68bc388be573da8d9df54a3186b599f49cb18ddf307796524",
+      "signature_matched": true,
+      "timings_ms": {
+        "production.behavior.build_snapshot": 25.396,
+        "production.cube.begin_build_cube_widget": 35.666,
+        "production.cube.build_step": 1570.747,
+        "production.editor.build_ordered_widgets": 37.489,
+        "production.editor.load_all_cubes": 195.79,
+        "production.editor.prepare_projection": 153.727,
+        "production.editor.refresh_visibility": 23.609,
+        "production.editor.repopulate_layout": 221.766,
+        "production.editor.reveal_projected_cube_builds": 249.477,
+        "production.editor.schedule_projected_cube_builds": 0.009,
+        "production.node_card.build_node_card": 1335.572,
+        "production.total_elapsed_ms": 2378.444
+      },
+      "widget_count_after": 1630,
+      "widget_count_before": 14
+    },
+    {
+      "actual_signature": {
+        "cube_sections": [
+          {
+            "alias": "Cube 1: Anima/Text to Image",
+            "cube_id": "Artificial-Sweetener/Base-Cubes/Anima/Text to Image.cube",
+            "node_cards": [
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "batch_size",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "cfg",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "height",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "model",
+                    "value_repr": "['schedule_encode_prompts', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "negative",
+                    "value_repr": "['schedule_encode_prompts', 2]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "positive",
+                    "value_repr": "['schedule_encode_prompts', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "sampler_name",
+                    "value_repr": "'euler'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "scheduler",
+                    "value_repr": "'simple'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "seed",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "steps",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "width",
+                    "value_repr": "None",
+                    "visible": true
+                  }
+                ],
+                "node_class": "a7912a69-e920-4176-8693-3dece4a023b7",
+                "node_name": "ksampler",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "diffusion_model",
+                    "value_repr": "'Anima\\\\animaOfficial_preview3Base.safetensors'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "diffusion_weight_dtype",
+                    "value_repr": "'default'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "text_encoder",
+                    "value_repr": "'auto'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "text_encoder_device",
+                    "value_repr": "'default'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vae",
+                    "value_repr": "'auto'",
+                    "visible": true
+                  }
+                ],
+                "node_class": "SimpleSyrup.SimpleLoadAnima",
+                "node_name": "models",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "PrimitiveStringMultiline",
+                "node_name": "negative_prompt",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "PrimitiveStringMultiline",
+                "node_name": "positive_prompt",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "clip_in",
+                    "value_repr": "['models', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "model_in",
+                    "value_repr": "['models', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "negative_prompt",
+                    "value_repr": "['negative_prompt', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "positive_prompt",
+                    "value_repr": "['positive_prompt', 0]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "56f0b6c6-a5d8-4265-be48-ccd7d3b2667c",
+                "node_name": "schedule_encode_prompts",
+                "visible": false
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "samples",
+                    "value_repr": "['ksampler', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "vae",
+                    "value_repr": "['models', 2]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "VAEDecode",
+                "node_name": "vae_decode",
+                "visible": false
+              }
+            ],
+            "version": "1.0.0"
+          },
+          {
+            "alias": "Cube 2: Anima/Diffusion Upscale",
+            "cube_id": "Artificial-Sweetener/Base-Cubes/Anima/Diffusion Upscale.cube",
+            "node_cards": [
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "cfg",
+                    "value_repr": "6",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "denoise",
+                    "value_repr": "0.4",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "diffusion_mode",
+                    "value_repr": "'mixture_of_diffusers'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "latent_image",
+                    "value_repr": "['vae_encode', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "latent_tile_batch_size",
+                    "value_repr": "4",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "latent_tile_height",
+                    "value_repr": "128",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "latent_tile_overlap",
+                    "value_repr": "16",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "latent_tile_width",
+                    "value_repr": "128",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "model",
+                    "value_repr": "['schedule_encode_prompts', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "negative",
+                    "value_repr": "['schedule_encode_prompts', 2]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "positive",
+                    "value_repr": "['schedule_encode_prompts', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "sampler_name",
+                    "value_repr": "'er_sde'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "scheduler",
+                    "value_repr": "'simple'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "seed",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "steps",
+                    "value_repr": "16",
+                    "visible": true
+                  }
+                ],
+                "node_class": "SimpleSyrup.KSamplerTiledDiffusion",
+                "node_name": "ksampler",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "diffusion_model",
+                    "value_repr": "''",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "diffusion_weight_dtype",
+                    "value_repr": "''",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "text_encoder",
+                    "value_repr": "''",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "text_encoder_device",
+                    "value_repr": "''",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vae",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "SimpleSyrup.SimpleLoadAnima",
+                "node_name": "models",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "PrimitiveStringMultiline",
+                "node_name": "negative_prompt",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "PrimitiveStringMultiline",
+                "node_name": "positive_prompt",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "clip_in",
+                    "value_repr": "['models', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "model_in",
+                    "value_repr": "['models', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "negative_prompt",
+                    "value_repr": "['negative_prompt', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "positive_prompt",
+                    "value_repr": "['positive_prompt', 0]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "e7fb9624-421c-4132-8875-3da196d667e2",
+                "node_name": "schedule_encode_prompts",
+                "visible": false
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "image",
+                    "value_repr": "['@binding', 'input.value']",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "model_name",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "sampling",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "value",
+                    "value_repr": "None",
+                    "visible": true
+                  }
+                ],
+                "node_class": "77a3a6f3-813a-47da-b57d-50fcd211cc28",
+                "node_name": "upscale_by_factor",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "overlap",
+                    "value_repr": "64",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "samples",
+                    "value_repr": "['ksampler', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "temporal_overlap",
+                    "value_repr": "8",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "temporal_size",
+                    "value_repr": "64",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "tile_size",
+                    "value_repr": "512",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "use_tiling",
+                    "value_repr": "False",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vae",
+                    "value_repr": "['models', 2]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "SimpleSyrup.VAEDecodeOptions",
+                "node_name": "vae_decode",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "overlap",
+                    "value_repr": "64",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "pixels",
+                    "value_repr": "['upscale_by_factor', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "temporal_overlap",
+                    "value_repr": "8",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "temporal_size",
+                    "value_repr": "64",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "tile_size",
+                    "value_repr": "512",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "use_tiling",
+                    "value_repr": "False",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vae",
+                    "value_repr": "['models', 2]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "SimpleSyrup.VAEEncodeOptions",
+                "node_name": "vae_encode",
+                "visible": true
+              }
+            ],
+            "version": "2.2.0"
+          },
+          {
+            "alias": "Cube 3: Anima/Promptmask Detailer",
+            "cube_id": "Artificial-Sweetener/Base-Cubes/Anima/Promptmask Detailer.cube",
+            "node_cards": [
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "cfg",
+                    "value_repr": "6",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "clamp_size",
+                    "value_repr": "0",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "denoise",
+                    "value_repr": "0.4",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "diffusion_mode",
+                    "value_repr": "'multidiffusion'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "feather",
+                    "value_repr": "5",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "image",
+                    "value_repr": "['@binding', 'input.value']",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "latent_tile_batch_size",
+                    "value_repr": "8",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "latent_tile_height",
+                    "value_repr": "128",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "latent_tile_overlap",
+                    "value_repr": "16",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "latent_tile_width",
+                    "value_repr": "128",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "model",
+                    "value_repr": "['models', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "negative",
+                    "value_repr": "['schedule_encode_prompts', 2]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "noise_mask",
+                    "value_repr": "True",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "noise_mask_feather",
+                    "value_repr": "20",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "positive",
+                    "value_repr": "['schedule_encode_prompts', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "sampler_name",
+                    "value_repr": "'er_sde'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "scale_factor",
+                    "value_repr": "1.5",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "scheduler",
+                    "value_repr": "'simple'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "seed",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "segs",
+                    "value_repr": "['prompt_segs_w_sam', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "steps",
+                    "value_repr": "15",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "tiled_decode",
+                    "value_repr": "False",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "tiled_encode",
+                    "value_repr": "False",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "upscale_method",
+                    "value_repr": "'lanczos'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vae",
+                    "value_repr": "['models', 2]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "SimpleSyrup.DetailSEGSByScaleFactorTiledDiffusion",
+                "node_name": "detailer",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "diffusion_model",
+                    "value_repr": "'Anima\\\\animaOfficial_preview3Base.safetensors'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "diffusion_weight_dtype",
+                    "value_repr": "'default'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "text_encoder",
+                    "value_repr": "'auto'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "text_encoder_device",
+                    "value_repr": "'default'",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vae",
+                    "value_repr": "'auto'",
+                    "visible": true
+                  }
+                ],
+                "node_class": "SimpleSyrup.SimpleLoadAnima",
+                "node_name": "models",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "PrimitiveStringMultiline",
+                "node_name": "negative_prompt",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "''",
+                    "visible": true
+                  }
+                ],
+                "node_class": "PrimitiveStringMultiline",
+                "node_name": "positive_prompt",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "bbox_dilation",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "black_point",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "combine_segs",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "confidence_threshold",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "crop_factor",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "detail_dilate",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "detail_erode",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "detail_method",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "grounding_dino_model",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "image",
+                    "value_repr": "['@binding', 'input.value']",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "mask_dilation",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "mask_refinement_max_size",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "negative_prompt",
+                    "value_repr": "['sam_prompts', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "positive_prompt",
+                    "value_repr": "['sam_prompts', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "refine_mask",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "sam_model",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "size_threshold",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "sort_order",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "text_encoder",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "vitmatte_model",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "white_point",
+                    "value_repr": "None",
+                    "visible": true
+                  }
+                ],
+                "node_class": "9af7cb42-13c8-41c6-a408-3e55a9656d6e",
+                "node_name": "prompt_segs_w_sam",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "value",
+                    "value_repr": "None",
+                    "visible": true
+                  },
+                  {
+                    "field_key": "value_1",
+                    "value_repr": "None",
+                    "visible": true
+                  }
+                ],
+                "node_class": "5d4d6fa7-684c-42c6-a405-f6e7e72a7a9e",
+                "node_name": "sam_prompts",
+                "visible": true
+              },
+              {
+                "enabled": true,
+                "fields": [
+                  {
+                    "field_key": "clip_in",
+                    "value_repr": "['models', 1]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "model_in",
+                    "value_repr": "['models', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "negative_prompt",
+                    "value_repr": "['negative_prompt', 0]",
+                    "visible": false
+                  },
+                  {
+                    "field_key": "positive_prompt",
+                    "value_repr": "['positive_prompt', 0]",
+                    "visible": false
+                  }
+                ],
+                "node_class": "1011dbac-8141-48a1-9781-a5a3822c90e7",
+                "node_name": "schedule_encode_prompts",
+                "visible": false
+              }
+            ],
+            "version": "1.0.0"
+          }
+        ],
+        "parent_chain_violations": [],
+        "workflow_id": "workflow_anima_baseline"
+      },
+      "counters": {
+        "behavior.build_snapshot.calls": 2,
+        "cube.begin_build_cube_widget.calls": 3,
+        "cube.build_step.calls": 21,
+        "node_card.build.calls": 21,
+        "override.apply_global_overrides.calls": 1,
+        "override.apply_without_snapshot_fallback.calls": 1,
+        "override.materialize_default_overrides.calls": 1,
+        "override.rebuild_active_override_controls.calls": 1,
+        "override.rebuild_override_menu.calls": 1,
+        "override.sync_state_from_workflow.calls": 1,
+        "parenting.violations": 0,
+        "projection.build_ordered_widgets.calls": 1,
+        "projection.load_all_cubes.calls": 1,
+        "projection.prepare_projection.calls": 1,
+        "projection.refresh_visibility.calls": 1,
+        "projection.repopulate_layout.calls": 2,
+        "projection.reveal_projected_cube_builds.calls": 1,
+        "projection.schedule_projected_cube_builds.calls": 1,
+        "shell.apply_generation_action_availability.calls": 1,
+        "shell.begin_editor_busy.calls": 1,
+        "shell.end_editor_busy.calls": 1,
+        "shell.projection_complete.calls": 1,
+        "shell.refresh_input_canvas_availability.calls": 1
+      },
+      "events": [
+        {
+          "at_ms": 9.239,
+          "details": {
+            "widget_count": 1644
+          },
+          "name": "production_trace.start"
+        },
+        {
+          "at_ms": 9.549,
+          "name": "override.sync_state_from_workflow"
+        },
+        {
+          "at_ms": 9.673,
+          "name": "override.apply_without_snapshot_fallback"
+        },
+        {
+          "at_ms": 30.361,
+          "details": {
+            "callsite": "workflow_link_reconciliation_service.py:_populate_combined_indexes:116",
+            "cube_count": 3,
+            "node_search_text": "",
+            "override_hidden_field_key_count": 0,
+            "search_hidden_key_count": 0,
+            "search_matching_node_count": 0,
+            "stack_order_count": 3,
+            "workflow_override_count": 0
+          },
+          "duration_ms": 17.362,
+          "name": "production.behavior.build_snapshot"
+        },
+        {
+          "at_ms": 54.411,
+          "details": {
+            "callsite": "editor_panel_view.py:_build_behavior_snapshot:2064",
+            "cube_count": 3,
+            "node_search_text": "",
+            "override_hidden_field_key_count": 0,
+            "search_hidden_key_count": 0,
+            "search_matching_node_count": 0,
+            "stack_order_count": 3,
+            "workflow_override_count": 0
+          },
+          "duration_ms": 12.325,
+          "name": "production.behavior.build_snapshot"
+        },
+        {
+          "at_ms": 10.637,
+          "duration_ms": 56.241,
+          "name": "production.editor.prepare_projection"
+        },
+        {
+          "at_ms": 71.267,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image"
+          },
+          "duration_ms": 11.883,
+          "name": "production.cube.begin_build_cube_widget"
+        },
+        {
+          "at_ms": 83.856,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale"
+          },
+          "duration_ms": 12.143,
+          "name": "production.cube.begin_build_cube_widget"
+        },
+        {
+          "at_ms": 96.817,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer"
+          },
+          "duration_ms": 10.138,
+          "name": "production.cube.begin_build_cube_widget"
+        },
+        {
+          "at_ms": 71.252,
+          "duration_ms": 36.485,
+          "name": "production.editor.build_ordered_widgets"
+        },
+        {
+          "at_ms": 107.77,
+          "details": {
+            "ordered_widgets": 0
+          },
+          "duration_ms": 0.328,
+          "name": "production.editor.repopulate_layout"
+        },
+        {
+          "at_ms": 108.195,
+          "name": "shell.begin_editor_busy"
+        },
+        {
+          "at_ms": 108.197,
+          "details": {
+            "message": "Loading",
+            "workflow_id": "workflow_anima_baseline"
+          },
+          "name": "shell.begin_editor_busy.details"
+        },
+        {
+          "at_ms": 108.256,
+          "details": {
+            "projected_builds": 3
+          },
+          "duration_ms": 0.006,
+          "name": "production.editor.schedule_projected_cube_builds"
+        },
+        {
+          "at_ms": 10.004,
+          "details": {
+            "cube_entries": 3
+          },
+          "duration_ms": 98.265,
+          "name": "production.editor.load_all_cubes"
+        },
+        {
+          "at_ms": 110.701,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "positive_prompt"
+          },
+          "duration_ms": 42.668,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 110.51,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image",
+            "next_index": 0
+          },
+          "duration_ms": 48.767,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 165.419,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "negative_prompt"
+          },
+          "duration_ms": 32.202,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 165.157,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image",
+            "next_index": 1
+          },
+          "duration_ms": 40.943,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 209.553,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image",
+            "field_count": 5,
+            "node_class": "SimpleSyrup.SimpleLoadAnima",
+            "node_name": "models"
+          },
+          "duration_ms": 83.683,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 209.383,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image",
+            "next_index": 2
+          },
+          "duration_ms": 107.254,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 335.639,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image",
+            "field_count": 4,
+            "node_class": "56f0b6c6-a5d8-4265-be48-ccd7d3b2667c",
+            "node_name": "schedule_encode_prompts"
+          },
+          "duration_ms": 2.21,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 335.427,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image",
+            "next_index": 3
+          },
+          "duration_ms": 2.778,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 341.716,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image",
+            "field_count": 11,
+            "node_class": "a7912a69-e920-4176-8693-3dece4a023b7",
+            "node_name": "ksampler"
+          },
+          "duration_ms": 141.188,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 340.852,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image",
+            "next_index": 4
+          },
+          "duration_ms": 168.271,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 558.049,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image",
+            "field_count": 2,
+            "node_class": "VAEDecode",
+            "node_name": "vae_decode"
+          },
+          "duration_ms": 2.795,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 557.828,
+          "details": {
+            "cube_alias": "Cube 1: Anima/Text to Image",
+            "next_index": 5
+          },
+          "duration_ms": 3.982,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 565.089,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "positive_prompt"
+          },
+          "duration_ms": 64.588,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 564.878,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "next_index": 0
+          },
+          "duration_ms": 80.763,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 651.995,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "negative_prompt"
+          },
+          "duration_ms": 56.971,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 651.531,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "next_index": 1
+          },
+          "duration_ms": 68.494,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 725.392,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "field_count": 5,
+            "node_class": "SimpleSyrup.SimpleLoadAnima",
+            "node_name": "models"
+          },
+          "duration_ms": 185.157,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 724.992,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "next_index": 2
+          },
+          "duration_ms": 208.854,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 970.209,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "field_count": 4,
+            "node_class": "77a3a6f3-813a-47da-b57d-50fcd211cc28",
+            "node_name": "upscale_by_factor"
+          },
+          "duration_ms": 104.585,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 969.522,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "next_index": 3
+          },
+          "duration_ms": 125.403,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1112.302,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "field_count": 4,
+            "node_class": "e7fb9624-421c-4132-8875-3da196d667e2",
+            "node_name": "schedule_encode_prompts"
+          },
+          "duration_ms": 6.113,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1111.898,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "next_index": 4
+          },
+          "duration_ms": 7.213,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1121.28,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "field_count": 7,
+            "node_class": "SimpleSyrup.VAEEncodeOptions",
+            "node_name": "vae_encode"
+          },
+          "duration_ms": 47.189,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1120.634,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "next_index": 5
+          },
+          "duration_ms": 56.541,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1212.423,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "field_count": 15,
+            "node_class": "SimpleSyrup.KSamplerTiledDiffusion",
+            "node_name": "ksampler"
+          },
+          "duration_ms": 158.693,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1211.756,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "next_index": 6
+          },
+          "duration_ms": 184.59,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1454.935,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "field_count": 7,
+            "node_class": "SimpleSyrup.VAEDecodeOptions",
+            "node_name": "vae_decode"
+          },
+          "duration_ms": 34.604,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1454.681,
+          "details": {
+            "cube_alias": "Cube 2: Anima/Diffusion Upscale",
+            "next_index": 7
+          },
+          "duration_ms": 47.593,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1550.71,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "positive_prompt"
+          },
+          "duration_ms": 47.096,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1550.087,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "next_index": 0
+          },
+          "duration_ms": 55.809,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1609.424,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "field_count": 1,
+            "node_class": "PrimitiveStringMultiline",
+            "node_name": "negative_prompt"
+          },
+          "duration_ms": 48.296,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1609.094,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "next_index": 1
+          },
+          "duration_ms": 55.98,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1668.543,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "field_count": 5,
+            "node_class": "SimpleSyrup.SimpleLoadAnima",
+            "node_name": "models"
+          },
+          "duration_ms": 109.965,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1668.251,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "next_index": 2
+          },
+          "duration_ms": 127.596,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1806.353,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "field_count": 2,
+            "node_class": "5d4d6fa7-684c-42c6-a405-f6e7e72a7a9e",
+            "node_name": "sam_prompts"
+          },
+          "duration_ms": 21.714,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1806.04,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "next_index": 3
+          },
+          "duration_ms": 30.731,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1844.499,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "field_count": 4,
+            "node_class": "1011dbac-8141-48a1-9781-a5a3822c90e7",
+            "node_name": "schedule_encode_prompts"
+          },
+          "duration_ms": 3.71,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1843.895,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "next_index": 4
+          },
+          "duration_ms": 4.59,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 1852.192,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "field_count": 21,
+            "node_class": "9af7cb42-13c8-41c6-a408-3e55a9656d6e",
+            "node_name": "prompt_segs_w_sam"
+          },
+          "duration_ms": 170.418,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 1851.367,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "next_index": 5
+          },
+          "duration_ms": 196.983,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 2237.467,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "field_count": 25,
+            "node_class": "SimpleSyrup.DetailSEGSByScaleFactorTiledDiffusion",
+            "node_name": "detailer"
+          },
+          "duration_ms": 219.054,
+          "name": "production.node_card.build_node_card"
+        },
+        {
+          "at_ms": 2236.873,
+          "details": {
+            "cube_alias": "Cube 3: Anima/Promptmask Detailer",
+            "next_index": 6
+          },
+          "duration_ms": 273.403,
+          "name": "production.cube.build_step"
+        },
+        {
+          "at_ms": 2752.979,
+          "details": {
+            "ordered_widgets": 3
+          },
+          "duration_ms": 314.085,
+          "name": "production.editor.repopulate_layout"
+        },
+        {
+          "at_ms": 2752.018,
+          "details": {
+            "projected_builds": 3
+          },
+          "duration_ms": 345.412,
+          "name": "production.editor.reveal_projected_cube_builds"
+        },
+        {
+          "at_ms": 3135.369,
+          "duration_ms": 25.663,
+          "name": "production.editor.refresh_visibility"
+        },
+        {
+          "at_ms": 3161.507,
+          "name": "override.materialize_default_overrides"
+        },
+        {
+          "at_ms": 3161.549,
+          "details": {
+            "use_cached_behavior_snapshot": true
+          },
+          "name": "override.apply_global_overrides"
+        },
+        {
+          "at_ms": 3161.63,
+          "name": "shell.refresh_input_canvas_availability"
+        },
+        {
+          "at_ms": 3161.634,
+          "name": "shell.apply_generation_action_availability"
+        },
+        {
+          "at_ms": 3161.725,
+          "name": "shell.projection_complete"
+        },
+        {
+          "at_ms": 3161.743,
+          "name": "shell.end_editor_busy"
+        },
+        {
+          "at_ms": 3161.744,
+          "details": {
+            "token": "'busy:workflow_anima_baseline:Loading'"
+          },
+          "name": "shell.end_editor_busy.details"
+        },
+        {
+          "at_ms": 9.297,
+          "details": {
+            "workflow_id": "workflow_anima_baseline"
+          },
+          "duration_ms": 3152.952,
+          "name": "production.total_elapsed_ms"
+        },
+        {
+          "at_ms": 3191.412,
+          "name": "override.rebuild_override_menu"
+        },
+        {
+          "at_ms": 3191.428,
+          "name": "override.rebuild_active_override_controls"
+        },
+        {
+          "at_ms": 3306.393,
+          "details": {
+            "projection_complete": true,
+            "widget_count": 3402,
+            "widget_delta": 1758
+          },
+          "name": "production_trace.end"
+        }
+      ],
+      "expected_signature_hash": "sha256:a889ef299e86a31c592d0d259507c45eb00d8370c462ad97997c21f31bc8cc74",
+      "iteration": 1,
+      "mismatches": [],
+      "override_action_log": [
+        "begin_editor_busy",
+        "refresh_input_canvas_availability",
+        "apply_generation_action_availability",
+        "projection_complete",
+        "end_editor_busy"
+      ],
+      "parent_chain_violations": [],
+      "projection_completed": true,
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:a889ef299e86a31c592d0d259507c45eb00d8370c462ad97997c21f31bc8cc74",
+      "signature_matched": true,
+      "timings_ms": {
+        "production.behavior.build_snapshot": 29.687,
+        "production.cube.begin_build_cube_widget": 34.164,
+        "production.cube.build_step": 1896.538,
+        "production.editor.build_ordered_widgets": 36.485,
+        "production.editor.load_all_cubes": 98.265,
+        "production.editor.prepare_projection": 56.241,
+        "production.editor.refresh_visibility": 25.663,
+        "production.editor.repopulate_layout": 314.413,
+        "production.editor.reveal_projected_cube_builds": 345.412,
+        "production.editor.schedule_projected_cube_builds": 0.006,
+        "production.node_card.build_node_card": 1582.899,
+        "production.total_elapsed_ms": 3152.952
+      },
+      "widget_count_after": 3402,
+      "widget_count_before": 1644
+    }
+  ],
+  "iterations": 1,
+  "mode": "production_trace",
+  "scenario_ids": [
+    "workflow_sdxl_baseline",
+    "workflow_anima_baseline"
+  ],
+  "schema_version": 1
+}

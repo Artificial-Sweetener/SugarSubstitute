@@ -1,0 +1,10 @@
+Qt Development logo trademark notice
+
+Source: https://www.qt.io/brand/development/logo
+Trademark guidance: https://www.qt.io/trademark/
+
+SugarSubstitute vendors the unmodified Qt Development logo mark only for factual
+identification of the PySide6 dependency and link target in the About page.
+
+Qt is a registered trademark of The Qt Company Ltd. and its subsidiaries.
+All other trademarks are the property of their respective owners.

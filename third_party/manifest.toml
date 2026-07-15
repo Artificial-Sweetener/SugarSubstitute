@@ -1,0 +1,175 @@
+[[component]]
+name = "Microsoft Fluent UI System Icons"
+license = "MIT"
+license_file = "third_party/licenses/fluentui-system-icons.LICENSE.txt"
+source = "https://github.com/microsoft/fluentui-system-icons"
+revision = "a6931cf6ad3541975b132762c8cad67b2f54fd7a"
+vendored_files = [
+  "substitute/presentation/resources/icons/ArrowDownload20Regular_black.svg",
+  "substitute/presentation/resources/icons/ArrowDownload20Regular_white.svg",
+  "substitute/presentation/resources/icons/BrainCircuit20Regular_black.svg",
+  "substitute/presentation/resources/icons/BrainCircuit20Regular_white.svg",
+  "substitute/presentation/resources/icons/BookArrowClockwise20Regular_black.svg",
+  "substitute/presentation/resources/icons/BookArrowClockwise20Regular_white.svg",
+  "substitute/presentation/resources/icons/BookSearch20Regular_black.svg",
+  "substitute/presentation/resources/icons/BookSearch20Regular_white.svg",
+  "substitute/presentation/resources/icons/BoxSearch20Regular_black.svg",
+  "substitute/presentation/resources/icons/BoxSearch20Regular_white.svg",
+  "substitute/presentation/resources/icons/BracesVariable20Regular_black.svg",
+  "substitute/presentation/resources/icons/BracesVariable20Regular_white.svg",
+  "substitute/presentation/resources/icons/Broom20Regular_black.svg",
+  "substitute/presentation/resources/icons/Broom20Regular_white.svg",
+  "substitute/presentation/resources/icons/Certificate20Regular_black.svg",
+  "substitute/presentation/resources/icons/Certificate20Regular_white.svg",
+  "substitute/presentation/resources/icons/Cube20Filled_black.svg",
+  "substitute/presentation/resources/icons/Cube20Filled_white.svg",
+  "substitute/presentation/resources/icons/CubeMultiple20Regular_black.svg",
+  "substitute/presentation/resources/icons/CubeMultiple20Regular_white.svg",
+  "substitute/presentation/resources/icons/CursorHover20Regular_black.svg",
+  "substitute/presentation/resources/icons/CursorHover20Regular_white.svg",
+  "substitute/presentation/resources/icons/DatabaseSearch20Regular_black.svg",
+  "substitute/presentation/resources/icons/DatabaseSearch20Regular_white.svg",
+  "substitute/presentation/resources/icons/DocumentText20Regular_black.svg",
+  "substitute/presentation/resources/icons/DocumentText20Regular_white.svg",
+  "substitute/presentation/resources/icons/Eraser20Regular_black.svg",
+  "substitute/presentation/resources/icons/Eraser20Regular_white.svg",
+  "substitute/presentation/resources/icons/FolderOpen20Regular_black.svg",
+  "substitute/presentation/resources/icons/FolderOpen20Regular_white.svg",
+  "substitute/presentation/resources/icons/GlobeDesktop20Regular_black.svg",
+  "substitute/presentation/resources/icons/GlobeDesktop20Regular_white.svg",
+  "substitute/presentation/resources/icons/Heart20Regular_black.svg",
+  "substitute/presentation/resources/icons/Heart20Regular_white.svg",
+  "substitute/presentation/resources/icons/ImageMultiple20Regular_black.svg",
+  "substitute/presentation/resources/icons/ImageMultiple20Regular_white.svg",
+  "substitute/presentation/resources/icons/ImageSparkle20Regular_black.svg",
+  "substitute/presentation/resources/icons/ImageSparkle20Regular_white.svg",
+  "substitute/presentation/resources/icons/Key20Regular_black.svg",
+  "substitute/presentation/resources/icons/Key20Regular_white.svg",
+  "substitute/presentation/resources/icons/Library20Regular_black.svg",
+  "substitute/presentation/resources/icons/Library20Regular_white.svg",
+  "substitute/presentation/resources/icons/LinkAdd20Regular_black.svg",
+  "substitute/presentation/resources/icons/LinkAdd20Regular_white.svg",
+  "substitute/presentation/resources/icons/LinkEdit20Regular_black.svg",
+  "substitute/presentation/resources/icons/LinkEdit20Regular_white.svg",
+  "substitute/presentation/resources/icons/Next24Filled_black.svg",
+  "substitute/presentation/resources/icons/Next24Filled_white.svg",
+  "substitute/presentation/resources/icons/PanelLeft20Filled_black.svg",
+  "substitute/presentation/resources/icons/PanelLeft20Filled_white.svg",
+  "substitute/presentation/resources/icons/PanelLeft20Regular_black.svg",
+  "substitute/presentation/resources/icons/PanelLeft20Regular_white.svg",
+  "substitute/presentation/resources/icons/PanelRight20Filled_black.svg",
+  "substitute/presentation/resources/icons/PanelRight20Filled_white.svg",
+  "substitute/presentation/resources/icons/PanelRight20Regular_black.svg",
+  "substitute/presentation/resources/icons/PanelRight20Regular_white.svg",
+  "substitute/presentation/resources/icons/PanelRightCursor20Regular_black.svg",
+  "substitute/presentation/resources/icons/PanelRightCursor20Regular_white.svg",
+  "substitute/presentation/resources/icons/PlugConnectedCheckmark20Regular_black.svg",
+  "substitute/presentation/resources/icons/PlugConnectedCheckmark20Regular_white.svg",
+  "substitute/presentation/resources/icons/PlugConnectedSettings20Regular_black.svg",
+  "substitute/presentation/resources/icons/PlugConnectedSettings20Regular_white.svg",
+  "substitute/presentation/resources/icons/RatingMature20Regular_black.svg",
+  "substitute/presentation/resources/icons/RatingMature20Regular_white.svg",
+  "substitute/presentation/resources/icons/Reorder20Regular_black.svg",
+  "substitute/presentation/resources/icons/Reorder20Regular_white.svg",
+  "substitute/presentation/resources/icons/SaveImage20Regular_black.svg",
+  "substitute/presentation/resources/icons/SaveImage20Regular_white.svg",
+  "substitute/presentation/resources/icons/Server20Regular_black.svg",
+  "substitute/presentation/resources/icons/Server20Regular_white.svg",
+  "substitute/presentation/resources/icons/ShieldCheckmark20Regular_black.svg",
+  "substitute/presentation/resources/icons/ShieldCheckmark20Regular_white.svg",
+  "substitute/presentation/resources/icons/Star20Regular_black.svg",
+  "substitute/presentation/resources/icons/Star20Regular_white.svg",
+  "substitute/presentation/resources/icons/StopSolid_black.svg",
+  "substitute/presentation/resources/icons/StopSolid_white.svg",
+  "substitute/presentation/resources/icons/TagMultiple20Regular_black.svg",
+  "substitute/presentation/resources/icons/TagMultiple20Regular_white.svg",
+  "substitute/presentation/resources/icons/TagSearch20Regular_black.svg",
+  "substitute/presentation/resources/icons/TagSearch20Regular_white.svg",
+  "substitute/presentation/resources/icons/TextAsterisk20Regular_black.svg",
+  "substitute/presentation/resources/icons/TextAsterisk20Regular_white.svg",
+  "substitute/presentation/resources/icons/TextBulletListSquareSparkle20Regular_black.svg",
+  "substitute/presentation/resources/icons/TextBulletListSquareSparkle20Regular_white.svg",
+  "substitute/presentation/resources/icons/TextBulletListSquareWarning20Regular_black.svg",
+  "substitute/presentation/resources/icons/TextBulletListSquareWarning20Regular_white.svg",
+  "substitute/presentation/resources/icons/TextEffectsSparkle20Regular_black.svg",
+  "substitute/presentation/resources/icons/TextEffectsSparkle20Regular_white.svg",
+  "substitute/presentation/resources/icons/TextField20Regular_black.svg",
+  "substitute/presentation/resources/icons/TextField20Regular_white.svg",
+  "substitute/presentation/resources/icons/TextGrammarCheckmark20Regular_black.svg",
+  "substitute/presentation/resources/icons/TextGrammarCheckmark20Regular_white.svg",
+  "substitute/presentation/resources/icons/Toolbox20Regular_black.svg",
+  "substitute/presentation/resources/icons/Toolbox20Regular_white.svg",
+  "substitute/presentation/resources/icons/Wand20Regular_black.svg",
+  "substitute/presentation/resources/icons/Wand20Regular_white.svg",
+  "substitute/presentation/resources/icons/WindowConsole20Filled_black.svg",
+  "substitute/presentation/resources/icons/WindowConsole20Filled_white.svg",
+]
+
+[[component]]
+name = "Microsoft Fluent UI Emoji"
+license = "MIT"
+license_file = "third_party/licenses/fluentui-emoji.LICENSE.txt"
+source = "https://github.com/microsoft/fluentui-emoji"
+revision = "62ecdc0d7ca5c6df32148c169556bc8d3782fca4"
+source_paths = [
+  "assets/Game die/High Contrast/game_die_high_contrast.svg",
+  "assets/Infinity/High Contrast/infinity_high_contrast.svg",
+  "assets/Locked/High Contrast/locked_high_contrast.svg",
+]
+vendored_files = [
+  "substitute/presentation/resources/icons/GameDieHighContrast_black.svg",
+  "substitute/presentation/resources/icons/GameDieHighContrast_white.svg",
+  "substitute/presentation/resources/icons/InfinityHighContrast_black.svg",
+  "substitute/presentation/resources/icons/InfinityHighContrast_white.svg",
+  "substitute/presentation/resources/icons/LockedHighContrast_black.svg",
+  "substitute/presentation/resources/icons/LockedHighContrast_white.svg",
+]
+
+[[component]]
+name = "Qt Development Logo"
+license = "Qt Trademark Usage Guidelines"
+license_file = "third_party/licenses/qt-trademark-guidelines.NOTICE.txt"
+source = "https://www.qt.io/brand/development/logo"
+source_paths = [
+  "https://www.qt.io/hs-fs/hubfs/Qt-logo-neon_900px.png?width=150&height=107&name=Qt-logo-neon_900px.png",
+]
+vendored_files = [
+  "substitute/presentation/resources/icons/QtLogoNeon.png",
+]
+
+[[component]]
+name = "Font Awesome Free Brand Icons"
+license = "CC BY 4.0"
+license_file = "third_party/licenses/font-awesome-free.LICENSE.txt"
+source = "https://github.com/FortAwesome/Font-Awesome"
+revision = "2a840f82d5b82fc95226a1621cbf3d2ba789115e"
+source_paths = [
+  "svgs/brands/windows.svg",
+  "svgs/brands/apple.svg",
+  "svgs/brands/linux.svg",
+]
+vendored_files = [
+  "docs/release/platforms/windows.svg",
+  "docs/release/platforms/apple.svg",
+  "docs/release/platforms/linux.svg",
+]
+
+[[component]]
+name = "7-Zip native command-line binaries"
+license = "LGPL-2.1-or-later with bundled BSD and unRAR terms; 7zip-bin wrapper MIT"
+license_file = "third_party/licenses/7zip.LICENSE.txt"
+additional_license_files = [
+  "third_party/licenses/7zip-bin.LICENSE.txt",
+]
+source = "https://github.com/develar/7zip-bin"
+revision = "v5.2.0"
+source_paths = [
+  "win/x64/7za.exe",
+  "linux/x64/7za",
+  "mac/arm64/7za",
+]
+vendored_files = [
+  "third_party/bin/7zip/windows-x64/7za.exe",
+  "third_party/bin/7zip/linux-x64/7za",
+  "third_party/bin/7zip/macos-arm64/7za",
+]

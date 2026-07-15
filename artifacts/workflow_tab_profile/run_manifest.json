@@ -1,0 +1,34 @@
+{
+  "generated_session_path": "artifacts\\workflow_tab_profile\\generated_session",
+  "launch_command": ".\\.venv\\Scripts\\python.exe main.py",
+  "switch_sequence": [
+    "wf-a",
+    "wf-b",
+    "wf-c",
+    "wf-a",
+    "wf-c",
+    "wf-b"
+  ],
+  "validation_steps": [
+    "Open the generated profile session.",
+    "Switch wf-a -> wf-b -> wf-c -> wf-a -> wf-c -> wf-b.",
+    "Confirm editor, cube stack, input canvas, and output canvas track the selected workflow.",
+    "Inspect DEBUG route timing and INFO log count."
+  ],
+  "observed_route_ms": [
+    0.054600066505372524,
+    0.021900050342082977,
+    0.015500001609325409,
+    0.014399993233382702,
+    0.013299984857439995,
+    0.012200092896819115
+  ],
+  "observed_canvas_ms": [
+    0.0033999094739556313,
+    0.001200009137392044,
+    0.000800006091594696,
+    0.000700005330145359,
+    0.000700005330145359,
+    0.000600004568696022
+  ]
+}

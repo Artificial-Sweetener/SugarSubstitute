@@ -1,0 +1,59 @@
+{
+  "runs": [
+    {
+      "workflow_id": "wf-a",
+      "route_ms": 0.054600066505372524,
+      "canvas_ms": 0.0033999094739556313,
+      "widgets_created": false,
+      "editor_rebuilt": false,
+      "deferred_requests": 0,
+      "info_logs": 0
+    },
+    {
+      "workflow_id": "wf-b",
+      "route_ms": 0.021900050342082977,
+      "canvas_ms": 0.001200009137392044,
+      "widgets_created": false,
+      "editor_rebuilt": false,
+      "deferred_requests": 0,
+      "info_logs": 0
+    },
+    {
+      "workflow_id": "wf-c",
+      "route_ms": 0.015500001609325409,
+      "canvas_ms": 0.000800006091594696,
+      "widgets_created": false,
+      "editor_rebuilt": false,
+      "deferred_requests": 1,
+      "info_logs": 0
+    },
+    {
+      "workflow_id": "wf-a",
+      "route_ms": 0.014399993233382702,
+      "canvas_ms": 0.000700005330145359,
+      "widgets_created": false,
+      "editor_rebuilt": false,
+      "deferred_requests": 0,
+      "info_logs": 0
+    },
+    {
+      "workflow_id": "wf-c",
+      "route_ms": 0.013299984857439995,
+      "canvas_ms": 0.000700005330145359,
+      "widgets_created": false,
+      "editor_rebuilt": false,
+      "deferred_requests": 1,
+      "info_logs": 0
+    },
+    {
+      "workflow_id": "wf-b",
+      "route_ms": 0.012200092896819115,
+      "canvas_ms": 0.000600004568696022,
+      "widgets_created": false,
+      "editor_rebuilt": false,
+      "deferred_requests": 0,
+      "info_logs": 0
+    }
+  ],
+  "workflow_tab_reorder_supported": false
+}

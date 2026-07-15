@@ -1,0 +1,64 @@
+name: native appearance screenshots
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  LINUX_QT_PACKAGES: >-
+    xvfb libegl1 libfontconfig1 libgl1 libxcb-cursor0 libxcb-icccm4
+    libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
+    libxcb-util1 libxcb-xkb1 libxkbcommon-x11-0 libxkbcommon0
+
+jobs:
+  capture:
+    name: Capture ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            os: ubuntu-24.04
+            artifact: linux
+          - name: Windows x64
+            os: windows-latest
+            artifact: windows
+          - name: macOS Apple Silicon
+            os: macos-15
+            artifact: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install Linux Qt runtime dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
+      - name: Install project dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Capture Linux light and dark shells
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a -s "-screen 0 1920x1080x24" python -m tools.ci.capture_native_appearance --install-root "${{ runner.temp }}/substitute-light" --output "build/appearance/${{ matrix.artifact }}-light.png" --theme light
+          xvfb-run -a -s "-screen 0 1920x1080x24" python -m tools.ci.capture_native_appearance --install-root "${{ runner.temp }}/substitute-dark" --output "build/appearance/${{ matrix.artifact }}-dark.png" --theme dark
+      - name: Capture macOS light and dark shells
+        if: runner.os == 'macOS'
+        run: |
+          python -m tools.ci.capture_native_appearance --install-root "${{ runner.temp }}/substitute-light" --output "build/appearance/${{ matrix.artifact }}-light.png" --theme light
+          python -m tools.ci.capture_native_appearance --install-root "${{ runner.temp }}/substitute-dark" --output "build/appearance/${{ matrix.artifact }}-dark.png" --theme dark
+      - name: Capture Windows light and dark shells
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python -m tools.ci.capture_native_appearance --install-root "${{ runner.temp }}\substitute-light" --output "build\appearance\${{ matrix.artifact }}-light.png" --theme light
+          python -m tools.ci.capture_native_appearance --install-root "${{ runner.temp }}\substitute-dark" --output "build\appearance\${{ matrix.artifact }}-dark.png" --theme dark
+      - uses: actions/upload-artifact@v6
+        with:
+          name: native-appearance-${{ matrix.artifact }}
+          path: build/appearance
+          if-no-files-found: error

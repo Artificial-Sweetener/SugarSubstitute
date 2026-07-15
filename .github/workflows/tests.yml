@@ -1,0 +1,35 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  parallel-tests:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Check license headers
+        run: python tools/license_headers.py --check
+      - name: Create venv and install deps
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+          .\.venv\Scripts\python.exe -m pip install pytest pytest-xdist ruff mypy
+      - name: Run parallel suite
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe -m pytest -n auto -q
+      - name: Verify fixed-window installer layout
+        shell: pwsh
+        run: >-
+          .\.venv\Scripts\python.exe -m pytest -q
+          tests/test_onboarding_window_contract.py
+          -k fixed_window_layout_budget

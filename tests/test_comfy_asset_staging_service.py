@@ -1,0 +1,276 @@
+#    SugarSubstitute - The desktop native Qt front-end for ComfyUI
+#    Copyright (C) 2026  Artificial Sweetener and contributors
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Contract tests for generation asset staging and payload rewriting."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import cast
+
+from substitute.application.generation import ComfyAssetStagingService
+from substitute.application.workflows import WorkflowAssetService
+from substitute.domain.common import JsonObject
+from substitute.domain.generation import ComfyStagedAsset
+from substitute.domain.workflow import CubeState, WorkflowState
+
+
+class _FakeStager:
+    """Record staged files and return deterministic Comfy input values."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[Path, str, str]] = []
+
+    def stage_file_for_load_image(
+        self,
+        *,
+        source_path: Path,
+        target_subfolder: str,
+        content_hash: str,
+    ) -> ComfyStagedAsset:
+        self.calls.append((source_path, target_subfolder, content_hash))
+        return ComfyStagedAsset(
+            source_path=source_path,
+            execution_value=f"{target_subfolder}/{source_path.name}",
+            operation="uploaded",
+        )
+
+
+def test_stage_payload_rewrites_load_image_paths_without_mutating_authoring_payload(
+    tmp_path: Path,
+) -> None:
+    """Generation staging should rewrite only the execution payload copy."""
+
+    image_path = tmp_path / "input.png"
+    image_path.write_bytes(b"image")
+    payload: JsonObject = {
+        "1": {
+            "class_type": "LoadImage",
+            "inputs": {"image": str(image_path)},
+        },
+        "2": {
+            "class_type": "KSampler",
+            "inputs": {},
+        },
+    }
+    stager = _FakeStager()
+
+    result = ComfyAssetStagingService(stager=stager).stage_payload(
+        workflow_payload=payload,
+        workflow_id="wf-1",
+        workflow_name="Workflow 1",
+    )
+
+    original_node = cast(JsonObject, payload["1"])
+    original_inputs = cast(JsonObject, original_node["inputs"])
+    staged_node = cast(JsonObject, result.workflow_payload["1"])
+    staged_inputs = cast(JsonObject, staged_node["inputs"])
+    assert original_inputs["image"] == str(image_path)
+    assert staged_inputs["image"] == f"substitute/wf-1/{image_path.name}"
+    assert result.failures == ()
+    assert len(result.staged_assets) == 1
+    assert stager.calls[0][0] == image_path
+    assert stager.calls[0][1] == "substitute/wf-1"
+
+
+def test_stage_payload_reports_missing_local_load_image_file() -> None:
+    """Missing local file references should fail before queueing generation."""
+
+    payload: JsonObject = {
+        "7": {
+            "class_type": "LoadImageMask",
+            "inputs": {"image": "E:/missing/mask.png"},
+        }
+    }
+
+    result = ComfyAssetStagingService(stager=_FakeStager()).stage_payload(
+        workflow_payload=payload,
+        workflow_id="wf-1",
+        workflow_name="Workflow 1",
+    )
+
+    assert result.staged_assets == ()
+    assert len(result.failures) == 1
+    assert result.failures[0].node_id == "7"
+    assert result.failures[0].node_class == "LoadImageMask"
+
+
+def test_stage_payload_reports_required_load_image_without_selection() -> None:
+    """Empty image-loader values should fail before queueing generation."""
+
+    payload: JsonObject = {
+        "7": {
+            "class_type": "LoadImage",
+            "inputs": {},
+        }
+    }
+
+    result = ComfyAssetStagingService(stager=_FakeStager()).stage_payload(
+        workflow_payload=payload,
+        workflow_id="wf-1",
+        workflow_name="Workflow 1",
+    )
+
+    assert result.staged_assets == ()
+    assert len(result.failures) == 1
+    assert result.failures[0].node_id == "7"
+    assert result.failures[0].node_class == "LoadImage"
+    assert result.failures[0].input_name == "image"
+    assert result.failures[0].message == "Required image input has no selected image."
+
+
+def test_stage_payload_resolves_project_relative_load_image_mask(
+    tmp_path: Path,
+) -> None:
+    """Project mask filenames should stage from Substitute's project mask folder."""
+
+    mask_path = tmp_path / "Recipe" / "masks" / "input_mask.png"
+    mask_path.parent.mkdir(parents=True)
+    mask_path.write_bytes(b"mask")
+    payload: JsonObject = {
+        "7": {
+            "class_type": "LoadImageMask",
+            "inputs": {"image": "input_mask.png"},
+        }
+    }
+    stager = _FakeStager()
+
+    result = ComfyAssetStagingService.with_projects_dir(
+        stager=stager,
+        projects_dir=tmp_path,
+    ).stage_payload(
+        workflow_payload=payload,
+        workflow_id="wf-1",
+        workflow_name="Recipe",
+    )
+
+    staged_node = cast(JsonObject, result.workflow_payload["7"])
+    staged_inputs = cast(JsonObject, staged_node["inputs"])
+    assert stager.calls[0][0] == mask_path
+    assert staged_inputs["image"] == "substitute/wf-1/input_mask.png"
+    assert result.failures == ()
+
+
+def test_stage_payload_uses_red_channel_for_project_grayscale_masks(
+    tmp_path: Path,
+) -> None:
+    """Substitute-owned grayscale project masks should execute through red channel."""
+
+    mask_path = tmp_path / "Recipe" / "masks" / "input_mask.png"
+    mask_path.parent.mkdir(parents=True)
+    mask_path.write_bytes(b"mask")
+    payload: JsonObject = {
+        "7": {
+            "class_type": "LoadImageMask",
+            "inputs": {"image": "input_mask.png", "channel": "alpha"},
+        }
+    }
+
+    result = ComfyAssetStagingService.with_projects_dir(
+        stager=_FakeStager(),
+        projects_dir=tmp_path,
+    ).stage_payload(
+        workflow_payload=payload,
+        workflow_id="wf-1",
+        workflow_name="Recipe",
+    )
+
+    original_node = cast(JsonObject, payload["7"])
+    original_inputs = cast(JsonObject, original_node["inputs"])
+    staged_node = cast(JsonObject, result.workflow_payload["7"])
+    staged_inputs = cast(JsonObject, staged_node["inputs"])
+    assert original_inputs["channel"] == "alpha"
+    assert staged_inputs["channel"] == "red"
+    assert result.failures == ()
+
+
+def test_stage_payload_preserves_channel_for_non_project_load_image_masks(
+    tmp_path: Path,
+) -> None:
+    """Arbitrary local mask files should keep the user's selected Comfy channel."""
+
+    mask_path = tmp_path / "external_mask.png"
+    mask_path.write_bytes(b"mask")
+    payload: JsonObject = {
+        "7": {
+            "class_type": "LoadImageMask",
+            "inputs": {"image": str(mask_path), "channel": "alpha"},
+        }
+    }
+
+    result = ComfyAssetStagingService.with_projects_dir(
+        stager=_FakeStager(),
+        projects_dir=tmp_path / "projects",
+    ).stage_payload(
+        workflow_payload=payload,
+        workflow_id="wf-1",
+        workflow_name="Recipe",
+    )
+
+    staged_node = cast(JsonObject, result.workflow_payload["7"])
+    staged_inputs = cast(JsonObject, staged_node["inputs"])
+    assert staged_inputs["channel"] == "alpha"
+    assert result.failures == ()
+
+
+def test_stage_payload_reports_missing_project_mask_asset(tmp_path: Path) -> None:
+    """Project mask refs should fail before queueing when their file is missing."""
+
+    workflow = WorkflowState(
+        cubes={
+            "Inpaint": CubeState(
+                cube_id="Inpaint",
+                version="1.0",
+                alias="Inpaint",
+                original_cube={},
+                buffer={
+                    "nodes": {
+                        "load_image_as_mask": {
+                            "class_type": "LoadImageMask",
+                            "inputs": {"image": "missing_mask.png"},
+                        }
+                    }
+                },
+            )
+        }
+    )
+    assert WorkflowAssetService().associate_project_input_mask(
+        workflow,
+        cube_alias="Inpaint",
+        node_name="load_image_as_mask",
+        relative_path="missing_mask.png",
+    )
+    payload: JsonObject = {
+        "7": {
+            "class_type": "LoadImageMask",
+            "inputs": {"image": "missing_mask.png"},
+            "_meta": {"title": "Inpaint.load_image_as_mask"},
+        }
+    }
+
+    result = ComfyAssetStagingService.with_projects_dir(
+        stager=_FakeStager(),
+        projects_dir=tmp_path,
+    ).stage_payload(
+        workflow_payload=payload,
+        workflow_id="wf-1",
+        workflow_name="Recipe",
+        workflow=workflow,
+    )
+
+    assert result.staged_assets == ()
+    assert len(result.failures) == 1
+    assert result.failures[0].source_value == "missing_mask.png"

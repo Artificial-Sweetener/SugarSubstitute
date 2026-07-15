@@ -1,0 +1,13 @@
+{
+  "workflow_ids": [
+    "wf-a",
+    "wf-b",
+    "wf-c"
+  ],
+  "distinct_editor_content": true,
+  "distinct_canvas_state": true,
+  "materialized_unprojected_workflow": "wf-c",
+  "generation_output_history": [
+    "output-wf-a.png"
+  ]
+}

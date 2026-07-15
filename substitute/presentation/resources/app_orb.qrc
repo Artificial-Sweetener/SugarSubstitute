@@ -1,0 +1,7 @@
+<RCC>
+  <qresource prefix="/substitute/app/orb">
+    <file alias="orb_base.png">app_orb/orb_base.png</file>
+    <file alias="orb_lower_overlay.png">app_orb/orb_lower_overlay.png</file>
+    <file alias="orb_upper_overlay.png">app_orb/orb_upper_overlay.png</file>
+  </qresource>
+</RCC>

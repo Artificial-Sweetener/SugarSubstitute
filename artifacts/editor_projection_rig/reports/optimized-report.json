@@ -1,0 +1,1823 @@
+{
+  "budgets": {
+    "parenting.violations": {
+      "actual": 0,
+      "limit": 0,
+      "passed": true
+    },
+    "settled_signature_mismatches": {
+      "actual": 0,
+      "limit": 0,
+      "passed": true
+    }
+  },
+  "elapsed_ms": 290.334,
+  "iteration_reports": [
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 1,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.285
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 1,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.238
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 2,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.255
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 2,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.2
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 3,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.219
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 3,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.207
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 4,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.233
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 4,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.213
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 5,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.236
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 5,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.189
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 6,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.239
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 6,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.211
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 7,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.254
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 7,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.249
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 8,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.246
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 8,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.22
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 9,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.232
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 9,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.187
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 10,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.214
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 10,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.209
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 11,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.218
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 11,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.18
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 12,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.278
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 12,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.207
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 13,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.245
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 13,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.193
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 14,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.221
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 14,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.207
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 15,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.258
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 15,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.184
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 16,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.236
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 16,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.185
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 17,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.213
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 17,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.194
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 18,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.276
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 18,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.357
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 19,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.287
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 19,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.232
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 20,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.246
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 20,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.208
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 21,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.256
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 21,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.61
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 22,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.255
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 22,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.208
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 23,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.233
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 23,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.191
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 24,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.221
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 24,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.191
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 25,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.24
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 25,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.259
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 26,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.229
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 26,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.188
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 27,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.249
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 27,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.198
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 28,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.234
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 28,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.187
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 29,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.221
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 29,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.183
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 30,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.229
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 30,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.419
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 31,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.404
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 31,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.279
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 32,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.423
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 32,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.285
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 33,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.277
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 33,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.2
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 34,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.228
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 34,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.2
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 35,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.225
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 35,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.203
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 36,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.223
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 36,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.191
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 37,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.24
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 37,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.183
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 38,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.226
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 38,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.19
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 39,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.224
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 39,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.196
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 40,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.219
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 40,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.221
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 41,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.303
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 41,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.231
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 42,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.262
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 42,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.238
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 43,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.323
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 43,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.218
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 44,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.248
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 44,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.2
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 45,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.247
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 45,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.204
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 46,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.224
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 46,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.223
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 47,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.238
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 47,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.184
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 48,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.239
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 48,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.205
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 49,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.237
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 49,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.226
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "iteration": 50,
+      "mismatches": [],
+      "scenario_id": "workflow_sdxl_baseline",
+      "signature_hash": "sha256:4d057e3e20d832783296426407acf1a80ad325e8e9f31b7d830df29e7a03e013",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.23
+      }
+    },
+    {
+      "counters": {
+        "parenting.violations": 0,
+        "projection.load_all_cubes.calls": 1,
+        "projection.reveals": 1,
+        "projection.staged_cube_builds.completed": 3,
+        "projection.staged_cube_builds.started": 3
+      },
+      "expected_signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "iteration": 50,
+      "mismatches": [],
+      "scenario_id": "workflow_anima_baseline",
+      "signature_hash": "sha256:87b9809f68d4128d6b421188fe27de38cfd563f738f25c38693553f1c02958a7",
+      "signature_matched": true,
+      "timings_ms": {
+        "total_projection_elapsed_ms": 0.194
+      }
+    }
+  ],
+  "iterations": 50,
+  "scenario_ids": [
+    "workflow_sdxl_baseline",
+    "workflow_anima_baseline"
+  ],
+  "schema_version": 1
+}

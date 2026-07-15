@@ -1,0 +1,319 @@
+name: release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run semantic-release in dry-run mode without publishing"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: write
+
+jobs:
+  quality:
+    name: Quality gates
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Check license headers
+        run: python tools/license_headers.py --check
+
+      - name: Create venv and install Python dependencies
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+          .\.venv\Scripts\python.exe -m pip install pytest pytest-xdist ruff mypy pyinstaller
+
+      - name: Run quality gates
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          .\.venv\Scripts\ruff.exe format --check .
+          .\.venv\Scripts\ruff.exe check .
+          .\.venv\Scripts\mypy.exe --strict substitute tests
+          .\.venv\Scripts\python.exe -m pytest -n auto -q
+          .\.venv\Scripts\python.exe -m pytest -q tests/test_onboarding_window_contract.py -k fixed_window_layout_budget
+
+  determine-version:
+    name: Resolve semantic release version
+    needs: quality
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release-version.outputs.version }}
+      should_release: ${{ steps.release-version.outputs.should_release }}
+      first_release: ${{ steps.release-version.outputs.first_release }}
+
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.14.0
+          cache: npm
+
+      - name: Install release dependencies
+        run: npm ci
+
+      - name: Resolve next release version
+        id: release-version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/resolve-next-release-version.mjs
+
+  build-windows:
+    name: Build Windows x64 installer
+    needs: determine-version
+    if: needs.determine-version.outputs.should_release == 'true'
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+          .\.venv\Scripts\python.exe -m pip install pyinstaller uv==0.11.18
+
+      - name: Apply release version
+        shell: pwsh
+        run: node scripts\update-release-versions.mjs ${{ needs.determine-version.outputs.version }}
+
+      - name: Build Windows launcher artifacts
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -m PyInstaller launcher\SugarSubstitute-Setup-Windows-x64.spec --noconfirm --clean
+          .\.venv\Scripts\python.exe -m PyInstaller launcher\SugarSubstitute-Windows-x64.spec --noconfirm --clean --distpath build\launcher-bundles
+          New-Item -ItemType Directory -Force build\release-inputs\windows | Out-Null
+          Copy-Item dist\SugarSubstitute-Setup-Windows-x64.exe build\release-inputs\windows\SugarSubstitute-Setup-Windows-x64.exe
+          .\.venv\Scripts\python.exe tools\build_release_payload.py package-launcher --target windows_x64 --bundle-dir build\launcher-bundles\SugarSubstitute --output-path build\release-inputs\windows\installer-payload-windows-x64.zip
+
+      - name: Upload Windows release inputs
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-inputs-windows
+          path: build/release-inputs/windows
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS Apple Silicon installer
+    needs: determine-version
+    if: needs.determine-version.outputs.should_release == 'true'
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -r requirements.txt
+          .venv/bin/python -m pip install pyinstaller uv==0.11.18
+
+      - name: Apply release version
+        run: node scripts/update-release-versions.mjs ${{ needs.determine-version.outputs.version }}
+
+      - name: Build Apple Silicon launcher artifacts
+        run: |
+          test "$(uname -m)" = "arm64"
+          .venv/bin/python tools/build_macos_icon.py --source substitute/presentation/resources/app_icons/source.png --output build/app_icon.icns
+          .venv/bin/python -m PyInstaller launcher/SugarSubstitute-Setup-macOS-arm64.spec --noconfirm --clean
+          .venv/bin/python -m PyInstaller launcher/SugarSubstitute-macOS-arm64.spec --noconfirm --clean --distpath build/launcher-bundles
+
+      - name: Ad-hoc sign and package Apple Silicon artifacts
+        run: |
+          codesign --force --deep --sign - "build/launcher-bundles/SugarSubstitute.app"
+          codesign --force --deep --sign - "dist/SugarSubstitute Setup.app"
+          codesign --verify --deep --strict --verbose=2 "build/launcher-bundles/SugarSubstitute.app"
+          codesign --verify --deep --strict --verbose=2 "dist/SugarSubstitute Setup.app"
+          mkdir -p build/release-inputs/macos
+          .venv/bin/python tools/build_release_payload.py package-launcher --target macos_arm64 --bundle-dir build/launcher-bundles --output-path build/release-inputs/macos/installer-payload-macos-arm64.zip
+          .venv/bin/python tools/build_macos_dmg.py --setup-app "dist/SugarSubstitute Setup.app" --output build/release-inputs/macos/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg
+
+      - name: Upload Apple Silicon release inputs
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-inputs-macos
+          path: build/release-inputs/macos
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux x64 installers
+    needs: determine-version
+    if: needs.determine-version.outputs.should_release == 'true'
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -r requirements.txt
+          .venv/bin/python -m pip install pyinstaller uv==0.11.18
+
+      - name: Apply release version
+        run: node scripts/update-release-versions.mjs ${{ needs.determine-version.outputs.version }}
+
+      - name: Build Linux launcher bundles
+        run: |
+          test "$(uname -m)" = "x86_64"
+          .venv/bin/python -m PyInstaller launcher/SugarSubstitute-Setup-Linux-x64.spec --noconfirm --clean
+          .venv/bin/python -m PyInstaller launcher/SugarSubstitute-Linux-x64.spec --noconfirm --clean --distpath build/launcher-bundles
+
+      - name: Acquire pinned AppImage packaging tool
+        run: |
+          mkdir -p build/tools
+          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --output build/tools/appimagetool-x86_64.AppImage https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          echo "a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0  build/tools/appimagetool-x86_64.AppImage" | sha256sum --check
+          chmod 755 build/tools/appimagetool-x86_64.AppImage
+
+      - name: Package Linux release inputs
+        run: |
+          mkdir -p build/release-inputs/linux
+          .venv/bin/python tools/build_release_payload.py package-launcher --target linux_x64 --bundle-dir build/launcher-bundles/SugarSubstitute --output-path build/release-inputs/linux/installer-payload-linux-x64.zip
+          .venv/bin/python tools/build_linux_installers.py --setup-bundle "dist/SugarSubstitute Setup" --icon substitute/presentation/resources/app_icons/app_icon_256.png --appimagetool build/tools/appimagetool-x86_64.AppImage --version ${{ needs.determine-version.outputs.version }} --appimage-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-x86_64.AppImage --deb-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-amd64.deb
+
+      - name: Upload Linux release inputs
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-inputs-linux
+          path: build/release-inputs/linux
+          if-no-files-found: error
+
+  release:
+    name: Publish cross-platform release
+    needs:
+      - determine-version
+      - build-windows
+      - build-macos
+      - build-linux
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.14.0
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install release dependencies
+        shell: pwsh
+        run: |
+          npm ci
+          python -m venv .venv
+
+      - name: Download Windows release inputs
+        uses: actions/download-artifact@v7
+        with:
+          name: release-inputs-windows
+          path: build/release-inputs/windows
+
+      - name: Download Apple Silicon release inputs
+        uses: actions/download-artifact@v7
+        with:
+          name: release-inputs-macos
+          path: build/release-inputs/macos
+
+      - name: Download Linux release inputs
+        uses: actions/download-artifact@v7
+        with:
+          name: release-inputs-linux
+          path: build/release-inputs/linux
+
+      - name: Prepare first release assets
+        if: needs.determine-version.outputs.first_release == 'true'
+        shell: pwsh
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts\prepare-release-assets.mjs ${{ needs.determine-version.outputs.version }}
+
+      - name: Prepare first release notes
+        if: needs.determine-version.outputs.first_release == 'true'
+        shell: pwsh
+        run: node scripts\release-notes-preamble.cjs --repository "${{ github.repository }}" --version "${{ needs.determine-version.outputs.version }}" --output "build\first-release-notes.md"
+
+      - name: Publish first release
+        if: needs.determine-version.outputs.first_release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem .local-release-channel -File | Select-Object -ExpandProperty FullName
+          $releaseNotes = Get-Content -Raw build\first-release-notes.md
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.dry_run }}" -eq "true") {
+            Write-Output "Dry run: would publish v${{ needs.determine-version.outputs.version }}"
+            $assets
+          } else {
+            gh release create "v${{ needs.determine-version.outputs.version }}" $assets --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "SugarSubstitute ${{ needs.determine-version.outputs.version }}" --generate-notes --notes $releaseNotes
+          }
+
+      - name: Publish subsequent release
+        if: needs.determine-version.outputs.first_release != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.dry_run }}" -eq "true") {
+            npx semantic-release --dry-run --no-ci
+          } else {
+            npx semantic-release
+          }
