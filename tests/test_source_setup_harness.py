@@ -70,3 +70,11 @@ def test_harness_cache_copy_excludes_interrupted_partial_downloads(
 
     assert (destination / "complete.7z").read_bytes() == b"complete"
     assert not (destination / "incomplete.7z.part").exists()
+
+
+def test_harness_selects_an_available_loopback_port() -> None:
+    """Fresh install runs should not assume Comfy's default port is unused."""
+
+    port = harness._available_loopback_port()
+
+    assert 0 < port <= 65_535

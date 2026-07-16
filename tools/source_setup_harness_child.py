@@ -74,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         result = _run_installed_onboarding(
             install_root=args.install_root,
             provisioning_timeout_seconds=args.provisioning_timeout_seconds,
+            endpoint_port=args.endpoint_port,
         )
     except BaseException as error:
         args.result_path.parent.mkdir(parents=True, exist_ok=True)
@@ -112,6 +113,7 @@ def _run_installed_onboarding(
     *,
     install_root: Path,
     provisioning_timeout_seconds: float,
+    endpoint_port: int,
 ) -> InstalledSetupResult:
     """Drive the production onboarding window through managed-local setup."""
 
@@ -305,7 +307,7 @@ def _run_installed_onboarding(
     wait_for_page("OnboardingManagedLocalPage")
 
     widget(LineEdit, "OnboardingManagedHostEdit").setText("127.0.0.1")
-    widget(SpinBox, "OnboardingManagedPortSpinBox").setValue(8188)
+    widget(SpinBox, "OnboardingManagedPortSpinBox").setValue(endpoint_port)
     widget(LineEdit, "OnboardingManagedWorkspaceEdit").setText(
         str(install_root / "comfyui")
     )
@@ -434,6 +436,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--install-root", required=True, type=Path)
     parser.add_argument("--result-path", required=True, type=Path)
+    parser.add_argument("--endpoint-port", required=True, type=int)
     parser.add_argument(
         "--provisioning-timeout-seconds",
         type=float,

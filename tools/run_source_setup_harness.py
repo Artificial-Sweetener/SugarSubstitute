@@ -25,6 +25,7 @@ import os
 from pathlib import Path
 from queue import Empty, Queue
 import shutil
+import socket
 import stat
 import subprocess
 import sys
@@ -274,6 +275,7 @@ def _run_installed_setup_child(
 ) -> dict[str, object]:
     """Run installed onboarding with live output and a heartbeat watchdog."""
 
+    endpoint_port = _available_loopback_port()
     environment = runtime_environment(layout=layout)
     environment.update(
         {
@@ -287,6 +289,7 @@ def _run_installed_setup_child(
         str(_CHILD_SCRIPT),
         f"--install-root={layout.root}",
         f"--result-path={result_path}",
+        f"--endpoint-port={endpoint_port}",
     )
     startupinfo = None
     creationflags = 0
@@ -366,6 +369,17 @@ def _run_installed_setup_child(
     if not isinstance(decoded, dict):
         raise SourceSetupHarnessError("Installed setup result is not an object.")
     return {str(key): value for key, value in decoded.items()}
+
+
+def _available_loopback_port() -> int:
+    """Reserve and release one currently available loopback TCP port."""
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    if not isinstance(port, int):
+        raise SourceSetupHarnessError("Windows did not assign a numeric test port.")
+    return port
 
 
 def _read_output(process: subprocess.Popen[str], output: Queue[str | None]) -> None:
