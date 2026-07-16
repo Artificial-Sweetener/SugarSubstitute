@@ -14,224 +14,238 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Tests for managed workspace ComfyUI-Manager provisioning."""
+"""Tests for authoritative ComfyUI Manager selection and provisioning."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
+import subprocess
 
 import pytest
 
+from substitute.domain.comfy_manager import (
+    ComfyManagerCapabilities,
+    ComfyManagerKind,
+    ComfyManagerProvisioningAction,
+    select_attached_manager_action,
+)
 from substitute.infrastructure.comfy import manager_provisioner
 from tests.repository_service_test_double import RecordingRepositoryService
 
 
-def test_ensure_workspace_manager_custom_node_clones_when_missing(
+@pytest.mark.parametrize(
+    ("capabilities", "expected"),
+    (
+        (
+            ComfyManagerCapabilities(True, True, True),
+            ComfyManagerProvisioningAction.USE_INTEGRATED,
+        ),
+        (
+            ComfyManagerCapabilities(True, False, True),
+            ComfyManagerProvisioningAction.USE_LEGACY,
+        ),
+        (
+            ComfyManagerCapabilities(True, False, False),
+            ComfyManagerProvisioningAction.INSTALL_INTEGRATED,
+        ),
+        (
+            ComfyManagerCapabilities(False, False, False),
+            ComfyManagerProvisioningAction.INSTALL_LEGACY,
+        ),
+    ),
+)
+def test_attached_manager_policy_matrix(
+    capabilities: ComfyManagerCapabilities,
+    expected: ComfyManagerProvisioningAction,
+) -> None:
+    """Attached policy should prefer healthy existing routes before installing."""
+
+    assert select_attached_manager_action(capabilities) is expected
+
+
+def test_managed_manager_installs_integrated_package_then_removes_legacy(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Provisioner should clone Manager and install its workspace Python package."""
+    """Managed setup should validate integrated Manager before deleting legacy code."""
 
+    python = _prepare_modern_workspace(tmp_path)
+    legacy = manager_provisioner.workspace_manager_directory(tmp_path)
+    legacy.mkdir(parents=True)
+    (legacy / "user-data.json").write_text("owned fixture", encoding="utf-8")
     commands: list[list[str]] = []
-    python_path = tmp_path / ".venv" / "Scripts" / "python.exe"
-    python_path.parent.mkdir(parents=True, exist_ok=True)
-    python_path.write_text("", encoding="utf-8")
-    manager_provisioner.workspace_manager_requirements_path(tmp_path).write_text(
-        "comfyui_manager==4.2.2",
-        encoding="utf-8",
-    )
+    probe_count = 0
 
-    def _fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+    def fake_run(
+        command: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        nonlocal probe_count
         _ = kwargs
         commands.append(command)
-        if command == [str(python_path), "-c", "import cm_cli"]:
-            import_checks = sum(1 for seen in commands if seen == command)
-            return SimpleNamespace(
-                returncode=0 if import_checks > 1 else 1,
-                stdout="",
-                stderr="",
-            )
-        if command == [str(python_path), "-c", "import cm_cli.__main__"]:
-            return SimpleNamespace(returncode=0, stdout="", stderr="")
-        if command[:4] == [str(python_path), "-m", "pip", "install"]:
-            return SimpleNamespace(returncode=0, stdout="", stderr="")
-        return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if command[1:2] == ["-c"]:
+            probe_count += 1
+            if probe_count == 1:
+                return subprocess.CompletedProcess(
+                    command, 1, stdout="", stderr="ModuleNotFoundError: comfyui_manager"
+                )
+            return subprocess.CompletedProcess(command, 0, stdout="4.2.2\n", stderr="")
+        return subprocess.CompletedProcess(command, 0, stdout="installed", stderr="")
 
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.manager_provisioner.subprocess.run",
-        _fake_run,
+        "substitute.infrastructure.comfy.manager_provisioner.subprocess.run", fake_run
     )
 
-    def materialize_manager(_repository_url: str, target_path: Path) -> None:
-        """Materialize the file expected from the cloned Manager fixture."""
+    runtime = manager_provisioner.ensure_managed_workspace_manager(
+        tmp_path, python_executable=python
+    )
 
-        cli_path = target_path / "cm-cli.py"
-        cli_path.parent.mkdir(parents=True, exist_ok=True)
-        cli_path.write_text("# cm-cli", encoding="utf-8")
+    assert runtime.kind is ComfyManagerKind.INTEGRATED
+    assert runtime.version == "4.2.2"
+    assert not legacy.exists()
+    assert commands[1] == [
+        str(python),
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        str(tmp_path / "manager_requirements.txt"),
+    ]
 
-    repositories = RecordingRepositoryService(clone_callback=materialize_manager)
-    result = manager_provisioner.ensure_workspace_manager_custom_node(
+
+def test_managed_manager_preserves_legacy_when_integrated_validation_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Managed migration must retain the old checkout until replacement validates."""
+
+    python = _prepare_modern_workspace(tmp_path)
+    legacy = manager_provisioner.workspace_manager_directory(tmp_path)
+    legacy.mkdir(parents=True)
+
+    def fake_run(
+        command: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        _ = kwargs
+        if command[1:2] == ["-c"]:
+            return subprocess.CompletedProcess(
+                command,
+                1,
+                stdout="probe stdout",
+                stderr="ModuleNotFoundError: No module named 'aiohttp'",
+            )
+        return subprocess.CompletedProcess(command, 0, stdout="installed", stderr="")
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.manager_provisioner.subprocess.run", fake_run
+    )
+
+    with pytest.raises(RuntimeError, match="No module named 'aiohttp'"):
+        manager_provisioner.ensure_managed_workspace_manager(
+            tmp_path, python_executable=python
+        )
+
+    assert legacy.is_dir()
+
+
+def test_attached_manager_prefers_integrated_and_keeps_user_legacy_checkout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Attached setup should prefer integrated Manager without deleting user files."""
+
+    python = _prepare_modern_workspace(tmp_path)
+    legacy_cli = manager_provisioner.workspace_manager_cli_path(tmp_path)
+    legacy_cli.parent.mkdir(parents=True)
+    legacy_cli.write_text("# fixture", encoding="utf-8")
+
+    def fake_run(
+        command: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        _ = kwargs
+        return subprocess.CompletedProcess(command, 0, stdout="4.2.2\n", stderr="")
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.manager_provisioner.subprocess.run", fake_run
+    )
+
+    runtime = manager_provisioner.ensure_attached_workspace_manager(
+        tmp_path, python_executable=python
+    )
+
+    assert runtime.kind is ComfyManagerKind.INTEGRATED
+    assert legacy_cli.is_file()
+
+
+def test_attached_old_comfy_installs_required_legacy_custom_node(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Older attached ComfyUI should receive legacy Manager when none exists."""
+
+    python = tmp_path / "python.exe"
+    python.write_text("", encoding="utf-8")
+    commands: list[list[str]] = []
+
+    def fake_run(
+        command: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        _ = kwargs
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    def materialize(_url: str, destination: Path) -> None:
+        """Create the files produced by one legacy Manager clone."""
+
+        destination.mkdir(parents=True)
+        (destination / "cm-cli.py").write_text("# fixture", encoding="utf-8")
+        (destination / "requirements.txt").write_text("typer", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.manager_provisioner.subprocess.run", fake_run
+    )
+    repositories = RecordingRepositoryService(clone_callback=materialize)
+
+    runtime = manager_provisioner.ensure_attached_workspace_manager(
         tmp_path,
+        python_executable=python,
         repositories=repositories,
     )
 
-    assert result == manager_provisioner.workspace_manager_cli_path(tmp_path)
-    assert commands == [
-        [str(python_path), "-c", "import cm_cli"],
-        [
-            str(python_path),
-            "-m",
-            "pip",
-            "install",
-            "-r",
-            str(manager_provisioner.workspace_manager_requirements_path(tmp_path)),
-        ],
-        [str(python_path), "-c", "import cm_cli"],
-        [str(python_path), "-c", "import cm_cli.__main__"],
-    ]
-    assert repositories.calls == [
-        (
-            "clone",
-            (
-                manager_provisioner.DEFAULT_MANAGER_REPOSITORY_URL,
-                manager_provisioner.workspace_manager_directory(tmp_path),
-            ),
-        )
-    ]
-
-
-def test_ensure_workspace_manager_custom_node_short_circuits_when_present_and_importable(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Provisioner should not re-clone or pip install when Manager is already usable."""
-
-    cli_path = manager_provisioner.workspace_manager_cli_path(tmp_path)
-    cli_path.parent.mkdir(parents=True, exist_ok=True)
-    cli_path.write_text("# cm-cli", encoding="utf-8")
-    python_path = tmp_path / ".venv" / "Scripts" / "python.exe"
-    python_path.parent.mkdir(parents=True, exist_ok=True)
-    python_path.write_text("", encoding="utf-8")
-    commands: list[list[str]] = []
-
-    def _fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
-        _ = kwargs
-        commands.append(command)
-        return SimpleNamespace(returncode=0, stdout="", stderr="")
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.manager_provisioner.subprocess.run",
-        _fake_run,
-    )
-
-    result = manager_provisioner.ensure_workspace_manager_custom_node(tmp_path)
-
-    assert result == cli_path
-    assert commands == [
-        [str(python_path), "-c", "import cm_cli"],
-        [str(python_path), "-c", "import cm_cli.__main__"],
-    ]
-
-
-def test_ensure_workspace_manager_custom_node_repairs_existing_checkout_package(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Existing Manager checkouts should install cm_cli when the package is missing."""
-
-    cli_path = manager_provisioner.workspace_manager_cli_path(tmp_path)
-    cli_path.parent.mkdir(parents=True, exist_ok=True)
-    cli_path.write_text("# cm-cli", encoding="utf-8")
-    python_path = tmp_path / ".venv" / "Scripts" / "python.exe"
-    python_path.parent.mkdir(parents=True, exist_ok=True)
-    python_path.write_text("", encoding="utf-8")
-    requirements_path = manager_provisioner.workspace_manager_requirements_path(
+    assert runtime.kind is ComfyManagerKind.LEGACY_CUSTOM_NODE
+    assert runtime.legacy_cli_path == manager_provisioner.workspace_manager_cli_path(
         tmp_path
     )
-    requirements_path.write_text("comfyui_manager==4.2.2", encoding="utf-8")
-    commands: list[list[str]] = []
-
-    def _fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
-        _ = kwargs
-        commands.append(command)
-        if command == [str(python_path), "-c", "import cm_cli"]:
-            import_checks = sum(1 for seen in commands if seen == command)
-            return SimpleNamespace(
-                returncode=0 if import_checks > 1 else 1,
-                stdout="",
-                stderr="",
-            )
-        if command == [str(python_path), "-c", "import cm_cli.__main__"]:
-            return SimpleNamespace(returncode=0, stdout="", stderr="")
-        return SimpleNamespace(returncode=0, stdout="", stderr="")
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.manager_provisioner.subprocess.run",
-        _fake_run,
-    )
-
-    result = manager_provisioner.ensure_workspace_manager_custom_node(tmp_path)
-
-    assert result == cli_path
     assert commands == [
-        [str(python_path), "-c", "import cm_cli"],
         [
-            str(python_path),
+            str(python),
             "-m",
             "pip",
             "install",
             "-r",
-            str(requirements_path),
+            str(
+                manager_provisioner.workspace_manager_directory(tmp_path)
+                / "requirements.txt"
+            ),
         ],
-        [str(python_path), "-c", "import cm_cli"],
-        [str(python_path), "-c", "import cm_cli.__main__"],
-    ]
-
-
-def test_ensure_workspace_manager_custom_node_repairs_missing_comfy_requirements(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Manager repair should install ComfyUI requirements when cm_cli cannot start."""
-
-    cli_path = manager_provisioner.workspace_manager_cli_path(tmp_path)
-    cli_path.parent.mkdir(parents=True, exist_ok=True)
-    cli_path.write_text("# cm-cli", encoding="utf-8")
-    python_path = tmp_path / ".venv" / "Scripts" / "python.exe"
-    python_path.parent.mkdir(parents=True, exist_ok=True)
-    python_path.write_text("", encoding="utf-8")
-    commands: list[list[str]] = []
-
-    def _fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
-        _ = kwargs
-        commands.append(command)
-        if command == [str(python_path), "-c", "import cm_cli.__main__"]:
-            entrypoint_checks = sum(1 for seen in commands if seen == command)
-            return SimpleNamespace(
-                returncode=0 if entrypoint_checks > 1 else 1,
-                stdout="",
-                stderr="ModuleNotFoundError: No module named 'aiohttp'",
-            )
-        return SimpleNamespace(returncode=0, stdout="", stderr="")
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.manager_provisioner.subprocess.run",
-        _fake_run,
-    )
-
-    result = manager_provisioner.ensure_workspace_manager_custom_node(tmp_path)
-
-    assert result == cli_path
-    assert commands == [
-        [str(python_path), "-c", "import cm_cli"],
-        [str(python_path), "-c", "import cm_cli.__main__"],
         [
-            str(python_path),
-            "-m",
-            "pip",
-            "install",
-            "aiohttp>=3.11.8",
+            str(python),
+            str(manager_provisioner.workspace_manager_cli_path(tmp_path)),
+            "--help",
         ],
-        [str(python_path), "-c", "import cm_cli.__main__"],
     ]
+
+
+def _prepare_modern_workspace(workspace: Path) -> Path:
+    """Create the static integrated Manager contract and a Python fixture."""
+
+    (workspace / "comfy").mkdir(parents=True)
+    (workspace / "comfy" / "cli_args.py").write_text(
+        'parser.add_argument("--enable-manager")', encoding="utf-8"
+    )
+    (workspace / "manager_requirements.txt").write_text(
+        "comfyui_manager==4.2.2", encoding="utf-8"
+    )
+    python = workspace / ".venv" / "Scripts" / "python.exe"
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    return python

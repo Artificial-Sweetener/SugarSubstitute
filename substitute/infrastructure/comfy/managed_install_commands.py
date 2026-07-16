@@ -253,32 +253,6 @@ def upgrade_workspace_packaging_tools(
     )
 
 
-def install_workspace_comfy_cli(
-    python_executable: Path,
-    *,
-    on_log: LogCallback | None = None,
-    env: Mapping[str, str] | None = None,
-) -> None:
-    """Install comfy-cli into the managed workspace venv."""
-
-    pip_install(python_executable, "comfy-cli", on_log=on_log, env=env)
-
-
-def run_workspace_comfy_cli(
-    python_executable: Path,
-    *args: str,
-    on_line: LogCallback | None = None,
-    env: Mapping[str, str] | None = None,
-) -> int:
-    """Run comfy-cli through the managed workspace interpreter."""
-
-    return stream_command(
-        [str(python_executable), "-m", "comfy_cli", *args],
-        on_line=on_line,
-        env=env,
-    )
-
-
 def install_selected_torch_backend(
     python_executable: Path,
     *,
@@ -313,28 +287,6 @@ def install_workspace_requirements(
         python_executable,
         "-r",
         str(workspace / "requirements.txt"),
-        on_log=on_log,
-        env=env,
-    )
-
-
-def install_manager_requirements(
-    python_executable: Path,
-    *,
-    workspace: Path,
-    on_log: LogCallback | None = None,
-    env: Mapping[str, str] | None = None,
-) -> None:
-    """Install manager requirements when the managed workspace ships them."""
-
-    requirements_path = workspace / "manager_requirements.txt"
-    if not requirements_path.exists():
-        return
-    raise_forced_managed_failure("dependency_install")
-    pip_install(
-        python_executable,
-        "-r",
-        str(requirements_path),
         on_log=on_log,
         env=env,
     )

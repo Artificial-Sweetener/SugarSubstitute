@@ -52,6 +52,7 @@ from substitute.domain.onboarding import (
     ManagedRuntimeValidationStatus,
 )
 from substitute.domain.onboarding import ManagedRuntimeLaunchStatus
+from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.domain.onboarding.setup_transaction_models import (
     SetupTransaction,
     SetupTransactionFailure,
@@ -70,6 +71,9 @@ from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedProcessHandle,
     build_launch_request,
     launch_managed_process,
+)
+from substitute.infrastructure.comfy.manager_provisioner import (
+    detect_workspace_manager_runtime,
 )
 from substitute.infrastructure.comfy.managed_runtime_selection_policy import (
     HardwareAwareManagedRuntimeSelectionPolicy,
@@ -296,6 +300,10 @@ def start_managed_comfy_subprocess(
         _fail_startup_revalidation_transaction(startup_transaction, error)
         raise
     _finish_startup_revalidation_transaction(startup_transaction)
+    manager_runtime = detect_workspace_manager_runtime(
+        workspace,
+        python_executable=venv_python,
+    )
     env = os.environ.copy()
     env["PATH"] = str(venv_python.parent) + os.pathsep + env.get("PATH", "")
     env["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"
@@ -307,6 +315,7 @@ def start_managed_comfy_subprocess(
                 venv_python=venv_python,
                 endpoint=endpoint,
                 workspace=workspace,
+                manager_runtime=manager_runtime,
             ),
             cwd=workspace,
             env=env,
@@ -417,6 +426,10 @@ def start_managed_comfy_background(
                 )
             with trace_span("managed_comfy.startup_revalidation.finish"):
                 _finish_startup_revalidation_transaction(startup_transaction)
+            manager_runtime = detect_workspace_manager_runtime(
+                workspace,
+                python_executable=venv_python,
+            )
             if cancellation.is_cancelled or state.stop_requested:
                 emit_log(on_log, "[INFO] ComfyUI launch canceled before start.")
                 trace_mark(
@@ -441,6 +454,7 @@ def start_managed_comfy_background(
                             venv_python=venv_python,
                             endpoint=endpoint,
                             workspace=workspace,
+                            manager_runtime=manager_runtime,
                         ),
                         cwd=workspace,
                         env=env,
@@ -883,6 +897,7 @@ def _build_managed_launch_command(
     venv_python: Path,
     endpoint: ComfyEndpoint,
     workspace: Path,
+    manager_runtime: ComfyManagerRuntime,
 ) -> tuple[str, ...]:
     """Build the authoritative managed ComfyUI launch command."""
 
@@ -893,6 +908,7 @@ def _build_managed_launch_command(
         str(endpoint.host),
         "--port",
         str(endpoint.port),
+        *manager_runtime.launch_arguments,
     )
 
 

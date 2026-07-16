@@ -26,7 +26,7 @@ from substitute.infrastructure.comfy.core_nodepack_reconciler import (
     ensure_core_comfy_nodepacks,
 )
 from substitute.infrastructure.comfy.manager_provisioner import (
-    ensure_workspace_manager_custom_node,
+    ensure_attached_workspace_manager,
 )
 from substitute.infrastructure.comfy.hardware_detection import detect_hardware
 from substitute.infrastructure.comfy.managed_acceleration_reconciler import (
@@ -64,7 +64,7 @@ def prepare_attached_comfy_setup(
         )
     if on_status is not None:
         on_status("Provisioning ComfyUI-Manager.")
-    ensure_workspace_manager_custom_node(
+    ensure_attached_workspace_manager(
         workspace,
         python_executable=binding.executable,
         on_log=on_log,

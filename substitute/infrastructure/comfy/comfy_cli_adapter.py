@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Run Comfy Manager commands through Comfy CLI inside one workspace."""
+"""Run commands through one verified ComfyUI Manager runtime."""
 
 from __future__ import annotations
 
@@ -22,12 +22,15 @@ from collections.abc import Callable, Mapping, Sequence
 import os
 from pathlib import Path
 
+from substitute.domain.comfy_manager import ComfyManagerRuntime
+from substitute.infrastructure.comfy.manager_provisioner import (
+    detect_workspace_manager_runtime,
+)
 from substitute.infrastructure.comfy.nodepack_manifest import (
     CLI_INSTALL_TIMEOUT_SECONDS,
 )
 from substitute.infrastructure.process.hidden_process_runner import (
     run_command,
-    stream_command,
     stream_command_collecting_output,
 )
 from substitute.shared.logging.logger import get_logger, log_info
@@ -37,8 +40,8 @@ LogCallback = Callable[[str], None]
 _LOGGER = get_logger(__name__)
 
 
-class ComfyCliWorkspaceAdapter:
-    """Run Comfy CLI commands inside the selected Comfy workspace runtime."""
+class ComfyManagerCliAdapter:
+    """Run Manager CLI commands through the selected workspace integration."""
 
     def __init__(
         self,
@@ -47,6 +50,7 @@ class ComfyCliWorkspaceAdapter:
         python_executable: Path,
         on_log: LogCallback | None = None,
         env: Mapping[str, str] | None = None,
+        manager_runtime: ComfyManagerRuntime | None = None,
     ) -> None:
         """Initialize the adapter with explicit workspace ownership."""
 
@@ -54,27 +58,11 @@ class ComfyCliWorkspaceAdapter:
         self._python_executable = python_executable
         self._on_log = on_log
         self._env = comfy_cli_environment(workspace=workspace, env=env)
-
-    def ensure_available(self) -> None:
-        """Install comfy-cli into the workspace runtime when it is missing."""
-
-        result = run_command(
-            [str(self._python_executable), "-c", "import comfy_cli"],
-            cwd=self._workspace,
-            check=False,
+        self._manager_runtime = manager_runtime or detect_workspace_manager_runtime(
+            workspace,
+            python_executable=python_executable,
             env=self._env,
         )
-        if result.returncode == 0:
-            return
-        _emit_log(self._on_log, "[ComfyCLI] Installing comfy-cli into ComfyUI.")
-        exit_code = stream_command(
-            [str(self._python_executable), "-m", "pip", "install", "comfy-cli"],
-            cwd=self._workspace,
-            on_line=self._on_log,
-            env=self._env,
-        )
-        if exit_code != 0:
-            raise RuntimeError("Substitute could not install comfy-cli into ComfyUI.")
 
     @property
     def workspace(self) -> Path:
@@ -86,13 +74,7 @@ class ComfyCliWorkspaceAdapter:
         """Return whether Comfy Manager can resolve a custom-node install id."""
 
         result = run_command(
-            [
-                str(self._python_executable),
-                "-m",
-                "cm_cli",
-                "show",
-                "not-installed",
-            ],
+            [*self._manager_runtime.cli_prefix, "show", "not-installed"],
             cwd=self._workspace,
             check=False,
             env=self._env,
@@ -112,9 +94,7 @@ class ComfyCliWorkspaceAdapter:
         """Install one Comfy Registry node id through Comfy CLI."""
 
         command = [
-            str(self._python_executable),
-            "-m",
-            "cm_cli",
+            *self._manager_runtime.cli_prefix,
             "install",
             "--exit-on-fail",
             node_id,
@@ -136,12 +116,7 @@ class ComfyCliWorkspaceAdapter:
             self._on_log,
             "[ComfyCLI] Restoring installed custom-node dependencies.",
         )
-        command = [
-            str(self._python_executable),
-            "-m",
-            "cm_cli",
-            "restore-dependencies",
-        ]
+        command = [*self._manager_runtime.cli_prefix, "restore-dependencies"]
         exit_code, output_lines = stream_command_collecting_output(
             command,
             cwd=self._workspace,
@@ -161,7 +136,7 @@ class ComfyCliWorkspaceAdapter:
         """Clear Manager startup actions already handled during setup."""
 
         result = run_command(
-            [str(self._python_executable), "-m", "cm_cli", "clear"],
+            [*self._manager_runtime.cli_prefix, "clear"],
             cwd=self._workspace,
             check=False,
             env=self._env,
@@ -246,7 +221,7 @@ def _emit_log(callback: LogCallback | None, message: str) -> None:
 
 
 __all__ = [
-    "ComfyCliWorkspaceAdapter",
+    "ComfyManagerCliAdapter",
     "LogCallback",
     "comfy_cli_environment",
     "comfy_cli_install_failure_message",
