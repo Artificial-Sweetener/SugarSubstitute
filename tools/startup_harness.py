@@ -42,12 +42,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from substitute.infrastructure.comfy.managed_model_root import (  # noqa: E402
-    MANAGED_MODEL_ROOT_ENV,
-    ManagedModelRootStore,
-)
-
-DEFAULT_COMFY_ROOT = Path(r"E:\ComfyUI")
+DEFAULT_COMFY_ROOT = REPO_ROOT / ".pytest-tmp" / "startup-harness-comfy"
 DEFAULT_SUBSTITUTE_BACKEND_ROOT = (
     DEFAULT_COMFY_ROOT / "custom_nodes" / "substitute-backend"
 )
@@ -124,9 +119,29 @@ class HarnessPaths:
 
     @property
     def sugar_substitute_python(self) -> Path:
-        """Return the SugarSubstitute repository virtualenv Python executable."""
+        """Return the source or installed SugarSubstitute Python executable."""
 
-        return self.sugar_substitute_root / ".venv" / "Scripts" / "python.exe"
+        candidates = (
+            self.sugar_substitute_root / ".venv" / "Scripts" / "python.exe",
+            self.sugar_substitute_root / "runtime" / ".venv" / "Scripts" / "python.exe",
+        )
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[0]
+
+    @property
+    def sugar_substitute_main(self) -> Path:
+        """Return the source or installed SugarSubstitute application entry point."""
+
+        candidates = (
+            self.sugar_substitute_root / "main.py",
+            self.sugar_substitute_root / "app" / "main.py",
+        )
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[0]
 
 
 @dataclass(frozen=True, slots=True)
@@ -559,7 +574,6 @@ def app_managed_environment_overrides(
 def direct_comfy_environment_overrides(paths: HarnessPaths) -> dict[str, str]:
     """Return direct-Comfy harness env overrides aligned with managed startup."""
 
-    config = ManagedModelRootStore().load(paths.comfy_root)
     return {
         "PATH": str(paths.comfy_python.parent)
         + os.pathsep
@@ -570,7 +584,6 @@ def direct_comfy_environment_overrides(paths: HarnessPaths) -> dict[str, str]:
         "SUBSTITUTE_BACKEND_DIAGNOSTICS": "cube-library,startup",
         "SUGAR_SUBSTITUTE_STARTUP_HARNESS": "1",
         "SUGARCUBES_DIAGNOSTICS": "1",
-        MANAGED_MODEL_ROOT_ENV: str(config.effective_model_root),
     }
 
 
@@ -697,7 +710,7 @@ def build_app_managed_command(paths: HarnessPaths) -> tuple[str, ...]:
 
     return (
         str(paths.sugar_substitute_python),
-        str(paths.sugar_substitute_root / "main.py"),
+        str(paths.sugar_substitute_main),
         f"--install-root={paths.sugar_substitute_root}",
     )
 
@@ -925,7 +938,7 @@ def parse_managed_comfy_output_timeline(timeline_text: str) -> dict[str, object]
             "Substitute startup diagnostic "
             "event=substitute_node_dependency_index_timing"
         ),
-        "managed_model_root_applied": "Substitute managed ComfyUI model root:",
+        "managed_model_root_applied": "Substitute BackEnd configured ComfyUI model root:",
         "custom_node_import_times": "Import times for custom nodes:",
         "starting_server": "Starting server",
         "gui_url_printed": "To see the GUI go to:",
@@ -2141,7 +2154,7 @@ def _validate_paths(paths: HarnessPaths) -> None:
     """Fail early when required repositories or runtimes are unavailable."""
 
     required_paths = (
-        paths.sugar_substitute_root / "main.py",
+        paths.sugar_substitute_main,
         paths.sugar_substitute_python,
         paths.comfy_root / "main.py",
         paths.comfy_python,

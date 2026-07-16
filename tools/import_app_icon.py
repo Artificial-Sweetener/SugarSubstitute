@@ -25,7 +25,6 @@ from pathlib import Path
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SOURCE_PATH = Path(r"E:\devprojects\sugaricons\icon.png")
 DEFAULT_DESTINATION_DIR = (
     REPO_ROOT / "substitute" / "presentation" / "resources" / "app_icons"
 )
@@ -166,7 +165,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--source-path",
         type=Path,
-        default=DEFAULT_SOURCE_PATH,
+        required=True,
         help="High-resolution source PNG to adopt as the project icon.",
     )
     parser.add_argument(

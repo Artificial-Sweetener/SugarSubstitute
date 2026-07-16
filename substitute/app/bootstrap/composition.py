@@ -1385,10 +1385,6 @@ def _build_main_window_dependencies(
 
     record_dependency_phase("imports.application.restart_requirements")
 
-    from substitute.infrastructure.comfy.managed_model_root import ManagedModelRootStore
-
-    record_dependency_phase("imports.infrastructure.managed_model_root")
-
     from substitute.infrastructure.cubes.backend_cube_repository import (
         BackendCubeRepository,
     )
@@ -1759,8 +1755,20 @@ def _build_main_window_dependencies(
     danbooru_preference_service = DanbooruPreferenceService(
         FileDanbooruPreferenceRepository(context.user_settings_dir)
     )
+
+    def connected_civitai_preview_root() -> Path:
+        """Resolve the active Comfy model root only when Settings needs a preview."""
+
+        status = SubstituteBackendEnvironmentClient(
+            context.comfy_target.endpoint
+        ).get_model_root()
+        if status is None or context.comfy_target.workspace_path is None:
+            return Path("models") / "diffusion_models"
+        return Path(status.active_model_root) / "diffusion_models"
+
     civitai_preference_service = CivitaiPreferenceService(
-        FileCivitaiPreferenceRepository(context.user_settings_dir)
+        FileCivitaiPreferenceRepository(context.user_settings_dir),
+        preview_comfy_root=connected_civitai_preview_root,
     )
     civitai_credential_service = CivitaiCredentialService(
         build_civitai_credential_store(context.user_settings_dir)
@@ -1906,7 +1914,7 @@ def _build_main_window_dependencies(
             FileComfyTargetConfigurationRepository(context.installation)
         ),
         checks=FileSystemReadinessChecks(),
-        model_root_store=ManagedModelRootStore(),
+        environment_client_factory=SubstituteBackendEnvironmentClient,
         restart_requirements=restart_requirement_service,
     )
     record_dependency_checkpoint(

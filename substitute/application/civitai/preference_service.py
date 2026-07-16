@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from collections.abc import Callable
 
 from substitute.application.civitai.download_path_template_renderer import (
     CivitaiDownloadPathTemplateError,
@@ -58,15 +59,13 @@ class CivitaiPreferenceService:
         self,
         repository: CivitaiPreferenceRepository,
         *,
-        preview_comfy_root: Path | None = None,
+        preview_comfy_root: Path | Callable[[], Path] | None = None,
         renderer: CivitaiDownloadPathTemplateRenderer | None = None,
     ) -> None:
         """Store the CivitAI preference repository."""
 
         self._repository = repository
-        self._preview_comfy_root = preview_comfy_root or Path(
-            "C:/Comfy models/diffusion_models"
-        )
+        self._preview_comfy_root = preview_comfy_root or Path("models/diffusion_models")
         self._renderer = renderer or CivitaiDownloadPathTemplateRenderer()
 
     def load_preferences(self) -> CivitaiPreferences:
@@ -180,7 +179,11 @@ class CivitaiPreferenceService:
 
         return CivitaiDownloadPathRenderContext(
             kind="diffusion_models",
-            comfy_root=self._preview_comfy_root,
+            comfy_root=(
+                self._preview_comfy_root()
+                if callable(self._preview_comfy_root)
+                else self._preview_comfy_root
+            ),
             base_model="Anima",
             model_name="Anima",
             version_name="base-v1.0",

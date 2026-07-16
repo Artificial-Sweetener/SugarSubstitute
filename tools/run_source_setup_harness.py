@@ -60,11 +60,11 @@ from substitute.infrastructure.comfy.managed_shutdown import (  # noqa: E402
 from tools.release_assets.assembly import build_local_release_channel  # noqa: E402
 
 
-DEFAULT_INSTALL_ROOT = Path("E:/SugarSubstitute-Test")
+DEFAULT_INSTALL_ROOT = REPO_ROOT / ".pytest-tmp" / "SugarSubstitute-Test"
 DEFAULT_RELEASE_ROOT = REPO_ROOT / ".pytest-tmp" / "source-setup-release"
 DEFAULT_ARTIFACT_CACHE_ROOT = REPO_ROOT / ".pytest-tmp" / "source-setup-artifact-cache"
 DEFAULT_RESULT_ROOT = REPO_ROOT / "artifacts" / "source_setup_harness"
-EXISTING_INSTALL_CACHE_ROOT = Path("E:/SugarSubstitute/.sugarsubstitute-cache")
+EXISTING_INSTALL_CACHE_ROOT = REPO_ROOT / ".pytest-tmp" / "source-setup-existing-cache"
 _CHILD_SCRIPT = REPO_ROOT / "tools" / "source_setup_harness_child.py"
 _WATCHDOG_TIMEOUT_SECONDS = 15.0
 _PROCESS_TIMEOUT_SECONDS = 7_500.0
@@ -467,7 +467,7 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     """Parse fresh-install harness arguments."""
 
     parser = argparse.ArgumentParser(
-        description="Run repeated real source installs against E:\\SugarSubstitute-Test."
+        description="Run repeated real source installs against an isolated test root."
     )
     parser.add_argument("--iterations", type=int, default=2)
     parser.add_argument("--install-root", type=Path, default=DEFAULT_INSTALL_ROOT)

@@ -103,6 +103,22 @@ class _Service:
                 f"{self.target.endpoint.host}:{self.target.endpoint.port}."
             ),
             can_test_endpoint=True,
+            managed_model_root=(
+                str(self.target.workspace_path / "models")
+                if self.target.workspace_path is not None
+                else "/srv/comfy/models"
+            ),
+            active_managed_model_root=(
+                str(self.target.workspace_path / "models")
+                if self.target.workspace_path is not None
+                else "/srv/comfy/models"
+            ),
+            default_managed_model_root=(
+                str(self.target.workspace_path / "models")
+                if self.target.workspace_path is not None
+                else "/srv/comfy/models"
+            ),
+            model_root_management_available=True,
         )
 
     def save_draft(
@@ -271,7 +287,7 @@ def test_comfy_connection_page_switches_mode_specific_folder_rows(
 
     page.set_selected_mode(ComfyTargetMode.ATTACHED_LOCAL)
     assert page.is_managed_folder_row_visible() is False
-    assert page.is_model_folder_row_visible() is False
+    assert page.is_model_folder_row_visible() is True
     assert page.is_existing_folder_row_visible() is True
     assert page.setup_action_row.isHidden() is False
     assert page.configuration_group.title_label.text() == "Existing local setup"
@@ -279,7 +295,8 @@ def test_comfy_connection_page_switches_mode_specific_folder_rows(
 
     page.set_selected_mode(ComfyTargetMode.REMOTE)
     assert page.is_managed_folder_row_visible() is False
-    assert page.is_model_folder_row_visible() is False
+    assert page.is_model_folder_row_visible() is True
+    assert page.model_folder_browse_button.isHidden() is True
     assert page.is_existing_folder_row_visible() is False
     assert page.setup_action_row.isHidden() is True
     assert page.configuration_group.title_label.text() == "Remote server"
@@ -398,7 +415,7 @@ def test_comfy_connection_page_save_submits_explicit_model_root(
     _process_events_until(_app(), lambda: len(service.saved_drafts) == 1)
 
     saved = service.saved_drafts[0]
-    assert saved.managed_model_root == model_root
+    assert saved.managed_model_root == str(model_root)
     assert saved.managed_model_root_uses_default is False
     page.close()
 
@@ -423,7 +440,7 @@ def test_comfy_connection_page_default_model_root_follows_managed_folder(
     _process_events_until(_app(), lambda: len(service.saved_drafts) == 1)
 
     saved = service.saved_drafts[0]
-    assert saved.managed_model_root == new_workspace / "models"
+    assert saved.managed_model_root == str(new_workspace / "models")
     assert saved.managed_model_root_uses_default is True
     page.close()
 

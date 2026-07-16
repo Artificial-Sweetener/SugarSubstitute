@@ -54,7 +54,6 @@ class CoreComfyNodepack:
     sentinel_files: tuple[Path, ...]
     source_url: str | None = None
     local_source_environment_variable: str | None = None
-    local_source_candidates: tuple[Path, ...] = ()
     python_distribution_name: str | None = None
     minimum_python_distribution_version: str | None = None
     pinned_source_archive_url: str | None = None
@@ -117,10 +116,6 @@ CORE_COMFY_NODEPACKS: tuple[CoreComfyNodepack, ...] = (
         ),
         source_url="https://github.com/Artificial-Sweetener/Substitute-BackEnd.git",
         local_source_environment_variable="SUGARSUBSTITUTE_BACKEND_SOURCE",
-        local_source_candidates=(
-            Path("E:/ComfyUI/custom_nodes/Substitute-BackEnd"),
-            Path("E:/ComfyUI/custom_nodes/Substitute-Backend"),
-        ),
         python_distribution_name="substitute-backend",
         minimum_python_distribution_version=SUBSTITUTE_BACKEND_REQUIRED_MINIMUM_VERSION,
         pinned_source_archive_url=SUBSTITUTE_BACKEND_FALLBACK_ARCHIVE_URL,

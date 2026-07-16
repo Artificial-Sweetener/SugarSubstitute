@@ -60,6 +60,8 @@ def test_environment_client_builds_urls_and_parses_payloads() -> None:
             return _FakeResponse(_capabilities_payload())
         if url.endswith("/substitute/v1/environment/status"):
             return _FakeResponse(_status_payload())
+        if url.endswith("/substitute/v1/environment/model-root"):
+            return _FakeResponse(_model_root_payload())
         if url.endswith("/substitute/v1/environment/packages"):
             return _FakeResponse(_packages_payload())
         if url.endswith("/substitute/v1/environment/maintenance-plan"):
@@ -113,15 +115,36 @@ def test_environment_client_builds_urls_and_parses_payloads() -> None:
             return _FakeResponse(_empty_maintenance_plan_payload())
         raise AssertionError(f"unexpected DELETE {url}")
 
+    def fake_put(url: str, **kwargs: object) -> _FakeResponse:
+        """Return the persisted BackEnd model-root response."""
+
+        calls.append(("PUT", url))
+        assert url.endswith("/substitute/v1/environment/model-root")
+        assert kwargs["json"] == {"mode": "custom", "path": "E:\\SharedModels"}
+        return _FakeResponse(
+            {
+                **_model_root_payload(),
+                "configuredModelRoot": "E:\\SharedModels",
+                "restartRequired": True,
+                "usesDefault": False,
+            }
+        )
+
     client = SubstituteBackendEnvironmentClient(
         ComfyEndpoint(host="10.0.0.2", port=8189),
         http_get=fake_get,
         http_post=fake_post,
+        http_put=fake_put,
         http_delete=fake_delete,
     )
 
     capabilities = client.get_environment_capabilities()
     status = client.get_environment_status()
+    model_root = client.get_model_root()
+    updated_model_root = client.update_model_root(
+        use_default=False,
+        path="E:\\SharedModels",
+    )
     packages = client.list_packages()
     plan = client.plan_operation(
         {"operation": "update-component", "componentId": "pytorch"}
@@ -143,8 +166,13 @@ def test_environment_client_builds_urls_and_parses_payloads() -> None:
 
     assert capabilities is not None
     assert capabilities.restart_supported is True
+    assert capabilities.model_root_management_supported is True
     assert status is not None
     assert status.python.version == "3.12.7"
+    assert model_root is not None
+    assert model_root.uses_default is True
+    assert updated_model_root is not None
+    assert updated_model_root.configured_model_root == "E:\\SharedModels"
     assert packages[0].name == "torch"
     assert packages[0].summary == "Tensors and dynamic neural networks in Python."
     assert packages[0].summary_source == "installed-metadata"
@@ -178,6 +206,8 @@ def test_environment_client_builds_urls_and_parses_payloads() -> None:
     assert calls == [
         ("GET", "http://10.0.0.2:8189/substitute/v1/environment/capabilities"),
         ("GET", "http://10.0.0.2:8189/substitute/v1/environment/status"),
+        ("GET", "http://10.0.0.2:8189/substitute/v1/environment/model-root"),
+        ("PUT", "http://10.0.0.2:8189/substitute/v1/environment/model-root"),
         ("GET", "http://10.0.0.2:8189/substitute/v1/environment/packages"),
         ("POST", "http://10.0.0.2:8189/substitute/v1/environment/operations/plan"),
         ("GET", "http://10.0.0.2:8189/substitute/v1/environment/maintenance-plan"),
@@ -322,6 +352,20 @@ def _capabilities_payload() -> dict[str, object]:
         "restartSupported": True,
         "packageMutationSupported": False,
         "operationPlanningSupported": False,
+        "modelRootManagementSupported": True,
+    }
+
+
+def _model_root_payload() -> dict[str, object]:
+    """Return default BackEnd-owned model-root state."""
+
+    return {
+        "schemaVersion": 1,
+        "defaultModelRoot": "E:\\ComfyUI\\models",
+        "configuredModelRoot": None,
+        "activeModelRoot": "E:\\ComfyUI\\models",
+        "usesDefault": True,
+        "restartRequired": False,
     }
 
 

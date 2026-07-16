@@ -42,7 +42,20 @@ class ComfyEnvironmentCapabilities:
     restart_supported: bool
     package_mutation_supported: bool
     operation_planning_supported: bool
+    model_root_management_supported: bool = False
     restart_unavailable_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class ComfyModelRootStatus:
+    """Describe BackEnd-owned model-root configuration and active state."""
+
+    schema_version: int
+    default_model_root: str
+    configured_model_root: str | None
+    active_model_root: str
+    uses_default: bool
+    restart_required: bool
 
 
 @dataclass(frozen=True)

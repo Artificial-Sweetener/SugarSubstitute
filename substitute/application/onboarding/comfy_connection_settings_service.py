@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from collections.abc import Callable
 from typing import Protocol
 
 from substitute.application.onboarding.comfy_target_service import ComfyTargetService
@@ -32,6 +33,10 @@ from substitute.domain.onboarding import (
     ComfyEndpoint,
     ComfyTargetConfiguration,
     ComfyTargetMode,
+)
+from substitute.domain.comfy_environment import (
+    ComfyEnvironmentCapabilities,
+    ComfyModelRootStatus,
 )
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
@@ -55,38 +60,27 @@ class ComfyConnectionReadinessChecks(Protocol):
         """Return whether the target endpoint accepts a connection."""
 
 
-class ManagedModelRootConfigProtocol(Protocol):
-    """Describe managed model-root state loaded for Settings display."""
+class ModelRootEnvironmentClientProtocol(Protocol):
+    """Describe BackEnd model-root operations used by connection settings."""
 
-    @property
-    def workspace(self) -> Path:
-        """Return the managed ComfyUI workspace path."""
+    def get_environment_capabilities(self) -> ComfyEnvironmentCapabilities | None:
+        """Return environment capabilities when BackEnd is reachable."""
 
-    @property
-    def default_model_root(self) -> Path:
-        """Return the workspace-local default models folder."""
+    def get_model_root(self) -> ComfyModelRootStatus | None:
+        """Return persisted and active model-root state."""
 
-    @property
-    def effective_model_root(self) -> Path:
-        """Return the active or saved effective model root."""
-
-    @property
-    def override_model_root(self) -> Path | None:
-        """Return the explicit override model root, when configured."""
-
-
-class ManagedModelRootStoreProtocol(Protocol):
-    """Describe managed model-root persistence used by Settings."""
-
-    def load(self, workspace: Path) -> ManagedModelRootConfigProtocol:
-        """Return the effective managed model root for one workspace."""
-
-    def save(
+    def update_model_root(
         self,
-        workspace: Path,
-        model_root: Path | None,
-    ) -> ManagedModelRootConfigProtocol:
-        """Persist and return the managed model root for one workspace."""
+        *,
+        use_default: bool,
+        path: str | None = None,
+    ) -> ComfyModelRootStatus | None:
+        """Persist a model-root selection on the connected Comfy host."""
+
+
+ModelRootEnvironmentClientFactory = Callable[
+    [ComfyEndpoint], ModelRootEnvironmentClientProtocol
+]
 
 
 @dataclass(frozen=True)
@@ -97,9 +91,11 @@ class ComfyConnectionSettingsSnapshot:
     persisted_exists: bool
     status_message: str
     can_test_endpoint: bool
-    managed_model_root: Path | None = None
+    managed_model_root: str | None = None
     managed_model_root_uses_default: bool = True
-    active_managed_model_root: Path | None = None
+    active_managed_model_root: str | None = None
+    default_managed_model_root: str | None = None
+    model_root_management_available: bool = False
 
 
 @dataclass(frozen=True)
@@ -111,7 +107,7 @@ class ComfyConnectionSettingsDraft:
     port: int
     managed_workspace_path: Path | None
     attached_workspace_path: Path | None
-    managed_model_root: Path | None = None
+    managed_model_root: str | None = None
     managed_model_root_uses_default: bool = True
 
 
@@ -132,14 +128,13 @@ class ComfyConnectionSettingsService:
 
     target_service: ComfyTargetService
     checks: ComfyConnectionReadinessChecks
-    model_root_store: ManagedModelRootStoreProtocol | None = None
+    environment_client_factory: ModelRootEnvironmentClientFactory | None = None
     restart_requirements: RestartRequirementService | None = None
 
     def __post_init__(self) -> None:
         """Initialize process-local active baselines for restart comparisons."""
 
         self._active_target_baseline: ComfyTargetConfiguration | None = None
-        self._active_model_root_baselines: dict[Path, Path] = {}
 
     def load_snapshot(self) -> ComfyConnectionSettingsSnapshot:
         """Load the persisted target or default target for display."""
@@ -148,7 +143,7 @@ class ComfyConnectionSettingsService:
         target = persisted or self.target_service.create_default()
         if self._active_target_baseline is None:
             self._active_target_baseline = target
-        model_root_config = self._load_model_root_config(target)
+        model_root_status = self._load_model_root_status(target)
         return ComfyConnectionSettingsSnapshot(
             target=target,
             persisted_exists=persisted is not None,
@@ -157,20 +152,27 @@ class ComfyConnectionSettingsService:
             ),
             can_test_endpoint=True,
             managed_model_root=(
-                model_root_config.effective_model_root
-                if model_root_config is not None
+                model_root_status.configured_model_root
+                or model_root_status.default_model_root
+                if model_root_status is not None
                 else None
             ),
             managed_model_root_uses_default=(
-                model_root_config.override_model_root is None
-                if model_root_config is not None
+                model_root_status.uses_default
+                if model_root_status is not None
                 else True
             ),
             active_managed_model_root=(
-                self._model_root_baseline(model_root_config.workspace)
-                if model_root_config is not None
+                model_root_status.active_model_root
+                if model_root_status is not None
                 else None
             ),
+            default_managed_model_root=(
+                model_root_status.default_model_root
+                if model_root_status is not None
+                else None
+            ),
+            model_root_management_available=model_root_status is not None,
         )
 
     def save_draft(
@@ -205,7 +207,7 @@ class ComfyConnectionSettingsService:
             return reachability_result
 
         try:
-            model_root_config = self._save_model_root(target, draft)
+            model_root_status = self._save_model_root(target, draft)
         except ValueError as error:
             log_warning(
                 _LOGGER,
@@ -226,7 +228,7 @@ class ComfyConnectionSettingsService:
         restart_snapshot = self._register_restart_requirements(
             active_target=active_target,
             saved_target=saved,
-            model_root_config=model_root_config,
+            model_root_status=model_root_status,
         )
         restart_required = (
             restart_snapshot.count > 0
@@ -368,63 +370,62 @@ class ComfyConnectionSettingsService:
             )
         return self._active_target_baseline
 
-    def _load_model_root_config(
+    def _load_model_root_status(
         self,
         target: ComfyTargetConfiguration,
-    ) -> ManagedModelRootConfigProtocol | None:
-        """Load managed model-root state and capture its active baseline."""
+    ) -> ComfyModelRootStatus | None:
+        """Load model-root state from the connected BackEnd when supported."""
 
-        if (
-            self.model_root_store is None
-            or target.mode is not ComfyTargetMode.MANAGED_LOCAL
-            or target.workspace_path is None
-        ):
+        client = self._model_root_client(target)
+        if client is None:
             return None
-        config = self.model_root_store.load(target.workspace_path)
-        self._active_model_root_baselines.setdefault(
-            config.workspace,
-            config.effective_model_root,
-        )
-        return config
-
-    def _model_root_baseline(self, workspace: Path) -> Path:
-        """Return the process-local model-root baseline for one workspace."""
-
-        baseline = self._active_model_root_baselines.get(workspace)
-        if baseline is not None:
-            return baseline
-        if self.model_root_store is None:
-            return workspace / "models"
-        config = self.model_root_store.load(workspace)
-        self._active_model_root_baselines[config.workspace] = (
-            config.effective_model_root
-        )
-        return config.effective_model_root
+        return client.get_model_root()
 
     def _save_model_root(
         self,
         target: ComfyTargetConfiguration,
         draft: ComfyConnectionSettingsDraft,
-    ) -> ManagedModelRootConfigProtocol | None:
-        """Persist managed model-root state when the target is managed local."""
+    ) -> ComfyModelRootStatus | None:
+        """Persist model-root state through the connected BackEnd."""
 
-        if (
-            self.model_root_store is None
-            or target.mode is not ComfyTargetMode.MANAGED_LOCAL
-            or target.workspace_path is None
-        ):
+        client = self._model_root_client(target)
+        if client is None:
             return None
-        requested_root = (
-            None if draft.managed_model_root_uses_default else draft.managed_model_root
+        status = client.update_model_root(
+            use_default=draft.managed_model_root_uses_default,
+            path=(
+                None
+                if draft.managed_model_root_uses_default
+                or draft.managed_model_root is None
+                else draft.managed_model_root
+            ),
         )
-        return self.model_root_store.save(target.workspace_path, requested_root)
+        if status is None:
+            raise ValueError(
+                "Substitute BackEnd could not save the ComfyUI model folder."
+            )
+        return status
+
+    def _model_root_client(
+        self,
+        target: ComfyTargetConfiguration,
+    ) -> ModelRootEnvironmentClientProtocol | None:
+        """Return a capable environment client for the selected endpoint."""
+
+        if self.environment_client_factory is None:
+            return None
+        client = self.environment_client_factory(target.endpoint)
+        capabilities = client.get_environment_capabilities()
+        if capabilities is None or not capabilities.model_root_management_supported:
+            return None
+        return client
 
     def _register_restart_requirements(
         self,
         *,
         active_target: ComfyTargetConfiguration,
         saved_target: ComfyTargetConfiguration,
-        model_root_config: ManagedModelRootConfigProtocol | None,
+        model_root_status: ComfyModelRootStatus | None,
     ) -> RestartRequirementSnapshot | None:
         """Register restart deltas after a successful settings save."""
 
@@ -438,15 +439,17 @@ class ComfyConnectionSettingsService:
             scope=RestartScope.FULL_APP,
             detail="Substitute will use the saved ComfyUI connection after restart.",
         )
-        if model_root_config is None:
+        if model_root_status is None:
             snapshot = self.restart_requirements.clear(_MODEL_ROOT_RESTART_KEY)
             return snapshot
-        active_model_root = self._model_root_baseline(model_root_config.workspace)
         return self.restart_requirements.register_delta(
             key=_MODEL_ROOT_RESTART_KEY,
             label="Model folder",
-            active_value=_path_restart_value(active_model_root),
-            saved_value=_path_restart_value(model_root_config.effective_model_root),
+            active_value=_path_restart_value(model_root_status.active_model_root),
+            saved_value=_path_restart_value(
+                model_root_status.configured_model_root
+                or model_root_status.default_model_root
+            ),
             scope=RestartScope.FULL_APP,
             detail="ComfyUI will use the selected model folder after restart.",
         )
@@ -510,10 +513,10 @@ def _target_restart_value(target: ComfyTargetConfiguration) -> str:
     )
 
 
-def _path_restart_value(path: Path) -> str:
-    """Return a normalized path string for restart delta comparison."""
+def _path_restart_value(path: Path | str) -> str:
+    """Return a stable path string without rewriting remote host syntax."""
 
-    return str(path.resolve())
+    return str(path.resolve()) if isinstance(path, Path) else path
 
 
 __all__ = [
@@ -522,6 +525,6 @@ __all__ = [
     "ComfyConnectionSettingsDraft",
     "ComfyConnectionSettingsService",
     "ComfyConnectionSettingsSnapshot",
-    "ManagedModelRootConfigProtocol",
-    "ManagedModelRootStoreProtocol",
+    "ModelRootEnvironmentClientFactory",
+    "ModelRootEnvironmentClientProtocol",
 ]

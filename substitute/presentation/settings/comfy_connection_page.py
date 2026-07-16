@@ -66,6 +66,7 @@ from substitute.presentation.settings.settings_style import (
     SETTINGS_CARD_GROUP_TOP_MARGIN,
 )
 from substitute.presentation.resources.app_icon import AppIcon
+from substitute.presentation.platform_path_guidance import existing_comfy_example
 
 _LOAD_SNAPSHOT_TASK_ID = "comfy_connection.load_snapshot"
 _SAVE_DRAFT_TASK_ID = "comfy_connection.save_draft"
@@ -209,6 +210,8 @@ class ComfyConnectionSettingsPage(QWidget):
         self._show_restart_requirements = show_restart_requirements
         self._loaded_draft: ComfyConnectionSettingsDraft | None = None
         self._managed_model_root_uses_default = True
+        self._model_root_management_available = False
+        self._default_managed_model_root: str | None = None
         self._is_loading = False
         self._save_in_flight = False
         self._task_generation = 0
@@ -417,10 +420,11 @@ class ComfyConnectionSettingsPage(QWidget):
         """Create the managed-local model root path row."""
 
         self.model_folder_edit = self._path_edit("ComfyConnectionModelFolderEdit")
-        self.model_folder_edit.setPlaceholderText(r"E:\ImageGen Models")
+        self.model_folder_edit.setPlaceholderText("Path on the ComfyUI host")
         self.model_folder_edit.textChanged.connect(self._on_model_root_text_changed)
         browse_button = PushButton("Browse", self)
         browse_button.clicked.connect(self._browse_model_folder)
+        self.model_folder_browse_button = browse_button
         default_button = PushButton("Use default", self)
         default_button.clicked.connect(self._use_default_model_folder)
         self.model_folder_default_button = default_button
@@ -432,7 +436,10 @@ class ComfyConnectionSettingsPage(QWidget):
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.CUBE_MULTIPLE_20_REGULAR),
             title="Model folder",
-            description="Managed ComfyUI reads model files from this folder.",
+            description=(
+                "Changes this ComfyUI installation's model folder, including when "
+                "ComfyUI starts on its own."
+            ),
             trailing_widget=controls,
             reserve_visual_space=True,
             parent=self,
@@ -442,7 +449,7 @@ class ComfyConnectionSettingsPage(QWidget):
         """Create the existing-local workspace path row."""
 
         self.existing_folder_edit = self._path_edit("ComfyConnectionExistingFolderEdit")
-        self.existing_folder_edit.setPlaceholderText(r"E:\ComfyUI")
+        self.existing_folder_edit.setPlaceholderText(existing_comfy_example())
         self.existing_folder_edit.textChanged.connect(self._on_draft_changed)
         browse_button = PushButton("Browse", self)
         browse_button.clicked.connect(self._browse_existing_folder)
@@ -528,6 +535,8 @@ class ComfyConnectionSettingsPage(QWidget):
         """Mirror one service snapshot into the editable controls."""
 
         self._loaded_draft = _draft_from_snapshot(snapshot)
+        self._model_root_management_available = snapshot.model_root_management_available
+        self._default_managed_model_root = snapshot.default_managed_model_root
         self._apply_draft(self._loaded_draft)
         self.connection_feedback_bar.clear()
         self.connection_check_row.description_label.setText(snapshot.status_message)
@@ -542,29 +551,22 @@ class ComfyConnectionSettingsPage(QWidget):
             self._set_mode(draft.mode)
             self.host_edit.setText(draft.host)
             self.port_spinbox.setValue(draft.port)
+            self._managed_model_root_uses_default = (
+                draft.managed_model_root_uses_default
+            )
+            self.model_folder_edit.setText(_path_text(draft.managed_model_root))
             if draft.mode is ComfyTargetMode.MANAGED_LOCAL:
                 self.managed_folder_edit.setText(
                     _path_text(draft.managed_workspace_path)
                 )
-                self._managed_model_root_uses_default = (
-                    draft.managed_model_root_uses_default
-                )
-                self.model_folder_edit.setText(
-                    _path_text(
-                        draft.managed_model_root
-                        or _default_model_root(draft.managed_workspace_path)
-                    )
-                )
                 self.existing_folder_edit.setText("")
             elif draft.mode is ComfyTargetMode.ATTACHED_LOCAL:
                 self.managed_folder_edit.setText("")
-                self.model_folder_edit.setText("")
                 self.existing_folder_edit.setText(
                     _path_text(draft.attached_workspace_path)
                 )
             else:
                 self.managed_folder_edit.setText("")
-                self.model_folder_edit.setText("")
                 self.existing_folder_edit.setText("")
         finally:
             self._is_loading = False
@@ -628,7 +630,8 @@ class ComfyConnectionSettingsPage(QWidget):
         is_existing = mode is ComfyTargetMode.ATTACHED_LOCAL
         is_remote = mode is ComfyTargetMode.REMOTE
         self.managed_folder_row.setVisible(is_managed)
-        self.model_folder_row.setVisible(is_managed)
+        self.model_folder_row.setVisible(self._model_root_management_available)
+        self.model_folder_browse_button.setVisible(not is_remote)
         self.existing_folder_row.setVisible(is_existing)
         self.setup_action_row.setVisible(not is_remote)
         if is_remote:
@@ -665,7 +668,7 @@ class ComfyConnectionSettingsPage(QWidget):
             port=self.port_spinbox.value(),
             managed_workspace_path=_optional_path(self.managed_folder_edit.text()),
             attached_workspace_path=_optional_path(self.existing_folder_edit.text()),
-            managed_model_root=_optional_path(self.model_folder_edit.text()),
+            managed_model_root=_optional_text(self.model_folder_edit.text()),
             managed_model_root_uses_default=self._managed_model_root_uses_default,
         )
 
@@ -820,13 +823,9 @@ class ComfyConnectionSettingsPage(QWidget):
             self.model_folder_edit.setText(selected)
 
     def _use_default_model_folder(self) -> None:
-        """Reset the model folder to the managed ComfyUI default."""
+        """Reset the model folder to the connected ComfyUI host's default."""
 
-        self._set_model_folder_text(
-            _path_text(
-                _default_model_root(_optional_path(self.managed_folder_edit.text()))
-            )
-        )
+        self._set_model_folder_text(_path_text(self._default_managed_model_root))
         self._managed_model_root_uses_default = True
         self._on_draft_changed()
 
@@ -845,7 +844,14 @@ def _optional_path(text: str) -> Path | None:
     return Path(stripped) if stripped else None
 
 
-def _path_text(path: Path | None) -> str:
+def _optional_text(text: str) -> str | None:
+    """Return stripped text unless the field is empty."""
+
+    stripped = text.strip()
+    return stripped or None
+
+
+def _path_text(path: Path | str | None) -> str:
     """Return display text for an optional path."""
 
     return "" if path is None else str(path)
@@ -881,8 +887,9 @@ def _draft_from_snapshot(
         port=target.endpoint.port,
         managed_workspace_path=managed_path,
         attached_workspace_path=attached_path,
-        managed_model_root=snapshot.managed_model_root
-        or _default_model_root(managed_path),
+        managed_model_root=_path_text(
+            snapshot.managed_model_root or _default_model_root(managed_path)
+        ),
         managed_model_root_uses_default=snapshot.managed_model_root_uses_default,
     )
 

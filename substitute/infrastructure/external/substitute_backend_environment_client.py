@@ -40,6 +40,7 @@ from substitute.domain.comfy_environment import (
     ComfyMaintenancePlanRequest,
     ComfyMaintenancePlanSummary,
     ComfyMaintenancePlanTarget,
+    ComfyModelRootStatus,
     ComfyPackageClaimant,
     ComfyPackageManagementTag,
     ComfyPythonStatus,
@@ -49,6 +50,7 @@ from substitute.infrastructure.external.http_transport import (
     default_http_delete,
     default_http_get,
     default_http_post,
+    default_http_put,
     is_request_exception,
 )
 from substitute.shared.logging.logger import get_logger, log_warning
@@ -56,6 +58,7 @@ from substitute.shared.logging.logger import get_logger, log_warning
 _LOGGER = get_logger("infrastructure.external.substitute_backend_environment_client")
 HttpGet = Callable[..., Any]
 HttpPost = Callable[..., Any]
+HttpPut = Callable[..., Any]
 HttpDelete = Callable[..., Any]
 
 
@@ -68,6 +71,7 @@ class SubstituteBackendEnvironmentClient:
         *,
         http_get: HttpGet | None = None,
         http_post: HttpPost | None = None,
+        http_put: HttpPut | None = None,
         http_delete: HttpDelete | None = None,
         timeout_seconds: float = 5.0,
     ) -> None:
@@ -76,6 +80,7 @@ class SubstituteBackendEnvironmentClient:
         self._endpoint = endpoint
         self._http_get = http_get or default_http_get
         self._http_post = http_post or default_http_post
+        self._http_put = http_put or default_http_put
         self._http_delete = http_delete or default_http_delete
         self._timeout_seconds = timeout_seconds
 
@@ -123,6 +128,46 @@ class SubstituteBackendEnvironmentClient:
             log_warning(
                 _LOGGER,
                 "Invalid Substitute BackEnd restart response",
+                error=repr(error),
+            )
+            return None
+
+    def get_model_root(self) -> ComfyModelRootStatus | None:
+        """Return BackEnd-owned persisted and active model-root state."""
+
+        payload = self._get_json("/substitute/v1/environment/model-root")
+        if payload is None:
+            return None
+        try:
+            return _parse_model_root_status(payload)
+        except ValueError as error:
+            log_warning(
+                _LOGGER,
+                "Invalid Substitute BackEnd model-root response",
+                error=repr(error),
+            )
+            return None
+
+    def update_model_root(
+        self,
+        *,
+        use_default: bool,
+        path: str | None = None,
+    ) -> ComfyModelRootStatus | None:
+        """Persist the connected Comfy host's model-root selection."""
+
+        body: JsonObject = {"mode": "default" if use_default else "custom"}
+        if not use_default:
+            body["path"] = path
+        payload = self._put_json("/substitute/v1/environment/model-root", body)
+        if payload is None:
+            return None
+        try:
+            return _parse_model_root_status(payload)
+        except ValueError as error:
+            log_warning(
+                _LOGGER,
+                "Invalid Substitute BackEnd model-root update response",
                 error=repr(error),
             )
             return None
@@ -377,6 +422,36 @@ class SubstituteBackendEnvironmentClient:
             return None
         return payload
 
+    def _put_json(self, path: str, body: JsonObject) -> JsonObject | None:
+        """PUT one backend route and return a JSON object on success."""
+
+        try:
+            response = self._http_put(
+                self._url(path),
+                json=body,
+                timeout=self._timeout_seconds,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except Exception as error:
+            if not _is_expected_http_error(error):
+                raise
+            log_warning(
+                _LOGGER,
+                "Substitute BackEnd environment PUT failed",
+                endpoint=self._url(path),
+                error=repr(error),
+            )
+            return None
+        if not isinstance(payload, dict):
+            log_warning(
+                _LOGGER,
+                "Substitute BackEnd environment PUT returned non-object JSON",
+                endpoint=self._url(path),
+            )
+            return None
+        return payload
+
     def _url(self, path: str) -> str:
         """Return an HTTP URL rooted at the configured Comfy endpoint."""
 
@@ -398,7 +473,24 @@ def _parse_capabilities(data: JsonObject) -> ComfyEnvironmentCapabilities:
         restart_supported=_read_bool(data, "restartSupported"),
         package_mutation_supported=_read_bool(data, "packageMutationSupported"),
         operation_planning_supported=_read_bool(data, "operationPlanningSupported"),
+        model_root_management_supported=_read_bool(
+            data, "modelRootManagementSupported"
+        ),
         restart_unavailable_reason=_read_str(data, "restartUnavailableReason"),
+    )
+
+
+def _parse_model_root_status(data: JsonObject) -> ComfyModelRootStatus:
+    """Parse BackEnd-owned model-root state."""
+
+    configured = _read_str(data, "configuredModelRoot")
+    return ComfyModelRootStatus(
+        schema_version=_required_int(data, "schemaVersion"),
+        default_model_root=_required_str(data, "defaultModelRoot"),
+        configured_model_root=configured,
+        active_model_root=_required_str(data, "activeModelRoot"),
+        uses_default=_read_bool(data, "usesDefault"),
+        restart_required=_read_bool(data, "restartRequired"),
     )
 
 

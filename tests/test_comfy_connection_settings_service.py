@@ -34,6 +34,10 @@ from substitute.domain.onboarding import (
     ComfyTargetMode,
     InstallationConfiguration,
 )
+from substitute.domain.comfy_environment import (
+    ComfyEnvironmentCapabilities,
+    ComfyModelRootStatus,
+)
 
 
 class _TargetRepository:
@@ -92,45 +96,72 @@ class _Checks:
         return self.endpoint_reachable
 
 
+class _EnvironmentClient:
+    """Provide controllable BackEnd model-root state for settings tests."""
+
+    def __init__(self, status: ComfyModelRootStatus) -> None:
+        """Initialize the reported host state."""
+
+        self.status = status
+        self.last_update_path: str | None = None
+
+    def get_environment_capabilities(self) -> ComfyEnvironmentCapabilities:
+        """Advertise model-root management support."""
+
+        return ComfyEnvironmentCapabilities(
+            schema_version=1,
+            supported_features=("model-root-management",),
+            restart_supported=True,
+            package_mutation_supported=False,
+            operation_planning_supported=True,
+            model_root_management_supported=True,
+        )
+
+    def get_model_root(self) -> ComfyModelRootStatus:
+        """Return current fake host state."""
+
+        return self.status
+
+    def update_model_root(
+        self,
+        *,
+        use_default: bool,
+        path: str | None = None,
+    ) -> ComfyModelRootStatus:
+        """Persist a fake selection while leaving active process state unchanged."""
+
+        self.last_update_path = path
+        configured = None if use_default else path
+        desired = configured or self.status.default_model_root
+        self.status = ComfyModelRootStatus(
+            schema_version=1,
+            default_model_root=self.status.default_model_root,
+            configured_model_root=configured,
+            active_model_root=self.status.active_model_root,
+            uses_default=use_default,
+            restart_required=desired != self.status.active_model_root,
+        )
+        return self.status
+
+
 @dataclass(frozen=True)
-class _ModelRootConfig:
-    """Capture fake managed model-root state."""
+class _EnvironmentClientFactory:
+    """Return one fake client for every endpoint in a settings test."""
 
-    workspace: Path
-    default_model_root: Path
-    effective_model_root: Path
-    override_model_root: Path | None
+    client: _EnvironmentClient
+
+    def __call__(self, _endpoint: ComfyEndpoint) -> _EnvironmentClient:
+        """Return the configured fake client."""
+
+        return self.client
 
 
-class _ModelRootStore:
-    """Persist fake managed model-root settings in memory."""
+def _environment_client(service: ComfyConnectionSettingsService) -> _EnvironmentClient:
+    """Return the fake client composed into a model-root test service."""
 
-    def __init__(self) -> None:
-        """Initialize an empty fake model-root store."""
-
-        self.saved: dict[Path, Path | None] = {}
-
-    def load(self, workspace: Path) -> _ModelRootConfig:
-        """Load fake model-root state for one workspace."""
-
-        resolved_workspace = workspace.resolve()
-        default_root = resolved_workspace / "models"
-        override = self.saved.get(resolved_workspace)
-        return _ModelRootConfig(
-            workspace=resolved_workspace,
-            default_model_root=default_root,
-            effective_model_root=override or default_root,
-            override_model_root=override,
-        )
-
-    def save(self, workspace: Path, model_root: Path | None) -> _ModelRootConfig:
-        """Persist fake model-root state for one workspace."""
-
-        resolved_workspace = workspace.resolve()
-        self.saved[resolved_workspace] = (
-            model_root.resolve() if model_root is not None else None
-        )
-        return self.load(resolved_workspace)
+    factory = service.environment_client_factory
+    assert isinstance(factory, _EnvironmentClientFactory)
+    return factory.client
 
 
 def test_connection_settings_loads_persisted_target(tmp_path: Path) -> None:
@@ -205,13 +236,16 @@ def test_connection_settings_loads_managed_model_root(tmp_path: Path) -> None:
         install_owned=True,
         launch_owned=True,
     )
-    assert isinstance(service.model_root_store, _ModelRootStore)
-    service.model_root_store.save(workspace, model_root)
+    _environment_client(service).status = _model_root_status(
+        workspace=workspace,
+        configured=model_root,
+        active=model_root,
+    )
 
     snapshot = service.load_snapshot()
 
-    assert snapshot.managed_model_root == model_root.resolve()
-    assert snapshot.active_managed_model_root == model_root.resolve()
+    assert snapshot.managed_model_root == str(model_root.resolve())
+    assert snapshot.active_managed_model_root == str(model_root.resolve())
     assert snapshot.managed_model_root_uses_default is False
 
 
@@ -234,6 +268,11 @@ def test_connection_settings_saves_model_root_and_registers_restart_delta(
         install_owned=True,
         launch_owned=True,
     )
+    _environment_client(service).status = _model_root_status(
+        workspace=workspace,
+        configured=None,
+        active=workspace / "models",
+    )
     service.load_snapshot()
     model_root = tmp_path / "Models"
 
@@ -244,7 +283,7 @@ def test_connection_settings_saves_model_root_and_registers_restart_delta(
             port=8188,
             managed_workspace_path=workspace,
             attached_workspace_path=None,
-            managed_model_root=model_root,
+            managed_model_root=str(model_root),
             managed_model_root_uses_default=False,
         )
     )
@@ -278,6 +317,11 @@ def test_connection_settings_clears_model_root_restart_delta_when_reset_to_activ
         install_owned=True,
         launch_owned=True,
     )
+    _environment_client(service).status = _model_root_status(
+        workspace=workspace,
+        configured=None,
+        active=active_model_root,
+    )
     service.load_snapshot()
     restart_requirements.register_delta(
         key="comfy.model_root",
@@ -294,7 +338,7 @@ def test_connection_settings_clears_model_root_restart_delta_when_reset_to_activ
             port=8188,
             managed_workspace_path=workspace,
             attached_workspace_path=None,
-            managed_model_root=active_model_root,
+            managed_model_root=str(active_model_root),
             managed_model_root_uses_default=True,
         )
     )
@@ -323,12 +367,15 @@ def test_connection_settings_cold_start_does_not_create_stale_restart_delta(
         install_owned=True,
         launch_owned=True,
     )
-    assert isinstance(service.model_root_store, _ModelRootStore)
-    service.model_root_store.save(workspace, model_root)
+    _environment_client(service).status = _model_root_status(
+        workspace=workspace,
+        configured=model_root,
+        active=model_root,
+    )
 
     snapshot = service.load_snapshot()
 
-    assert snapshot.managed_model_root == model_root.resolve()
+    assert snapshot.managed_model_root == str(model_root.resolve())
     assert restart_requirements.snapshot().count == 0
 
 
@@ -448,6 +495,35 @@ def test_connection_settings_saves_remote_without_workspace(tmp_path: Path) -> N
     assert repository.saved.launch_owned is False
 
 
+def test_connection_settings_preserves_remote_host_model_path(tmp_path: Path) -> None:
+    """Remote model paths should cross the Windows client without rewriting."""
+
+    service, repository, _checks = _build_service(tmp_path, with_model_root=True)
+    repository.saved = ComfyTargetConfiguration(
+        mode=ComfyTargetMode.REMOTE,
+        endpoint=ComfyEndpoint(host="linux-box", port=8188),
+        workspace_path=None,
+        install_owned=False,
+        launch_owned=False,
+    )
+    service.load_snapshot()
+
+    result = service.save_draft(
+        ComfyConnectionSettingsDraft(
+            mode=ComfyTargetMode.REMOTE,
+            host="linux-box",
+            port=8188,
+            managed_workspace_path=None,
+            attached_workspace_path=None,
+            managed_model_root="/srv/comfy/models",
+            managed_model_root_uses_default=False,
+        )
+    )
+
+    assert result.succeeded is True
+    assert _environment_client(service).last_update_path == "/srv/comfy/models"
+
+
 def test_connection_settings_rejects_invalid_endpoint(tmp_path: Path) -> None:
     """Saving should reject blank hosts and invalid ports before persistence."""
 
@@ -527,10 +603,47 @@ def _build_service(
     installation = InstallationConfiguration.create_default(tmp_path)
     repository = _TargetRepository(installation)
     checks = _Checks()
+    default_workspace = installation.default_managed_comfy_dir
+    environment_client_factory = (
+        _EnvironmentClientFactory(
+            _EnvironmentClient(
+                _model_root_status(
+                    workspace=default_workspace,
+                    configured=None,
+                    active=default_workspace / "models",
+                )
+            )
+        )
+        if with_model_root
+        else None
+    )
     service = ComfyConnectionSettingsService(
         target_service=ComfyTargetService(repository),
         checks=checks,
-        model_root_store=_ModelRootStore() if with_model_root else None,
+        environment_client_factory=environment_client_factory,
         restart_requirements=restart_requirements,
     )
     return service, repository, checks
+
+
+def _model_root_status(
+    *,
+    workspace: Path,
+    configured: Path | None,
+    active: Path,
+) -> ComfyModelRootStatus:
+    """Build one normalized fake BackEnd model-root response."""
+
+    default_root = (workspace / "models").resolve()
+    configured_root = configured.resolve() if configured is not None else None
+    active_root = active.resolve()
+    return ComfyModelRootStatus(
+        schema_version=1,
+        default_model_root=str(default_root),
+        configured_model_root=(
+            str(configured_root) if configured_root is not None else None
+        ),
+        active_model_root=str(active_root),
+        uses_default=configured_root is None,
+        restart_required=(configured_root or default_root) != active_root,
+    )

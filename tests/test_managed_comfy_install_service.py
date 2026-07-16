@@ -51,13 +51,9 @@ from tests.repository_service_test_double import RecordingRepositoryService
 
 @pytest.fixture(autouse=True)
 def _disable_shared_models_link(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Disable the shared-models link by default so tests stay privilege-independent."""
+    """Disable explicit shared-model configuration for isolated setup tests."""
 
-    monkeypatch.setattr(
-        managed_install,
-        "resolve_shared_models_root",
-        lambda: None,
-    )
+    monkeypatch.delenv("SUGARSUB_SHARED_MODELS_ROOT", raising=False)
     strategy = SimpleNamespace(
         target=SimpleNamespace(value="windows_nvidia"),
         python_runtime=SimpleNamespace(
@@ -201,8 +197,6 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
     assert trace_events == [
         "span:start:managed_setup.scratch.create",
         "span:end:managed_setup.scratch.create",
-        "span:start:managed_setup.existing.ensure_model_root",
-        "span:end:managed_setup.existing.ensure_model_root",
         "span:start:managed_setup.detect_hardware",
         "span:end:managed_setup.detect_hardware",
         "span:start:managed_setup.select_install_strategy",
@@ -1084,6 +1078,7 @@ def test_ensure_managed_comfy_setup_accepts_owned_model_paths_bootstrap_file(
     )
     workspace_python = workspace_python_path(tmp_path)
     repo_sync_calls: list[Path] = []
+    model_root_calls: list[tuple[Path, Path, Path | None]] = []
 
     def _fake_sync_workspace(
         workspace: Path,
@@ -1145,14 +1140,23 @@ def test_ensure_managed_comfy_setup_accepts_owned_model_paths_bootstrap_file(
             workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
         ),
     )
+    monkeypatch.setattr(
+        managed_install,
+        "configure_backend_model_root",
+        lambda *, workspace, python_executable, model_root: model_root_calls.append(
+            (workspace, python_executable, model_root)
+        ),
+    )
 
     result = managed_install.ensure_managed_comfy_setup(
         workspace=tmp_path,
         managed_model_root=tmp_path / "models",
+        configure_model_root=True,
     )
 
     assert result == workspace_python
     assert repo_sync_calls == [tmp_path]
+    assert model_root_calls == [(tmp_path, workspace_python, tmp_path / "models")]
     assert workspace_main_path(tmp_path).exists()
 
 
@@ -1310,56 +1314,3 @@ def test_ensure_managed_comfy_setup_honors_dependency_failure_stage(
         managed_install.ensure_managed_comfy_setup(
             workspace=tmp_path,
         )
-
-
-def test_ensure_managed_model_root_writes_owned_config_and_hook(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Managed workspaces should persist shared model root and install startup hook."""
-
-    shared_models_root = tmp_path / "shared-models"
-    shared_models_root.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(
-        managed_install,
-        "resolve_shared_models_root",
-        lambda: shared_models_root,
-    )
-    managed_install.ensure_managed_model_root(tmp_path)
-
-    config_path = tmp_path / ".substitute" / "managed_model_root.json"
-    assert json.loads(config_path.read_text(encoding="utf-8"))["model_root"] == str(
-        shared_models_root.resolve()
-    )
-    assert (
-        tmp_path
-        / "custom_nodes"
-        / "SubstituteManagedModelRoot"
-        / "prestartup_script.py"
-    ).exists()
-
-
-def test_ensure_managed_model_root_preserves_real_local_models(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Managed model-root setup should not mutate local model files."""
-
-    shared_models_root = tmp_path / "shared-models"
-    shared_models_root.mkdir(parents=True, exist_ok=True)
-    models_dir = tmp_path / "models"
-    (models_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
-    (models_dir / "checkpoints" / "real-model.safetensors").write_text(
-        "weights",
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(
-        managed_install,
-        "resolve_shared_models_root",
-        lambda: shared_models_root,
-    )
-    managed_install.ensure_managed_model_root(tmp_path)
-
-    assert models_dir.is_symlink() is False
-    assert (models_dir / "checkpoints" / "real-model.safetensors").exists()
-    assert (tmp_path / ".substitute" / "managed_model_root.json").exists()

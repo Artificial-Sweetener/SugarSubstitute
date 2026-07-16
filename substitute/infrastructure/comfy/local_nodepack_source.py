@@ -42,10 +42,6 @@ def resolve_local_nodepack_source(nodepack: CoreComfyNodepack) -> Path | None:
                 f"{nodepack.local_source_environment_variable} does not point to a "
                 f"valid {nodepack.display_name} checkout: {source_path}"
             )
-    for candidate in nodepack.local_source_candidates:
-        source_path = candidate.expanduser().resolve()
-        if source_contains_sentinels(source_path, nodepack):
-            return source_path
     return None
 
 

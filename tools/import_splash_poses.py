@@ -24,7 +24,6 @@ from pathlib import Path
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SOURCE_DIR = Path(r"E:\devprojects\SugarIcons\splash")
 DEFAULT_DESTINATION_DIR = (
     REPO_ROOT / "substitute" / "presentation" / "resources" / "splash_poses"
 )
@@ -144,7 +143,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--source-dir",
         type=Path,
-        default=DEFAULT_SOURCE_DIR,
+        required=True,
         help="Directory containing source splash PNGs.",
     )
     parser.add_argument(

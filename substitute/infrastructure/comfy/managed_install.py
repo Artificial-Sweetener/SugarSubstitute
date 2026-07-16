@@ -31,6 +31,9 @@ from substitute.application.onboarding.managed_runtime_state_recorder import (
 from substitute.domain.onboarding import ManagedRuntimeValidationStatus
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.infrastructure.comfy.hardware_detection import detect_hardware
+from substitute.infrastructure.comfy.backend_model_root_configurator import (
+    configure_backend_model_root,
+)
 from substitute.infrastructure.comfy.install_strategy import (
     ManagedInstallStrategy,
     select_install_strategy,
@@ -77,10 +80,6 @@ from substitute.infrastructure.comfy.nodepack_reconciliation import (
     resolve_workspace_python,
     run_sugarcubes_baseline_maintenance,
 )
-from substitute.infrastructure.comfy.managed_model_root import (
-    ManagedModelRootStore,
-    ensure_managed_model_root_startup_hook,
-)
 from substitute.infrastructure.comfy.torch_policy import (
     TorchBackendPolicy,
     TorchReleaseChannel,
@@ -106,9 +105,6 @@ StatusCallback = Callable[[str], None]
 LogCallback = Callable[[str], None]
 
 _LOGGER = get_logger("infrastructure.comfy.managed_install")
-_SHARED_MODELS_ROOT_ENV = "SUGARSUB_SHARED_MODELS_ROOT"
-_REFERENCE_MODELS_LINK = Path(r"E:\ComfyUI\models")
-_DEFAULT_SHARED_MODELS_ROOT = Path(r"E:\ImageGen Models")
 
 
 @dataclass(frozen=True)
@@ -135,52 +131,6 @@ def emit_log(callback: LogCallback | None, message: str) -> None:
     log_info(_LOGGER, message)
     if callback is not None:
         callback(message)
-
-
-def resolve_shared_models_root() -> Path | None:
-    """Return the shared models root that managed Comfy should reuse when available."""
-
-    configured_root = os.getenv(_SHARED_MODELS_ROOT_ENV, "").strip()
-    if configured_root:
-        return Path(configured_root)
-    if _REFERENCE_MODELS_LINK.is_symlink():
-        return _REFERENCE_MODELS_LINK.resolve()
-    if _DEFAULT_SHARED_MODELS_ROOT.exists():
-        return _DEFAULT_SHARED_MODELS_ROOT
-    return None
-
-
-def ensure_managed_model_root(
-    workspace: Path,
-    *,
-    model_root: Path | None = None,
-    on_log: LogCallback | None = None,
-) -> None:
-    """Configure the managed workspace model root and startup hook."""
-
-    store = ManagedModelRootStore()
-    configured_root = model_root
-    if configured_root is None:
-        loaded_config = store.load(workspace)
-        configured_root = (
-            loaded_config.effective_model_root
-            if loaded_config.override_model_root is not None
-            else resolve_shared_models_root()
-        )
-    if configured_root is None:
-        return
-
-    workspace.mkdir(parents=True, exist_ok=True)
-    config = store.save(
-        workspace,
-        configured_root,
-    )
-    ensure_managed_model_root_startup_hook(workspace)
-    emit_log(
-        on_log,
-        "Configured managed ComfyUI to use model files from "
-        f"{config.effective_model_root}.",
-    )
 
 
 def provision_verified_standalone_workspace(
@@ -466,6 +416,7 @@ def ensure_managed_comfy_setup(
     *,
     workspace: Path,
     managed_model_root: Path | None = None,
+    configure_model_root: bool = False,
     force_cpu_mode: bool = False,
     prefer_edge_torch: bool = False,
     prefer_edge_comfy_channel: bool = False,
@@ -487,6 +438,7 @@ def ensure_managed_comfy_setup(
         return _ensure_managed_comfy_setup(
             workspace=workspace,
             managed_model_root=managed_model_root,
+            configure_model_root=configure_model_root,
             force_cpu_mode=force_cpu_mode,
             prefer_edge_torch=prefer_edge_torch,
             prefer_edge_comfy_channel=prefer_edge_comfy_channel,
@@ -513,6 +465,7 @@ def _ensure_managed_comfy_setup(
     *,
     workspace: Path,
     managed_model_root: Path | None,
+    configure_model_root: bool,
     force_cpu_mode: bool,
     prefer_edge_torch: bool,
     prefer_edge_comfy_channel: bool,
@@ -541,12 +494,13 @@ def _ensure_managed_comfy_setup(
         and workspace_main_path(workspace).exists()
         and not force_install
     ):
-        with trace_span("managed_setup.existing.ensure_model_root"):
-            ensure_managed_model_root(
-                workspace,
-                model_root=managed_model_root,
-                on_log=on_log,
-            )
+        if configure_model_root:
+            with trace_span("managed_setup.existing.configure_model_root"):
+                configure_backend_model_root(
+                    workspace=workspace,
+                    python_executable=venv_python,
+                    model_root=managed_model_root,
+                )
         fast_freshness_record = _fresh_installed_setup_record_without_hardware_probe(
             workspace=workspace,
             request=setup_freshness_request,
@@ -613,6 +567,12 @@ def _ensure_managed_comfy_setup(
                 on_log=on_log,
                 env=managed_env,
             )
+            if configure_model_root:
+                configure_backend_model_root(
+                    workspace=workspace,
+                    python_executable=venv_python,
+                    model_root=managed_model_root,
+                )
         emit_status(on_status, "Preparing Base-Cubes dependencies.")
         with trace_span("managed_setup.existing.sugarcubes_baseline"):
             run_sugarcubes_baseline_maintenance(
@@ -781,17 +741,17 @@ def _ensure_managed_comfy_setup(
             on_log=on_log,
             env=managed_env,
         )
+        if configure_model_root:
+            configure_backend_model_root(
+                workspace=workspace,
+                python_executable=venv_python,
+                model_root=managed_model_root,
+            )
         emit_status(on_status, "Preparing Base-Cubes dependencies.")
         run_sugarcubes_baseline_maintenance(
             workspace,
             on_log=on_log,
             env=managed_env,
-        )
-        emit_status(on_status, "Configuring shared model paths.")
-        ensure_managed_model_root(
-            workspace,
-            model_root=managed_model_root,
-            on_log=on_log,
         )
         emit_status(on_status, "Validating the managed ComfyUI environment.")
         validation = validate_managed_environment(

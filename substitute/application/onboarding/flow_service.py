@@ -60,6 +60,7 @@ from substitute.domain.onboarding.setup_transaction_models import (
 )
 from substitute.domain.civitai import CivitaiPreferences, CivitaiThumbnailSafetyPolicy
 from substitute.domain.comfy_nodepacks import CoreNodepackId
+from substitute.domain.comfy_environment import ComfyModelRootStatus
 from substitute.domain.danbooru.preferences import DanbooruPreferences
 from substitute.domain.generation import OutputOrganizationPreferences
 from substitute.domain.prompt import PromptEditorFeature, PromptEditorPreferences
@@ -207,34 +208,14 @@ class ReadinessServiceProtocol(Protocol):
         """Assess pending setup state before it is committed."""
 
 
-class ManagedModelPathConfigProtocol(Protocol):
-    """Describe managed ComfyUI model-folder state used by onboarding."""
+class OnboardingModelRootProviderProtocol(Protocol):
+    """Describe BackEnd-owned model-root state used by onboarding."""
 
-    @property
-    def default_model_root(self) -> Path:
-        """Return ComfyUI's default models folder for the workspace."""
-
-    @property
-    def effective_model_root(self) -> Path:
-        """Return the model folder ComfyUI will use."""
-
-    @property
-    def override_model_root(self) -> Path | None:
-        """Return Substitute's managed override when one is configured."""
-
-
-class ManagedModelPathStoreProtocol(Protocol):
-    """Describe managed model-folder config operations used by onboarding."""
-
-    def load(self, workspace: Path) -> ManagedModelPathConfigProtocol:
-        """Load managed ComfyUI model-folder state."""
-
-    def save(
+    def load(
         self,
-        workspace: Path,
-        model_root: Path | None,
-    ) -> ManagedModelPathConfigProtocol:
-        """Save or clear Substitute's managed ComfyUI model-folder override."""
+        target: ComfyTargetConfiguration,
+    ) -> ComfyModelRootStatus | None:
+        """Return connected host model-root state when BackEnd is available."""
 
 
 class OutputOrganizationPreferenceServiceProtocol(Protocol):
@@ -312,8 +293,8 @@ class OnboardingBundleProtocol(Protocol):
         """Return the setup transaction service used for pending state."""
 
     @property
-    def managed_model_path_store(self) -> ManagedModelPathStoreProtocol:
-        """Return the managed ComfyUI model-folder configuration store."""
+    def model_root_provider(self) -> OnboardingModelRootProviderProtocol:
+        """Return the connected BackEnd model-root provider."""
 
     @property
     def output_organization_service(
@@ -470,8 +451,16 @@ class OnboardingFlowService:
         managed_workspace_path = (
             context.comfy_target.workspace_path or context.managed_comfy_dir
         )
-        managed_model_config = bundle.managed_model_path_store.load(
-            managed_workspace_path
+        model_root_status = bundle.model_root_provider.load(context.comfy_target)
+        default_model_root = managed_workspace_path / "models"
+        reported_model_root = (
+            Path(
+                model_root_status.configured_model_root
+                or model_root_status.default_model_root
+            )
+            if model_root_status is not None
+            and context.comfy_target.workspace_path is not None
+            else None
         )
         output_preferences = bundle.output_organization_service.load_preferences()
         output_root = bundle.output_organization_service.effective_output_root(
@@ -487,11 +476,11 @@ class OnboardingFlowService:
             endpoint_port=context.comfy_target.endpoint.port,
             managed_workspace_path=managed_workspace_path,
             attached_workspace_path=context.comfy_target.workspace_path,
-            managed_model_root=managed_model_config.effective_model_root,
+            managed_model_root=(reported_model_root or default_model_root),
             managed_model_root_uses_default=(
-                managed_model_config.override_model_root is None
-                and managed_model_config.effective_model_root
-                == managed_model_config.default_model_root
+                model_root_status.uses_default
+                if model_root_status is not None
+                else True
             ),
             output_root=output_root,
             output_root_uses_default=output_preferences.output_root is None,
@@ -657,17 +646,13 @@ class OnboardingFlowService:
                     SetupTransactionStatus.MANAGED_WORKSPACE_PROVISIONING,
                 )
                 managed_model_root = self._managed_model_root_for_save(draft)
-                bundle.managed_model_path_store.save(
-                    pending_context.comfy_target.workspace_path
-                    or pending_context.managed_comfy_dir,
-                    managed_model_root,
-                )
                 self.managed_workspace_provisioner(
                     workspace=(
                         pending_context.comfy_target.workspace_path
                         or pending_context.managed_comfy_dir
                     ),
                     managed_model_root=managed_model_root,
+                    configure_model_root=True,
                     force_cpu_mode=draft.force_cpu_mode,
                     prefer_edge_torch=draft.prefer_edge_torch,
                     prefer_edge_comfy_channel=draft.prefer_edge_comfy_channel,
@@ -964,7 +949,7 @@ class OnboardingFlowService:
 
         if not draft.managed_model_root_uses_default:
             return draft.managed_model_root
-        return draft.managed_model_root or draft.managed_workspace_path / "models"
+        return None
 
     @staticmethod
     def _save_setup_preferences(

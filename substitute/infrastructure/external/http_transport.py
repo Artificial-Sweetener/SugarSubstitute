@@ -37,6 +37,14 @@ def default_http_post(*args: Any, **kwargs: Any) -> Any:
     return requests.post(*args, **kwargs)
 
 
+def default_http_put(*args: Any, **kwargs: Any) -> Any:
+    """Call `requests.put` without importing requests at adapter module load."""
+
+    import requests
+
+    return requests.put(*args, **kwargs)
+
+
 def default_http_delete(*args: Any, **kwargs: Any) -> Any:
     """Call `requests.delete` without importing requests at adapter module load."""
 
@@ -57,5 +65,6 @@ __all__ = [
     "default_http_delete",
     "default_http_get",
     "default_http_post",
+    "default_http_put",
     "is_request_exception",
 ]

@@ -36,6 +36,7 @@ from substitute.domain.civitai import (
     default_civitai_preferences,
 )
 from substitute.domain.comfy_nodepacks import CoreNodepackId
+from substitute.domain.comfy_environment import ComfyModelRootStatus
 from substitute.domain.danbooru.preferences import (
     DanbooruPreferences,
     default_danbooru_preferences,
@@ -388,43 +389,19 @@ class _FakeSetupTransactionService:
         return self.context
 
 
-@dataclass(frozen=True)
-class _ManagedModelPathConfig:
-    """Capture deterministic managed model-folder config for flow tests."""
-
-    default_model_root: Path
-    effective_model_root: Path
-    override_model_root: Path | None = None
-
-
 @dataclass
-class _ManagedModelPathStore:
-    """Record managed model-folder writes for flow tests."""
+class _ModelRootProvider:
+    """Return deterministic BackEnd-owned model-root state for flow tests."""
 
-    config: _ManagedModelPathConfig | None = None
-    saved: list[tuple[Path, Path | None]] = field(default_factory=list)
+    status: ComfyModelRootStatus | None = None
 
-    def load(self, workspace: Path) -> _ManagedModelPathConfig:
-        """Return default managed model-folder state for one workspace."""
+    def load(
+        self,
+        _target: ComfyTargetConfiguration,
+    ) -> ComfyModelRootStatus | None:
+        """Return the configured host state."""
 
-        if self.config is not None:
-            return self.config
-        default_model_root = workspace / "models"
-        return _ManagedModelPathConfig(
-            default_model_root=default_model_root,
-            effective_model_root=default_model_root,
-        )
-
-    def save(self, workspace: Path, model_root: Path | None) -> _ManagedModelPathConfig:
-        """Record the requested model folder and return resulting state."""
-
-        self.saved.append((workspace, model_root))
-        default_model_root = workspace / "models"
-        return _ManagedModelPathConfig(
-            default_model_root=default_model_root,
-            effective_model_root=model_root or default_model_root,
-            override_model_root=model_root,
-        )
+        return self.status
 
 
 @dataclass
@@ -519,9 +496,7 @@ class _Bundle:
     readiness_service: _StaticReadinessService
     managed_runtime_service: _StaticManagedRuntimeService
     setup_transaction_service: _FakeSetupTransactionService
-    managed_model_path_store: _ManagedModelPathStore = field(
-        default_factory=_ManagedModelPathStore
-    )
+    model_root_provider: _ModelRootProvider = field(default_factory=_ModelRootProvider)
     output_organization_service: _OutputPreferenceService = field(
         default_factory=_OutputPreferenceService
     )
@@ -636,11 +611,14 @@ def test_flow_service_load_draft_includes_folder_and_preference_state(
         ),
         managed_runtime_service=_StaticManagedRuntimeService(),
         setup_transaction_service=_FakeSetupTransactionService(context),
-        managed_model_path_store=_ManagedModelPathStore(
-            config=_ManagedModelPathConfig(
-                default_model_root=context.managed_comfy_dir / "models",
-                effective_model_root=custom_models,
-                override_model_root=custom_models,
+        model_root_provider=_ModelRootProvider(
+            status=ComfyModelRootStatus(
+                schema_version=1,
+                default_model_root=str(context.managed_comfy_dir / "models"),
+                configured_model_root=str(custom_models),
+                active_model_root=str(custom_models),
+                uses_default=False,
+                restart_required=False,
             )
         ),
         output_organization_service=_OutputPreferenceService(
@@ -722,7 +700,6 @@ def test_flow_service_saves_preferences_model_root_and_credentials(
     """Provisioning should persist onboarding choices through their owners."""
 
     context = _build_context(tmp_path, ComfyTargetMode.MANAGED_LOCAL)
-    model_store = _ManagedModelPathStore()
     preference_setup = _PreferenceSetupService()
     bundle = _Bundle(
         onboarding_service=_StaticOnboardingService(context),
@@ -732,7 +709,6 @@ def test_flow_service_saves_preferences_model_root_and_credentials(
         ),
         managed_runtime_service=_StaticManagedRuntimeService(),
         setup_transaction_service=_FakeSetupTransactionService(context),
-        managed_model_path_store=model_store,
         preference_setup_service=preference_setup,
     )
     provisioner_kwargs: list[dict[str, object]] = []
@@ -778,7 +754,6 @@ def test_flow_service_saves_preferences_model_root_and_credentials(
         on_log=logs.append,
     )
 
-    assert model_store.saved == [(context.managed_comfy_dir, custom_models)]
     assert preference_setup.saved_preferences == [
         OnboardingPreferenceSetupDraft(
             output_root=custom_outputs,
@@ -795,6 +770,7 @@ def test_flow_service_saves_preferences_model_root_and_credentials(
         OnboardingCredentialDraft("civitai-secret")
     ]
     assert provisioner_kwargs[0]["managed_model_root"] == custom_models
+    assert provisioner_kwargs[0]["configure_model_root"] is True
     assert provisioner_kwargs[0]["refresh_core_nodepacks"] == frozenset(CoreNodepackId)
     assert provisioner_kwargs[0]["installer_temp_root"] == (
         tmp_path / "runtime" / "installer-temp" / "managed-comfy" / "transaction-id"

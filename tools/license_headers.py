@@ -178,6 +178,8 @@ def inspect_headers(
     replacements: list[tuple[Path, str]] = []
     has_conflicts = False
     for path in tracked_source_files(repository_root):
+        if not path.is_file():
+            continue
         with path.open("r", encoding="utf-8", newline="") as source_file:
             content = source_file.read()
         comment_prefix = SUPPORTED_COMMENT_PREFIXES[path.suffix.lower()]

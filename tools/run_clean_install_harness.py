@@ -54,8 +54,8 @@ from substitute.infrastructure.comfy.managed_shutdown import (  # noqa: E402
 )
 
 
-DEFAULT_INSTALL_ROOT = Path("D:/SugarSubstitute")
-DEFAULT_MODEL_ROOT = Path("E:/ImageGen Models")
+DEFAULT_INSTALL_ROOT = REPO_ROOT / ".pytest-tmp" / "clean-install" / "SugarSubstitute"
+DEFAULT_MODEL_ROOT = REPO_ROOT / ".pytest-tmp" / "clean-install-models"
 DEFAULT_SETUP_TIMEOUT_SECONDS = 14_400
 
 REQUIRED_LIVE_NODE_CLASSES = (

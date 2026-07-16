@@ -463,18 +463,12 @@ def test_app_managed_environment_overrides_can_defer_input_sam() -> None:
     )
 
 
-def test_direct_comfy_environment_overrides_include_managed_model_root(
+def test_direct_comfy_environment_overrides_need_no_desktop_model_root(
     tmp_path: Path,
 ) -> None:
-    """Direct Comfy comparisons should use the same managed model root."""
+    """BackEnd prestartup owns model roots without harness environment state."""
 
     comfy_root = tmp_path / "ComfyUI"
-    model_root = tmp_path / "ImageGen Models"
-    (comfy_root / ".substitute").mkdir(parents=True)
-    (comfy_root / ".substitute" / "managed_model_root.json").write_text(
-        f'{{"schema_version": 1, "model_root": "{model_root.as_posix()}"}}',
-        encoding="utf-8",
-    )
     paths = startup_harness.HarnessPaths.from_roots(
         sugar_substitute_root=tmp_path / "SugarSubstitute",
         comfy_root=comfy_root,
@@ -484,13 +478,39 @@ def test_direct_comfy_environment_overrides_include_managed_model_root(
 
     overrides = startup_harness.direct_comfy_environment_overrides(paths)
 
-    assert overrides["SUGARSUB_MANAGED_MODEL_ROOT"] == str(model_root.resolve())
+    assert "SUGARSUB_MANAGED_MODEL_ROOT" not in overrides
     assert overrides["PATH"].startswith(str(paths.comfy_python.parent))
     assert overrides["PYTHONIOENCODING"] == "utf-8"
     assert overrides["QT_QPA_PLATFORM"] == "offscreen"
     assert overrides["SUBSTITUTE_BACKEND_DIAGNOSTICS"] == "cube-library,startup"
     assert overrides["SUGAR_SUBSTITUTE_STARTUP_HARNESS"] == "1"
     assert overrides["SUGARCUBES_DIAGNOSTICS"] == "1"
+
+
+def test_harness_resolves_installed_sugarsubstitute_layout(tmp_path: Path) -> None:
+    """App-managed measurements should run against a packaged installation."""
+
+    install_root = tmp_path / "SugarSubstitute"
+    installed_python = install_root / "runtime" / ".venv" / "Scripts" / "python.exe"
+    installed_main = install_root / "app" / "main.py"
+    installed_python.parent.mkdir(parents=True)
+    installed_python.write_text("", encoding="utf-8")
+    installed_main.parent.mkdir(parents=True)
+    installed_main.write_text("", encoding="utf-8")
+    paths = startup_harness.HarnessPaths.from_roots(
+        sugar_substitute_root=install_root,
+        comfy_root=tmp_path / "ComfyUI",
+        substitute_backend_root=None,
+        sugarcubes_root=None,
+    )
+
+    assert paths.sugar_substitute_python == installed_python
+    assert paths.sugar_substitute_main == installed_main
+    assert startup_harness.build_app_managed_command(paths) == (
+        str(installed_python),
+        str(installed_main),
+        f"--install-root={install_root}",
+    )
 
 
 def test_run_app_managed_cycle_parses_managed_comfy_output(
@@ -598,7 +618,7 @@ def test_parse_managed_comfy_output_timeline_summarizes_milestones() -> None:
             (
                 '{"event":"managed_comfy_output","monotonicNs":15,'
                 '"elapsedMs":150.0,"line":"\\u001b[32m[INFO]\\u001b[0m '
-                'Substitute managed ComfyUI model root: E:\\\\ImageGen Models"}'
+                'Substitute BackEnd configured ComfyUI model root: E:\\\\ImageGen Models"}'
             ),
             (
                 '{"event":"managed_comfy_output","monotonicNs":20,'
@@ -647,7 +667,7 @@ def test_parse_managed_comfy_output_timeline_summarizes_milestones() -> None:
     assert measurements["milestoneLines"] == {
         "launching_comfy": "Launching ComfyUI.",
         "managed_model_root_applied": (
-            "Substitute managed ComfyUI model root: E:\\ImageGen Models"
+            "Substitute BackEnd configured ComfyUI model root: E:\\ImageGen Models"
         ),
         "manager_network_mode": "[ComfyUI-Manager] network_mode: public",
         "manager_fetch_registry": "FETCH ComfyRegistry Data: 5/159",
@@ -688,7 +708,7 @@ def test_parse_managed_comfy_output_timeline_reports_child_only_gaps() -> None:
             (
                 '{"event":"managed_comfy_output","monotonicNs":30,'
                 '"elapsedMs":1200.0,"line":"\\u001b[32m[INFO]\\u001b[0m '
-                'Substitute managed ComfyUI model root: E:\\\\ImageGen Models"}'
+                'Substitute BackEnd configured ComfyUI model root: E:\\\\ImageGen Models"}'
             ),
             (
                 '{"event":"managed_comfy_output","monotonicNs":40,'
@@ -720,7 +740,7 @@ def test_parse_managed_comfy_output_timeline_reports_child_only_gaps() -> None:
         "gapMs": 700.0,
         "fromMs": 1200.0,
         "toMs": 1900.0,
-        "fromLine": "Substitute managed ComfyUI model root: E:\\ImageGen Models",
+        "fromLine": "Substitute BackEnd configured ComfyUI model root: E:\\ImageGen Models",
         "toLine": "Found comfy_kitchen backend cuda",
     }
 

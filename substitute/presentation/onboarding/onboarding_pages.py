@@ -43,6 +43,11 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
 )
 
 from substitute.presentation.onboarding.onboarding_models import OnboardingTargetMode
+from substitute.presentation.platform_path_guidance import (
+    existing_comfy_example,
+    managed_comfy_example,
+    substitute_install_example,
+)
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
@@ -446,7 +451,7 @@ class InstallRootPage(OnboardingPageFrame):
         self.setObjectName("OnboardingWelcomePage")
         self.install_root_edit = LineEdit(self)
         self.install_root_edit.setObjectName("OnboardingInstallRootEdit")
-        self.install_root_edit.setPlaceholderText(r"E:\Apps\Substitute")
+        self.install_root_edit.setPlaceholderText(substitute_install_example())
         browse_button = PushButton("Browse...", self)
         browse_button.setObjectName("OnboardingInstallRootBrowseButton")
         browse_button.clicked.connect(self.browse_requested.emit)
@@ -719,7 +724,7 @@ class ManagedLocalPage(OnboardingPageFrame):
         self.port_spinbox.setObjectName("OnboardingManagedPortSpinBox")
         self.workspace_edit = LineEdit(self)
         self.workspace_edit.setObjectName("OnboardingManagedWorkspaceEdit")
-        self.workspace_edit.setPlaceholderText(r"E:\Apps\Substitute\comfyui")
+        self.workspace_edit.setPlaceholderText(managed_comfy_example())
         browse_button = PushButton("Browse...", self)
         browse_button.setObjectName("OnboardingManagedWorkspaceBrowseButton")
         browse_button.clicked.connect(self.browse_requested.emit)
@@ -779,7 +784,7 @@ class AttachedLocalPage(OnboardingPageFrame):
         self.port_spinbox.setObjectName("OnboardingAttachedPortSpinBox")
         self.workspace_edit = LineEdit(self)
         self.workspace_edit.setObjectName("OnboardingAttachedWorkspaceEdit")
-        self.workspace_edit.setPlaceholderText(r"E:\ComfyUI")
+        self.workspace_edit.setPlaceholderText(existing_comfy_example())
         browse_button = PushButton("Browse...", self)
         browse_button.setObjectName("OnboardingAttachedWorkspaceBrowseButton")
         browse_button.clicked.connect(self.browse_requested.emit)

@@ -60,8 +60,8 @@ from substitute.infrastructure.onboarding import (
 from substitute.infrastructure.comfy.managed_runtime_selection_policy import (
     HardwareAwareManagedRuntimeSelectionPolicy,
 )
-from substitute.infrastructure.comfy.managed_model_root import (
-    ManagedModelRootStore,
+from substitute.infrastructure.external.backend_model_root_provider import (
+    BackendModelRootProvider,
 )
 from substitute.infrastructure.onboarding.readiness_checks import (
     FileSystemReadinessChecks,
@@ -96,7 +96,7 @@ class OnboardingServiceBundle:
     setup_transaction_service: SetupTransactionService
     onboarding_service: OnboardingService
     readiness_service: BootstrapReadinessService
-    managed_model_path_store: ManagedModelRootStore
+    model_root_provider: BackendModelRootProvider
     output_organization_service: OutputOrganizationPreferenceService
     danbooru_preference_service: DanbooruPreferenceService
     prompt_editor_preference_service: PromptEditorPreferenceService
@@ -144,7 +144,6 @@ def build_onboarding_service_bundle(
     """Compose onboarding services for one resolved installation root."""
 
     core_services = _build_core_onboarding_services(explicit_root)
-    managed_model_path_store = ManagedModelRootStore()
     (
         output_organization_service,
         danbooru_preference_service,
@@ -162,7 +161,7 @@ def build_onboarding_service_bundle(
         setup_transaction_service=core_services.setup_transaction_service,
         onboarding_service=core_services.onboarding_service,
         readiness_service=readiness_service,
-        managed_model_path_store=managed_model_path_store,
+        model_root_provider=BackendModelRootProvider(),
         output_organization_service=output_organization_service,
         danbooru_preference_service=danbooru_preference_service,
         prompt_editor_preference_service=prompt_editor_preference_service,

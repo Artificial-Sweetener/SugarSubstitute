@@ -59,10 +59,6 @@ from substitute.infrastructure.comfy.posix_guardian_containment import (
 from substitute.infrastructure.comfy.managed_process_metadata import (
     ManagedProcessMetadata,
 )
-from substitute.infrastructure.comfy.managed_model_root import (
-    MANAGED_MODEL_ROOT_ENV,
-    ManagedModelRootStore,
-)
 from substitute.infrastructure.comfy.managed_process_probe import (
     ManagedListenerProbeResult,
     ManagedListenerStatus,
@@ -217,18 +213,6 @@ def _managed_state(
     state.containment_handle = None
     state.containment_mode = None if metadata is None else metadata.containment_mode
     return state
-
-
-def test_managed_launch_env_uses_persisted_model_root(tmp_path: Path) -> None:
-    """Managed launches should expose the persisted model root to Comfy prestartup."""
-
-    model_root = tmp_path / "ImageGen Models"
-    ManagedModelRootStore().save(tmp_path, model_root)
-    env: dict[str, str] = {}
-
-    managed_launcher._apply_managed_model_root_env(env, tmp_path)
-
-    assert env[MANAGED_MODEL_ROOT_ENV] == str(model_root.resolve())
 
 
 def test_cleanup_handler_requests_stop_and_kills_owned_process_once(

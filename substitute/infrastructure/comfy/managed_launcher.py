@@ -63,10 +63,6 @@ from substitute.infrastructure.comfy.managed_install import (
     emit_status,
     ensure_managed_comfy_setup,
 )
-from substitute.infrastructure.comfy.managed_model_root import (
-    MANAGED_MODEL_ROOT_ENV,
-    ManagedModelRootStore,
-)
 from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedProcessHandle,
     build_launch_request,
@@ -298,7 +294,6 @@ def start_managed_comfy_subprocess(
     env = os.environ.copy()
     env["PATH"] = str(venv_python.parent) + os.pathsep + env.get("PATH", "")
     env["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"
-    _apply_managed_model_root_env(env, workspace)
     launch_result = launch_managed_process(
         endpoint=endpoint,
         workspace=workspace,
@@ -401,7 +396,6 @@ def start_managed_comfy_background(
             env["PATH"] = str(venv_python.parent) + os.pathsep + env.get("PATH", "")
             env["PYTHONIOENCODING"] = "utf-8"
             env["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"
-            _apply_managed_model_root_env(env, workspace)
             emit_status(on_status, "Launching ComfyUI.")
             stdout_stream: IO[bytes] | None = None
             with trace_span("managed_comfy.launch_process"):
@@ -866,13 +860,6 @@ def _build_managed_launch_command(
         "--port",
         str(endpoint.port),
     )
-
-
-def _apply_managed_model_root_env(env: dict[str, str], workspace: Path) -> None:
-    """Expose the managed model root to Substitute's Comfy prestartup hook."""
-
-    config = ManagedModelRootStore().load(workspace)
-    env[MANAGED_MODEL_ROOT_ENV] = str(config.effective_model_root)
 
 
 def _iter_output_records(

@@ -1176,7 +1176,7 @@ def _install_location_guidance() -> str:
             "administrator access for updates and runtime setup."
         )
     return (
-        "Use a normal writable folder such as E:\\SugarSubstitute. Avoid Program "
+        "Use a normal writable folder such as %USERPROFILE%\\SugarSubstitute. Avoid Program "
         "Files because Windows can block app updates, runtime setup, and local "
         "ComfyUI files there."
     )

@@ -101,7 +101,6 @@ def test_core_nodepack_manifest_contains_expected_install_identities() -> None:
         "https://github.com/Artificial-Sweetener/SugarCubes/archive/refs/tags/"
         "v0.10.0.zip"
     )
-    assert by_project["SugarCubes"].local_source_candidates == ()
     assert by_project["SugarCubes"].expected_folder == (
         Path("custom_nodes") / "SugarCubes"
     )
