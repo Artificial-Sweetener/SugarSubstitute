@@ -20,6 +20,7 @@ from __future__ import annotations
 
 _EXACT_MODEL_FIELDS = {
     ("CheckpointLoaderSimple", "ckpt_name"): "checkpoints",
+    ("SimpleSyrup.SimpleLoadCheckpoint", "ckpt_name"): "checkpoints",
     ("LoraLoader", "lora_name"): "loras",
     ("LoraLoaderModelOnly", "lora_name"): "loras",
     ("VAELoader", "vae_name"): "vae",
@@ -27,6 +28,10 @@ _EXACT_MODEL_FIELDS = {
     ("SimpleSyrup.SimpleLoadAnima", "diffusion_model"): "diffusion_models",
     ("UpscaleModelLoader", "model_name"): "upscale_models",
     ("ControlNetLoader", "control_net_name"): "controlnet",
+    ("CLIPLoader", "clip_name"): "text_encoders",
+    ("DualCLIPLoader", "clip_name1"): "text_encoders",
+    ("DualCLIPLoader", "clip_name2"): "text_encoders",
+    ("Power Lora Loader (rgthree)", "lora"): "loras",
 }
 
 _UNQUALIFIED_MODEL_FIELDS = {
@@ -38,6 +43,9 @@ _UNQUALIFIED_MODEL_FIELDS = {
     "unet_name": "diffusion_models",
     "diffusion_model": "diffusion_models",
     "control_net_name": "controlnet",
+    "clip_name": "text_encoders",
+    "clip_name1": "text_encoders",
+    "clip_name2": "text_encoders",
 }
 
 
@@ -59,6 +67,10 @@ def model_kind_for_field(*, class_type: str, input_key: str) -> str | None:
         return "loras"
     if "unet" in normalized_key or "diffusion" in normalized_key:
         return "diffusion_models"
+    if "controlnet" in normalized_key or "control_net" in normalized_key:
+        return "controlnet"
+    if "clip" in normalized_key or "text_encoder" in normalized_key:
+        return "text_encoders"
     return None
 
 

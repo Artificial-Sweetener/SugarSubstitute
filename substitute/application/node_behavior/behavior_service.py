@@ -25,6 +25,7 @@ from time import perf_counter
 from typing import Mapping, Protocol
 
 from substitute.application.cubes.cube_load_service import LoadedCubeDefinition
+from substitute.application.model_metadata import model_kind_for_field
 from substitute.application.ports import NodeDefinitionGateway
 from substitute.application.workflows.prompt_endpoint_service import (
     PromptEndpointService,
@@ -1016,7 +1017,14 @@ class NodeBehaviorService:
                     raw_value=choice_raw_value,
                     allow_canonicalize=(
                         value_source is not FieldValueSource.AUTHORED_DEFAULT
-                        and not (is_loaded_cube and not has_authored_value)
+                        and (
+                            not (is_loaded_cube and not has_authored_value)
+                            or model_kind_for_field(
+                                class_type=class_type,
+                                input_key=field_key,
+                            )
+                            is not None
+                        )
                     ),
                 )
                 effective_value = choice_value
@@ -1109,6 +1117,13 @@ class NodeBehaviorService:
             raw_value=raw_value,
             field_info=field_info,
             remembered_value=None,
+            clear_when_options_empty=(
+                model_kind_for_field(
+                    class_type=class_type,
+                    input_key=field_key,
+                )
+                is not None
+            ),
         )
         if resolution is None:
             return raw_value, FieldValueSource.EXPLICIT

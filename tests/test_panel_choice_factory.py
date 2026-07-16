@@ -458,6 +458,51 @@ def test_choice_factory_keeps_cold_model_list_as_model_picker(
     ]
 
 
+def test_choice_factory_builds_blank_picker_for_empty_known_model_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Known model fields remain renderable when Comfy reports zero models."""
+
+    monkeypatch.setattr(choice_factory, "ModelPickerField", _FakeModelPickerField)
+    monkeypatch.setattr(
+        choice_factory,
+        "ComboBox",
+        lambda *_args, **_kwargs: pytest.fail("model field fell back to ComboBox"),
+    )
+    field_behavior = FieldBehavior(field_key="ckpt_name")
+    snapshot = _model_choice_snapshot(
+        field_behavior=field_behavior,
+        node_name="checkpoint",
+        key="ckpt_name",
+        value="",
+        node_type="SimpleSyrup.SimpleLoadCheckpoint",
+        field_type="LIST",
+        field_info=[[], {}],
+        catalog=_FakeModelCatalog(()),
+        resolver=_rich_choice_resolver(_FakeModelCatalog(())),
+    )
+
+    widget = ChoiceFieldFactory().build_field_widget(
+        ChoiceFieldBuildRequest(
+            parent="parent",
+            field_behavior=field_behavior,
+            node_name="checkpoint",
+            key="ckpt_name",
+            value="",
+            field_meta={},
+            model_choice_snapshot=snapshot,
+            field_type="LIST",
+            node_type="SimpleSyrup.SimpleLoadCheckpoint",
+            field_info=[[], {}],
+        )
+    )
+
+    assert isinstance(widget, _FakeModelPickerField)
+    assert widget.currentText() == ""
+    assert widget.resolution.items == ()
+    assert widget.resolution.matched_kinds == ("checkpoints",)
+
+
 def test_choice_factory_builds_linked_sampler_combo(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

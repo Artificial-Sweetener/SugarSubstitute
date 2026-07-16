@@ -55,6 +55,9 @@ from substitute.application.recipes.sugar_label_resolution import (
     resolve_parsed_script_labels,
 )
 from substitute.application.model_metadata import model_kind_for_field
+from substitute.application.node_behavior.list_value_resolver import (
+    is_blank_picker_value,
+)
 from substitute.application.recipes.model_hash_lookup import RecipeModelHashLookup
 from substitute.application.recipes.lora_prompt_names import (
     normalized_prompt_lora_name,
@@ -210,7 +213,9 @@ class RecipeIoService:
             SugarScriptSerializationRequest(
                 buffers=prepared_buffers,
                 ordered_aliases=tuple(ordered_aliases),
-                global_overrides=workflow.global_overrides,
+                global_overrides=_without_blank_model_global_overrides(
+                    workflow.global_overrides
+                ),
                 global_override_selections=getattr(
                     workflow,
                     "global_override_selections",
@@ -227,7 +232,10 @@ class RecipeIoService:
                 ),
                 enabled_node_keys_by_alias=enabled_node_keys_by_alias,
                 disabled_node_keys_by_alias=disabled_node_keys_by_alias,
-                global_override_scopes=global_override_scopes,
+                global_override_scopes=_without_blank_model_override_scopes(
+                    global_override_scopes,
+                    buffers=prepared_buffers,
+                ),
                 label_resolver=plan.label_index,
                 model_hashes_by_field=plan.model_hashes_by_field,
                 prompt_lora_hashes_by_field=self._prompt_lora_hashes_for_buffers(
@@ -729,6 +737,73 @@ def _log_image_inputs_seen_for_serialization(
                 node_class=node_class,
                 image_value=image_value,
             )
+
+
+def _without_blank_model_global_overrides(
+    global_overrides: GlobalOverrideMap,
+) -> GlobalOverrideMap:
+    """Omit unset model overrides so future Comfy defaults remain authoritative."""
+
+    return {
+        field_key: override
+        for field_key, override in global_overrides.items()
+        if not (
+            model_kind_for_field(class_type="", input_key=field_key) is not None
+            and is_blank_picker_value(override.get("value"))
+        )
+    }
+
+
+def _without_blank_model_override_scopes(
+    scopes: Mapping[str, GlobalOverrideSerializationScope] | None,
+    *,
+    buffers: Mapping[str, Mapping[str, JsonValue]],
+) -> Mapping[str, GlobalOverrideSerializationScope] | None:
+    """Omit blank scopes whose participants are all model-backed fields."""
+
+    if scopes is None:
+        return None
+    return {
+        override_key: scope
+        for override_key, scope in scopes.items()
+        if not (
+            is_blank_picker_value(scope.value)
+            and bool(scope.participant_fields)
+            and all(
+                _is_model_override_participant(
+                    buffers=buffers,
+                    cube_alias=cube_alias,
+                    node_name=node_name,
+                    field_key=field_key,
+                )
+                for cube_alias, node_name, field_key in scope.participant_fields
+            )
+        )
+    }
+
+
+def _is_model_override_participant(
+    *,
+    buffers: Mapping[str, Mapping[str, JsonValue]],
+    cube_alias: str,
+    node_name: str,
+    field_key: str,
+) -> bool:
+    """Return whether one override participant targets a model-backed input."""
+
+    cube_buffer = buffers.get(cube_alias, {})
+    nodes = cube_buffer.get("nodes", {})
+    node_data = nodes.get(node_name, {}) if isinstance(nodes, Mapping) else {}
+    class_type = (
+        node_data.get("class_type", "") if isinstance(node_data, Mapping) else ""
+    )
+    return (
+        model_kind_for_field(
+            class_type=str(class_type),
+            input_key=field_key,
+        )
+        is not None
+    )
 
 
 def _session_model_hash_lookup(

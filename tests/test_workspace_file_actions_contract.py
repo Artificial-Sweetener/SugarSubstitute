@@ -410,7 +410,6 @@ def test_downloaded_recipe_model_refreshes_node_definition_choices() -> None:
 
     mod = _import_module()
     refreshed_classes: list[str] = []
-    projection_refreshes: list[tuple[str, ...]] = []
     override_calls: list[str] = []
     workflow_id = "wf-a"
     downloaded_buffer = {
@@ -439,23 +438,10 @@ def test_downloaded_recipe_model_refreshes_node_definition_choices() -> None:
             active_workflow_id=workflow_id,
             workflows={workflow_id: workflow},
         ),
-        editor_panels={
-            workflow_id: SimpleNamespace(
-                refresh_projection_after_node_definition_update=(
-                    lambda *, refreshed_node_classes: projection_refreshes.append(
-                        tuple(refreshed_node_classes)
-                    )
-                )
-            )
-        },
+        editor_panels={},
         active_override_manager=SimpleNamespace(
             sync_state_from_workflow=lambda: _append(override_calls, "sync"),
             apply_global_overrides=lambda: _append(override_calls, "apply"),
-        ),
-        active_workflow_surface_refresher=SimpleNamespace(
-            refresh_active_workflow_surface=lambda: projection_refreshes.append(
-                ("fallback",)
-            )
         ),
         node_definition_gateway=SimpleNamespace(
             refresh_node_definition=lambda node_class: _append_then(
@@ -502,7 +488,6 @@ def test_downloaded_recipe_model_refreshes_node_definition_choices() -> None:
         "diffusion_model": "anima_baseV10.safetensors"
     }
     assert refreshed_classes == ["SimpleSyrup.SimpleLoadAnima"]
-    assert projection_refreshes == [("SimpleSyrup.SimpleLoadAnima",)]
     assert override_calls == ["sync", "apply"]
 
 

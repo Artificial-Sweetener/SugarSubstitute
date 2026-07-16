@@ -911,6 +911,75 @@ def test_recipe_io_service_forwards_global_override_scopes() -> None:
     assert 'set A.sampler.sampler_name = "heun"' in recipe_text
 
 
+def test_recipe_io_service_omits_blank_model_global_override() -> None:
+    """Blank model overrides should remain unset in portable recipes."""
+
+    service = RecipeIoService(recipe_repository=_FakeRecipeRepository())
+    cube = CubeState(
+        cube_id="X",
+        version="1.0.0",
+        alias="A",
+        original_cube={},
+        buffer={
+            "nodes": {
+                "checkpoint": {
+                    "class_type": "CheckpointLoaderSimple",
+                    "inputs": {},
+                }
+            }
+        },
+    )
+    workflow = SimpleNamespace(
+        stack_order=["A"],
+        cubes={"A": cube},
+        global_overrides={"ckpt_name": {"value": "", "mode": "global"}},
+    )
+
+    recipe_text = service.serialize_workflow_to_sugar_script(workflow)
+
+    assert "ckpt_name" not in recipe_text
+
+
+def test_recipe_io_service_omits_blank_model_override_scope() -> None:
+    """Blank scoped model overrides should not serialize local assignments."""
+
+    service = RecipeIoService(recipe_repository=_FakeRecipeRepository())
+    cube = CubeState(
+        cube_id="X",
+        version="1.0.0",
+        alias="A",
+        original_cube={},
+        buffer={
+            "nodes": {
+                "checkpoint": {
+                    "class_type": "CheckpointLoaderSimple",
+                    "inputs": {},
+                }
+            }
+        },
+    )
+    workflow = SimpleNamespace(
+        stack_order=["A"],
+        cubes={"A": cube},
+        global_overrides={},
+    )
+
+    recipe_text = service.serialize_workflow_to_sugar_script(
+        workflow,
+        global_override_scopes={
+            "ckpt_name": GlobalOverrideSerializationScope(
+                override_key="ckpt_name",
+                value="",
+                mode="global",
+                full_participation=False,
+                participant_fields=frozenset({("A", "checkpoint", "ckpt_name")}),
+            )
+        },
+    )
+
+    assert "ckpt_name" not in recipe_text
+
+
 def test_recipe_io_service_serializes_and_parses_visible_cube_labels() -> None:
     """Recipe IO should write visible labels and restore machine keys on parse."""
 
@@ -979,8 +1048,8 @@ def test_recipe_io_service_serializes_seed_control_state() -> None:
     assert '# global_override_seed_control {"key":"seed","mode":"fixed"}' in recipe_text
 
 
-def test_serialize_workflow_fills_blank_required_picker_from_live_default() -> None:
-    """Blank required pickers should serialize stable live defaults from Comfy metadata."""
+def test_serialize_workflow_omits_blank_model_picker_with_live_default() -> None:
+    """Blank model selections remain portable instead of pinning a local default."""
 
     service = RecipeIoService(
         recipe_repository=_FakeRecipeRepository(),
@@ -1028,10 +1097,7 @@ def test_serialize_workflow_fills_blank_required_picker_from_live_default() -> N
 
     recipe_text = service.serialize_workflow_to_sugar_script(workflow)
 
-    assert (
-        'set "SDXL/Text to Image".checkpoint.ckpt_name = '
-        r'"Illustrious\\amanatsuIllustrious_v11.safetensors"'
-    ) in recipe_text
+    assert "ckpt_name" not in recipe_text
     nodes = cast(dict[str, Any], cube.buffer["nodes"])
     checkpoint = cast(dict[str, Any], nodes["checkpoint"])
     inputs = cast(dict[str, Any], checkpoint["inputs"])
@@ -1096,8 +1162,8 @@ def test_recipe_serialization_context_reuses_required_node_definitions() -> None
     assert gateway.required_calls == ["CheckpointLoaderSimple"]
 
 
-def test_serialize_workflow_rejects_blank_required_picker_first_option() -> None:
-    """Blank required pickers must not serialize an implicit first live option."""
+def test_serialize_workflow_omits_blank_model_picker_with_only_one_option() -> None:
+    """A blank model selection is omitted even when one local model exists."""
 
     service = RecipeIoService(
         recipe_repository=_FakeRecipeRepository(),
@@ -1136,14 +1202,9 @@ def test_serialize_workflow_rejects_blank_required_picker_first_option() -> None
         global_overrides={},
     )
 
-    try:
-        service.serialize_workflow_to_sugar_script(workflow)
-    except RuntimeError as error:
-        assert "Select a value for SDXL/Text to Image.checkpoint.ckpt_name" in str(
-            error
-        )
-    else:  # pragma: no cover - assertion path only
-        raise AssertionError("Expected blank picker serialization to fail")
+    recipe_text = service.serialize_workflow_to_sugar_script(workflow)
+
+    assert "ckpt_name" not in recipe_text
 
     nodes = cast(dict[str, Any], cube.buffer["nodes"])
     checkpoint = cast(dict[str, Any], nodes["checkpoint"])

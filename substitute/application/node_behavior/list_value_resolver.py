@@ -34,6 +34,14 @@ class ListValueResolution:
     canonical_value: str | None
 
 
+@dataclass(frozen=True)
+class PickerFallback:
+    """Describe a picker value derived from live Comfy metadata."""
+
+    value: object
+    source: str
+
+
 def is_choice_field_type(field_type: object) -> bool:
     """Return whether a resolved field type represents a finite choice input."""
 
@@ -48,6 +56,51 @@ def _extract_string_options(value: object) -> tuple[str, ...]:
     return tuple(option for option in value if isinstance(option, str))
 
 
+def extract_picker_options(field_info: object) -> tuple[object, ...]:
+    """Return all literal picker options from classic or COMBO metadata."""
+
+    if (
+        not isinstance(field_info, Sequence)
+        or isinstance(field_info, (str, bytes))
+        or not field_info
+    ):
+        return ()
+    first_item = field_info[0]
+    if first_item == "COMBO":
+        if len(field_info) < 2 or not isinstance(field_info[1], Mapping):
+            return ()
+        options = field_info[1].get("options")
+        if not isinstance(options, Sequence) or isinstance(options, (str, bytes)):
+            return ()
+        return tuple(options)
+    if isinstance(first_item, Sequence) and not isinstance(first_item, (str, bytes)):
+        return tuple(first_item)
+    return ()
+
+
+def has_authoritative_picker_options(field_info: object) -> bool:
+    """Return whether Comfy explicitly supplied a picker option collection."""
+
+    if (
+        not isinstance(field_info, Sequence)
+        or isinstance(field_info, (str, bytes))
+        or not field_info
+    ):
+        return False
+    first_item = field_info[0]
+    if isinstance(first_item, Sequence) and not isinstance(first_item, (str, bytes)):
+        return True
+    if (
+        isinstance(first_item, str)
+        and first_item.upper() in {"COMBO", "LIST"}
+        and len(field_info) > 1
+        and isinstance(field_info[1], Mapping)
+    ):
+        options = field_info[1].get("options")
+        return isinstance(options, Sequence) and not isinstance(options, (str, bytes))
+    return False
+
+
 def extract_live_list_options(field_info: object) -> tuple[str, ...]:
     """Extract the live literal options from one Comfy field-definition payload."""
 
@@ -58,32 +111,64 @@ def extract_live_list_options(field_info: object) -> tuple[str, ...]:
     ):
         return ()
 
-    first_item = field_info[0]
-    if first_item == "COMBO":
-        if len(field_info) < 2:
-            return ()
-        metadata = field_info[1]
-        if not isinstance(metadata, Mapping):
-            return ()
-        return _extract_string_options(metadata.get("options"))
-
-    return _extract_string_options(first_item)
+    return _extract_string_options(extract_picker_options(field_info))
 
 
-def extract_live_list_default(field_info: object) -> str | None:
-    """Extract the live default literal when the definition exposes one."""
+def extract_picker_default(field_info: object) -> object | None:
+    """Return the live default literal when picker metadata exposes one."""
 
     if (
         not isinstance(field_info, Sequence)
         or isinstance(field_info, (str, bytes))
         or len(field_info) < 2
+        or not isinstance(field_info[1], Mapping)
     ):
         return None
-    metadata = field_info[1]
-    if not isinstance(metadata, Mapping):
-        return None
-    default_value = metadata.get("default")
+    return field_info[1].get("default")
+
+
+def extract_live_list_default(field_info: object) -> str | None:
+    """Extract the live default literal when the definition exposes one."""
+
+    default_value = extract_picker_default(field_info)
     return default_value if isinstance(default_value, str) else None
+
+
+def is_picker_field_spec(field_info: object) -> bool:
+    """Return whether object-info metadata describes a finite picker field."""
+
+    if (
+        not isinstance(field_info, Sequence)
+        or isinstance(field_info, (str, bytes))
+        or not field_info
+    ):
+        return False
+    first_item = field_info[0]
+    if isinstance(first_item, Sequence) and not isinstance(first_item, (str, bytes)):
+        return True
+    return isinstance(first_item, str) and first_item.upper() in {"COMBO", "LIST"}
+
+
+def is_blank_picker_value(value: object) -> bool:
+    """Return whether a picker value represents an unset selection."""
+
+    return value is None or (isinstance(value, str) and not value.strip())
+
+
+def resolve_picker_fallback(
+    field_info: object,
+    *,
+    allow_first_option: bool,
+) -> PickerFallback | None:
+    """Return Comfy's valid explicit default or optional first choice."""
+
+    options = extract_picker_options(field_info)
+    default_value = extract_picker_default(field_info)
+    if default_value is not None and (not options or default_value in options):
+        return PickerFallback(value=default_value, source="default")
+    if allow_first_option and options:
+        return PickerFallback(value=options[0], source="first_option")
+    return None
 
 
 def unresolved_choice_options_reason(field_info: object) -> str | None:
@@ -113,6 +198,7 @@ def resolve_live_list_value(
     raw_value: object,
     field_info: Sequence[object] | None,
     remembered_value: str | None,
+    clear_when_options_empty: bool = False,
 ) -> ListValueResolution | None:
     """Resolve the effective literal for one live list field.
 
@@ -123,6 +209,13 @@ def resolve_live_list_value(
 
     options = extract_live_list_options(field_info)
     if not options:
+        if clear_when_options_empty and has_authoritative_picker_options(field_info):
+            return ListValueResolution(
+                effective_value="",
+                value_source=FieldValueSource.NO_OPTIONS,
+                should_canonicalize=raw_value != "",
+                canonical_value="",
+            )
         return None
 
     if isinstance(raw_value, str) and raw_value in options:
@@ -161,9 +254,16 @@ def resolve_live_list_value(
 
 __all__ = [
     "ListValueResolution",
+    "PickerFallback",
+    "extract_picker_default",
+    "extract_picker_options",
     "extract_live_list_default",
     "extract_live_list_options",
+    "has_authoritative_picker_options",
+    "is_blank_picker_value",
     "is_choice_field_type",
+    "is_picker_field_spec",
+    "resolve_picker_fallback",
     "resolve_live_list_value",
     "unresolved_choice_options_reason",
 ]

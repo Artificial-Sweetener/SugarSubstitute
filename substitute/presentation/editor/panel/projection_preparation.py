@@ -49,6 +49,7 @@ BehaviorRefreshReason = Literal[
     "node_link_changed",
     "prompt_link_changed",
     "node_definition_changed",
+    "model_options_changed",
 ]
 CubeDefinitionIdentity = tuple[str, str, str, str, str, str, str]
 

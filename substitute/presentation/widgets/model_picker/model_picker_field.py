@@ -1050,6 +1050,27 @@ class ModelPickerField(QWidget):
             self._sync_display_label()
         self.update()
 
+    def reconcile_choice_source(
+        self,
+        choice_source: RichChoiceSource,
+        value: str,
+    ) -> None:
+        """Replace live choices and value without emitting a user-authored edit."""
+
+        popup = self._popup
+        popup_visible = popup is not None and popup.isVisible()
+        search_text = popup.search_text() if popup_visible and popup is not None else ""
+        self._choice_source = choice_source
+        self._load_choices(refresh=False)
+        self._set_current_text(value, emit=False)
+        if popup_visible and popup is not None:
+            self._sync_open_popup_metadata(popup)
+            popup.set_search_text(search_text)
+            self._refresh_inline_completion()
+        else:
+            self._sync_display_label()
+        self.update()
+
     def refresh_metadata_for_event(self, event: ModelMetadataRefreshEvent) -> bool:
         """Refresh only when one metadata event affects visible picker state."""
 

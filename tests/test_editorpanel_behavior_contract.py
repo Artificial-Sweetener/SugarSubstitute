@@ -822,6 +822,61 @@ def test_behavior_refresh_transaction_builds_fresh_after_link_change() -> None:
     assert applied == [{}]
 
 
+def test_model_option_refresh_invalidates_behavior_without_projection(
+    monkeypatch,
+) -> None:
+    """Fresh model values should not mark the rendered editor structure stale."""
+
+    mod = _import_epanel_module()
+    calls: list[tuple[str, object]] = []
+    snapshot = SimpleNamespace(
+        card_decisions_by_alias={},
+        hidden_field_keys_by_alias={},
+    )
+    fake = SimpleNamespace(
+        _stack_order=["CubeA"],
+        _cube_states={"CubeA": SimpleNamespace(buffer={"nodes": {}}, ui={})},
+        _current_node_search_text=None,
+        _current_search_hidden_keys=None,
+        _current_search_matching_nodes=None,
+        _build_behavior_snapshot=lambda **_kwargs: snapshot,
+    )
+    monkeypatch.setattr(
+        mod.EditorPanel,
+        "invalidate_behavior_refresh_transaction",
+        lambda _panel, *, reason: calls.append(("behavior", reason)),
+    )
+    monkeypatch.setattr(
+        mod.EditorPanel,
+        "invalidate_projection",
+        lambda _panel, *, reason: calls.append(("projection", reason)),
+    )
+    monkeypatch.setattr(
+        mod,
+        "behavior_applier_for_panel",
+        lambda _panel: SimpleNamespace(
+            apply_snapshot=lambda applied: calls.append(("applied", applied)),
+            restore_previous_state=lambda: None,
+        ),
+    )
+    monkeypatch.setattr(
+        mod,
+        "_refresh_prompt_scene_diagnostics_if_available",
+        lambda _panel: None,
+    )
+
+    mod.EditorPanel.refresh_node_behavior_state(
+        fake,
+        reason="model_options_changed",
+        use_cached_snapshot=False,
+    )
+
+    assert calls == [
+        ("behavior", "model_options_changed"),
+        ("applied", snapshot),
+    ]
+
+
 def test_refresh_prompt_scene_diagnostics_scopes_errors_and_autocomplete() -> None:
     """Scene diagnostics should keep duplicate and authority autocomplete scope local."""
 
@@ -2097,11 +2152,13 @@ def test_model_field_load_progress_routes_only_to_model_picker(
 
     monkeypatch.setattr(mod, "ModelPickerField", _ModelPicker)
     picker = _ModelPicker()
+    widget_map = {
+        ("Cube", "checkpoint", "ckpt_name"): picker,
+        ("Cube", "sampler", "steps"): object(),
+    }
     fake = SimpleNamespace(
-        input_widgets_by_field_key={
-            ("Cube", "checkpoint", "ckpt_name"): picker,
-            ("Cube", "sampler", "steps"): object(),
-        }
+        _field_registry=SimpleNamespace(widget_map=widget_map),
+        input_widgets_by_field_key=widget_map,
     )
 
     mod.EditorPanel.set_model_field_load_progress(
@@ -2156,12 +2213,14 @@ def test_clear_model_field_load_progress_clears_tracked_model_pickers(
 
     monkeypatch.setattr(mod, "ModelPickerField", _ModelPicker)
     picker = _ModelPicker()
+    widget_map = {
+        ("Cube", "checkpoint", "ckpt_name"): picker,
+        ("Cube", "checkpoint", "alt"): picker,
+        ("Cube", "sampler", "steps"): object(),
+    }
     fake = SimpleNamespace(
-        input_widgets_by_field_key={
-            ("Cube", "checkpoint", "ckpt_name"): picker,
-            ("Cube", "checkpoint", "alt"): picker,
-            ("Cube", "sampler", "steps"): object(),
-        }
+        _field_registry=SimpleNamespace(widget_map=widget_map),
+        input_widgets_by_field_key=widget_map,
     )
 
     mod.EditorPanel.clear_model_field_load_progress(fake)
@@ -2201,8 +2260,11 @@ def test_refresh_model_metadata_for_event_delegates_to_model_pickers(
     refreshed_picker = _ModelPicker(True)
     deferred_picker = _ModelPicker(False)
     fake = SimpleNamespace(
-        findChildren=lambda cls: (
-            [refreshed_picker, deferred_picker] if cls is _ModelPicker else []
+        _field_registry=SimpleNamespace(
+            entries=lambda: (
+                SimpleNamespace(widget=refreshed_picker),
+                SimpleNamespace(widget=deferred_picker),
+            )
         ),
         _preset_context_refresh=_PresetContextRefreshDouble(),
     )

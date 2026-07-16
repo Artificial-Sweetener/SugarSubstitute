@@ -20,33 +20,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from substitute.application.model_metadata.model_field_kind_resolver import (
+    model_kind_for_field,
+)
+
 from .list_value_resolver import extract_live_list_options
 
-_MODEL_FIELD_KEYS = frozenset(
-    {
-        ("CheckpointLoaderSimple", "ckpt_name"),
-        ("VAELoader", "vae_name"),
-        ("LoraLoader", "lora_name"),
-        ("LoraLoaderModelOnly", "lora_name"),
-        ("UpscaleModelLoader", "model_name"),
-        ("UNETLoader", "unet_name"),
-        ("DualCLIPLoader", "clip_name1"),
-        ("DualCLIPLoader", "clip_name2"),
-        ("CLIPLoader", "clip_name"),
-        ("ControlNetLoader", "control_net_name"),
-    }
-)
-_MODEL_FIELD_KEY_FRAGMENTS = (
-    "ckpt",
-    "checkpoint",
-    "lora",
-    "vae",
-    "unet",
-    "diffusion",
-    "clip",
-    "controlnet",
-    "control_net",
-)
 _MODEL_CLASS_FRAGMENTS = (
     "loader",
     "checkpoint",
@@ -115,11 +94,9 @@ def _field_looks_model_backed(
 
     if not extract_live_list_options(field_info):
         return False
-    if (class_type, field_key) in _MODEL_FIELD_KEYS:
+    if model_kind_for_field(class_type=class_type, input_key=field_key) is not None:
         return True
     normalized_field = field_key.strip().casefold()
-    if any(fragment in normalized_field for fragment in _MODEL_FIELD_KEY_FRAGMENTS):
-        return True
     normalized_class = class_type.strip().casefold()
     return normalized_field in {"model", "model_name"} and any(
         fragment in normalized_class for fragment in _MODEL_CLASS_FRAGMENTS

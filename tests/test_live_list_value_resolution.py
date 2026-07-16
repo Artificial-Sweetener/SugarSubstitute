@@ -22,6 +22,9 @@ from substitute.application.node_behavior import (
     FieldValueSource,
     extract_live_list_default,
     extract_live_list_options,
+    has_authoritative_picker_options,
+    is_blank_picker_value,
+    resolve_picker_fallback,
     resolve_live_list_value,
 )
 
@@ -176,3 +179,70 @@ def test_resolve_live_list_value_falls_back_for_combo_metadata() -> None:
     assert first_option_resolution is not None
     assert first_option_resolution.effective_value == "a.pth"
     assert first_option_resolution.value_source == FieldValueSource.FIRST_OPTION
+
+
+def test_resolve_picker_fallback_prefers_valid_comfy_default() -> None:
+    """Executable picker fallback should prefer Comfy's declared default."""
+
+    fallback = resolve_picker_fallback(
+        [["model-a", "model-b"], {"default": "model-b"}],
+        allow_first_option=True,
+    )
+
+    assert fallback is not None
+    assert fallback.value == "model-b"
+    assert fallback.source == "default"
+
+
+def test_resolve_picker_fallback_uses_sole_option_without_default() -> None:
+    """A sole live option should become the executable picker value."""
+
+    fallback = resolve_picker_fallback(
+        [["only-model"], {}],
+        allow_first_option=True,
+    )
+
+    assert fallback is not None
+    assert fallback.value == "only-model"
+    assert fallback.source == "first_option"
+
+
+def test_blank_picker_value_recognizes_unset_literals() -> None:
+    """Persistence should share one definition of an unset picker value."""
+
+    assert is_blank_picker_value(None) is True
+    assert is_blank_picker_value("   ") is True
+    assert is_blank_picker_value("model.safetensors") is False
+
+
+def test_empty_model_options_clear_stale_literal_only_when_authoritative() -> None:
+    """An explicit empty Comfy list should clear a stale model selection."""
+
+    resolution = resolve_live_list_value(
+        raw_value=r"Flux\missing.safetensors",
+        field_info=[[], {}],
+        remembered_value=None,
+        clear_when_options_empty=True,
+    )
+
+    assert resolution is not None
+    assert resolution.effective_value == ""
+    assert resolution.value_source is FieldValueSource.NO_OPTIONS
+    assert resolution.should_canonicalize is True
+    assert resolution.canonical_value == ""
+
+
+def test_missing_model_options_preserve_literal_during_definition_failure() -> None:
+    """Missing option metadata should not erase a model during a transient failure."""
+
+    resolution = resolve_live_list_value(
+        raw_value=r"Flux\selected.safetensors",
+        field_info=None,
+        remembered_value=None,
+        clear_when_options_empty=True,
+    )
+
+    assert resolution is None
+    assert has_authoritative_picker_options(None) is False
+    assert has_authoritative_picker_options(["COMBO", {}]) is False
+    assert has_authoritative_picker_options(["COMBO", {"options": []}]) is True

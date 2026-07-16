@@ -354,8 +354,8 @@ def test_compile_workflow_payload_preserves_runtime_asset_picker_values() -> Non
     assert load_mask_inputs["channel"] == "alpha"
 
 
-def test_compile_workflow_payload_rejects_blank_picker_first_option() -> None:
-    """Compiled prompts should not turn blank required pickers into first options."""
+def test_compile_workflow_payload_selects_sole_picker_option() -> None:
+    """Executable prompts select the only available model for a blank picker."""
 
     workflow_payload: dict[str, object] = {
         "1": {
@@ -387,6 +387,38 @@ def test_compile_workflow_payload_rejects_blank_picker_first_option() -> None:
         ),
     )
 
+    payload = service.compile_workflow_payload(
+        sugar_script_text='use "cube" as "SDXL/Text to Image"',
+        output_dir=Path("E:/projects"),
+    )
+
+    node = cast(dict[str, Any], payload["1"])
+    inputs = cast(dict[str, Any], node["inputs"])
+    assert inputs["ckpt_name"] == r"Flux\flux1-dev-bnb-nf4.safetensors"
+
+
+def test_compile_workflow_payload_rejects_blank_picker_without_models() -> None:
+    """Executable prompts reject required model fields with no choices."""
+
+    workflow_payload: dict[str, object] = {
+        "1": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {"ckpt_name": ""},
+            "_meta": {
+                "substitute": {
+                    "cube_alias": "SDXL/Text to Image",
+                    "node_name": "checkpoint",
+                }
+            },
+        },
+    }
+    service, _repository, _compiler = _service(
+        workflow_payload,
+        node_definition_gateway=_FakeNodeDefinitionGateway(
+            {"CheckpointLoaderSimple": {"input": {"required": {"ckpt_name": [[], {}]}}}}
+        ),
+    )
+
     try:
         service.compile_workflow_payload(
             sugar_script_text='use "cube" as "SDXL/Text to Image"',
@@ -398,10 +430,6 @@ def test_compile_workflow_payload_rejects_blank_picker_first_option() -> None:
         assert "node_name=checkpoint" in str(error)
     else:  # pragma: no cover - assertion path only
         raise AssertionError("Expected blank picker hydration to fail")
-
-    node = cast(dict[str, Any], workflow_payload["1"])
-    inputs = cast(dict[str, Any], node["inputs"])
-    assert inputs["ckpt_name"] == ""
 
 
 def test_compile_workflow_payload_replaces_unavailable_combo_picker_default(

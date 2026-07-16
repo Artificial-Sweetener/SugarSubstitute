@@ -40,6 +40,7 @@ class FieldValueSource(StrEnum):
     LIVE_DEFAULT = "live_default"
     FIRST_OPTION = "first_option"
     FUTURE_USER_DEFAULT = "future_user_default"
+    NO_OPTIONS = "no_options"
 
 
 @dataclass(frozen=True)

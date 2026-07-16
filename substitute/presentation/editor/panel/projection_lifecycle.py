@@ -374,10 +374,15 @@ class EditorProjectionLifecyclePipeline:
         """Clear editor registries whose entries belong to one cube alias."""
 
         panel = self._ports.panel
-        _remove_alias_keyed_entries(
-            getattr(panel, "input_widgets_by_field_key", None),
-            cube_alias,
-        )
+        field_registry = getattr(panel, "_field_registry", None)
+        remove_registered_cube = getattr(field_registry, "remove_cube", None)
+        if callable(remove_registered_cube):
+            remove_registered_cube(cube_alias)
+        else:
+            _remove_alias_keyed_entries(
+                getattr(panel, "input_widgets_by_field_key", None),
+                cube_alias,
+            )
         _remove_alias_keyed_entries(getattr(panel, "row_widgets", None), cube_alias)
         _remove_alias_keyed_entries(getattr(panel, "col_widgets", None), cube_alias)
         _remove_alias_keyed_entries(
@@ -471,7 +476,17 @@ class EditorProjectionLifecyclePipeline:
         panel = self._ports.panel
         setattr(panel, "row_widgets", {})
         setattr(panel, "col_widgets", {})
-        setattr(panel, "input_widgets_by_field_key", {})
+        field_registry = getattr(panel, "_field_registry", None)
+        clear_registered_fields = getattr(field_registry, "clear", None)
+        if callable(clear_registered_fields):
+            clear_registered_fields()
+            setattr(
+                panel,
+                "input_widgets_by_field_key",
+                getattr(field_registry, "widget_map", {}),
+            )
+        else:
+            setattr(panel, "input_widgets_by_field_key", {})
         node_card_mode_controller = getattr(
             panel,
             "_node_card_mode_controller",

@@ -122,6 +122,7 @@ from .field_state_controller import (
     EditorPanelFieldStateController,
     EditorPanelFieldStateHost,
 )
+from .field_registry import EditorFieldRegistry
 from .context.active_model_snapshot import (
     CachedModelCatalogLookup,
     PanelActiveModelSnapshotController,
@@ -131,6 +132,10 @@ from .lora_metadata_refresh_controller import (
     EditorPanelLoraMetadataRefreshHost,
 )
 from .model_choice_snapshot_controller import PanelModelChoiceSnapshotController
+from .model_field_surface_reconciler import (
+    ModelFieldSurfaceReconciler,
+    ModelFieldSurfaceReconciliationResult,
+)
 from .preset_context_refresh import PanelPresetContextRefreshCoordinator
 from .presenter import EditorPanelPresenter
 from .prompt_context_controller import (
@@ -194,6 +199,22 @@ def _cube_registry_for_panel(panel: object) -> EditorCubeRegistry:
         registry = EditorCubeRegistry(cast(EditorCubeRegistryHost, panel))
         setattr(panel, "_cube_registry", registry)
     return cast(EditorCubeRegistry, registry)
+
+
+def _field_registry_for_panel(panel: object) -> EditorFieldRegistry:
+    """Return the authoritative rendered field registry for a panel-like host."""
+
+    registry = getattr(panel, "_field_registry", None)
+    if registry is None:
+        registry = EditorFieldRegistry()
+        legacy_widgets = getattr(panel, "input_widgets_by_field_key", None)
+        if isinstance(legacy_widgets, MappingABC):
+            registry.synchronize_from_widget_map(
+                cast(Mapping[tuple[str, str, str], object], legacy_widgets)
+            )
+        setattr(panel, "_field_registry", registry)
+        setattr(panel, "input_widgets_by_field_key", registry.widget_map)
+    return cast(EditorFieldRegistry, registry)
 
 
 def _cube_reveal_controller_for_panel(
@@ -362,8 +383,14 @@ _BEHAVIOR_TRANSACTION_INVALIDATING_REASONS: frozenset[BehaviorRefreshReason] = (
             "node_link_changed",
             "prompt_link_changed",
             "node_definition_changed",
+            "model_options_changed",
         }
     )
+)
+_PROJECTION_INVALIDATING_REASONS: frozenset[BehaviorRefreshReason] = frozenset(
+    reason
+    for reason in _BEHAVIOR_TRANSACTION_INVALIDATING_REASONS
+    if reason != "model_options_changed"
 )
 
 
@@ -460,8 +487,9 @@ class EditorPanel(QWidget):
     def refresh_model_metadata(self) -> None:
         """Refresh every model picker widget from current metadata."""
 
-        for picker in self.findChildren(ModelPickerField):
-            picker.refresh_metadata()
+        for entry in _field_registry_for_panel(self).entries():
+            if isinstance(entry.widget, ModelPickerField):
+                entry.widget.refresh_metadata()
         self._preset_context_refresh.refresh(reason="model_metadata_refreshed")
 
     def refresh_model_metadata_for_event(
@@ -471,8 +499,10 @@ class EditorPanel(QWidget):
         """Refresh visible model picker state affected by one metadata event."""
 
         refreshed_count = 0
-        for picker in self.findChildren(ModelPickerField):
-            if picker.refresh_metadata_for_event(event):
+        for entry in _field_registry_for_panel(self).entries():
+            if isinstance(
+                entry.widget, ModelPickerField
+            ) and entry.widget.refresh_metadata_for_event(event):
                 refreshed_count += 1
         self._preset_context_refresh.refresh(reason="model_metadata_event_refreshed")
         return refreshed_count
@@ -484,8 +514,10 @@ class EditorPanel(QWidget):
         """Clear affected model picker thumbnail caches after image asset updates."""
 
         cleared_count = 0
-        for picker in self.findChildren(ModelPickerField):
-            if picker.clear_thumbnail_cache_for_event(event):
+        for entry in _field_registry_for_panel(self).entries():
+            if isinstance(
+                entry.widget, ModelPickerField
+            ) and entry.widget.clear_thumbnail_cache_for_event(event):
                 cleared_count += 1
         return cleared_count
 
@@ -509,7 +541,7 @@ class EditorPanel(QWidget):
     ) -> None:
         """Route source-enriched model-load progress to one model picker field."""
 
-        widget = getattr(self, "input_widgets_by_field_key", {}).get(
+        widget = _field_registry_for_panel(self).widget_map.get(
             (cube_alias, node_name, field_key)
         )
         if widget is None:
@@ -550,7 +582,7 @@ class EditorPanel(QWidget):
         """Clear model-load progress from all tracked model picker fields."""
 
         seen: set[int] = set()
-        for widget in getattr(self, "input_widgets_by_field_key", {}).values():
+        for widget in _field_registry_for_panel(self).widget_map.values():
             widget_id = id(widget)
             if widget_id in seen:
                 continue
@@ -722,7 +754,11 @@ class EditorPanel(QWidget):
         # === Input row and column mappings for reliable hide/show logic ===
         self.row_widgets = {}  # field_key -> (divider_widget, row_widget)
         self.col_widgets = {}  # field_key -> (row_container, column_widget)
-        self.input_widgets_by_field_key: dict[tuple[str, str, str], QWidget] = {}
+        self._field_registry = EditorFieldRegistry()
+        self.input_widgets_by_field_key: dict[tuple[str, str, str], QWidget] = cast(
+            dict[tuple[str, str, str], QWidget],
+            self._field_registry.widget_map,
+        )
         self._preset_context_refresh = PanelPresetContextRefreshCoordinator(
             host=self,
             model_context=self.active_model_context_controller,
@@ -829,6 +865,12 @@ class EditorPanel(QWidget):
                     value=value,
                 )
             ),
+        )
+        self._model_field_surface_reconciler = ModelFieldSurfaceReconciler(
+            host=self,
+            field_registry=self._field_registry,
+            snapshot_controller=self.model_choice_snapshot_controller,
+            thumbnail_repository_available=thumbnail_asset_repository is not None,
         )
         self._field_sync_controller = EditorPanelFieldSyncController(
             cast(EditorPanelFieldSyncHost, self)
@@ -1248,6 +1290,18 @@ class EditorPanel(QWidget):
         )
         return True
 
+    def reconcile_model_fields_after_node_definition_update(
+        self,
+        *,
+        refreshed_node_classes: Sequence[str],
+    ) -> ModelFieldSurfaceReconciliationResult:
+        """Apply refreshed model options to existing controls without projection."""
+
+        result = self._model_field_surface_reconciler.reconcile(refreshed_node_classes)
+        if result.reconciled_field_count:
+            self._preset_context_refresh.refresh(reason="model_options_changed")
+        return result
+
     def _cube_aliases_for_node_classes(
         self,
         node_classes: Sequence[str],
@@ -1428,15 +1482,21 @@ class EditorPanel(QWidget):
             return {}
 
     def _workflow_overrides(self) -> Mapping[str, object]:
-        """Return the current workflow override mapping used for behavior snapshots."""
+        """Return this panel's workflow overrides for behavior snapshots."""
 
         workflow_overrides = None
         try:
-            if hasattr(self, "mainwindow") and hasattr(
-                self.mainwindow, "get_active_workflow"
-            ):
-                workflow = self.mainwindow.get_active_workflow()
-                workflow_overrides = getattr(workflow, "global_overrides", None)
+            mainwindow = getattr(self, "mainwindow", None)
+            session_service = getattr(mainwindow, "workflow_session_service", None)
+            workflows = getattr(session_service, "workflows", None)
+            workflow = (
+                workflows.get(self._workflow_id)
+                if isinstance(workflows, MappingABC) and self._workflow_id
+                else None
+            )
+            if workflow is None and hasattr(mainwindow, "get_active_workflow"):
+                workflow = mainwindow.get_active_workflow()
+            workflow_overrides = getattr(workflow, "global_overrides", None)
         except (AttributeError, RuntimeError, TypeError) as error:
             log_warning(
                 _LOGGER,
@@ -1951,6 +2011,7 @@ class EditorPanel(QWidget):
             and reason in _BEHAVIOR_TRANSACTION_INVALIDATING_REASONS
         ):
             EditorPanel.invalidate_behavior_refresh_transaction(self, reason=reason)
+        if not use_cached_snapshot and reason in _PROJECTION_INVALIDATING_REASONS:
             EditorPanel.invalidate_projection(self, reason=reason)
 
         try:

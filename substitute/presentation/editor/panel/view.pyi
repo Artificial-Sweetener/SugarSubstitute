@@ -76,6 +76,7 @@ from .context.active_model_snapshot import (
 )
 from .menus.dimension_preset_menu_source import EditorDimensionPresetMenuSource
 from .model_choice_snapshot_controller import PanelModelChoiceSnapshotController
+from .model_field_surface_reconciler import ModelFieldSurfaceReconciliationResult
 from .projection_preparation import BehaviorRefreshReason
 from .projection_session import EditorSurfaceProjectionSignature
 from .prompt_profile_policy import PanelPromptFieldProfileDecision
@@ -349,6 +350,11 @@ class EditorPanel(QWidget):
         *,
         refreshed_node_classes: Sequence[str],
     ) -> bool: ...
+    def reconcile_model_fields_after_node_definition_update(
+        self,
+        *,
+        refreshed_node_classes: Sequence[str],
+    ) -> ModelFieldSurfaceReconciliationResult: ...
     def begin_behavior_refresh_transaction(self, *, reason: str) -> None: ...
     def end_behavior_refresh_transaction(self, *, reason: str) -> None: ...
     def invalidate_behavior_refresh_transaction(self, *, reason: str) -> None: ...

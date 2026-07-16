@@ -95,7 +95,7 @@ class NodeDefinitionRefreshController:
                 reason="no_refreshed_node_classes",
             )
             return
-        self.refresh_active_overrides(
+        self.refresh_surfaces(
             refreshed_node_classes=refreshed_node_classes,
         )
         trace_mark(
@@ -103,45 +103,60 @@ class NodeDefinitionRefreshController:
             refreshed_node_classes=refreshed_node_classes,
         )
 
-    def refresh_active_overrides(
+    def refresh_surfaces(
         self,
         *,
         refreshed_node_classes: tuple[str, ...],
     ) -> None:
-        """Rebuild active behavior metadata and override controls."""
+        """Reconcile loaded editor fields before any structural fallback."""
 
         workflow_id = str(
             getattr(self._shell.workflow_session_service, "active_workflow_id", "")
         )
-        active_panel = self._shell.active_editor_panel
         active_manager = self._shell.active_override_manager
+        editor_panels = tuple(getattr(self._shell, "editor_panels", {}).values())
         log_info(
             _LOGGER,
-            "Refreshing active override presentation after node definition update",
+            "Refreshing loaded model fields after node definition update",
             active_workflow_id=workflow_id,
             refreshed_node_classes=refreshed_node_classes,
-            active_editor_panel_present=active_panel is not None,
+            editor_panel_count=len(editor_panels),
             active_override_manager_present=active_manager is not None,
         )
-        if active_panel is None or active_manager is None:
-            return
+        for editor_panel in editor_panels:
+            refresh_behavior = getattr(
+                editor_panel,
+                "refresh_node_behavior_state",
+                None,
+            )
+            if callable(refresh_behavior):
+                refresh_behavior(
+                    reason="model_options_changed",
+                    use_cached_snapshot=False,
+                )
+            reconcile_fields = getattr(
+                editor_panel,
+                "reconcile_model_fields_after_node_definition_update",
+                None,
+            )
+            fallback_node_classes = refreshed_node_classes
+            if callable(reconcile_fields):
+                result = reconcile_fields(refreshed_node_classes=refreshed_node_classes)
+                reported_fallback = getattr(result, "fallback_node_classes", None)
+                if isinstance(reported_fallback, tuple):
+                    fallback_node_classes = reported_fallback
+            if not fallback_node_classes:
+                continue
+            refresh_projection = getattr(
+                editor_panel,
+                "refresh_projection_after_node_definition_update",
+                None,
+            )
+            if callable(refresh_projection):
+                refresh_projection(refreshed_node_classes=fallback_node_classes)
 
-        projection_rebuilt = False
-        refresh_projection = getattr(
-            active_panel,
-            "refresh_projection_after_node_definition_update",
-            None,
-        )
-        if callable(refresh_projection):
-            projection_rebuilt = bool(
-                refresh_projection(refreshed_node_classes=refreshed_node_classes)
-            )
-        refresh_behavior = getattr(active_panel, "refresh_node_behavior_state", None)
-        if callable(refresh_behavior) and not projection_rebuilt:
-            refresh_behavior(
-                reason="node_definition_changed",
-                use_cached_snapshot=False,
-            )
+        if active_manager is None:
+            return
         rebuild_menu = getattr(active_manager, "rebuild_override_menu", None)
         if callable(rebuild_menu):
             rebuild_menu()

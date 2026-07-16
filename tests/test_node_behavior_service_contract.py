@@ -829,6 +829,46 @@ def test_loaded_cube_blank_combo_uses_live_default_without_dirtying() -> None:
     assert cube.dirty is False
 
 
+def test_loaded_cube_blank_model_combo_canonicalizes_default_without_dirtying() -> None:
+    """Blank model selections become concrete when Comfy exposes a default."""
+
+    cube = cube_state(
+        nodes={
+            "checkpoint": {
+                "class_type": "CheckpointLoaderSimple",
+                "inputs": {"ckpt_name": ""},
+            }
+        },
+        ui={"canonical_cube": {"cube_id": "demo.cube"}},
+    )
+    service = NodeBehaviorService(
+        node_definition_gateway=DummyNodeDefinitionGateway(
+            {
+                "CheckpointLoaderSimple": {
+                    "input": {
+                        "required": {
+                            "ckpt_name": [
+                                ["only-model.safetensors"],
+                                {},
+                            ]
+                        }
+                    }
+                }
+            }
+        )
+    )
+
+    snapshot = service.build_snapshot(cube_states={"A": cube}, stack_order=["A"])
+
+    spec = snapshot.field_specs_by_alias["A"]["checkpoint"]["ckpt_name"]
+    assert spec.value == "only-model.safetensors"
+    assert spec.value_source == FieldValueSource.FIRST_OPTION
+    assert cube.buffer["nodes"]["checkpoint"]["inputs"]["ckpt_name"] == (
+        "only-model.safetensors"
+    )
+    assert cube.dirty is False
+
+
 def test_loaded_cube_blank_scalar_inputs_use_live_defaults_without_dirtying() -> None:
     """Loaded cube blank typed scalar literals should render live defaults."""
 
@@ -1695,6 +1735,63 @@ def test_build_snapshot_canonicalizes_invalid_live_list_literals_without_dirtyin
     assert spec.value_source == FieldValueSource.LIVE_DEFAULT
     assert cube.buffer["nodes"]["checkpoint"]["inputs"]["ckpt_name"] == (
         "model-b.safetensors"
+    )
+    assert cube.dirty is False
+
+
+def test_empty_checkpoint_catalog_blanks_stale_value_then_selects_sole_model() -> None:
+    """A loaded unavailable checkpoint should blank and later adopt the only model."""
+
+    stale_checkpoint = r"Flux\waiAniFlux_v10ForFP8.safetensors"
+    available_checkpoint = r"SDXL\only-model.safetensors"
+    cube = cube_state(
+        nodes={
+            "checkpoint": {
+                "class_type": "SimpleSyrup.SimpleLoadCheckpoint",
+                "inputs": {"ckpt_name": stale_checkpoint},
+            }
+        },
+    )
+
+    empty_snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class={
+            "SimpleSyrup.SimpleLoadCheckpoint": {
+                "input": {"required": {"ckpt_name": [[], {}]}},
+            }
+        },
+    )
+    empty_spec = empty_snapshot.field_specs_by_alias["A"]["checkpoint"]["ckpt_name"]
+
+    assert empty_spec.raw_value == stale_checkpoint
+    assert empty_spec.value == ""
+    assert empty_spec.value_source is FieldValueSource.NO_OPTIONS
+    assert cube.buffer["nodes"]["checkpoint"]["inputs"]["ckpt_name"] == ""
+    assert cube.dirty is False
+
+    one_model_snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class={
+            "SimpleSyrup.SimpleLoadCheckpoint": {
+                "input": {
+                    "required": {
+                        "ckpt_name": [[available_checkpoint], {}],
+                    }
+                },
+            }
+        },
+    )
+    one_model_spec = one_model_snapshot.field_specs_by_alias["A"]["checkpoint"][
+        "ckpt_name"
+    ]
+
+    assert one_model_spec.raw_value == ""
+    assert one_model_spec.value == available_checkpoint
+    assert one_model_spec.value_source is FieldValueSource.FIRST_OPTION
+    assert cube.buffer["nodes"]["checkpoint"]["inputs"]["ckpt_name"] == (
+        available_checkpoint
     )
     assert cube.dirty is False
 

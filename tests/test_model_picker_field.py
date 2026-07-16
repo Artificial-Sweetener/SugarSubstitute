@@ -1777,6 +1777,48 @@ def test_model_picker_field_refresh_metadata_updates_open_popup_items() -> None:
     host.deleteLater()
 
 
+def test_model_picker_field_reconciles_new_choice_source_without_ui_reset() -> None:
+    """Live option replacement should preserve popup, search, focus, and signals."""
+
+    app = ensure_qapp()
+    host = QWidget()
+    host.resize(640, 480)
+    host.show()
+    field = ModelPickerField(
+        host,
+        choice_source=_FakeModelCatalog(()),
+        current_value="",
+    )
+    field.resize(320, 34)
+    field.show()
+    changed: list[str] = []
+    field.currentTextChanged.connect(changed.append)
+    field.open_picker()
+    app.processEvents()
+    popup = field._popup
+    assert popup is not None
+    popup.set_search_text("only")
+    app.processEvents()
+    surface = field.findChild(_ModelPickerComboSurface, "modelPickerComboSurface")
+    assert surface is not None
+    assert surface.search_focus_active() is True
+
+    field.reconcile_choice_source(
+        _FakeModelCatalog((_item("models/only.safetensors", "Only Model", "v1"),)),
+        "models/only.safetensors",
+    )
+    app.processEvents()
+
+    assert field._popup is popup
+    assert popup.isVisible() is True
+    assert popup.search_text() == "only"
+    assert surface.search_focus_active() is True
+    assert field.currentText() == "models/only.safetensors"
+    assert [item.title for item in popup._view.items()] == ["Only Model"]
+    assert changed == []
+    host.deleteLater()
+
+
 def test_model_picker_field_event_refresh_updates_matching_closed_value() -> None:
     """Closed fields should refresh when metadata updates the shown backend value."""
 

@@ -35,6 +35,12 @@ from substitute.application.model_metadata import model_kind_for_field
         ),
         ("LoraLoader", "lora_name", "loras"),
         ("VAELoader", "vae_name", "vae"),
+        ("SimpleSyrup.SimpleLoadCheckpoint", "ckpt_name", "checkpoints"),
+        ("ControlNetLoader", "control_net_name", "controlnet"),
+        ("UpscaleModelLoader", "model_name", "upscale_models"),
+        ("CLIPLoader", "clip_name", "text_encoders"),
+        ("DualCLIPLoader", "clip_name1", "text_encoders"),
+        ("DualCLIPLoader", "clip_name2", "text_encoders"),
     ),
 )
 def test_model_kind_for_field_resolves_known_typed_model_inputs(

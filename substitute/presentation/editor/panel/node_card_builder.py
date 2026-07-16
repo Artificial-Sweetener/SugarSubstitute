@@ -77,6 +77,7 @@ from substitute.presentation.editor.panel.factories.field_pipeline import (
     build_widget_for_field_spec,
 )
 from substitute.presentation.editor.panel.field_state_controller import (
+    EditorFieldBinding,
     EditorPanelFieldStateController,
 )
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
@@ -862,10 +863,16 @@ class NodeCardBuilder:
             alias=alias,
             node_name=node_name,
         )
-        removed_input_count = self._remove_node_field_keys(
-            getattr(self.panel, "input_widgets_by_field_key", None),
-            alias=alias,
-            node_name=node_name,
+        field_registry = getattr(self.panel, "_field_registry", None)
+        remove_registered_node = getattr(field_registry, "remove_node", None)
+        removed_input_count = (
+            int(remove_registered_node(alias, node_name))
+            if callable(remove_registered_node)
+            else self._remove_node_field_keys(
+                getattr(self.panel, "input_widgets_by_field_key", None),
+                alias=alias,
+                node_name=node_name,
+            )
         )
         if removed_row_count or removed_column_count or removed_input_count:
             log_debug(
@@ -1247,8 +1254,17 @@ class NodeCardBuilder:
             context=log_context,
             widget_type=widget.__class__.__name__,
         )
-        if alias is not None and hasattr(self.panel, "input_widgets_by_field_key"):
-            self.panel.input_widgets_by_field_key[(alias, node_name, key)] = widget
+        if alias is not None:
+            binding = EditorFieldBinding.from_widget(widget)
+            register_field = getattr(
+                getattr(self.panel, "_field_registry", None),
+                "register",
+                None,
+            )
+            if binding is not None and callable(register_field):
+                register_field(binding, widget)
+            elif hasattr(self.panel, "input_widgets_by_field_key"):
+                self.panel.input_widgets_by_field_key[(alias, node_name, key)] = widget
         widget_wiring.bind_picker_signals(
             widget,
             self.panel,

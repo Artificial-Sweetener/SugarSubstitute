@@ -22,11 +22,13 @@ from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 
-from substitute.application.ports import NodeDefinitionGateway
-from substitute.application.recipes.picker_defaults import (
+from substitute.application.model_metadata import model_kind_for_field
+from substitute.application.node_behavior.list_value_resolver import (
+    is_blank_picker_value,
     is_picker_field_spec,
-    picker_options,
+    resolve_picker_fallback,
 )
+from substitute.application.ports import NodeDefinitionGateway
 from substitute.domain.common import JsonObject
 from substitute.domain.recipes.sugar_ast import SugarBufferMap
 from substitute.shared.logging.logger import get_logger, log_debug, log_error
@@ -67,9 +69,8 @@ def prepare_required_picker_buffers(
 ) -> SugarBufferMap:
     """Return serialization buffers with safe required picker defaults applied.
 
-    Blank required picker fields are allowed to serialize only when Comfy exposes
-    a stable live default. A first live option is not accepted because it can turn
-    an unset model field into an unintended local checkpoint or loader choice.
+    Blank model selections are omitted so the cube can resolve them from the next
+    Comfy installation. Other required pickers serialize only a stable live default.
     When a request-scoped definition cache is supplied, each node class queries
     live object-info at most once during that serialization request.
     """
@@ -151,11 +152,30 @@ def _prepare_node_required_pickers(
     inputs = _mutable_node_inputs(node)
     for field_key, field_spec in _required_picker_fields(definition):
         raw_value = inputs.get(field_key)
-        if field_key in inputs and not _is_blank_picker_value(raw_value):
+        if field_key in inputs and not is_blank_picker_value(raw_value):
             continue
-        default_value = _stable_default_value(field_spec)
-        if default_value is not None:
-            inputs[field_key] = deepcopy(default_value)
+        model_kind = model_kind_for_field(
+            class_type=class_type,
+            input_key=field_key,
+        )
+        if model_kind is not None:
+            inputs.pop(field_key, None)
+            log_debug(
+                _LOGGER,
+                "Omitted unset model picker from Sugar persistence",
+                cube_alias=cube_alias,
+                node_name=node_name,
+                class_type=class_type,
+                field_key=field_key,
+                model_kind=model_kind,
+            )
+            continue
+        stable_default = resolve_picker_fallback(
+            field_spec,
+            allow_first_option=False,
+        )
+        if stable_default is not None:
+            inputs[field_key] = deepcopy(stable_default.value)
             log_debug(
                 _LOGGER,
                 "Filled blank required picker value from live default",
@@ -165,10 +185,11 @@ def _prepare_node_required_pickers(
                 field_key=field_key,
                 raw_value=raw_value,
                 value_source="live_default",
-                resolved_value=default_value,
+                resolved_value=stable_default.value,
             )
             continue
-        fallback_value = _first_option_value(field_spec)
+        first_option = resolve_picker_fallback(field_spec, allow_first_option=True)
+        fallback_value = None if first_option is None else first_option.value
         error = RequiredPickerValueError(
             cube_alias=cube_alias,
             node_name=node_name,
@@ -221,47 +242,6 @@ def _mutable_node_inputs(
     created: dict[object, object] = {}
     node["inputs"] = created
     return created
-
-
-def _is_blank_picker_value(value: object) -> bool:
-    """Return whether a picker value is absent or blank text."""
-
-    if value is None:
-        return True
-    return isinstance(value, str) and not value.strip()
-
-
-def _stable_default_value(field_spec: object) -> object | None:
-    """Return a live default value when it is valid for the picker."""
-
-    metadata = _field_metadata(field_spec)
-    if metadata is None or "default" not in metadata:
-        return None
-    default_value = metadata["default"]
-    options = picker_options(field_spec)
-    if options and default_value not in options:
-        return None
-    return default_value
-
-
-def _first_option_value(field_spec: object) -> object | None:
-    """Return the first available option for diagnostics only."""
-
-    options = picker_options(field_spec)
-    return options[0] if options else None
-
-
-def _field_metadata(field_spec: object) -> Mapping[object, object] | None:
-    """Return field metadata from a live Comfy field spec."""
-
-    if (
-        isinstance(field_spec, Sequence)
-        and not isinstance(field_spec, (str, bytes))
-        and len(field_spec) > 1
-        and isinstance(field_spec[1], Mapping)
-    ):
-        return field_spec[1]
-    return None
 
 
 def _disabled_node_names_for_alias(

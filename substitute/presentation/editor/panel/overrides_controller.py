@@ -58,7 +58,10 @@ from substitute.domain.generation.seed_control import (
     seed_mode_from_value,
 )
 from substitute.application.prompt_editor import PromptLoraCatalogLookup
-from substitute.application.model_metadata import ThumbnailAssetRepository
+from substitute.application.model_metadata import (
+    ThumbnailAssetRepository,
+    model_kind_for_field,
+)
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
@@ -807,6 +810,55 @@ class GlobalOverridesManager:
 
         self._apply_toolbar_label_size(label_widget)
         self._apply_toolbar_widget_size(control.spec, widget)
+        self._reconcile_model_override_picker(control, widget)
+
+    def _reconcile_model_override_picker(
+        self,
+        control: PinnedOverrideControl,
+        widget: object,
+    ) -> None:
+        """Refresh a model-backed override picker without replacing its widget."""
+
+        spec = control.spec
+        reconcile_choice_source = getattr(widget, "reconcile_choice_source", None)
+        if not callable(reconcile_choice_source):
+            return
+        if (
+            model_kind_for_field(
+                class_type=spec.class_type,
+                input_key=spec.field_key,
+            )
+            is None
+        ):
+            return
+        snapshot_controller = self._model_choice_snapshot_controller
+        if snapshot_controller is None:
+            return
+        from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
+            PanelModelChoiceSnapshotRequest,
+        )
+
+        snapshot = snapshot_controller.snapshot_for_field(
+            PanelModelChoiceSnapshotRequest(
+                field_behavior=spec.field_behavior,
+                node_name=spec.node_name,
+                key=spec.field_key,
+                value=control.value,
+                node_type=spec.class_type,
+                field_type=spec.field_type,
+                field_info=spec.field_info,
+                node_definition_gateway=self._node_definition_gateway,
+                cube_alias=spec.cube_alias,
+                thumbnail_repository_available=(
+                    self._thumbnail_asset_repository is not None
+                ),
+            )
+        )
+        if snapshot.choice_source is not None:
+            reconcile_choice_source(
+                snapshot.choice_source,
+                str(control.value or ""),
+            )
 
     def _refresh_restart_toolbar_spacing(self) -> None:
         """Ask the restart toolbar control to absorb slack after override changes."""
@@ -958,6 +1010,13 @@ class GlobalOverridesManager:
 
         spec = control.spec
         behavior = spec.field_behavior
+        model_options_are_dynamic = (
+            model_kind_for_field(
+                class_type=spec.class_type,
+                input_key=spec.field_key,
+            )
+            is not None
+        )
         return (
             control.override_key,
             control.label,
@@ -966,8 +1025,12 @@ class GlobalOverridesManager:
             spec.field_key,
             spec.field_type,
             repr(sorted(spec.constraints.items())),
-            repr(spec.field_info),
-            self._choice_inventory_signature(control),
+            "dynamic_model_options"
+            if model_options_are_dynamic
+            else repr(spec.field_info),
+            ()
+            if model_options_are_dynamic
+            else self._choice_inventory_signature(control),
             behavior.presentation.value,
             behavior.control_name,
             repr(sorted(behavior.style.items())),

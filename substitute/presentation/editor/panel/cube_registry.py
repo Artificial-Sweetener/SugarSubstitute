@@ -167,10 +167,15 @@ class EditorCubeRegistry:
         )
         self._host.card_wrappers = self._renamed_card_wrappers(old_alias, new_alias)
         self._rename_node_card_mode_alias(old_alias, new_alias)
-        self._host.input_widgets_by_field_key = self._renamed_input_widgets(
-            old_alias,
-            new_alias,
-        )
+        field_registry = getattr(self._host, "_field_registry", None)
+        rename_registered_fields = getattr(field_registry, "rename_cube", None)
+        if callable(rename_registered_fields):
+            rename_registered_fields(old_alias, new_alias)
+        else:
+            self._host.input_widgets_by_field_key = self._renamed_input_widgets(
+                old_alias,
+                new_alias,
+            )
         self._rename_dict_entry(
             self._host._cube_visibility_btns,
             old_alias,

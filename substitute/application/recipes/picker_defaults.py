@@ -20,8 +20,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping, MutableMapping, Sequence
 from copy import deepcopy
-from dataclasses import dataclass
 
+from substitute.application.node_behavior.list_value_resolver import (
+    PickerFallback,
+    extract_picker_options,
+    is_blank_picker_value,
+    is_picker_field_spec,
+    resolve_picker_fallback as resolve_shared_picker_fallback,
+)
 from substitute.application.ports import NodeDefinitionGateway
 from substitute.shared.logging.logger import get_logger, log_debug
 
@@ -32,14 +38,6 @@ _RUNTIME_ASSET_PICKER_FIELDS = frozenset(
         ("LoadImageMask", "image"),
     }
 )
-
-
-@dataclass(frozen=True, slots=True)
-class PickerFallback:
-    """Describe a local picker value resolved from Comfy object info."""
-
-    value: object
-    source: str
 
 
 class PickerDefaultResolutionError(RuntimeError):
@@ -80,18 +78,18 @@ def hydrate_prompt_picker_defaults(
                 input_name=input_name,
             )
             authored_value = inputs.get(input_name)
-            if input_name not in inputs or _is_blank_picker_value(authored_value):
-                stable_default = resolve_stable_picker_default(field_spec)
-                if stable_default is None:
+            if input_name not in inputs or is_blank_picker_value(authored_value):
+                fallback = resolve_picker_fallback(field_spec)
+                if fallback is None:
                     raise PickerDefaultResolutionError(
                         _missing_fallback_message(context)
                     )
-                inputs[input_name] = deepcopy(stable_default.value)
+                inputs[input_name] = deepcopy(fallback.value)
                 log_debug(
                     _LOGGER,
                     "Filled missing picker input from local Comfy default",
                     **context,
-                    fallback_source=stable_default.source,
+                    fallback_source=fallback.source,
                 )
                 continue
             if _is_prompt_link(authored_value):
@@ -113,68 +111,22 @@ def hydrate_prompt_picker_defaults(
                 )
 
 
-def is_picker_field_spec(field_spec: object) -> bool:
-    """Return whether object-info metadata describes a picker field."""
-
-    if not isinstance(field_spec, Sequence) or isinstance(field_spec, (str, bytes)):
-        return False
-    if not field_spec:
-        return False
-    first = field_spec[0]
-    if isinstance(first, Sequence) and not isinstance(first, (str, bytes)):
-        return True
-    return (
-        isinstance(first, str)
-        and first.upper() in {"COMBO", "LIST"}
-        and len(field_spec) > 1
-        and isinstance(field_spec[1], Mapping)
-        and _sequence_options(field_spec[1].get("options")) is not None
-    )
-
-
 def picker_options(field_spec: object) -> list[object]:
     """Return picker options from classic list and new API combo specs."""
 
-    if not isinstance(field_spec, Sequence) or isinstance(field_spec, (str, bytes)):
-        return []
-    if not field_spec:
-        return []
-    first = field_spec[0]
-    if isinstance(first, Sequence) and not isinstance(first, (str, bytes)):
-        return list(first)
-    if (
-        isinstance(first, str)
-        and first.upper() in {"COMBO", "LIST"}
-        and len(field_spec) > 1
-        and isinstance(field_spec[1], Mapping)
-    ):
-        options = _sequence_options(field_spec[1].get("options"))
-        return list(options) if options is not None else []
-    return []
+    return list(extract_picker_options(field_spec))
 
 
 def resolve_picker_fallback(field_spec: object) -> PickerFallback | None:
     """Return a valid local default or first local option for a picker."""
 
-    stable_default = resolve_stable_picker_default(field_spec)
-    if stable_default is not None:
-        return stable_default
-    options = picker_options(field_spec)
-    if options:
-        return PickerFallback(value=options[0], source="first_option")
-    return None
+    return resolve_shared_picker_fallback(field_spec, allow_first_option=True)
 
 
 def resolve_stable_picker_default(field_spec: object) -> PickerFallback | None:
     """Return a valid live default without using first-option fallback."""
 
-    options = picker_options(field_spec)
-    metadata = _field_metadata(field_spec)
-    if metadata is not None and "default" in metadata:
-        default_value = metadata["default"]
-        if not options or default_value in options:
-            return PickerFallback(value=default_value, source="default")
-    return None
+    return resolve_shared_picker_fallback(field_spec, allow_first_option=False)
 
 
 def _iter_required_input_fields(
@@ -208,27 +160,6 @@ def _node_inputs(
     return created
 
 
-def _field_metadata(field_spec: object) -> Mapping[object, object] | None:
-    """Return object-info field metadata when present."""
-
-    if (
-        isinstance(field_spec, Sequence)
-        and not isinstance(field_spec, (str, bytes))
-        and len(field_spec) > 1
-        and isinstance(field_spec[1], Mapping)
-    ):
-        return field_spec[1]
-    return None
-
-
-def _sequence_options(value: object) -> Sequence[object] | None:
-    """Return an option sequence while rejecting string-like values."""
-
-    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
-        return value
-    return None
-
-
 def _is_prompt_link(value: object) -> bool:
     """Return whether a value is a Comfy prompt link rather than a literal."""
 
@@ -240,14 +171,6 @@ def _is_prompt_link(value: object) -> bool:
         and isinstance(value[1], int)
         and not isinstance(value[1], bool)
     )
-
-
-def _is_blank_picker_value(value: object) -> bool:
-    """Return whether a picker value is absent or blank text."""
-
-    if value is None:
-        return True
-    return isinstance(value, str) and not value.strip()
 
 
 def _is_runtime_asset_picker_field(class_type: str, input_name: str) -> bool:

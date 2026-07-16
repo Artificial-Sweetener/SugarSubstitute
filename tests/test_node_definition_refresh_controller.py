@@ -155,7 +155,7 @@ def test_queue_refresh_coalesces_available_events(
     )
     monkeypatch.setattr(
         controller,
-        "refresh_active_overrides",
+        "refresh_surfaces",
         lambda *, refreshed_node_classes: drained.append(refreshed_node_classes),
     )
 
@@ -172,14 +172,21 @@ def test_queue_refresh_coalesces_available_events(
     assert controller._pending_node_classes == set()
 
 
-def test_refresh_active_overrides_rebuilds_behavior_and_controls() -> None:
-    """Drained refreshes should rebuild active behavior and toolbar presentation."""
+def test_refresh_surfaces_reconciles_every_loaded_panel_before_toolbar() -> None:
+    """Drained refreshes should update loaded panels without active-only ownership."""
 
     calls: list[tuple[str, object]] = []
 
     class _Panel:
         def refresh_node_behavior_state(self, **kwargs: object) -> None:
             calls.append(("refresh_node_behavior_state", kwargs))
+
+        def reconcile_model_fields_after_node_definition_update(
+            self,
+            **kwargs: object,
+        ) -> object:
+            calls.append(("reconcile_model_fields", kwargs))
+            return SimpleNamespace(fallback_node_classes=())
 
     class _Manager:
         def rebuild_override_menu(self) -> None:
@@ -192,30 +199,42 @@ def test_refresh_active_overrides_rebuilds_behavior_and_controls() -> None:
         node_definition_gateway=object(),
         node_definition_refreshed=_Signal(),
         workflow_session_service=SimpleNamespace(active_workflow_id="workflow-1"),
-        active_editor_panel=_Panel(),
+        editor_panels={"workflow-1": _Panel(), "workflow-2": _Panel()},
+        active_editor_panel=None,
         active_override_manager=_Manager(),
     )
     controller = node_definition_refresh_controller.NodeDefinitionRefreshController(
         shell
     )
 
-    controller.refresh_active_overrides(refreshed_node_classes=("KSampler",))
+    controller.refresh_surfaces(refreshed_node_classes=("KSampler",))
 
     assert calls == [
         (
             "refresh_node_behavior_state",
             {
-                "reason": "node_definition_changed",
+                "reason": "model_options_changed",
                 "use_cached_snapshot": False,
             },
         ),
+        ("reconcile_model_fields", {"refreshed_node_classes": ("KSampler",)}),
+        (
+            "refresh_node_behavior_state",
+            {
+                "reason": "model_options_changed",
+                "use_cached_snapshot": False,
+            },
+        ),
+        ("reconcile_model_fields", {"refreshed_node_classes": ("KSampler",)}),
         ("rebuild_override_menu", None),
         ("rebuild_active_override_controls", None),
     ]
 
 
-def test_refresh_active_overrides_uses_projection_rebuild_when_available() -> None:
-    """Affected late refreshes should rebuild projection instead of behavior only."""
+def test_refresh_surfaces_uses_projection_only_for_reported_structural_fallback() -> (
+    None
+):
+    """Only classes rejected by in-place reconciliation should rebuild projection."""
 
     calls: list[tuple[str, object]] = []
 
@@ -230,6 +249,15 @@ def test_refresh_active_overrides_uses_projection_rebuild_when_available() -> No
         def refresh_node_behavior_state(self, **kwargs: object) -> None:
             calls.append(("refresh_node_behavior_state", kwargs))
 
+        def reconcile_model_fields_after_node_definition_update(
+            self,
+            **kwargs: object,
+        ) -> object:
+            calls.append(("reconcile_model_fields", kwargs))
+            return SimpleNamespace(
+                fallback_node_classes=("SimpleSyrup.ResizeImageToTarget",)
+            )
+
     class _Manager:
         def rebuild_override_menu(self) -> None:
             calls.append(("rebuild_override_menu", None))
@@ -241,18 +269,30 @@ def test_refresh_active_overrides_uses_projection_rebuild_when_available() -> No
         node_definition_gateway=object(),
         node_definition_refreshed=_Signal(),
         workflow_session_service=SimpleNamespace(active_workflow_id="workflow-1"),
-        active_editor_panel=_Panel(),
+        editor_panels={"workflow-1": _Panel()},
+        active_editor_panel=None,
         active_override_manager=_Manager(),
     )
     controller = node_definition_refresh_controller.NodeDefinitionRefreshController(
         shell
     )
 
-    controller.refresh_active_overrides(
+    controller.refresh_surfaces(
         refreshed_node_classes=("SimpleSyrup.ResizeImageToTarget",)
     )
 
     assert calls == [
+        (
+            "refresh_node_behavior_state",
+            {
+                "reason": "model_options_changed",
+                "use_cached_snapshot": False,
+            },
+        ),
+        (
+            "reconcile_model_fields",
+            {"refreshed_node_classes": ("SimpleSyrup.ResizeImageToTarget",)},
+        ),
         (
             "refresh_projection_after_node_definition_update",
             {"refreshed_node_classes": ("SimpleSyrup.ResizeImageToTarget",)},
@@ -262,10 +302,8 @@ def test_refresh_active_overrides_uses_projection_rebuild_when_available() -> No
     ]
 
 
-def test_refresh_active_overrides_keeps_behavior_refresh_after_projection_skip() -> (
-    None
-):
-    """Unrelated late refreshes should keep the cheaper behavior refresh path."""
+def test_refresh_surfaces_falls_back_when_panel_has_no_reconciler() -> None:
+    """Legacy or non-model panels should retain structural refresh safety."""
 
     calls: list[tuple[str, object]] = []
 
@@ -291,26 +329,27 @@ def test_refresh_active_overrides_keeps_behavior_refresh_after_projection_skip()
         node_definition_gateway=object(),
         node_definition_refreshed=_Signal(),
         workflow_session_service=SimpleNamespace(active_workflow_id="workflow-1"),
-        active_editor_panel=_Panel(),
+        editor_panels={"workflow-1": _Panel()},
+        active_editor_panel=None,
         active_override_manager=_Manager(),
     )
     controller = node_definition_refresh_controller.NodeDefinitionRefreshController(
         shell
     )
 
-    controller.refresh_active_overrides(refreshed_node_classes=("UnrelatedNode",))
+    controller.refresh_surfaces(refreshed_node_classes=("UnrelatedNode",))
 
     assert calls == [
         (
-            "refresh_projection_after_node_definition_update",
-            {"refreshed_node_classes": ("UnrelatedNode",)},
-        ),
-        (
             "refresh_node_behavior_state",
             {
-                "reason": "node_definition_changed",
+                "reason": "model_options_changed",
                 "use_cached_snapshot": False,
             },
+        ),
+        (
+            "refresh_projection_after_node_definition_update",
+            {"refreshed_node_classes": ("UnrelatedNode",)},
         ),
         ("rebuild_override_menu", None),
         ("rebuild_active_override_controls", None),

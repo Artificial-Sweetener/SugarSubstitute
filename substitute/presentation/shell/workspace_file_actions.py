@@ -1559,7 +1559,7 @@ class WorkspaceFileActions:
             parsed_script=parsed_script,
             request=request,
         )
-        refreshed_node_classes = self._refresh_downloaded_model_node_definitions(
+        self._refresh_downloaded_model_node_definitions(
             node_classes=node_classes,
         )
         if target_workflow_id != self._view.workflow_session_service.active_workflow_id:
@@ -1572,16 +1572,6 @@ class WorkspaceFileActions:
         )
         if callable(sync_overrides):
             sync_overrides()
-        active_panel = self._view.editor_panels.get(target_workflow_id)
-        refresh_projection = getattr(
-            active_panel,
-            "refresh_projection_after_node_definition_update",
-            None,
-        )
-        if callable(refresh_projection) and refreshed_node_classes:
-            refresh_projection(refreshed_node_classes=refreshed_node_classes)
-        else:
-            self._view.active_workflow_surface_refresher.refresh_active_workflow_surface()
         apply_overrides = getattr(
             active_override_manager, "apply_global_overrides", None
         )

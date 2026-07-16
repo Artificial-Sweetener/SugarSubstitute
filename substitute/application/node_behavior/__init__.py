@@ -25,9 +25,13 @@ from .behavior_service import (
 from .field_classification import NodeFieldKind, classify_node_field
 from .list_value_resolver import (
     ListValueResolution,
+    PickerFallback,
     extract_live_list_default,
     extract_live_list_options,
+    has_authoritative_picker_options,
+    is_blank_picker_value,
     is_choice_field_type,
+    resolve_picker_fallback,
     resolve_live_list_value,
     unresolved_choice_options_reason,
 )
@@ -110,6 +114,7 @@ __all__ = [
     "EditorNodeDefinitionHydrationService",
     "extract_live_list_default",
     "extract_live_list_options",
+    "has_authoritative_picker_options",
     "FieldBehavior",
     "FieldBehaviorPatch",
     "FieldPresentation",
@@ -137,6 +142,7 @@ __all__ = [
     "ModelBackedNodeDetector",
     "order_node_cards",
     "PackageBehaviorPatch",
+    "PickerFallback",
     "prompt_priority_nodes",
     "PromptFieldBehavior",
     "PromptFieldBehaviorPatch",
@@ -147,6 +153,7 @@ __all__ = [
     "ResolvedFieldSpec",
     "RowMode",
     "resolve_live_list_value",
+    "resolve_picker_fallback",
     "required_node_definition_classes_for_editor_projection",
     "required_node_definition_requirements_for_editor_projection",
     "unresolved_choice_options_reason",
@@ -160,5 +167,6 @@ __all__ = [
     "infer_sampler_worker_node",
     "resolve_node_behavior",
     "is_choice_field_type",
+    "is_blank_picker_value",
     "wired_node_order",
 ]
