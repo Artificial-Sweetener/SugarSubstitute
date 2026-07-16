@@ -29,7 +29,7 @@ See the [roadmap](ROADMAP.md) for what I want to build next, and tell me what I'
 
 - **Stack workflow pieces, not loose nodes.** Add, reorder, mute, or remove Cubes while SugarSubstitute handles the links.
 - **Stop waiting for WebUI support.** If ComfyUI can run a model, you can bring it into SugarSubstitute with a Cube. If you can build a ComfyUI graph, you can make one.
-- **Update all of your workflows in one stroke.** Did you realize you should be doing upscaling differently, or a new inpainting technique came out? Update just the cube with the effected segment and all of your Substitute workflows will fall in line.
+- **Update all of your workflows in one stroke.** Did you realize you should be doing upscaling differently, or a new inpainting technique came out? Update just the Cube with the affected segment and all of your Substitute workflows will fall in line.
 - **Stop repeating yourself.** Change seeds, samplers, and other compatible settings once instead of hunting through the workflow.
 - **A rich prompt editor purpose built for image gen.** Autocomplete, rich rendering, LoRAs, wildcards, emphasis, scenes, and draggable segments all live in one editor.
 - **Browse models with your eyes.** Search thumbnails and metadata instead of spelunking through a filename dump.
@@ -173,14 +173,14 @@ The prompt editor understands the structure it displays. Autocomplete appears wh
 <p align="center">
   <img src="docs/readme/prompt-editor-showcase.gif" alt="SugarSubstitute prompt editor showing rich rendering, autocomplete, emphasis, and draggable prompt segments" width="720" height="720">
   <br>
-  <em>A prompt editor that doesn't ask you to remember escapement rules and let's you make quick edits without taking your hand off your mouse.</em>
+  <em>A prompt editor that doesn't ask you to remember escapement rules and lets you make quick edits without taking your hand off your mouse.</em>
 </p>
 
 ## Let the image remember
 
 SugarSubstitute recipe PNGs carry both a readable Sugar recipe and the raw ComfyUI workflow. Open one to restore the Cube stack and versions, exposed values, global overrides, seed behavior, prompts, and supported sibling images from the same run.
 
-...but you're used to that kind of convienience if you've been using Comfy or WebUI, so we do one better:
+...but you're used to that kind of convenience if you've been using Comfy or WebUI, so we do one better:
 
 If a referenced model moved, SugarSubstitute searches your local library for the same SHA-256 and repairs the path. If the exact model is missing and CivitAI knows its hash, SugarSubstitute can offer a safety-checked download. Share results with your friends using Substitute and they'll be able to pull down whatever models they need to test it for themselves.
 
