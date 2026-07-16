@@ -44,6 +44,9 @@ from substitute.app.bootstrap.startup_shell_runtime import (
 )
 from substitute.app.bootstrap.startup_shell_flow import run_startup_shell_flow
 from substitute.app.bootstrap.startup_support_graph import create_startup_support_graph
+from substitute.app.bootstrap.legacy_launcher_update_start import (
+    start_legacy_launcher_update_bridge,
+)
 
 
 def prepare_startup_restore_plan(*args: Any, **kwargs: Any) -> Any:
@@ -81,6 +84,7 @@ def run_application(
     installation_context = startup_environment.installation_context
     with startup_timer.phase("startup.configure_file_logging"):
         configure_startup_observability(installation_context.installation.logs_dir)
+    start_legacy_launcher_update_bridge(install_root=install_root)
     _trace_preconfigured_startup_timings(
         prebootstrap_timing_records=prebootstrap_timing_records,
         startup_timer=startup_timer,

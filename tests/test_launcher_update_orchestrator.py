@@ -21,15 +21,20 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from launcher.sugarsubstitute_launcher.config import LauncherConfig, UpdateCheckConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
 from launcher.sugarsubstitute_launcher.payload import AppPayloadInstallResult
 from launcher.sugarsubstitute_launcher.runtime import RuntimeProvisioningResult
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
+    LauncherMinimumVersionError,
     LauncherUpdateOrchestrator,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
+from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
+from sugarsubstitute_shared.launcher_update.targets import LauncherBundleTarget
 
 
 def test_pre_launch_update_skips_without_release_source(tmp_path: Path) -> None:
@@ -182,6 +187,93 @@ def test_pre_launch_update_runtime_failure_does_not_record_new_version(
     assert not layout.state_path.exists()
 
 
+def test_pre_launch_update_stages_newer_launcher_after_runtime_is_ready(
+    tmp_path: Path,
+) -> None:
+    """The launcher should own future bundle updates after app reconciliation."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
+    layout.runtime_python.write_text("python", encoding="utf-8")
+    config = LauncherConfig.from_layout(layout=layout)
+    base_manifest = _manifest(version="0.11.0")
+    launcher_asset = ReleaseAsset(
+        filename="launcher.zip",
+        url="file:///launcher.zip",
+        sha256="1" * 64,
+        size_bytes=42,
+    )
+    manifest = ReleaseManifest(
+        schema_version=base_manifest.schema_version,
+        channel=base_manifest.channel,
+        version=base_manifest.version,
+        minimum_launcher_version=base_manifest.minimum_launcher_version,
+        app=base_manifest.app,
+        launchers={layout.target.key: launcher_asset},
+        installers={},
+    )
+    stager = _LauncherStager(layout.launcher_update_request_path)
+
+    result = LauncherUpdateOrchestrator(
+        payload_installer=_PayloadInstaller(version="0.11.0"),
+        runtime_reconciler=_RuntimeReconciler(),
+        launcher_bundle_stager=stager,
+        launcher_version="0.10.0",
+        now=_fixed_now,
+    ).run(
+        layout=layout,
+        config=config,
+        release_source=_ReleaseSource(manifest),
+        no_update_check=False,
+    )
+
+    assert result.launcher_update_request_path == str(
+        layout.launcher_update_request_path
+    )
+    assert stager.versions == ["0.11.0"]
+    assert stager.assets == [
+        LauncherBundleAsset(
+            filename=launcher_asset.filename,
+            url=launcher_asset.url,
+            sha256=launcher_asset.sha256,
+            size_bytes=launcher_asset.size_bytes,
+        )
+    ]
+
+
+def test_pre_launch_update_blocks_app_below_unavailable_launcher_minimum(
+    tmp_path: Path,
+) -> None:
+    """A manifest minimum must fail closed when its launcher asset is absent."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    config = LauncherConfig.from_layout(layout=layout)
+    base = _manifest(version="0.11.0")
+    manifest = ReleaseManifest(
+        schema_version=base.schema_version,
+        channel=base.channel,
+        version=base.version,
+        minimum_launcher_version="0.11.0",
+        app=base.app,
+        launchers={},
+        installers={},
+    )
+
+    with pytest.raises(LauncherMinimumVersionError):
+        LauncherUpdateOrchestrator(
+            payload_installer=_PayloadInstaller(version="0.11.0"),
+            runtime_reconciler=_RuntimeReconciler(),
+            launcher_version="0.10.0",
+            now=_fixed_now,
+        ).run(
+            layout=layout,
+            config=config,
+            release_source=_ReleaseSource(manifest),
+            no_update_check=False,
+        )
+    assert not layout.state_path.exists()
+
+
 def _fixed_now() -> datetime:
     """Return a deterministic UTC timestamp."""
 
@@ -303,3 +395,30 @@ class _Progress:
         """Record one progress line."""
 
         self.lines.append(line)
+
+
+class _LauncherStager:
+    """Record launcher staging requests."""
+
+    def __init__(self, request_path: Path) -> None:
+        """Store the request path returned by staging."""
+
+        self._request_path = request_path
+        self.versions: list[str] = []
+        self.assets: list[LauncherBundleAsset] = []
+
+    def stage(
+        self,
+        *,
+        install_root: Path,
+        version: str,
+        target: LauncherBundleTarget,
+        asset: LauncherBundleAsset,
+    ) -> Path:
+        """Record one update and return its fake request path."""
+
+        _ = install_root
+        _ = target
+        self.versions.append(version)
+        self.assets.append(asset)
+        return self._request_path

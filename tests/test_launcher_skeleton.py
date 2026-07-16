@@ -26,6 +26,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import ANY
 
 from PySide6.QtWidgets import QApplication, QWidget
 import pytest
@@ -529,7 +530,14 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
             assert kwargs["release_source"].manifest_url == DEFAULT_RELEASE_MANIFEST_URL
             assert kwargs["no_update_check"] is False
             assert kwargs["progress"] is progress_client
-            return object()
+            from launcher.sugarsubstitute_launcher.update_orchestrator import (
+                PreLaunchUpdateResult,
+            )
+
+            return PreLaunchUpdateResult(
+                checked_manifest=True,
+                installed_update=False,
+            )
 
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
     monkeypatch.setattr(
@@ -561,6 +569,83 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
         str(layout.app_entrypoint),
         f"--install-root={layout.root}",
         "--splash-session-endpoint=127.0.0.1:49152",
+    ]
+
+
+def test_launcher_main_hands_off_pending_launcher_update_instead_of_app(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A staged launcher update should replace, relaunch, then start the app."""
+
+    from launcher.sugarsubstitute_launcher.update_orchestrator import (
+        PreLaunchUpdateResult,
+    )
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    layout.executable_path.write_text("", encoding="utf-8")
+    layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
+    layout.app_entrypoint.write_text("", encoding="utf-8")
+    layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
+    layout.runtime_python.write_text("", encoding="utf-8")
+    closed: list[bool] = []
+    splash_session = SimpleNamespace(
+        client=SimpleNamespace(close=lambda: closed.append(True)),
+        app_arguments=(),
+    )
+    scheduled: list[dict[str, object]] = []
+
+    def schedule_update(**kwargs: object) -> int:
+        """Record the detached launcher update handoff."""
+
+        scheduled.append(kwargs)
+        return 1234
+
+    class _FakeUpdateOrchestrator:
+        """Return one pending launcher request."""
+
+        def run(self, **_kwargs: object) -> PreLaunchUpdateResult:
+            """Return the staged update result."""
+
+            return PreLaunchUpdateResult(
+                checked_manifest=True,
+                installed_update=True,
+                launcher_update_request_path=str(layout.launcher_update_request_path),
+            )
+
+    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    monkeypatch.setattr(
+        launcher_app,
+        "LauncherUpdateOrchestrator",
+        _FakeUpdateOrchestrator,
+    )
+    monkeypatch.setattr(
+        launcher_app,
+        "start_launcher_splash_session",
+        lambda *, layout: splash_session,
+    )
+    monkeypatch.setattr(
+        launcher_app,
+        "schedule_launcher_update",
+        schedule_update,
+    )
+    monkeypatch.setattr(
+        launcher_app,
+        "start_detached",
+        lambda _command: pytest.fail("The old launcher must not start the app."),
+    )
+
+    assert launcher_app.main([]) == 0
+    assert closed == [True]
+    assert scheduled == [
+        {
+            "request_path": layout.launcher_update_request_path,
+            "runtime_python": layout.runtime_python,
+            "app_dir": layout.app_dir,
+            "relaunch": True,
+            "wait_pid": ANY,
+        }
     ]
 
 

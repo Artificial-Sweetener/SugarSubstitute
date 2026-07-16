@@ -93,6 +93,8 @@ def test_uv_runtime_provisioner_builds_managed_runtime_commands(tmp_path: Path) 
             "--install-dir",
             str(layout.runtime_dir / "python"),
             "--managed-python",
+            "--no-bin",
+            "--no-registry",
             "--no-config",
         ],
         [
@@ -181,6 +183,26 @@ def test_uv_runtime_provisioner_rebuilds_invalid_existing_venv(
 
     venv_command = next(command for command in runner.commands if command[1] == "venv")
     assert "--clear" in venv_command
+
+
+def test_linux_uv_install_disables_global_bin_without_windows_registry_flag(
+    tmp_path: Path,
+) -> None:
+    """Linux suppresses global shims without passing a Windows-only option."""
+
+    layout = InstallLayout.from_root(tmp_path / "install", target=LINUX_X64)
+    _write_file(layout.app_dir / "requirements.txt", "PySide6\n")
+    bundled_uv = tmp_path / "uv"
+    bundled_uv.write_bytes(b"uv")
+    runner = RecordingRuntimeRunner()
+
+    UvManagedRuntimeInstaller(
+        bundled_uv_path=bundled_uv,
+        runner=runner,
+    ).provision(layout=layout)
+
+    assert "--no-bin" in runner.commands[0]
+    assert "--no-registry" not in runner.commands[0]
 
 
 def test_runtime_environment_keeps_uv_state_inside_install_root(tmp_path: Path) -> None:
