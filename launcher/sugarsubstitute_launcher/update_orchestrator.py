@@ -22,7 +22,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
+from pathlib import Path
 from typing import Protocol
+
+from launcher.sugarsubstitute_launcher import __version__ as LAUNCHER_VERSION
 
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -47,9 +50,20 @@ from launcher.sugarsubstitute_launcher.update_policy import (
     decide_update_check,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
+from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
+from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
+from sugarsubstitute_shared.launcher_update.targets import (
+    LauncherBundleTarget,
+    launcher_bundle_target_for_key,
+)
+from sugarsubstitute_shared.launcher_update.versions import compare_release_versions
 
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class LauncherMinimumVersionError(RuntimeError):
+    """Report a required launcher update that cannot be completed safely."""
 
 
 class LauncherUpdateProgress(Protocol):
@@ -71,6 +85,20 @@ class AppPayloadInstallerProtocol(Protocol):
         """Install the manifest app payload."""
 
 
+class LauncherBundleStagerProtocol(Protocol):
+    """Stage a verified launcher bundle for detached replacement."""
+
+    def stage(
+        self,
+        *,
+        install_root: Path,
+        version: str,
+        target: LauncherBundleTarget,
+        asset: LauncherBundleAsset,
+    ) -> Path:
+        """Return the pending update request path."""
+
+
 @dataclass(frozen=True, slots=True)
 class PreLaunchUpdateResult:
     """Describe one launcher pre-launch update attempt."""
@@ -79,6 +107,7 @@ class PreLaunchUpdateResult:
     installed_update: bool
     skipped_reason: str | None = None
     failure_reason: str | None = None
+    launcher_update_request_path: str | None = None
 
 
 class NullLauncherUpdateProgress:
@@ -98,12 +127,16 @@ class LauncherUpdateOrchestrator:
         *,
         payload_installer: AppPayloadInstallerProtocol | None = None,
         runtime_reconciler: RuntimeReconciler | None = None,
+        launcher_bundle_stager: LauncherBundleStagerProtocol | None = None,
+        launcher_version: str = LAUNCHER_VERSION,
         now: Callable[[], datetime] | None = None,
     ) -> None:
         """Store update collaborators."""
 
         self._payload_installer = payload_installer or AppPayloadInstaller()
         self._runtime_reconciler = runtime_reconciler or UvRuntimeReconciler()
+        self._launcher_bundle_stager = launcher_bundle_stager or LauncherBundleStager()
+        self._launcher_version = launcher_version
         self._now = _utc_now if now is None else now
 
     def run(
@@ -154,6 +187,8 @@ class LauncherUpdateOrchestrator:
                 installed_update=False,
                 skipped_reason="update_lock_unavailable",
             )
+        except LauncherMinimumVersionError:
+            raise
         except Exception as error:
             _LOGGER.warning(
                 "Pre-launch update failed; launching installed app.",
@@ -192,31 +227,102 @@ class LauncherUpdateOrchestrator:
             installed_version=state.installed_app_version,
             manifest_version=manifest.version,
         )
-        if update_policy.decision is AppPayloadUpdateDecision.SKIP:
-            state.with_update_check(
+        installed_app_update = False
+        if update_policy.decision is AppPayloadUpdateDecision.INSTALL:
+            progress.append_log(f"Installing SugarSubstitute {manifest.version}.")
+            install_result = self._payload_installer.install(
+                layout=layout,
+                manifest=manifest,
+            )
+            progress.append_log("Preparing SugarSubstitute runtime.")
+            self._runtime_reconciler.reconcile(layout=layout, progress=progress)
+            state = state.with_successful_update(
+                version=install_result.version,
+                channel=manifest.channel,
+                completed_at=self._now(),
+            )
+            progress.append_log(f"Installed SugarSubstitute {install_result.version}.")
+            installed_app_update = True
+        else:
+            state = state.with_update_check(
                 channel=manifest.channel,
                 checked_at=self._now(),
-            ).save(layout.state_path)
-            return PreLaunchUpdateResult(
-                checked_manifest=True,
-                installed_update=False,
-                skipped_reason=update_policy.reason,
             )
-
-        progress.append_log(f"Installing SugarSubstitute {manifest.version}.")
-        install_result = self._payload_installer.install(
+        launcher_request = self._stage_launcher_update(
             layout=layout,
             manifest=manifest,
+            progress=progress,
         )
-        progress.append_log("Preparing SugarSubstitute runtime.")
-        self._runtime_reconciler.reconcile(layout=layout, progress=progress)
-        state.with_successful_update(
-            version=install_result.version,
-            channel=manifest.channel,
-            completed_at=self._now(),
-        ).save(layout.state_path)
-        progress.append_log(f"Installed SugarSubstitute {install_result.version}.")
-        return PreLaunchUpdateResult(checked_manifest=True, installed_update=True)
+        state.save(layout.state_path)
+        return PreLaunchUpdateResult(
+            checked_manifest=True,
+            installed_update=installed_app_update,
+            skipped_reason=(None if installed_app_update else update_policy.reason),
+            launcher_update_request_path=(
+                str(launcher_request) if launcher_request is not None else None
+            ),
+        )
+
+    def _stage_launcher_update(
+        self,
+        *,
+        layout: InstallLayout,
+        manifest: ReleaseManifest,
+        progress: LauncherUpdateProgress,
+    ) -> Path | None:
+        """Stage a newer launcher or enforce the manifest minimum version."""
+
+        version_comparison = compare_release_versions(
+            self._launcher_version,
+            manifest.version,
+        )
+        minimum_comparison = compare_release_versions(
+            self._launcher_version,
+            manifest.minimum_launcher_version,
+        )
+        if minimum_comparison < 0 and version_comparison >= 0:
+            raise LauncherMinimumVersionError(
+                "The release manifest requires a launcher version newer than its "
+                "published launcher bundle."
+            )
+        if version_comparison >= 0:
+            return None
+        release_asset = manifest.launcher_for(layout.target)
+        if release_asset is None:
+            if minimum_comparison < 0:
+                raise LauncherMinimumVersionError(
+                    "This release requires a newer launcher, but its launcher bundle "
+                    f"is missing for {layout.target.key}."
+                )
+            return None
+        if not layout.runtime_python.is_file():
+            error_message = (
+                "The managed app runtime is unavailable for launcher replacement."
+            )
+            if minimum_comparison < 0:
+                raise LauncherMinimumVersionError(error_message)
+            raise RuntimeError(error_message)
+        progress.append_log(f"Preparing launcher {manifest.version}.")
+        try:
+            request_path = self._launcher_bundle_stager.stage(
+                install_root=layout.root,
+                version=manifest.version,
+                target=launcher_bundle_target_for_key(layout.target.key),
+                asset=LauncherBundleAsset(
+                    filename=release_asset.filename,
+                    url=release_asset.url,
+                    sha256=release_asset.sha256,
+                    size_bytes=release_asset.size_bytes,
+                ),
+            )
+        except Exception as error:
+            if minimum_comparison < 0:
+                raise LauncherMinimumVersionError(
+                    "The required launcher update could not be staged."
+                ) from error
+            raise
+        progress.append_log("The launcher will restart to finish updating.")
+        return request_path
 
 
 def _utc_now() -> datetime:

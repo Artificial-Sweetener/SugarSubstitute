@@ -96,6 +96,18 @@ class InstallLayout:
         return self.launcher_dir / "state.json"
 
     @property
+    def launcher_installation_path(self) -> Path:
+        """Return the independently versioned launcher installation record."""
+
+        return self.launcher_dir / "installation.json"
+
+    @property
+    def launcher_update_request_path(self) -> Path:
+        """Return the single pending launcher replacement request path."""
+
+        return self.launcher_dir / "updates" / "pending.json"
+
+    @property
     def logs_dir(self) -> Path:
         """Return the launcher log directory."""
 

@@ -23,6 +23,12 @@ from enum import Enum
 import platform
 from pathlib import Path
 
+from sugarsubstitute_shared.launcher_update.targets import (
+    LINUX_X64_BUNDLE,
+    MACOS_ARM64_BUNDLE,
+    WINDOWS_X64_BUNDLE,
+)
+
 
 class LauncherOperatingSystem(str, Enum):
     """Identify an operating system with an official launcher package."""
@@ -115,9 +121,9 @@ class LauncherTarget:
 WINDOWS_X64 = LauncherTarget(
     operating_system=LauncherOperatingSystem.WINDOWS,
     architecture=LauncherArchitecture.X64,
-    bundle_root=Path("."),
-    executable_relative_path=Path("SugarSubstitute.exe"),
-    support_relative_path=Path("launcher-bin"),
+    bundle_root=WINDOWS_X64_BUNDLE.bundle_root,
+    executable_relative_path=WINDOWS_X64_BUNDLE.executable_relative_path,
+    support_relative_path=WINDOWS_X64_BUNDLE.support_relative_path,
     runtime_python_relative_path=Path(".venv") / "Scripts" / "python.exe",
     runtime_gui_python_relative_path=Path(".venv") / "Scripts" / "pythonw.exe",
     uv_executable_name="uv.exe",
@@ -137,11 +143,9 @@ WINDOWS_X64 = LauncherTarget(
 MACOS_ARM64 = LauncherTarget(
     operating_system=LauncherOperatingSystem.MACOS,
     architecture=LauncherArchitecture.ARM64,
-    bundle_root=Path("SugarSubstitute.app"),
-    executable_relative_path=(
-        Path("SugarSubstitute.app") / "Contents" / "MacOS" / "SugarSubstitute"
-    ),
-    support_relative_path=Path("SugarSubstitute.app") / "Contents" / "Frameworks",
+    bundle_root=MACOS_ARM64_BUNDLE.bundle_root,
+    executable_relative_path=MACOS_ARM64_BUNDLE.executable_relative_path,
+    support_relative_path=MACOS_ARM64_BUNDLE.support_relative_path,
     runtime_python_relative_path=Path(".venv") / "bin" / "python",
     runtime_gui_python_relative_path=Path(".venv") / "bin" / "python",
     uv_executable_name="uv",
@@ -161,9 +165,9 @@ MACOS_ARM64 = LauncherTarget(
 LINUX_X64 = LauncherTarget(
     operating_system=LauncherOperatingSystem.LINUX,
     architecture=LauncherArchitecture.X64,
-    bundle_root=Path("."),
-    executable_relative_path=Path("SugarSubstitute"),
-    support_relative_path=Path("launcher-bin"),
+    bundle_root=LINUX_X64_BUNDLE.bundle_root,
+    executable_relative_path=LINUX_X64_BUNDLE.executable_relative_path,
+    support_relative_path=LINUX_X64_BUNDLE.support_relative_path,
     runtime_python_relative_path=Path(".venv") / "bin" / "python",
     runtime_gui_python_relative_path=Path(".venv") / "bin" / "python",
     uv_executable_name="uv",

@@ -54,6 +54,7 @@ from launcher.sugarsubstitute_launcher.release_sources import (
     LocalFolderReleaseSource,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
+from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
@@ -199,6 +200,9 @@ def test_first_run_installs_launcher_bundle_and_builds_continue_command(
         layout=result.layout
     )
     assert started_commands == [result.continue_command]
+    assert LauncherInstallationRecord.load(
+        result.layout.launcher_installation_path
+    ) == LauncherInstallationRecord(version="0.4.0", target_key="windows_x64")
 
 
 def test_continue_install_command_carries_handoff_geometry(tmp_path: Path) -> None:

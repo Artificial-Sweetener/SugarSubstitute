@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -48,6 +49,7 @@ from launcher.sugarsubstitute_launcher.splash_session import (
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
+from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,13 +83,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             config = LauncherConfig.load(layout.config_path)
             splash_session = start_launcher_splash_session(layout=layout)
-            LauncherUpdateOrchestrator().run(
+            update_result = LauncherUpdateOrchestrator().run(
                 layout=layout,
                 config=config,
                 release_source=create_normal_launch_release_source(config),
                 no_update_check=args.no_update_check,
                 progress=splash_session.client if splash_session is not None else None,
             )
+            if update_result.launcher_update_request_path is not None:
+                if splash_session is not None:
+                    splash_session.client.close()
+                schedule_launcher_update(
+                    request_path=Path(update_result.launcher_update_request_path),
+                    runtime_python=layout.runtime_python,
+                    app_dir=layout.app_dir,
+                    relaunch=True,
+                    wait_pid=os.getpid(),
+                )
+                return 0
             start_detached(
                 append_splash_session_args(
                     build_app_launch_command(layout=layout),

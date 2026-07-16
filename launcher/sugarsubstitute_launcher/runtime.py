@@ -201,17 +201,21 @@ class UvManagedRuntimeInstaller:
 
         uv_executable = self.ensure_uv(layout=layout)
         env = runtime_environment(layout=layout)
+        python_install_command = [
+            str(uv_executable),
+            "python",
+            "install",
+            self._python_version,
+            "--install-dir",
+            str(layout.runtime_dir / "python"),
+            "--managed-python",
+            "--no-bin",
+            "--no-config",
+        ]
+        if layout.target.operating_system is LauncherOperatingSystem.WINDOWS:
+            python_install_command.insert(-1, "--no-registry")
         self._runner.run(
-            [
-                str(uv_executable),
-                "python",
-                "install",
-                self._python_version,
-                "--install-dir",
-                str(layout.runtime_dir / "python"),
-                "--managed-python",
-                "--no-config",
-            ],
+            python_install_command,
             cwd=layout.root,
             env=env,
         )
