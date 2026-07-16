@@ -295,7 +295,20 @@ class OnboardingController(QObject):
     def update_attached_workspace(self, workspace_path: Path | None) -> None:
         """Update the existing local ComfyUI workspace path inside the draft."""
 
-        self._draft = replace(self._draft, attached_workspace_path=workspace_path)
+        self._draft = replace(
+            self._draft,
+            attached_workspace_path=workspace_path,
+            attached_python_executable=None,
+        )
+        self.draft_changed.emit(self._draft)
+
+    def update_attached_python(self, python_executable: Path | None) -> None:
+        """Update the explicit Python selection for an existing ComfyUI setup."""
+
+        self._draft = replace(
+            self._draft,
+            attached_python_executable=python_executable,
+        )
         self.draft_changed.emit(self._draft)
 
     def update_managed_runtime_preferences(
@@ -469,6 +482,7 @@ class OnboardingController(QObject):
             endpoint_port=draft.endpoint_port,
             managed_workspace_path=draft.managed_workspace_path,
             attached_workspace_path=draft.attached_workspace_path,
+            attached_python_executable=draft.attached_python_executable,
             managed_model_root=draft.managed_model_root,
             managed_model_root_uses_default=draft.managed_model_root_uses_default,
             output_root=draft.output_root,
@@ -617,6 +631,7 @@ class OnboardingController(QObject):
             endpoint_port=draft.endpoint_port,
             managed_workspace_path=draft.managed_workspace_path,
             attached_workspace_path=draft.attached_workspace_path,
+            attached_python_executable=draft.attached_python_executable,
             managed_model_root=draft.managed_model_root,
             managed_model_root_uses_default=draft.managed_model_root_uses_default,
             output_root=draft.output_root,

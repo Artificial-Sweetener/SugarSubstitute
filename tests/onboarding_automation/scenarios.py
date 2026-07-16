@@ -71,6 +71,8 @@ class ScenarioDefinition:
     prepare_stale_managed_workspace: bool = False
     retry_after_failure: bool = False
     assert_managed_summary: bool = False
+    attached_python_executable: Path | None = None
+    force_cpu_mode: bool = False
 
 
 class ScenarioExecutionMode(str, Enum):
@@ -190,6 +192,9 @@ def build_scenarios(paths: ScenarioPaths) -> dict[str, ScenarioDefinition]:
             readiness_assessment=onboarding_readiness,
             execution_mode=ScenarioExecutionMode.SYNTHETIC,
             expected_outcome=ScenarioOutcome.SUCCESS,
+            attached_python_executable=(
+                paths.external_comfy_root / "venv" / "Scripts" / "python.exe"
+            ),
         ),
         "managed_clean_real": ScenarioDefinition(
             name="managed_clean_real",
@@ -346,6 +351,7 @@ def build_draft_state(scenario: ScenarioDefinition) -> OnboardingDraftState:
         endpoint_port=scenario.endpoint_port,
         managed_workspace_path=scenario.managed_workspace_path,
         attached_workspace_path=scenario.attached_workspace_path,
+        attached_python_executable=scenario.attached_python_executable,
         detected_platform="windows",
         detected_accelerator="nvidia",
         selected_install_target="windows_nvidia",
@@ -355,4 +361,5 @@ def build_draft_state(scenario: ScenarioDefinition) -> OnboardingDraftState:
         selected_torch_channel="nightly",
         selected_torch_reason="NVIDIA installs default to nightly torch.",
         selected_stability="experimental",
+        force_cpu_mode=scenario.force_cpu_mode,
     )

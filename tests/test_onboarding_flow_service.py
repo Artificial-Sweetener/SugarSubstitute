@@ -48,6 +48,10 @@ from substitute.domain.generation import (
 from substitute.domain.onboarding import (
     BootstrapRoute,
     ComfyEndpoint,
+    ComfyPythonBinding,
+    ComfyPythonResolutionError,
+    ComfyPythonResolutionFailure,
+    ComfyPythonSelectionSource,
     ComfyTargetConfiguration,
     ComfyTargetMode,
     InstallationConfiguration,
@@ -175,6 +179,7 @@ class _StaticOnboardingService:
         *,
         endpoint: ComfyEndpoint,
         workspace_path: Path,
+        python_binding: ComfyPythonBinding | None = None,
     ) -> InstallationContext:
         """Return an attached-local pending context."""
 
@@ -187,6 +192,7 @@ class _StaticOnboardingService:
                 workspace_path=workspace_path,
                 install_owned=False,
                 launch_owned=True,
+                python_binding=python_binding,
             ),
         )
 
@@ -785,12 +791,13 @@ def test_flow_service_prepares_existing_local_comfy_without_endpoint_probe(
 
     context = _build_context(tmp_path, ComfyTargetMode.ATTACHED_LOCAL)
     provisioner_kwargs: list[dict[str, object]] = []
+    workspace = tmp_path / "ExternalComfy"
 
-    def _record_provisioning(**kwargs: object) -> Path:
+    def _record_provisioning(**kwargs: object) -> ComfyPythonBinding:
         """Record existing-local workspace preparation arguments."""
 
         provisioner_kwargs.append(kwargs)
-        return tmp_path / "ExternalComfy" / ".venv" / "Scripts" / "python.exe"
+        return _python_binding(tmp_path / "ExternalComfy")
 
     service = OnboardingFlowService(
         service_bundle_factory=lambda _root: _Bundle(
@@ -802,11 +809,11 @@ def test_flow_service_prepares_existing_local_comfy_without_endpoint_probe(
             managed_runtime_service=_StaticManagedRuntimeService(),
             setup_transaction_service=_FakeSetupTransactionService(context),
         ),
-        managed_workspace_provisioner=_record_provisioning,
+        managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
+        attached_workspace_provisioner=_record_provisioning,
+        attached_python_resolver=lambda *_args, **_kwargs: _python_binding(workspace),
         entrypoint_path=tmp_path / "main.py",
     )
-    workspace = tmp_path / "ExternalComfy"
-
     result = service.provision(
         draft=OnboardingDraftState(
             installation_root=tmp_path,
@@ -823,9 +830,9 @@ def test_flow_service_prepares_existing_local_comfy_without_endpoint_probe(
 
     assert result.context is context
     assert provisioner_kwargs[0]["workspace"] == workspace
-    assert provisioner_kwargs[0]["managed_model_root"] is None
-    assert provisioner_kwargs[0]["installer_temp_root"] == (
-        tmp_path / "runtime" / "installer-temp" / "managed-comfy" / "transaction-id"
+    assert (
+        provisioner_kwargs[0]["python_executable"]
+        == _python_binding(workspace).executable
     )
 
 
@@ -846,6 +853,8 @@ def test_flow_service_rejects_existing_local_without_workspace(
             setup_transaction_service=_FakeSetupTransactionService(context),
         ),
         managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
+        attached_workspace_provisioner=lambda **kwargs: _python_binding(tmp_path),
+        attached_python_resolver=lambda *_args, **_kwargs: _python_binding(tmp_path),
         entrypoint_path=tmp_path / "main.py",
     )
 
@@ -894,6 +903,8 @@ def test_flow_service_maps_missing_attached_workspace_to_user_copy(
             setup_transaction_service=_FakeSetupTransactionService(context),
         ),
         managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
+        attached_workspace_provisioner=lambda **kwargs: _python_binding(tmp_path),
+        attached_python_resolver=lambda *_args, **_kwargs: _python_binding(tmp_path),
         entrypoint_path=tmp_path / "main.py",
     )
 
@@ -917,6 +928,20 @@ def test_flow_service_maps_missing_attached_workspace_to_user_copy(
     assert "contains ComfyUI's main.py" in error.value.remediation_steps[1]
 
 
+def _python_binding(root: Path) -> ComfyPythonBinding:
+    """Return deterministic verified Python evidence for flow tests."""
+
+    executable = root / ".venv" / "Scripts" / "python.exe"
+    return ComfyPythonBinding(
+        executable=executable,
+        version="3.13",
+        architecture="AMD64",
+        prefix=executable.parent.parent,
+        base_prefix=executable.parent.parent,
+        source=ComfyPythonSelectionSource.DISCOVERED,
+    )
+
+
 def test_flow_service_maps_storage_exhaustion_to_temp_space_copy(
     tmp_path: Path,
 ) -> None:
@@ -938,6 +963,54 @@ def test_flow_service_maps_storage_exhaustion_to_temp_space_copy(
     assert failure.headline == "Substitute ran out of temporary install space"
     assert str(tmp_path) in failure.remediation_steps[0]
     assert "Python packages" in failure.user_message
+
+
+@pytest.mark.parametrize(
+    ("reason", "expected_headline"),
+    (
+        (
+            ComfyPythonResolutionFailure.WORKSPACE_INVALID,
+            "Choose the folder that contains ComfyUI",
+        ),
+        (
+            ComfyPythonResolutionFailure.AUTOMATIC_DISCOVERY_FAILED,
+            "Choose the Python this ComfyUI setup uses",
+        ),
+        (
+            ComfyPythonResolutionFailure.AMBIGUOUS,
+            "Choose which Python this ComfyUI setup uses",
+        ),
+        (
+            ComfyPythonResolutionFailure.EXPLICIT_SELECTION_INVALID,
+            "Choose a working Python for this ComfyUI setup",
+        ),
+    ),
+)
+def test_flow_service_maps_python_resolution_failures_to_browse_guidance(
+    tmp_path: Path,
+    reason: ComfyPythonResolutionFailure,
+    expected_headline: str,
+) -> None:
+    """Attached Python failures should tell the user where to make the choice."""
+
+    failure = OnboardingFlowService._build_provisioning_failure(
+        draft=OnboardingDraftState(
+            installation_root=tmp_path,
+            target_mode=ComfyTargetMode.ATTACHED_LOCAL.value,
+            endpoint_host="127.0.0.1",
+            endpoint_port=8188,
+            managed_workspace_path=tmp_path / "comfyui",
+            attached_workspace_path=tmp_path / "ExternalComfy",
+        ),
+        target_mode=ComfyTargetMode.ATTACHED_LOCAL,
+        error=ComfyPythonResolutionError(reason, "probe detail"),
+    )
+
+    assert failure.headline == expected_headline
+    if reason is ComfyPythonResolutionFailure.WORKSPACE_INVALID:
+        assert "main.py" in failure.remediation_steps[1]
+    else:
+        assert "Browse beside Python executable" in failure.remediation_steps[1]
 
 
 @pytest.mark.parametrize(

@@ -56,7 +56,6 @@ class SubstituteRuntimeProvisioner(RuntimeProvisioner):
                 "--upgrade",
                 "pip",
                 "setuptools",
-                "wheel",
             ],
             failure_message="Failed to upgrade runtime packaging tools.",
         )

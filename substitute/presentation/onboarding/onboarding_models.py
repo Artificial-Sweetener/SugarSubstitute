@@ -71,6 +71,7 @@ class OnboardingDraft:
     endpoint_port: int
     managed_workspace_path: Path
     attached_workspace_path: Path | None
+    attached_python_executable: Path | None = None
     managed_model_root: Path | None = None
     managed_model_root_uses_default: bool = True
     output_root: Path | None = None

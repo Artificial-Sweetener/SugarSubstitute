@@ -25,7 +25,9 @@ import subprocess
 from collections.abc import Mapping
 from typing import Callable
 
-from substitute.infrastructure.comfy.managed_validation import workspace_python_path
+from substitute.infrastructure.comfy.workspace_python_resolver import (
+    resolve_workspace_python,
+)
 from substitute.infrastructure.version_control import (
     RepositoryOperationError,
     RepositoryService,
@@ -74,6 +76,7 @@ def ensure_workspace_manager_custom_node(
     repository_url: str = DEFAULT_MANAGER_REPOSITORY_URL,
     revision: str | None = None,
     repositories: RepositoryService | None = None,
+    python_executable: Path | None = None,
 ) -> Path:
     """Ensure the managed workspace contains a usable ComfyUI-Manager checkout.
 
@@ -135,7 +138,12 @@ def ensure_workspace_manager_custom_node(
             "Substitute provisioned ComfyUI-Manager, but cm-cli.py is still missing."
         )
 
-    ensure_workspace_manager_python_package(workspace, on_log=on_log, env=env)
+    ensure_workspace_manager_python_package(
+        workspace,
+        python_executable=python_executable,
+        on_log=on_log,
+        env=env,
+    )
     return manager_cli_path
 
 
@@ -144,10 +152,12 @@ def ensure_workspace_manager_python_package(
     *,
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
+    python_executable: Path | None = None,
 ) -> None:
     """Ensure comfy-cli can import the workspace manager CLI module."""
 
-    python_executable = _resolve_workspace_python(workspace)
+    if python_executable is None:
+        python_executable = resolve_workspace_python(workspace)
     if not _workspace_cm_cli_importable(
         workspace=workspace,
         python_executable=python_executable,
@@ -272,25 +282,6 @@ def _workspace_cm_cli_entrypoint_importable(
         capture_output=True,
     )
     return result.returncode == 0
-
-
-def _resolve_workspace_python(workspace: Path) -> Path:
-    """Return the Python executable used by this Comfy workspace."""
-
-    candidates = (
-        workspace_python_path(workspace),
-        workspace / "venv" / "Scripts" / "python.exe",
-        workspace / "python_embeded" / "python.exe",
-        workspace / "python_embedded" / "python.exe",
-        workspace / ".venv" / "bin" / "python",
-        workspace / "venv" / "bin" / "python",
-    )
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    raise RuntimeError(
-        "Substitute couldn't find the Python environment for ComfyUI-Manager."
-    )
 
 
 def _log_command_output(

@@ -26,6 +26,7 @@ from substitute.application.onboarding.installation_service import InstallationS
 from substitute.application.onboarding.runtime_service import RuntimeService
 from substitute.domain.onboarding import (
     ComfyEndpoint,
+    ComfyPythonBinding,
     ComfyTargetConfiguration,
     ComfyTargetMode,
     InstallationContext,
@@ -137,12 +138,14 @@ class OnboardingService:
         *,
         endpoint: ComfyEndpoint,
         workspace_path: Path,
+        python_binding: ComfyPythonBinding | None = None,
     ) -> InstallationContext:
         """Configure an existing local ComfyUI folder for Substitute-managed launch."""
 
         pending_context = self.build_attached_local_context(
             endpoint=endpoint,
             workspace_path=workspace_path,
+            python_binding=python_binding,
         )
         installation = self.installation_service.save(pending_context.installation)
         runtime = self.runtime_service.provision()
@@ -158,6 +161,7 @@ class OnboardingService:
         *,
         endpoint: ComfyEndpoint,
         workspace_path: Path,
+        python_binding: ComfyPythonBinding | None = None,
     ) -> InstallationContext:
         """Build existing-local launch configuration without persisting active state."""
 
@@ -168,6 +172,7 @@ class OnboardingService:
             workspace_path=workspace_path,
             install_owned=False,
             launch_owned=True,
+            python_binding=python_binding,
         )
         return InstallationContext(
             installation=context.installation,

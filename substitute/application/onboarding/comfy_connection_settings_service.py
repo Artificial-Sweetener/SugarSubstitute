@@ -31,6 +31,7 @@ from substitute.application.restart_requirements import (
 )
 from substitute.domain.onboarding import (
     ComfyEndpoint,
+    ComfyPythonBinding,
     ComfyTargetConfiguration,
     ComfyTargetMode,
 )
@@ -83,6 +84,18 @@ ModelRootEnvironmentClientFactory = Callable[
 ]
 
 
+class AttachedPythonResolverProtocol(Protocol):
+    """Resolve a verified Python binding for one stopped local Comfy workspace."""
+
+    def __call__(
+        self,
+        workspace: Path,
+        *,
+        explicit_executable: Path | None = None,
+    ) -> ComfyPythonBinding:
+        """Discover automatically or validate the user's explicit selection."""
+
+
 @dataclass(frozen=True)
 class ComfyConnectionSettingsSnapshot:
     """Capture the persisted Comfy target displayed in Settings."""
@@ -107,6 +120,7 @@ class ComfyConnectionSettingsDraft:
     port: int
     managed_workspace_path: Path | None
     attached_workspace_path: Path | None
+    attached_python_executable: Path | None = None
     managed_model_root: str | None = None
     managed_model_root_uses_default: bool = True
 
@@ -130,6 +144,7 @@ class ComfyConnectionSettingsService:
     checks: ComfyConnectionReadinessChecks
     environment_client_factory: ModelRootEnvironmentClientFactory | None = None
     restart_requirements: RestartRequirementService | None = None
+    attached_python_resolver: AttachedPythonResolverProtocol | None = None
 
     def __post_init__(self) -> None:
         """Initialize process-local active baselines for restart comparisons."""
@@ -313,12 +328,22 @@ class ComfyConnectionSettingsService:
             workspace = draft.attached_workspace_path.resolve()
             if not self.checks.attached_workspace_exists(workspace):
                 raise ValueError(f"Existing ComfyUI folder does not exist: {workspace}")
+            if self.attached_python_resolver is None:
+                raise ValueError("Existing ComfyUI Python validation is unavailable.")
+            try:
+                python_binding = self.attached_python_resolver(
+                    workspace,
+                    explicit_executable=draft.attached_python_executable,
+                )
+            except RuntimeError as error:
+                raise ValueError(str(error)) from error
             return ComfyTargetConfiguration(
                 mode=ComfyTargetMode.ATTACHED_LOCAL,
                 endpoint=endpoint,
                 workspace_path=workspace,
                 install_owned=False,
                 launch_owned=True,
+                python_binding=python_binding,
             )
         return ComfyTargetConfiguration(
             mode=ComfyTargetMode.REMOTE,

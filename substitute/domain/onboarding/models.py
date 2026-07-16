@@ -23,6 +23,7 @@ from enum import Enum
 from pathlib import Path
 from urllib.parse import quote
 
+from substitute.domain.onboarding.comfy_python_models import ComfyPythonBinding
 from substitute.domain.onboarding.runtime_layout import runtime_layout_for_root
 
 
@@ -206,6 +207,7 @@ class ComfyTargetConfiguration:
     workspace_path: Path | None
     install_owned: bool
     launch_owned: bool
+    python_binding: ComfyPythonBinding | None = None
 
     @classmethod
     def create_default(

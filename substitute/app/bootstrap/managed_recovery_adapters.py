@@ -270,7 +270,15 @@ def reconcile_owned_comfy_dependencies(
         reconcile_managed_local_owned_dependencies(workspace, nodepacks, emit_log)
         return
 
-    reconcile_attached_local_owned_dependencies(workspace, nodepacks, emit_log)
+    binding = target.python_binding
+    if binding is None:
+        raise RuntimeError("Attached ComfyUI Python binding is missing.")
+    reconcile_attached_local_owned_dependencies(
+        workspace,
+        binding.executable,
+        nodepacks,
+        emit_log,
+    )
 
 
 def reconcile_managed_local_owned_dependencies(
@@ -290,6 +298,7 @@ def reconcile_managed_local_owned_dependencies(
 
 def reconcile_attached_local_owned_dependencies(
     workspace: Path,
+    python_executable: Path,
     nodepacks: frozenset[CoreNodepackId],
     emit_log: RecoveryLogCallback,
 ) -> None:
@@ -298,12 +307,14 @@ def reconcile_attached_local_owned_dependencies(
     emit_log("Updating Substitute Comfy nodepacks.")
     ensure_core_comfy_nodepacks(
         workspace,
+        python_executable=python_executable,
         refresh_nodepacks=nodepacks,
         on_log=emit_log,
     )
     emit_log("Preparing Base-Cubes dependencies.")
     run_sugarcubes_baseline_maintenance(
         workspace,
+        python_executable=python_executable,
         on_log=emit_log,
     )
 

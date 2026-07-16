@@ -25,6 +25,7 @@ from pathlib import Path
 import pytest
 
 from tests.onboarding_automation import scenario_runner
+from tests.onboarding_automation.driver import resolve_scenario_entrypoint
 from tests.onboarding_automation.fixture_paths import resolve_scenario_paths
 from tests.onboarding_automation.scenarios import build_scenarios
 
@@ -79,3 +80,14 @@ def test_scenario_catalog_includes_failure_and_recovery_coverage() -> None:
     assert "managed_dependency_failure_real" in scenarios
     assert "attached_missing_workspace_real" in scenarios
     assert "attached_unreachable_real" in scenarios
+
+
+def test_real_scenario_entrypoint_uses_the_resolved_app_layout(
+    tmp_path: Path,
+) -> None:
+    """A temp install should not produce a launch command for a missing main.py."""
+
+    entrypoint = resolve_scenario_entrypoint(tmp_path)
+
+    assert entrypoint.is_file()
+    assert entrypoint.name == "main.py"

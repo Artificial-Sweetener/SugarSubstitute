@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -173,6 +174,7 @@ class _FakeController(QObject):
             endpoint_port=self._draft.endpoint_port,
             managed_workspace_path=self._draft.managed_workspace_path,
             attached_workspace_path=self._draft.attached_workspace_path,
+            attached_python_executable=self._draft.attached_python_executable,
         )
 
     def update_target_mode(self, target_mode: OnboardingTargetMode) -> None:
@@ -333,6 +335,16 @@ class _ResettingDraftController(_FakeController):
             endpoint_port=self._draft.endpoint_port,
             managed_workspace_path=self._draft.managed_workspace_path,
             attached_workspace_path=workspace_path,
+            attached_python_executable=self._draft.attached_python_executable,
+        )
+        self.draft_changed.emit(self._draft)
+
+    def update_attached_python(self, python_executable: Path | None) -> None:
+        """Store the attached Python choice like the real controller does."""
+
+        self._draft = replace(
+            self._draft,
+            attached_python_executable=python_executable,
         )
         self.draft_changed.emit(self._draft)
 
@@ -1052,15 +1064,18 @@ def test_onboarding_window_reads_attached_fields_before_draft_reset(
     monkeypatch.setattr(window, "_show_page", lambda _page_id: None)
     window._current_page = OnboardingPageId.ATTACHED_LOCAL
     expected_workspace = Path(r"E:\ComfyUIExternalTest")
+    expected_python = expected_workspace / "venv" / "Scripts" / "python.exe"
 
     window.attached_local_page.host_edit.setText("127.0.0.1")
     window.attached_local_page.port_spinbox.setValue(8190)
     window.attached_local_page.workspace_edit.setText(str(expected_workspace))
+    window.attached_local_page.python_edit.setText(str(expected_python))
 
     window._advance()
 
     assert controller.draft.endpoint_port == 8190
     assert controller.draft.attached_workspace_path == expected_workspace.resolve()
+    assert controller.draft.attached_python_executable == expected_python.resolve()
     window._emit_close_requested_on_close = False
     window.close()
 
@@ -1261,5 +1276,59 @@ def test_onboarding_window_renders_managed_runtime_summary(
         window.managed_local_page.runtime_summary_panel.edge_torch_checkbox.isChecked()
         is True
     )
+    window._emit_close_requested_on_close = False
+    window.close()
+
+
+def test_managed_runtime_preferences_survive_draft_refresh_during_advance(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Managed advanced choices should be captured before controller refreshes."""
+
+    _app()
+    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
+    draft = OnboardingDraft(
+        installation_root=tmp_path,
+        target_mode=OnboardingTargetMode.MANAGED_LOCAL,
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        managed_workspace_path=tmp_path / "comfyui",
+        attached_workspace_path=None,
+    )
+    controller = _FakeController(draft, OnboardingFlowMode.FIRST_RUN)
+    window = OnboardingWindow(controller=cast(OnboardingController, controller))
+    window._show_page(OnboardingPageId.MANAGED_LOCAL)
+    summary = window.managed_local_page.runtime_summary_panel
+    summary.force_cpu_checkbox.setChecked(True)
+    summary.edge_torch_checkbox.setChecked(True)
+    summary.edge_channel_checkbox.setChecked(True)
+    captured: list[tuple[bool, bool, bool]] = []
+
+    def refresh_draft(_host: str, _port: int) -> None:
+        """Simulate the production controller's synchronous draft refresh."""
+
+        controller.draft_changed.emit(controller.draft)
+
+    def record_preferences(
+        *,
+        force_cpu_mode: bool,
+        prefer_edge_torch: bool,
+        prefer_edge_comfy_channel: bool,
+    ) -> None:
+        """Record the preferences handed to the controller."""
+
+        captured.append((force_cpu_mode, prefer_edge_torch, prefer_edge_comfy_channel))
+
+    monkeypatch.setattr(controller, "update_endpoint", refresh_draft)
+    monkeypatch.setattr(
+        controller,
+        "update_managed_runtime_preferences",
+        record_preferences,
+    )
+
+    window._advance()
+
+    assert captured == [(True, True, True)]
     window._emit_close_requested_on_close = False
     window.close()

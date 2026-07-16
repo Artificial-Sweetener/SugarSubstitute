@@ -110,6 +110,11 @@ def activate_target(
             diagnostics=startup_diagnostics,
             launch_task_factory=launch_task_factory,
             process_pump_task_factory=process_pump_task_factory,
+            python_executable=(
+                target.python_binding.executable
+                if target.python_binding is not None
+                else None
+            ),
             on_log=lambda line: collect_and_fan_out_comfy_output(
                 startup_diagnostics=startup_diagnostics,
                 splash=active_splash,

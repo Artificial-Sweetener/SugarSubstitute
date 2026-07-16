@@ -300,6 +300,7 @@ class ComfyConnectionSettingsPage(QWidget):
         self.managed_folder_row = self._build_managed_folder_row()
         self.model_folder_row = self._build_model_folder_row()
         self.existing_folder_row = self._build_existing_folder_row()
+        self.existing_python_row = self._build_existing_python_row()
         self.setup_action_row = self._build_setup_action_row()
         self.connection_feedback_bar = SettingsInfoBar(self)
         self.connection_check_row = self._build_connection_check_row()
@@ -316,6 +317,7 @@ class ComfyConnectionSettingsPage(QWidget):
                 self.managed_folder_row,
                 self.model_folder_row,
                 self.existing_folder_row,
+                self.existing_python_row,
                 self.endpoint_row,
                 self.setup_action_row,
             ),
@@ -472,6 +474,29 @@ class ComfyConnectionSettingsPage(QWidget):
             parent=self,
         )
 
+    def _build_existing_python_row(self) -> SettingsCard:
+        """Create the attached-local Python executable row."""
+
+        self.existing_python_edit = self._path_edit("ComfyConnectionExistingPythonEdit")
+        self.existing_python_edit.setPlaceholderText("Automatically detect")
+        self.existing_python_edit.textChanged.connect(self._on_draft_changed)
+        browse_button = PushButton("Browse", self)
+        browse_button.clicked.connect(self._browse_existing_python)
+        clear_button = PushButton("Auto-detect", self)
+        clear_button.clicked.connect(self.existing_python_edit.clear)
+        return SettingsCard(
+            visual_widget=self._icon_widget(AppIcon.SERVER_20_REGULAR),
+            title="Python executable",
+            description="The Python environment this ComfyUI installation uses.",
+            trailing_widget=self._control_row(
+                self.existing_python_edit,
+                browse_button,
+                clear_button,
+            ),
+            reserve_visual_space=True,
+            parent=self,
+        )
+
     def _build_setup_action_row(self) -> SettingsCard:
         """Create the local setup wizard action row."""
 
@@ -560,14 +585,19 @@ class ComfyConnectionSettingsPage(QWidget):
                     _path_text(draft.managed_workspace_path)
                 )
                 self.existing_folder_edit.setText("")
+                self.existing_python_edit.setText("")
             elif draft.mode is ComfyTargetMode.ATTACHED_LOCAL:
                 self.managed_folder_edit.setText("")
                 self.existing_folder_edit.setText(
                     _path_text(draft.attached_workspace_path)
                 )
+                self.existing_python_edit.setText(
+                    _path_text(draft.attached_python_executable)
+                )
             else:
                 self.managed_folder_edit.setText("")
                 self.existing_folder_edit.setText("")
+                self.existing_python_edit.setText("")
         finally:
             self._is_loading = False
         self._sync_mode_rows()
@@ -633,6 +663,7 @@ class ComfyConnectionSettingsPage(QWidget):
         self.model_folder_row.setVisible(self._model_root_management_available)
         self.model_folder_browse_button.setVisible(not is_remote)
         self.existing_folder_row.setVisible(is_existing)
+        self.existing_python_row.setVisible(is_existing)
         self.setup_action_row.setVisible(not is_remote)
         if is_remote:
             self.configuration_group.set_heading("Remote server")
@@ -668,6 +699,7 @@ class ComfyConnectionSettingsPage(QWidget):
             port=self.port_spinbox.value(),
             managed_workspace_path=_optional_path(self.managed_folder_edit.text()),
             attached_workspace_path=_optional_path(self.existing_folder_edit.text()),
+            attached_python_executable=_optional_path(self.existing_python_edit.text()),
             managed_model_root=_optional_text(self.model_folder_edit.text()),
             managed_model_root_uses_default=self._managed_model_root_uses_default,
         )
@@ -810,6 +842,18 @@ class ComfyConnectionSettingsPage(QWidget):
         if selected:
             self.existing_folder_edit.setText(selected)
 
+    def _browse_existing_python(self) -> None:
+        """Prompt for the Python executable used by existing local ComfyUI."""
+
+        selected, _selected_filter = QFileDialog.getOpenFileName(
+            self,
+            "Choose ComfyUI Python Executable",
+            self.existing_python_edit.text(),
+            "Python executable (python.exe python);;All files (*)",
+        )
+        if selected:
+            self.existing_python_edit.setText(selected)
+
     def _browse_model_folder(self) -> None:
         """Prompt for a managed ComfyUI model folder."""
 
@@ -887,6 +931,11 @@ def _draft_from_snapshot(
         port=target.endpoint.port,
         managed_workspace_path=managed_path,
         attached_workspace_path=attached_path,
+        attached_python_executable=(
+            target.python_binding.executable
+            if target.python_binding is not None
+            else None
+        ),
         managed_model_root=_path_text(
             snapshot.managed_model_root or _default_model_root(managed_path)
         ),
