@@ -16,9 +16,15 @@
 
 import { appendFileSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+const require = createRequire(import.meta.url);
+const releaseConfig = require("../.releaserc.cjs");
+const { selectVersionResolutionPlugins } = require(
+  "./release-version-plugins.cjs",
+);
 const FIRST_RELEASE_VERSION = "0.9.0";
 const projectRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const releaseTags = git(["tag", "--list", "v[0-9]*"])
@@ -36,7 +42,11 @@ if (releaseTags.length === 0) {
   firstRelease = true;
 } else {
   const { default: semanticRelease } = await import("semantic-release");
-  const result = await semanticRelease({ ci: false, dryRun: true });
+  const result = await semanticRelease({
+    ci: false,
+    dryRun: true,
+    plugins: selectVersionResolutionPlugins(releaseConfig),
+  });
   version = result?.nextRelease?.version ?? "";
   shouldRelease = version.length > 0;
   firstRelease = false;
