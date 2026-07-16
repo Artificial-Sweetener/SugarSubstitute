@@ -30,6 +30,7 @@ from substitute.application.onboarding.managed_runtime_state_recorder import (
 )
 from substitute.domain.onboarding import ManagedRuntimeValidationStatus
 from substitute.domain.comfy_nodepacks import CoreNodepackId
+from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.infrastructure.comfy.hardware_detection import detect_hardware
 from substitute.infrastructure.comfy.backend_model_root_configurator import (
     configure_backend_model_root,
@@ -40,7 +41,6 @@ from substitute.infrastructure.comfy.install_strategy import (
 )
 from substitute.infrastructure.comfy.managed_install_commands import (
     ensure_workspace_virtualenv,
-    install_manager_requirements,
     install_selected_torch_backend,
     install_workspace_requirements,
     upgrade_workspace_packaging_tools,
@@ -76,7 +76,7 @@ from substitute.infrastructure.comfy.managed_environment_validator import (
     validate_managed_environment,
 )
 from substitute.infrastructure.comfy.manager_provisioner import (
-    ensure_workspace_manager_custom_node,
+    ensure_managed_workspace_manager,
 )
 from substitute.infrastructure.comfy.nodepack_reconciliation import (
     ensure_core_comfy_nodepacks,
@@ -234,13 +234,6 @@ def prepare_dynamic_workspace_environment(
         on_log=on_log,
         env=env,
     )
-    emit_status(on_status, "Installing ComfyUI manager requirements.")
-    install_manager_requirements(
-        venv_python,
-        workspace=workspace,
-        on_log=on_log,
-        env=env,
-    )
     return venv_python, resolved_backend
 
 
@@ -250,10 +243,10 @@ def provision_workspace_manager(
     on_log: LogCallback | None = None,
     env: dict[str, str] | None = None,
     python_executable: Path | None = None,
-) -> Path:
-    """Ensure the managed workspace contains the workspace-local manager CLI."""
+) -> ComfyManagerRuntime:
+    """Ensure the managed workspace uses ComfyUI's integrated Manager."""
 
-    return ensure_workspace_manager_custom_node(
+    return ensure_managed_workspace_manager(
         workspace,
         python_executable=python_executable,
         on_log=on_log,
@@ -502,6 +495,13 @@ def _ensure_managed_comfy_setup(
         and workspace_main_path(workspace).exists()
         and not force_install
     ):
+        emit_status(on_status, "Provisioning ComfyUI-Manager.")
+        with trace_span("managed_setup.existing.provision_manager"):
+            provision_workspace_manager(
+                workspace,
+                on_log=on_log,
+                env=managed_env,
+            )
         if configure_model_root:
             with trace_span("managed_setup.existing.configure_model_root"):
                 configure_backend_model_root(
@@ -564,9 +564,6 @@ def _ensure_managed_comfy_setup(
                 )
             emit_status(on_status, "Managed ComfyUI setup is current.")
             return venv_python
-        emit_status(on_status, "Provisioning ComfyUI-Manager.")
-        with trace_span("managed_setup.existing.provision_manager"):
-            provision_workspace_manager(workspace, on_log=on_log, env=managed_env)
         emit_status(on_status, "Installing Substitute Comfy nodepacks.")
         with trace_span("managed_setup.existing.ensure_nodepacks"):
             ensure_core_comfy_nodepacks(
@@ -741,7 +738,11 @@ def _ensure_managed_comfy_setup(
         selected_torch_reason = resolved_backend.selection_reason
         selected_torch_fallback_used = resolved_backend.fallback_used
         emit_status(on_status, "Provisioning ComfyUI-Manager.")
-        provision_workspace_manager(workspace, on_log=on_log, env=managed_env)
+        provision_workspace_manager(
+            workspace,
+            on_log=on_log,
+            env=managed_env,
+        )
         emit_status(on_status, "Installing Substitute Comfy nodepacks.")
         ensure_core_comfy_nodepacks(
             workspace,

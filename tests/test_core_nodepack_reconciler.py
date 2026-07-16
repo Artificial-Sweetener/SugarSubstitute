@@ -29,7 +29,7 @@ from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.infrastructure.comfy import core_nodepack_reconciler
 from substitute.infrastructure.comfy import nodepack_git_maintenance
 from substitute.infrastructure.comfy import pinned_nodepack_source
-from substitute.infrastructure.comfy.comfy_cli_adapter import ComfyCliWorkspaceAdapter
+from substitute.infrastructure.comfy.comfy_cli_adapter import ComfyManagerCliAdapter
 from substitute.infrastructure.comfy.core_nodepack_reconciler import (
     ensure_core_comfy_nodepacks,
     _install_core_nodepack,
@@ -125,7 +125,7 @@ def test_ensure_core_nodepacks_installs_missing_nodepacks(
 
     monkeypatch.setattr(
         core_nodepack_reconciler,
-        "ComfyCliWorkspaceAdapter",
+        "ComfyManagerCliAdapter",
         FakeAdapter,
     )
     monkeypatch.setattr(
@@ -200,7 +200,7 @@ def test_ensure_core_nodepacks_uses_github_when_manager_id_is_unpublished(
 
     monkeypatch.setattr(
         core_nodepack_reconciler,
-        "ComfyCliWorkspaceAdapter",
+        "ComfyManagerCliAdapter",
         FakeAdapter,
     )
     monkeypatch.setattr(
@@ -298,7 +298,7 @@ def test_ensure_core_nodepacks_refreshes_only_targeted_existing_git_nodepacks(
 
     monkeypatch.setattr(
         core_nodepack_reconciler,
-        "ComfyCliWorkspaceAdapter",
+        "ComfyManagerCliAdapter",
         FakeAdapter,
     )
 
@@ -381,7 +381,7 @@ def test_backend_refresh_overlays_pinned_archive_when_registry_version_is_too_ol
 
     monkeypatch.setattr(
         core_nodepack_reconciler,
-        "ComfyCliWorkspaceAdapter",
+        "ComfyManagerCliAdapter",
         FakeAdapter,
     )
     monkeypatch.setattr(
@@ -482,7 +482,7 @@ def test_existing_sugarcubes_below_minimum_refreshes_before_launch(
 
     monkeypatch.setattr(
         core_nodepack_reconciler,
-        "ComfyCliWorkspaceAdapter",
+        "ComfyManagerCliAdapter",
         FakeAdapter,
     )
     monkeypatch.setattr(
@@ -612,7 +612,7 @@ def test_backend_git_fallback_checks_out_pinned_tag_without_registry_overlay(
     )
     monkeypatch.setattr(
         core_nodepack_reconciler,
-        "ComfyCliWorkspaceAdapter",
+        "ComfyManagerCliAdapter",
         FakeAdapter,
     )
     monkeypatch.setattr(
@@ -730,7 +730,7 @@ def test_backend_git_refresh_failure_replaces_pinned_source(
     )
     monkeypatch.setattr(
         core_nodepack_reconciler,
-        "ComfyCliWorkspaceAdapter",
+        "ComfyManagerCliAdapter",
         FakeAdapter,
     )
     monkeypatch.setattr(
@@ -819,7 +819,7 @@ def test_ensure_core_nodepacks_refresh_uses_github_fallback_for_sugarcubes(
 
     monkeypatch.setattr(
         core_nodepack_reconciler,
-        "ComfyCliWorkspaceAdapter",
+        "ComfyManagerCliAdapter",
         FakeAdapter,
     )
     monkeypatch.setattr(
@@ -878,7 +878,7 @@ def test_install_core_nodepack_uses_source_url_when_registry_misses(
     assert adapter.installed == [nodepack.source_url]
 
 
-class _RecordingAdapter(ComfyCliWorkspaceAdapter):
+class _RecordingAdapter(ComfyManagerCliAdapter):
     """Record core nodepack install attempts without running Comfy CLI."""
 
     def __init__(self, workspace: Path, *, manager_knows: bool) -> None:

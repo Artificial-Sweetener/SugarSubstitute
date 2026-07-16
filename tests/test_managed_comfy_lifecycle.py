@@ -46,6 +46,7 @@ from substitute.domain.onboarding import (
     ManagedRuntimeConfiguration,
     SetupTransactionStatus,
 )
+from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy import (
     posix_guardian_containment,
     managed_launcher,
@@ -89,6 +90,28 @@ from substitute.infrastructure.onboarding.file_managed_runtime_repository import
 from substitute.infrastructure.onboarding.file_setup_transaction_repository import (
     FileSetupTransactionRepository,
 )
+
+
+@pytest.fixture(autouse=True)
+def _use_integrated_manager_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep lifecycle tests focused on launch behavior after setup validation."""
+
+    def detect(
+        workspace: Path,
+        *,
+        python_executable: Path,
+        **_kwargs: object,
+    ) -> ComfyManagerRuntime:
+        """Return the verified integrated runtime supplied by setup."""
+
+        return ComfyManagerRuntime(
+            kind=ComfyManagerKind.INTEGRATED,
+            workspace=workspace,
+            python_executable=python_executable,
+            version="test",
+        )
+
+    monkeypatch.setattr(managed_launcher, "detect_workspace_manager_runtime", detect)
 
 
 class _StaticSelectionPolicy(ManagedRuntimeSelectionPolicy):
@@ -776,6 +799,8 @@ def test_background_start_uses_utf8_for_managed_output_stream(
     state.wait_until_finished(timeout=2)
 
     assert observed_request["capture_output"] is True
+    command = cast(tuple[str, ...], observed_request["command"])
+    assert command[-1] == "--enable-manager"
     assert isinstance(observed_request["env"], dict)
     env = cast(dict[str, str], observed_request["env"])
     assert env["PYTHONIOENCODING"] == "utf-8"

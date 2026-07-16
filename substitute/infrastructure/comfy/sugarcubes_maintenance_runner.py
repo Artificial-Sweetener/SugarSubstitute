@@ -31,9 +31,8 @@ from substitute.application.comfy_nodepacks.sugarcubes_maintenance_report_parser
     sugarcubes_maintenance_result as _sugarcubes_maintenance_result,
     sugarcubes_required_dependency_failure_message as _sugarcubes_required_dependency_failure_message,
 )
-from substitute.infrastructure.comfy.comfy_cli_adapter import (
-    ComfyCliWorkspaceAdapter,
-)
+from substitute.domain.comfy_manager import ComfyManagerRuntime
+from substitute.infrastructure.comfy.comfy_cli_adapter import ComfyManagerCliAdapter
 from substitute.infrastructure.comfy.nodepack_manifest import (
     SUGARCUBES_BASE_NODEPACK_INSTALLS as _SUGARCUBES_BASE_NODEPACK_INSTALLS,
     SUGARCUBES_COMPANION_NODEPACKS as _SUGARCUBES_COMPANION_NODEPACKS,
@@ -58,6 +57,7 @@ def run_sugarcubes_baseline_maintenance(
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
     python_executable: Path | None = None,
+    manager_runtime: ComfyManagerRuntime | None = None,
 ) -> SugarCubesMaintenanceResult:
     """Run SugarCubes offline sync/check maintenance before Comfy starts."""
 
@@ -100,6 +100,7 @@ def run_sugarcubes_baseline_maintenance(
             python_executable=python_executable,
             on_log=on_log,
             env=env,
+            manager_runtime=manager_runtime,
         ):
             exit_code, output_lines = _stream_command_collecting_output(
                 command,
@@ -138,6 +139,7 @@ def _install_sugarcubes_reported_nodepacks(
     python_executable: Path,
     on_log: LogCallback | None,
     env: Mapping[str, str] | None,
+    manager_runtime: ComfyManagerRuntime | None,
 ) -> bool:
     """Install known Base-Cubes nodepacks from the SugarCubes readiness plan."""
 
@@ -166,13 +168,13 @@ def _install_sugarcubes_reported_nodepacks(
         ),
         operation="sugarcubes_nodepack_install",
     )
-    adapter = ComfyCliWorkspaceAdapter(
+    adapter = ComfyManagerCliAdapter(
         workspace=workspace,
         python_executable=python_executable,
         on_log=on_log,
         env=env,
+        manager_runtime=manager_runtime,
     )
-    adapter.ensure_available()
     for node_id in known_node_ids:
         _install_sugarcubes_nodepack_candidate(adapter, workspace, node_id)
     adapter.restore_dependencies()
@@ -191,7 +193,7 @@ def _sugarcubes_node_ids_with_companions(node_ids: Sequence[str]) -> tuple[str, 
 
 
 def _install_sugarcubes_nodepack_candidate(
-    adapter: ComfyCliWorkspaceAdapter,
+    adapter: ComfyManagerCliAdapter,
     workspace: Path,
     node_id: str,
 ) -> None:

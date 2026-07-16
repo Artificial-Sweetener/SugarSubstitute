@@ -27,7 +27,8 @@ from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan im
     plan_core_nodepack_refresh_route,
 )
 from substitute.domain.comfy_nodepacks import CoreNodepackId
-from substitute.infrastructure.comfy.comfy_cli_adapter import ComfyCliWorkspaceAdapter
+from substitute.domain.comfy_manager import ComfyManagerRuntime
+from substitute.infrastructure.comfy.comfy_cli_adapter import ComfyManagerCliAdapter
 from substitute.infrastructure.comfy.local_nodepack_source import (
     copy_local_nodepack_source,
     resolve_local_nodepack_source,
@@ -71,18 +72,19 @@ def ensure_core_comfy_nodepacks(
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
     python_executable: Path | None = None,
+    manager_runtime: ComfyManagerRuntime | None = None,
 ) -> None:
     """Ensure Substitute's required Comfy nodepacks are installed and current."""
 
     if python_executable is None:
         python_executable = resolve_workspace_python(workspace)
-    adapter = ComfyCliWorkspaceAdapter(
+    adapter = ComfyManagerCliAdapter(
         workspace=workspace,
         python_executable=python_executable,
         on_log=on_log,
         env=env,
+        manager_runtime=manager_runtime,
     )
-    adapter.ensure_available()
     refresh_targets = frozenset(refresh_nodepacks)
     for nodepack in CORE_COMFY_NODEPACKS:
         if core_nodepack_installed(workspace, nodepack):
@@ -202,7 +204,7 @@ def _installed_core_nodepack_satisfies_minimum(
 
 
 def _install_core_nodepack(
-    adapter: ComfyCliWorkspaceAdapter,
+    adapter: ComfyManagerCliAdapter,
     nodepack: CoreComfyNodepack,
     *,
     on_log: LogCallback | None,
@@ -295,7 +297,7 @@ def _install_core_nodepack(
 
 
 def _refresh_core_nodepack(
-    adapter: ComfyCliWorkspaceAdapter,
+    adapter: ComfyManagerCliAdapter,
     nodepack: CoreComfyNodepack,
     *,
     on_log: LogCallback | None,

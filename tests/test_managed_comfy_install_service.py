@@ -202,12 +202,12 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
     assert trace_events == [
         "span:start:managed_setup.scratch.create",
         "span:end:managed_setup.scratch.create",
+        "span:start:managed_setup.existing.provision_manager",
+        "span:end:managed_setup.existing.provision_manager",
         "span:start:managed_setup.detect_hardware",
         "span:end:managed_setup.detect_hardware",
         "span:start:managed_setup.select_install_strategy",
         "span:end:managed_setup.select_install_strategy",
-        "span:start:managed_setup.existing.provision_manager",
-        "span:end:managed_setup.existing.provision_manager",
         "span:start:managed_setup.existing.ensure_nodepacks",
         "span:end:managed_setup.existing.ensure_nodepacks",
         "span:start:managed_setup.existing.sugarcubes_baseline",
@@ -384,6 +384,7 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         "validate",
         "acceleration",
         "manager",
+        "manager",
         "nodepacks",
         "sugarcubes",
         "validate",
@@ -400,48 +401,6 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         frozenset(),
         frozenset(),
         frozenset({CoreNodepackId.SUBSTITUTE_BACKEND}),
-    ]
-
-
-def test_run_workspace_comfy_cli_uses_workspace_python_entrypoint(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Workspace comfy-cli runs should use the workspace interpreter directly."""
-
-    observed: list[list[str]] = []
-
-    def _fake_stream_command(
-        command: list[str],
-        *,
-        cwd: Path | None = None,
-        env: dict[str, str] | None = None,
-        on_line: Callable[[str], None] | None = None,
-        creationflags: int = 0,
-    ) -> int:
-        _ = cwd, env, on_line, creationflags
-        observed.append(command)
-        return 0
-
-    monkeypatch.setattr(
-        managed_install_commands, "stream_command", _fake_stream_command
-    )
-
-    result = managed_install_commands.run_workspace_comfy_cli(
-        tmp_path / "python.exe",
-        "--workspace=E:\\demo\\comfyui",
-        "install",
-    )
-
-    assert result == 0
-    assert observed == [
-        [
-            str(tmp_path / "python.exe"),
-            "-m",
-            "comfy_cli",
-            "--workspace=E:\\demo\\comfyui",
-            "install",
-        ]
     ]
 
 
@@ -789,13 +748,6 @@ def test_ensure_managed_comfy_setup_installs_and_marks_workspace(
             install_steps.append("requirements")
         ),
     )
-    monkeypatch.setattr(
-        managed_install,
-        "install_manager_requirements",
-        lambda python_executable, *, workspace, on_log=None, env=None: (
-            install_steps.append("manager_requirements")
-        ),
-    )
 
     def _fake_provision_workspace_manager(
         workspace: Path,
@@ -825,7 +777,7 @@ def test_ensure_managed_comfy_setup_installs_and_marks_workspace(
     )
 
     assert result == workspace_python
-    assert install_steps == ["torch", "requirements", "manager_requirements"]
+    assert install_steps == ["torch", "requirements"]
     assert repo_sync_calls == [tmp_path]
     assert provision_calls == [tmp_path]
     assert not (tmp_path / ".comfy_installed").exists()
@@ -971,11 +923,6 @@ def test_ensure_managed_comfy_setup_falls_back_to_stable_when_nightly_validation
     )
     monkeypatch.setattr(
         managed_install,
-        "install_manager_requirements",
-        lambda python_executable, *, workspace, on_log=None, env=None: None,
-    )
-    monkeypatch.setattr(
-        managed_install,
         "provision_workspace_manager",
         lambda workspace, on_log=None, env=None: (
             workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
@@ -1072,11 +1019,6 @@ def test_ensure_managed_comfy_setup_removes_incomplete_workspace_before_install(
     )
     monkeypatch.setattr(
         managed_install,
-        "install_manager_requirements",
-        lambda python_executable, *, workspace, on_log=None, env=None: None,
-    )
-    monkeypatch.setattr(
-        managed_install,
         "provision_workspace_manager",
         lambda workspace, on_log=None, env=None: (
             workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
@@ -1151,11 +1093,6 @@ def test_ensure_managed_comfy_setup_accepts_owned_model_paths_bootstrap_file(
     monkeypatch.setattr(
         managed_install,
         "install_workspace_requirements",
-        lambda python_executable, *, workspace, on_log=None, env=None: None,
-    )
-    monkeypatch.setattr(
-        managed_install,
-        "install_manager_requirements",
         lambda python_executable, *, workspace, on_log=None, env=None: None,
     )
     monkeypatch.setattr(

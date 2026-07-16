@@ -509,14 +509,12 @@ def _strategy_freshness_key(strategy: object) -> dict[str, object]:
 
 
 def _manager_freshness_key(workspace: Path) -> dict[str, object]:
-    """Return the workspace manager files that affect setup validity."""
+    """Return integrated Manager contract files that affect setup validity."""
 
-    manager_dir = workspace / "custom_nodes" / "ComfyUI-Manager"
     return {
-        "directory": _path_signature(manager_dir),
-        "git": _git_head_signature(manager_dir),
-        "cli": _path_signature(manager_dir / "cm-cli.py"),
+        "kind": "integrated",
         "requirements": _path_signature(workspace / "manager_requirements.txt"),
+        "launch_contract": _path_signature(workspace / "comfy" / "cli_args.py"),
     }
 
 

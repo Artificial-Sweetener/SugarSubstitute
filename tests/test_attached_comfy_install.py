@@ -62,7 +62,7 @@ def test_attached_preparation_passes_one_verified_python_to_every_consumer(
         return operation
 
     monkeypatch.setattr(
-        attached_install, "ensure_workspace_manager_custom_node", record("manager")
+        attached_install, "ensure_attached_workspace_manager", record("manager")
     )
     monkeypatch.setattr(
         attached_install, "ensure_core_comfy_nodepacks", record("nodepacks")

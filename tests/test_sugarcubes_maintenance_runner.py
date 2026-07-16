@@ -346,7 +346,7 @@ def test_run_sugarcubes_baseline_maintenance_installs_reported_nodepacks(
     )
     monkeypatch.setattr(
         sugarcubes_maintenance_runner,
-        "ComfyCliWorkspaceAdapter",
+        "ComfyManagerCliAdapter",
         FakeAdapter,
     )
 
@@ -355,7 +355,6 @@ def test_run_sugarcubes_baseline_maintenance_installs_reported_nodepacks(
     assert result.exit_code == 0
     assert len(commands) == 2
     assert installed == [
-        "ensure_available",
         "vectorscope",
         "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git",
         "SimpleSyrup",

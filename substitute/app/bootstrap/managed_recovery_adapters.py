@@ -51,6 +51,9 @@ from substitute.infrastructure.comfy.managed_install import ensure_managed_comfy
 from substitute.infrastructure.comfy.managed_shutdown import (
     ManagedProcessTerminationStatus,
 )
+from substitute.infrastructure.comfy.manager_provisioner import (
+    ensure_attached_workspace_manager,
+)
 from substitute.infrastructure.comfy.nodepack_reconciliation import (
     ensure_core_comfy_nodepacks,
     run_sugarcubes_baseline_maintenance,
@@ -304,6 +307,11 @@ def reconcile_attached_local_owned_dependencies(
 ) -> None:
     """Refresh only Substitute-owned nodepacks in an attached local workspace."""
 
+    ensure_attached_workspace_manager(
+        workspace,
+        python_executable=python_executable,
+        on_log=emit_log,
+    )
     emit_log("Updating Substitute Comfy nodepacks.")
     ensure_core_comfy_nodepacks(
         workspace,

@@ -231,6 +231,11 @@ def test_reconcile_owned_dependencies_for_attached_target_runs_nodepack_policy(
         "ensure_managed_comfy_setup",
         fail_managed_setup,
     )
+    monkeypatch.setattr(
+        managed_recovery_adapters,
+        "ensure_attached_workspace_manager",
+        lambda *_args, **_kwargs: None,
+    )
     logs: list[str] = []
 
     managed_recovery_adapters.reconcile_owned_comfy_dependencies(

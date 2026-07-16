@@ -25,8 +25,9 @@ from typing import Any
 
 import pytest
 
+from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy.comfy_cli_adapter import (
-    ComfyCliWorkspaceAdapter,
+    ComfyManagerCliAdapter,
 )
 
 _ADAPTER_MODULE = (
@@ -67,58 +68,6 @@ def test_comfy_cli_adapter_imports_no_ui_archive_or_direct_process_boundaries() 
     assert forbidden_imports == set()
 
 
-def test_comfy_cli_adapter_installs_cli_when_missing(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Comfy CLI bootstrap should install into the selected workspace runtime."""
-
-    commands: list[list[str]] = []
-
-    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        _ = kwargs
-        commands.append(command)
-        return subprocess.CompletedProcess(command, 1, stdout="", stderr="")
-
-    def fake_stream(
-        command: list[str],
-        *,
-        cwd: Path,
-        on_line: object | None,
-        env: object | None = None,
-        timeout_seconds: int | None = None,
-    ) -> int:
-        _ = cwd, on_line, env, timeout_seconds
-        commands.append(command)
-        return 0
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_cli_adapter.run_command",
-        fake_run,
-    )
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_cli_adapter.stream_command",
-        fake_stream,
-    )
-    adapter = ComfyCliWorkspaceAdapter(
-        workspace=tmp_path,
-        python_executable=tmp_path / ".venv" / "Scripts" / "python.exe",
-    )
-
-    adapter.ensure_available()
-
-    assert commands == [
-        [str(tmp_path / ".venv" / "Scripts" / "python.exe"), "-c", "import comfy_cli"],
-        [
-            str(tmp_path / ".venv" / "Scripts" / "python.exe"),
-            "-m",
-            "pip",
-            "install",
-            "comfy-cli",
-        ],
-    ]
-
-
 def test_comfy_cli_adapter_treats_manager_inspection_failure_as_unknown(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -140,10 +89,11 @@ def test_comfy_cli_adapter_treats_manager_inspection_failure_as_unknown(
         "substitute.infrastructure.comfy.comfy_cli_adapter.run_command",
         fake_run,
     )
-    adapter = ComfyCliWorkspaceAdapter(
+    adapter = ComfyManagerCliAdapter(
         workspace=tmp_path,
         python_executable=tmp_path / ".venv" / "Scripts" / "python.exe",
         on_log=messages.append,
+        manager_runtime=_integrated_runtime(tmp_path),
     )
 
     assert adapter.manager_knows_node("substitute-backend") is False
@@ -169,10 +119,11 @@ def test_comfy_cli_adapter_sets_manager_workspace_environment(
         "substitute.infrastructure.comfy.comfy_cli_adapter.run_command",
         fake_run,
     )
-    adapter = ComfyCliWorkspaceAdapter(
+    adapter = ComfyManagerCliAdapter(
         workspace=tmp_path,
         python_executable=tmp_path / ".venv" / "Scripts" / "python.exe",
         env={"EXISTING": "1"},
+        manager_runtime=_integrated_runtime(tmp_path),
     )
 
     assert adapter.manager_knows_node("substitute-backend") is False
@@ -206,9 +157,10 @@ def test_comfy_cli_adapter_installs_nodes_through_manager_cli(
         "substitute.infrastructure.comfy.comfy_cli_adapter.stream_command_collecting_output",
         fake_stream,
     )
-    adapter = ComfyCliWorkspaceAdapter(
+    adapter = ComfyManagerCliAdapter(
         workspace=tmp_path,
         python_executable=tmp_path / ".venv" / "Scripts" / "python.exe",
+        manager_runtime=_integrated_runtime(tmp_path),
     )
 
     adapter.install_node(
@@ -254,13 +206,60 @@ def test_comfy_cli_adapter_treats_manager_error_output_as_failure(
         "substitute.infrastructure.comfy.comfy_cli_adapter.stream_command_collecting_output",
         fake_stream,
     )
-    adapter = ComfyCliWorkspaceAdapter(
+    adapter = ComfyManagerCliAdapter(
         workspace=tmp_path,
         python_executable=tmp_path / ".venv" / "Scripts" / "python.exe",
+        manager_runtime=_integrated_runtime(tmp_path),
     )
 
     with pytest.raises(RuntimeError, match="SimpleSyrup@unknown"):
         adapter.install_node("SimpleSyrup")
+
+
+def test_comfy_cli_adapter_uses_legacy_script_for_legacy_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Legacy attached workspaces should execute their custom-node CLI script."""
+
+    commands: list[list[str]] = []
+    legacy_cli = tmp_path / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
+    runtime = ComfyManagerRuntime(
+        kind=ComfyManagerKind.LEGACY_CUSTOM_NODE,
+        workspace=tmp_path,
+        python_executable=tmp_path / "python.exe",
+        legacy_cli_path=legacy_cli,
+    )
+
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        _ = kwargs
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.comfy_cli_adapter.run_command",
+        fake_run,
+    )
+    adapter = ComfyManagerCliAdapter(
+        workspace=tmp_path,
+        python_executable=runtime.python_executable,
+        manager_runtime=runtime,
+    )
+
+    adapter.clear_startup_actions()
+
+    assert commands == [[str(runtime.python_executable), str(legacy_cli), "clear"]]
+
+
+def _integrated_runtime(workspace: Path) -> ComfyManagerRuntime:
+    """Build one validated integrated runtime fixture."""
+
+    return ComfyManagerRuntime(
+        kind=ComfyManagerKind.INTEGRATED,
+        workspace=workspace,
+        python_executable=workspace / ".venv" / "Scripts" / "python.exe",
+        version="4.2.2",
+    )
 
 
 def _imported_module_names(tree: ast.AST) -> set[str]:
