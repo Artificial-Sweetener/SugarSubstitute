@@ -63,9 +63,11 @@ from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
 from launcher.sugarsubstitute_launcher.process import start_detached_handoff
 from launcher.sugarsubstitute_launcher.release_discovery import (
     discover_local_release_root,
+    discover_packaged_release_root,
 )
 from launcher.sugarsubstitute_launcher.release_sources import (
     LocalFolderReleaseSource,
+    ReleaseSource,
     default_production_release_source,
 )
 from launcher.sugarsubstitute_launcher.resources import launcher_icon, launcher_uv_path
@@ -213,10 +215,8 @@ class _InitialInstallWorker(QObject):
         """Install permanent launcher files and the app payload."""
 
         try:
-            release_source = (
-                default_production_release_source()
-                if self._frozen_setup
-                else LocalFolderReleaseSource(discover_local_release_root())
+            release_source = resolve_initial_install_release_source(
+                frozen_setup=self._frozen_setup
             )
             if self._frozen_setup:
                 downloaded_result = (
@@ -253,6 +253,17 @@ class _InitialInstallWorker(QObject):
             continued_result.app_version,
         )
         self.finished.emit()
+
+
+def resolve_initial_install_release_source(*, frozen_setup: bool) -> ReleaseSource:
+    """Choose the embedded, production, or source-run release channel."""
+
+    packaged_release_root = discover_packaged_release_root()
+    if packaged_release_root is not None:
+        return LocalFolderReleaseSource(packaged_release_root)
+    if frozen_setup:
+        return default_production_release_source()
+    return LocalFolderReleaseSource(discover_local_release_root())
 
 
 class LauncherStepItem(QFrame):
