@@ -22,6 +22,7 @@ import shutil
 from collections.abc import Sequence
 from pathlib import Path
 
+from sugarsubstitute_shared.launcher_update.staging import safe_launcher_version
 from tools.release_assets.launcher_archive import prepare_installed_launcher_archive
 from tools.release_assets.models import LocalReleaseBuildResult, PlatformReleaseInput
 from tools.release_assets.payload import (
@@ -135,9 +136,6 @@ def copy_public_installer(*, source_path: Path, output_path: Path) -> Path:
 
 
 def validate_version(version: str) -> None:
-    """Reject empty or path-like version values before naming artifacts."""
+    """Require the release version accepted by launcher update staging."""
 
-    if not version.strip():
-        raise ValueError("Release version must not be empty.")
-    if any(character in version for character in ("/", "\\", ":")):
-        raise ValueError(f"Release version must be a plain tag value: {version}")
+    safe_launcher_version(version)
