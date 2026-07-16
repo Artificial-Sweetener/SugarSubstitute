@@ -16,6 +16,16 @@
 
 """Export onboarding domain models."""
 
+from substitute.domain.onboarding.comfy_python_models import (
+    ComfyPythonBinding,
+    ComfyPythonCandidate,
+    ComfyPythonDiscoveryResult,
+    ComfyPythonProbeResult,
+    ComfyPythonResolutionError,
+    ComfyPythonResolutionFailure,
+    ComfyPythonSelectionSource,
+)
+
 from substitute.domain.onboarding.models import (
     ComfyEndpoint,
     ComfyTargetConfiguration,
@@ -47,6 +57,13 @@ from substitute.domain.onboarding.setup_transaction_models import (
 __all__ = [
     "BootstrapRoute",
     "ComfyEndpoint",
+    "ComfyPythonBinding",
+    "ComfyPythonCandidate",
+    "ComfyPythonDiscoveryResult",
+    "ComfyPythonProbeResult",
+    "ComfyPythonResolutionError",
+    "ComfyPythonResolutionFailure",
+    "ComfyPythonSelectionSource",
     "ComfyTargetConfiguration",
     "ComfyTargetMode",
     "InstallationConfiguration",

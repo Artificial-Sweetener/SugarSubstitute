@@ -27,6 +27,8 @@ from substitute.application.ports.comfy_target_repository import (
 )
 from substitute.domain.onboarding import (
     ComfyEndpoint,
+    ComfyPythonBinding,
+    ComfyPythonSelectionSource,
     ComfyTargetConfiguration,
     ComfyTargetMode,
     InstallationConfiguration,
@@ -57,6 +59,7 @@ class FileComfyTargetConfigurationRepository(ComfyTargetConfigurationRepository)
             return self.build_default()
         payload = json.loads(path.read_text(encoding="utf-8"))
         workspace_path = payload.get("workspace_path")
+        python_binding_payload = payload.get("python_binding")
         return ComfyTargetConfiguration(
             mode=ComfyTargetMode(payload["mode"]),
             endpoint=ComfyEndpoint(
@@ -68,6 +71,7 @@ class FileComfyTargetConfigurationRepository(ComfyTargetConfigurationRepository)
             else None,
             install_owned=bool(payload.get("install_owned", False)),
             launch_owned=bool(payload.get("launch_owned", False)),
+            python_binding=_python_binding_from_payload(python_binding_payload),
         )
 
     def save(self, configuration: ComfyTargetConfiguration) -> None:
@@ -90,6 +94,9 @@ class FileComfyTargetConfigurationRepository(ComfyTargetConfigurationRepository)
                     ),
                     "install_owned": configuration.install_owned,
                     "launch_owned": configuration.launch_owned,
+                    "python_binding": _python_binding_to_payload(
+                        configuration.python_binding
+                    ),
                 },
                 indent=2,
             ),
@@ -109,3 +116,35 @@ class FileComfyTargetConfigurationRepository(ComfyTargetConfigurationRepository)
             / "config"
             / "comfy_target.json"
         )
+
+
+def _python_binding_to_payload(
+    binding: ComfyPythonBinding | None,
+) -> dict[str, str] | None:
+    """Serialize verified Comfy Python evidence when present."""
+
+    if binding is None:
+        return None
+    return {
+        "executable": str(binding.executable),
+        "version": binding.version,
+        "architecture": binding.architecture,
+        "prefix": str(binding.prefix),
+        "base_prefix": str(binding.base_prefix),
+        "source": binding.source.value,
+    }
+
+
+def _python_binding_from_payload(payload: object) -> ComfyPythonBinding | None:
+    """Deserialize optional verified Comfy Python evidence."""
+
+    if not isinstance(payload, dict):
+        return None
+    return ComfyPythonBinding(
+        executable=Path(str(payload["executable"])),
+        version=str(payload["version"]),
+        architecture=str(payload["architecture"]),
+        prefix=Path(str(payload["prefix"])),
+        base_prefix=Path(str(payload["base_prefix"])),
+        source=ComfyPythonSelectionSource(str(payload["source"])),
+    )

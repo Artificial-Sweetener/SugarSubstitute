@@ -26,6 +26,9 @@ from typing import Protocol
 from substitute.domain.onboarding import (
     BootstrapRoute,
     ComfyEndpoint,
+    ComfyPythonBinding,
+    ComfyPythonResolutionError,
+    ComfyPythonResolutionFailure,
     ComfyTargetConfiguration,
     ComfyTargetMode,
     InstallationConfiguration,
@@ -79,6 +82,7 @@ class OnboardingDraftState:
     endpoint_port: int
     managed_workspace_path: Path
     attached_workspace_path: Path | None
+    attached_python_executable: Path | None = None
     managed_model_root: Path | None = None
     managed_model_root_uses_default: bool = True
     output_root: Path | None = None
@@ -164,6 +168,7 @@ class OnboardingServiceProtocol(Protocol):
         *,
         endpoint: ComfyEndpoint,
         workspace_path: Path,
+        python_binding: ComfyPythonBinding | None = None,
     ) -> InstallationContext:
         """Build existing-local onboarding state without active writes."""
 
@@ -414,6 +419,35 @@ class SetupTransactionServiceProtocol(Protocol):
 
 
 ManagedWorkspaceProvisioner = Callable[..., Path]
+
+
+class AttachedWorkspaceProvisioner(Protocol):
+    """Prepare one attached Comfy workspace through a verified interpreter."""
+
+    def __call__(
+        self,
+        *,
+        workspace: Path,
+        python_executable: Path | None = None,
+        on_status: Callable[[str], None] | None = None,
+        on_log: Callable[[str], None] | None = None,
+        **unused: object,
+    ) -> ComfyPythonBinding:
+        """Prepare dependencies without replacing the selected interpreter."""
+
+
+class AttachedPythonResolver(Protocol):
+    """Resolve one verified binding for a stopped attached Comfy workspace."""
+
+    def __call__(
+        self,
+        workspace: Path,
+        *,
+        explicit_executable: Path | None = None,
+    ) -> ComfyPythonBinding:
+        """Discover automatically or validate the user's explicit selection."""
+
+
 OnboardingBundleFactory = Callable[[Path | None], OnboardingBundleProtocol]
 
 
@@ -424,6 +458,8 @@ class OnboardingFlowService:
     service_bundle_factory: OnboardingBundleFactory
     managed_workspace_provisioner: ManagedWorkspaceProvisioner
     entrypoint_path: Path
+    attached_workspace_provisioner: AttachedWorkspaceProvisioner | None = None
+    attached_python_resolver: AttachedPythonResolver | None = None
     transaction_mode: SetupTransactionMode = SetupTransactionMode.REPAIR
 
     def load_draft(self, installation_root: Path) -> OnboardingDraftState:
@@ -476,6 +512,11 @@ class OnboardingFlowService:
             endpoint_port=context.comfy_target.endpoint.port,
             managed_workspace_path=managed_workspace_path,
             attached_workspace_path=context.comfy_target.workspace_path,
+            attached_python_executable=(
+                context.comfy_target.python_binding.executable
+                if context.comfy_target.python_binding is not None
+                else None
+            ),
             managed_model_root=(reported_model_root or default_model_root),
             managed_model_root_uses_default=(
                 model_root_status.uses_default
@@ -713,6 +754,17 @@ class OnboardingFlowService:
                             "Then run setup again.",
                         ),
                     )
+                if self.attached_workspace_provisioner is None:
+                    raise RuntimeError("Attached ComfyUI provisioning is unavailable.")
+                if self.attached_python_resolver is None:
+                    raise RuntimeError(
+                        "Attached ComfyUI Python validation is unavailable."
+                    )
+                on_status("Finding the Python environment for this ComfyUI setup.")
+                binding = self.attached_python_resolver(
+                    draft.attached_workspace_path,
+                    explicit_executable=draft.attached_python_executable,
+                )
                 transaction = bundle.setup_transaction_service.begin(
                     mode=self.transaction_mode,
                     options=SetupTransactionOptions(
@@ -728,6 +780,7 @@ class OnboardingFlowService:
                     bundle.onboarding_service.build_attached_local_context(
                         endpoint=endpoint,
                         workspace_path=draft.attached_workspace_path,
+                        python_binding=binding,
                     )
                 )
                 bundle.setup_transaction_service.record_installation(
@@ -768,25 +821,11 @@ class OnboardingFlowService:
                     transaction.transaction_id,
                     SetupTransactionStatus.MANAGED_WORKSPACE_PROVISIONING,
                 )
-                self.managed_workspace_provisioner(
+                self.attached_workspace_provisioner(
                     workspace=draft.attached_workspace_path,
-                    managed_model_root=None,
-                    force_cpu_mode=draft.force_cpu_mode,
-                    prefer_edge_torch=draft.prefer_edge_torch,
-                    prefer_edge_comfy_channel=draft.prefer_edge_comfy_channel,
-                    installer_temp_root=(
-                        draft.installation_root
-                        / "runtime"
-                        / "installer-temp"
-                        / "managed-comfy"
-                        / transaction.transaction_id
-                    ),
+                    python_executable=binding.executable,
                     on_status=on_status,
                     on_log=on_log,
-                    state_recorder=PendingManagedRuntimeStateRecorder(
-                        transaction_service=bundle.setup_transaction_service,
-                        transaction_id=transaction.transaction_id,
-                    ),
                 )
                 current_transaction = bundle.setup_transaction_service.load()
                 candidate_assessment = bundle.readiness_service.assess_candidate(
@@ -1216,6 +1255,8 @@ class OnboardingFlowService:
                 ),
             )
         if target_mode is ComfyTargetMode.ATTACHED_LOCAL:
+            if isinstance(error, ComfyPythonResolutionError):
+                return OnboardingFlowService._attached_python_resolution_failure(error)
             if "could not be found" in technical_detail.lower():
                 return OnboardingProvisioningFailure(
                     headline="The ComfyUI folder couldn't be found",
@@ -1253,6 +1294,67 @@ class OnboardingFlowService:
             remediation_steps=(
                 "Confirm the remote host and port are correct.",
                 "Make sure this computer can reach the remote ComfyUI server.",
+            ),
+        )
+
+    @staticmethod
+    def _attached_python_resolution_failure(
+        error: ComfyPythonResolutionError,
+    ) -> OnboardingProvisioningFailure:
+        """Translate typed Comfy Python failures into specific recovery guidance."""
+
+        if error.reason is ComfyPythonResolutionFailure.WORKSPACE_INVALID:
+            return OnboardingProvisioningFailure(
+                headline="Choose the folder that contains ComfyUI",
+                user_message=(
+                    "The selected folder is not a complete ComfyUI installation."
+                ),
+                technical_detail=error.detail,
+                remediation_steps=(
+                    "Go back to My Current ComfyUI.",
+                    "Choose the folder that contains ComfyUI's main.py file.",
+                    "Then run setup again.",
+                ),
+            )
+        if error.reason is ComfyPythonResolutionFailure.AMBIGUOUS:
+            return OnboardingProvisioningFailure(
+                headline="Choose which Python this ComfyUI setup uses",
+                user_message=(
+                    "Substitute found more than one working Python environment and "
+                    "needs you to choose the one ComfyUI uses."
+                ),
+                technical_detail=error.detail,
+                remediation_steps=(
+                    "Go back to My Current ComfyUI.",
+                    "Use Browse beside Python executable and choose this ComfyUI setup's Python.",
+                    "Then run setup again.",
+                ),
+            )
+        if error.reason is ComfyPythonResolutionFailure.EXPLICIT_SELECTION_INVALID:
+            return OnboardingProvisioningFailure(
+                headline="Choose a working Python for this ComfyUI setup",
+                user_message=(
+                    "The Python executable you selected could not run this ComfyUI "
+                    "installation."
+                ),
+                technical_detail=error.detail,
+                remediation_steps=(
+                    "Go back to My Current ComfyUI.",
+                    "Use Browse beside Python executable and choose the Python ComfyUI actually uses.",
+                    "Then run setup again.",
+                ),
+            )
+        return OnboardingProvisioningFailure(
+            headline="Choose the Python this ComfyUI setup uses",
+            user_message=(
+                "Substitute could not identify a working Python environment "
+                "automatically."
+            ),
+            technical_detail=error.detail,
+            remediation_steps=(
+                "Go back to My Current ComfyUI.",
+                "Use Browse beside Python executable and choose the Python ComfyUI uses.",
+                "Then run setup again.",
             ),
         )
 

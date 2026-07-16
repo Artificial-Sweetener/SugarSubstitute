@@ -1876,6 +1876,10 @@ def _build_main_window_dependencies(
         model_recipe_step_started_at,
     )
 
+    from substitute.infrastructure.comfy.workspace_python_discovery import (
+        resolve_attached_comfy_python,
+    )
+
     def fetch_runtime_info() -> "ComfyRuntimeInfo | None":
         """Fetch Comfy runtime facts when the About page requests them."""
 
@@ -1916,6 +1920,7 @@ def _build_main_window_dependencies(
         checks=FileSystemReadinessChecks(),
         environment_client_factory=SubstituteBackendEnvironmentClient,
         restart_requirements=restart_requirement_service,
+        attached_python_resolver=resolve_attached_comfy_python,
     )
     record_dependency_checkpoint(
         "model_catalog_recipe_services.settings_services",
@@ -3201,6 +3206,12 @@ def _show_onboarding_surface(
     from substitute.infrastructure.comfy.managed_install import (
         ensure_managed_comfy_setup,
     )
+    from substitute.infrastructure.comfy.attached_install import (
+        prepare_attached_comfy_setup,
+    )
+    from substitute.infrastructure.comfy.workspace_python_discovery import (
+        resolve_attached_comfy_python,
+    )
     from substitute.app.bootstrap.installation_context import (
         build_onboarding_service_bundle,
     )
@@ -3222,6 +3233,8 @@ def _show_onboarding_surface(
         service_bundle_factory=build_onboarding_service_bundle,
         managed_workspace_provisioner=ensure_managed_comfy_setup,
         entrypoint_path=entrypoint_path,
+        attached_workspace_provisioner=prepare_attached_comfy_setup,
+        attached_python_resolver=resolve_attached_comfy_python,
         transaction_mode=_transaction_mode_for_flow(flow_mode),
     )
     controller = OnboardingController(

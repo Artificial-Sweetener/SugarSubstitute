@@ -29,9 +29,6 @@ from substitute.infrastructure.comfy.nodepack_manifest import (
 from substitute.infrastructure.comfy.nodepack_workspace_inspector import (
     core_nodepack_installed as core_nodepack_installed,
 )
-from substitute.infrastructure.comfy.workspace_python_resolver import (
-    resolve_workspace_python as resolve_workspace_python,
-)
 from substitute.infrastructure.comfy.sugarcubes_maintenance_runner import (
     run_sugarcubes_baseline_maintenance as run_sugarcubes_baseline_maintenance,
 )
@@ -43,6 +40,5 @@ __all__ = [
     "core_nodepack_installed",
     "ensure_core_comfy_nodepacks",
     "refresh_core_comfy_nodepacks",
-    "resolve_workspace_python",
     "run_sugarcubes_baseline_maintenance",
 ]

@@ -192,6 +192,7 @@ def reconcile_managed_acceleration_stack(
     on_status: StatusCallback | None = None,
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
+    python_executable: Path | None = None,
 ) -> ManagedAccelerationReconciliationResult:
     """Reconcile supported acceleration only when managed SeedVR2 is installed."""
 
@@ -204,9 +205,11 @@ def reconcile_managed_acceleration_stack(
         )
     if on_status is not None:
         on_status("Preparing managed acceleration support.")
+    if python_executable is None:
+        python_executable = resolve_workspace_python(workspace)
     environment = ManagedAccelerationWorkspace(
         workspace=workspace,
-        python_executable=resolve_workspace_python(workspace),
+        python_executable=python_executable,
         on_log=on_log,
         env=env,
     )

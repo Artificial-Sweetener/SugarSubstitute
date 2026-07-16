@@ -57,10 +57,12 @@ def run_sugarcubes_baseline_maintenance(
     *,
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
+    python_executable: Path | None = None,
 ) -> SugarCubesMaintenanceResult:
     """Run SugarCubes offline sync/check maintenance before Comfy starts."""
 
-    python_executable = resolve_workspace_python(workspace)
+    if python_executable is None:
+        python_executable = resolve_workspace_python(workspace)
     sugarcubes_root = workspace / "custom_nodes" / "SugarCubes"
     if not (sugarcubes_root / "backend" / "maintenance.py").exists():
         raise RuntimeError("SugarCubes offline maintenance entrypoint is missing.")
@@ -95,6 +97,7 @@ def run_sugarcubes_baseline_maintenance(
         if _install_sugarcubes_reported_nodepacks(
             workspace,
             result,
+            python_executable=python_executable,
             on_log=on_log,
             env=env,
         ):
@@ -132,6 +135,7 @@ def _install_sugarcubes_reported_nodepacks(
     workspace: Path,
     result: SugarCubesMaintenanceResult,
     *,
+    python_executable: Path,
     on_log: LogCallback | None,
     env: Mapping[str, str] | None,
 ) -> bool:
@@ -164,7 +168,7 @@ def _install_sugarcubes_reported_nodepacks(
     )
     adapter = ComfyCliWorkspaceAdapter(
         workspace=workspace,
-        python_executable=resolve_workspace_python(workspace),
+        python_executable=python_executable,
         on_log=on_log,
         env=env,
     )

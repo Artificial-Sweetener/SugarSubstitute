@@ -723,6 +723,9 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.attached_local_page.browse_requested.connect(
             self._browse_attached_workspace
         )
+        self.attached_local_page.python_browse_requested.connect(
+            self._browse_attached_python
+        )
         self.folder_setup_page.managed_model_browse_requested.connect(
             self._browse_managed_model_root
         )
@@ -765,26 +768,36 @@ class OnboardingWindow(SubstituteWindowFrame):
             managed_workspace = Path(
                 self.managed_local_page.workspace_edit.text()
             ).resolve()
+            runtime_summary = self.managed_local_page.runtime_summary_panel
+            force_cpu_mode = runtime_summary.force_cpu_checkbox.isChecked()
+            prefer_edge_torch = runtime_summary.edge_torch_checkbox.isChecked()
+            prefer_edge_comfy_channel = (
+                runtime_summary.edge_channel_checkbox.isChecked()
+            )
             self._controller.update_endpoint(
                 managed_host,
                 managed_port,
             )
             self._controller.update_managed_workspace(managed_workspace)
             self._controller.update_managed_runtime_preferences(
-                force_cpu_mode=self.managed_local_page.runtime_summary_panel.force_cpu_checkbox.isChecked(),
-                prefer_edge_torch=self.managed_local_page.runtime_summary_panel.edge_torch_checkbox.isChecked(),
-                prefer_edge_comfy_channel=self.managed_local_page.runtime_summary_panel.edge_channel_checkbox.isChecked(),
+                force_cpu_mode=force_cpu_mode,
+                prefer_edge_torch=prefer_edge_torch,
+                prefer_edge_comfy_channel=prefer_edge_comfy_channel,
             )
         elif self._current_page is OnboardingPageId.ATTACHED_LOCAL:
             attached_host = self.attached_local_page.host_edit.text()
             attached_port = self.attached_local_page.port_spinbox.value()
             workspace_text = self.attached_local_page.workspace_edit.text().strip()
+            python_text = self.attached_local_page.python_edit.text().strip()
             self._controller.update_endpoint(
                 attached_host,
                 attached_port,
             )
             self._controller.update_attached_workspace(
                 Path(workspace_text).resolve() if workspace_text else None
+            )
+            self._controller.update_attached_python(
+                Path(python_text).resolve() if python_text else None
             )
         elif self._current_page is OnboardingPageId.REMOTE:
             remote_host = self.remote_page.host_edit.text()
@@ -939,6 +952,9 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.attached_local_page.port_spinbox.setValue(draft.endpoint_port)
         self.attached_local_page.workspace_edit.setText(
             str(draft.attached_workspace_path or "")
+        )
+        self.attached_local_page.python_edit.setText(
+            str(draft.attached_python_executable or "")
         )
         self.remote_page.host_edit.setText(draft.endpoint_host)
         self.remote_page.port_spinbox.setValue(draft.endpoint_port)
@@ -1102,6 +1118,18 @@ class OnboardingWindow(SubstituteWindowFrame):
         )
         if selected:
             self.attached_local_page.workspace_edit.setText(selected)
+
+    def _browse_attached_python(self) -> None:
+        """Prompt for the Python executable used by the attached ComfyUI setup."""
+
+        selected, _selected_filter = QFileDialog.getOpenFileName(
+            self,
+            "Choose ComfyUI Python Executable",
+            self.attached_local_page.python_edit.text(),
+            "Python executable (python.exe python);;All files (*)",
+        )
+        if selected:
+            self.attached_local_page.python_edit.setText(selected)
 
     def _browse_managed_model_root(self) -> None:
         """Prompt for the managed ComfyUI models folder."""

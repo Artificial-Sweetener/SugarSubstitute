@@ -128,7 +128,12 @@ class FileSystemReadinessChecks:
         if configuration.mode is ComfyTargetMode.MANAGED_LOCAL:
             return configuration.workspace_path is not None
         if configuration.mode is ComfyTargetMode.ATTACHED_LOCAL:
-            return configuration.workspace_path is not None
+            binding = configuration.python_binding
+            return (
+                configuration.workspace_path is not None
+                and binding is not None
+                and binding.executable.is_file()
+            )
         return True
 
     def attached_workspace_exists(self, workspace: Path) -> bool:

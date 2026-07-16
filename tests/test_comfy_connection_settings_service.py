@@ -30,6 +30,8 @@ from substitute.application.restart_requirements import RestartRequirementServic
 from substitute.application.restart_requirements import RestartScope
 from substitute.domain.onboarding import (
     ComfyEndpoint,
+    ComfyPythonBinding,
+    ComfyPythonSelectionSource,
     ComfyTargetConfiguration,
     ComfyTargetMode,
     InstallationConfiguration,
@@ -622,6 +624,14 @@ def _build_service(
         checks=checks,
         environment_client_factory=environment_client_factory,
         restart_requirements=restart_requirements,
+        attached_python_resolver=lambda workspace, **_kwargs: ComfyPythonBinding(
+            executable=workspace / ".venv" / "Scripts" / "python.exe",
+            version="3.13",
+            architecture="AMD64",
+            prefix=workspace / ".venv",
+            base_prefix=workspace / ".venv",
+            source=ComfyPythonSelectionSource.DISCOVERED,
+        ),
     )
     return service, repository, checks
 

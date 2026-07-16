@@ -70,10 +70,12 @@ def ensure_core_comfy_nodepacks(
     refresh_nodepacks: Collection[CoreNodepackId] = frozenset(),
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
+    python_executable: Path | None = None,
 ) -> None:
     """Ensure Substitute's required Comfy nodepacks are installed and current."""
 
-    python_executable = resolve_workspace_python(workspace)
+    if python_executable is None:
+        python_executable = resolve_workspace_python(workspace)
     adapter = ComfyCliWorkspaceAdapter(
         workspace=workspace,
         python_executable=python_executable,

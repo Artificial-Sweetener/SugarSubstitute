@@ -63,6 +63,9 @@ from substitute.infrastructure.comfy.managed_install import (
     emit_status,
     ensure_managed_comfy_setup,
 )
+from substitute.infrastructure.comfy.attached_install import (
+    prepare_attached_comfy_setup,
+)
 from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedProcessHandle,
     build_launch_request,
@@ -256,6 +259,7 @@ def start_managed_comfy_subprocess(
     endpoint: ComfyEndpoint,
     workspace: Path,
     runtime_state_dir: Path,
+    python_executable: Path | None = None,
 ) -> ManagedProcessHandle:
     """Ensure setup and launch a foreground managed Comfy subprocess."""
 
@@ -270,22 +274,23 @@ def start_managed_comfy_subprocess(
         registry=registry,
         runtime_service=runtime_service,
     )
-    startup_transaction = _begin_startup_revalidation_transaction_if_needed(
-        endpoint=endpoint,
-        workspace=workspace,
-        runtime_state_dir=runtime_state_dir,
-        runtime_service=runtime_service,
+    startup_transaction = (
+        None
+        if python_executable is not None
+        else _begin_startup_revalidation_transaction_if_needed(
+            endpoint=endpoint,
+            workspace=workspace,
+            runtime_state_dir=runtime_state_dir,
+            runtime_service=runtime_service,
+        )
     )
     try:
-        venv_python = ensure_managed_comfy_setup(
+        venv_python = _ensure_launch_workspace(
             workspace=workspace,
-            installer_temp_root=(
-                runtime_state_dir
-                / "installer-temp"
-                / "managed-comfy"
-                / f"foreground-{uuid4().hex}"
-            ),
-            state_recorder=ActiveSafeManagedRuntimeStateRecorder(runtime_service),
+            python_executable=python_executable,
+            runtime_state_dir=runtime_state_dir,
+            transaction_key=f"foreground-{uuid4().hex}",
+            runtime_service=runtime_service,
         )
     except Exception as error:
         _fail_startup_revalidation_transaction(startup_transaction, error)
@@ -311,6 +316,36 @@ def start_managed_comfy_subprocess(
     return launch_result.process
 
 
+def _ensure_launch_workspace(
+    *,
+    workspace: Path,
+    python_executable: Path | None,
+    runtime_state_dir: Path,
+    transaction_key: str,
+    runtime_service: ManagedRuntimeService,
+    on_status: StatusCallback | None = None,
+    on_log: LogCallback | None = None,
+) -> Path:
+    """Prepare managed or attached workspace through its authoritative owner."""
+
+    if python_executable is not None:
+        return prepare_attached_comfy_setup(
+            workspace=workspace,
+            python_executable=python_executable,
+            on_status=on_status,
+            on_log=on_log,
+        ).executable
+    return ensure_managed_comfy_setup(
+        workspace=workspace,
+        installer_temp_root=(
+            runtime_state_dir / "installer-temp" / "managed-comfy" / transaction_key
+        ),
+        on_status=on_status,
+        on_log=on_log,
+        state_recorder=ActiveSafeManagedRuntimeStateRecorder(runtime_service),
+    )
+
+
 def start_managed_comfy_background(
     *,
     endpoint: ComfyEndpoint,
@@ -321,6 +356,7 @@ def start_managed_comfy_background(
     diagnostics: ComfyStartupDiagnosticsCollector | None = None,
     launch_task_factory: ManagedTaskFactory,
     process_pump_task_factory: ManagedTaskFactory,
+    python_executable: Path | None = None,
 ) -> ManagedComfyState:
     """Launch ComfyUI through the managed execution layer."""
 
@@ -360,26 +396,24 @@ def start_managed_comfy_background(
                 return
 
             with trace_span("managed_comfy.startup_revalidation.begin"):
-                startup_transaction = _begin_startup_revalidation_transaction_if_needed(
-                    endpoint=endpoint,
-                    workspace=workspace,
-                    runtime_state_dir=runtime_state_dir,
-                    runtime_service=runtime_service,
-                )
+                if python_executable is None:
+                    startup_transaction = (
+                        _begin_startup_revalidation_transaction_if_needed(
+                            endpoint=endpoint,
+                            workspace=workspace,
+                            runtime_state_dir=runtime_state_dir,
+                            runtime_service=runtime_service,
+                        )
+                    )
             with trace_span("managed_comfy.ensure_setup"):
-                venv_python = ensure_managed_comfy_setup(
+                venv_python = _ensure_launch_workspace(
                     workspace=workspace,
-                    installer_temp_root=(
-                        runtime_state_dir
-                        / "installer-temp"
-                        / "managed-comfy"
-                        / f"background-{uuid4().hex}"
-                    ),
+                    python_executable=python_executable,
+                    runtime_state_dir=runtime_state_dir,
+                    transaction_key=f"background-{uuid4().hex}",
+                    runtime_service=runtime_service,
                     on_status=on_status,
                     on_log=on_log,
-                    state_recorder=ActiveSafeManagedRuntimeStateRecorder(
-                        runtime_service
-                    ),
                 )
             with trace_span("managed_comfy.startup_revalidation.finish"):
                 _finish_startup_revalidation_transaction(startup_transaction)

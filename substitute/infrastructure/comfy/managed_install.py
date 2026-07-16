@@ -80,7 +80,6 @@ from substitute.infrastructure.comfy.manager_provisioner import (
 )
 from substitute.infrastructure.comfy.nodepack_reconciliation import (
     ensure_core_comfy_nodepacks,
-    resolve_workspace_python,
     run_sugarcubes_baseline_maintenance,
 )
 from substitute.infrastructure.comfy.torch_policy import (
@@ -250,10 +249,16 @@ def provision_workspace_manager(
     *,
     on_log: LogCallback | None = None,
     env: dict[str, str] | None = None,
+    python_executable: Path | None = None,
 ) -> Path:
     """Ensure the managed workspace contains the workspace-local manager CLI."""
 
-    return ensure_workspace_manager_custom_node(workspace, on_log=on_log, env=env)
+    return ensure_workspace_manager_custom_node(
+        workspace,
+        python_executable=python_executable,
+        on_log=on_log,
+        env=env,
+    )
 
 
 def resolve_actual_torch_backend(
@@ -684,24 +689,12 @@ def _ensure_managed_comfy_setup(
                 "or choose a different empty folder before trying again."
             )
         if workspace.exists() and workspace_main_path(workspace).exists():
-            venv_python = resolve_workspace_python(workspace)
-            emit_status(on_status, "Adopting the existing ComfyUI workspace.")
-            emit_status(on_status, "Provisioning ComfyUI-Manager.")
-            provision_workspace_manager(workspace, on_log=on_log, env=managed_env)
-            emit_status(on_status, "Installing Substitute Comfy nodepacks.")
-            ensure_core_comfy_nodepacks(
-                workspace,
-                refresh_nodepacks=refresh_core_nodepacks,
-                on_log=on_log,
-                env=managed_env,
+            raise RuntimeError(
+                "The managed ComfyUI folder contains an existing installation but "
+                "does not contain Substitute's managed Python environment. Choose "
+                "Use My Current ComfyUI for this folder, or choose an empty folder "
+                "for managed setup."
             )
-            emit_status(on_status, "Preparing Base-Cubes dependencies.")
-            run_sugarcubes_baseline_maintenance(
-                workspace,
-                on_log=on_log,
-                env=managed_env,
-            )
-            return venv_python
 
         emit_status(on_status, "Preparing the managed ComfyUI install strategy.")
         emit_log(

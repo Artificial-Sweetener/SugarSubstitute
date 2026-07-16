@@ -36,6 +36,8 @@ from substitute.application.comfy_startup_diagnostics import (
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.domain.onboarding import (
     ComfyEndpoint,
+    ComfyPythonBinding,
+    ComfyPythonSelectionSource,
     ComfyTargetConfiguration,
     ComfyTargetMode,
     InstallationConfiguration,
@@ -186,22 +188,26 @@ def test_reconcile_owned_dependencies_for_attached_target_runs_nodepack_policy(
         workspace: Path,
         *,
         refresh_nodepacks: frozenset[CoreNodepackId],
+        python_executable: Path,
         on_log: object,
     ) -> None:
         """Record core nodepack reconciliation arguments."""
 
         core_calls.append((workspace, refresh_nodepacks, on_log))
+        assert python_executable.name == "python.exe"
         assert callable(on_log)
         on_log("core ready")
 
     def fake_baseline_maintenance(
         workspace: Path,
         *,
+        python_executable: Path,
         on_log: object,
     ) -> None:
         """Record SugarCubes baseline maintenance arguments."""
 
         baseline_calls.append((workspace, on_log))
+        assert python_executable.name == "python.exe"
         assert callable(on_log)
         on_log("baseline ready")
 
@@ -534,12 +540,26 @@ def _context(tmp_path: Path) -> InstallationContext:
 def _target(tmp_path: Path, mode: ComfyTargetMode) -> ComfyTargetConfiguration:
     """Build one target configuration with normal ownership for its mode."""
 
+    workspace = tmp_path / "ComfyUI"
+    binding = (
+        ComfyPythonBinding(
+            executable=workspace / ".venv" / "Scripts" / "python.exe",
+            version="3.13",
+            architecture="AMD64",
+            prefix=workspace / ".venv",
+            base_prefix=workspace / ".venv",
+            source=ComfyPythonSelectionSource.DISCOVERED,
+        )
+        if mode is ComfyTargetMode.ATTACHED_LOCAL
+        else None
+    )
     return ComfyTargetConfiguration(
         mode=mode,
         endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
-        workspace_path=None if mode is ComfyTargetMode.REMOTE else tmp_path / "ComfyUI",
+        workspace_path=None if mode is ComfyTargetMode.REMOTE else workspace,
         install_owned=mode is ComfyTargetMode.MANAGED_LOCAL,
         launch_owned=mode is not ComfyTargetMode.REMOTE,
+        python_binding=binding,
     )
 
 

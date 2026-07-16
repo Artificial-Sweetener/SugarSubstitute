@@ -35,10 +35,17 @@ from substitute.application.onboarding import OnboardingFlowService
 from substitute.app.bootstrap.installation_context import (
     build_onboarding_service_bundle,
 )
+from substitute.app.bootstrap.app_layout import resolve_app_layout
 from substitute.app.bootstrap.onboarding_execution import (
     create_onboarding_provisioning_submitter_factory,
 )
 from substitute.infrastructure.comfy.managed_install import ensure_managed_comfy_setup
+from substitute.infrastructure.comfy.attached_install import (
+    prepare_attached_comfy_setup,
+)
+from substitute.infrastructure.comfy.workspace_python_discovery import (
+    resolve_attached_comfy_python,
+)
 from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedProcessHandle,
 )
@@ -154,6 +161,10 @@ class OnboardingAutomationDriver:
                     "OnboardingManagedWorkspaceEdit",
                     self._scenario.managed_workspace_path,
                 )
+                self._window.managed_local_page.runtime_summary_panel.force_cpu_checkbox.setChecked(
+                    self._scenario.force_cpu_mode
+                )
+                self._process_events(50)
             elif self._scenario.target_mode.value == "attached_local":
                 self._wait_for_page("OnboardingAttachedLocalPage")
                 self._capture("attached_local")
@@ -172,6 +183,11 @@ class OnboardingAutomationDriver:
                     )
                 else:
                     self._set_line_edit("OnboardingAttachedWorkspaceEdit", "")
+                if self._scenario.attached_python_executable is not None:
+                    self._set_line_edit(
+                        "OnboardingAttachedPythonEdit",
+                        self._scenario.attached_python_executable,
+                    )
             else:
                 self._wait_for_page("OnboardingRemotePage")
                 self._capture("remote")
@@ -371,7 +387,9 @@ class OnboardingAutomationDriver:
         return OnboardingFlowService(
             service_bundle_factory=build_onboarding_service_bundle,
             managed_workspace_provisioner=ensure_managed_comfy_setup,
-            entrypoint_path=self._scenario.install_root / "main.py",
+            entrypoint_path=resolve_scenario_entrypoint(self._scenario.install_root),
+            attached_workspace_provisioner=prepare_attached_comfy_setup,
+            attached_python_resolver=resolve_attached_comfy_python,
         )
 
     def _prepare_fixture_state(self) -> None:
@@ -422,6 +440,12 @@ class OnboardingAutomationDriver:
         """Remove any forced managed-install failure stage from the environment."""
 
         os.environ.pop(_FORCED_MANAGED_FAILURE_STAGE_ENV, None)
+
+
+def resolve_scenario_entrypoint(install_root: Path) -> Path:
+    """Resolve the real source or installed entrypoint used by one setup scenario."""
+
+    return resolve_app_layout(install_root).entrypoint_path
 
 
 def _ensure_application() -> QApplication:

@@ -765,6 +765,7 @@ class AttachedLocalPage(OnboardingPageFrame):
     """Collect the launch details for an existing local ComfyUI setup."""
 
     browse_requested = Signal()
+    python_browse_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the attached-local configuration page."""
@@ -788,6 +789,14 @@ class AttachedLocalPage(OnboardingPageFrame):
         browse_button = PushButton("Browse...", self)
         browse_button.setObjectName("OnboardingAttachedWorkspaceBrowseButton")
         browse_button.clicked.connect(self.browse_requested.emit)
+        self.python_edit = LineEdit(self)
+        self.python_edit.setObjectName("OnboardingAttachedPythonEdit")
+        self.python_edit.setPlaceholderText(
+            "Automatically detect from the ComfyUI folder"
+        )
+        python_browse_button = PushButton("Browse...", self)
+        python_browse_button.setObjectName("OnboardingAttachedPythonBrowseButton")
+        python_browse_button.clicked.connect(self.python_browse_requested.emit)
 
         section = OnboardingSectionPanel(self)
         section.content_layout.addLayout(
@@ -799,6 +808,15 @@ class AttachedLocalPage(OnboardingPageFrame):
                 helper_text="Choose the folder that contains your existing ComfyUI main.py file. Substitute will launch this copy when it starts.",
                 field=self.workspace_edit,
                 trailing_widget=browse_button,
+                parent=self,
+            )
+        )
+        section.content_layout.addWidget(
+            OnboardingFieldBlock(
+                label="Python executable",
+                helper_text="Leave this blank to detect Python automatically. If your setup is unusual, choose the Python executable ComfyUI uses.",
+                field=self.python_edit,
+                trailing_widget=python_browse_button,
                 parent=self,
             )
         )

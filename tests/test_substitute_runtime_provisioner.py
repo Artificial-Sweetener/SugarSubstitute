@@ -75,6 +75,12 @@ def test_runtime_provisioner_bootstraps_missing_pip(
 
     assert result.bootstrap_status is RuntimeBootstrapStatus.READY
     assert any(command[1:] == ["-m", "ensurepip", "--upgrade"] for command in commands)
+    packaging_upgrade = next(
+        command
+        for command in commands
+        if command[1:5] == ["-m", "pip", "install", "--upgrade"]
+    )
+    assert packaging_upgrade[5:] == ["pip", "setuptools"]
 
 
 def test_runtime_provisioner_raises_clear_error_when_ensurepip_fails(

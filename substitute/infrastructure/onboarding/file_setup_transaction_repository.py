@@ -35,6 +35,10 @@ from substitute.domain.onboarding.managed_runtime_models import (
     ManagedRuntimeStability,
     ManagedRuntimeValidationStatus,
 )
+from substitute.domain.onboarding.comfy_python_models import (
+    ComfyPythonBinding,
+    ComfyPythonSelectionSource,
+)
 from substitute.domain.onboarding.models import (
     ComfyEndpoint,
     ComfyTargetConfiguration,
@@ -309,6 +313,7 @@ def _target_to_payload(
         "workspace_path": _path_to_string(configuration.workspace_path),
         "install_owned": configuration.install_owned,
         "launch_owned": configuration.launch_owned,
+        "python_binding": _python_binding_to_payload(configuration.python_binding),
     }
 
 
@@ -334,6 +339,39 @@ def _target_from_payload(payload: object) -> ComfyTargetConfiguration | None:
         else None,
         install_owned=bool(payload.get("install_owned", False)),
         launch_owned=bool(payload.get("launch_owned", False)),
+        python_binding=_python_binding_from_payload(payload.get("python_binding")),
+    )
+
+
+def _python_binding_to_payload(
+    binding: ComfyPythonBinding | None,
+) -> dict[str, str] | None:
+    """Serialize optional verified Comfy Python evidence."""
+
+    if binding is None:
+        return None
+    return {
+        "executable": str(binding.executable),
+        "version": binding.version,
+        "architecture": binding.architecture,
+        "prefix": str(binding.prefix),
+        "base_prefix": str(binding.base_prefix),
+        "source": binding.source.value,
+    }
+
+
+def _python_binding_from_payload(payload: object) -> ComfyPythonBinding | None:
+    """Deserialize optional verified Comfy Python evidence."""
+
+    if not isinstance(payload, dict):
+        return None
+    return ComfyPythonBinding(
+        executable=Path(str(payload["executable"])),
+        version=str(payload["version"]),
+        architecture=str(payload["architecture"]),
+        prefix=Path(str(payload["prefix"])),
+        base_prefix=Path(str(payload["base_prefix"])),
+        source=ComfyPythonSelectionSource(str(payload["source"])),
     )
 
 
