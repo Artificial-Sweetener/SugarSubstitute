@@ -80,6 +80,32 @@ def test_first_release_publishes_version_090_without_adding_a_commit() -> None:
     assert "prime-first-release-tag" not in workflow_text
 
 
+def test_version_resolution_excludes_publishing_plugins() -> None:
+    """Version calculation should not require GitHub publishing authentication."""
+
+    script = """
+const releaseConfig = require('./.releaserc.cjs');
+const {selectVersionResolutionPlugins} = require(
+  './scripts/release-version-plugins.cjs',
+);
+process.stdout.write(JSON.stringify(selectVersionResolutionPlugins(releaseConfig)));
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    plugins = json.loads(result.stdout)
+    assert len(plugins) == 1
+    assert plugins[0][0] == "@semantic-release/commit-analyzer"
+    assert plugins[0][1]["releaseRules"]
+
+
 def test_macos_release_requires_no_paid_apple_credentials() -> None:
     """macOS artifacts should use verifiable ad-hoc signatures without notarization."""
 
