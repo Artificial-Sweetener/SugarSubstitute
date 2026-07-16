@@ -24,6 +24,8 @@ import sys
 import zipfile
 from pathlib import Path
 
+import pytest
+
 from tools.release_assets import (
     NativeInstallerInput,
     PlatformReleaseInput,
@@ -42,6 +44,19 @@ from launcher.sugarsubstitute_launcher.platforms import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_release_builder_rejects_launcher_unsafe_version(tmp_path: Path) -> None:
+    """Release assembly must reject versions launcher staging cannot consume."""
+
+    repo_root = _write_fixture_repo(tmp_path)
+
+    with pytest.raises(ValueError, match="Unsafe launcher version"):
+        build_local_release_channel(
+            repo_root=repo_root,
+            output_dir=repo_root / ".local-release-channel",
+            version="0.10.0-local.20260716",
+        )
 
 
 def test_release_payload_cli_runs_by_file_path(tmp_path: Path) -> None:

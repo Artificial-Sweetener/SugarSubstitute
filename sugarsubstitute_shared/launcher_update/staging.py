@@ -61,7 +61,7 @@ class LauncherBundleStager:
 
         resolved_root = install_root.expanduser().resolve()
         update_root = resolved_root / "launcher" / "updates"
-        version_root = update_root / "staging" / _safe_version(version)
+        version_root = update_root / "staging" / safe_launcher_version(version)
         archive_path = update_root / "downloads" / asset.filename
         self._downloader.download(asset=asset, destination=archive_path)
         _verify_sha256(archive_path, expected=asset.sha256)
@@ -118,7 +118,7 @@ def _verify_sha256(path: Path, *, expected: str) -> None:
         )
 
 
-def _safe_version(version: str) -> str:
+def safe_launcher_version(version: str) -> str:
     """Return a filesystem-safe release version identifier."""
 
     if not version or any(character not in "0123456789.-" for character in version):
@@ -129,5 +129,6 @@ def _safe_version(version: str) -> str:
 __all__ = [
     "LauncherBundleStager",
     "LauncherBundleValidationError",
+    "safe_launcher_version",
     "validate_staged_bundle",
 ]
