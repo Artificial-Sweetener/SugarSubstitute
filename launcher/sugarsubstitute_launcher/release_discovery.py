@@ -25,6 +25,23 @@ from pathlib import Path
 
 RELEASE_ROOT_ENV = "SUGARSUBSTITUTE_RELEASE_ROOT"
 LOCAL_RELEASE_CHANNEL_DIR_NAME = ".local-release-channel"
+PACKAGED_RELEASE_CHANNEL_DIR_NAME = "launcher_local_release"
+
+
+def discover_packaged_release_root() -> Path | None:
+    """Return an embedded local release channel when the installer carries one."""
+
+    if not bool(getattr(sys, "frozen", False)):
+        return None
+    packaged_root_value = getattr(sys, "_MEIPASS", None)
+    if not isinstance(packaged_root_value, str) or not packaged_root_value:
+        return None
+    release_root = (
+        Path(packaged_root_value) / PACKAGED_RELEASE_CHANNEL_DIR_NAME
+    ).resolve()
+    if not (release_root / "manifest.json").is_file():
+        return None
+    return release_root
 
 
 def discover_local_release_root() -> Path:

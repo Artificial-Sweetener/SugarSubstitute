@@ -52,7 +52,11 @@ from launcher.sugarsubstitute_launcher.install_layout import (
 from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
 from launcher.sugarsubstitute_launcher.logging_setup import configure_launcher_logging
 from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
-from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
+from launcher.sugarsubstitute_launcher.ui.main_window import (
+    LauncherMainWindow,
+    resolve_initial_install_release_source,
+)
+from launcher.sugarsubstitute_launcher.release_sources import LocalFolderReleaseSource
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
 
 
@@ -205,6 +209,23 @@ def test_launcher_config_can_disable_persisted_release_source(
     assert loaded.release_source is None
     raw_payload = json.loads(layout.config_path.read_text(encoding="utf-8"))
     assert raw_payload["release_source"] is None
+
+
+def test_frozen_local_test_installer_prefers_embedded_release_channel(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A packaged local-test installer must not resolve the GitHub channel."""
+
+    release_root = tmp_path / "launcher_local_release"
+    release_root.mkdir()
+    (release_root / "manifest.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+    source = resolve_initial_install_release_source(frozen_setup=True)
+
+    assert source == LocalFolderReleaseSource(release_root.resolve())
 
 
 def test_launcher_config_upgrades_missing_release_source_to_github(

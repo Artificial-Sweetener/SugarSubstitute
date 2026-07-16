@@ -99,7 +99,7 @@ def test_pyinstaller_specs_share_virtual_environment_uv_discovery() -> None:
 
     spec_paths = tuple((PROJECT_ROOT / "launcher").glob("*.spec"))
 
-    assert len(spec_paths) == 6
+    assert len(spec_paths) == 7
     for spec_path in spec_paths:
         spec_text = spec_path.read_text(encoding="utf-8")
         assert (
