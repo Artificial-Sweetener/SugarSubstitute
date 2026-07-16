@@ -242,7 +242,7 @@ def test_nodepack_python_distributions_satisfy_minimum_uses_manifest_metadata(
 
     monkeypatch.setattr(
         "substitute.infrastructure.comfy.nodepack_python_dependencies.installed_python_distribution_version",
-        lambda **kwargs: "1.6.2",
+        lambda **kwargs: "1.7.0",
     )
 
     assert nodepack_python_distributions_satisfy_minimum(

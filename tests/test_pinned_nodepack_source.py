@@ -233,7 +233,7 @@ def test_replace_with_pinned_source_archive_replaces_git_checkout(
     """Pinned replacement should backup and replace unmergeable git checkouts."""
 
     nodepack = CORE_COMFY_NODEPACKS[0]
-    source_root = tmp_path / "archive" / "Substitute-BackEnd-1.6.2"
+    source_root = tmp_path / "archive" / "Substitute-BackEnd-1.7.0"
     target_root = tmp_path / "custom_nodes" / "Substitute-BackEnd"
     _write_file(source_root / "__init__.py", "new")
     _write_file(source_root / "substitute_backend" / "__init__.py", "new")

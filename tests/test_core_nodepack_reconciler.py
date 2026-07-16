@@ -421,7 +421,7 @@ def test_backend_refresh_overlays_pinned_archive_when_registry_version_is_too_ol
     assert overlays == [
         (
             "https://github.com/Artificial-Sweetener/Substitute-BackEnd/archive/refs/tags/"
-            "v1.6.2.zip",
+            "v1.7.0.zip",
             backend_root,
             True,
         )
@@ -649,10 +649,10 @@ def test_backend_git_fallback_checks_out_pinned_tag_without_registry_overlay(
             (
                 backend_root,
                 "https://github.com/Artificial-Sweetener/Substitute-BackEnd.git",
-                "v1.6.2",
+                "v1.7.0",
             ),
         ),
-        ("checkout_revision", (backend_root, "v1.6.2")),
+        ("checkout_revision", (backend_root, "v1.7.0")),
     ]
     assert dependency_installs == [backend_root, backend_root]
     assert overlays == []
@@ -760,7 +760,7 @@ def test_backend_git_refresh_failure_replaces_pinned_source(
     assert replacements == [
         (
             "https://github.com/Artificial-Sweetener/Substitute-BackEnd/archive/refs/tags/"
-            "v1.6.2.zip",
+            "v1.7.0.zip",
             backend_root,
         )
     ]
