@@ -45,6 +45,9 @@ from substitute.infrastructure.comfy.managed_install_commands import (
     install_workspace_requirements,
     upgrade_workspace_packaging_tools,
 )
+from substitute.infrastructure.comfy.managed_acceleration_reconciler import (
+    reconcile_managed_acceleration_stack,
+)
 from substitute.infrastructure.comfy.managed_install_failures import (
     ManagedInstallStorageError,
 )
@@ -625,6 +628,18 @@ def _ensure_managed_comfy_setup(
             )
         if not validation.success:
             raise RuntimeError(validation.detail)
+        with trace_span("managed_setup.existing.acceleration"):
+            reconcile_managed_acceleration_stack(
+                workspace=workspace,
+                detection=detection,
+                on_status=on_status,
+                on_log=on_log,
+                env=managed_env,
+            )
+        setup_freshness_key = _installed_setup_freshness_key(
+            workspace=workspace,
+            strategy=strategy,
+        )
         _write_installed_setup_freshness(
             workspace=workspace,
             key=setup_freshness_key,
@@ -820,6 +835,14 @@ def _ensure_managed_comfy_setup(
         )
         if not validation.success:
             raise RuntimeError(validation.detail)
+        with trace_span("managed_setup.acceleration"):
+            reconcile_managed_acceleration_stack(
+                workspace=workspace,
+                detection=detection,
+                on_status=on_status,
+                on_log=on_log,
+                env=managed_env,
+            )
         return venv_python
     except Exception as error:
         runtime_recorder.record_failure(

@@ -571,6 +571,7 @@ def _preserve_stubbed_modules() -> dict[str, types.ModuleType]:
             "substitute.presentation.shell.app_orb_action_cluster",
             "substitute.presentation.shell.pending_restart_toolbar_button",
             "substitute.presentation.shell.main_window_menu",
+            "substitute.presentation.shell.window_frame",
         }
     }
 
@@ -593,6 +594,7 @@ def _restore_stubbed_modules(preserved_modules: dict[str, types.ModuleType]) -> 
             "substitute.presentation.shell.app_orb_action_cluster",
             "substitute.presentation.shell.pending_restart_toolbar_button",
             "substitute.presentation.shell.main_window_menu",
+            "substitute.presentation.shell.window_frame",
         }:
             sys.modules.pop(module_name, None)
     sys.modules.update(preserved_modules)

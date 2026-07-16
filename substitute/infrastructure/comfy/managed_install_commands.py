@@ -167,6 +167,48 @@ def pip_install(
         )
 
 
+def pip_uninstall(
+    python_executable: Path,
+    *packages: str,
+    on_log: LogCallback | None = None,
+    env: Mapping[str, str] | None = None,
+) -> None:
+    """Uninstall conflicting packages from the given Python environment."""
+
+    if not packages:
+        return
+    command = [
+        str(python_executable),
+        "-m",
+        "pip",
+        "uninstall",
+        "--yes",
+        *packages,
+    ]
+    output_lines: list[str] = []
+
+    def _record_output(line: str) -> None:
+        """Retain pip diagnostics while forwarding optional setup output."""
+
+        output_lines.append(line)
+        if on_log is not None:
+            on_log(line)
+
+    exit_code = stream_command(command, on_line=_record_output, env=env)
+    if exit_code != 0:
+        output = "\n".join(output_lines)
+        if is_storage_exhaustion_message(output):
+            raise ManagedInstallStorageError(
+                "Managed ComfyUI setup ran out of temporary install space while "
+                f"removing packages in {python_executable.parent.parent}: "
+                f"{' '.join(packages)}"
+            )
+        raise RuntimeError(
+            f"Package removal failed in {python_executable.parent.parent}: "
+            f"{' '.join(packages)}"
+        )
+
+
 def ensure_workspace_virtualenv(
     workspace: Path,
     *,

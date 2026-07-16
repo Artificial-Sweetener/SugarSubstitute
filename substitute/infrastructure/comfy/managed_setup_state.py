@@ -37,6 +37,9 @@ from substitute.domain.onboarding import (
 from substitute.infrastructure.comfy.managed_environment_validator import (
     ManagedEnvironmentValidationResult,
 )
+from substitute.infrastructure.comfy.managed_acceleration_policy import (
+    managed_acceleration_policy_fingerprint,
+)
 from substitute.infrastructure.comfy.managed_validation import (
     workspace_main_path,
     workspace_python_path,
@@ -144,6 +147,9 @@ def _installed_setup_static_freshness_key(workspace: Path) -> dict[str, object]:
             for nodepack in CORE_COMFY_NODEPACKS
         ],
         "sugarcubes_baseline": _sugarcubes_baseline_freshness_key(workspace),
+        "managed_acceleration": {
+            "policy_fingerprint": managed_acceleration_policy_fingerprint(),
+        },
     }
 
 

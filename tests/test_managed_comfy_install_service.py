@@ -126,6 +126,11 @@ def _disable_shared_models_link(monkeypatch: pytest.MonkeyPatch) -> None:
         "run_sugarcubes_baseline_maintenance",
         lambda workspace, on_log=None, env=None: None,
     )
+    monkeypatch.setattr(
+        managed_install,
+        "reconcile_managed_acceleration_stack",
+        lambda **kwargs: None,
+    )
 
 
 def test_ensure_managed_comfy_setup_reuses_installed_workspace(
@@ -209,6 +214,8 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
         "span:end:managed_setup.existing.sugarcubes_baseline",
         "span:start:managed_setup.existing.validate_torch",
         "span:end:managed_setup.existing.validate_torch",
+        "span:start:managed_setup.existing.acceleration",
+        "span:end:managed_setup.existing.acceleration",
         "span:start:managed_setup.scratch.cleanup",
         "span:end:managed_setup.scratch.cleanup",
     ]
@@ -312,6 +319,11 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
             torch_version="2.9.0.dev",
         )
 
+    def _fake_acceleration(**_kwargs: object) -> None:
+        """Record managed acceleration reconciliation."""
+
+        calls.append("acceleration")
+
     monkeypatch.setattr(managed_install, "detect_hardware", _fake_detect_hardware)
     monkeypatch.setattr(
         managed_install,
@@ -338,11 +350,21 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         "validate_managed_environment",
         _fake_validate,
     )
+    monkeypatch.setattr(
+        managed_install,
+        "reconcile_managed_acceleration_stack",
+        _fake_acceleration,
+    )
 
     first = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
     second = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
     freshness_path = tmp_path / ".substitute" / "managed_setup_freshness.json"
     stale_payload = json.loads(freshness_path.read_text(encoding="utf-8"))
+    acceleration_fingerprint = stale_payload["key"]["managed_acceleration"][
+        "policy_fingerprint"
+    ]
+    assert isinstance(acceleration_fingerprint, str)
+    assert len(acceleration_fingerprint) == 64
     stale_payload["schema_version"] = 1
     freshness_path.write_text(json.dumps(stale_payload), encoding="utf-8")
     revalidated = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
@@ -360,14 +382,17 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         "nodepacks",
         "sugarcubes",
         "validate",
+        "acceleration",
         "manager",
         "nodepacks",
         "sugarcubes",
         "validate",
+        "acceleration",
         "manager",
         "nodepacks",
         "sugarcubes",
         "validate",
+        "acceleration",
     ]
     assert detection_calls == ["detect", "detect", "detect"]
     assert strategy_calls == ["strategy", "strategy", "strategy"]
