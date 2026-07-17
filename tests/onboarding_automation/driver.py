@@ -32,25 +32,32 @@ from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import LineEdit, RadioButton  # type: ignore[import-untyped]
 
 from substitute.application.onboarding import OnboardingFlowService
+from substitute.application.onboarding.comfy_environment_service import (
+    ComfyEnvironmentService,
+)
 from substitute.app.bootstrap.installation_context import (
     build_onboarding_service_bundle,
 )
 from substitute.app.bootstrap.app_layout import resolve_app_layout
 from substitute.app.bootstrap.onboarding_execution import (
+    create_onboarding_environment_submitter,
     create_onboarding_provisioning_submitter_factory,
 )
 from substitute.infrastructure.comfy.managed_install import ensure_managed_comfy_setup
 from substitute.infrastructure.comfy.attached_install import (
-    prepare_attached_comfy_setup,
+    prepare_verified_attached_comfy_setup,
 )
 from substitute.infrastructure.comfy.workspace_python_discovery import (
-    resolve_attached_comfy_python,
+    WorkspacePythonGateway,
 )
 from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedProcessHandle,
 )
 from substitute.infrastructure.comfy.managed_shutdown import kill_managed_comfy
 from substitute.presentation.onboarding import OnboardingController, OnboardingWindow
+from substitute.presentation.onboarding.comfy_environment_coordinator import (
+    ComfyEnvironmentCoordinator,
+)
 from substitute.presentation.onboarding.onboarding_controller import (
     OnboardingFlowServiceLike,
 )
@@ -59,6 +66,11 @@ from tests.onboarding_automation.external_comfy_fixture import (
     launch_external_comfy_fixture,
     provision_external_comfy_workspace,
     reset_external_comfy_root,
+)
+from tests.onboarding_automation.environment_fixture import (
+    QuiescentProcessGateway,
+    StaticPythonGateway,
+    synthetic_python_binding,
 )
 from tests.execution_test_helpers import ExecutionRuntimeStub
 from tests.onboarding_automation.install_state import reset_install_state
@@ -116,16 +128,43 @@ class OnboardingAutomationDriver:
         self._external_process: ManagedProcessHandle | None = None
         self._prepare_fixture_state()
         flow_service = self._build_flow_service()
+        execution_runtime = ExecutionRuntimeStub()
         self._controller = OnboardingController(
             initial_install_root=scenario.install_root,
             flow_mode=scenario.flow_mode,
             readiness_assessment=scenario.readiness_assessment,
             flow_service=flow_service,
             submitter_factory=create_onboarding_provisioning_submitter_factory(
-                ExecutionRuntimeStub()
+                execution_runtime
             ),
         )
-        self._window = OnboardingWindow(controller=self._controller)
+        python_gateway = (
+            StaticPythonGateway(
+                synthetic_python_binding(
+                    scenario.attached_python_executable
+                    or scenario.install_root / ".venv" / "Scripts" / "python.exe"
+                )
+            )
+            if scenario.execution_mode is ScenarioExecutionMode.SYNTHETIC
+            else WorkspacePythonGateway()
+        )
+        environment_submitter = create_onboarding_environment_submitter(
+            execution_runtime,
+            self._controller,
+        )
+        environment_coordinator = ComfyEnvironmentCoordinator(
+            service=ComfyEnvironmentService(
+                process_gateway=QuiescentProcessGateway(),
+                python_gateway=python_gateway,
+            ),
+            submitter=environment_submitter,
+            close_submitter=environment_submitter.close,
+            parent=self._controller,
+        )
+        self._window = OnboardingWindow(
+            controller=self._controller,
+            environment_coordinator=environment_coordinator,
+        )
         self._window.show()
         self._window.raise_()
         self._process_events(150)
@@ -183,11 +222,6 @@ class OnboardingAutomationDriver:
                     )
                 else:
                     self._set_line_edit("OnboardingAttachedWorkspaceEdit", "")
-                if self._scenario.attached_python_executable is not None:
-                    self._set_line_edit(
-                        "OnboardingAttachedPythonEdit",
-                        self._scenario.attached_python_executable,
-                    )
             else:
                 self._wait_for_page("OnboardingRemotePage")
                 self._capture("remote")
@@ -201,7 +235,36 @@ class OnboardingAutomationDriver:
                 )
 
             self._click("OnboardingPrimaryButton")
-            self._wait_for_page("OnboardingFolderSetupPage")
+            self._wait_until(
+                lambda: (
+                    self._current_page_name()
+                    in {
+                        "OnboardingFolderSetupPage",
+                        "OnboardingAttachedPythonChoicePage",
+                    }
+                ),
+                timeout_seconds=30.0,
+                description="folder setup or attached Python recovery",
+            )
+            if self._current_page_name() == "OnboardingAttachedPythonChoicePage":
+                if self._scenario.expected_outcome is ScenarioOutcome.SUCCESS:
+                    raise AssertionError(
+                        "Automatic attached Python discovery unexpectedly required recovery."
+                    )
+                self._capture("attached_python_recovery")
+                return ScenarioResult(
+                    scenario=self._scenario.name,
+                    success=False,
+                    current_page=self._current_page_name(),
+                    status_text=(
+                        self._window.attached_python_choice_page.choice_panel.title_label.text()
+                    ),
+                    detail_text=(
+                        self._window.attached_python_choice_page.choice_panel.description_label.text()
+                    ),
+                    launch_command=(),
+                    screenshot_dir=str(self._screenshot_dir),
+                )
             self._capture("folders")
             self._click("OnboardingPrimaryButton")
             self._wait_for_page("OnboardingIntegrationsPage")
@@ -388,8 +451,7 @@ class OnboardingAutomationDriver:
             service_bundle_factory=build_onboarding_service_bundle,
             managed_workspace_provisioner=ensure_managed_comfy_setup,
             entrypoint_path=resolve_scenario_entrypoint(self._scenario.install_root),
-            attached_workspace_provisioner=prepare_attached_comfy_setup,
-            attached_python_resolver=resolve_attached_comfy_python,
+            attached_workspace_provisioner=prepare_verified_attached_comfy_setup,
         )
 
     def _prepare_fixture_state(self) -> None:

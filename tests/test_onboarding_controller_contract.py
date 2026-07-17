@@ -201,6 +201,46 @@ def test_controller_advances_to_target_specific_page(tmp_path: Path) -> None:
     )
 
 
+def test_controller_tracks_attached_workspace_default_model_root(
+    tmp_path: Path,
+) -> None:
+    """Changing attached ComfyUI should move its default models folder with it."""
+
+    context = _build_context(tmp_path, ComfyTargetMode.MANAGED_LOCAL)
+    flow_service = _FakeFlowService(
+        draft=OnboardingDraftState(
+            installation_root=context.install_root,
+            target_mode=context.comfy_target.mode.value,
+            endpoint_host=context.comfy_target.endpoint.host,
+            endpoint_port=context.comfy_target.endpoint.port,
+            managed_workspace_path=context.managed_comfy_dir,
+            attached_workspace_path=None,
+            managed_model_root=context.managed_comfy_dir / "models",
+            managed_model_root_uses_default=True,
+        ),
+        provision_result=None,
+    )
+    controller = OnboardingController(
+        initial_install_root=tmp_path,
+        flow_mode=OnboardingFlowMode.FIRST_RUN,
+        readiness_assessment=ReadinessAssessment(
+            route=BootstrapRoute.ONBOARDING,
+            issues=(),
+        ),
+        flow_service=flow_service,
+        submitter_factory=create_onboarding_provisioning_submitter_factory(
+            ExecutionRuntimeStub()
+        ),
+    )
+    attached_workspace = tmp_path / "ExistingComfyUI"
+
+    controller.update_target_mode(OnboardingTargetMode.ATTACHED_LOCAL)
+    controller.update_attached_workspace(attached_workspace)
+
+    assert controller.draft.managed_model_root == attached_workspace / "models"
+    assert controller.draft.managed_model_root_uses_default is True
+
+
 def test_controller_emits_completion_for_remote_provisioning(tmp_path: Path) -> None:
     """Successful remote onboarding should emit completion with launch command."""
 

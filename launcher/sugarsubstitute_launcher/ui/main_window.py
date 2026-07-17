@@ -343,6 +343,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         )
         self._setup_thread: QThread | None = None
         self._setup_worker: _SetupWorker | None = None
+        self._setup_handoff_close_pending = False
         self._install_thread: QThread | None = None
         self._install_worker: _InitialInstallWorker | None = None
         self._setup_command: list[str] | None = None
@@ -899,11 +900,11 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
     @Slot()
     def _handle_setup_worker_succeeded(self) -> None:
-        """Mark setup handoff complete after the background worker succeeds."""
+        """Mark handoff complete while the worker thread finishes shutting down."""
 
         self._ui_state = LauncherUiState.COMPLETE
         self._refresh_primary_button()
-        self._close_after_successful_handoff()
+        self._setup_handoff_close_pending = True
 
     def _close_after_successful_handoff(self) -> None:
         """Close the installer after the installed app process has started."""
@@ -912,10 +913,13 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
     @Slot()
     def _forget_setup_worker(self) -> None:
-        """Forget the completed setup worker and thread."""
+        """Forget the stopped setup thread and complete a successful handoff."""
 
         self._setup_thread = None
         self._setup_worker = None
+        if self._setup_handoff_close_pending:
+            self._setup_handoff_close_pending = False
+            self._close_after_successful_handoff()
 
     @Slot()
     def _forget_initial_install_worker(self) -> None:
