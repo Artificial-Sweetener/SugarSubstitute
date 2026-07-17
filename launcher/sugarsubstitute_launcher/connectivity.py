@@ -23,25 +23,40 @@ import tempfile
 
 from launcher.sugarsubstitute_launcher.downloader import AssetDownloader
 from launcher.sugarsubstitute_launcher.payload import verify_sha256
+from launcher.sugarsubstitute_launcher.platforms import detect_launcher_target
 from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
+from sugarsubstitute_shared.launcher_update.downloader import LauncherBundleDownloader
+from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
 
 
 class ReleaseConnectivityVerifier:
     """Prove manifest and asset access without changing an installation."""
 
-    def __init__(self, *, downloader: AssetDownloader | None = None) -> None:
-        """Store the production asset downloader used by the probe."""
+    def __init__(
+        self,
+        *,
+        downloader: AssetDownloader | None = None,
+        launcher_downloader: LauncherBundleDownloader | None = None,
+    ) -> None:
+        """Store the production app and launcher downloaders used by the probe."""
 
         self._downloader = downloader or AssetDownloader()
+        self._launcher_downloader = launcher_downloader or LauncherBundleDownloader()
 
     def verify(self, *, release_source: ReleaseSource) -> None:
-        """Download and verify the current app asset from one release source."""
+        """Download and verify current app and launcher assets from one source."""
 
         manifest = release_source.load_manifest()
+        launcher_asset = manifest.launcher_for(detect_launcher_target())
+        if launcher_asset is None:
+            raise ValueError(
+                "Release manifest does not include this platform launcher."
+            )
         with tempfile.TemporaryDirectory(
             prefix="sugarsubstitute-connectivity-"
         ) as root:
-            destination = Path(root) / manifest.app.filename
+            temporary_root = Path(root)
+            destination = temporary_root / manifest.app.filename
             self._downloader.download(
                 asset=manifest.app,
                 destination_path=destination,
@@ -49,4 +64,20 @@ class ReleaseConnectivityVerifier:
             verify_sha256(
                 path=destination,
                 expected_sha256=manifest.app.sha256,
+            )
+            launcher_destination = (
+                temporary_root / f"launcher-{launcher_asset.filename}"
+            )
+            self._launcher_downloader.download(
+                asset=LauncherBundleAsset(
+                    filename=launcher_asset.filename,
+                    url=launcher_asset.url,
+                    sha256=launcher_asset.sha256,
+                    size_bytes=launcher_asset.size_bytes,
+                ),
+                destination=launcher_destination,
+            )
+            verify_sha256(
+                path=launcher_destination,
+                expected_sha256=launcher_asset.sha256,
             )

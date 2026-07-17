@@ -31,6 +31,7 @@ from launcher.sugarsubstitute_launcher.first_run import (
 from launcher.sugarsubstitute_launcher.headless_install import HeadlessInstallService
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
+from launcher.sugarsubstitute_launcher.platforms import detect_launcher_target
 from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
 from launcher.sugarsubstitute_launcher.runtime import RuntimeProvisioningResult
 
@@ -115,10 +116,10 @@ class RecordingRuntimeProvisioner:
         )
 
 
-def test_release_connectivity_verifier_downloads_and_hashes_app_asset(
+def test_release_connectivity_verifier_downloads_and_hashes_release_assets(
     tmp_path: Path,
 ) -> None:
-    """Connectivity proof should cover both manifest and asset download paths."""
+    """Connectivity proof should cover app and launcher download paths."""
 
     payload = tmp_path / "payload.zip"
     payload.write_bytes(b"verified payload")
@@ -166,6 +167,13 @@ def _manifest_for(payload: Path) -> ReleaseManifest:
             sha256=hashlib.sha256(payload.read_bytes()).hexdigest(),
             size_bytes=payload.stat().st_size,
         ),
-        launchers={},
+        launchers={
+            detect_launcher_target().key: ReleaseAsset(
+                filename=f"launcher-{payload.name}",
+                url=payload.as_uri(),
+                sha256=hashlib.sha256(payload.read_bytes()).hexdigest(),
+                size_bytes=payload.stat().st_size,
+            )
+        },
         installers={},
     )
