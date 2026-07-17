@@ -1,3 +1,10 @@
+# [0.12.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.11.0...v0.12.0) (2026-07-17)
+
+
+### Features
+
+* **installer:** guide Comfy environment setup ([cb9633a](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/cb9633a99ce01bf588dbf9a6723791b17d9341d8))
+
 # [0.11.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.10.0...v0.11.0) (2026-07-17)
 
 
