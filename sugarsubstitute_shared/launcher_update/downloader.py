@@ -20,10 +20,12 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+import ssl
 from urllib.parse import ParseResult, unquote, urlparse
 import urllib.request
 
 from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
+from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 
 class LauncherBundleDownloadError(RuntimeError):
@@ -33,10 +35,16 @@ class LauncherBundleDownloadError(RuntimeError):
 class LauncherBundleDownloader:
     """Download HTTPS or local test assets through an atomic partial file."""
 
-    def __init__(self, *, timeout_seconds: float = 60.0) -> None:
-        """Store the explicit remote request timeout."""
+    def __init__(
+        self,
+        *,
+        timeout_seconds: float = 60.0,
+        tls_context: ssl.SSLContext | None = None,
+    ) -> None:
+        """Store the explicit remote request timeout and system trust context."""
 
         self._timeout_seconds = timeout_seconds
+        self._tls_context = tls_context or SystemTrustTlsContext.create()
 
     def download(self, *, asset: LauncherBundleAsset, destination: Path) -> Path:
         """Fetch one bundle and validate its declared size before promotion."""
@@ -52,6 +60,7 @@ class LauncherBundleDownloader:
                     urllib.request.urlopen(
                         request,
                         timeout=self._timeout_seconds,
+                        context=self._tls_context,
                     ) as response,
                     partial.open("wb") as output,
                 ):

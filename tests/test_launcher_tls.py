@@ -24,7 +24,7 @@ from pathlib import Path
 import truststore
 import pytest
 
-from launcher.sugarsubstitute_launcher.tls import SystemTrustTlsContext
+from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 
 def test_system_trust_tls_context_preserves_peer_and_hostname_verification() -> None:

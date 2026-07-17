@@ -26,7 +26,7 @@ from urllib.parse import urlparse
 from urllib.request import url2pathname
 
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset
-from launcher.sugarsubstitute_launcher.tls import SystemTrustTlsContext
+from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 
 DEFAULT_DOWNLOAD_TIMEOUT_SECONDS = 60.0

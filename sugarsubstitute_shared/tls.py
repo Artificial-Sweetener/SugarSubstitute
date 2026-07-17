@@ -26,7 +26,7 @@ import truststore
 
 
 class SystemTrustTlsContext:
-    """Own secure launcher TLS context creation across supported platforms."""
+    """Own secure TLS context creation across supported application layers."""
 
     @staticmethod
     def create() -> ssl.SSLContext:
@@ -41,3 +41,6 @@ class SystemTrustTlsContext:
         context.check_hostname = True
         context.verify_mode = ssl.CERT_REQUIRED
         return context
+
+
+__all__ = ["SystemTrustTlsContext"]

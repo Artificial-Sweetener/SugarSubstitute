@@ -37,6 +37,7 @@ from sugarsubstitute_shared.launcher_update.targets import (
     detect_launcher_bundle_target,
 )
 from sugarsubstitute_shared.launcher_update.versions import compare_release_versions
+from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -138,7 +139,11 @@ def _load_https_manifest(url: str) -> object:
     if urlparse(url).scheme != "https":
         raise ValueError("Launcher manifest URLs must use HTTPS.")
     request = urllib.request.Request(url, method="GET")
-    with urllib.request.urlopen(request, timeout=30.0) as response:
+    with urllib.request.urlopen(
+        request,
+        timeout=30.0,
+        context=SystemTrustTlsContext.create(),
+    ) as response:
         return json.loads(response.read().decode("utf-8"))
 
 

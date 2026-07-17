@@ -44,6 +44,7 @@ from substitute.infrastructure.comfy.nodepack_workspace_inspector import (
     source_contains_sentinels,
     tracked_source_files,
 )
+from sugarsubstitute_shared.tls import SystemTrustTlsContext
 from substitute.shared.logging.logger import get_logger, log_info
 
 LogCallback = Callable[[str], None]
@@ -185,6 +186,7 @@ def download_file(*, archive_url: str, target_path: Path) -> None:
         urllib.request.urlopen(  # noqa: S310 - pinned HTTPS source archive.
             request,
             timeout=ARCHIVE_DOWNLOAD_TIMEOUT_SECONDS,
+            context=SystemTrustTlsContext.create(),
         ) as response,
         target_path.open("wb") as output,
     ):

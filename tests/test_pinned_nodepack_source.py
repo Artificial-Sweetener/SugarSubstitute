@@ -18,13 +18,55 @@
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
+import ssl
 import zipfile
 
 import pytest
 
 from substitute.infrastructure.comfy import pinned_nodepack_source
 from substitute.infrastructure.comfy.nodepack_manifest import CORE_COMFY_NODEPACKS
+from sugarsubstitute_shared.tls import SystemTrustTlsContext
+
+
+def test_pinned_archive_download_uses_system_trust_context(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Pinned GitHub archives must honor native certificate administration."""
+
+    content = b"pinned archive"
+    tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    observed: list[ssl.SSLContext] = []
+
+    def fake_urlopen(
+        _request: object,
+        *,
+        timeout: float,
+        context: ssl.SSLContext,
+    ) -> io.BytesIO:
+        """Record the selected TLS context and return an archive response."""
+
+        assert timeout > 0
+        observed.append(context)
+        return io.BytesIO(content)
+
+    monkeypatch.setattr(
+        SystemTrustTlsContext,
+        "create",
+        lambda: tls_context,
+    )
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    target = tmp_path / "source.zip"
+
+    pinned_nodepack_source.download_file(
+        archive_url="https://github.example/source.zip",
+        target_path=target,
+    )
+
+    assert target.read_bytes() == content
+    assert observed == [tls_context]
 
 
 def test_pinned_source_overlay_writes_comfy_registry_tracking_metadata(
