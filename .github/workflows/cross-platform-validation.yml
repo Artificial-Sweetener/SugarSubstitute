@@ -9,7 +9,7 @@ permissions:
 env:
   PYTHON_VERSION: "3.12"
   UV_VERSION: "0.11.18"
-  TEST_VERSION: "0.9.0-test.${{ github.run_number }}"
+  TEST_VERSION: "0.9.${{ github.run_number }}"
   TEST_TAG: "ci-${{ github.run_id }}-${{ github.run_attempt }}"
   LINUX_QT_PACKAGES: >-
     xvfb libegl1 libfontconfig1 libgl1 libxcb-cursor0 libxcb-icccm4
@@ -223,6 +223,63 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 1
+
+  linux-distro-trust:
+    name: Packaged Linux trust (${{ matrix.name }})
+    needs: assemble-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+            ca_path: /etc/ssl/certs/ca-certificates.crt
+            prepare: >-
+              apt-get update &&
+              DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates
+          - name: Fedora 44
+            image: fedora:44
+            ca_path: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+            prepare: dnf install -y ca-certificates
+          - name: Arch Linux
+            image: archlinux:base
+            ca_path: /etc/ssl/cert.pem
+            prepare: pacman -Syu --noconfirm ca-certificates
+          - name: openSUSE Leap 16
+            image: opensuse/leap:16.0
+            ca_path: /etc/ssl/ca-bundle.pem
+            prepare: >-
+              zypper --non-interactive refresh &&
+              zypper --non-interactive install ca-certificates
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: native-linux
+          path: build/native/linux
+      - name: Verify packaged manifest and asset downloads through system trust
+        env:
+          DISTRO_IMAGE: ${{ matrix.image }}
+          DISTRO_PREPARE: ${{ matrix.prepare }}
+          EXPECTED_CA_PATH: ${{ matrix.ca_path }}
+          MANIFEST_URL: https://github.com/${{ github.repository }}/releases/download/${{ env.TEST_TAG }}/manifest.json
+        run: |
+          docker run --rm \
+            --env APPIMAGE_EXTRACT_AND_RUN=1 \
+            --env DISTRO_PREPARE \
+            --env EXPECTED_CA_PATH \
+            --env MANIFEST_URL \
+            --volume "$PWD/build/native/linux/installer:/artifacts:ro" \
+            "$DISTRO_IMAGE" \
+            /bin/sh -ec '
+              eval "$DISTRO_PREPARE"
+              test -r "$EXPECTED_CA_PATH"
+              cp /artifacts/SugarSubstitute-Installer-Linux-x86_64.AppImage /tmp/SugarSubstitute.AppImage
+              chmod 755 /tmp/SugarSubstitute.AppImage
+              /tmp/SugarSubstitute.AppImage \
+                --verify-release-connectivity \
+                --manifest-url "$MANIFEST_URL"
+            '
 
   installed-app-smoke:
     name: Installed app smoke (${{ matrix.name }})
