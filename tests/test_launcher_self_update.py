@@ -132,7 +132,7 @@ def test_stager_rejects_archive_path_traversal(tmp_path: Path) -> None:
     assert not (tmp_path / "escaped.txt").exists()
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permissions only")
+@pytest.mark.platforms("linux", "macos")
 def test_stager_restores_linux_launcher_executable_mode(tmp_path: Path) -> None:
     """Portable extraction must leave the installed Linux launcher runnable."""
 
