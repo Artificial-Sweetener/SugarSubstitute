@@ -287,6 +287,24 @@ def test_installed_launcher_zip_requires_onedir_support_dir(tmp_path: Path) -> N
         raise AssertionError("Expected launcher bundle validation to fail.")
 
 
+def test_linux_launcher_zip_restores_executable_mode(tmp_path: Path) -> None:
+    """Artifact handoff must not strip the permanent Linux launcher execute bit."""
+
+    launcher_bundle = _write_fixture_linux_launcher_bundle(tmp_path / "linux-dist")
+    launcher_path = launcher_bundle / "SugarSubstitute"
+    launcher_path.chmod(0o644)
+    archive_path = build_installed_launcher_zip(
+        launcher_bundle_dir=launcher_bundle,
+        output_path=tmp_path / "launcher.zip",
+        target=LINUX_X64,
+    )
+
+    with zipfile.ZipFile(archive_path) as archive:
+        archived_mode = (archive.getinfo("SugarSubstitute").external_attr >> 16) & 0o777
+
+    assert archived_mode == 0o755
+
+
 def test_linux_release_requires_and_emits_appimage_and_debian_installers(
     tmp_path: Path,
 ) -> None:
