@@ -302,7 +302,8 @@ def test_real_qpane_wheel_zoom_shows_and_paints_indicator() -> None:
     initial_zoom = pane.currentZoom()
     event = _wheel_event(pane, QPointF(300.0, 220.0))
     try:
-        QApplication.sendEvent(pane, event)
+        indicator.eventFilter(pane, event)
+        pane.wheelEvent(event)
         QTest.qWait(100)
 
         assert pane.currentZoom() > initial_zoom
