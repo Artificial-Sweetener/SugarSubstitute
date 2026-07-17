@@ -56,6 +56,7 @@ from .searchable_combo_helpers import filtered_combo_indexes
 _COMBO_TEXT_CHROME_WIDTH = 44
 _COMBO_MINIMUM_TEXT_WIDTH = 16
 _COMBO_SHRINKABLE_MINIMUM_WIDTH = _COMBO_TEXT_CHROME_WIDTH + _COMBO_MINIMUM_TEXT_WIDTH
+_COMBO_TEXT_FIT_SLACK = 2
 _COMBO_DROPDOWN_TEXT_MARGIN = 29
 _COMBO_DROPDOWN_TEXT_GAP = 4
 
@@ -519,7 +520,9 @@ class ComboBox(_RuntimeComboBox):
 
         return max(
             self.minimumSizeHint().width(),
-            text_width + self._closed_display_text_chrome_width(),
+            text_width
+            + self._closed_display_text_chrome_width()
+            + _COMBO_TEXT_FIT_SLACK,
         )
 
     def _closed_display_text_chrome_width(self) -> int:

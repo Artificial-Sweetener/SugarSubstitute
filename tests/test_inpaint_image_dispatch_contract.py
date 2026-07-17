@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, cast
 
@@ -232,6 +233,7 @@ def test_real_inpaint_cube_compiles_selected_load_image_instead_of_default() -> 
 
     default_image = "00282-3430329909-ad-before.png"
     selected_image = "E:/images/selected.png"
+    native_selected_image = str(Path(selected_image))
     workflow = _build_real_inpaint_workflow(selected_image)
     sugar_script = RecipeIoService(
         recipe_repository=FileRecipeRepository()
@@ -242,7 +244,7 @@ def test_real_inpaint_cube_compiles_selected_load_image_instead_of_default() -> 
             {
                 "1": {
                     "class_type": "LoadImage",
-                    "inputs": {"image": selected_image.replace("/", "\\")},
+                    "inputs": {"image": native_selected_image},
                 }
             }
         ),
@@ -257,11 +259,12 @@ def test_real_inpaint_cube_compiles_selected_load_image_instead_of_default() -> 
     ]
 
     assert (
-        'set Inpaint.load_image.image = "E:\\\\images\\\\selected.png"' in sugar_script
+        f"set Inpaint.load_image.image = {json.dumps(native_selected_image)}"
+        in sugar_script
     )
     assert f'set Inpaint.load_image.image = "{default_image}"' not in sugar_script
     assert load_image_nodes
-    assert load_image_nodes[0]["inputs"]["image"] == selected_image.replace("/", "\\")
+    assert load_image_nodes[0]["inputs"]["image"] == native_selected_image
     assert load_image_nodes[0]["inputs"]["image"] != default_image
 
 
@@ -270,6 +273,7 @@ def test_real_inpaint_behavior_refresh_preserves_selected_image_and_mask() -> No
 
     default_image = "00282-3430329909-ad-before.png"
     selected_image = "E:/images/selected.png"
+    native_selected_image = str(Path(selected_image))
     selected_mask = "selected__2160x3072__Inpaint__load_image_as_mask.png"
     workflow = _build_real_inpaint_workflow(
         selected_image,
@@ -287,7 +291,7 @@ def test_real_inpaint_behavior_refresh_preserves_selected_image_and_mask() -> No
     image_inputs = cast(dict[str, object], load_image["inputs"])
     mask_inputs = cast(dict[str, object], load_mask["inputs"])
 
-    assert image_inputs["image"] == selected_image.replace("/", "\\")
+    assert image_inputs["image"] == native_selected_image
     assert mask_inputs["image"] == selected_mask
     assert image_inputs["image"] != default_image
     assert mask_inputs["image"] != default_image

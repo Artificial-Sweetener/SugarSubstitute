@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import ast
+import os
 from pathlib import Path
 
 import pytest
@@ -69,8 +70,8 @@ def test_workspace_python_resolver_imports_no_process_archive_or_ui_boundaries()
 def test_resolve_workspace_python_prefers_managed_venv(tmp_path: Path) -> None:
     """Managed workspaces should use the canonical `.venv` Python first."""
 
-    managed_python = _write_python(tmp_path / ".venv" / "Scripts" / "python.exe")
-    _write_python(tmp_path / "venv" / "Scripts" / "python.exe")
+    managed_python = _write_python(_venv_python_path(tmp_path, ".venv"))
+    _write_python(_venv_python_path(tmp_path, "venv"))
 
     assert resolve_workspace_python(tmp_path) == managed_python
 
@@ -78,11 +79,12 @@ def test_resolve_workspace_python_prefers_managed_venv(tmp_path: Path) -> None:
 def test_resolve_workspace_python_supports_existing_comfy_venv(tmp_path: Path) -> None:
     """Adopted Comfy workspaces may use `venv` instead of managed `.venv`."""
 
-    python_path = _write_python(tmp_path / "venv" / "Scripts" / "python.exe")
+    python_path = _write_python(_venv_python_path(tmp_path, "venv"))
 
     assert resolve_workspace_python(tmp_path) == python_path
 
 
+@pytest.mark.platforms("windows")
 def test_resolve_workspace_python_supports_embeded_runtime_typo(
     tmp_path: Path,
 ) -> None:
@@ -93,6 +95,7 @@ def test_resolve_workspace_python_supports_embeded_runtime_typo(
     assert resolve_workspace_python(tmp_path) == python_path
 
 
+@pytest.mark.platforms("windows")
 def test_resolve_workspace_python_supports_embedded_runtime_spelling(
     tmp_path: Path,
 ) -> None:
@@ -125,6 +128,15 @@ def _write_python(path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("", encoding="utf-8")
     return path
+
+
+def _venv_python_path(workspace: Path, environment_name: str) -> Path:
+    """Return the host-native Python path for one workspace virtualenv."""
+
+    relative_path = (
+        Path("Scripts/python.exe") if os.name == "nt" else Path("bin/python")
+    )
+    return workspace / environment_name / relative_path
 
 
 def _imported_module_names(tree: ast.AST) -> set[str]:

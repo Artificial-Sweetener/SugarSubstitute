@@ -33,15 +33,15 @@ def test_default_civitai_preferences_include_download_path_pattern(
 
     service = CivitaiPreferenceService(
         FileCivitaiPreferenceRepository(tmp_path / "settings"),
-        preview_comfy_root=Path("E:/ImageGen Models/diffusion_models"),
+        preview_comfy_root=tmp_path / "diffusion_models",
     )
 
     preferences = service.load_preferences()
     preview = service.render_download_path_preview()
 
     assert preferences.download_path_pattern == DEFAULT_CIVITAI_DOWNLOAD_PATH_PATTERN
-    assert preview.display_path.endswith(
-        "diffusion_models\\Anima\\anima_baseV10.safetensors"
+    assert preview.display_path == str(
+        tmp_path / "diffusion_models" / "Anima" / "anima_baseV10.safetensors"
     )
 
 
@@ -79,7 +79,7 @@ def test_civitai_preferences_save_download_path_pattern(tmp_path: Path) -> None:
     settings_dir = tmp_path / "settings"
     service = CivitaiPreferenceService(
         FileCivitaiPreferenceRepository(settings_dir),
-        preview_comfy_root=Path("E:/ImageGen Models/diffusion_models"),
+        preview_comfy_root=tmp_path / "diffusion_models",
     )
 
     result = service.set_download_path_pattern("{creator}\\{file_name}")
@@ -96,7 +96,7 @@ def test_invalid_civitai_download_pattern_does_not_overwrite_saved_preferences(
 
     service = CivitaiPreferenceService(
         FileCivitaiPreferenceRepository(tmp_path / "settings"),
-        preview_comfy_root=Path("E:/ImageGen Models/diffusion_models"),
+        preview_comfy_root=tmp_path / "diffusion_models",
     )
 
     result = service.set_download_path_pattern("{model_type}\\{file_name}")

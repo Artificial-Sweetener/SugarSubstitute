@@ -74,6 +74,31 @@ def test_guardian_launch_surfaces_handshake_failures(
 ) -> None:
     """Invalid guardian control payloads should surface a typed containment error."""
 
+    class _WritableStdin:
+        """Accept the launch request written before the guardian handshake."""
+
+        def write(self, payload: bytes) -> int:
+            """Report the complete request as written."""
+
+            return len(payload)
+
+        def flush(self) -> None:
+            """Provide the no-op flush surface used during launch."""
+
+    class _ReadySelector:
+        """Report the fake guardian stdout as immediately readable."""
+
+        def register(self, *_args: object) -> None:
+            """Accept the fake stdout registration."""
+
+        def select(self, _timeout: float) -> list[tuple[object, int]]:
+            """Return one readable event."""
+
+            return [(object(), 1)]
+
+        def close(self) -> None:
+            """Provide the no-op selector cleanup surface."""
+
     class _BadStdout:
         """Return one invalid JSON line for deterministic handshake failure coverage."""
 
@@ -86,7 +111,7 @@ def test_guardian_launch_surfaces_handshake_failures(
         """Provide the minimal guardian process surface used during handshake tests."""
 
         pid = 200
-        stdin = None
+        stdin = _WritableStdin()
         stdout = _BadStdout()
         stderr = None
 
@@ -115,6 +140,10 @@ def test_guardian_launch_surfaces_handshake_failures(
     monkeypatch.setattr(
         "substitute.infrastructure.comfy.posix_guardian_containment.os.close",
         lambda _fd: None,
+    )
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.posix_guardian_containment.selectors.DefaultSelector",
+        _ReadySelector,
     )
 
     with pytest.raises(ManagedContainmentError, match="non-object payload"):

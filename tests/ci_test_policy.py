@@ -33,6 +33,11 @@ class CiPlatform(StrEnum):
 MAX_PARALLEL_TEST_WORKERS = 4
 
 
+PLATFORM_TEST_MODULES = {
+    "tests/test_spellcheck_infrastructure.py": frozenset({CiPlatform.WINDOWS}),
+}
+
+
 SERIAL_TEST_MODULES = frozenset(
     {
         "tests/test_about_settings_page.py",
@@ -214,6 +219,7 @@ def platform_skip_reason(
 
 __all__ = [
     "MAX_PARALLEL_TEST_WORKERS",
+    "PLATFORM_TEST_MODULES",
     "SERIAL_TEST_MODULES",
     "CiPlatform",
     "current_test_platform",

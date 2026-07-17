@@ -21,6 +21,7 @@ from __future__ import annotations
 import ast
 from collections.abc import Mapping
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -546,7 +547,7 @@ def test_run_sugarcubes_baseline_maintenance_requires_entrypoint(
 ) -> None:
     """A missing SugarCubes maintenance module should remain a structural failure."""
 
-    python_path = tmp_path / ".venv" / "Scripts" / "python.exe"
+    python_path = _workspace_python_path(tmp_path)
     python_path.parent.mkdir(parents=True)
     python_path.write_text("", encoding="utf-8")
 
@@ -557,7 +558,7 @@ def test_run_sugarcubes_baseline_maintenance_requires_entrypoint(
 def _write_maintenance_fixture(workspace: Path) -> Path:
     """Create the minimum workspace files required by maintenance startup."""
 
-    python_path = workspace / ".venv" / "Scripts" / "python.exe"
+    python_path = _workspace_python_path(workspace)
     python_path.parent.mkdir(parents=True)
     python_path.write_text("", encoding="utf-8")
     maintenance_path = (
@@ -566,6 +567,15 @@ def _write_maintenance_fixture(workspace: Path) -> Path:
     maintenance_path.parent.mkdir(parents=True)
     maintenance_path.write_text("", encoding="utf-8")
     return python_path
+
+
+def _workspace_python_path(workspace: Path) -> Path:
+    """Return the host-native managed Python path for a Comfy workspace."""
+
+    relative_path = (
+        Path("Scripts/python.exe") if os.name == "nt" else Path("bin/python")
+    )
+    return workspace / ".venv" / relative_path
 
 
 def _imported_module_names(tree: ast.AST) -> set[str]:

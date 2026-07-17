@@ -92,6 +92,7 @@ def _build_linux_helper_script() -> str:
     """Return the helper parent script used to verify guardian crash cleanup."""
 
     return """
+import json
 import os
 from pathlib import Path
 import sys

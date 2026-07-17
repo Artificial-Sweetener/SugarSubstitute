@@ -291,7 +291,7 @@ def test_native_seven_zip_process_reports_progress(tmp_path: Path) -> None:
     progress: list[SevenZipExtractionProgress] = []
     process = NativeSevenZipExtractionProcess()
 
-    assert process.list_members(archive_path) == ("nested\\source.txt",)
+    assert process.list_members(archive_path) == (str(Path("nested/source.txt")),)
     process.extract(archive_path, destination, on_progress=progress.append)
 
     assert (destination / "nested" / "source.txt").read_text(

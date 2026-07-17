@@ -24,6 +24,7 @@ from pathlib import Path
 import pytest
 
 from tests.ci_test_policy import (
+    PLATFORM_TEST_MODULES,
     CiPlatform,
     SERIAL_TEST_MODULES,
     current_test_platform,
@@ -116,6 +117,18 @@ def test_serial_inventory_covers_existing_xdist_sensitive_modules() -> None:
         for relative_path in SERIAL_TEST_MODULES
         if not (PROJECT_ROOT / relative_path).is_file()
     } == set()
+
+
+def test_platform_module_inventory_references_existing_test_modules() -> None:
+    """Keep pre-import platform applicability explicit and free of stale paths."""
+
+    assert PLATFORM_TEST_MODULES == {
+        "tests/test_spellcheck_infrastructure.py": frozenset({CiPlatform.WINDOWS})
+    }
+    assert all(
+        (PROJECT_ROOT / relative_path).is_file()
+        for relative_path in PLATFORM_TEST_MODULES
+    )
 
 
 def test_platform_applicability_uses_auditable_markers() -> None:

@@ -352,7 +352,7 @@ def test_materialize_input_image_updates_load_image_asset_ref(
     )
 
     assert result.image_id == image_id
-    assert _image_buffer_path(workflow) == "E:\\images\\selected.png"
+    assert _image_buffer_path(workflow) == str(Path("E:/images/selected.png"))
     assert input_canvas_state_service.loaded_images == [
         ("CubeA:input_image", Path("E:/images/selected.png"))
     ]
