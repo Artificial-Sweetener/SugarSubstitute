@@ -52,7 +52,7 @@ from substitute.domain.onboarding import (
     ManagedRuntimeValidationStatus,
 )
 from substitute.domain.onboarding import ManagedRuntimeLaunchStatus
-from substitute.domain.comfy_manager import ComfyManagerRuntime
+from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.domain.onboarding.setup_transaction_models import (
     SetupTransaction,
     SetupTransactionFailure,
@@ -74,6 +74,9 @@ from substitute.infrastructure.comfy.managed_process_containment import (
 )
 from substitute.infrastructure.comfy.manager_provisioner import (
     detect_workspace_manager_runtime,
+)
+from substitute.infrastructure.comfy.manager_environment import (
+    integrated_manager_environment,
 )
 from substitute.infrastructure.comfy.managed_runtime_selection_policy import (
     HardwareAwareManagedRuntimeSelectionPolicy,
@@ -305,6 +308,8 @@ def start_managed_comfy_subprocess(
         python_executable=venv_python,
     )
     env = os.environ.copy()
+    if manager_runtime.kind is ComfyManagerKind.INTEGRATED:
+        env = integrated_manager_environment(workspace, env)
     env["PATH"] = str(venv_python.parent) + os.pathsep + env.get("PATH", "")
     env["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"
     launch_result = launch_managed_process(
@@ -440,6 +445,8 @@ def start_managed_comfy_background(
                 return
 
             env = os.environ.copy()
+            if manager_runtime.kind is ComfyManagerKind.INTEGRATED:
+                env = integrated_manager_environment(workspace, env)
             env["PATH"] = str(venv_python.parent) + os.pathsep + env.get("PATH", "")
             env["PYTHONIOENCODING"] = "utf-8"
             env["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"

@@ -61,39 +61,37 @@ class CoreComfyNodepack:
 
 @dataclass(frozen=True)
 class SugarCubesNodepackInstallCandidate:
-    """Describe one trusted install attempt for a SugarCubes custom node."""
+    """Describe one trusted SugarCubes custom-node repository."""
 
-    install_id: str
-    cloned_folder_name: str | None = None
-    expected_folder_name: str | None = None
+    source_url: str
+    target_folder_name: str
 
 
 SUGARCUBES_BASE_NODEPACK_INSTALLS: Mapping[
     str, tuple[SugarCubesNodepackInstallCandidate, ...]
 ] = {
     "comfyui-vectorscope-cc": (
-        SugarCubesNodepackInstallCandidate(install_id="vectorscope"),
         SugarCubesNodepackInstallCandidate(
-            install_id="https://github.com/pamparamm/ComfyUI-vectorscope-cc.git"
+            source_url="https://github.com/pamparamm/ComfyUI-vectorscope-cc.git",
+            target_folder_name="ComfyUI-vectorscope-cc",
         ),
     ),
     "seedvr2_videoupscaler": (
         SugarCubesNodepackInstallCandidate(
-            install_id="https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git",
-            cloned_folder_name="ComfyUI-SeedVR2_VideoUpscaler",
-            expected_folder_name="seedvr2_videoupscaler",
+            source_url="https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git",
+            target_folder_name="seedvr2_videoupscaler",
         ),
     ),
     "SimpleSyrup": (
-        SugarCubesNodepackInstallCandidate(install_id="SimpleSyrup"),
         SugarCubesNodepackInstallCandidate(
-            install_id="https://github.com/Artificial-Sweetener/SimpleSyrup.git"
+            source_url="https://github.com/Artificial-Sweetener/SimpleSyrup.git",
+            target_folder_name="SimpleSyrup",
         ),
     ),
     "comfyui-prompt-control": (
-        SugarCubesNodepackInstallCandidate(install_id="prompt-control"),
         SugarCubesNodepackInstallCandidate(
-            install_id="https://github.com/asagi4/comfyui-prompt-control.git"
+            source_url="https://github.com/asagi4/comfyui-prompt-control.git",
+            target_folder_name="comfyui-prompt-control",
         ),
     ),
 }

@@ -27,6 +27,7 @@ import pytest
 
 from substitute.infrastructure.comfy import nodepack_reconciliation
 from substitute.infrastructure.comfy import sugarcubes_maintenance_runner
+from tests.repository_service_test_double import RecordingRepositoryService
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -47,6 +48,17 @@ FORBIDDEN_IMPORT_PREFIXES = (
     "zipfile",
     "shutil",
 )
+
+
+@pytest.fixture(autouse=True)
+def _prepare_repositories_without_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep maintenance parser tests isolated from repository provisioning."""
+
+    monkeypatch.setattr(
+        sugarcubes_maintenance_runner,
+        "prepare_sugarcubes_repositories",
+        lambda *args, **kwargs: None,
+    )
 
 
 def test_sugarcubes_maintenance_runner_imports_no_ui_or_raw_process_modules() -> None:
@@ -104,11 +116,10 @@ def test_run_sugarcubes_baseline_maintenance_builds_sync_check_command(
             "-m",
             "backend.maintenance",
             "cube-deps",
-            "sync-and-check",
+            "preflight",
             "--workspace",
             str(tmp_path),
             "--baseline-only",
-            "--sync-enabled-repos",
         ]
     ]
     assert result.exit_code == 0
@@ -303,41 +314,13 @@ def test_run_sugarcubes_baseline_maintenance_installs_reported_nodepacks(
             )
         return 0, ('{"schemaVersion": 1, "dependencyReadiness": {"ready": true}}',)
 
-    class FakeAdapter:
-        """Record SugarCubes dependency install attempts."""
+    def materialize(repository_url: str, target_path: Path) -> None:
+        """Record and materialize one trusted repository clone."""
 
-        def __init__(self, **kwargs: object) -> None:
-            """Keep the production constructor shape."""
+        installed.append(repository_url)
+        target_path.mkdir(parents=True)
 
-            workspace = kwargs["workspace"]
-            assert isinstance(workspace, Path)
-            self.workspace = workspace
-
-        def ensure_available(self) -> None:
-            """Record CLI availability checks."""
-
-            installed.append("ensure_available")
-
-        def install_node(self, node_id: str) -> None:
-            """Record install attempts and emulate the two source fallbacks."""
-
-            installed.append(node_id)
-            if node_id == "SimpleSyrup":
-                raise RuntimeError("Node 'SimpleSyrup@unknown' not found in")
-            if node_id.endswith("ComfyUI-SeedVR2_VideoUpscaler.git"):
-                (
-                    self.workspace / "custom_nodes" / "ComfyUI-SeedVR2_VideoUpscaler"
-                ).mkdir(parents=True)
-
-        def restore_dependencies(self) -> None:
-            """Record dependency restoration."""
-
-            installed.append("restore_dependencies")
-
-        def clear_startup_actions(self) -> None:
-            """Record Manager startup-action cleanup."""
-
-            installed.append("clear_startup_actions")
+    repositories = RecordingRepositoryService(clone_callback=materialize)
 
     monkeypatch.setattr(
         sugarcubes_maintenance_runner,
@@ -346,22 +329,22 @@ def test_run_sugarcubes_baseline_maintenance_installs_reported_nodepacks(
     )
     monkeypatch.setattr(
         sugarcubes_maintenance_runner,
-        "ComfyManagerCliAdapter",
-        FakeAdapter,
+        "install_nodepack_requirements",
+        lambda **kwargs: None,
     )
 
-    result = sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(tmp_path)
+    result = sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(
+        tmp_path,
+        repositories=repositories,
+    )
 
     assert result.exit_code == 0
     assert len(commands) == 2
     assert installed == [
-        "vectorscope",
+        "https://github.com/pamparamm/ComfyUI-vectorscope-cc.git",
         "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git",
-        "SimpleSyrup",
         "https://github.com/Artificial-Sweetener/SimpleSyrup.git",
-        "prompt-control",
-        "restore_dependencies",
-        "clear_startup_actions",
+        "https://github.com/asagi4/comfyui-prompt-control.git",
     ]
     assert (tmp_path / "custom_nodes" / "seedvr2_videoupscaler").is_dir()
     assert not (tmp_path / "custom_nodes" / "ComfyUI-SeedVR2_VideoUpscaler").exists()

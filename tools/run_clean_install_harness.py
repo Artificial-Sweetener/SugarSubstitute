@@ -100,6 +100,7 @@ def run_clean_install_harness(
     package_root: Path | None = None,
     release_root: Path | None = None,
     clean: bool = True,
+    allow_non_default_clean: bool = False,
     setup_timeout_seconds: int = DEFAULT_SETUP_TIMEOUT_SECONDS,
     log: Callable[[str], None] = print,
 ) -> CleanInstallHarnessResult:
@@ -120,7 +121,11 @@ def run_clean_install_harness(
 
     if clean:
         _stop_owned_managed_comfy(resolved_install_root, log=log)
-        _clean_install_root(resolved_install_root, log=log)
+        _clean_install_root(
+            resolved_install_root,
+            allow_non_default_clean=allow_non_default_clean,
+            log=log,
+        )
 
     layout = InstallLayout.from_root(resolved_install_root)
     release_source = LocalFolderReleaseSource(resolved_release_root)
@@ -222,13 +227,14 @@ def _stop_owned_managed_comfy(
 def _clean_install_root(
     install_root: Path,
     *,
+    allow_non_default_clean: bool = False,
     log: Callable[[str], None],
 ) -> None:
     """Delete the fixed install target after validating the exact path shape."""
 
     resolved = install_root.expanduser().resolve()
     expected = DEFAULT_INSTALL_ROOT.resolve()
-    if resolved != expected:
+    if not allow_non_default_clean and resolved != expected:
         raise CleanInstallHarnessError(
             f"Refusing to clean any target except {expected}; got {resolved}"
         )
@@ -356,6 +362,8 @@ import time
 import urllib.request
 
 from substitute.app.bootstrap.installation_context import build_onboarding_service_bundle
+from substitute.app.bootstrap.standalone_long_lived_execution import StandaloneLongLivedExecutionOwner
+from substitute.application.execution import DirectExecutionDispatcher
 from substitute.application.onboarding import OnboardingFlowService, OnboardingDraftState
 from substitute.domain.onboarding import ComfyTargetMode
 from substitute.domain.onboarding.setup_transaction_models import SetupTransactionMode
@@ -415,17 +423,33 @@ print("HARNESS_SETUP_READY root=" + str(context.install_root), flush=True)
 print("HARNESS_WORKSPACE " + str(workspace), flush=True)
 print("HARNESS_MODEL_ROOT " + str(model_root), flush=True)
 
+execution_owner = StandaloneLongLivedExecutionOwner(
+    dispatcher=DirectExecutionDispatcher()
+)
+
+
+def create_managed_task(identity, context, work, thread_name):
+    return execution_owner.start(
+        identity=identity,
+        context=context,
+        work=work,
+        thread_name=thread_name,
+    )
+
+
 state = start_managed_comfy_background(
     endpoint=context.comfy_target.endpoint,
     workspace=workspace,
     runtime_state_dir=context.runtime_state_dir,
     on_status=lambda message: print("COMFY_STATUS " + message, flush=True),
     on_log=lambda message: print("COMFY_LOG " + message, flush=True),
+    launch_task_factory=create_managed_task,
+    process_pump_task_factory=create_managed_task,
 )
 try:
     deadline = time.monotonic() + setup_timeout_seconds
     while time.monotonic() < deadline:
-        startup_result = state.get("startup_result")
+        startup_result = state.startup_result
         if startup_result is not None:
             if not startup_result.ready:
                 detail = (
@@ -435,10 +459,9 @@ try:
                 )
                 raise RuntimeError("Managed Comfy did not become ready: " + detail)
             break
-        if state.get("metadata") is not None and state.get("proc") is None:
+        if state.metadata is not None and state.proc is None:
             break
-        thread = state.get("thread")
-        if thread is not None and not thread.is_alive() and state.get("metadata") is None:
+        if state.is_finished and state.metadata is None:
             raise RuntimeError("Managed Comfy startup thread exited without metadata.")
         time.sleep(1.0)
     else:
@@ -460,8 +483,8 @@ try:
     print("HARNESS_LIVE_NODES_READY " + ", ".join(required_classes), flush=True)
 finally:
     termination = kill_managed_comfy_metadata(
-        state.get("metadata"),
-        containment_handle=state.get("containment_handle"),
+        state.metadata,
+        containment_handle=state.containment_handle,
     )
     print("HARNESS_COMFY_SHUTDOWN " + termination.status.value, flush=True)
 """
@@ -478,6 +501,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         package_root=args.package_root,
         release_root=args.release_root,
         clean=not args.no_clean,
+        allow_non_default_clean=args.allow_non_default_clean,
         setup_timeout_seconds=args.setup_timeout_seconds,
     )
     print(
@@ -500,6 +524,11 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--package-root", type=Path, default=None)
     parser.add_argument("--release-root", type=Path, default=None)
     parser.add_argument("--no-clean", action="store_true")
+    parser.add_argument(
+        "--allow-non-default-clean",
+        action="store_true",
+        help="Allow deletion of an explicitly supplied disposable install root.",
+    )
     parser.add_argument(
         "--setup-timeout-seconds",
         type=int,

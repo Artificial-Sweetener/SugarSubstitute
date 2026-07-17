@@ -31,6 +31,22 @@ from substitute.infrastructure.version_control import (
 from substitute.infrastructure.version_control.clone_process import Pygit2CloneProcess
 
 
+def test_repository_initialization_does_not_require_system_git(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Empty authoring repositories should initialize through libgit2."""
+
+    monkeypatch.setenv("PATH", "")
+    repository_path = tmp_path / "local"
+
+    Pygit2RepositoryService().initialize(repository_path)
+
+    repository = pygit2.Repository(repository_path)
+    assert repository.head_is_unborn
+    assert repository.lookup_reference("HEAD").target == "refs/heads/main"
+
+
 def test_repository_lifecycle_does_not_require_system_git(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

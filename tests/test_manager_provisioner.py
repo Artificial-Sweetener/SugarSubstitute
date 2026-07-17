@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 import subprocess
+from typing import cast
 
 import pytest
 
@@ -74,13 +76,14 @@ def test_managed_manager_installs_integrated_package_then_removes_legacy(
     legacy.mkdir(parents=True)
     (legacy / "user-data.json").write_text("owned fixture", encoding="utf-8")
     commands: list[list[str]] = []
+    environments: list[dict[str, str]] = []
     probe_count = 0
 
     def fake_run(
         command: list[str], **kwargs: object
     ) -> subprocess.CompletedProcess[str]:
         nonlocal probe_count
-        _ = kwargs
+        environments.append(dict(cast(Mapping[str, str], kwargs["env"])))
         commands.append(command)
         if command[1:2] == ["-c"]:
             probe_count += 1
@@ -109,7 +112,11 @@ def test_managed_manager_installs_integrated_package_then_removes_legacy(
         "install",
         "-r",
         str(tmp_path / "manager_requirements.txt"),
+        "pygit2==1.19.3",
     ]
+    assert "cm_cli" not in commands[0][2]
+    assert "git_compat.USE_PYGIT2" in commands[0][2]
+    assert all(environment["CM_USE_PYGIT2"] == "1" for environment in environments)
 
 
 def test_managed_manager_preserves_legacy_when_integrated_validation_fails(
@@ -233,6 +240,41 @@ def test_attached_old_comfy_installs_required_legacy_custom_node(
             "--help",
         ],
     ]
+
+
+def test_legacy_manager_probe_does_not_force_integrated_git_backend(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Legacy Manager should retain its own GitPython compatibility contract."""
+
+    python = _prepare_modern_workspace(tmp_path)
+    legacy_cli = manager_provisioner.workspace_manager_cli_path(tmp_path)
+    legacy_cli.parent.mkdir(parents=True)
+    legacy_cli.write_text("# fixture", encoding="utf-8")
+    environments: list[dict[str, str]] = []
+
+    def fake_run(
+        command: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        environments.append(dict(cast(Mapping[str, str], kwargs["env"])))
+        if command[1:2] == ["-c"]:
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="missing")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.manager_provisioner.subprocess.run", fake_run
+    )
+
+    runtime = manager_provisioner.ensure_attached_workspace_manager(
+        tmp_path,
+        python_executable=python,
+        env={"PATH": ""},
+    )
+
+    assert runtime.kind is ComfyManagerKind.LEGACY_CUSTOM_NODE
+    assert environments[0]["CM_USE_PYGIT2"] == "1"
+    assert "CM_USE_PYGIT2" not in environments[1]
 
 
 def _prepare_modern_workspace(workspace: Path) -> Path:

@@ -21,12 +21,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-CoreNodepackInstallSource = Literal[
-    "registry",
-    "source_url",
-    "local_source",
-    "unavailable",
-]
 CoreNodepackRefreshSource = Literal[
     "git_refresh",
     "git_refreshed",
@@ -44,14 +38,6 @@ CoreNodepackDependencyRefreshAction = Literal[
 
 
 @dataclass(frozen=True)
-class CoreNodepackInstallRoute:
-    """Describe the selected source for installing one core nodepack."""
-
-    source: CoreNodepackInstallSource
-    install_id: str | None
-
-
-@dataclass(frozen=True)
 class CoreNodepackRefreshRoute:
     """Describe the selected source for refreshing one core nodepack."""
 
@@ -64,24 +50,6 @@ class CoreNodepackDependencyRefreshPlan:
     """Describe the next dependency-refresh action for one core nodepack."""
 
     action: CoreNodepackDependencyRefreshAction
-
-
-def plan_core_nodepack_install_route(
-    *,
-    registry_id: str,
-    registry_available: bool,
-    source_url: str | None,
-    local_source_available: bool,
-) -> CoreNodepackInstallRoute:
-    """Return the install source selected from known nodepack availability facts."""
-
-    if registry_available:
-        return CoreNodepackInstallRoute(source="registry", install_id=registry_id)
-    if source_url is not None:
-        return CoreNodepackInstallRoute(source="source_url", install_id=source_url)
-    if local_source_available:
-        return CoreNodepackInstallRoute(source="local_source", install_id=None)
-    return CoreNodepackInstallRoute(source="unavailable", install_id=None)
 
 
 def plan_core_nodepack_refresh_route(
@@ -129,11 +97,8 @@ def plan_core_nodepack_dependency_refresh(
 __all__ = [
     "CoreNodepackDependencyRefreshAction",
     "CoreNodepackDependencyRefreshPlan",
-    "CoreNodepackInstallRoute",
-    "CoreNodepackInstallSource",
     "CoreNodepackRefreshRoute",
     "CoreNodepackRefreshSource",
     "plan_core_nodepack_dependency_refresh",
-    "plan_core_nodepack_install_route",
     "plan_core_nodepack_refresh_route",
 ]

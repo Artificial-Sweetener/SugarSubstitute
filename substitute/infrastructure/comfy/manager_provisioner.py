@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -35,6 +34,11 @@ from substitute.domain.comfy_manager import (
 from substitute.infrastructure.comfy.workspace_python_resolver import (
     resolve_workspace_python,
 )
+from substitute.infrastructure.comfy.manager_environment import (
+    integrated_manager_environment,
+    integrated_manager_pygit2_requirement,
+    manager_environment,
+)
 from substitute.infrastructure.version_control import (
     RepositoryOperationError,
     RepositoryService,
@@ -47,7 +51,9 @@ LogCallback = Callable[[str], None]
 _LOGGER = get_logger("infrastructure.comfy.manager_provisioner")
 DEFAULT_MANAGER_REPOSITORY_URL = "https://github.com/ltdrdata/ComfyUI-Manager.git"
 _INTEGRATED_IMPORT_SCRIPT = (
-    "import importlib.metadata; import comfyui_manager; import cm_cli.__main__; "
+    "import importlib.metadata; import comfyui_manager; "
+    "from comfyui_manager.common import git_compat; "
+    "assert git_compat.USE_PYGIT2, 'Integrated Manager did not select pygit2'; "
     "print(importlib.metadata.version('comfyui-manager'))"
 )
 
@@ -113,6 +119,7 @@ def ensure_managed_workspace_manager(
             requirements_path=workspace_manager_requirements_path(workspace),
             on_log=on_log,
             env=env,
+            integrated=True,
         )
         runtime, failure = _probe_integrated_runtime(
             workspace=workspace,
@@ -176,6 +183,7 @@ def ensure_attached_workspace_manager(
             requirements_path=workspace_manager_requirements_path(workspace),
             on_log=on_log,
             env=env,
+            integrated=True,
         )
         integrated, integrated_failure = _probe_integrated_runtime(
             workspace=workspace,
@@ -214,6 +222,7 @@ def ensure_attached_workspace_manager(
             requirements_path=requirements_path,
             on_log=on_log,
             env=env,
+            integrated=False,
         )
     legacy, legacy_failure = _probe_legacy_runtime(
         workspace=workspace,
@@ -266,6 +275,7 @@ def _probe_integrated_runtime(
         [str(python_executable), "-c", _INTEGRATED_IMPORT_SCRIPT],
         workspace=workspace,
         env=env,
+        integrated=True,
     )
     if result.returncode != 0:
         return None, _command_output(result)
@@ -299,6 +309,7 @@ def _probe_legacy_runtime(
         [str(python_executable), str(cli_path), "--help"],
         workspace=workspace,
         env=env,
+        integrated=False,
     )
     if result.returncode != 0:
         return None, _command_output(result)
@@ -318,13 +329,15 @@ def _run_probe(
     *,
     workspace: Path,
     env: Mapping[str, str] | None,
+    integrated: bool,
 ) -> subprocess.CompletedProcess[str]:
     """Run one bounded Manager health probe with its required environment."""
 
-    command_env = dict(os.environ if env is None else env)
-    command_env["COMFYUI_PATH"] = str(workspace)
-    command_env.setdefault("PYTHONUTF8", "1")
-    command_env.setdefault("PYTHONIOENCODING", "utf-8:replace")
+    command_env = (
+        integrated_manager_environment(workspace, env)
+        if integrated
+        else manager_environment(workspace, env)
+    )
     return subprocess.run(
         command,
         cwd=str(workspace),
@@ -345,6 +358,7 @@ def _install_requirements(
     requirements_path: Path,
     on_log: LogCallback | None,
     env: Mapping[str, str] | None,
+    integrated: bool,
 ) -> None:
     """Install one authoritative Manager requirements file and expose failures."""
 
@@ -356,9 +370,14 @@ def _install_requirements(
             "install",
             "-r",
             str(requirements_path),
+            *([integrated_manager_pygit2_requirement()] if integrated else []),
         ],
         cwd=str(workspace),
-        env=dict(env) if env is not None else None,
+        env=(
+            integrated_manager_environment(workspace, env)
+            if integrated
+            else manager_environment(workspace, env)
+        ),
         text=True,
         encoding="utf-8",
         errors="replace",

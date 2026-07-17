@@ -43,6 +43,17 @@ class Pygit2RepositoryService:
 
         self._clone_process = clone_process or Pygit2CloneProcess()
 
+    def initialize(self, repository_path: Path, *, branch: str = "main") -> None:
+        """Initialize an empty repository through libgit2."""
+
+        try:
+            repository_path.mkdir(parents=True, exist_ok=True)
+            pygit2.init_repository(repository_path, initial_head=branch)
+        except (OSError, ValueError, pygit2.GitError) as error:
+            raise RepositoryOperationError(
+                f"Could not initialize repository at {repository_path}."
+            ) from error
+
     def clone(
         self,
         repository_url: str,
@@ -74,11 +85,34 @@ class Pygit2RepositoryService:
         try:
             for remote in repository.remotes:
                 self._emit(on_progress, f"Fetching {remote.name or remote.url}")
-                remote.fetch()
+                remote.fetch(
+                    [
+                        *remote.fetch_refspecs,
+                        "+refs/tags/*:refs/tags/*",
+                    ]
+                )
             self._fast_forward_current_branch(repository)
         except (KeyError, ValueError, pygit2.GitError) as error:
             raise RepositoryOperationError(
                 f"Could not fast-forward repository {repository_path}: {error}"
+            ) from error
+
+    def fetch_all(
+        self,
+        repository_path: Path,
+        *,
+        on_progress: RepositoryProgressCallback | None = None,
+    ) -> None:
+        """Fetch every configured remote branch and tag through libgit2."""
+
+        repository = self._open(repository_path)
+        try:
+            for remote in repository.remotes:
+                self._emit(on_progress, f"Fetching {remote.name or remote.url}")
+                remote.fetch()
+        except (KeyError, ValueError, pygit2.GitError) as error:
+            raise RepositoryOperationError(
+                f"Could not fetch repository remotes for {repository_path}: {error}"
             ) from error
 
     def fetch_tag(

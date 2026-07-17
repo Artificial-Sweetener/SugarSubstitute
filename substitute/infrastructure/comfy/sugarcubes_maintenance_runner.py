@@ -31,12 +31,12 @@ from substitute.application.comfy_nodepacks.sugarcubes_maintenance_report_parser
     sugarcubes_maintenance_result as _sugarcubes_maintenance_result,
     sugarcubes_required_dependency_failure_message as _sugarcubes_required_dependency_failure_message,
 )
-from substitute.domain.comfy_manager import ComfyManagerRuntime
-from substitute.infrastructure.comfy.comfy_cli_adapter import ComfyManagerCliAdapter
 from substitute.infrastructure.comfy.nodepack_manifest import (
     SUGARCUBES_BASE_NODEPACK_INSTALLS as _SUGARCUBES_BASE_NODEPACK_INSTALLS,
     SUGARCUBES_COMPANION_NODEPACKS as _SUGARCUBES_COMPANION_NODEPACKS,
-    SugarCubesNodepackInstallCandidate,
+)
+from substitute.infrastructure.comfy.nodepack_python_dependencies import (
+    install_nodepack_requirements,
 )
 from substitute.infrastructure.comfy.nodepack_reconciliation_logger import (
     LogCallback,
@@ -46,6 +46,16 @@ from substitute.infrastructure.comfy.nodepack_reconciliation_logger import (
 from substitute.infrastructure.comfy.workspace_python_resolver import (
     resolve_workspace_python,
 )
+from substitute.infrastructure.comfy.trusted_nodepack_installer import (
+    install_trusted_nodepack_repository,
+)
+from substitute.infrastructure.comfy.sugarcubes_repository_bootstrapper import (
+    prepare_sugarcubes_repositories,
+)
+from substitute.infrastructure.comfy.sugarcubes_version_repair import (
+    repair_sugarcubes_git_versions,
+)
+from substitute.infrastructure.version_control import RepositoryService
 from substitute.infrastructure.process.hidden_process_runner import (
     stream_command_collecting_output as _stream_command_collecting_output,
 )
@@ -57,25 +67,29 @@ def run_sugarcubes_baseline_maintenance(
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
     python_executable: Path | None = None,
-    manager_runtime: ComfyManagerRuntime | None = None,
+    repositories: RepositoryService | None = None,
 ) -> SugarCubesMaintenanceResult:
-    """Run SugarCubes offline sync/check maintenance before Comfy starts."""
+    """Read SugarCubes readiness and repair trusted dependencies with libgit2."""
 
     if python_executable is None:
         python_executable = resolve_workspace_python(workspace)
     sugarcubes_root = workspace / "custom_nodes" / "SugarCubes"
     if not (sugarcubes_root / "backend" / "maintenance.py").exists():
         raise RuntimeError("SugarCubes offline maintenance entrypoint is missing.")
+    prepare_sugarcubes_repositories(
+        sugarcubes_root,
+        on_log=on_log,
+        repositories=repositories,
+    )
     command = [
         str(python_executable),
         "-m",
         "backend.maintenance",
         "cube-deps",
-        "sync-and-check",
+        "preflight",
         "--workspace",
         str(workspace),
         "--baseline-only",
-        "--sync-enabled-repos",
     ]
     exit_code, output_lines = _stream_command_collecting_output(
         command,
@@ -86,6 +100,22 @@ def run_sugarcubes_baseline_maintenance(
     result = _sugarcubes_maintenance_result(exit_code, output_lines)
     _emit_sugarcubes_diagnostics(result, on_log=on_log)
     if result.exit_code == 0:
+        if repair_sugarcubes_git_versions(
+            result.payload,
+            workspace=workspace,
+            python_executable=python_executable,
+            on_log=on_log,
+            env=env,
+            repositories=repositories,
+        ):
+            exit_code, output_lines = _stream_command_collecting_output(
+                command,
+                cwd=sugarcubes_root,
+                on_line=None,
+                env=env,
+            )
+            result = _sugarcubes_maintenance_result(exit_code, output_lines)
+            _emit_sugarcubes_diagnostics(result, on_log=on_log)
         if not result.diagnostics:
             _emit_log(
                 on_log,
@@ -100,7 +130,7 @@ def run_sugarcubes_baseline_maintenance(
             python_executable=python_executable,
             on_log=on_log,
             env=env,
-            manager_runtime=manager_runtime,
+            repositories=repositories,
         ):
             exit_code, output_lines = _stream_command_collecting_output(
                 command,
@@ -112,6 +142,24 @@ def run_sugarcubes_baseline_maintenance(
                 exit_code, output_lines
             )
             _emit_sugarcubes_diagnostics(verification_result, on_log=on_log)
+            if repair_sugarcubes_git_versions(
+                verification_result.payload,
+                workspace=workspace,
+                python_executable=python_executable,
+                on_log=on_log,
+                env=env,
+                repositories=repositories,
+            ):
+                exit_code, output_lines = _stream_command_collecting_output(
+                    command,
+                    cwd=sugarcubes_root,
+                    on_line=None,
+                    env=env,
+                )
+                verification_result = _sugarcubes_maintenance_result(
+                    exit_code, output_lines
+                )
+                _emit_sugarcubes_diagnostics(verification_result, on_log=on_log)
             if verification_result.exit_code == 0:
                 if not verification_result.diagnostics:
                     _emit_log(
@@ -139,7 +187,7 @@ def _install_sugarcubes_reported_nodepacks(
     python_executable: Path,
     on_log: LogCallback | None,
     env: Mapping[str, str] | None,
-    manager_runtime: ComfyManagerRuntime | None,
+    repositories: RepositoryService | None,
 ) -> bool:
     """Install known Base-Cubes nodepacks from the SugarCubes readiness plan."""
 
@@ -163,22 +211,20 @@ def _install_sugarcubes_reported_nodepacks(
     _emit_log(
         on_log,
         (
-            "[SugarCubes] Installing required Base-Cubes nodepacks through Comfy "
-            f"Manager: {', '.join(known_node_ids)}."
+            "[SugarCubes] Installing required trusted Base-Cubes nodepacks: "
+            f"{', '.join(known_node_ids)}."
         ),
         operation="sugarcubes_nodepack_install",
     )
-    adapter = ComfyManagerCliAdapter(
-        workspace=workspace,
-        python_executable=python_executable,
-        on_log=on_log,
-        env=env,
-        manager_runtime=manager_runtime,
-    )
     for node_id in known_node_ids:
-        _install_sugarcubes_nodepack_candidate(adapter, workspace, node_id)
-    adapter.restore_dependencies()
-    adapter.clear_startup_actions()
+        _install_sugarcubes_nodepack_candidate(
+            workspace,
+            node_id,
+            python_executable=python_executable,
+            on_log=on_log,
+            env=env,
+            repositories=repositories,
+        )
     return True
 
 
@@ -193,40 +239,41 @@ def _sugarcubes_node_ids_with_companions(node_ids: Sequence[str]) -> tuple[str, 
 
 
 def _install_sugarcubes_nodepack_candidate(
-    adapter: ComfyManagerCliAdapter,
     workspace: Path,
     node_id: str,
+    *,
+    python_executable: Path,
+    on_log: LogCallback | None,
+    env: Mapping[str, str] | None,
+    repositories: RepositoryService | None,
 ) -> None:
-    """Install one SugarCubes nodepack using its known Manager/source fallbacks."""
+    """Install one SugarCubes nodepack from its explicit trusted repository."""
 
     failures: list[str] = []
     for candidate in _SUGARCUBES_BASE_NODEPACK_INSTALLS[node_id]:
         try:
-            adapter.install_node(candidate.install_id)
-            _normalize_sugarcubes_nodepack_folder(workspace, candidate)
+            target_path = workspace / "custom_nodes" / candidate.target_folder_name
+            install_trusted_nodepack_repository(
+                repository_url=candidate.source_url,
+                target_path=target_path,
+                display_name=node_id,
+                on_log=on_log,
+                repositories=repositories,
+            )
+            install_nodepack_requirements(
+                python_executable=python_executable,
+                nodepack_root=target_path,
+                display_name=node_id,
+                on_log=on_log,
+                env=env,
+            )
             return
         except RuntimeError as exc:
             failures.append(str(exc))
     details = " ".join(failures[-2:])
     raise RuntimeError(
-        f"Comfy Manager could not install SugarCubes nodepack '{node_id}'. {details}"
+        f"Substitute could not install SugarCubes nodepack '{node_id}'. {details}"
     )
-
-
-def _normalize_sugarcubes_nodepack_folder(
-    workspace: Path,
-    candidate: SugarCubesNodepackInstallCandidate,
-) -> None:
-    """Rename known Manager clone folders to the names SugarCubes requires."""
-
-    if not candidate.cloned_folder_name or not candidate.expected_folder_name:
-        return
-    custom_nodes_root = workspace / "custom_nodes"
-    cloned_folder = custom_nodes_root / candidate.cloned_folder_name
-    expected_folder = custom_nodes_root / candidate.expected_folder_name
-    if expected_folder.exists() or not cloned_folder.exists():
-        return
-    cloned_folder.rename(expected_folder)
 
 
 def _sugarcubes_installable_missing_node_ids(

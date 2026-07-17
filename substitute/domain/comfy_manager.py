@@ -66,16 +66,6 @@ class ComfyManagerRuntime:
             return ("--enable-manager",)
         return ()
 
-    @property
-    def cli_prefix(self) -> tuple[str, ...]:
-        """Return the command prefix for Manager CLI operations."""
-
-        if self.kind is ComfyManagerKind.INTEGRATED:
-            return (str(self.python_executable), "-m", "cm_cli")
-        if self.legacy_cli_path is None:
-            raise RuntimeError("Legacy ComfyUI Manager runtime has no CLI path.")
-        return (str(self.python_executable), str(self.legacy_cli_path))
-
 
 def select_attached_manager_action(
     capabilities: ComfyManagerCapabilities,

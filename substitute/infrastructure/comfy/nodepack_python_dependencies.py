@@ -47,7 +47,7 @@ def install_backend_python_dependencies(
 ) -> None:
     """Install BackEnd runtime dependencies from the custom node folder."""
 
-    install_editable_nodepack_python_dependencies(
+    install_nodepack_python_project(
         python_executable=python_executable,
         nodepack_root=nodepack_root,
         display_name="Substitute BackEnd",
@@ -65,7 +65,7 @@ def install_sugarcubes_python_dependencies(
 ) -> None:
     """Install SugarCubes runtime dependencies from the custom node folder."""
 
-    install_editable_nodepack_python_dependencies(
+    install_nodepack_python_project(
         python_executable=python_executable,
         nodepack_root=nodepack_root,
         display_name="SugarCubes",
@@ -74,7 +74,7 @@ def install_sugarcubes_python_dependencies(
     )
 
 
-def install_editable_nodepack_python_dependencies(
+def install_nodepack_python_project(
     *,
     python_executable: Path,
     nodepack_root: Path,
@@ -88,7 +88,7 @@ def install_editable_nodepack_python_dependencies(
         on_log,
         f"[ComfyNodepacks] Updating {display_name} Python dependencies.",
     )
-    command = [str(python_executable), "-m", "pip", "install", "-e", str(nodepack_root)]
+    command = [str(python_executable), "-m", "pip", "install", str(nodepack_root)]
     exit_code = stream_command(
         command,
         cwd=nodepack_root,
@@ -98,6 +98,38 @@ def install_editable_nodepack_python_dependencies(
     )
     if exit_code != 0:
         raise RuntimeError(f"Could not update {display_name} Python dependencies.")
+
+
+def install_nodepack_requirements(
+    *,
+    python_executable: Path,
+    nodepack_root: Path,
+    display_name: str,
+    on_log: LogCallback | None = None,
+    env: Mapping[str, str] | None = None,
+) -> None:
+    """Install a trusted nodepack's conventional requirements file when present."""
+
+    requirements_path = nodepack_root / "requirements.txt"
+    if not requirements_path.is_file():
+        return
+    _emit_log(on_log, f"[ComfyNodepacks] Installing {display_name} dependencies.")
+    exit_code = stream_command(
+        [
+            str(python_executable),
+            "-m",
+            "pip",
+            "install",
+            "-r",
+            str(requirements_path),
+        ],
+        cwd=nodepack_root,
+        on_line=on_log,
+        timeout_seconds=CLI_INSTALL_TIMEOUT_SECONDS,
+        env=env,
+    )
+    if exit_code != 0:
+        raise RuntimeError(f"Could not install {display_name} dependencies.")
 
 
 def nodepack_python_distributions_satisfy_minimum(
@@ -271,7 +303,8 @@ __all__ = [
     "LogCallback",
     "egg_info_distribution_name",
     "install_backend_python_dependencies",
-    "install_editable_nodepack_python_dependencies",
+    "install_nodepack_python_project",
+    "install_nodepack_requirements",
     "install_sugarcubes_python_dependencies",
     "installed_python_distribution_version",
     "nodepack_python_distributions_satisfy_minimum",

@@ -23,12 +23,9 @@ from pathlib import Path
 
 from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan import (
     plan_core_nodepack_dependency_refresh,
-    plan_core_nodepack_install_route,
     plan_core_nodepack_refresh_route,
 )
 from substitute.domain.comfy_nodepacks import CoreNodepackId
-from substitute.domain.comfy_manager import ComfyManagerRuntime
-from substitute.infrastructure.comfy.comfy_cli_adapter import ComfyManagerCliAdapter
 from substitute.infrastructure.comfy.local_nodepack_source import (
     copy_local_nodepack_source,
     resolve_local_nodepack_source,
@@ -58,9 +55,13 @@ from substitute.infrastructure.comfy.pinned_nodepack_source import (
     apply_pinned_source_fallback as _apply_pinned_source_fallback,
     replace_with_pinned_source_archive as _replace_with_pinned_source_archive,
 )
+from substitute.infrastructure.comfy.trusted_nodepack_installer import (
+    install_trusted_nodepack_repository,
+)
 from substitute.infrastructure.comfy.workspace_python_resolver import (
     resolve_workspace_python,
 )
+from substitute.infrastructure.version_control import RepositoryService
 
 DependencyInstaller = Callable[..., None]
 
@@ -72,19 +73,12 @@ def ensure_core_comfy_nodepacks(
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
     python_executable: Path | None = None,
-    manager_runtime: ComfyManagerRuntime | None = None,
+    repositories: RepositoryService | None = None,
 ) -> None:
     """Ensure Substitute's required Comfy nodepacks are installed and current."""
 
     if python_executable is None:
         python_executable = resolve_workspace_python(workspace)
-    adapter = ComfyManagerCliAdapter(
-        workspace=workspace,
-        python_executable=python_executable,
-        on_log=on_log,
-        env=env,
-        manager_runtime=manager_runtime,
-    )
     refresh_targets = frozenset(refresh_nodepacks)
     for nodepack in CORE_COMFY_NODEPACKS:
         if core_nodepack_installed(workspace, nodepack):
@@ -97,7 +91,13 @@ def ensure_core_comfy_nodepacks(
                     display_name=nodepack.display_name,
                     registry_id=nodepack.registry_id,
                 )
-                _refresh_core_nodepack(adapter, nodepack, on_log=on_log, env=env)
+                _refresh_core_nodepack(
+                    workspace,
+                    nodepack,
+                    on_log=on_log,
+                    env=env,
+                    repositories=repositories,
+                )
                 if not core_nodepack_installed(workspace, nodepack):
                     raise RuntimeError(
                         f"{nodepack.display_name} refresh finished, but sentinels are missing."
@@ -147,16 +147,21 @@ def ensure_core_comfy_nodepacks(
             continue
         _emit_log(
             on_log,
-            f"[ComfyNodepacks] Installing {nodepack.display_name} through Comfy CLI.",
+            f"[ComfyNodepacks] Installing trusted {nodepack.display_name} source.",
             operation="core_nodepack_install",
             nodepack_id=nodepack.nodepack_id.value,
             display_name=nodepack.display_name,
             registry_id=nodepack.registry_id,
         )
-        _install_core_nodepack(adapter, nodepack, on_log=on_log)
+        _install_core_nodepack(
+            workspace,
+            nodepack,
+            on_log=on_log,
+            repositories=repositories,
+        )
         if not core_nodepack_installed(workspace, nodepack):
             raise RuntimeError(
-                f"Comfy CLI finished, but {nodepack.display_name} is still missing."
+                f"{nodepack.display_name} installation finished, but sentinels are missing."
             )
         _refresh_nodepack_python_dependencies(
             python_executable=python_executable,
@@ -204,53 +209,21 @@ def _installed_core_nodepack_satisfies_minimum(
 
 
 def _install_core_nodepack(
-    adapter: ComfyManagerCliAdapter,
+    workspace: Path,
     nodepack: CoreComfyNodepack,
     *,
     on_log: LogCallback | None,
+    repositories: RepositoryService | None,
 ) -> None:
-    """Install one core nodepack with registry, URL, then local-source fallbacks."""
+    """Install one core nodepack from its explicit trusted source."""
 
-    registry_available = adapter.manager_knows_node(nodepack.registry_id)
-    source_path = (
-        None
-        if registry_available or nodepack.source_url is not None
-        else resolve_local_nodepack_source(nodepack)
-    )
-    route = plan_core_nodepack_install_route(
-        registry_id=nodepack.registry_id,
-        registry_available=registry_available,
-        source_url=nodepack.source_url,
-        local_source_available=source_path is not None,
-    )
-    if route.source == "registry":
-        if route.install_id is None:
-            raise RuntimeError(
-                f"Could not install required nodepack: {nodepack.display_name}"
-            )
-        adapter.install_node(route.install_id)
-        return
-    _emit_log(
-        on_log,
-        (
-            f"[ComfyNodepacks] {nodepack.registry_id} is not in this Comfy Manager "
-            "node list."
-        ),
-        operation="core_nodepack_install_registry_miss",
-        nodepack_id=nodepack.nodepack_id.value,
-        display_name=nodepack.display_name,
-        registry_id=nodepack.registry_id,
-    )
-    if route.source == "source_url":
-        if route.install_id is None:
-            raise RuntimeError(
-                f"Could not install required nodepack: {nodepack.display_name}"
-            )
+    target_path = workspace / nodepack.expected_folder
+    if nodepack.source_url is not None:
         _emit_log(
             on_log,
             (
                 f"[ComfyNodepacks] Installing {nodepack.display_name} from "
-                f"{route.install_id}."
+                f"{nodepack.source_url}."
             ),
             operation="core_nodepack_install_source_fallback",
             nodepack_id=nodepack.nodepack_id.value,
@@ -258,13 +231,16 @@ def _install_core_nodepack(
             registry_id=nodepack.registry_id,
             source_kind="github",
         )
-        adapter.install_node(route.install_id)
+        install_trusted_nodepack_repository(
+            repository_url=nodepack.source_url,
+            target_path=target_path,
+            display_name=nodepack.display_name,
+            on_log=on_log,
+            repositories=repositories,
+        )
         return
-    if route.source == "local_source":
-        if source_path is None:
-            raise RuntimeError(
-                f"Could not install required nodepack: {nodepack.display_name}"
-            )
+    source_path = resolve_local_nodepack_source(nodepack)
+    if source_path is not None:
         _emit_log(
             on_log,
             (
@@ -279,14 +255,14 @@ def _install_core_nodepack(
         )
         copy_local_nodepack_source(
             source_path=source_path,
-            target_path=adapter.workspace / nodepack.expected_folder,
+            target_path=target_path,
         )
         return
     _emit_log(
         on_log,
         (
             f"[ComfyNodepacks] {nodepack.display_name} is not published in this "
-            "Comfy Manager node list and no GitHub or local source fallback is available."
+            "trusted source manifest and no local source is available."
         ),
         operation="core_nodepack_install_failed",
         nodepack_id=nodepack.nodepack_id.value,
@@ -297,15 +273,16 @@ def _install_core_nodepack(
 
 
 def _refresh_core_nodepack(
-    adapter: ComfyManagerCliAdapter,
+    workspace: Path,
     nodepack: CoreComfyNodepack,
     *,
     on_log: LogCallback | None,
     env: Mapping[str, str] | None,
+    repositories: RepositoryService | None,
 ) -> None:
     """Refresh one existing core nodepack using managed ownership rules."""
 
-    target_path = adapter.workspace / nodepack.expected_folder
+    target_path = workspace / nodepack.expected_folder
     git_managed = _nodepack_has_git_metadata(target_path)
     refresh_route = plan_core_nodepack_refresh_route(
         registry_id=nodepack.registry_id,
@@ -318,7 +295,10 @@ def _refresh_core_nodepack(
     )
     if refresh_route.source == "git_refresh":
         git_refresh_succeeded = _refresh_git_nodepack(
-            target_path, on_log=on_log, env=env
+            target_path,
+            on_log=on_log,
+            env=env,
+            repositories=repositories,
         )
         if git_refresh_succeeded:
             return
@@ -344,35 +324,16 @@ def _refresh_core_nodepack(
                 env=env,
             )
             return
-    registry_available = adapter.manager_knows_node(nodepack.registry_id)
-    source_path = (
-        None
-        if registry_available or nodepack.source_url is not None
-        else resolve_local_nodepack_source(nodepack)
-    )
+    source_path = resolve_local_nodepack_source(nodepack)
     refresh_route = plan_core_nodepack_refresh_route(
         registry_id=nodepack.registry_id,
         git_managed=git_managed,
         git_refresh_succeeded=False if git_managed else None,
         pinned_archive_available=nodepack.pinned_source_archive_url is not None,
-        registry_available=registry_available,
-        source_url=nodepack.source_url,
+        registry_available=False,
+        source_url=None,
         local_source_available=source_path is not None,
     )
-    if refresh_route.source == "registry":
-        if refresh_route.install_id is None:
-            raise RuntimeError(
-                f"Could not refresh required nodepack: {nodepack.display_name}"
-            )
-        adapter.install_node(refresh_route.install_id)
-        return
-    if refresh_route.source == "source_url":
-        if refresh_route.install_id is None:
-            raise RuntimeError(
-                f"Could not refresh required nodepack: {nodepack.display_name}"
-            )
-        adapter.install_node(refresh_route.install_id)
-        return
     if refresh_route.source == "local_source":
         if source_path is None:
             raise RuntimeError(
@@ -394,6 +355,15 @@ def _refresh_core_nodepack(
             source_path=source_path,
             target_path=target_path,
             allow_existing=True,
+        )
+        return
+    if nodepack.pinned_source_archive_url is not None:
+        _replace_with_pinned_source_archive(
+            archive_url=nodepack.pinned_source_archive_url,
+            target_path=target_path,
+            nodepack=nodepack,
+            on_log=on_log,
+            env=env,
         )
         return
     raise RuntimeError(f"Could not refresh required nodepack: {nodepack.display_name}")
@@ -439,7 +409,7 @@ def _refresh_python_distribution_nodepack_dependencies(
     env: Mapping[str, str] | None,
     install_dependencies: DependencyInstaller,
 ) -> None:
-    """Refresh editable nodepack dependencies and apply pinned fallback when needed."""
+    """Refresh nodepack dependencies and apply pinned fallback when needed."""
 
     nodepack_root = workspace / nodepack.expected_folder
     _remove_noncanonical_python_distribution_metadata(
