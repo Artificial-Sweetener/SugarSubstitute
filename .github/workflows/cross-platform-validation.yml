@@ -38,7 +38,6 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
       - name: Check license headers
         run: python tools/license_headers.py --check
       - name: Install Linux Qt runtime dependencies
@@ -92,7 +91,6 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
       - run: python -m pip install -r requirements.txt pyinstaller uv==${{ env.UV_VERSION }}
       - run: node scripts/update-release-versions.mjs ${{ env.TEST_VERSION }}
       - name: Build launchers
@@ -111,6 +109,7 @@ jobs:
           name: native-windows
           path: build/ci/windows
           if-no-files-found: error
+          retention-days: 1
 
   build-macos:
     name: Build and smoke macOS Apple Silicon
@@ -121,7 +120,6 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
       - run: python -m pip install -r requirements.txt pyinstaller uv==${{ env.UV_VERSION }}
       - run: node scripts/update-release-versions.mjs ${{ env.TEST_VERSION }}
       - name: Build launchers and DMG
@@ -147,6 +145,7 @@ jobs:
           name: native-macos
           path: build/ci/macos
           if-no-files-found: error
+          retention-days: 1
 
   build-linux:
     name: Build and smoke Linux x64
@@ -157,7 +156,6 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
       - name: Install native dependencies
         run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
       - run: python -m pip install -r requirements.txt pyinstaller uv==${{ env.UV_VERSION }}
@@ -184,6 +182,7 @@ jobs:
           name: native-linux
           path: build/ci/linux
           if-no-files-found: error
+          retention-days: 1
 
   assemble-release:
     name: Assemble and publish private test release
@@ -226,6 +225,7 @@ jobs:
           path: .local-release-channel
           if-no-files-found: error
           include-hidden-files: true
+          retention-days: 1
 
   installed-app-smoke:
     name: Installed app smoke (${{ matrix.name }})

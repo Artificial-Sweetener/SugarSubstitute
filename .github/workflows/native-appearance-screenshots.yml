@@ -35,7 +35,6 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
       - name: Install Linux Qt runtime dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
@@ -62,3 +61,4 @@ jobs:
           name: native-appearance-${{ matrix.artifact }}
           path: build/appearance
           if-no-files-found: error
+          retention-days: 7

@@ -161,6 +161,50 @@ def test_linux_workflows_retry_appimagetool_transport_failures() -> None:
         assert "--retry 5 --retry-all-errors --connect-timeout 30" in workflow_text
 
 
+def test_large_workflow_artifacts_expire_after_handoff() -> None:
+    """Large native build handoffs should not consume long-term Actions storage."""
+
+    workflow_limits = (
+        (PROJECT_ROOT / ".github" / "workflows" / "release.yml", 1),
+        (
+            PROJECT_ROOT / ".github" / "workflows" / "cross-platform-validation.yml",
+            1,
+        ),
+        (
+            PROJECT_ROOT
+            / ".github"
+            / "workflows"
+            / "native-appearance-screenshots.yml",
+            7,
+        ),
+    )
+    for workflow_path, maximum_retention_days in workflow_limits:
+        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+        upload_steps = [
+            step
+            for job in workflow["jobs"].values()
+            for step in job["steps"]
+            if step.get("uses") == "actions/upload-artifact@v6"
+        ]
+        assert upload_steps
+        assert all(
+            int(step["with"]["retention-days"]) <= maximum_retention_days
+            for step in upload_steps
+        )
+
+
+def test_native_build_workflows_do_not_cache_large_python_wheels() -> None:
+    """Native matrices should reinstall dependencies instead of retaining huge caches."""
+
+    workflow_paths = (
+        PROJECT_ROOT / ".github" / "workflows" / "cross-platform-validation.yml",
+        PROJECT_ROOT / ".github" / "workflows" / "native-appearance-screenshots.yml",
+    )
+    for workflow_path in workflow_paths:
+        workflow_text = workflow_path.read_text(encoding="utf-8")
+        assert "cache: pip" not in workflow_text
+
+
 def test_release_publisher_includes_installer_and_managed_payload_artifacts() -> None:
     """Semantic release should attach public installers and managed payloads."""
 

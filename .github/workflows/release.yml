@@ -127,6 +127,7 @@ jobs:
           name: release-inputs-windows
           path: build/release-inputs/windows
           if-no-files-found: error
+          retention-days: 1
 
   build-macos:
     name: Build macOS Apple Silicon installer
@@ -176,6 +177,7 @@ jobs:
           name: release-inputs-macos
           path: build/release-inputs/macos
           if-no-files-found: error
+          retention-days: 1
 
   build-linux:
     name: Build Linux x64 installers
@@ -227,6 +229,7 @@ jobs:
           name: release-inputs-linux
           path: build/release-inputs/linux
           if-no-files-found: error
+          retention-days: 1
 
   release:
     name: Publish cross-platform release
