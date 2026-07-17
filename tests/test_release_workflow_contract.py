@@ -62,6 +62,35 @@ def test_cross_platform_validation_requires_explicit_invocation() -> None:
     assert "  push:" not in workflow_text
 
 
+def test_cross_platform_validation_proves_packaged_linux_system_trust() -> None:
+    """Require the frozen Linux installer to verify releases across distro families."""
+
+    workflow = yaml.safe_load(
+        (
+            PROJECT_ROOT / ".github" / "workflows" / "cross-platform-validation.yml"
+        ).read_text(encoding="utf-8")
+    )
+    job = workflow["jobs"]["linux-distro-trust"]
+    matrix = job["strategy"]["matrix"]["include"]
+
+    assert {entry["image"] for entry in matrix} == {
+        "ubuntu:24.04",
+        "fedora:44",
+        "archlinux:base",
+        "opensuse/leap:16.0",
+    }
+    assert {entry["ca_path"] for entry in matrix} == {
+        "/etc/ssl/certs/ca-certificates.crt",
+        "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
+        "/etc/ssl/cert.pem",
+        "/etc/ssl/ca-bundle.pem",
+    }
+    job_script = _job_script(job)
+    assert "--verify-release-connectivity" in job_script
+    assert "--manifest-url" in job_script
+    assert "APPIMAGE_EXTRACT_AND_RUN=1" in job_script
+
+
 def test_release_workflow_builds_every_published_platform_after_version_resolution() -> (
     None
 ):
