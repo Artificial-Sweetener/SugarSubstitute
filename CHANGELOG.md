@@ -1,3 +1,18 @@
+# [0.11.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.10.0...v0.11.0) (2026-07-17)
+
+
+### Bug Fixes
+
+* **ci:** isolate release version analysis ([29e660a](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/29e660a39f8c8177de3e947b0e517c9728e1aeeb))
+* **installer:** enforce launcher-safe release versions ([f101e06](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f101e062602d039b4189e1dec652267d11d7d683))
+
+
+### Features
+
+* **comfy:** support integrated manager runtimes ([26fa314](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/26fa314356d9279883e632d0a44e801b5dab65b1))
+* **launcher:** add automatic launcher updates ([cba2ae6](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/cba2ae63d6be4c62c7bc39a1cf1474a8cd2b29f5))
+* **setup:** discover attached Comfy Python environments ([213c4db](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/213c4dbeeea6be50b42c57fa20e1f7b909da4a09))
+
 # [0.10.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.9.0...v0.10.0) (2026-07-16)
 
 
