@@ -28,7 +28,7 @@ import pytest
 from substitute.infrastructure.comfy.nodepack_manifest import CORE_COMFY_NODEPACKS
 from substitute.infrastructure.comfy.nodepack_python_dependencies import (
     egg_info_distribution_name,
-    install_editable_nodepack_python_dependencies,
+    install_nodepack_python_project,
     installed_python_distribution_version,
     nodepack_python_distributions_satisfy_minimum,
     normalized_distribution_name,
@@ -73,11 +73,11 @@ def test_nodepack_python_dependencies_imports_no_ui_or_archive_boundaries() -> N
     assert forbidden_imports == set()
 
 
-def test_install_editable_nodepack_python_dependencies_uses_pip_editable(
+def test_install_nodepack_python_project_uses_noneditable_local_install(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Editable nodepack installs should run pip in the nodepack root."""
+    """Local nodepack installs should avoid editable metadata that probes Git."""
 
     python_path = tmp_path / ".venv" / "Scripts" / "python.exe"
     nodepack_root = tmp_path / "custom_nodes" / "Substitute-BackEnd"
@@ -104,7 +104,7 @@ def test_install_editable_nodepack_python_dependencies_uses_pip_editable(
         fake_stream,
     )
 
-    install_editable_nodepack_python_dependencies(
+    install_nodepack_python_project(
         python_executable=python_path,
         nodepack_root=nodepack_root,
         display_name="Substitute BackEnd",
@@ -117,7 +117,6 @@ def test_install_editable_nodepack_python_dependencies_uses_pip_editable(
         "-m",
         "pip",
         "install",
-        "-e",
         str(nodepack_root),
     ]
     assert observed["cwd"] == nodepack_root
@@ -128,11 +127,11 @@ def test_install_editable_nodepack_python_dependencies_uses_pip_editable(
     ]
 
 
-def test_install_editable_nodepack_python_dependencies_raises_on_failure(
+def test_install_nodepack_python_project_raises_on_failure(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Failed editable pip installs should raise an actionable setup error."""
+    """Failed local project installs should raise an actionable setup error."""
 
     def fake_stream(
         command: list[str],
@@ -147,7 +146,7 @@ def test_install_editable_nodepack_python_dependencies_raises_on_failure(
     )
 
     with pytest.raises(RuntimeError, match="Could not update SugarCubes"):
-        install_editable_nodepack_python_dependencies(
+        install_nodepack_python_project(
             python_executable=tmp_path / "python.exe",
             nodepack_root=tmp_path,
             display_name="SugarCubes",

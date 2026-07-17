@@ -37,6 +37,9 @@ from substitute.domain.onboarding import (
 from substitute.infrastructure.comfy.managed_environment_validator import (
     ManagedEnvironmentValidationResult,
 )
+from substitute.infrastructure.comfy.manager_environment import (
+    integrated_manager_pygit2_requirement,
+)
 from substitute.infrastructure.comfy.managed_acceleration_policy import (
     managed_acceleration_policy_fingerprint,
 )
@@ -56,7 +59,7 @@ from substitute.infrastructure.version_control import (
 )
 from substitute.shared.startup_trace import trace_mark
 
-_MANAGED_SETUP_FRESHNESS_SCHEMA_VERSION = 2
+_MANAGED_SETUP_FRESHNESS_SCHEMA_VERSION = 3
 _MANAGED_SETUP_FRESHNESS_MAX_AGE_SECONDS = 6 * 60 * 60
 _MANAGED_SETUP_FRESHNESS_DISABLE_ENV = "SUGARSUB_DISABLE_MANAGED_SETUP_CACHE"
 
@@ -513,6 +516,7 @@ def _manager_freshness_key(workspace: Path) -> dict[str, object]:
 
     return {
         "kind": "integrated",
+        "git_backend": integrated_manager_pygit2_requirement(),
         "requirements": _path_signature(workspace / "manager_requirements.txt"),
         "launch_contract": _path_signature(workspace / "comfy" / "cli_args.py"),
     }
@@ -556,9 +560,8 @@ def _sugarcubes_baseline_freshness_key(workspace: Path) -> dict[str, object]:
         "install_mapping": {
             node_id: [
                 {
-                    "install_id": candidate.install_id,
-                    "cloned_folder_name": candidate.cloned_folder_name,
-                    "expected_folder_name": candidate.expected_folder_name,
+                    "source_url": candidate.source_url,
+                    "target_folder_name": candidate.target_folder_name,
                 }
                 for candidate in candidates
             ]

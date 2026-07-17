@@ -110,13 +110,11 @@ def test_sugarcubes_nodepack_manifest_contains_trusted_install_fallbacks() -> No
     """SugarCubes companion nodepacks should stay in the manifest owner."""
 
     assert (
-        SUGARCUBES_BASE_NODEPACK_INSTALLS["comfyui-vectorscope-cc"][0].install_id
-        == "vectorscope"
+        SUGARCUBES_BASE_NODEPACK_INSTALLS["comfyui-vectorscope-cc"][0].source_url
+        == "https://github.com/pamparamm/ComfyUI-vectorscope-cc.git"
     )
     assert (
-        SUGARCUBES_BASE_NODEPACK_INSTALLS["seedvr2_videoupscaler"][
-            0
-        ].expected_folder_name
+        SUGARCUBES_BASE_NODEPACK_INSTALLS["seedvr2_videoupscaler"][0].target_folder_name
         == "seedvr2_videoupscaler"
     )
     assert SUGARCUBES_COMPANION_NODEPACKS == {

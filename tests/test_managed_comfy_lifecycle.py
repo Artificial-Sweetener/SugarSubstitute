@@ -805,6 +805,7 @@ def test_background_start_uses_utf8_for_managed_output_stream(
     env = cast(dict[str, str], observed_request["env"])
     assert env["PYTHONIOENCODING"] == "utf-8"
     assert env["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] == "1"
+    assert env["CM_USE_PYGIT2"] == "1"
 
 
 def test_background_start_traces_managed_startup_phases(

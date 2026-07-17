@@ -43,6 +43,13 @@ class RecordingRepositoryService:
     head: str | None = "0" * 40
     calls: list[tuple[str, object]] = field(default_factory=list)
 
+    def initialize(self, repository_path: Path, *, branch: str = "main") -> None:
+        """Record repository initialization and materialize its metadata marker."""
+
+        self.calls.append(("initialize", (repository_path, branch)))
+        self._raise_if_failing("initialize")
+        (repository_path / ".git").mkdir(parents=True, exist_ok=True)
+
     def clone(
         self,
         repository_url: str,
@@ -71,6 +78,19 @@ class RecordingRepositoryService:
         self._raise_if_failing("sync_fast_forward")
         if on_progress is not None:
             on_progress(f"Fetching {repository_path}")
+
+    def fetch_all(
+        self,
+        repository_path: Path,
+        *,
+        on_progress: RepositoryProgressCallback | None = None,
+    ) -> None:
+        """Record one all-remote fetch."""
+
+        self.calls.append(("fetch_all", repository_path))
+        self._raise_if_failing("fetch_all")
+        if on_progress is not None:
+            on_progress(f"Fetching all remotes for {repository_path}")
 
     def fetch_tag(
         self,

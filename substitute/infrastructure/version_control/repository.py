@@ -33,6 +33,9 @@ class RepositoryOperationError(RuntimeError):
 class RepositoryService(Protocol):
     """Provide the repository behavior required by managed Comfy workflows."""
 
+    def initialize(self, repository_path: Path, *, branch: str = "main") -> None:
+        """Initialize an empty repository without invoking a system executable."""
+
     def clone(
         self,
         repository_url: str,
@@ -49,6 +52,14 @@ class RepositoryService(Protocol):
         on_progress: RepositoryProgressCallback | None = None,
     ) -> None:
         """Fetch configured remotes and fast-forward the current branch."""
+
+    def fetch_all(
+        self,
+        repository_path: Path,
+        *,
+        on_progress: RepositoryProgressCallback | None = None,
+    ) -> None:
+        """Fetch every configured remote branch and tag without changing the worktree."""
 
     def fetch_tag(
         self,

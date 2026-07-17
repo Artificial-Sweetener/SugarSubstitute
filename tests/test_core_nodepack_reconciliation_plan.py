@@ -25,10 +25,8 @@ import pytest
 
 from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan import (
     CoreNodepackDependencyRefreshPlan,
-    CoreNodepackInstallRoute,
     CoreNodepackRefreshRoute,
     plan_core_nodepack_dependency_refresh,
-    plan_core_nodepack_install_route,
     plan_core_nodepack_refresh_route,
 )
 
@@ -70,63 +68,6 @@ def test_core_nodepack_reconciliation_plan_imports_no_side_effect_boundaries() -
     }
 
     assert forbidden_imports == set()
-
-
-@pytest.mark.parametrize(
-    (
-        "registry_available",
-        "source_url",
-        "local_source_available",
-        "expected",
-    ),
-    (
-        (
-            True,
-            "https://example.invalid/source.git",
-            True,
-            CoreNodepackInstallRoute(source="registry", install_id="nodepack-id"),
-        ),
-        (
-            False,
-            "https://example.invalid/source.git",
-            True,
-            CoreNodepackInstallRoute(
-                source="source_url",
-                install_id="https://example.invalid/source.git",
-            ),
-        ),
-        (
-            False,
-            None,
-            True,
-            CoreNodepackInstallRoute(source="local_source", install_id=None),
-        ),
-        (
-            False,
-            None,
-            False,
-            CoreNodepackInstallRoute(source="unavailable", install_id=None),
-        ),
-    ),
-)
-def test_plan_core_nodepack_install_route_prioritizes_sources(
-    *,
-    registry_available: bool,
-    source_url: str | None,
-    local_source_available: bool,
-    expected: CoreNodepackInstallRoute,
-) -> None:
-    """Install plans should prefer registry, then source URL, then local source."""
-
-    assert (
-        plan_core_nodepack_install_route(
-            registry_id="nodepack-id",
-            registry_available=registry_available,
-            source_url=source_url,
-            local_source_available=local_source_available,
-        )
-        == expected
-    )
 
 
 @pytest.mark.parametrize(
