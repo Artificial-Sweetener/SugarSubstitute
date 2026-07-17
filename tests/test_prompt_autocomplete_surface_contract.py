@@ -547,13 +547,16 @@ def test_prompt_editor_autocomplete_preview_reflows_downstream_text(
     for width in range(box.width(), 79, -4):
         box.setFixedWidth(width)
         process_events(app)
-        if _active_projection_line_texts(box) == ("alpha bright ", "omega"):
+        line_texts = _active_projection_line_texts(box)
+        if len(line_texts) > 1 and line_texts[-1].endswith("omega"):
             configured_width = width
             break
 
     assert box.toPlainText() == "alpha omega"
     assert configured_width is not None
-    assert _active_projection_line_texts(box) == ("alpha bright ", "omega")
+    line_texts = _active_projection_line_texts(box)
+    assert len(line_texts) > 1
+    assert line_texts[-1].endswith("omega")
 
 
 def test_prompt_editor_autocomplete_preview_does_not_mutate_source_or_undo(

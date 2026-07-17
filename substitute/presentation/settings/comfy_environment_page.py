@@ -224,6 +224,7 @@ class ClaimantGroupRow(QWidget):
         self._label_natural_width = self.label.fontMetrics().horizontalAdvance(
             group_name
         )
+        self.label.setMaximumWidth(self._label_natural_width)
         self._spacing = 4
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -240,7 +241,7 @@ class ClaimantGroupRow(QWidget):
             0,
             self.contentsRect().width() - self.toggle_button.width() - self._spacing,
         )
-        self.label.setFixedWidth(
+        self.label.setMaximumWidth(
             max(0, min(self._label_natural_width, available_width))
         )
         super().resizeEvent(event)
@@ -1492,7 +1493,7 @@ def _claimant_group_label(text: str, parent: QWidget) -> ElidedCaptionLabel:
 
     label = ElidedCaptionLabel(text, parent)
     label.setWordWrap(False)
-    label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+    label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
     label.setFixedHeight(max(16, label.fontMetrics().height() + 2))
     return label
 
