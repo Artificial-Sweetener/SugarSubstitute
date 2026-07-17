@@ -70,7 +70,8 @@ from launcher.sugarsubstitute_launcher.release_sources import (
     ReleaseSource,
     default_production_release_source,
 )
-from launcher.sugarsubstitute_launcher.resources import launcher_icon, launcher_uv_path
+from launcher.sugarsubstitute_launcher.resources import launcher_icon
+from launcher.sugarsubstitute_launcher.runtime_resources import launcher_uv_path
 from launcher.sugarsubstitute_launcher.platforms import (
     LauncherOperatingSystem,
     detect_launcher_target,

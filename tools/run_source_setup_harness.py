@@ -43,7 +43,9 @@ from launcher.sugarsubstitute_launcher.installer import LayoutInstaller  # noqa:
 from launcher.sugarsubstitute_launcher.release_sources import (  # noqa: E402
     LocalFolderReleaseSource,
 )
-from launcher.sugarsubstitute_launcher.resources import launcher_uv_path  # noqa: E402
+from launcher.sugarsubstitute_launcher.runtime_resources import (  # noqa: E402
+    launcher_uv_path,
+)
 from launcher.sugarsubstitute_launcher.runtime import (  # noqa: E402
     SubprocessRuntimeCommandRunner,
     UvManagedRuntimeInstaller,

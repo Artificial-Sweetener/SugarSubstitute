@@ -29,7 +29,7 @@ from pathlib import Path
 from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.release_sources import LocalFolderReleaseSource
-from launcher.sugarsubstitute_launcher.resources import launcher_uv_path
+from launcher.sugarsubstitute_launcher.runtime_resources import launcher_uv_path
 from launcher.sugarsubstitute_launcher.runtime import (
     SubprocessRuntimeCommandRunner,
     UvManagedRuntimeInstaller,

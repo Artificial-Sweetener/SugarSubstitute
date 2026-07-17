@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import sys
-import shutil
 from pathlib import Path
 
 from PySide6.QtGui import QIcon
@@ -50,25 +49,6 @@ def launcher_icon() -> QIcon:
     """Return the launcher window icon."""
 
     return QIcon(str(launcher_icon_path()))
-
-
-def launcher_uv_path(*, target: LauncherTarget | None = None) -> Path | None:
-    """Return a bundled or developer uv executable for runtime provisioning."""
-
-    resolved_target = target or detect_launcher_target()
-    packaged_root = Path(getattr(sys, "_MEIPASS", ""))
-    packaged_uv = packaged_root / "launcher_assets" / resolved_target.uv_executable_name
-    if packaged_uv.is_file():
-        return packaged_uv
-
-    interpreter_uv = Path(sys.executable).parent / resolved_target.uv_executable_name
-    if interpreter_uv.is_file():
-        return interpreter_uv.resolve()
-
-    source_uv = shutil.which("uv")
-    if source_uv is not None:
-        return Path(source_uv)
-    return None
 
 
 def launcher_icon_source_path(*, target: LauncherTarget | None = None) -> Path:

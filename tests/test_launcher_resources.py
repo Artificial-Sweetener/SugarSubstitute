@@ -24,7 +24,7 @@ import sys
 
 from pytest import MonkeyPatch
 
-from launcher.sugarsubstitute_launcher import resources
+from launcher.sugarsubstitute_launcher import runtime_resources
 from launcher.sugarsubstitute_launcher.platforms import WINDOWS_X64
 
 
@@ -47,6 +47,6 @@ def test_launcher_uv_prefers_active_interpreter_environment(
     monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path / "missing"), raising=False)
     monkeypatch.setattr(shutil, "which", lambda _name: str(path_uv))
 
-    resolved = resources.launcher_uv_path(target=WINDOWS_X64)
+    resolved = runtime_resources.launcher_uv_path(target=WINDOWS_X64)
 
     assert resolved == environment_uv.resolve()
