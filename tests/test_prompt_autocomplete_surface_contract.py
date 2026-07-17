@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import os
 import logging
-import math
 from collections.abc import Callable, Iterator
 from typing import Any, Generic, TypeVar, cast
 
@@ -28,7 +27,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 from PySide6.QtCore import QPoint, QRect, Qt
-from PySide6.QtGui import QFontMetricsF, QTextCursor
+from PySide6.QtGui import QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
     QApplication,
@@ -518,16 +517,6 @@ def test_prompt_editor_autocomplete_preview_reflows_downstream_text(
     widgets.extend([host, box])
     process_events(app)
 
-    surface = surface_for(box)
-    shell_width = box.width() - round(
-        cast(Any, surface)._layout.metrics.wrap_width  # noqa: SLF001
-    )
-    preview_line_width = math.ceil(
-        QFontMetricsF(box.font()).horizontalAdvance("alpha bright ")
-    )
-    box.setFixedWidth(shell_width + preview_line_width + 2)
-    process_events(app)
-
     cursor = box.textCursor()
     cursor.setPosition(len("alpha "))
     box.setTextCursor(cursor)
@@ -535,27 +524,20 @@ def test_prompt_editor_autocomplete_preview_reflows_downstream_text(
 
     assert _active_projection_line_texts(box) == ("alpha omega",)
 
+    preview_suffix = "bright detailed elaborate cinematic "
+    surface = surface_for(box)
     surface.set_autocomplete_preview_state(
         PromptAutocompletePreviewState(
             source_position=len("alpha "),
-            suffix_text="bright ",
+            suffix_text=preview_suffix,
         )
     )
     process_events(app)
 
-    configured_width: int | None = None
-    for width in range(box.width(), 79, -4):
-        box.setFixedWidth(width)
-        process_events(app)
-        line_texts = _active_projection_line_texts(box)
-        if len(line_texts) > 1 and line_texts[-1].endswith("omega"):
-            configured_width = width
-            break
-
     assert box.toPlainText() == "alpha omega"
-    assert configured_width is not None
     line_texts = _active_projection_line_texts(box)
     assert len(line_texts) > 1
+    assert "".join(line_texts) == f"alpha {preview_suffix}omega"
     assert line_texts[-1].endswith("omega")
 
 
