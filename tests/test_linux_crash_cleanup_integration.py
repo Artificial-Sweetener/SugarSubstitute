@@ -32,10 +32,7 @@ from substitute.infrastructure.comfy.posix_guardian_containment import (
 )
 from substitute.infrastructure.comfy.managed_process_probe import is_process_running
 
-pytestmark = pytest.mark.skipif(
-    not sys.platform.startswith("linux"),
-    reason="Linux crash-path containment integration applies only on Linux.",
-)
+pytestmark = pytest.mark.platforms("linux")
 
 
 def test_linux_guardian_kills_process_group_when_owner_process_exits(

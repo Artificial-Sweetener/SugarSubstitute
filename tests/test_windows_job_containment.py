@@ -31,10 +31,7 @@ from substitute.infrastructure.comfy.managed_process_containment import (
 )
 from substitute.infrastructure.comfy import windows_job_containment
 
-pytestmark = pytest.mark.skipif(
-    os.name != "nt",
-    reason="Windows Job Object containment applies only on Windows.",
-)
+pytestmark = pytest.mark.platforms("windows")
 
 
 def test_launch_in_job_assigns_before_resume(monkeypatch: pytest.MonkeyPatch) -> None:

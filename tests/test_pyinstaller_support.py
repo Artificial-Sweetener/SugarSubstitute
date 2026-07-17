@@ -58,7 +58,7 @@ def test_resolve_uv_executable_falls_back_to_shell_path(tmp_path: Path) -> None:
     assert resolved == path_uv
 
 
-@pytest.mark.skipif(os.name == "nt", reason="POSIX virtual environments use symlinks")
+@pytest.mark.platforms("linux", "macos")
 def test_resolve_uv_executable_keeps_virtual_environment_symlink_path(
     tmp_path: Path,
 ) -> None:

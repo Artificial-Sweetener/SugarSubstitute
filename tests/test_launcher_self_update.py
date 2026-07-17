@@ -257,7 +257,7 @@ def test_transaction_rejects_staging_outside_install_root(tmp_path: Path) -> Non
         )
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="Windows process query regression")
+@pytest.mark.platforms("windows")
 def test_windows_process_probe_does_not_terminate_waited_process() -> None:
     """Checking a launcher PID on Windows must never signal or terminate it."""
 

@@ -34,6 +34,12 @@ import pytest
 from substitute.shared.qfluentwidgets_banner import (
     install_qfluentwidgets_banner_filter,
 )
+from tests.ci_test_policy import (
+    SERIAL_TEST_MODULES,
+    current_test_platform,
+    marker_test_platforms,
+    platform_skip_reason,
+)
 
 install_qfluentwidgets_banner_filter()
 
@@ -55,6 +61,7 @@ _memory_watchdog_started = False
 _watchdog_lock = threading.Lock()
 _active_test_nodeid: str | None = None
 _active_test_deadline: float | None = None
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 class _ProcessMemoryCountersEx(ctypes.Structure):
@@ -80,6 +87,31 @@ def pytest_sessionstart(session: pytest.Session) -> None:
 
     del session
     _start_test_process_memory_watchdog()
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Apply authoritative serial and platform policy before marker selection."""
+
+    current_platform = current_test_platform()
+    for item in items:
+        relative_path = item.path.resolve().relative_to(_PROJECT_ROOT).as_posix()
+        if relative_path in SERIAL_TEST_MODULES:
+            item.add_marker(pytest.mark.serial)
+
+        platform_marker = item.get_closest_marker("platforms")
+        if platform_marker is None:
+            continue
+        try:
+            supported_platforms = marker_test_platforms(platform_marker.args)
+        except ValueError as error:
+            raise pytest.UsageError(f"{item.nodeid}: {error}") from error
+        skip_reason = platform_skip_reason(
+            supported=supported_platforms,
+            current=current_platform,
+        )
+        if skip_reason is not None:
+            item.add_marker(pytest.mark.skip(reason=skip_reason))
 
 
 @pytest.hookimpl(hookwrapper=True)

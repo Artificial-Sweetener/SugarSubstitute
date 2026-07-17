@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import sys
 from threading import Thread
 
 import pytest
@@ -67,7 +66,7 @@ def test_platform_spellcheck_modules_are_import_safe() -> None:
     assert WindowsSpellCheckGateway.__name__ == "WindowsSpellCheckGateway"
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="Windows COM backend only")
+@pytest.mark.platforms("windows")
 def test_windows_spellcheck_gateway_can_check_from_worker_thread() -> None:
     """Windows spellcheck should create COM checkers in the calling thread."""
 

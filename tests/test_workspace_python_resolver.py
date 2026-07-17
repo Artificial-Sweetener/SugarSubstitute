@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import ast
-import os
 from pathlib import Path
 
 import pytest
@@ -104,9 +103,7 @@ def test_resolve_workspace_python_supports_embedded_runtime_spelling(
     assert resolve_workspace_python(tmp_path) == python_path
 
 
-@pytest.mark.skipif(
-    os.name == "nt", reason="POSIX workspace paths are non-Windows only"
-)
+@pytest.mark.platforms("linux", "macos")
 def test_resolve_workspace_python_supports_posix_venv(tmp_path: Path) -> None:
     """Non-Windows workspaces should accept POSIX virtualenv Python paths."""
 
