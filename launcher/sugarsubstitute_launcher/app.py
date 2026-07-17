@@ -27,11 +27,13 @@ from pathlib import Path
 from typing import Any
 
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments, parse_launcher_args
+from launcher.sugarsubstitute_launcher.connectivity import ReleaseConnectivityVerifier
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import (
     InstallLayout,
     default_install_root,
 )
+from launcher.sugarsubstitute_launcher.headless_install import HeadlessInstallService
 from launcher.sugarsubstitute_launcher.logging_setup import configure_launcher_logging
 from launcher.sugarsubstitute_launcher.platforms import detect_launcher_target
 from launcher.sugarsubstitute_launcher.process import (
@@ -39,7 +41,9 @@ from launcher.sugarsubstitute_launcher.process import (
     start_detached,
 )
 from launcher.sugarsubstitute_launcher.release_sources import (
+    GitHubReleaseSource,
     ReleaseSource,
+    default_production_release_source,
     release_source_from_config,
 )
 from launcher.sugarsubstitute_launcher.splash_session import (
@@ -70,6 +74,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Create the Qt application and run the launcher window."""
 
     args = parse_launcher_args(sys.argv[1:] if argv is None else argv)
+    if args.verify_release_connectivity:
+        ReleaseConnectivityVerifier().verify(
+            release_source=_explicit_release_source(args.manifest_url)
+        )
+        return 0
+    if args.headless_install:
+        if args.install_root is None:
+            raise ValueError("Headless installation requires an explicit install root.")
+        layout = InstallLayout.from_root(args.install_root)
+        configure_launcher_logging(layout=layout)
+        HeadlessInstallService().install(
+            install_root=layout.root,
+            release_source=_explicit_release_source(args.manifest_url),
+        )
+        return 0
     startup_plan = resolve_startup_plan(
         explicit_install_root=args.install_root,
         executable_path=Path(sys.executable),
@@ -139,6 +158,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     if owns_application:
         return int(application.exec())
     return 0
+
+
+def _explicit_release_source(manifest_url: str | None) -> ReleaseSource:
+    """Return the requested HTTPS source or the production release channel."""
+
+    if manifest_url is None:
+        return default_production_release_source()
+    return GitHubReleaseSource(manifest_url)
 
 
 def _launcher_main_window_class() -> Callable[..., Any]:
