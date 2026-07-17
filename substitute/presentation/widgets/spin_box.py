@@ -45,15 +45,21 @@ DoubleSpinBox[symbolVisible=false] {
     padding: 2px 2px;
 }
 """
-_QFLUENT_SPIN_BOX_SIZE_HINT_DELTA = QSize(6, 2)
+_QFLUENT_VISIBLE_SPIN_BOX_SIZE_HINT_DELTA = QSize(22, 2)
+_QFLUENT_HIDDEN_SPIN_BOX_SIZE_HINT_DELTA = QSize(6, 2)
 
 
-def _native_spin_box_size_hint(size: QSize) -> QSize:
+def _native_spin_box_size_hint(size: QSize, *, symbols_visible: bool) -> QSize:
     """Return the pre-QFluent size hint for Substitute spin boxes."""
 
+    delta = (
+        _QFLUENT_VISIBLE_SPIN_BOX_SIZE_HINT_DELTA
+        if symbols_visible
+        else _QFLUENT_HIDDEN_SPIN_BOX_SIZE_HINT_DELTA
+    )
     return QSize(
-        max(0, size.width() - _QFLUENT_SPIN_BOX_SIZE_HINT_DELTA.width()),
-        max(0, size.height() - _QFLUENT_SPIN_BOX_SIZE_HINT_DELTA.height()),
+        max(0, size.width() - delta.width()),
+        max(0, size.height() - delta.height()),
     )
 
 
@@ -117,12 +123,18 @@ class SpinBox(QSpinBox):
     def sizeHint(self) -> QSize:
         """Return the size hint Substitute exposed before QFluent styling."""
 
-        return _native_spin_box_size_hint(super().sizeHint())
+        return _native_spin_box_size_hint(
+            super().sizeHint(),
+            symbols_visible=self._symbol_visible,
+        )
 
     def minimumSizeHint(self) -> QSize:
         """Return the minimum size hint Substitute exposed before QFluent styling."""
 
-        return _native_spin_box_size_hint(super().minimumSizeHint())
+        return _native_spin_box_size_hint(
+            super().minimumSizeHint(),
+            symbols_visible=self._symbol_visible,
+        )
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Apply wheel stepping only when the active editor policy allows it."""
@@ -165,12 +177,18 @@ class DoubleSpinBox(QDoubleSpinBox):
     def sizeHint(self) -> QSize:
         """Return the size hint Substitute exposed before QFluent styling."""
 
-        return _native_spin_box_size_hint(super().sizeHint())
+        return _native_spin_box_size_hint(
+            super().sizeHint(),
+            symbols_visible=self._symbol_visible,
+        )
 
     def minimumSizeHint(self) -> QSize:
         """Return the minimum size hint Substitute exposed before QFluent styling."""
 
-        return _native_spin_box_size_hint(super().minimumSizeHint())
+        return _native_spin_box_size_hint(
+            super().minimumSizeHint(),
+            symbols_visible=self._symbol_visible,
+        )
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Apply wheel stepping only when the active editor policy allows it."""

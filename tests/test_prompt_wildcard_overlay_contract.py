@@ -47,6 +47,7 @@ from tests.prompt_projection_test_helpers import (
     emphasis_controls_for,
     ensure_qapp,
     process_events,
+    projection_paint_state_for,
     show_prompt_editor,
     surface_for,
 )
@@ -351,12 +352,7 @@ def test_prompt_editor_wildcard_numeric_controls_persist_implicit_group_edit(
 
     assert controls.visible_token is not None
     assert controls.visible_token.token_id == token.token_id
-    assert (
-        wildcard_token_for_range(
-            box, source_start=10, source_end=18
-        ).decoration_accented
-        is True
-    )
+    assert projection_paint_state_for(box).is_token_decoration_accented(token.token_id)
     assert controls.increase_rect is not None
 
     click_control_rect(controls, controls.increase_rect)
@@ -460,15 +456,17 @@ def test_prompt_editor_wildcard_projection_tracks_caret_active_token_by_source_r
     set_cursor_position(box, 2)
     first_token = wildcard_token_for_range(box, source_start=0, source_end=8)
     second_token = wildcard_token_for_range(box, source_start=18, source_end=37)
-    assert first_token.active is True
-    assert second_token.active is False
+    paint_state = projection_paint_state_for(box)
+    assert paint_state.is_token_active(first_token.token_id)
+    assert not paint_state.is_token_active(second_token.token_id)
     assert first_token.status_text is None
 
     set_cursor_position(box, 24)
     first_token = wildcard_token_for_range(box, source_start=0, source_end=8)
     second_token = wildcard_token_for_range(box, source_start=18, source_end=37)
-    assert first_token.active is False
-    assert second_token.active is True
+    paint_state = projection_paint_state_for(box)
+    assert not paint_state.is_token_active(first_token.token_id)
+    assert paint_state.is_token_active(second_token.token_id)
     assert second_token.display_text == "monster:Color"
     assert second_token.status_text is None
 

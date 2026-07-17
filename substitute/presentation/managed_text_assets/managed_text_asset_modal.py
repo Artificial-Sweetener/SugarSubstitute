@@ -48,6 +48,7 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     ToolButton,
     isDarkTheme,
 )
+from shiboken6 import isValid
 
 from substitute.application.managed_text_assets import (
     CreateManagedTextAssetRequest,
@@ -895,9 +896,9 @@ def _fallback_parent() -> QWidget:
 
     global _FALLBACK_PARENT
     active_window = QApplication.activeWindow()
-    if active_window is not None:
+    if active_window is not None and isValid(active_window):
         return active_window
-    if _FALLBACK_PARENT is None:
+    if _FALLBACK_PARENT is None or not isValid(_FALLBACK_PARENT):
         _FALLBACK_PARENT = QWidget()
         _FALLBACK_PARENT.resize(1200, 800)
     return _FALLBACK_PARENT

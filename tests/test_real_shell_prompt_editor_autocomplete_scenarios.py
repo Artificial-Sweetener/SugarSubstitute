@@ -581,10 +581,10 @@ def test_real_shell_backpack_click_away_clears_basket_ghost(
     assert after.active_projection_text == after.projection_text == "backpack"
 
 
-def test_real_shell_backpack_up_arrow_clears_basket_ghost(
+def test_real_shell_backpack_up_arrow_selects_previous_suggestion(
     harness: RealShellPromptEditorHarness,
 ) -> None:
-    """Clear whitespace-tag ghost text when caret movement dismisses autocomplete."""
+    """Use Up to wrap from the first suggestion to the previous suggestion."""
 
     field = harness.add_prompt_workflow(initial_text="")
     harness.type_text(field, "backpack")
@@ -593,29 +593,34 @@ def test_real_shell_backpack_up_arrow_clears_basket_ghost(
     after = harness.capture_state_snapshot(field, label="after-backpack-up")
 
     violations = harness.transition_invariant_violations(
-        action_name="caret",
+        action_name="autocomplete_navigation",
         before=before,
         after=after,
     )
     if violations:
         artifact = harness.save_artifacts(
-            "backpack-up-left-basket-ghost",
+            "backpack-up-navigation-left-bad-state",
             before=before,
             after=after,
-            invariant="Up-arrow autocomplete dismissal must clear basket ghost.",
+            invariant="Up-arrow must retarget autocomplete preview coherently.",
             observed=f"violations={violations}; after={_autocomplete_stale_observed(after)}",
         )
         pytest.fail(f"prompt editor invariant failed; artifacts: {artifact}")
 
-    assert not after.autocomplete_preview_active
-    assert not after.autocomplete_presenter_panel_visible
-    assert after.active_projection_text == after.projection_text == "backpack"
+    assert before.autocomplete_session_selected_index == 0
+    assert before.autocomplete_preview_suffix == " basket"
+    assert after.autocomplete_session_selected_index == 1
+    assert after.autocomplete_preview_suffix == " strap"
+    assert after.autocomplete_presenter_panel_visible
+    assert after.projection_text == "backpack"
+    assert after.active_projection_text == "backpack strap"
+    assert not violations
 
 
-def test_real_shell_multiline_backpack_up_arrow_clears_basket_ghost(
+def test_real_shell_multiline_backpack_up_arrow_selects_previous_suggestion(
     harness: RealShellPromptEditorHarness,
 ) -> None:
-    """Clear whitespace-tag ghost text when Up moves to the previous line."""
+    """Keep Up navigation inside autocomplete for a multiline prompt."""
 
     prefix_line = "empty eyes, pointy ears, sharp teeth"
     field = harness.add_prompt_workflow(initial_text=f"{prefix_line}\n")
@@ -633,29 +638,31 @@ def test_real_shell_multiline_backpack_up_arrow_clears_basket_ghost(
     )
 
     violations = harness.transition_invariant_violations(
-        action_name="caret",
+        action_name="autocomplete_navigation",
         before=before,
         after=after,
     )
     if violations:
         artifact = harness.save_artifacts(
-            "multiline-backpack-up-left-basket-ghost",
+            "multiline-backpack-up-navigation-left-bad-state",
             before=before,
             after=after,
-            invariant=(
-                "Up-arrow to the previous line must clear `backpack basket` "
-                "ghost projection when autocomplete dismisses."
-            ),
+            invariant="Up-arrow must retarget multiline autocomplete coherently.",
             observed=f"violations={violations}; after={_autocomplete_stale_observed(after)}",
         )
         pytest.fail(f"prompt editor invariant failed; artifacts: {artifact}")
 
     assert before.autocomplete_preview_active
     assert before.autocomplete_preview_suffix == " basket"
-    assert not after.autocomplete_preview_active
-    assert not after.autocomplete_presenter_panel_visible
+    assert before.autocomplete_session_selected_index == 0
+    assert after.autocomplete_preview_active
+    assert after.autocomplete_preview_suffix == " strap"
+    assert after.autocomplete_session_selected_index == 1
+    assert after.autocomplete_presenter_panel_visible
     assert after.source_text == f"{prefix_line}\nbackpack"
-    assert after.active_projection_text == after.projection_text == after.source_text
+    assert after.projection_text == after.source_text
+    assert after.active_projection_text == f"{after.source_text} strap"
+    assert not violations
 
 
 def test_real_shell_canvas_navigation_clears_ghost_and_dropdown(

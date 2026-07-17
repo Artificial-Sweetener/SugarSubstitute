@@ -1826,14 +1826,19 @@ def test_prompt_editor_context_menu_uses_cached_scheduled_loras(
     )._lora_trigger_word_controller.snapshot_for_prompt(
         prompt_text=prompt_text,
     )
+    resolver_calls.clear()
     trigger_full_labels: list[object] = []
 
-    def fake_exec(self: RoundMenu, *_args: object, **_kwargs: object) -> None:
-        """Capture final menu actions without opening a popup."""
+    def fake_exec(
+        self: _PromptEditorTextEditMenu,
+        *_args: object,
+        **_kwargs: object,
+    ) -> None:
+        """Capture trigger rows from the lazily rendered submenu model."""
 
         trigger_full_labels.extend(
-            action.property("promptFullTriggerWordsLabel")
-            for action in self.menuActions()
+            item.properties.get("promptFullTriggerWordsLabel")
+            for item in self._trigger_word_entries()
         )
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
@@ -1870,19 +1875,34 @@ def test_prompt_editor_context_menu_omits_uncached_scheduled_lora_resolver(
         prompt_widgets,
         scheduled_lora_resolver=resolve_scheduled_loras,
     )
+    resolver_calls.clear()
+    prewarm_calls: list[str] = []
+
+    class _ColdScheduledLoraContext:
+        """Expose a cold cache while recording the requested async prewarm."""
+
+        def cached_context_snapshot(self, _prompt_text: str) -> None:
+            """Return no cached scheduled-LoRA context."""
+
+            return None
+
+        def prewarm(self, prompt_text: str) -> bool:
+            """Record a non-blocking context request."""
+
+            prewarm_calls.append(prompt_text)
+            return True
+
+    controller = cast(Any, editor)._lora_trigger_word_controller
+    controller._scheduled_lora_context = _ColdScheduledLoraContext()
 
     assert (
-        cast(
-            Any,
-            editor,
-        )
-        ._lora_trigger_word_controller.snapshot_for_prompt(
+        controller.snapshot_for_prompt(
             prompt_text=editor.toPlainText()
-        )
-        .trigger_word_actions
+        ).trigger_word_actions
         == ()
     )
     assert resolver_calls == []
+    assert prewarm_calls == [editor.toPlainText()]
 
 
 def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
@@ -1955,14 +1975,19 @@ def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
     )._lora_trigger_word_controller.snapshot_for_prompt(
         prompt_text=context_prompt_text,
     )
+    resolver_calls.clear()
     trigger_full_labels: list[object] = []
 
-    def fake_exec(self: RoundMenu, *_args: object, **_kwargs: object) -> None:
-        """Capture final menu actions without opening a popup."""
+    def fake_exec(
+        self: _PromptEditorTextEditMenu,
+        *_args: object,
+        **_kwargs: object,
+    ) -> None:
+        """Capture trigger rows from the lazily rendered submenu model."""
 
         trigger_full_labels.extend(
-            action.property("promptFullTriggerWordsLabel")
-            for action in self.menuActions()
+            item.properties.get("promptFullTriggerWordsLabel")
+            for item in self._trigger_word_entries()
         )
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)

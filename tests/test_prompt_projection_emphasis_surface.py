@@ -39,6 +39,7 @@ from tests.prompt_projection_test_helpers import (
     StaticPromptWildcardCatalogGateway,
     ensure_qapp,
     process_events,
+    projection_paint_state_for,
     show_prompt_editor,
     surface_for,
 )
@@ -202,15 +203,14 @@ def test_projection_surface_pulses_emphasis_feedback_without_rebuild(
         outer_end=token.source_end,
     )
 
-    next_token = first_emphasis_token(box)
     assert rebuild_calls == []
-    assert next_token.decoration_accented is True
+    assert projection_paint_state_for(box).is_token_decoration_accented(token.token_id)
 
 
-def test_projection_surface_reuses_geometry_for_same_width_emphasis_prompt_state(
+def test_projection_surface_rebuilds_for_changed_emphasis_prompt_state(
     widgets: list[QWidget],
 ) -> None:
-    """Same-width emphasis prompt-state replacements should avoid relayout."""
+    """Changed emphasis source should rebuild even when its width stays stable."""
 
     box = show_prompt_editor(
         widgets,
@@ -220,7 +220,15 @@ def test_projection_surface_reuses_geometry_for_same_width_emphasis_prompt_state
     surface = surface_for(box)
     document_view, render_plan = _prompt_state_for_projection_text("(cat:1.10), suffix")
     rebuild_calls: list[str] = []
-    cast(Any, surface)._rebuild_projection = lambda: rebuild_calls.append("rebuild")
+    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+
+    def record_rebuild() -> None:
+        """Record and perform the authoritative projection rebuild."""
+
+        rebuild_calls.append("rebuild")
+        original_rebuild_projection()
+
+    cast(Any, surface)._rebuild_projection = record_rebuild
 
     surface_router(surface).replace_document_text_with_prompt_state(
         "(cat:1.10), suffix",
@@ -229,7 +237,7 @@ def test_projection_surface_reuses_geometry_for_same_width_emphasis_prompt_state
     )
 
     token = first_emphasis_token(box)
-    assert rebuild_calls == []
+    assert rebuild_calls == ["rebuild"]
     assert surface.toPlainText() == "(cat:1.10), suffix"
     assert token.value_text == "1.10"
 

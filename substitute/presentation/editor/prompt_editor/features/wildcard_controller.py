@@ -341,6 +341,20 @@ class PromptWildcardFeatureController:
             current_query_identity=current_query_identity,
             refresh_current_query=refresh_current_query,
         )
+        completed_during_submission = self._autocomplete_cache.get(cache_key)
+        if completed_during_submission is not None:
+            self._autocomplete_cache.move_to_end(cache_key)
+            snapshot = self._query_snapshot(
+                prefix=prefix,
+                limit=limit,
+                status=CatalogSnapshotStatus(CatalogSnapshotReadiness.WARM),
+                suggestions=completed_during_submission,
+                cache_key=cache_key,
+                query_identity=query_identity,
+            )
+            self._autocomplete_snapshots[cache_key] = snapshot
+            self._publish_presentation_snapshot(query_snapshot=snapshot)
+            return snapshot
         if stale_snapshot is not None:
             self._publish_presentation_snapshot(
                 query_snapshot=stale_snapshot,

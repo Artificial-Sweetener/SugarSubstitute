@@ -28,12 +28,26 @@ from tests.ci_test_policy import (
     SERIAL_TEST_MODULES,
     current_test_platform,
     marker_test_platforms,
+    parallel_test_worker_count,
     platform_skip_reason,
 )
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TESTS_ROOT = PROJECT_ROOT / "tests"
+
+
+@pytest.mark.parametrize(
+    ("available_workers", "expected"),
+    [(None, 1), (0, 1), (1, 1), (4, 4), (32, 4)],
+)
+def test_parallel_test_worker_count_bounds_native_qt_concurrency(
+    available_workers: int | None,
+    expected: int,
+) -> None:
+    """Keep `-n auto` stable on low-core CI and high-core workstations."""
+
+    assert parallel_test_worker_count(available_workers) == expected
 
 
 @pytest.mark.parametrize(

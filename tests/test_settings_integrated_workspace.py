@@ -78,6 +78,7 @@ from substitute.domain.appearance import (
     AppearancePreferences,
     AppearanceThemeMode,
     AppearanceWarningColorMode,
+    SystemAppearanceSnapshot,
 )
 from substitute.domain.onboarding import (
     ComfyEndpoint,
@@ -1299,7 +1300,10 @@ class _AppearanceRuntime:
     def resolve_preferences(self) -> ResolvedAppearance:
         """Return a resolved appearance snapshot."""
 
-        return AppearanceResolver().resolve(self._preferences)
+        return AppearanceResolver().resolve(
+            self._preferences,
+            system_appearance=SystemAppearanceSnapshot(),
+        )
 
     def set_theme_mode(self, theme_mode: AppearanceThemeMode) -> ResolvedAppearance:
         """Persist one theme mode for page interaction tests."""

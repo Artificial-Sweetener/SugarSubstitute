@@ -631,8 +631,8 @@ def test_phase3_diagnostic_decorations_preserve_autocomplete_selection_and_curso
     preview_state = surface._session.autocomplete_preview  # noqa: SLF001
     assert preview_state is not None
     assert preview_state.suffix_text == suffix_text
-    assert cast(Any, surface)._autocomplete_preview.document is None
-    assert cast(Any, surface)._autocomplete_preview.layout is None
+    assert surface.active_projection_document() is surface.projection_document()
+    assert not any(run.ghosted for run in surface.active_projection_document().runs)
     assert lora_fragments
     assert wildcard_fragments
     assert emphasis_fragments
@@ -673,13 +673,9 @@ def test_phase3_diagnostic_fragments_follow_autocomplete_preview_layout(
     )
     diagnostic = _spelling_diagnostic(typo_start, len(text), "typo")
     surface.set_diagnostics((diagnostic,))
-    preview_document = cast(Any, surface)._autocomplete_preview.document
-    preview_layout = cast(Any, surface)._autocomplete_preview.layout
-    viewport_rect = QRectF(surface.viewport().rect())
-    scroll_offset = cast(float, cast(Any, surface)._scroll_offset())
+    preview_document = surface.active_projection_document()
 
-    assert preview_document is not None
-    assert preview_layout is not None
+    assert preview_document is not surface.projection_document()
     assert any(
         run.ghosted and run.display_text == suffix_text for run in preview_document.runs
     )
@@ -695,11 +691,9 @@ def test_phase3_diagnostic_fragments_follow_autocomplete_preview_layout(
         start=text.index("(blue"),
         end=text.index(")") + 1,
     )
-    assert preview_layout.source_range_fragments(
+    assert surface.source_range_fragments(
         start=diagnostic.source_start,
         end=diagnostic.source_end,
-        viewport_rect=viewport_rect,
-        scroll_offset=scroll_offset,
     )
 
 

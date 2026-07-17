@@ -4333,7 +4333,7 @@ def _projection_metrics_contract_violations(
                 fragments=snapshot.visible_text_fragments,
                 baseline=row.expected_text_baseline,
             )
-            and row.text
+            and row.text.strip("\r\n")
         ):
             violations.append(f"text_only_row_baseline_mismatch:{row.row_index}")
     for fragment in snapshot.visible_text_fragments:

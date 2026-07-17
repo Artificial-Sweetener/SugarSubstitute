@@ -30,6 +30,9 @@ class CiPlatform(StrEnum):
     MACOS = "macos"
 
 
+MAX_PARALLEL_TEST_WORKERS = 4
+
+
 SERIAL_TEST_MODULES = frozenset(
     {
         "tests/test_about_settings_page.py",
@@ -43,7 +46,11 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_editor_wheel_intent_integration.py",
         "tests/test_execution_inventory_guardrails.py",
         "tests/test_generation_queue_presentation.py",
+        # Registry controls own native titlebar widgets that can terminate xdist.
+        "tests/test_generation_titlebar_control_registry.py",
         "tests/test_license_dialog.py",
+        # Installer payload replacement is not reliable under xdist handle contention.
+        "tests/test_launcher_first_run_install.py",
         # Real launcher-shell construction can terminate an xdist Qt worker.
         "tests/test_launcher_skeleton.py",
         "tests/test_managed_text_asset_modal.py",
@@ -100,10 +107,14 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_prompt_projection_token_editing_contract.py",
         "tests/test_prompt_projection_undo.py",
         "tests/test_prompt_projection_update_scheduler.py",
+        # Token geometry creates native Qt text layouts that can terminate xdist.
+        "tests/test_prompt_token_weight_geometry.py",
         "tests/test_prompt_reorder_animation.py",
         "tests/test_prompt_reorder_performance_counters.py",
         "tests/test_prompt_segment_reorder_overlay_contract.py",
         "tests/test_prompt_wildcard_overlay_contract.py",
+        # QFluent menu construction can terminate an xdist Qt worker.
+        "tests/test_qfluent_menu_renderer.py",
         "tests/test_real_shell_cube_stack_scenarios.py",
         "tests/test_real_shell_output_canvas_scenarios.py",
         "tests/test_real_shell_prompt_editor_autocomplete_scenarios.py",
@@ -151,6 +162,14 @@ SERIAL_TEST_MODULES = frozenset(
 )
 
 
+def parallel_test_worker_count(available_workers: int | None) -> int:
+    """Bound xdist concurrency to the native Qt suite's stable envelope."""
+
+    if available_workers is None or available_workers < 1:
+        return 1
+    return min(available_workers, MAX_PARALLEL_TEST_WORKERS)
+
+
 def current_test_platform(sys_platform: str = sys.platform) -> CiPlatform:
     """Return the supported test platform represented by ``sys.platform``."""
 
@@ -194,9 +213,11 @@ def platform_skip_reason(
 
 
 __all__ = [
+    "MAX_PARALLEL_TEST_WORKERS",
     "SERIAL_TEST_MODULES",
     "CiPlatform",
     "current_test_platform",
     "marker_test_platforms",
+    "parallel_test_worker_count",
     "platform_skip_reason",
 ]

@@ -28,6 +28,7 @@ from substitute.presentation.editor.panel.service_bundle import (
     EditorPanelPromptServiceBundle,
     EditorPanelServiceBundle,
 )
+from tests.execution_test_helpers import immediate_editor_panel_execution_factories
 from tests.prompt_autocomplete_test_helpers import (
     EmptyPromptAutocompleteGateway,
     EmptyPromptWildcardCatalogGateway,
@@ -61,6 +62,7 @@ def node_card_service_bundle(
     node_behavior_service = getattr(panel, "node_behavior_service", None)
     if node_behavior_service is None:
         node_behavior_service = cast(NodeBehaviorService, NoopNodeBehaviorService())
+    execution_factories = immediate_editor_panel_execution_factories()
     return EditorPanelServiceBundle(
         node_definition_gateway=node_definition_gateway,
         node_behavior_service=node_behavior_service,
@@ -88,6 +90,15 @@ def node_card_service_bundle(
                 None,
             ),
             thumbnail_asset_repository=thumbnail_asset_repository,
+            prompt_task_executor_factory=(
+                execution_factories.prompt_task_executor_factory
+            ),
+            danbooru_lookup_dispatcher_factory=(
+                execution_factories.danbooru_lookup_dispatcher_factory
+            ),
+            model_picker_thumbnail_preload_route_factory=(
+                execution_factories.model_picker_thumbnail_preload_route_factory
+            ),
         ),
         model=EditorPanelModelServiceBundle(
             thumbnail_asset_repository=thumbnail_asset_repository,

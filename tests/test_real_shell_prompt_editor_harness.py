@@ -1821,6 +1821,28 @@ def test_real_shell_harness_detects_projection_metrics_contract_violations(
     )
 
 
+def test_real_shell_harness_allows_newline_only_rows_without_text_fragments(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Treat hard-break-only layout rows as valid without an ink baseline."""
+
+    field = harness.add_prompt_workflow(initial_text="alpha")
+    snapshot = harness.capture_state_snapshot(field, label="blank-row-baseline")
+    blank_row = replace(
+        _visible_row(99, document_top=20.0, viewport_top=20.0, text="\n"),
+        expected_height=16.0,
+        expected_text_baseline=32.0,
+    )
+    with_blank_row = replace(
+        snapshot,
+        visible_layout_rows=snapshot.visible_layout_rows + (blank_row,),
+    )
+
+    violations = harness.invariant_violations(with_blank_row)
+
+    assert "text_only_row_baseline_mismatch:99" not in violations
+
+
 def test_real_shell_harness_detects_transient_deletion_overerase(
     harness: RealShellPromptEditorHarness,
 ) -> None:

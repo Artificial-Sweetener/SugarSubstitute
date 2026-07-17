@@ -1122,7 +1122,7 @@ def test_projection_surface_backspace_rebuilds_after_pending_typing_projection(
     widgets: list[QWidget],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Backspace should update deferred typing without immediate projection rebuild."""
+    """Backspace should safely commit geometry after deferred typing is removed."""
 
     box = show_prompt_editor(
         widgets,
@@ -1156,11 +1156,11 @@ def test_projection_surface_backspace_rebuilds_after_pending_typing_projection(
     QTest.keyClick(box, Qt.Key.Key_Backspace)
 
     assert box.toPlainText() == "(cat:1.05), "
-    assert rebuild_count == 0
+    assert rebuild_count == 1
     assert valid_transient_insertion_overlay(surface) is None
     assert surface.has_pending_projection_update() is False
     assert surface.has_stale_projection_geometry() is False
-    assert rebuild_count == 0
+    assert rebuild_count == 1
     committed_metrics = cast(
         Any, surface
     )._projection_freshness_controller.committed_metrics
@@ -1335,11 +1335,11 @@ def test_projection_surface_repeated_backspace_publishes_real_layout(
     assert surface.has_stale_projection_geometry() is False
 
 
-def test_projection_surface_fallback_backspace_accumulates_deletion_overlay(
+def test_projection_surface_fallback_backspace_rebuilds_without_deletion_overlay(
     widgets: list[QWidget],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Repeated fallback-deferred Backspace should hide every stale deleted glyph."""
+    """Backspace should rebuild safely when no deletion overlay can be created."""
 
     box = show_prompt_editor(
         widgets,
@@ -1391,16 +1391,12 @@ def test_projection_surface_fallback_backspace_accumulates_deletion_overlay(
     second_overlay = _valid_transient_deletion_overlay(surface)
 
     assert box.toPlainText() == "alpha be"
-    assert first_overlay is not None
-    assert len(first_overlay.document_rects) == 1
-    assert second_overlay is not None
-    assert len(second_overlay.document_rects) == 2
-    assert second_overlay.source_start == len("alpha be")
-    assert second_overlay.source_end == len("alpha beta")
-    assert cast(Any, surface)._transient_deletion_visible_region() is not None
-    assert surface.has_pending_projection_update() is True
-    assert surface.has_stale_projection_geometry() is True
-    assert rebuild_count == 0
+    assert first_overlay is None
+    assert second_overlay is None
+    assert cast(Any, surface)._transient_deletion_visible_region() is None
+    assert surface.has_pending_projection_update() is False
+    assert surface.has_stale_projection_geometry() is False
+    assert rebuild_count == 2
 
 
 def test_projection_surface_backspace_newline_uses_incremental_layout(

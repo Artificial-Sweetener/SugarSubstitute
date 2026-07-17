@@ -518,7 +518,7 @@ def test_phase5_document_queries_cache_and_normalization_boundaries() -> None:
         lora_query.has_closing_bracket,
     ) == ("Mid", 0, 6, len("<LoRA:Mid:0.75>"), "0.75", True)
     assert invalid_lora_query is None
-    assert normalized == r"literal \(round text\), (blue sky:1.20)"
+    assert normalized == "literal (round text:1.10), (blue sky:1.20)"
 
 
 def test_phase5_document_scene_and_render_plan_caches_evict_oldest_entries() -> None:

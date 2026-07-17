@@ -38,6 +38,7 @@ from tests.ci_test_policy import (
     SERIAL_TEST_MODULES,
     current_test_platform,
     marker_test_platforms,
+    parallel_test_worker_count,
     platform_skip_reason,
 )
 
@@ -80,6 +81,13 @@ class _ProcessMemoryCountersEx(ctypes.Structure):
         ("PeakPagefileUsage", ctypes.c_size_t),
         ("PrivateUsage", ctypes.c_size_t),
     ]
+
+
+def pytest_xdist_auto_num_workers(config: pytest.Config) -> int:
+    """Keep automatic xdist concurrency inside the stable native Qt envelope."""
+
+    del config
+    return parallel_test_worker_count(os.cpu_count())
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:

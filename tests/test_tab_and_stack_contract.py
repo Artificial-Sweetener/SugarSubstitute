@@ -25,6 +25,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from PySide6.QtWidgets import QApplication
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
@@ -168,37 +169,27 @@ def _attach_cube_stack_selection_methods(mod, fake: SimpleNamespace) -> None:
     fake._sync_indicator_to_current = lambda *, animated: (
         mod.CubeStack._sync_indicator_to_current(fake, animated=animated)
     )
+    fake._sync_indicator_overlay = lambda: None
 
 
 def test_workflow_tab_set_tab_visible_hides_current_tab_with_branch_specific_index_logic():
     """Hiding current tab keeps branch-specific index reset behavior."""
     mod = _import_workflow_tabs_module()
-    item0 = _TabItem("one")
-    item1 = _TabItem("two")
-    set_index_calls: list[int] = []
-    current_changed = _Signal()
+    QApplication.instance() or QApplication([])
+    tab_bar = mod.TabBar()
+    current_changed: list[int] = []
+    try:
+        item0 = tab_bar.addTab("one", "One")
+        tab_bar.addTab("two", "Two")
+        tab_bar.currentChanged.connect(current_changed.append)
 
-    fake = SimpleNamespace(
-        items=[item0, item1],
-        _currentIndex=0,
-        currentChanged=current_changed,
-        tabItem=lambda idx: [item0, item1][idx],
-        currentIndex=lambda: fake._currentIndex,
-        _emitCurrentChanged=lambda index: current_changed.emit(index),
-    )
+        tab_bar.setTabVisible(0, False)
 
-    def _set_current_index(index: int) -> None:
-        set_index_calls.append(index)
-        fake._currentIndex = index
-
-    fake.setCurrentIndex = _set_current_index
-
-    mod.TabBar.setTabVisible(fake, 0, False)
-
-    assert item0.visible is False
-    assert set_index_calls == [1]
-    assert fake._currentIndex == 0
-    assert current_changed.calls == [(0,)]
+        assert item0.isVisible() is False
+        assert tab_bar.currentIndex() == 0
+        assert current_changed == [0]
+    finally:
+        tab_bar.close()
 
 
 def test_workflow_tab_on_tab_renamed_only_emits_manager_request():
@@ -210,6 +201,7 @@ def test_workflow_tab_on_tab_renamed_only_emits_manager_request():
     fake = SimpleNamespace(
         tabRenamed=tab_renamed,
         workflowRenameRequested=workflow_renamed,
+        is_settings_route=lambda _route_key: False,
     )
 
     mod.TabBar._onTabRenamed(fake, tab_item, "workflow_new")

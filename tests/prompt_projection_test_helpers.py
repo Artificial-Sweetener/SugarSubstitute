@@ -37,6 +37,9 @@ from substitute.presentation.editor.prompt_editor.overlays import (
 from substitute.presentation.editor.prompt_editor.projection.surface import (
     PromptProjectionSurface,
 )
+from substitute.presentation.editor.prompt_editor.projection.paint_state import (
+    PromptProjectionPaintState,
+)
 from tests.prompt_autocomplete_test_helpers import (
     EmptyPromptAutocompleteGateway,
     prompt_syntax_profile,
@@ -149,6 +152,12 @@ def surface_for(box: PromptEditor) -> PromptProjectionSurface:
     """Return the live projection surface owned by one prompt editor."""
 
     return cast(PromptProjectionSurface, getattr(box, "_surface"))
+
+
+def projection_paint_state_for(box: PromptEditor) -> PromptProjectionPaintState:
+    """Return geometry-neutral visual state from the projection layout owner."""
+
+    return surface_for(box)._layout.paint_state  # noqa: SLF001
 
 
 def token_weight_controls_for(box: PromptEditor) -> PromptTokenWeightControls:
