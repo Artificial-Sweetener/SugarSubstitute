@@ -3203,25 +3203,35 @@ def _show_onboarding_surface(
     """Build and show the dedicated onboarding, repair, or reconfigure surface."""
 
     from substitute.application.onboarding import OnboardingFlowService
+    from substitute.application.onboarding.comfy_environment_service import (
+        ComfyEnvironmentService,
+    )
     from substitute.infrastructure.comfy.managed_install import (
         ensure_managed_comfy_setup,
     )
     from substitute.infrastructure.comfy.attached_install import (
-        prepare_attached_comfy_setup,
+        prepare_verified_attached_comfy_setup,
+    )
+    from substitute.infrastructure.comfy.local_process_gateway import (
+        PsutilLocalComfyProcessGateway,
     )
     from substitute.infrastructure.comfy.workspace_python_discovery import (
-        resolve_attached_comfy_python,
+        WorkspacePythonGateway,
     )
     from substitute.app.bootstrap.installation_context import (
         build_onboarding_service_bundle,
     )
     from substitute.app.bootstrap.onboarding_execution import (
         OnboardingExecutionRuntime,
+        create_onboarding_environment_submitter,
         create_onboarding_provisioning_submitter_factory,
     )
     from substitute.presentation.onboarding import (
         OnboardingController,
         OnboardingWindow,
+    )
+    from substitute.presentation.onboarding.comfy_environment_coordinator import (
+        ComfyEnvironmentCoordinator,
     )
 
     owned_execution_runtime: ExecutionRuntime | None = None
@@ -3233,8 +3243,7 @@ def _show_onboarding_surface(
         service_bundle_factory=build_onboarding_service_bundle,
         managed_workspace_provisioner=ensure_managed_comfy_setup,
         entrypoint_path=entrypoint_path,
-        attached_workspace_provisioner=prepare_attached_comfy_setup,
-        attached_python_resolver=resolve_attached_comfy_python,
+        attached_workspace_provisioner=prepare_verified_attached_comfy_setup,
         transaction_mode=_transaction_mode_for_flow(flow_mode),
     )
     controller = OnboardingController(
@@ -3246,8 +3255,22 @@ def _show_onboarding_surface(
             cast(OnboardingExecutionRuntime, active_execution_runtime)
         ),
     )
+    environment_submitter = create_onboarding_environment_submitter(
+        cast(OnboardingExecutionRuntime, active_execution_runtime),
+        controller,
+    )
+    environment_coordinator = ComfyEnvironmentCoordinator(
+        service=ComfyEnvironmentService(
+            process_gateway=PsutilLocalComfyProcessGateway(),
+            python_gateway=WorkspacePythonGateway(),
+        ),
+        submitter=environment_submitter,
+        close_submitter=environment_submitter.close,
+        parent=controller,
+    )
     window = OnboardingWindow(
         controller=controller,
+        environment_coordinator=environment_coordinator,
         install_root_locked=resolve_app_layout(context.install_root).installed_payload,
         initial_geometry=initial_geometry,
     )

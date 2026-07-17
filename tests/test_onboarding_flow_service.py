@@ -792,6 +792,7 @@ def test_flow_service_prepares_existing_local_comfy_without_endpoint_probe(
     context = _build_context(tmp_path, ComfyTargetMode.ATTACHED_LOCAL)
     provisioner_kwargs: list[dict[str, object]] = []
     workspace = tmp_path / "ExternalComfy"
+    custom_models = tmp_path / "SharedModels"
 
     def _record_provisioning(**kwargs: object) -> ComfyPythonBinding:
         """Record existing-local workspace preparation arguments."""
@@ -811,7 +812,6 @@ def test_flow_service_prepares_existing_local_comfy_without_endpoint_probe(
         ),
         managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
         attached_workspace_provisioner=_record_provisioning,
-        attached_python_resolver=lambda *_args, **_kwargs: _python_binding(workspace),
         entrypoint_path=tmp_path / "main.py",
     )
     result = service.provision(
@@ -822,6 +822,9 @@ def test_flow_service_prepares_existing_local_comfy_without_endpoint_probe(
             endpoint_port=8188,
             managed_workspace_path=tmp_path / "comfyui",
             attached_workspace_path=workspace,
+            attached_python_binding=_python_binding(workspace),
+            managed_model_root=custom_models,
+            managed_model_root_uses_default=False,
         ),
         restart_required=False,
         on_status=lambda message: None,
@@ -830,10 +833,9 @@ def test_flow_service_prepares_existing_local_comfy_without_endpoint_probe(
 
     assert result.context is context
     assert provisioner_kwargs[0]["workspace"] == workspace
-    assert (
-        provisioner_kwargs[0]["python_executable"]
-        == _python_binding(workspace).executable
-    )
+    assert provisioner_kwargs[0]["python_binding"] == _python_binding(workspace)
+    assert provisioner_kwargs[0]["model_root"] == custom_models
+    assert provisioner_kwargs[0]["configure_model_root"] is True
 
 
 def test_flow_service_rejects_existing_local_without_workspace(
@@ -854,7 +856,6 @@ def test_flow_service_rejects_existing_local_without_workspace(
         ),
         managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
         attached_workspace_provisioner=lambda **kwargs: _python_binding(tmp_path),
-        attached_python_resolver=lambda *_args, **_kwargs: _python_binding(tmp_path),
         entrypoint_path=tmp_path / "main.py",
     )
 
@@ -904,7 +905,6 @@ def test_flow_service_maps_missing_attached_workspace_to_user_copy(
         ),
         managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
         attached_workspace_provisioner=lambda **kwargs: _python_binding(tmp_path),
-        attached_python_resolver=lambda *_args, **_kwargs: _python_binding(tmp_path),
         entrypoint_path=tmp_path / "main.py",
     )
 
@@ -917,6 +917,9 @@ def test_flow_service_maps_missing_attached_workspace_to_user_copy(
                 endpoint_port=8190,
                 managed_workspace_path=tmp_path / "comfyui",
                 attached_workspace_path=Path(r"E:\ComfyUIExternalTest"),
+                attached_python_binding=_python_binding(
+                    Path(r"E:\ComfyUIExternalTest")
+                ),
             ),
             restart_required=False,
             on_status=lambda message: None,

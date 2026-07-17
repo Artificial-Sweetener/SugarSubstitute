@@ -38,6 +38,7 @@ from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
 TResult = TypeVar("TResult")
 
 _ONBOARDING_PROVISIONING_LANE = "onboarding_provisioning"
+_ONBOARDING_ENVIRONMENT_LANE = "onboarding_environment"
 
 
 class RuntimeOnboardingSubmitter(TaskSubmitter, Protocol):
@@ -91,8 +92,22 @@ def create_onboarding_provisioning_submitter_factory(
     return create_submitter
 
 
+def create_onboarding_environment_submitter(
+    execution_runtime: OnboardingExecutionRuntime,
+    owner: QObject,
+) -> RuntimeOnboardingSubmitter:
+    """Create one owner-scoped route for responsive environment inspection."""
+
+    return execution_runtime.submitter(
+        _ONBOARDING_ENVIRONMENT_LANE,
+        owner_id="onboarding_environment_coordinator",
+        dispatcher=QtOwnerThreadDispatcher(owner),
+    )
+
+
 __all__ = [
     "OnboardingExecutionRuntime",
     "RuntimeOnboardingSubmitter",
+    "create_onboarding_environment_submitter",
     "create_onboarding_provisioning_submitter_factory",
 ]

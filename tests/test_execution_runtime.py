@@ -53,6 +53,7 @@ def test_execution_runtime_exposes_configured_lanes_and_registries() -> None:
         )
         assert runtime.prompt_editor is runtime.lane("prompt_editor")
         assert runtime.settings_io is runtime.lane("settings_io")
+        assert runtime.onboarding_environment is runtime.lane("onboarding_environment")
         assert runtime.thumbnail_decode is runtime.lane("thumbnail_decode")
         assert runtime.shutdown_execution is runtime.lane("shutdown")
         with pytest.raises(ValueError, match="Unknown execution lane"):

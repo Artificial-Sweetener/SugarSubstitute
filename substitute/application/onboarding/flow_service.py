@@ -82,7 +82,7 @@ class OnboardingDraftState:
     endpoint_port: int
     managed_workspace_path: Path
     attached_workspace_path: Path | None
-    attached_python_executable: Path | None = None
+    attached_python_binding: ComfyPythonBinding | None = None
     managed_model_root: Path | None = None
     managed_model_root_uses_default: bool = True
     output_root: Path | None = None
@@ -428,24 +428,14 @@ class AttachedWorkspaceProvisioner(Protocol):
         self,
         *,
         workspace: Path,
-        python_executable: Path | None = None,
+        python_binding: ComfyPythonBinding,
+        model_root: Path | None = None,
+        configure_model_root: bool = False,
         on_status: Callable[[str], None] | None = None,
         on_log: Callable[[str], None] | None = None,
         **unused: object,
     ) -> ComfyPythonBinding:
         """Prepare dependencies without replacing the selected interpreter."""
-
-
-class AttachedPythonResolver(Protocol):
-    """Resolve one verified binding for a stopped attached Comfy workspace."""
-
-    def __call__(
-        self,
-        workspace: Path,
-        *,
-        explicit_executable: Path | None = None,
-    ) -> ComfyPythonBinding:
-        """Discover automatically or validate the user's explicit selection."""
 
 
 OnboardingBundleFactory = Callable[[Path | None], OnboardingBundleProtocol]
@@ -459,7 +449,6 @@ class OnboardingFlowService:
     managed_workspace_provisioner: ManagedWorkspaceProvisioner
     entrypoint_path: Path
     attached_workspace_provisioner: AttachedWorkspaceProvisioner | None = None
-    attached_python_resolver: AttachedPythonResolver | None = None
     transaction_mode: SetupTransactionMode = SetupTransactionMode.REPAIR
 
     def load_draft(self, installation_root: Path) -> OnboardingDraftState:
@@ -512,11 +501,7 @@ class OnboardingFlowService:
             endpoint_port=context.comfy_target.endpoint.port,
             managed_workspace_path=managed_workspace_path,
             attached_workspace_path=context.comfy_target.workspace_path,
-            attached_python_executable=(
-                context.comfy_target.python_binding.executable
-                if context.comfy_target.python_binding is not None
-                else None
-            ),
+            attached_python_binding=context.comfy_target.python_binding,
             managed_model_root=(reported_model_root or default_model_root),
             managed_model_root_uses_default=(
                 model_root_status.uses_default
@@ -756,15 +741,11 @@ class OnboardingFlowService:
                     )
                 if self.attached_workspace_provisioner is None:
                     raise RuntimeError("Attached ComfyUI provisioning is unavailable.")
-                if self.attached_python_resolver is None:
+                binding = draft.attached_python_binding
+                if binding is None:
                     raise RuntimeError(
-                        "Attached ComfyUI Python validation is unavailable."
+                        "Attached ComfyUI Python must be verified before provisioning."
                     )
-                on_status("Finding the Python environment for this ComfyUI setup.")
-                binding = self.attached_python_resolver(
-                    draft.attached_workspace_path,
-                    explicit_executable=draft.attached_python_executable,
-                )
                 transaction = bundle.setup_transaction_service.begin(
                     mode=self.transaction_mode,
                     options=SetupTransactionOptions(
@@ -823,7 +804,9 @@ class OnboardingFlowService:
                 )
                 self.attached_workspace_provisioner(
                     workspace=draft.attached_workspace_path,
-                    python_executable=binding.executable,
+                    python_binding=binding,
+                    model_root=self._managed_model_root_for_save(draft),
+                    configure_model_root=True,
                     on_status=on_status,
                     on_log=on_log,
                 )

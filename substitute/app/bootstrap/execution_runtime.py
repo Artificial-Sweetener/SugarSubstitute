@@ -116,6 +116,7 @@ DEFAULT_EXECUTION_LANE_CONFIGS = (
     _lane_config("settings_io", max_workers=2),
     _lane_config("package_maintenance", max_workers=1),
     _lane_config("onboarding_provisioning", max_workers=1),
+    _lane_config("onboarding_environment", max_workers=1),
     _lane_config("generation_dispatch", max_workers=1),
     _lane_config("generation_preparation", max_workers=1),
     _lane_config("cube_load", max_workers=2),
@@ -227,6 +228,12 @@ class ExecutionRuntime:
         """Return the onboarding-provisioning execution lane."""
 
         return self.lane("onboarding_provisioning")
+
+    @property
+    def onboarding_environment(self) -> ExecutionLane:
+        """Return the onboarding-environment inspection lane."""
+
+        return self.lane("onboarding_environment")
 
     @property
     def generation_dispatch(self) -> ExecutionLane:

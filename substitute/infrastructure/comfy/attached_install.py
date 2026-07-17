@@ -22,6 +22,9 @@ from collections.abc import Callable
 from pathlib import Path
 
 from substitute.domain.onboarding import ComfyPythonBinding
+from substitute.infrastructure.comfy.backend_model_root_configurator import (
+    configure_backend_model_root,
+)
 from substitute.infrastructure.comfy.core_nodepack_reconciler import (
     ensure_core_comfy_nodepacks,
 )
@@ -47,6 +50,8 @@ def prepare_attached_comfy_setup(
     *,
     workspace: Path,
     python_executable: Path | None = None,
+    model_root: Path | None = None,
+    configure_model_root: bool = False,
     on_status: StatusCallback | None = None,
     on_log: LogCallback | None = None,
     **_unused: object,
@@ -57,6 +62,29 @@ def prepare_attached_comfy_setup(
         workspace,
         explicit_executable=python_executable,
     )
+    return prepare_verified_attached_comfy_setup(
+        workspace=workspace,
+        python_binding=binding,
+        model_root=model_root,
+        configure_model_root=configure_model_root,
+        on_status=on_status,
+        on_log=on_log,
+    )
+
+
+def prepare_verified_attached_comfy_setup(
+    *,
+    workspace: Path,
+    python_binding: ComfyPythonBinding,
+    model_root: Path | None = None,
+    configure_model_root: bool = False,
+    on_status: StatusCallback | None = None,
+    on_log: LogCallback | None = None,
+    **_unused: object,
+) -> ComfyPythonBinding:
+    """Prepare an attached workspace through its already verified Python binding."""
+
+    binding = python_binding
     if on_log is not None:
         on_log(
             f"Using ComfyUI Python {binding.version} ({binding.architecture}) at "
@@ -76,6 +104,14 @@ def prepare_attached_comfy_setup(
         python_executable=binding.executable,
         on_log=on_log,
     )
+    if configure_model_root:
+        if on_status is not None:
+            on_status("Configuring the ComfyUI models folder.")
+        configure_backend_model_root(
+            workspace=workspace,
+            python_executable=binding.executable,
+            model_root=model_root,
+        )
     if on_status is not None:
         on_status("Preparing Base-Cubes dependencies.")
     run_sugarcubes_baseline_maintenance(
@@ -95,4 +131,4 @@ def prepare_attached_comfy_setup(
     return binding
 
 
-__all__ = ["prepare_attached_comfy_setup"]
+__all__ = ["prepare_attached_comfy_setup", "prepare_verified_attached_comfy_setup"]

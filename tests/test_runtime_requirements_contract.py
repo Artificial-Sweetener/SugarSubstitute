@@ -34,6 +34,7 @@ _EXPECTED_SPECIFIERS = {
     "pygit2": frozenset({("==", "1.19.3")}),
     "pyobjc-core": frozenset({(">=", "12.2.1"), ("<", "13.0.0")}),
     "pyobjc-framework-cocoa": frozenset({(">=", "12.2.1"), ("<", "13.0.0")}),
+    "psutil": frozenset({(">=", "7.2.2"), ("<", "8.0.0")}),
     "pyside6": frozenset({(">=", "6.11.1"), ("<", "6.12.0")}),
     "pyside6-fluent-widgets": frozenset({(">=", "1.11.2"), ("<", "2.0.0")}),
     "pysidesix-frameless-window": frozenset({(">=", "0.8.1"), ("<", "1.0.0")}),

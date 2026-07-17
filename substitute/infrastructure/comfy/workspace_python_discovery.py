@@ -50,6 +50,26 @@ print(json.dumps({"executable": sys.executable, "prefix": sys.prefix,
 """
 
 
+class WorkspacePythonGateway:
+    """Expose attached Python discovery through the onboarding application port."""
+
+    def discover(self, workspace: Path) -> ComfyPythonDiscoveryResult:
+        """Return conventional Python discovery evidence for one workspace."""
+
+        return discover_attached_comfy_python(workspace)
+
+    def probe(
+        self,
+        workspace: Path,
+        executable: Path,
+        *,
+        source: ComfyPythonSelectionSource,
+    ) -> ComfyPythonProbeResult:
+        """Validate one explicit Python executable against a Comfy workspace."""
+
+        return probe_comfy_python(workspace, executable, source=source)
+
+
 def discover_attached_comfy_python(
     workspace: Path,
     *,
@@ -221,6 +241,7 @@ def _preflight_failure(workspace: Path, executable: Path) -> str | None:
 
 
 __all__ = [
+    "WorkspacePythonGateway",
     "discover_attached_comfy_python",
     "managed_comfy_python_binding",
     "probe_comfy_python",

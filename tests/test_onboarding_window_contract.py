@@ -26,7 +26,13 @@ from typing import cast
 import pytest
 from PySide6.QtCore import QObject, QPoint, QPointF, QEvent, QRect, Signal, Qt
 from PySide6.QtGui import QMouseEvent
-from PySide6.QtWidgets import QApplication, QLabel, QLineEdit, QPlainTextEdit
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QLabel,
+    QLineEdit,
+    QPlainTextEdit,
+)
 from qfluentwidgets import (  # type: ignore[import-untyped]
     LineEdit,
     PrimaryPushButton,
@@ -39,10 +45,16 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
 from substitute.domain.onboarding import (
     BootstrapRoute,
     ComfyEndpoint,
+    ComfyPythonBinding,
+    ComfyPythonCandidate,
+    ComfyPythonDiscoveryResult,
+    ComfyPythonProbeResult,
+    ComfyPythonSelectionSource,
     InstallationContext,
     ComfyTargetConfiguration,
     ComfyTargetMode,
     InstallationConfiguration,
+    LocalComfyProcess,
     ReadinessAssessment,
     ReadinessIssue,
     ReadinessIssueCode,
@@ -50,9 +62,17 @@ from substitute.domain.onboarding import (
     RuntimeConfiguration,
 )
 from substitute.application.onboarding import OnboardingProvisioningFailure
+from substitute.application.onboarding.comfy_environment_service import (
+    AttachedPythonRecoverySnapshot,
+    AttachedPythonRecoveryState,
+    ComfyPreflightSnapshot,
+)
 from substitute.presentation.onboarding.onboarding_controller import (
     OnboardingController,
     ReadinessIssuePresentation,
+)
+from substitute.presentation.onboarding.comfy_environment_coordinator import (
+    ComfyEnvironmentCoordinator,
 )
 from substitute.presentation.onboarding.onboarding_models import (
     OnboardingCompletion,
@@ -139,6 +159,8 @@ class _FakeController(QObject):
 
         if current_page is OnboardingPageId.WELCOME:
             return OnboardingPageId.TARGET_MODE
+        if current_page is OnboardingPageId.COMFY_PREFLIGHT:
+            return OnboardingPageId.TARGET_MODE
         if current_page is OnboardingPageId.TARGET_MODE:
             return OnboardingPageId.MANAGED_LOCAL
         if current_page is OnboardingPageId.MANAGED_LOCAL:
@@ -154,6 +176,8 @@ class _FakeController(QObject):
 
         if current_page is OnboardingPageId.TARGET_MODE:
             return OnboardingPageId.WELCOME
+        if current_page is OnboardingPageId.COMFY_PREFLIGHT:
+            return OnboardingPageId.WELCOME
         if current_page is OnboardingPageId.MANAGED_LOCAL:
             return OnboardingPageId.TARGET_MODE
         if current_page is OnboardingPageId.FOLDERS:
@@ -167,27 +191,12 @@ class _FakeController(QObject):
     def set_installation_root(self, installation_root: Path) -> None:
         """Update the fake draft installation root."""
 
-        self._draft = OnboardingDraft(
-            installation_root=installation_root,
-            target_mode=self._draft.target_mode,
-            endpoint_host=self._draft.endpoint_host,
-            endpoint_port=self._draft.endpoint_port,
-            managed_workspace_path=self._draft.managed_workspace_path,
-            attached_workspace_path=self._draft.attached_workspace_path,
-            attached_python_executable=self._draft.attached_python_executable,
-        )
+        self._draft = replace(self._draft, installation_root=installation_root)
 
     def update_target_mode(self, target_mode: OnboardingTargetMode) -> None:
         """Update the fake target mode."""
 
-        self._draft = OnboardingDraft(
-            installation_root=self._draft.installation_root,
-            target_mode=target_mode,
-            endpoint_host=self._draft.endpoint_host,
-            endpoint_port=self._draft.endpoint_port,
-            managed_workspace_path=self._draft.managed_workspace_path,
-            attached_workspace_path=self._draft.attached_workspace_path,
-        )
+        self._draft = replace(self._draft, target_mode=target_mode)
 
     def update_endpoint(self, host: str, port: int) -> None:
         """Accept endpoint updates without side effects."""
@@ -202,7 +211,19 @@ class _FakeController(QObject):
     def update_attached_workspace(self, workspace_path: Path | None) -> None:
         """Accept attached workspace updates without side effects."""
 
-        _ = workspace_path
+        self._draft = replace(
+            self._draft,
+            attached_workspace_path=workspace_path,
+            attached_python_binding=None,
+        )
+
+    def update_attached_python_binding(
+        self,
+        binding: ComfyPythonBinding | None,
+    ) -> None:
+        """Store a verified attached Python binding."""
+
+        self._draft = replace(self._draft, attached_python_binding=binding)
 
     def update_managed_runtime_preferences(
         self,
@@ -328,25 +349,84 @@ class _ResettingDraftController(_FakeController):
     def update_attached_workspace(self, workspace_path: Path | None) -> None:
         """Store the attached workspace like the real controller does."""
 
-        self._draft = OnboardingDraft(
-            installation_root=self._draft.installation_root,
-            target_mode=self._draft.target_mode,
-            endpoint_host=self._draft.endpoint_host,
-            endpoint_port=self._draft.endpoint_port,
-            managed_workspace_path=self._draft.managed_workspace_path,
+        self._draft = replace(
+            self._draft,
             attached_workspace_path=workspace_path,
-            attached_python_executable=self._draft.attached_python_executable,
+            attached_python_binding=None,
         )
         self.draft_changed.emit(self._draft)
 
-    def update_attached_python(self, python_executable: Path | None) -> None:
-        """Store the attached Python choice like the real controller does."""
+    def update_attached_python_binding(
+        self,
+        binding: ComfyPythonBinding | None,
+    ) -> None:
+        """Store verified attached Python evidence like the real controller."""
 
         self._draft = replace(
             self._draft,
-            attached_python_executable=python_executable,
+            attached_python_binding=binding,
         )
         self.draft_changed.emit(self._draft)
+
+
+class _FakeEnvironmentCoordinator(QObject):
+    """Expose controllable live environment signals to window contract tests."""
+
+    preflight_changed = Signal(object)
+    discovery_finished = Signal(object)
+    recovery_changed = Signal(object)
+    browse_finished = Signal(object)
+    termination_finished = Signal(object)
+    task_failed = Signal(str)
+
+    def __init__(self) -> None:
+        """Record environment actions requested by the window."""
+
+        super().__init__()
+        self.preflight_starts = 0
+        self.discoveries: list[Path] = []
+        self.recoveries: list[tuple[Path, ComfyPythonBinding | None]] = []
+        self.validations: list[tuple[Path, Path]] = []
+        self.stops = 0
+        self.shutdown_calls = 0
+
+    def start_preflight(self) -> None:
+        """Record one live preflight request."""
+
+        self.preflight_starts += 1
+
+    def discover_attached_python(self, workspace: Path) -> None:
+        """Record one silent attached-Python discovery request."""
+
+        self.discoveries.append(workspace)
+
+    def start_attached_recovery(
+        self,
+        *,
+        workspace: Path,
+        binding: ComfyPythonBinding | None,
+    ) -> None:
+        """Record one live launch-monitor request."""
+
+        self.recoveries.append((workspace, binding))
+
+    def validate_browsed_python(self, *, workspace: Path, executable: Path) -> None:
+        """Record one explicit manual Python validation request."""
+
+        self.validations.append((workspace, executable))
+
+    def close_observed_processes(self) -> None:
+        """Accept an explicit close request for signal-routing tests."""
+
+    def stop_monitoring(self) -> None:
+        """Record one page-owned monitor stop."""
+
+        self.stops += 1
+
+    def shutdown(self) -> None:
+        """Record coordinator shutdown with the window."""
+
+        self.shutdown_calls += 1
 
 
 def _app() -> QApplication:
@@ -433,8 +513,20 @@ def test_onboarding_window_builds_all_required_pages(
         window, window.titleBar.closeBtn.rect().center()
     )
     assert window.childAt(close_hit) is window.titleBar.closeBtn
-    assert window.page_stack.count() == 9
+    assert window.page_stack.count() == 13
     assert window.page_stack.parentWidget() is window.page_stage
+    assert (
+        window.attached_python_choice_page.objectName()
+        == "OnboardingAttachedPythonChoicePage"
+    )
+    assert (
+        window.attached_python_process_page.objectName()
+        == "OnboardingAttachedPythonProcessPage"
+    )
+    assert (
+        window.attached_python_manual_page.objectName()
+        == "OnboardingAttachedPythonManualPage"
+    )
     assert window.folder_setup_page.objectName() == "OnboardingFolderSetupPage"
     assert window.integrations_page.objectName() == "OnboardingIntegrationsPage"
 
@@ -583,7 +675,7 @@ def test_onboarding_window_hides_managed_model_folder_for_remote(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Only managed-local setup should show the ComfyUI models folder field."""
+    """Remote setup should hide the local ComfyUI models folder field."""
 
     _app()
     monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
@@ -603,6 +695,39 @@ def test_onboarding_window_hides_managed_model_folder_for_remote(
     )
 
     assert window.folder_setup_page.managed_model_section.isHidden() is True
+    window._emit_close_requested_on_close = False
+    window.close()
+
+
+def test_onboarding_window_shows_model_folder_for_attached_local(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Attached-local setup should choose a model root for its ComfyUI workspace."""
+
+    _app()
+    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
+    attached_workspace = tmp_path / "ExistingComfyUI"
+    draft = OnboardingDraft(
+        installation_root=tmp_path,
+        target_mode=OnboardingTargetMode.ATTACHED_LOCAL,
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        managed_workspace_path=tmp_path / "comfyui",
+        attached_workspace_path=attached_workspace,
+        managed_model_root=None,
+    )
+    window = OnboardingWindow(
+        controller=cast(
+            OnboardingController,
+            _FakeController(draft, OnboardingFlowMode.FIRST_RUN),
+        )
+    )
+
+    assert window.folder_setup_page.managed_model_section.isHidden() is False
+    assert window.folder_setup_page.managed_model_root_edit.text() == str(
+        attached_workspace / "models"
+    )
     window._emit_close_requested_on_close = False
     window.close()
 
@@ -1038,7 +1163,7 @@ def test_onboarding_window_reenables_back_after_provisioning_failure(
     window.close()
 
 
-def test_onboarding_window_reads_attached_fields_before_draft_reset(
+def test_onboarding_window_reads_attached_workspace_before_draft_reset(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -1064,18 +1189,385 @@ def test_onboarding_window_reads_attached_fields_before_draft_reset(
     monkeypatch.setattr(window, "_show_page", lambda _page_id: None)
     window._current_page = OnboardingPageId.ATTACHED_LOCAL
     expected_workspace = Path(r"E:\ComfyUIExternalTest")
-    expected_python = expected_workspace / "venv" / "Scripts" / "python.exe"
 
     window.attached_local_page.host_edit.setText("127.0.0.1")
     window.attached_local_page.port_spinbox.setValue(8190)
     window.attached_local_page.workspace_edit.setText(str(expected_workspace))
-    window.attached_local_page.python_edit.setText(str(expected_python))
-
     window._advance()
 
     assert controller.draft.endpoint_port == 8190
     assert controller.draft.attached_workspace_path == expected_workspace.resolve()
-    assert controller.draft.attached_python_executable == expected_python.resolve()
+    assert controller.draft.attached_python_binding is None
+    assert not hasattr(window.attached_local_page, "python_edit")
+    window._emit_close_requested_on_close = False
+    window.close()
+
+
+def test_onboarding_clean_preflight_skips_the_warning_page(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A passing safety check should advance without exposing its warning page."""
+
+    app = _app()
+    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
+    draft = OnboardingDraft(
+        installation_root=tmp_path,
+        target_mode=OnboardingTargetMode.MANAGED_LOCAL,
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        managed_workspace_path=tmp_path / "comfyui",
+        attached_workspace_path=None,
+    )
+    coordinator = _FakeEnvironmentCoordinator()
+    window = OnboardingWindow(
+        controller=cast(
+            OnboardingController,
+            _FakeController(draft, OnboardingFlowMode.FIRST_RUN),
+        ),
+        environment_coordinator=cast(ComfyEnvironmentCoordinator, coordinator),
+    )
+    window.show()
+    app.processEvents()
+
+    window._advance()
+    assert window._current_page is OnboardingPageId.WELCOME
+    assert coordinator.preflight_starts == 1
+    assert not window.primary_button.isEnabled()
+
+    coordinator.preflight_changed.emit(ComfyPreflightSnapshot(()))
+    app.processEvents()
+    assert window.page_stack.currentWidget() is window.target_mode_page
+    assert window.comfy_preflight_page.isVisible() is False
+    assert window.primary_button.isEnabled()
+
+    window._emit_close_requested_on_close = False
+    window.close()
+
+
+def test_locked_install_root_checks_in_place_without_showing_warning(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Launcher-owned folder setup should check quietly on its first visible page."""
+
+    app = _app()
+    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
+    draft = OnboardingDraft(
+        installation_root=tmp_path,
+        target_mode=OnboardingTargetMode.MANAGED_LOCAL,
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        managed_workspace_path=tmp_path / "comfyui",
+        attached_workspace_path=None,
+    )
+    coordinator = _FakeEnvironmentCoordinator()
+    window = OnboardingWindow(
+        controller=cast(
+            OnboardingController,
+            _FakeController(draft, OnboardingFlowMode.FIRST_RUN),
+        ),
+        environment_coordinator=cast(ComfyEnvironmentCoordinator, coordinator),
+        install_root_locked=True,
+    )
+    window.show()
+    app.processEvents()
+
+    assert window._current_page is OnboardingPageId.TARGET_MODE
+    assert coordinator.preflight_starts == 1
+    assert not window.primary_button.isEnabled()
+    coordinator.preflight_changed.emit(ComfyPreflightSnapshot(()))
+    app.processEvents()
+    assert window._current_page is OnboardingPageId.TARGET_MODE
+    assert window.comfy_preflight_page.isVisible() is False
+    assert window.primary_button.isEnabled()
+
+    window._emit_close_requested_on_close = False
+    window.close()
+
+
+def test_onboarding_running_preflight_updates_live_until_comfy_stops(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A detected process should reveal the warning until ComfyUI exits."""
+
+    app = _app()
+    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
+    draft = OnboardingDraft(
+        installation_root=tmp_path,
+        target_mode=OnboardingTargetMode.MANAGED_LOCAL,
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        managed_workspace_path=tmp_path / "comfyui",
+        attached_workspace_path=None,
+    )
+    controller = _FakeController(draft, OnboardingFlowMode.FIRST_RUN)
+    coordinator = _FakeEnvironmentCoordinator()
+    window = OnboardingWindow(
+        controller=cast(OnboardingController, controller),
+        environment_coordinator=cast(ComfyEnvironmentCoordinator, coordinator),
+    )
+    window.show()
+    app.processEvents()
+
+    window._advance()
+    app.processEvents()
+    assert window._current_page is OnboardingPageId.WELCOME
+    assert coordinator.preflight_starts == 1
+    assert not window.primary_button.isEnabled()
+
+    process = LocalComfyProcess(
+        pid=123,
+        create_time=1.0,
+        python_executable=tmp_path / "python.exe",
+        workspace=tmp_path / "ComfyUI",
+    )
+    coordinator.preflight_changed.emit(ComfyPreflightSnapshot((process,)))
+    app.processEvents()
+    assert window.page_stack.currentWidget() is window.comfy_preflight_page
+    assert not window.primary_button.isEnabled()
+    assert window.comfy_preflight_page.close_button.isHidden() is False
+    running_height = window.comfy_preflight_page.sizeHint().height()
+    assert window.page_stack.height() == running_height
+    assert running_height <= window.page_stage.contentsRect().height()
+    assert (
+        window.comfy_preflight_page.close_button.geometry().bottom()
+        < window.comfy_preflight_page.explanation_panel.geometry().top()
+    )
+    explanation_labels = (
+        window.comfy_preflight_page.explanation_panel.title_label,
+        window.comfy_preflight_page.explanation_panel.description_label,
+        *window.comfy_preflight_page.explanation_panel.detail_labels,
+    )
+    for index, current_label in enumerate(explanation_labels[:-1]):
+        next_label = explanation_labels[index + 1]
+        assert current_label.geometry().bottom() < next_label.geometry().top()
+        required_height = current_label.heightForWidth(current_label.width())
+        assert required_height < 0 or current_label.height() >= required_height
+
+    coordinator.preflight_changed.emit(ComfyPreflightSnapshot(()))
+    app.processEvents()
+    assert window.primary_button.isEnabled()
+    assert "closed" in window.comfy_preflight_page.status_label.text().lower()
+    assert window.page_stack.height() >= window.comfy_preflight_page.sizeHint().height()
+    window._advance()
+    assert window.page_stack.currentWidget() is window.target_mode_page
+
+    window._emit_close_requested_on_close = False
+    window.close()
+    assert coordinator.shutdown_calls == 1
+
+
+def _show_attached_python_choice(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> tuple[
+    OnboardingWindow,
+    _ResettingDraftController,
+    _FakeEnvironmentCoordinator,
+    Path,
+]:
+    """Build a rendered window at the attached-Python decision page."""
+
+    _app()
+    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
+    workspace = tmp_path / "UnusualComfyUI"
+    draft = OnboardingDraft(
+        installation_root=tmp_path,
+        target_mode=OnboardingTargetMode.ATTACHED_LOCAL,
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        managed_workspace_path=tmp_path / "comfyui",
+        attached_workspace_path=workspace,
+    )
+    controller = _ResettingDraftController(draft, OnboardingFlowMode.FIRST_RUN)
+    coordinator = _FakeEnvironmentCoordinator()
+    window = OnboardingWindow(
+        controller=cast(OnboardingController, controller),
+        environment_coordinator=cast(ComfyEnvironmentCoordinator, coordinator),
+    )
+    window._show_page(OnboardingPageId.ATTACHED_LOCAL)
+    window.show()
+    _app().processEvents()
+
+    window._advance()
+    assert coordinator.discoveries == [workspace.resolve()]
+    assert not window.primary_button.isEnabled()
+
+    coordinator.discovery_finished.emit(
+        ComfyPythonDiscoveryResult(binding=None, probes=())
+    )
+    _app().processEvents()
+    assert window._current_page is OnboardingPageId.ATTACHED_PYTHON_CHOICE
+    return window, controller, coordinator, workspace
+
+
+def test_attached_python_process_route_is_guided_and_switches_from_footer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Process recovery should begin only after an equal route choice."""
+
+    window, controller, coordinator, workspace = _show_attached_python_choice(
+        monkeypatch,
+        tmp_path,
+    )
+    choice_page = window.attached_python_choice_page
+    assert choice_page.process_button.text() == "Detect from running ComfyUI"
+    assert choice_page.manual_button.text() == "Select Python executable manually"
+    assert choice_page.process_button.width() == choice_page.manual_button.width()
+    assert window.route_switch_button.isHidden()
+    assert window.primary_button.isHidden()
+
+    choice_page.process_button.click()
+    _app().processEvents()
+    assert window._current_page is OnboardingPageId.ATTACHED_PYTHON_PROCESS
+    assert coordinator.recoveries == [(workspace.resolve(), None)]
+    status_panel = window.attached_python_process_page.status_panel
+    assert status_panel.title_label.text() == "Open ComfyUI yourself"
+    guidance = status_panel.description_label.text()
+    assert "Start this ComfyUI installation" in guidance
+    assert "shortcut, script, or launcher" in guidance
+    assert "detect it automatically" in guidance
+    assert window.route_switch_button.text() == "Select Python manually instead"
+    assert window.route_switch_button.isHidden() is False
+    assert window.primary_button.isHidden()
+    footer_right = window.footer_row.mapTo(
+        window,
+        QPoint(window.footer_row.width(), 0),
+    ).x()
+    switch_right = window.route_switch_button.mapTo(
+        window,
+        QPoint(window.route_switch_button.width(), 0),
+    ).x()
+    footer_top = window.footer_row.mapTo(window, QPoint(0, 0)).y()
+    switch_top = window.route_switch_button.mapTo(window, QPoint(0, 0)).y()
+    assert abs(switch_right - footer_right) <= 2
+    assert switch_top >= footer_top
+
+    process = LocalComfyProcess(
+        pid=456,
+        create_time=2.0,
+        python_executable=workspace / "venv" / "Scripts" / "python.exe",
+        workspace=workspace.resolve(),
+    )
+    binding = ComfyPythonBinding(
+        executable=process.python_executable,
+        version="3.13",
+        architecture="AMD64",
+        prefix=process.python_executable.parent.parent,
+        base_prefix=process.python_executable.parent.parent,
+        source=ComfyPythonSelectionSource.RUNNING_COMFY,
+    )
+    coordinator.recovery_changed.emit(
+        AttachedPythonRecoverySnapshot(
+            state=AttachedPythonRecoveryState.WAITING_FOR_SHUTDOWN,
+            binding=binding,
+            processes=(process,),
+            detail="Found the Python environment. Close ComfyUI to continue.",
+        )
+    )
+    assert controller.draft.attached_python_binding == binding
+    assert window.primary_button.isHidden()
+    assert window.route_switch_button.isHidden()
+    assert window.attached_python_process_page.close_button.isHidden() is False
+
+    coordinator.recovery_changed.emit(
+        AttachedPythonRecoverySnapshot(
+            state=AttachedPythonRecoveryState.READY,
+            binding=binding,
+            processes=(),
+            detail="ComfyUI is closed and its Python environment is ready.",
+        )
+    )
+    assert window.primary_button.isEnabled()
+    assert window.primary_button.isHidden() is False
+    window._advance()
+    assert window.page_stack.currentWidget() is window.folder_setup_page
+
+    window._emit_close_requested_on_close = False
+    window.close()
+
+
+def test_attached_python_manual_route_guides_before_opening_picker(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Manual recovery should open Explorer only from its explicit Browse action."""
+
+    picker_calls: list[tuple[str, str]] = []
+    selected_python = tmp_path / "UnusualComfyUI" / "venv" / "Scripts" / "python.exe"
+
+    def choose_python(
+        _parent: object,
+        title: str,
+        directory: str,
+        _filter: str,
+    ) -> tuple[str, str]:
+        """Record the explicit Browse interaction and return a deterministic path."""
+
+        picker_calls.append((title, directory))
+        return str(selected_python), ""
+
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", choose_python)
+    window, controller, coordinator, workspace = _show_attached_python_choice(
+        monkeypatch,
+        tmp_path,
+    )
+
+    window.attached_python_choice_page.manual_button.click()
+    _app().processEvents()
+    assert window.page_stack.currentWidget() is window.attached_python_manual_page
+    assert picker_calls == []
+    assert window.attached_python_manual_page.browse_button.isHidden() is False
+    assert window.route_switch_button.text() == "Detect from running ComfyUI instead"
+    guidance_panel = window.attached_python_manual_page.guidance_panel
+    guidance = " ".join(
+        (
+            guidance_panel.title_label.text(),
+            guidance_panel.description_label.text(),
+            *(label.text() for label in guidance_panel.detail_labels),
+        )
+    )
+    assert "already checked the usual environment locations" in guidance
+    assert "custom shortcut, script, launcher, or environment manager" in guidance
+    assert "venv\\Scripts" not in guidance
+    assert ".venv\\Scripts" not in guidance
+    assert "python_embeded" not in guidance
+
+    window.route_switch_button.click()
+    assert window.page_stack.currentWidget() is window.attached_python_process_page
+    assert picker_calls == []
+    window.route_switch_button.click()
+    assert window.page_stack.currentWidget() is window.attached_python_manual_page
+    assert picker_calls == []
+
+    window.attached_python_manual_page.browse_button.click()
+    assert len(picker_calls) == 1
+    assert coordinator.validations == [(workspace.resolve(), selected_python.resolve())]
+    binding = ComfyPythonBinding(
+        executable=selected_python.resolve(),
+        version="3.13",
+        architecture="AMD64",
+        prefix=selected_python.parent.parent,
+        base_prefix=selected_python.parent.parent,
+        source=ComfyPythonSelectionSource.USER_SELECTED,
+    )
+    coordinator.browse_finished.emit(
+        ComfyPythonProbeResult(
+            candidate=ComfyPythonCandidate(
+                executable=selected_python.resolve(),
+                evidence="user selected",
+                priority=0,
+            ),
+            binding=binding,
+            failure=None,
+        )
+    )
+    assert controller.draft.attached_python_binding == binding
+    assert coordinator.recoveries[-1] == (workspace.resolve(), binding)
+
     window._emit_close_requested_on_close = False
     window.close()
 

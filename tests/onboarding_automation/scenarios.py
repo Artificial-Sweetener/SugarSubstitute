@@ -43,6 +43,7 @@ from substitute.presentation.onboarding.onboarding_models import (
     OnboardingFlowMode,
     OnboardingTargetMode,
 )
+from tests.onboarding_automation.environment_fixture import synthetic_python_binding
 from tests.onboarding_automation.fixture_paths import ScenarioPaths
 
 
@@ -351,7 +352,11 @@ def build_draft_state(scenario: ScenarioDefinition) -> OnboardingDraftState:
         endpoint_port=scenario.endpoint_port,
         managed_workspace_path=scenario.managed_workspace_path,
         attached_workspace_path=scenario.attached_workspace_path,
-        attached_python_executable=scenario.attached_python_executable,
+        attached_python_binding=(
+            synthetic_python_binding(scenario.attached_python_executable)
+            if scenario.attached_python_executable is not None
+            else None
+        ),
         detected_platform="windows",
         detected_accelerator="nvidia",
         selected_install_target="windows_nvidia",

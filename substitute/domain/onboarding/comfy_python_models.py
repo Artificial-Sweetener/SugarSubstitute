@@ -29,6 +29,7 @@ class ComfyPythonSelectionSource(str, Enum):
     MANAGED = "managed"
     DISCOVERED = "discovered"
     USER_SELECTED = "user_selected"
+    RUNNING_COMFY = "running_comfy"
 
 
 class ComfyPythonResolutionFailure(str, Enum):

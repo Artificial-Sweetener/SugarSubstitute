@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QRect, Qt, Signal
+from PySide6.QtCore import QEvent, QRect, Qt, QTimer, Signal
 from PySide6.QtGui import QCloseEvent, QColor, QMouseEvent
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -47,6 +47,23 @@ from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
 )
 
 from substitute.application.onboarding import OnboardingProvisioningFailure
+from substitute.application.onboarding.comfy_environment_service import (
+    AttachedPythonRecoverySnapshot,
+    ComfyPreflightSnapshot,
+)
+from substitute.domain.onboarding import (
+    ComfyPythonDiscoveryResult,
+    ComfyPythonProbeResult,
+)
+from substitute.presentation.onboarding.comfy_environment_coordinator import (
+    ComfyEnvironmentCoordinator,
+)
+from substitute.presentation.onboarding.comfy_environment_pages import (
+    AttachedPythonChoicePage,
+    AttachedPythonManualPage,
+    AttachedPythonProcessPage,
+    ComfyPreflightPage,
+)
 from substitute.presentation.onboarding.onboarding_controller import (
     OnboardingController,
 )
@@ -113,6 +130,12 @@ _PROGRESS_BY_PAGE = {
         title="Choose a folder",
         helper="You can change the ComfyUI connection later.",
     ),
+    OnboardingPageId.COMFY_PREFLIGHT: ProgressPresentation(
+        step_number=1,
+        step_count=4,
+        title="Check ComfyUI",
+        helper="Setup continues automatically once ComfyUI is closed.",
+    ),
     OnboardingPageId.TARGET_MODE: ProgressPresentation(
         step_number=2,
         step_count=4,
@@ -130,6 +153,24 @@ _PROGRESS_BY_PAGE = {
         step_count=4,
         title="Confirm the details",
         helper="Choose the existing ComfyUI folder Substitute should launch.",
+    ),
+    OnboardingPageId.ATTACHED_PYTHON_CHOICE: ProgressPresentation(
+        step_number=3,
+        step_count=4,
+        title="Find ComfyUI's environment",
+        helper="Choose how Substitute should identify ComfyUI's Python.",
+    ),
+    OnboardingPageId.ATTACHED_PYTHON_PROCESS: ProgressPresentation(
+        step_number=3,
+        step_count=4,
+        title="Detect ComfyUI's environment",
+        helper="Start ComfyUI yourself; Substitute will detect it automatically.",
+    ),
+    OnboardingPageId.ATTACHED_PYTHON_MANUAL: ProgressPresentation(
+        step_number=3,
+        step_count=4,
+        title="Select ComfyUI's environment",
+        helper="Choose the Python executable that this ComfyUI installation uses.",
     ),
     OnboardingPageId.REMOTE: ProgressPresentation(
         step_number=3,
@@ -272,6 +313,7 @@ class OnboardingWindow(SubstituteWindowFrame):
         self,
         *,
         controller: OnboardingController,
+        environment_coordinator: ComfyEnvironmentCoordinator | None = None,
         install_root_locked: bool = False,
         initial_geometry: tuple[int, int, int, int] | None = None,
         parent: QWidget | None = None,
@@ -280,6 +322,7 @@ class OnboardingWindow(SubstituteWindowFrame):
 
         super().__init__(parent, create_menu_container=False)
         self._controller = controller
+        self._environment_coordinator = environment_coordinator
         self._install_root_locked = install_root_locked
         self._initial_geometry = initial_geometry
         self._current_page = self._initial_page()
@@ -288,6 +331,9 @@ class OnboardingWindow(SubstituteWindowFrame):
         self._emit_close_requested_on_close = True
         self._drag_widgets: set[QWidget] = set()
         self._provisioning_output_stream = TerminalOutputStream(max_lines=2000)
+        self._preflight_snapshot: ComfyPreflightSnapshot | None = None
+        self._preflight_destination: OnboardingPageId | None = None
+        self._recovery_snapshot: AttachedPythonRecoverySnapshot | None = None
 
         self.setObjectName("OnboardingWindow")
         self.setWindowTitle(self._window_title(controller.flow_mode))
@@ -305,6 +351,8 @@ class OnboardingWindow(SubstituteWindowFrame):
         self._apply_draft(controller.draft)
         self._render_issues()
         self._show_page(self._current_page)
+        if self._install_root_locked:
+            self._begin_preflight_gate(OnboardingPageId.TARGET_MODE)
         self._place_initial_window()
 
     def _build_ui(self) -> None:
@@ -423,9 +471,15 @@ class OnboardingWindow(SubstituteWindowFrame):
         content_layout.addWidget(self.page_stage, 1)
 
         self.install_root_page = InstallRootPage(self.content_panel)
+        self.comfy_preflight_page = ComfyPreflightPage(self.content_panel)
         self.target_mode_page = TargetModePage(self.content_panel)
         self.managed_local_page = ManagedLocalPage(self.content_panel)
         self.attached_local_page = AttachedLocalPage(self.content_panel)
+        self.attached_python_choice_page = AttachedPythonChoicePage(self.content_panel)
+        self.attached_python_process_page = AttachedPythonProcessPage(
+            self.content_panel
+        )
+        self.attached_python_manual_page = AttachedPythonManualPage(self.content_panel)
         self.remote_page = RemotePage(self.content_panel)
         self.folder_setup_page = FolderSetupPage(self.content_panel)
         self.integrations_page = IntegrationsPage(self.content_panel)
@@ -434,9 +488,13 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.completion_page = CompletionPage(self.content_panel)
         self._pages = {
             OnboardingPageId.WELCOME: self.install_root_page,
+            OnboardingPageId.COMFY_PREFLIGHT: self.comfy_preflight_page,
             OnboardingPageId.TARGET_MODE: self.target_mode_page,
             OnboardingPageId.MANAGED_LOCAL: self.managed_local_page,
             OnboardingPageId.ATTACHED_LOCAL: self.attached_local_page,
+            OnboardingPageId.ATTACHED_PYTHON_CHOICE: self.attached_python_choice_page,
+            OnboardingPageId.ATTACHED_PYTHON_PROCESS: self.attached_python_process_page,
+            OnboardingPageId.ATTACHED_PYTHON_MANUAL: self.attached_python_manual_page,
             OnboardingPageId.REMOTE: self.remote_page,
             OnboardingPageId.FOLDERS: self.folder_setup_page,
             OnboardingPageId.INTEGRATIONS: self.integrations_page,
@@ -445,6 +503,15 @@ class OnboardingWindow(SubstituteWindowFrame):
         }
         for page in self._pages.values():
             self.page_stack.addWidget(page)
+        self.comfy_preflight_page.content_height_changed.connect(
+            self._schedule_current_page_height_refresh
+        )
+        self.attached_python_process_page.content_height_changed.connect(
+            self._schedule_current_page_height_refresh
+        )
+        self.attached_python_manual_page.content_height_changed.connect(
+            self._schedule_current_page_height_refresh
+        )
 
         self.footer_row = QFrame(self.content_panel)
         self.footer_row.setObjectName("OnboardingFooterRow")
@@ -455,11 +522,15 @@ class OnboardingWindow(SubstituteWindowFrame):
 
         self.back_button = PushButton("Back", self.footer_row)
         self.back_button.setObjectName("OnboardingBackButton")
+        self.route_switch_button = PushButton("", self.footer_row)
+        self.route_switch_button.setObjectName("OnboardingRouteSwitchButton")
+        self.route_switch_button.hide()
         self.primary_button = PrimaryPushButton("Continue", self.footer_row)
         self.primary_button.setObjectName("OnboardingPrimaryButton")
         self.back_button.setMinimumWidth(76)
         self.primary_button.setMinimumWidth(164)
         footer_layout.addWidget(self.back_button)
+        footer_layout.addWidget(self.route_switch_button)
         footer_layout.addWidget(self.primary_button)
         content_layout.addWidget(self.footer_row)
 
@@ -723,8 +794,23 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.attached_local_page.browse_requested.connect(
             self._browse_attached_workspace
         )
-        self.attached_local_page.python_browse_requested.connect(
+        self.comfy_preflight_page.close_requested.connect(
+            self._close_observed_comfy_processes
+        )
+        self.attached_python_choice_page.process_detection_requested.connect(
+            lambda: self._show_page(OnboardingPageId.ATTACHED_PYTHON_PROCESS)
+        )
+        self.attached_python_choice_page.manual_selection_requested.connect(
+            lambda: self._show_page(OnboardingPageId.ATTACHED_PYTHON_MANUAL)
+        )
+        self.attached_python_manual_page.browse_requested.connect(
             self._browse_attached_python
+        )
+        self.attached_python_process_page.close_requested.connect(
+            self._close_observed_comfy_processes
+        )
+        self.attached_python_manual_page.close_requested.connect(
+            self._close_observed_comfy_processes
         )
         self.folder_setup_page.managed_model_browse_requested.connect(
             self._browse_managed_model_root
@@ -737,6 +823,7 @@ class OnboardingWindow(SubstituteWindowFrame):
             self._use_default_output_root
         )
         self.back_button.clicked.connect(self._go_back)
+        self.route_switch_button.clicked.connect(self._switch_attached_python_route)
         self.primary_button.clicked.connect(self._advance)
         self._controller.draft_changed.connect(self._apply_draft)
         self._controller.provisioning_started.connect(self._handle_provisioning_started)
@@ -751,6 +838,16 @@ class OnboardingWindow(SubstituteWindowFrame):
         )
         self._controller.failure_reported.connect(self._handle_failure)
         self._controller.completion_ready.connect(self._handle_completion)
+        coordinator = self._environment_coordinator
+        if coordinator is not None:
+            coordinator.preflight_changed.connect(self._handle_preflight_snapshot)
+            coordinator.discovery_finished.connect(
+                self._handle_attached_python_discovery
+            )
+            coordinator.recovery_changed.connect(self._handle_recovery_snapshot)
+            coordinator.browse_finished.connect(self._handle_browsed_python_probe)
+            coordinator.termination_finished.connect(self._handle_process_termination)
+            coordinator.task_failed.connect(self._handle_environment_task_failure)
 
     def _advance(self) -> None:
         """Advance the onboarding flow for the current page."""
@@ -760,6 +857,17 @@ class OnboardingWindow(SubstituteWindowFrame):
                 self.install_root_page.install_root_edit.text()
             ).resolve()
             self._controller.set_installation_root(install_root)
+            self._begin_preflight_gate(OnboardingPageId.TARGET_MODE)
+            return
+        elif self._current_page is OnboardingPageId.COMFY_PREFLIGHT:
+            if self._preflight_snapshot is None:
+                return
+            if not self._preflight_snapshot.can_continue:
+                return
+            destination = self._preflight_destination or OnboardingPageId.TARGET_MODE
+            self._preflight_destination = None
+            self._show_page(destination)
+            return
         elif self._current_page is OnboardingPageId.TARGET_MODE:
             self._controller.update_target_mode(self.target_mode_page.selected_mode())
         elif self._current_page is OnboardingPageId.MANAGED_LOCAL:
@@ -788,7 +896,6 @@ class OnboardingWindow(SubstituteWindowFrame):
             attached_host = self.attached_local_page.host_edit.text()
             attached_port = self.attached_local_page.port_spinbox.value()
             workspace_text = self.attached_local_page.workspace_edit.text().strip()
-            python_text = self.attached_local_page.python_edit.text().strip()
             self._controller.update_endpoint(
                 attached_host,
                 attached_port,
@@ -796,9 +903,30 @@ class OnboardingWindow(SubstituteWindowFrame):
             self._controller.update_attached_workspace(
                 Path(workspace_text).resolve() if workspace_text else None
             )
-            self._controller.update_attached_python(
-                Path(python_text).resolve() if python_text else None
-            )
+            workspace = self._controller.draft.attached_workspace_path
+            if workspace is None:
+                self._show_page(OnboardingPageId.ATTACHED_PYTHON_CHOICE)
+                return
+            coordinator = self._environment_coordinator
+            if coordinator is None:
+                self._show_page(OnboardingPageId.ATTACHED_PYTHON_CHOICE)
+                return
+            self.primary_button.setEnabled(False)
+            self.primary_button.setText("Finding Python…")
+            coordinator.discover_attached_python(workspace)
+            return
+        elif self._current_page is OnboardingPageId.ATTACHED_PYTHON_CHOICE:
+            return
+        elif self._current_page in {
+            OnboardingPageId.ATTACHED_PYTHON_PROCESS,
+            OnboardingPageId.ATTACHED_PYTHON_MANUAL,
+        }:
+            snapshot = self._recovery_snapshot
+            if snapshot is None or not snapshot.can_continue:
+                return
+            self._controller.update_attached_python_binding(snapshot.binding)
+            self._show_page(OnboardingPageId.FOLDERS)
+            return
         elif self._current_page is OnboardingPageId.REMOTE:
             remote_host = self.remote_page.host_edit.text()
             remote_port = self.remote_page.port_spinbox.value()
@@ -811,7 +939,7 @@ class OnboardingWindow(SubstituteWindowFrame):
                 managed_model_root=self._selected_managed_model_root(),
                 managed_model_root_uses_default=(
                     self._selected_managed_model_root()
-                    == self._default_managed_model_root()
+                    == self._default_local_model_root()
                 ),
                 output_root=self._selected_output_root(),
                 output_root_uses_default=(
@@ -857,23 +985,92 @@ class OnboardingWindow(SubstituteWindowFrame):
             return
         self._show_page(previous_page)
 
+    def _begin_preflight_gate(self, destination: OnboardingPageId) -> None:
+        """Check for running ComfyUI without exposing a successful check as a page."""
+
+        self._preflight_destination = destination
+        self._preflight_snapshot = None
+        coordinator = self._environment_coordinator
+        if coordinator is None:
+            self._preflight_destination = None
+            self._show_page(destination)
+            return
+        self.primary_button.setText("Checking ComfyUI…")
+        self.primary_button.setEnabled(False)
+        coordinator.start_preflight()
+
+    def _switch_attached_python_route(self) -> None:
+        """Switch directly between the two guided Python recovery routes."""
+
+        if self._current_page is OnboardingPageId.ATTACHED_PYTHON_PROCESS:
+            self._show_page(OnboardingPageId.ATTACHED_PYTHON_MANUAL)
+            return
+        if self._current_page is OnboardingPageId.ATTACHED_PYTHON_MANUAL:
+            self._show_page(OnboardingPageId.ATTACHED_PYTHON_PROCESS)
+
+    def _show_route_switch(self, label: str) -> None:
+        """Place a recovery-route alternative in the window footer."""
+
+        self.route_switch_button.setText(label)
+        self.route_switch_button.adjustSize()
+        self.route_switch_button.show()
+
     def _show_page(self, page_id: OnboardingPageId) -> None:
         """Display one page and update navigation state for it."""
 
         if self._install_root_locked and page_id is OnboardingPageId.WELCOME:
             page_id = OnboardingPageId.TARGET_MODE
+        coordinator = self._environment_coordinator
+        if coordinator is not None:
+            coordinator.stop_monitoring()
         self._current_page = page_id
         self.page_stack.setCurrentWidget(self._pages[page_id])
-        self.page_stack.setFixedHeight(self._pages[page_id].sizeHint().height())
+        self._refresh_current_page_height()
         self._update_progress(page_id)
 
         self.back_button.setEnabled(
             page_id is not OnboardingPageId.WELCOME
             and not (
-                self._install_root_locked and page_id is OnboardingPageId.TARGET_MODE
+                self._install_root_locked
+                and page_id
+                in {
+                    OnboardingPageId.COMFY_PREFLIGHT,
+                    OnboardingPageId.TARGET_MODE,
+                }
             )
         )
+        self.route_switch_button.hide()
+        self.primary_button.show()
         self.primary_button.setEnabled(True)
+
+        if page_id is OnboardingPageId.COMFY_PREFLIGHT:
+            self._preflight_snapshot = None
+            self.comfy_preflight_page.show_checking()
+            self.primary_button.setText("Checking…")
+            self.primary_button.setEnabled(False)
+            if coordinator is not None:
+                coordinator.start_preflight()
+            return
+
+        if page_id is OnboardingPageId.ATTACHED_PYTHON_CHOICE:
+            self._recovery_snapshot = None
+            self.primary_button.hide()
+            return
+
+        if page_id is OnboardingPageId.ATTACHED_PYTHON_PROCESS:
+            self._recovery_snapshot = None
+            self.attached_python_process_page.reset()
+            self._show_route_switch("Select Python manually instead")
+            self.primary_button.hide()
+            self._start_attached_python_recovery()
+            return
+
+        if page_id is OnboardingPageId.ATTACHED_PYTHON_MANUAL:
+            self._recovery_snapshot = None
+            self.attached_python_manual_page.reset()
+            self._show_route_switch("Detect from running ComfyUI instead")
+            self.primary_button.hide()
+            return
 
         if page_id is OnboardingPageId.PROVISIONING:
             self.back_button.setEnabled(False)
@@ -896,6 +1093,23 @@ class OnboardingWindow(SubstituteWindowFrame):
 
         self.primary_button.setText(self._primary_button_label(page_id))
         self.primary_button.adjustSize()
+
+    def _refresh_current_page_height(self) -> None:
+        """Resize the stack when current-page content appears or disappears."""
+
+        page = self._pages[self._current_page]
+        page_layout = page.layout()
+        if page_layout is not None:
+            page_layout.invalidate()
+            page_layout.activate()
+        page.updateGeometry()
+        self.page_stack.setFixedHeight(page.sizeHint().height())
+        self.page_stack.updateGeometry()
+
+    def _schedule_current_page_height_refresh(self) -> None:
+        """Refresh geometry after Qt applies a dynamic child visibility change."""
+
+        QTimer.singleShot(0, self._refresh_current_page_height)
 
     def _update_progress(self, page_id: OnboardingPageId) -> None:
         """Refresh the compact progress copy shown in the left rail."""
@@ -953,16 +1167,17 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.attached_local_page.workspace_edit.setText(
             str(draft.attached_workspace_path or "")
         )
-        self.attached_local_page.python_edit.setText(
-            str(draft.attached_python_executable or "")
-        )
         self.remote_page.host_edit.setText(draft.endpoint_host)
         self.remote_page.port_spinbox.setValue(draft.endpoint_port)
         self.folder_setup_page.set_managed_model_visible(
-            draft.target_mode is OnboardingTargetMode.MANAGED_LOCAL
+            draft.target_mode
+            in {
+                OnboardingTargetMode.MANAGED_LOCAL,
+                OnboardingTargetMode.ATTACHED_LOCAL,
+            }
         )
         self.folder_setup_page.managed_model_root_edit.setText(
-            str(draft.managed_model_root or self._default_managed_model_root())
+            str(draft.managed_model_root or self._default_local_model_root())
         )
         self.folder_setup_page.output_root_edit.setText(
             str(draft.output_root or self._default_output_root())
@@ -1086,6 +1301,142 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.primary_button.setEnabled(True)
         self.primary_button.adjustSize()
 
+    def _handle_preflight_snapshot(self, result: object) -> None:
+        """Apply one live running-Comfy preflight observation."""
+
+        if not isinstance(result, ComfyPreflightSnapshot):
+            return
+        if self._current_page is OnboardingPageId.COMFY_PREFLIGHT:
+            self._preflight_snapshot = result
+            self.comfy_preflight_page.apply_snapshot(result)
+            self.primary_button.setText("Continue")
+            self.primary_button.setEnabled(result.can_continue)
+            return
+        destination = self._preflight_destination
+        if destination is None:
+            return
+        if result.can_continue:
+            self._preflight_destination = None
+            self._show_page(destination)
+            return
+        self._show_page(OnboardingPageId.COMFY_PREFLIGHT)
+        self._preflight_snapshot = result
+        self.comfy_preflight_page.apply_snapshot(result)
+        self.primary_button.setText("Continue")
+        self.primary_button.setEnabled(False)
+
+    def _handle_attached_python_discovery(self, result: object) -> None:
+        """Route silent Python discovery to normal flow or conditional recovery."""
+
+        if not isinstance(result, ComfyPythonDiscoveryResult):
+            return
+        if self._current_page is not OnboardingPageId.ATTACHED_LOCAL:
+            return
+        if result.binding is not None:
+            self._controller.update_attached_python_binding(result.binding)
+            self._show_page(OnboardingPageId.FOLDERS)
+            return
+        self._show_page(OnboardingPageId.ATTACHED_PYTHON_CHOICE)
+
+    def _start_attached_python_recovery(self) -> None:
+        """Begin live process observation for the selected attached workspace."""
+
+        workspace = self._controller.draft.attached_workspace_path
+        coordinator = self._environment_coordinator
+        if workspace is None or coordinator is None:
+            return
+        self._recovery_snapshot = None
+        self.primary_button.setEnabled(False)
+        coordinator.start_attached_recovery(
+            workspace=workspace,
+            binding=self._controller.draft.attached_python_binding,
+        )
+
+    def _handle_recovery_snapshot(self, result: object) -> None:
+        """Apply one responsive launch-and-observe recovery state."""
+
+        if not isinstance(result, AttachedPythonRecoverySnapshot):
+            return
+        if self._current_page not in {
+            OnboardingPageId.ATTACHED_PYTHON_PROCESS,
+            OnboardingPageId.ATTACHED_PYTHON_MANUAL,
+        }:
+            return
+        self._recovery_snapshot = result
+        if result.binding is not None:
+            self._controller.update_attached_python_binding(result.binding)
+        if self._current_page is OnboardingPageId.ATTACHED_PYTHON_PROCESS:
+            self.attached_python_process_page.apply_snapshot(result)
+        else:
+            self.attached_python_manual_page.apply_snapshot(result)
+        self.primary_button.setText("Continue")
+        self.primary_button.setVisible(result.can_continue)
+        self.primary_button.setEnabled(result.can_continue)
+        self.route_switch_button.setVisible(result.binding is None)
+
+    def _handle_browsed_python_probe(self, result: object) -> None:
+        """Continue monitoring after validating a recovery-only Browse selection."""
+
+        if not isinstance(result, ComfyPythonProbeResult):
+            return
+        if self._current_page is not OnboardingPageId.ATTACHED_PYTHON_MANUAL:
+            return
+        if result.binding is None:
+            self.attached_python_manual_page.show_validation_failure(
+                result.failure
+                or "The selected Python executable could not be validated."
+            )
+            self.primary_button.hide()
+            self.route_switch_button.show()
+            return
+        self._controller.update_attached_python_binding(result.binding)
+        workspace = self._controller.draft.attached_workspace_path
+        coordinator = self._environment_coordinator
+        if workspace is None or coordinator is None:
+            return
+        coordinator.start_attached_recovery(
+            workspace=workspace,
+            binding=result.binding,
+        )
+
+    def _close_observed_comfy_processes(self) -> None:
+        """Request conservative shutdown of the latest verified process snapshot."""
+
+        coordinator = self._environment_coordinator
+        if coordinator is None:
+            return
+        self.comfy_preflight_page.close_button.setEnabled(False)
+        self.attached_python_process_page.close_button.setEnabled(False)
+        self.attached_python_manual_page.close_button.setEnabled(False)
+        coordinator.close_observed_processes()
+
+    def _handle_process_termination(self, _result: object) -> None:
+        """Restore shutdown controls while live monitoring confirms process exit."""
+
+        self.comfy_preflight_page.close_button.setEnabled(True)
+        self.attached_python_process_page.close_button.setEnabled(True)
+        self.attached_python_manual_page.close_button.setEnabled(True)
+
+    def _handle_environment_task_failure(self, detail: str) -> None:
+        """Render an actionable environment observation failure without advancing."""
+
+        self.primary_button.setEnabled(False)
+        if (
+            self._preflight_destination is not None
+            and self._current_page is not OnboardingPageId.COMFY_PREFLIGHT
+        ):
+            self._show_page(OnboardingPageId.COMFY_PREFLIGHT)
+        if self._current_page is OnboardingPageId.COMFY_PREFLIGHT:
+            self.comfy_preflight_page.status_label.setText(
+                f"ComfyUI could not be checked yet: {detail}"
+            )
+            return
+        if self._current_page is OnboardingPageId.ATTACHED_PYTHON_PROCESS:
+            self.attached_python_process_page.show_failure(detail)
+            return
+        if self._current_page is OnboardingPageId.ATTACHED_PYTHON_MANUAL:
+            self.attached_python_manual_page.show_validation_failure(detail)
+
     def _browse_install_root(self) -> None:
         """Prompt for the visible installation root directory."""
 
@@ -1120,16 +1471,24 @@ class OnboardingWindow(SubstituteWindowFrame):
             self.attached_local_page.workspace_edit.setText(selected)
 
     def _browse_attached_python(self) -> None:
-        """Prompt for the Python executable used by the attached ComfyUI setup."""
+        """Prompt for an unusual attached environment's Python executable."""
 
         selected, _selected_filter = QFileDialog.getOpenFileName(
             self,
             "Choose ComfyUI Python Executable",
-            self.attached_local_page.python_edit.text(),
+            str(self._controller.draft.attached_workspace_path or ""),
             "Python executable (python.exe python);;All files (*)",
         )
-        if selected:
-            self.attached_local_page.python_edit.setText(selected)
+        workspace = self._controller.draft.attached_workspace_path
+        coordinator = self._environment_coordinator
+        if selected and workspace is not None and coordinator is not None:
+            executable = Path(selected).resolve()
+            self.primary_button.hide()
+            self.attached_python_manual_page.show_validation_started(executable)
+            coordinator.validate_browsed_python(
+                workspace=workspace,
+                executable=executable,
+            )
 
     def _browse_managed_model_root(self) -> None:
         """Prompt for the managed ComfyUI models folder."""
@@ -1154,10 +1513,10 @@ class OnboardingWindow(SubstituteWindowFrame):
             self.folder_setup_page.output_root_edit.setText(selected)
 
     def _use_default_managed_model_root(self) -> None:
-        """Reset the models field to the managed ComfyUI default."""
+        """Reset the models field to the selected local ComfyUI default."""
 
         self.folder_setup_page.managed_model_root_edit.setText(
-            str(self._default_managed_model_root())
+            str(self._default_local_model_root())
         )
 
     def _use_default_output_root(self) -> None:
@@ -1171,7 +1530,7 @@ class OnboardingWindow(SubstituteWindowFrame):
         """Return the selected models folder from the folders page."""
 
         text = self.folder_setup_page.managed_model_root_edit.text().strip()
-        return Path(text).resolve() if text else self._default_managed_model_root()
+        return Path(text).resolve() if text else self._default_local_model_root()
 
     def _selected_output_root(self) -> Path:
         """Return the selected output folder from the folders page."""
@@ -1179,10 +1538,16 @@ class OnboardingWindow(SubstituteWindowFrame):
         text = self.folder_setup_page.output_root_edit.text().strip()
         return Path(text).resolve() if text else self._default_output_root()
 
-    def _default_managed_model_root(self) -> Path:
-        """Return ComfyUI's default models folder for the selected workspace."""
+    def _default_local_model_root(self) -> Path:
+        """Return the default models folder for the selected local ComfyUI."""
 
-        return self._controller.draft.managed_workspace_path / "models"
+        draft = self._controller.draft
+        if (
+            draft.target_mode is OnboardingTargetMode.ATTACHED_LOCAL
+            and draft.attached_workspace_path is not None
+        ):
+            return draft.attached_workspace_path / "models"
+        return draft.managed_workspace_path / "models"
 
     def _default_output_root(self) -> Path:
         """Return Substitute's default output folder for the selected install root."""
@@ -1213,6 +1578,8 @@ class OnboardingWindow(SubstituteWindowFrame):
     def closeEvent(self, event: QCloseEvent) -> None:
         """Emit close routing for non-launch exits before closing the window."""
 
+        if self._environment_coordinator is not None:
+            self._environment_coordinator.shutdown()
         if self._emit_close_requested_on_close:
             self.close_requested.emit()
         event.accept()

@@ -25,6 +25,10 @@ from substitute.domain.onboarding.comfy_python_models import (
     ComfyPythonResolutionFailure,
     ComfyPythonSelectionSource,
 )
+from substitute.domain.onboarding.local_comfy_process import (
+    LocalComfyProcess,
+    LocalComfyTerminationResult,
+)
 
 from substitute.domain.onboarding.models import (
     ComfyEndpoint,
@@ -64,6 +68,8 @@ __all__ = [
     "ComfyPythonResolutionError",
     "ComfyPythonResolutionFailure",
     "ComfyPythonSelectionSource",
+    "LocalComfyProcess",
+    "LocalComfyTerminationResult",
     "ComfyTargetConfiguration",
     "ComfyTargetMode",
     "InstallationConfiguration",

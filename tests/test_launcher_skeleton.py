@@ -836,7 +836,10 @@ def test_continue_install_auto_starts_runtime_and_setup(
     )
     _pump_events_until(
         qt_application,
-        lambda: window._primary_button.text() == "Setup started",  # noqa: SLF001
+        lambda: (
+            window._primary_button.text() == "Setup started"  # noqa: SLF001
+            and close_calls_ref["count"] == 1
+        ),
     )
 
     assert continue_calls == 1
@@ -849,6 +852,42 @@ def test_continue_install_auto_starts_runtime_and_setup(
     ]
     assert handoff_commands[0][3].startswith("--handoff-geometry=")
     assert close_calls_ref["count"] == 1
+    window.close()
+
+
+def test_setup_handoff_closes_only_after_worker_thread_stops(
+    qt_application: QApplication,
+    tmp_path: Path,
+) -> None:
+    """Successful handoff must keep Qt alive until its worker thread has stopped."""
+
+    _ = qt_application
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    close_calls_ref = {"count": 0}
+    window = LauncherMainWindow(
+        initial_layout=layout,
+        continue_install=False,
+        repair=False,
+        update_check_enabled=True,
+        process_starter=lambda _command: None,
+        runtime_installer=cast(Any, object()),
+    )
+    window._setup_thread = cast(Any, object())  # noqa: SLF001
+    window._setup_worker = cast(Any, object())  # noqa: SLF001
+    window._close_after_successful_handoff = lambda: _record_close_call(  # type: ignore[method-assign]  # noqa: SLF001
+        close_calls_ref
+    )
+
+    window._handle_setup_worker_succeeded()  # noqa: SLF001
+
+    assert window._primary_button.text() == "Setup started"  # noqa: SLF001
+    assert close_calls_ref["count"] == 0
+
+    window._forget_setup_worker()  # noqa: SLF001
+
+    assert close_calls_ref["count"] == 1
+    assert window._setup_thread is None  # noqa: SLF001
+    assert window._setup_worker is None  # noqa: SLF001
     window.close()
 
 
@@ -928,7 +967,10 @@ def test_launcher_continue_installs_app_once(
     window._primary_button.click()  # noqa: SLF001
     _pump_events_until(
         qt_application,
-        lambda: window._primary_button.text() == "Setup started",  # noqa: SLF001
+        lambda: (
+            window._primary_button.text() == "Setup started"  # noqa: SLF001
+            and close_calls_ref["count"] == 1
+        ),
     )
 
     assert prepare_calls == 1

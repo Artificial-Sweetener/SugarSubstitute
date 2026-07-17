@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from substitute.domain.onboarding import ComfyPythonBinding
+
 
 class OnboardingFlowMode(str, Enum):
     """Describe the top-level onboarding presentation entry mode."""
@@ -35,9 +37,13 @@ class OnboardingPageId(str, Enum):
     """Identify the dedicated pages that make up onboarding flow."""
 
     WELCOME = "welcome"
+    COMFY_PREFLIGHT = "comfy_preflight"
     TARGET_MODE = "target_mode"
     MANAGED_LOCAL = "managed_local"
     ATTACHED_LOCAL = "attached_local"
+    ATTACHED_PYTHON_CHOICE = "attached_python_choice"
+    ATTACHED_PYTHON_PROCESS = "attached_python_process"
+    ATTACHED_PYTHON_MANUAL = "attached_python_manual"
     REMOTE = "remote"
     FOLDERS = "folders"
     INTEGRATIONS = "integrations"
@@ -71,7 +77,7 @@ class OnboardingDraft:
     endpoint_port: int
     managed_workspace_path: Path
     attached_workspace_path: Path | None
-    attached_python_executable: Path | None = None
+    attached_python_binding: ComfyPythonBinding | None = None
     managed_model_root: Path | None = None
     managed_model_root_uses_default: bool = True
     output_root: Path | None = None

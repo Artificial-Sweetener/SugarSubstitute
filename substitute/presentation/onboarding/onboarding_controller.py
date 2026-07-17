@@ -39,6 +39,10 @@ from substitute.application.onboarding import (
     OnboardingDraftState,
     OnboardingProvisioningFailure,
 )
+from substitute.domain.onboarding import (
+    ComfyPythonBinding,
+    ComfyPythonSelectionSource,
+)
 from substitute.presentation.onboarding.onboarding_models import (
     OnboardingCompletion,
     OnboardingDraft,
@@ -295,19 +299,26 @@ class OnboardingController(QObject):
     def update_attached_workspace(self, workspace_path: Path | None) -> None:
         """Update the existing local ComfyUI workspace path inside the draft."""
 
+        model_root = self._draft.managed_model_root
+        if self._draft.managed_model_root_uses_default and workspace_path is not None:
+            model_root = workspace_path / "models"
         self._draft = replace(
             self._draft,
             attached_workspace_path=workspace_path,
-            attached_python_executable=None,
+            attached_python_binding=None,
+            managed_model_root=model_root,
         )
         self.draft_changed.emit(self._draft)
 
-    def update_attached_python(self, python_executable: Path | None) -> None:
-        """Update the explicit Python selection for an existing ComfyUI setup."""
+    def update_attached_python_binding(
+        self,
+        binding: ComfyPythonBinding | None,
+    ) -> None:
+        """Update the one verified Python binding for an attached ComfyUI setup."""
 
         self._draft = replace(
             self._draft,
-            attached_python_executable=python_executable,
+            attached_python_binding=binding,
         )
         self.draft_changed.emit(self._draft)
 
@@ -381,11 +392,16 @@ class OnboardingController(QObject):
 
         if current_page is OnboardingPageId.WELCOME:
             return OnboardingPageId.TARGET_MODE
+        if current_page is OnboardingPageId.COMFY_PREFLIGHT:
+            return OnboardingPageId.TARGET_MODE
         if current_page is OnboardingPageId.TARGET_MODE:
             return self._target_page(self._draft.target_mode)
         if current_page in {
             OnboardingPageId.MANAGED_LOCAL,
             OnboardingPageId.ATTACHED_LOCAL,
+            OnboardingPageId.ATTACHED_PYTHON_CHOICE,
+            OnboardingPageId.ATTACHED_PYTHON_PROCESS,
+            OnboardingPageId.ATTACHED_PYTHON_MANUAL,
             OnboardingPageId.REMOTE,
         }:
             return OnboardingPageId.FOLDERS
@@ -405,13 +421,35 @@ class OnboardingController(QObject):
 
         if current_page is OnboardingPageId.TARGET_MODE:
             return OnboardingPageId.WELCOME
+        if current_page is OnboardingPageId.COMFY_PREFLIGHT:
+            return OnboardingPageId.WELCOME
         if current_page in {
             OnboardingPageId.MANAGED_LOCAL,
             OnboardingPageId.ATTACHED_LOCAL,
             OnboardingPageId.REMOTE,
         }:
             return OnboardingPageId.TARGET_MODE
+        if current_page is OnboardingPageId.ATTACHED_PYTHON_CHOICE:
+            return OnboardingPageId.ATTACHED_LOCAL
+        if current_page in {
+            OnboardingPageId.ATTACHED_PYTHON_PROCESS,
+            OnboardingPageId.ATTACHED_PYTHON_MANUAL,
+        }:
+            return OnboardingPageId.ATTACHED_PYTHON_CHOICE
         if current_page is OnboardingPageId.FOLDERS:
+            binding = self._draft.attached_python_binding
+            if (
+                self._draft.target_mode is OnboardingTargetMode.ATTACHED_LOCAL
+                and binding is not None
+                and binding.source
+                in {
+                    ComfyPythonSelectionSource.RUNNING_COMFY,
+                    ComfyPythonSelectionSource.USER_SELECTED,
+                }
+            ):
+                if binding.source is ComfyPythonSelectionSource.RUNNING_COMFY:
+                    return OnboardingPageId.ATTACHED_PYTHON_PROCESS
+                return OnboardingPageId.ATTACHED_PYTHON_MANUAL
             return self._target_page(self._draft.target_mode)
         if current_page is OnboardingPageId.INTEGRATIONS:
             return OnboardingPageId.FOLDERS
@@ -482,7 +520,7 @@ class OnboardingController(QObject):
             endpoint_port=draft.endpoint_port,
             managed_workspace_path=draft.managed_workspace_path,
             attached_workspace_path=draft.attached_workspace_path,
-            attached_python_executable=draft.attached_python_executable,
+            attached_python_binding=draft.attached_python_binding,
             managed_model_root=draft.managed_model_root,
             managed_model_root_uses_default=draft.managed_model_root_uses_default,
             output_root=draft.output_root,
@@ -631,7 +669,7 @@ class OnboardingController(QObject):
             endpoint_port=draft.endpoint_port,
             managed_workspace_path=draft.managed_workspace_path,
             attached_workspace_path=draft.attached_workspace_path,
-            attached_python_executable=draft.attached_python_executable,
+            attached_python_binding=draft.attached_python_binding,
             managed_model_root=draft.managed_model_root,
             managed_model_root_uses_default=draft.managed_model_root_uses_default,
             output_root=draft.output_root,
