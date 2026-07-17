@@ -91,16 +91,17 @@ def _pump_events_until(
     raise AssertionError("Timed out waiting for launcher background work.")
 
 
-def test_launcher_args_parse_internal_flags() -> None:
+def test_launcher_args_parse_internal_flags(tmp_path: Path) -> None:
     """The launcher accepts setup, repair, update, and install-root flags."""
 
+    install_root = tmp_path / "SugarSubstitute"
     args = parse_launcher_args(
         [
             "--continue-install",
             "--repair",
             "--no-update-check",
             "--install-root",
-            "E:\\Programs\\SugarSubstitute",
+            str(install_root),
             "--handoff-geometry",
             "10,20,1260,800",
         ]
@@ -110,7 +111,7 @@ def test_launcher_args_parse_internal_flags() -> None:
     assert args.repair is True
     assert args.no_update_check is True
     assert args.handoff_geometry == "10,20,1260,800"
-    assert args.install_root == Path("E:\\Programs\\SugarSubstitute")
+    assert args.install_root == install_root
 
 
 def test_install_layout_resolves_target_paths(tmp_path: Path) -> None:

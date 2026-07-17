@@ -1188,7 +1188,7 @@ def test_onboarding_window_reads_attached_workspace_before_draft_reset(
     )
     monkeypatch.setattr(window, "_show_page", lambda _page_id: None)
     window._current_page = OnboardingPageId.ATTACHED_LOCAL
-    expected_workspace = Path(r"E:\ComfyUIExternalTest")
+    expected_workspace = tmp_path / "external-comfyui"
 
     window.attached_local_page.host_edit.setText("127.0.0.1")
     window.attached_local_page.port_spinbox.setValue(8190)
