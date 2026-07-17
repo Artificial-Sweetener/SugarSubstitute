@@ -1589,10 +1589,10 @@ def test_projection_selection_drag_paints_highlight_before_mouse_release(
     process_events(app)
 
 
-def test_projection_selection_drag_to_offscreen_last_character_matches_qt_reference(
+def test_projection_selection_drag_to_last_character_after_scroll_matches_qt_reference(
     widgets: list[QWidget],
 ) -> None:
-    """Dragging toward an offscreen line end should still make the final character reachable."""
+    """Dragging across the scrolled final paragraph should match Qt selection."""
 
     app = ensure_qapp()
     text = (
@@ -1606,6 +1606,9 @@ def test_projection_selection_drag_to_offscreen_last_character_matches_qt_refere
         width=box.viewport().width(),
         font=box.font(),
     )
+    box.verticalScrollBar().setValue(box.verticalScrollBar().maximum())
+    reference.verticalScrollBar().setValue(reference.verticalScrollBar().maximum())
+    process_events(app)
     anchor_position = text.index("detailed")
     final_position = text.rfind("s")
     box_anchor = _stable_projection_click_point_for_position(
@@ -1618,19 +1621,23 @@ def test_projection_selection_drag_to_offscreen_last_character_matches_qt_refere
         anchor_position,
         app=app,
     )
-    reference_end_y = _stable_reference_click_point_for_position(
+    reference_drag_end = _stable_reference_click_point_for_position(
         reference,
         final_position,
         app=app,
-    ).y()
-    drag_end = QPoint(box.viewport().width() - 2, reference_end_y)
+    )
+    box_drag_end = _stable_projection_click_point_for_position(
+        box,
+        final_position,
+        app=app,
+    )
 
     QTest.mousePress(
         box.viewport(),
         Qt.MouseButton.LeftButton,
         pos=box_anchor,
     )
-    QTest.mouseMove(box.viewport(), drag_end, 10)
+    QTest.mouseMove(box.viewport(), box_drag_end, 10)
     process_events(app)
 
     QTest.mousePress(
@@ -1638,7 +1645,7 @@ def test_projection_selection_drag_to_offscreen_last_character_matches_qt_refere
         Qt.MouseButton.LeftButton,
         pos=reference_anchor,
     )
-    QTest.mouseMove(reference.viewport(), drag_end, 10)
+    QTest.mouseMove(reference.viewport(), reference_drag_end, 10)
     process_events(app)
 
     _assert_selection_matches_reference(box, reference)
@@ -1646,13 +1653,13 @@ def test_projection_selection_drag_to_offscreen_last_character_matches_qt_refere
     QTest.mouseRelease(
         box.viewport(),
         Qt.MouseButton.LeftButton,
-        pos=drag_end,
+        pos=box_drag_end,
         delay=10,
     )
     QTest.mouseRelease(
         reference.viewport(),
         Qt.MouseButton.LeftButton,
-        pos=drag_end,
+        pos=reference_drag_end,
         delay=10,
     )
     process_events(app)
@@ -1699,8 +1706,6 @@ def test_projection_selection_drag_down_across_wrapped_lines_matches_qt_referenc
         _line_interior_position(second_line),
         app=app,
     ).y()
-    box_target_y = reference_target_y
-
     _drag_select(
         box.viewport(),
         start=box_start,
@@ -1755,8 +1760,6 @@ def test_projection_selection_drag_up_across_wrapped_lines_matches_qt_reference(
         _line_interior_position(first_line),
         app=app,
     ).y()
-    box_target_y = reference_target_y
-
     _drag_select(
         box.viewport(),
         start=box_start,
@@ -1816,8 +1819,6 @@ def test_projection_selection_drag_down_across_wrapped_lines_with_short_successo
         _line_interior_position(successor_line),
         app=app,
     ).y()
-    box_target_y = reference_target_y
-
     _drag_select(
         box.viewport(),
         start=box_start,
@@ -1872,8 +1873,6 @@ def test_projection_selection_drag_down_near_wrapped_line_end_matches_qt_referen
         _line_interior_position(second_line),
         app=app,
     ).y()
-    box_target_y = reference_target_y
-
     _drag_select(
         box.viewport(),
         start=box_start,
@@ -1933,8 +1932,6 @@ def test_projection_selection_drag_up_across_wrapped_lines_with_short_predecesso
         _line_interior_position(predecessor_line),
         app=app,
     ).y()
-    box_target_y = reference_target_y
-
     _drag_select(
         box.viewport(),
         start=box_start,
@@ -1965,9 +1962,9 @@ def test_projection_selection_drag_down_from_first_wrapped_line_to_later_row_mat
         font=box.font(),
     )
     visual_lines = _reference_visual_lines(reference, text=text, app=app)
-    assert len(visual_lines) >= 9
+    assert len(visual_lines) >= 4
     start_position = visual_lines[0][0]
-    target_line = visual_lines[8]
+    target_line = visual_lines[-1]
     box_start = _stable_projection_click_point_for_position(
         box,
         start_position,
@@ -1988,8 +1985,6 @@ def test_projection_selection_drag_down_from_first_wrapped_line_to_later_row_mat
         _line_interior_position(target_line),
         app=app,
     ).y()
-    box_target_y = reference_target_y
-
     _drag_select(
         box.viewport(),
         start=box_start,

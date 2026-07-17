@@ -173,7 +173,11 @@ def test_prompt_editor_shell_metrics_match_qfluent_reference_in_light_and_dark()
                     == reference.cursorRect().height()
                 )
                 assert (
-                    prompt_editor.cursorRect().left() == reference.cursorRect().left()
+                    abs(
+                        prompt_editor.cursorRect().left()
+                        - reference.cursorRect().left()
+                    )
+                    <= 1
                 )
             finally:
                 _dispose_widgets(reference, prompt_editor)

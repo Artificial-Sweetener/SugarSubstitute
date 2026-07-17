@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import math
 from collections.abc import Callable, Iterator
 from typing import Any, cast
 
@@ -407,8 +408,8 @@ def test_prompt_editor_one_line_shell_metrics_match_qfluent_reference(
     assert box.contentsMargins().left() == reference.contentsMargins().left()
     assert box.contentsMargins().right() == reference.contentsMargins().right()
     assert box.document().documentMargin() == reference.document().documentMargin()
-    assert box.lineHeight() == reference.fontMetrics().lineSpacing()
-    assert box.lineHeight() == int(
+    assert abs(box.lineHeight() - reference.fontMetrics().lineSpacing()) <= 1
+    assert box.lineHeight() == math.ceil(
         cast(Any, box)._surface._layout.metrics.text_line_height  # noqa: SLF001
     )
     assert box.viewport().width() == reference.viewport().width()

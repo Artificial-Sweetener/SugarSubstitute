@@ -46,6 +46,9 @@ from substitute.presentation.settings.settings_workspace_panel import (
 )
 from tests.execution_testing import ImmediateTaskSubmitter
 
+_DEFAULT_OUTPUT_ROOT = Path.cwd() / "test-output-root"
+_CUSTOM_OUTPUT_ROOT = Path.cwd() / "test-custom-output-root"
+
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
         "settings Qt contract tests require non-xdist execution on Windows",
@@ -194,23 +197,26 @@ def test_generation_page_output_settings_preview_and_save() -> None:
         preference_service=GenerationPreviewPreferenceService(preview_repository),
         output_organization_service=OutputOrganizationPreferenceService(
             output_repository,
-            default_output_root=Path("E:/projects"),
+            default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
         task_runner_factory=_task_runner_factory,
     )
 
-    page.set_output_root_text("D:/Images")
+    page.set_output_root_text(str(_CUSTOM_OUTPUT_ROOT))
     page.set_output_path_pattern("{workflow}\\{date}\\{run}_{source}_{width}x{height}")
     app.processEvents()
 
-    assert page.output_preview_text().endswith(
-        "D:\\Images\\My Workflow\\2026-05-01\\007_main_output_1024x1024.png"
+    assert page.output_preview_text() == str(
+        _CUSTOM_OUTPUT_ROOT
+        / "My Workflow"
+        / "2026-05-01"
+        / "007_main_output_1024x1024.png"
     )
 
     page.output_path_pattern_edit.editingFinished.emit()
     app.processEvents()
 
-    assert output_repository.preferences.output_root == Path("D:/Images")
+    assert output_repository.preferences.output_root == _CUSTOM_OUTPUT_ROOT
     assert (
         output_repository.preferences.path_pattern
         == "{workflow}\\{date}\\{run}_{source}_{width}x{height}"
@@ -226,19 +232,19 @@ def test_generation_page_output_root_shows_default_path_without_persisting_it() 
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
         output_organization_service=OutputOrganizationPreferenceService(
             output_repository,
-            default_output_root=Path("E:/projects"),
+            default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
         task_runner_factory=_task_runner_factory,
     )
     app.processEvents()
 
-    assert Path(page.output_root_edit.text()) == Path("E:/projects")
+    assert Path(page.output_root_edit.text()) == _DEFAULT_OUTPUT_ROOT
 
     page.output_root_edit.editingFinished.emit()
     app.processEvents()
 
     assert output_repository.preferences.output_root is None
-    assert Path(page.output_root_edit.text()) == Path("E:/projects")
+    assert Path(page.output_root_edit.text()) == _DEFAULT_OUTPUT_ROOT
 
 
 def test_generation_page_output_settings_preview_renders_seed_token() -> None:
@@ -249,7 +255,7 @@ def test_generation_page_output_settings_preview_renders_seed_token() -> None:
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
         output_organization_service=OutputOrganizationPreferenceService(
             _OutputRepository(),
-            default_output_root=Path("E:/projects"),
+            default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
         task_runner_factory=_task_runner_factory,
     )
@@ -257,8 +263,8 @@ def test_generation_page_output_settings_preview_renders_seed_token() -> None:
     page.set_output_path_pattern("{workflow}\\{seed}_{source}")
     app.processEvents()
 
-    assert page.output_preview_text().endswith(
-        "E:\\projects\\My Workflow\\123456789_main_output.png"
+    assert page.output_preview_text() == str(
+        _DEFAULT_OUTPUT_ROOT / "My Workflow" / "123456789_main_output.png"
     )
 
 
@@ -271,7 +277,7 @@ def test_generation_page_output_settings_reject_invalid_token() -> None:
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
         output_organization_service=OutputOrganizationPreferenceService(
             output_repository,
-            default_output_root=Path("E:/projects"),
+            default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
         task_runner_factory=_task_runner_factory,
     )
@@ -295,7 +301,7 @@ def test_generation_page_output_settings_are_minimal() -> None:
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
         output_organization_service=OutputOrganizationPreferenceService(
             _OutputRepository(),
-            default_output_root=Path("E:/projects"),
+            default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
         task_runner_factory=_task_runner_factory,
     )
@@ -321,7 +327,7 @@ def test_generation_page_output_rows_do_not_clip_at_narrow_width() -> None:
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
         output_organization_service=OutputOrganizationPreferenceService(
             _OutputRepository(),
-            default_output_root=Path("E:/projects"),
+            default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
         task_runner_factory=_task_runner_factory,
     )
@@ -362,7 +368,7 @@ def test_generation_page_output_fields_keep_preferred_width_when_wide() -> None:
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
         output_organization_service=OutputOrganizationPreferenceService(
             _OutputRepository(),
-            default_output_root=Path("E:/projects"),
+            default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
         task_runner_factory=_task_runner_factory,
     )
@@ -398,23 +404,23 @@ def test_generation_page_output_root_autosaves_and_default_clears_root() -> None
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
         output_organization_service=OutputOrganizationPreferenceService(
             output_repository,
-            default_output_root=Path("E:/projects"),
+            default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
         task_runner_factory=_task_runner_factory,
     )
 
-    page.set_output_root_text("D:/Images")
+    page.set_output_root_text(str(_CUSTOM_OUTPUT_ROOT))
     page.output_root_edit.editingFinished.emit()
     app.processEvents()
 
-    assert output_repository.preferences.output_root == Path("D:/Images")
-    assert Path(page.output_root_edit.text()) == Path("D:/Images")
+    assert output_repository.preferences.output_root == _CUSTOM_OUTPUT_ROOT
+    assert Path(page.output_root_edit.text()) == _CUSTOM_OUTPUT_ROOT
 
     page._clear_output_root()
     app.processEvents()
 
     assert output_repository.preferences.output_root is None
-    assert Path(page.output_root_edit.text()) == Path("E:/projects")
+    assert Path(page.output_root_edit.text()) == _DEFAULT_OUTPUT_ROOT
 
 
 def test_generation_page_output_pattern_token_autocomplete_filters_and_inserts() -> (
@@ -427,7 +433,7 @@ def test_generation_page_output_pattern_token_autocomplete_filters_and_inserts()
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
         output_organization_service=OutputOrganizationPreferenceService(
             _OutputRepository(),
-            default_output_root=Path("E:/projects"),
+            default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
         task_runner_factory=_task_runner_factory,
     )
@@ -460,7 +466,7 @@ def test_generation_page_output_pattern_token_autocomplete_inserts_seed() -> Non
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
         output_organization_service=OutputOrganizationPreferenceService(
             _OutputRepository(),
-            default_output_root=Path("E:/projects"),
+            default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
         task_runner_factory=_task_runner_factory,
     )

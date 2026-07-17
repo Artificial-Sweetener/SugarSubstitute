@@ -41,6 +41,7 @@ from substitute.presentation.motion import (
     ACCORDION_COLLAPSE_DURATION_MS,
     ACCORDION_EXPAND_DURATION_MS,
 )
+from substitute.presentation.motion import fluent_motion
 
 _REDUCED_MOTION_PROPERTY = "substitute.reduce_motion"
 
@@ -63,6 +64,23 @@ def test_accordion_motion_uses_winui_settings_durations() -> None:
 
     assert ACCORDION_EXPAND_DURATION_MS == 333
     assert ACCORDION_COLLAPSE_DURATION_MS == 167
+
+
+def test_offscreen_motion_ignores_host_animation_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Offscreen geometry tests should not inherit host reduced-motion state."""
+
+    app = ensure_qapp()
+    app.setProperty(_REDUCED_MOTION_PROPERTY, None)
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    monkeypatch.setattr(
+        fluent_motion,
+        "_read_windows_client_area_animation_enabled",
+        lambda: False,
+    )
+
+    assert fluent_motion.is_reduced_motion_enabled() is False
 
 
 def test_node_card_chevron_paints_inside_logical_rect_at_fractional_dpr() -> None:

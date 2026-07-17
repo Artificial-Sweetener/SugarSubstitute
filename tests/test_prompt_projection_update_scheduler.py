@@ -28,7 +28,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
-from PySide6.QtGui import QMouseEvent
+from PySide6.QtGui import QFontMetricsF, QMouseEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 from shiboken6 import delete
@@ -822,7 +822,8 @@ def test_projection_surface_coalesces_repeated_simple_typed_projection_rebuilds(
     overlay_rect = cast(Any, surface)._transient_insertion_overlay_viewport_rect(
         overlay
     )
-    assert overlay_rect.width() >= box.fontMetrics().horizontalAdvance("xy")
+    expected_text_width = QFontMetricsF(box.font()).horizontalAdvance("xy")
+    assert overlay_rect.width() == pytest.approx(expected_text_width)
     flush_semantic_refresh(box)
 
     assert box.toPlainText() == "(cat:1.05), xy"

@@ -109,15 +109,11 @@ def test_uv_runtime_provisioner_builds_managed_runtime_commands(tmp_path: Path) 
             "--managed-python",
             "--no-config",
         ],
-        [
-            str(uv_executable),
-            "pip",
-            "install",
-            "--python",
-            str(layout.runtime_python),
-            "-r",
-            str(layout.app_dir / "requirements.txt"),
-        ],
+        runtime_requirements_command(
+            uv_executable=uv_executable,
+            layout=layout,
+            requirements_path=layout.app_dir / "requirements.txt",
+        ),
         [
             str(layout.runtime_python),
             "-c",

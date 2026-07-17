@@ -591,9 +591,9 @@ def test_settings_workspace_uses_user_intent_navigation_order(
             _PromptPreferenceService(),
         ),
         danbooru_preference_service=DanbooruPreferenceService(
-            FileDanbooruPreferenceRepository(Path("E:/tmp/config"))
+            FileDanbooruPreferenceRepository(tmp_path / "config")
         ),
-        danbooru_cache_repository=SqliteDanbooruCacheStore(Path("E:/tmp/state")),
+        danbooru_cache_repository=SqliteDanbooruCacheStore(tmp_path / "state"),
         civitai_preference_service=CivitaiPreferenceService(
             FileCivitaiPreferenceRepository(tmp_path / "settings")
         ),
@@ -1147,7 +1147,7 @@ def test_civitai_settings_page_download_organization_preview_and_autocomplete(
     app = _app()
     preference_service = CivitaiPreferenceService(
         FileCivitaiPreferenceRepository(tmp_path / "settings"),
-        preview_comfy_root=Path("E:/ImageGen Models/diffusion_models"),
+        preview_comfy_root=tmp_path / "diffusion_models",
     )
     page = CivitaiSettingsPage(
         preference_service=preference_service,
@@ -1160,8 +1160,8 @@ def test_civitai_settings_page_download_organization_preview_and_autocomplete(
     labels = _label_texts(page)
     assert "Model folder pattern" in labels
     assert "Download path preview" in labels
-    assert page.download_path_preview_text().endswith(
-        "diffusion_models\\Anima\\anima_baseV10.safetensors"
+    assert page.download_path_preview_text() == str(
+        tmp_path / "diffusion_models" / "Anima" / "anima_baseV10.safetensors"
     )
 
     page.download_path_pattern_edit.setFocus()

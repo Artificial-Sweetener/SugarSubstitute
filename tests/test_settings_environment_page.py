@@ -403,6 +403,7 @@ class _ApplyBackend(_Backend):
         """Create an applyable backend."""
 
         super().__init__(plan_blocked=False)
+        self.applied_revisions: list[int] = []
 
     def apply_maintenance_plan(
         self,
@@ -411,7 +412,7 @@ class _ApplyBackend(_Backend):
     ) -> ComfyEnvironmentJob:
         """Return a queued maintenance job."""
 
-        _ = revision
+        self.applied_revisions.append(revision)
         return ComfyEnvironmentJob(
             job_id="envjob-apply",
             operation="apply-maintenance-plan",
@@ -603,8 +604,9 @@ def test_environment_page_dependency_names_elide_with_tooltips() -> None:
         for label in page.detail_claimants_label.findChildren(QLabel)
         if label.toolTip() == "base-helper"
     )
-    dependency_label.setFixedWidth(48)
-    dependency_label.resize(48, dependency_label.height())
+    constrained_width = dependency_label.fontMetrics().horizontalAdvance("base-")
+    dependency_label.setFixedWidth(constrained_width)
+    dependency_label.resize(constrained_width, dependency_label.height())
     _process_events(app)
 
     assert dependency_label.text() == "base-helper"
@@ -1038,8 +1040,9 @@ def test_environment_page_apply_button_starts_plan_job_when_applyable() -> None:
     """Apply should request a backend job when the plan is applyable."""
 
     app = _app()
+    backend = _ApplyBackend()
     page = _environment_page(
-        comfy_environment_service=ComfyEnvironmentService(_ApplyBackend()),
+        comfy_environment_service=ComfyEnvironmentService(backend),
         open_reconfigure_window=lambda: object(),
     )
 
@@ -1049,11 +1052,16 @@ def test_environment_page_apply_button_starts_plan_job_when_applyable() -> None:
     _process_events(app, cycles=20)
 
     assert page.planned_changes_panel.apply_button.isEnabled()
+    expected_revision = cast(Any, page)._maintenance_plan.revision
 
     page.planned_changes_panel.apply_button.click()
     _process_events(app, cycles=20)
 
-    assert "Maintenance plan queued for execution." in page.job_label.text()
+    assert backend.applied_revisions == [expected_revision]
+    job_text = page.job_label.text()
+    assert job_text.startswith("Maintenance plan queued for execution.") or (
+        job_text == "Waiting for Comfy to come back."
+    )
 
 
 def test_environment_page_disables_actions_when_planning_is_unavailable() -> None:

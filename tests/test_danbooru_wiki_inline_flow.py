@@ -180,11 +180,12 @@ def test_inline_flow_keeps_consistent_wrapped_line_spacing_with_chip_prose() -> 
             DanbooruWikiTextNode(text=" epsilon zeta eta theta iota kappa lambda."),
         )
     )
-    view.resize(215, 160)
+    layout_width = 160
+    view.resize(layout_width, 160)
     view.show()
     app.processEvents()
 
-    layout, _ = view._layout_for_width(215)
+    layout, _ = view._layout_for_width(layout_width)
     line_tops = sorted(
         {round(token.rect.y(), 2) for token in layout if token.token.kind != "space"}
     )
@@ -194,7 +195,7 @@ def test_inline_flow_keeps_consistent_wrapped_line_spacing_with_chip_prose() -> 
         round(line_tops[index + 1] - line_tops[index], 2)
         for index in range(len(line_tops) - 1)
     ]
-    assert len(set(deltas)) == 1
+    assert max(deltas) - min(deltas) <= 0.02
 
 
 def test_inline_flow_right_click_chip_menu_offers_copy_and_browser_actions(

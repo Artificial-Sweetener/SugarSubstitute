@@ -1458,7 +1458,7 @@ def test_reorder_wrapped_drag_preview_builds_wrapped_animation_plan(
     app = _ensure_qapp()
     editor = _create_prompt_editor(
         widgets,
-        width=220,
+        width=170,
         height=180,
         text="alpha, beta, gamma, delta",
     )
