@@ -19,8 +19,9 @@
 from __future__ import annotations
 
 import json
+import ssl
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
 from typing import Mapping, Protocol
@@ -32,6 +33,7 @@ from launcher.sugarsubstitute_launcher.config import (
     ReleaseSourceConfig,
 )
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
+from launcher.sugarsubstitute_launcher.tls import SystemTrustTlsContext
 
 
 class ReleaseSource(Protocol):
@@ -67,13 +69,22 @@ class GitHubReleaseSource:
 
     manifest_url: str
     timeout_seconds: float = 30.0
+    tls_context: ssl.SSLContext = field(
+        default_factory=SystemTrustTlsContext.create,
+        repr=False,
+        compare=False,
+    )
 
     def load_manifest(self) -> ReleaseManifest:
         """Download and parse the GitHub-hosted release manifest."""
 
         _require_https_url(self.manifest_url, "release manifest")
         request = urllib.request.Request(self.manifest_url, method="GET")
-        with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+        with urllib.request.urlopen(
+            request,
+            timeout=self.timeout_seconds,
+            context=self.tls_context,
+        ) as response:
             payload = json.loads(response.read().decode("utf-8"))
         return ReleaseManifest.from_json(payload)
 
