@@ -18,7 +18,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+import time
 from typing import cast
 
 import pytest
@@ -154,6 +155,23 @@ def process_events(app: QApplication, cycles: int = 5) -> None:
         app.processEvents()
 
 
+def wait_for_motion_state(
+    app: QApplication,
+    predicate: Callable[[], bool],
+    *,
+    timeout_seconds: float = 5.0,
+) -> None:
+    """Process Qt events until motion reaches a deterministic final state."""
+
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        app.processEvents()
+        if predicate():
+            return
+        QTest.qWait(10)
+    raise AssertionError("Timed out waiting for accordion motion to settle.")
+
+
 def expected_visible_item_height(layout: QVBoxLayout, *widgets: QWidget) -> int:
     """Return layout height from visible widgets, margins, and inter-item spacing."""
 
@@ -246,8 +264,7 @@ def test_accordion_motion_reaches_expected_final_states() -> None:
         )
 
         controller.toggle()
-        QTest.qWait(ACCORDION_COLLAPSE_DURATION_MS + 80)
-        process_events(app)
+        wait_for_motion_state(app, lambda: not state.animating)
 
         assert state.collapsed is True
         assert state.animating is False
@@ -258,8 +275,7 @@ def test_accordion_motion_reaches_expected_final_states() -> None:
         assert chevron.rotation_value() == 0.0
 
         controller.toggle()
-        QTest.qWait(ACCORDION_EXPAND_DURATION_MS + 80)
-        process_events(app)
+        wait_for_motion_state(app, lambda: not state.animating)
 
         assert state.collapsed is False
         assert state.animating is False
@@ -289,8 +305,7 @@ def test_accordion_motion_replaces_in_flight_transition_safely() -> None:
         controller.toggle()
         QTest.qWait(40)
         controller.toggle()
-        QTest.qWait(ACCORDION_EXPAND_DURATION_MS + 100)
-        process_events(app)
+        wait_for_motion_state(app, lambda: not state.animating)
 
         assert state.collapsed is False
         assert state.animating is False
@@ -309,6 +324,10 @@ def test_accordion_motion_does_not_reflow_owner_on_each_animation_frame() -> Non
     try:
         controller = getattr(content_body, "_accordion_motion_controller")
         expanded_height = content_body.maximumHeight()
+        state = ensure_card_body_layout_state(
+            content_body=content_body,
+            expanded_height=expanded_height,
+        )
         title_geometry = title_geometry_for(content_body)
         host.update_calls = 0
 
@@ -322,8 +341,7 @@ def test_accordion_motion_does_not_reflow_owner_on_each_animation_frame() -> Non
         assert -expanded_height < controller.content_offset_y() < 0
         assert title_geometry_for(content_body) == title_geometry
 
-        QTest.qWait(ACCORDION_COLLAPSE_DURATION_MS + 80)
-        process_events(app)
+        wait_for_motion_state(app, lambda: not state.animating)
 
         assert host.update_calls == 2
         assert content_body.maximumHeight() == 0
@@ -416,12 +434,15 @@ def test_accordion_collapsed_body_does_not_reserve_parent_layout_spacing() -> No
         chevron=chevron,
         cube_height_updater=host.update_cube_height,
     )
+    state = ensure_card_body_layout_state(
+        content_body=content_body,
+        expanded_height=content_body.maximumHeight(),
+    )
     host.show()
     process_events(app)
     try:
         controller.toggle()
-        QTest.qWait(ACCORDION_COLLAPSE_DURATION_MS + 80)
-        process_events(app)
+        wait_for_motion_state(app, lambda: not state.animating)
 
         body_item = card_layout.itemAt(1)
         assert content_body.maximumHeight() == 0
@@ -435,8 +456,7 @@ def test_accordion_collapsed_body_does_not_reserve_parent_layout_spacing() -> No
         )
 
         controller.toggle()
-        QTest.qWait(ACCORDION_EXPAND_DURATION_MS + 80)
-        process_events(app)
+        wait_for_motion_state(app, lambda: not state.animating)
 
         assert content_body.isHidden() is False
         assert body_item.isEmpty() is False
