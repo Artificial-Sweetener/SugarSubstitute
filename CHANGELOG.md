@@ -1,3 +1,10 @@
+## [0.12.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.12.0...v0.12.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* **comfy:** remove system git dependency ([c7abf46](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/c7abf46f0ab52fb5f40ae86494c2ee8715c2a084))
+
 # [0.12.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.11.0...v0.12.0) (2026-07-17)
 
 
