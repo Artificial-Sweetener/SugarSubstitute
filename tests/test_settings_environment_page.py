@@ -475,7 +475,6 @@ def test_comfy_environment_page_renders_environment_status() -> None:
         comfy_environment_service=ComfyEnvironmentService(_Backend()),
         open_reconfigure_window=lambda: object(),
     )
-
     _process_events(app)
 
     assert page.restart_button.isEnabled()
@@ -594,6 +593,8 @@ def test_environment_page_dependency_names_elide_with_tooltips() -> None:
         comfy_environment_service=ComfyEnvironmentService(_Backend()),
         open_reconfigure_window=lambda: object(),
     )
+    page.resize(720, 800)
+    page.show()
 
     _process_events(app)
     page.select_inventory_item("package:custom-node-helper")
@@ -604,12 +605,15 @@ def test_environment_page_dependency_names_elide_with_tooltips() -> None:
         for label in page.detail_claimants_label.findChildren(QLabel)
         if label.toolTip() == "base-helper"
     )
+    group_row = dependency_label.parentWidget()
+    assert group_row is not None
+    toggle_button = cast(Any, group_row).toggle_button
     constrained_width = dependency_label.fontMetrics().horizontalAdvance("base")
-    dependency_label.setFixedWidth(constrained_width)
-    dependency_label.resize(constrained_width, dependency_label.height())
+    group_row.setFixedWidth(constrained_width + toggle_button.width() + 4)
     _process_events(app)
 
     assert dependency_label.text() == "base-helper"
+    assert dependency_label.width() <= constrained_width
     rendered_text = QLabel.text(dependency_label)
     assert rendered_text != "base-"
     assert "\u2026" in rendered_text
