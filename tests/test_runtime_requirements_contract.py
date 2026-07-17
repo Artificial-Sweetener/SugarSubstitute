@@ -40,6 +40,7 @@ _EXPECTED_SPECIFIERS = {
     "pysidesix-frameless-window": frozenset({(">=", "0.8.1"), ("<", "1.0.0")}),
     "qpane": frozenset({(">=", "2.0.4"), ("<", "3.0.0")}),
     "requests": frozenset({(">=", "2.34.2"), ("<", "3.0.0")}),
+    "truststore": frozenset({(">=", "0.10.4"), ("<", "0.11.0")}),
     "websocket-client": frozenset({(">=", "1.9.0"), ("<", "2.0.0")}),
     "winaccent": frozenset({(">=", "2.1.0"), ("<", "3.0.0")}),
 }
