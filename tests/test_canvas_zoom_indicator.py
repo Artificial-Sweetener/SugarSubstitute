@@ -297,6 +297,8 @@ def test_real_qpane_wheel_zoom_shows_and_paints_indicator() -> None:
     indicator = CanvasZoomIndicator(pane)
     pane.show()
     application.processEvents()
+    pane.setZoom1To1()
+    application.processEvents()
     initial_zoom = pane.currentZoom()
     event = _wheel_event(pane, QPointF(300.0, 220.0))
     try:
