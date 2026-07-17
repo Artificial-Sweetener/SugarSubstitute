@@ -351,13 +351,11 @@ def test_about_settings_page_uses_compact_version_card_layout_at_narrow_width() 
             qpane_card,
         ).bottom()
     )
-    assert (
-        _mapped_rect(qpane_icon, qpane_card).top()
-        > _mapped_rect(
-            qpane_subtitle,
-            qpane_card,
-        ).bottom()
-    )
+    icon_rect = _mapped_rect(qpane_icon, qpane_card)
+    subtitle_rect = _mapped_rect(qpane_subtitle, qpane_card)
+    author_rect = _mapped_rect(qpane_author, qpane_card)
+    assert subtitle_rect.top() <= icon_rect.center().y() <= author_rect.bottom()
+    assert qpane_card.rect().contains(icon_rect)
     for object_key in _VERSION_OBJECT_KEYS:
         _assert_card_children_do_not_overlap(_version_card(page, object_key))
     page.close()

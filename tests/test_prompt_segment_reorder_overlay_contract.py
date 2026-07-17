@@ -198,6 +198,8 @@ def _create_overlay(
     overlay.refresh_geometry()
     widgets.append(overlay)
     process_events(app)
+    overlay.refresh_geometry()
+    process_events(app)
     return editor, overlay
 
 
@@ -1069,7 +1071,7 @@ def test_segment_reorder_overlay_updates_visual_order_across_wrapped_rows(
     app = ensure_qapp()
     _editor, overlay = _create_overlay(
         widgets,
-        width=220,
+        width=170,
         height=180,
         text="alpha, beta, gamma, delta",
     )

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import logging
+import math
 from collections.abc import Callable, Iterator
 from typing import Any, Generic, TypeVar, cast
 
@@ -27,7 +28,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 from PySide6.QtCore import QPoint, QRect, Qt
-from PySide6.QtGui import QTextCursor
+from PySide6.QtGui import QFontMetricsF, QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
     QApplication,
@@ -517,6 +518,16 @@ def test_prompt_editor_autocomplete_preview_reflows_downstream_text(
     widgets.extend([host, box])
     process_events(app)
 
+    surface = surface_for(box)
+    shell_width = box.width() - round(
+        cast(Any, surface)._layout.metrics.wrap_width  # noqa: SLF001
+    )
+    preview_line_width = math.ceil(
+        QFontMetricsF(box.font()).horizontalAdvance("alpha bright ")
+    )
+    box.setFixedWidth(shell_width + preview_line_width + 2)
+    process_events(app)
+
     cursor = box.textCursor()
     cursor.setPosition(len("alpha "))
     box.setTextCursor(cursor)
@@ -524,7 +535,6 @@ def test_prompt_editor_autocomplete_preview_reflows_downstream_text(
 
     assert _active_projection_line_texts(box) == ("alpha omega",)
 
-    surface = surface_for(box)
     surface.set_autocomplete_preview_state(
         PromptAutocompletePreviewState(
             source_position=len("alpha "),
@@ -3204,12 +3214,12 @@ def test_prompt_editor_real_widget_accumulates_multiple_reorder_drags_before_alt
 
     assert _editor_reorder_preview_text(box) == "beta, alpha, gamma"
 
-    alpha_chip = _overlay_chip_by_segment_index(overlay, 0)
+    beta_chip = _overlay_chip_by_segment_index(overlay, 1)
     gamma_chip = _overlay_chip_by_segment_index(overlay, 2)
     _drag_reorder_chip_to_global(
         gamma_chip,
-        global_target=alpha_chip.mapToGlobal(
-            QPoint(4, max(4, alpha_chip.rect().center().y()))
+        global_target=beta_chip.mapToGlobal(
+            QPoint(4, max(4, beta_chip.rect().center().y()))
         ),
     )
     process_events(app)

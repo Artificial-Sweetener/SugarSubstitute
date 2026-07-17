@@ -99,7 +99,9 @@ class CubePlaceholderCard(QFrame):
         """Set transition progress and resize to the matching card width."""
 
         clamped = max(0.0, min(1.0, float(progress)))
-        if abs(clamped - self._compact_progress) < 0.0001:
+        if clamped == self._compact_progress:
+            return
+        if 0.0 < clamped < 1.0 and abs(clamped - self._compact_progress) < 0.0001:
             return
         self._compact_progress = clamped
         self._apply_compact_progress_width()

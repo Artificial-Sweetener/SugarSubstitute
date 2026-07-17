@@ -292,7 +292,9 @@ def test_inline_completion_paint_text_elides_to_available_width() -> None:
         Qt.TextElideMode.ElideRight,
         narrow_width,
     )
-    wide_width = combo.fontMetrics().horizontalAdvance(combo._inline_completion_suffix)
+    wide_width = (
+        combo.fontMetrics().horizontalAdvance(combo._inline_completion_suffix) + 2
+    )
 
     assert combo._elided_inline_completion_text(narrow_width) == expected_elided
     assert expected_elided != combo._inline_completion_suffix

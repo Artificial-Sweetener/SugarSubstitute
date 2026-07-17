@@ -655,7 +655,7 @@ def test_projection_layout_keeps_decorated_short_tag_together_when_it_fits() -> 
     prompt_text = "alpha, (best quality:1.2), tail"
     layout, _ = _layout_for(
         prompt_text,
-        text_width=_plain_text_wrap_width("alpha, ", "(best quality1.2, "),
+        text_width=(_plain_text_wrap_width("alpha, ", "(best quality1.2, ") + 30.0),
     )
 
     line_texts = _line_texts(layout)

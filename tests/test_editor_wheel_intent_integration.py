@@ -425,11 +425,16 @@ def test_blocked_numeric_wheel_preserves_existing_keyboard_focus() -> None:
     process_events(app)
 
 
-def test_premature_spinbox_wheel_restarts_dwell_for_next_attempt() -> None:
+def test_premature_spinbox_wheel_restarts_dwell_for_next_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Early spin-box wheel attempts should require a fresh dwell, not a reset."""
 
     app = ensure_qapp()
     panel = _editor_panel_for_wheel_intent_tests()
+    clock_ms = [0]
+    controller = cast(Any, panel)._wheel_intent_controller
+    monkeypatch.setattr(controller, "_wheel_intent_now_ms", lambda: clock_ms[0])
     spinbox = SpinBox()
     spinbox.setRange(0, 10)
     spinbox.setValue(5)
@@ -449,8 +454,7 @@ def test_premature_spinbox_wheel_restarts_dwell_for_next_attempt() -> None:
     assert spinbox.value() == 5
     assert not premature_event.isAccepted()
 
-    QTest.qWait(350)
-    process_events(app)
+    clock_ms[0] = 350
     still_too_early_event = _wheel_event(spinbox, angle_delta_y=120)
     QApplication.sendEvent(spinbox, still_too_early_event)
     process_events(app)
@@ -458,8 +462,7 @@ def test_premature_spinbox_wheel_restarts_dwell_for_next_attempt() -> None:
     assert spinbox.value() == 5
     assert not still_too_early_event.isAccepted()
 
-    QTest.qWait(300)
-    process_events(app)
+    clock_ms[0] = 650
     restarted_dwell_event = _wheel_event(spinbox, angle_delta_y=120)
     QApplication.sendEvent(spinbox, restarted_dwell_event)
     process_events(app)
@@ -467,8 +470,7 @@ def test_premature_spinbox_wheel_restarts_dwell_for_next_attempt() -> None:
     assert spinbox.value() == 5
     assert not restarted_dwell_event.isAccepted()
 
-    QTest.qWait(450)
-    process_events(app)
+    clock_ms[0] = 1100
     allowed_event = _wheel_event(spinbox, angle_delta_y=120)
     QApplication.sendEvent(spinbox, allowed_event)
     process_events(app)

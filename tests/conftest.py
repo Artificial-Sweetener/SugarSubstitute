@@ -112,7 +112,32 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     """Start per-process resource guards before test collection."""
 
     del session
+    _install_offscreen_macos_frameless_shim()
     _start_test_process_memory_watchdog()
+
+
+def _install_offscreen_macos_frameless_shim() -> None:
+    """Disable Cocoa-only window effects under Qt's offscreen test backend."""
+
+    if (
+        sys.platform != "darwin"
+        or os.environ.get("QT_QPA_PLATFORM", "").casefold() != "offscreen"
+    ):
+        return
+
+    from qframelesswindow.mac import MacFramelessWindowBase
+    from qframelesswindow.mac.window_effect import MacWindowEffect
+
+    def ignore_native_window_effect(*_args: object, **_kwargs: object) -> None:
+        """Leave native Cocoa effects disabled for an offscreen Qt window."""
+
+    setattr(MacWindowEffect, "setAcrylicEffect", ignore_native_window_effect)
+    setattr(MacFramelessWindowBase, "updateFrameless", ignore_native_window_effect)
+    setattr(
+        MacFramelessWindowBase,
+        "_updateSystemTitleBar",
+        ignore_native_window_effect,
+    )
 
 
 @pytest.hookimpl(tryfirst=True)

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ctypes
 from ctypes import wintypes
+import os
 from typing import Any, Protocol
 
 from PySide6.QtCore import QEasingCurve, QPointF
@@ -120,6 +121,8 @@ def is_reduced_motion_enabled() -> bool:
     override = _read_reduced_motion_override()
     if override is not None:
         return override
+    if os.environ.get("QT_QPA_PLATFORM", "").casefold() == "offscreen":
+        return False
     enabled = _read_windows_client_area_animation_enabled()
     if enabled is None:
         return False

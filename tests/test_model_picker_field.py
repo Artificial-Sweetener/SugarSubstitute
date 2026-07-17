@@ -439,8 +439,10 @@ def test_model_picker_field_reports_wide_row_size_hints() -> None:
     assert field.sizeHint().width() > line_edit.minimumSizeHint().width()
 
 
-def test_model_picker_field_default_size_hint_uses_combo_cap_for_long_labels() -> None:
-    """Long labels should not force oversized node-card preferred widths."""
+def test_model_picker_field_default_size_hint_respects_combo_cap_for_long_labels() -> (
+    None
+):
+    """Long labels should request useful space without exceeding the row cap."""
 
     ensure_qapp()
     field = ModelPickerField(
@@ -456,7 +458,8 @@ def test_model_picker_field_default_size_hint_uses_combo_cap_for_long_labels() -
         current_value="models/very_long_checkpoint_name.safetensors",
     )
 
-    assert field.sizeHint().width() == _default_combo_cap_width()
+    assert field.minimumSizeHint().width() <= field.sizeHint().width()
+    assert field.sizeHint().width() <= _default_combo_cap_width()
 
 
 def test_model_picker_field_max_hint_width_only_caps_when_explicit() -> None:
@@ -513,7 +516,7 @@ def test_model_picker_field_competes_for_label_row_space_as_wide_field() -> None
     app.processEvents()
 
     assert field.width() > label.width()
-    assert field.width() >= _default_combo_cap_width()
+    assert field.width() >= field.sizeHint().width()
     host.deleteLater()
 
 

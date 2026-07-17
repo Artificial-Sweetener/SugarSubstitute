@@ -51,6 +51,10 @@ from launcher.sugarsubstitute_launcher.install_layout import (
 )
 from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
 from launcher.sugarsubstitute_launcher.logging_setup import configure_launcher_logging
+from launcher.sugarsubstitute_launcher.platforms import (
+    LauncherOperatingSystem,
+    detect_launcher_target,
+)
 from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
 from launcher.sugarsubstitute_launcher.ui.main_window import (
     LauncherMainWindow,
@@ -119,7 +123,9 @@ def test_install_layout_resolves_target_paths(tmp_path: Path) -> None:
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
 
-    assert layout.executable_path == layout.root / "SugarSubstitute.exe"
+    assert (
+        layout.executable_path == layout.root / layout.target.executable_relative_path
+    )
     assert layout.config_path == layout.root / "launcher" / "config.json"
     assert layout.state_path == layout.root / "launcher" / "state.json"
     assert layout.logs_dir == layout.root / "launcher" / "logs"
@@ -128,11 +134,11 @@ def test_install_layout_resolves_target_paths(tmp_path: Path) -> None:
     assert layout.locks_dir == layout.root / "launcher" / "locks"
     assert (
         layout.runtime_python
-        == layout.root / "runtime" / ".venv" / "Scripts" / "python.exe"
+        == layout.root / "runtime" / layout.target.runtime_python_relative_path
     )
     assert (
         layout.runtime_gui_python
-        == layout.root / "runtime" / ".venv" / "Scripts" / "pythonw.exe"
+        == layout.root / "runtime" / layout.target.runtime_gui_python_relative_path
     )
     assert layout.app_entrypoint == layout.root / "app" / "main.py"
     assert layout.user_dir == layout.root / "user"
@@ -145,10 +151,14 @@ def test_default_install_root_uses_setup_executable_drive(tmp_path: Path) -> Non
     executable_path = (
         tmp_path / "Downloads" / "SugarSubstitute-Installer-Windows-x64.exe"
     )
-
-    assert default_install_root(executable_path) == Path(
-        f"{executable_path.drive}\\SugarSubstitute"
+    target = detect_launcher_target()
+    expected_root = (
+        Path(f"{executable_path.drive}\\") / "SugarSubstitute"
+        if target.operating_system is LauncherOperatingSystem.WINDOWS
+        else default_install_root(target=target)
     )
+
+    assert default_install_root(executable_path) == expected_root
 
 
 def test_layout_installer_creates_base_directories_and_config(tmp_path: Path) -> None:
@@ -290,9 +300,7 @@ def test_launcher_ignores_adjacent_app_without_launcher_config(
     )
 
     assert startup_plan.installed_config_found is False
-    assert startup_plan.layout.root == Path(
-        f"{layout.executable_path.drive}\\SugarSubstitute"
-    )
+    assert startup_plan.layout.root == default_install_root(layout.executable_path)
 
 
 def test_launcher_launches_installed_app_only_after_install_is_ready(

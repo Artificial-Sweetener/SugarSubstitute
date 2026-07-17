@@ -22,12 +22,11 @@ import os
 from types import SimpleNamespace
 from typing import Any, cast
 
-from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
-from PySide6.QtGui import QMouseEvent, QPalette
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QPalette
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 import pytest
-import qframelesswindow.titlebar as qframeless_titlebar  # type: ignore[import-untyped]
 from qframelesswindow.titlebar.title_bar_buttons import (  # type: ignore[import-untyped]
     TitleBarButton,
     TitleBarButtonState,
@@ -84,18 +83,6 @@ class _WorkflowTabDragOwner:
         return self.idle
 
 
-def _titlebar_mouse_move(pos: QPoint) -> QMouseEvent:
-    """Create one qframeless titlebar-local mouse move event."""
-
-    return QMouseEvent(
-        QEvent.Type.MouseMove,
-        QPointF(pos),
-        Qt.MouseButton.NoButton,
-        Qt.MouseButton.LeftButton,
-        Qt.KeyboardModifier.NoModifier,
-    )
-
-
 def test_shell_frame_inserts_comfy_output_toggle_before_minimize_button() -> None:
     """The shell frame should place the Comfy output toggle in the titlebar cluster."""
 
@@ -126,48 +113,28 @@ def test_shell_frame_inserts_comfy_output_toggle_before_minimize_button() -> Non
     frame.close()
 
 
-def test_shell_titlebar_blocks_native_move_during_workflow_tab_gesture(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_shell_titlebar_blocks_native_move_during_workflow_tab_gesture() -> None:
     """Active workflow-tab gestures must not become qframeless window drags."""
 
     _app()
     frame = SubstituteWindowFrame(create_menu_container=True)
     frame.resize(900, 160)
-    calls: list[object] = []
-    monkeypatch.setattr(
-        qframeless_titlebar,
-        "startSystemMove",
-        lambda _window, global_pos: calls.append(global_pos),
-    )
-
     frame.set_workflow_tab_drag_owner(_WorkflowTabDragOwner(idle=False))
-    frame.titleBar.mouseMoveEvent(_titlebar_mouse_move(QPoint(80, 18)))
 
-    assert calls == []
+    assert frame.titleBar.canDrag(QPoint(80, 18)) is False
 
     frame.close()
 
 
-def test_shell_titlebar_keeps_native_move_when_workflow_tabs_idle(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_shell_titlebar_keeps_native_move_when_workflow_tabs_idle() -> None:
     """Idle workflow-tab state should leave qframeless titlebar dragging intact."""
 
     _app()
     frame = SubstituteWindowFrame(create_menu_container=True)
     frame.resize(900, 160)
-    calls: list[object] = []
-    monkeypatch.setattr(
-        qframeless_titlebar,
-        "startSystemMove",
-        lambda _window, global_pos: calls.append(global_pos),
-    )
-
     frame.set_workflow_tab_drag_owner(_WorkflowTabDragOwner(idle=True))
-    frame.titleBar.mouseMoveEvent(_titlebar_mouse_move(QPoint(80, 18)))
 
-    assert len(calls) == 1
+    assert frame.titleBar.canDrag(QPoint(80, 18)) is True
 
     frame.close()
 
