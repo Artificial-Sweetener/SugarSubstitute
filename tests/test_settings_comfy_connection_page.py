@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -87,11 +88,14 @@ class _Service:
         self.save_delay_seconds = 0.0
         self.test_delay_seconds = 0.0
         self.load_finished = False
+        self.load_gate: threading.Event | None = None
         self.test_succeeds = True
 
     def load_snapshot(self) -> ComfyConnectionSettingsSnapshot:
         """Return the current fake snapshot."""
 
+        if self.load_gate is not None:
+            self.load_gate.wait(timeout=2.0)
         if self.load_delay_seconds:
             time.sleep(self.load_delay_seconds)
         self.load_finished = True
@@ -347,24 +351,23 @@ def test_comfy_connection_page_initial_load_is_async(tmp_path: Path) -> None:
 
     app = _app()
     service = _Service(_managed_target(tmp_path))
-    service.load_delay_seconds = 0.2
+    service.load_gate = threading.Event()
 
-    started_at = time.perf_counter()
     page = ComfyConnectionSettingsPage(
         service=cast(ComfyConnectionSettingsService, service),
         open_reconfigure_window=lambda: object(),
         task_runner_factory=_threaded_task_runner_factory(),
     )
-    elapsed_ms = (time.perf_counter() - started_at) * 1000.0
+    try:
+        assert service.load_finished is False
+        service.load_gate.set()
+        _process_events_until(app, lambda: page.host_edit.text() == "127.0.0.1")
 
-    assert elapsed_ms < 150.0
-    assert service.load_finished is False
-
-    _process_events_until(app, lambda: page.host_edit.text() == "127.0.0.1")
-
-    assert service.load_finished is True
-    assert page.save_button.isEnabled() is False
-    page.close()
+        assert service.load_finished is True
+        assert page.save_button.isEnabled() is False
+    finally:
+        service.load_gate.set()
+        page.close()
 
 
 def test_comfy_connection_page_save_submits_current_draft(tmp_path: Path) -> None:
