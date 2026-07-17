@@ -68,6 +68,7 @@ class LauncherBundleStager:
         if version_root.exists():
             shutil.rmtree(version_root)
         safe_extract_zip(zip_path=archive_path, destination_dir=version_root)
+        normalize_staged_bundle_permissions(bundle_dir=version_root, target=target)
         validate_staged_bundle(bundle_dir=version_root, target=target)
         request_path = update_root / "pending.json"
         LauncherUpdateRequest(
@@ -105,6 +106,20 @@ def validate_staged_bundle(
         )
 
 
+def normalize_staged_bundle_permissions(
+    *,
+    bundle_dir: Path,
+    target: LauncherBundleTarget,
+) -> None:
+    """Restore target-required execute permissions after portable extraction."""
+
+    if target.executable_mode is None:
+        return
+    executable_path = bundle_dir / target.executable_relative_path
+    if executable_path.is_file():
+        executable_path.chmod(executable_path.stat().st_mode | target.executable_mode)
+
+
 def _verify_sha256(path: Path, *, expected: str) -> None:
     """Reject an asset whose bytes differ from the release manifest."""
 
@@ -129,6 +144,7 @@ def safe_launcher_version(version: str) -> str:
 __all__ = [
     "LauncherBundleStager",
     "LauncherBundleValidationError",
+    "normalize_staged_bundle_permissions",
     "safe_launcher_version",
     "validate_staged_bundle",
 ]

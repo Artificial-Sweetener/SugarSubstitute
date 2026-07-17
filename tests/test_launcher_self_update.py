@@ -41,7 +41,10 @@ from sugarsubstitute_shared.launcher_update.models import (
     LauncherUpdateRequest,
 )
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
-from sugarsubstitute_shared.launcher_update.targets import WINDOWS_X64_BUNDLE
+from sugarsubstitute_shared.launcher_update.targets import (
+    LINUX_X64_BUNDLE,
+    WINDOWS_X64_BUNDLE,
+)
 from sugarsubstitute_shared.launcher_update.transaction import (
     LauncherUpdateTransaction,
     LauncherUpdateTransactionError,
@@ -127,6 +130,31 @@ def test_stager_rejects_archive_path_traversal(tmp_path: Path) -> None:
         )
 
     assert not (tmp_path / "escaped.txt").exists()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permissions only")
+def test_stager_restores_linux_launcher_executable_mode(tmp_path: Path) -> None:
+    """Portable extraction must leave the installed Linux launcher runnable."""
+
+    archive = tmp_path / "linux-launcher.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        executable = zipfile.ZipInfo("SugarSubstitute")
+        executable.external_attr = 0o100644 << 16
+        bundle.writestr(executable, b"launcher")
+        bundle.writestr("launcher-bin/runtime.txt", b"support")
+
+    request_path = LauncherBundleStager().stage(
+        install_root=tmp_path / "SugarSubstitute",
+        version="0.11.0",
+        target=LINUX_X64_BUNDLE,
+        asset=_asset(archive),
+    )
+    request = LauncherUpdateRequest.load(request_path)
+    installed_mode = (
+        request.staged_bundle_dir / "SugarSubstitute"
+    ).stat().st_mode & 0o777
+
+    assert installed_mode == 0o755
 
 
 def test_transaction_replaces_only_launcher_and_preserves_install_data(

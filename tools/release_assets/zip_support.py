@@ -45,6 +45,7 @@ def write_file_to_zip(
     archive: zipfile.ZipFile,
     source_path: Path,
     archive_name: str,
+    permissions: int | None = None,
 ) -> None:
     """Add one file with stable metadata and preserved executable permissions."""
 
@@ -53,8 +54,8 @@ def write_file_to_zip(
         date_time=ZIP_TIMESTAMP,
     )
     zip_info.compress_type = zipfile.ZIP_DEFLATED
-    permissions = source_path.stat().st_mode & 0o777
-    zip_info.external_attr = (permissions or 0o644) << 16
+    archived_permissions = permissions or (source_path.stat().st_mode & 0o777) or 0o644
+    zip_info.external_attr = archived_permissions << 16
     with source_path.open("rb") as source_file:
         archive.writestr(
             zip_info,

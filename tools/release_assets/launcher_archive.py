@@ -23,6 +23,7 @@ import zipfile
 from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.platforms import LauncherTarget
+from launcher.sugarsubstitute_launcher.platforms import LauncherOperatingSystem
 from tools.release_assets.zip_support import iter_directory_files, write_file_to_zip
 
 
@@ -45,10 +46,18 @@ def build_installed_launcher_zip(
         compresslevel=9,
     ) as archive:
         for source_path in iter_directory_files(resolved_bundle_dir):
+            relative_path = source_path.relative_to(resolved_bundle_dir)
+            executable_permissions = (
+                0o755
+                if relative_path == target.executable_relative_path
+                and target.operating_system is not LauncherOperatingSystem.WINDOWS
+                else None
+            )
             write_file_to_zip(
                 archive=archive,
                 source_path=source_path,
-                archive_name=source_path.relative_to(resolved_bundle_dir).as_posix(),
+                archive_name=relative_path.as_posix(),
+                permissions=executable_permissions,
             )
     return resolved_output_path
 
