@@ -22,6 +22,7 @@ import hashlib
 import io
 import logging
 import os
+import re
 import subprocess
 import sys
 import tarfile
@@ -71,7 +72,7 @@ def test_uv_runtime_provisioner_builds_managed_runtime_commands(tmp_path: Path) 
 
     layout = InstallLayout.from_root(tmp_path / "install")
     _write_file(layout.app_dir / "requirements.txt", "PySide6\n")
-    bundled_uv = tmp_path / "uv.exe"
+    bundled_uv = tmp_path / layout.target.uv_executable_name
     bundled_uv.write_bytes(b"uv")
     runner = RecordingRuntimeRunner()
 
@@ -80,23 +81,25 @@ def test_uv_runtime_provisioner_builds_managed_runtime_commands(tmp_path: Path) 
         runner=runner,
     ).provision(layout=layout)
 
-    uv_executable = layout.runtime_dir / "uv" / "uv.exe"
+    uv_executable = layout.uv_executable
     assert uv_executable.read_bytes() == b"uv"
     assert result.python_executable == layout.runtime_python
     assert result.requirements_path == layout.app_dir / "requirements.txt"
+    python_install_command = [
+        str(uv_executable),
+        "python",
+        "install",
+        DEFAULT_PYTHON_VERSION,
+        "--install-dir",
+        str(layout.runtime_dir / "python"),
+        "--managed-python",
+        "--no-bin",
+    ]
+    if layout.target.operating_system is WINDOWS_X64.operating_system:
+        python_install_command.append("--no-registry")
+    python_install_command.append("--no-config")
     assert runner.commands == [
-        [
-            str(uv_executable),
-            "python",
-            "install",
-            DEFAULT_PYTHON_VERSION,
-            "--install-dir",
-            str(layout.runtime_dir / "python"),
-            "--managed-python",
-            "--no-bin",
-            "--no-registry",
-            "--no-config",
-        ],
+        python_install_command,
         [
             str(uv_executable),
             "venv",
@@ -337,12 +340,13 @@ def test_runtime_provisioner_requires_requirements_file(tmp_path: Path) -> None:
 
 
 def test_runtime_provisioner_requires_verified_uv_source(tmp_path: Path) -> None:
-    """Missing uv.exe fails closed unless a bundled or checksummed uv source exists."""
+    """Missing uv fails closed unless a bundled or checksummed source exists."""
 
     layout = InstallLayout.from_root(tmp_path / "install")
     _write_file(layout.app_dir / "requirements.txt", "PySide6\n")
 
-    with pytest.raises(RuntimeProvisioningError, match="uv.exe is missing"):
+    expected_message = re.escape(f"{layout.target.uv_executable_name} is missing")
+    with pytest.raises(RuntimeProvisioningError, match=expected_message):
         UvManagedRuntimeInstaller(runner=RecordingRuntimeRunner()).provision(
             layout=layout
         )
@@ -352,7 +356,10 @@ def test_runtime_provisioner_extracts_checksummed_uv_archive(tmp_path: Path) -> 
     """A configured uv archive is verified before extraction."""
 
     layout = InstallLayout.from_root(tmp_path / "install")
-    archive_path = _write_uv_archive(tmp_path / "uv.zip")
+    archive_path = _write_uv_archive(
+        tmp_path / "uv.zip",
+        executable_name=layout.target.uv_executable_name,
+    )
     asset = ReleaseAsset(
         filename=archive_path.name,
         url=archive_path.as_uri(),
@@ -364,7 +371,7 @@ def test_runtime_provisioner_extracts_checksummed_uv_archive(tmp_path: Path) -> 
         layout=layout
     )
 
-    assert uv_executable == layout.runtime_dir / "uv" / "uv.exe"
+    assert uv_executable == layout.uv_executable
     assert uv_executable.read_bytes() == b"uv"
     assert not (layout.runtime_dir / "uv_extract").exists()
 
@@ -420,12 +427,12 @@ def test_runtime_provisioner_rejects_bad_uv_archive_checksum(tmp_path: Path) -> 
         UvManagedRuntimeInstaller(uv_archive_asset=asset).ensure_uv(layout=layout)
 
 
-def _write_uv_archive(path: Path) -> Path:
+def _write_uv_archive(path: Path, *, executable_name: str = "uv.exe") -> Path:
     """Write a minimal uv release archive fixture."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w") as archive:
-        archive.writestr("uv-x86_64-pc-windows-msvc/uv.exe", b"uv")
+        archive.writestr(f"uv-test-target/{executable_name}", b"uv")
     return path
 
 

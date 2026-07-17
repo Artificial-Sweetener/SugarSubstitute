@@ -65,13 +65,14 @@ def test_associate_local_input_image_updates_graph_and_persisted_asset_ref() -> 
     nodes = cast(dict[str, JsonObject], cube_state.buffer["nodes"])
     load_image = nodes["load_image"]
     inputs = cast(JsonObject, load_image["inputs"])
-    assert inputs["image"] == "E:\\images\\selected.png"
+    selected_image_path = str(Path("E:/images/selected.png"))
+    assert inputs["image"] == selected_image_path
     assert cube_state.dirty is True
     asset_refs = cast(JsonObject, workflow.metadata["asset_refs"])
     input_images = cast(JsonObject, asset_refs["input_images"])
     assert input_images["Inpaint:load_image"] == {
         "kind": "local_file",
-        "path": "E:\\images\\selected.png",
+        "path": selected_image_path,
     }
 
 
@@ -191,15 +192,16 @@ def test_associate_local_input_mask_updates_graph_and_persisted_asset_ref() -> N
     nodes = cast(dict[str, JsonObject], cube_state.buffer["nodes"])
     load_mask = nodes["load_image_as_mask"]
     inputs = cast(JsonObject, load_mask["inputs"])
-    assert inputs["image"] == "E:\\masks\\selected.png"
+    selected_mask_path = str(Path("E:/masks/selected.png"))
+    assert inputs["image"] == selected_mask_path
     asset_refs = cast(JsonObject, workflow.metadata["asset_refs"])
     input_masks = cast(JsonObject, asset_refs["input_masks"])
     assert input_masks["Inpaint:load_image_as_mask"] == {
         "kind": "local_file",
-        "path": "E:\\masks\\selected.png",
+        "path": selected_mask_path,
     }
     assert WorkflowAssetService().input_mask_asset_ref(
         workflow,
         cube_alias="Inpaint",
         node_name="load_image_as_mask",
-    ) == LocalFileAssetRef(path="E:\\masks\\selected.png")
+    ) == LocalFileAssetRef(path=selected_mask_path)

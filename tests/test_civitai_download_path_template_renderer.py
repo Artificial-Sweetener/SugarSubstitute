@@ -29,17 +29,17 @@ from substitute.application.civitai import (
 from substitute.domain.civitai import CivitaiDownloadPathRenderContext
 
 
-def test_civitai_download_renderer_accepts_default_pattern() -> None:
+def test_civitai_download_renderer_accepts_default_pattern(tmp_path: Path) -> None:
     """Default CivitAI download paths should render under the Comfy root."""
 
     result = CivitaiDownloadPathTemplateRenderer().preview_path(
         path_pattern="{base_model}\\{file_name}",
-        context=_context(),
+        context=_context(tmp_path),
     )
 
     assert result.relative_path == Path("Anima") / "anima_baseV10.safetensors"
-    assert result.display_path.endswith(
-        "diffusion_models\\Anima\\anima_baseV10.safetensors"
+    assert result.display_path == str(
+        tmp_path / "diffusion_models" / "Anima" / "anima_baseV10.safetensors"
     )
 
 
@@ -54,25 +54,30 @@ def test_civitai_download_renderer_rejects_unknown_and_malformed_tokens() -> Non
         renderer.validate_pattern("{base_model\\{file_name}")
 
 
-def test_civitai_download_renderer_rejects_absolute_and_traversal_paths() -> None:
+def test_civitai_download_renderer_rejects_absolute_and_traversal_paths(
+    tmp_path: Path,
+) -> None:
     """CivitAI download patterns must stay relative to the model root."""
 
     renderer = CivitaiDownloadPathTemplateRenderer()
 
     with pytest.raises(CivitaiDownloadPathTemplateError, match="relative"):
-        renderer.validate_pattern("E:\\Models\\{file_name}")
+        renderer.validate_pattern(str(tmp_path / "Models" / "{file_name}"))
     with pytest.raises(CivitaiDownloadPathTemplateError, match="traversal"):
-        renderer.preview_path(path_pattern="..\\{file_name}", context=_context())
+        renderer.preview_path(
+            path_pattern="..\\{file_name}",
+            context=_context(tmp_path),
+        )
 
 
-def test_civitai_download_renderer_sanitizes_token_values() -> None:
+def test_civitai_download_renderer_sanitizes_token_values(tmp_path: Path) -> None:
     """Unsafe CivitAI metadata should become safe path components."""
 
     result = CivitaiDownloadPathTemplateRenderer().preview_path(
         path_pattern="{creator}\\{model_name}\\{file_name}",
         context=CivitaiDownloadPathRenderContext(
             kind="diffusion_models",
-            comfy_root=Path("E:/ImageGen Models/diffusion_models"),
+            comfy_root=tmp_path / "diffusion_models",
             base_model="Anima",
             model_name="Bad:Model/Name",
             version_name="base-v1.0",
@@ -86,12 +91,12 @@ def test_civitai_download_renderer_sanitizes_token_values() -> None:
     )
 
 
-def _context() -> CivitaiDownloadPathRenderContext:
+def _context(tmp_path: Path) -> CivitaiDownloadPathRenderContext:
     """Return a deterministic Anima preview context."""
 
     return CivitaiDownloadPathRenderContext(
         kind="diffusion_models",
-        comfy_root=Path("E:/ImageGen Models/diffusion_models"),
+        comfy_root=tmp_path / "diffusion_models",
         base_model="Anima",
         model_name="Anima",
         version_name="base-v1.0",

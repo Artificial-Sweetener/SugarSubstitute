@@ -122,9 +122,10 @@ def test_backend_sugar_compile_client_posts_expected_request_body() -> None:
         timeout_seconds=12.0,
     )
 
+    output_dir = Path("E:/outputs")
     payload = client.compile_workflow_payload(
         sugar_script_text='use "Owner/Repo/demo.cube" as demo',
-        output_dir=Path("E:/outputs"),
+        output_dir=output_dir,
     )
 
     assert payload == {
@@ -140,7 +141,7 @@ def test_backend_sugar_compile_client_posts_expected_request_body() -> None:
             {
                 "schemaVersion": 1,
                 "sugarScriptText": 'use "Owner/Repo/demo.cube" as demo',
-                "outputDir": "E:\\outputs",
+                "outputDir": str(output_dir),
             },
             12.0,
         )

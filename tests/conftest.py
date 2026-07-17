@@ -35,6 +35,7 @@ from substitute.shared.qfluentwidgets_banner import (
     install_qfluentwidgets_banner_filter,
 )
 from tests.ci_test_policy import (
+    PLATFORM_TEST_MODULES,
     SERIAL_TEST_MODULES,
     current_test_platform,
     marker_test_platforms,
@@ -88,6 +89,23 @@ def pytest_xdist_auto_num_workers(config: pytest.Config) -> int:
 
     del config
     return parallel_test_worker_count(os.cpu_count())
+
+
+def pytest_ignore_collect(
+    collection_path: Path,
+    config: pytest.Config,
+) -> bool | None:
+    """Skip whole test modules before unsupported platform imports execute."""
+
+    del config
+    try:
+        relative_path = collection_path.resolve().relative_to(_PROJECT_ROOT).as_posix()
+    except ValueError:
+        return None
+    supported_platforms = PLATFORM_TEST_MODULES.get(relative_path)
+    if supported_platforms is None:
+        return None
+    return current_test_platform() not in supported_platforms
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:

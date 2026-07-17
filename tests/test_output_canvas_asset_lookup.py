@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -91,14 +92,9 @@ def test_scene_request_layer_path_uses_final_output_metadata_only() -> None:
         )
         is None
     )
-    assert (
-        str(
-            lookup.scene_request_layer_path(
-                SimpleNamespace(image_id=image_id, metadata={})
-            )
-        )
-        == "E:\\out.png"
-    )
+    assert str(
+        lookup.scene_request_layer_path(SimpleNamespace(image_id=image_id, metadata={}))
+    ) == str(Path("E:/out.png"))
 
 
 def _meta(path: str) -> OutputImageMeta:

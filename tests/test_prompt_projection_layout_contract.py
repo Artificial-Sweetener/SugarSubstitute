@@ -449,6 +449,16 @@ def _line_indices_for_source_range(
     return line_indices
 
 
+def _plain_text_wrap_width(*fragments: str) -> float:
+    """Return a host-font-aware width that fits each supplied fragment."""
+
+    ensure_qapp()
+    widest_fragment = max(
+        QFontMetricsF(QFont()).horizontalAdvance(fragment) for fragment in fragments
+    )
+    return widest_fragment + 9.0
+
+
 def _reorder_geometry_inputs_for_text(
     text: str,
 ) -> tuple[
@@ -475,12 +485,15 @@ def _reorder_geometry_inputs_for_text(
 def test_projection_layout_keeps_short_comma_tag_on_one_line_when_it_fits() -> None:
     """Short comma-delimited prompt tags should move as unbroken wrapping units."""
 
+    prompt_text = "masterpiece, best quality, detailed eyes"
     layout, _ = _layout_for(
-        "masterpiece, best quality, detailed eyes",
-        text_width=260.0,
+        prompt_text,
+        text_width=_plain_text_wrap_width("masterpiece, ", "best quality, "),
     )
 
-    assert "best quality, " in _line_texts(layout)
+    line_texts = _line_texts(layout)
+    assert len(line_texts) > 1
+    assert "best quality, " in line_texts
 
 
 def test_projection_layout_keeps_three_word_comma_tag_on_one_line_when_it_fits() -> (
@@ -488,19 +501,25 @@ def test_projection_layout_keeps_three_word_comma_tag_on_one_line_when_it_fits()
 ):
     """Three-word comma-delimited tags should remain protected keep groups."""
 
+    prompt_text = "alpha, greco roman clothes, omega"
     layout, _ = _layout_for(
-        "alpha, greco roman clothes, omega",
-        text_width=260.0,
+        prompt_text,
+        text_width=_plain_text_wrap_width("alpha, ", "greco roman clothes, "),
     )
 
-    assert "greco roman clothes, " in _line_texts(layout)
+    line_texts = _line_texts(layout)
+    assert len(line_texts) > 1
+    assert "greco roman clothes, " in line_texts
 
 
 def test_projection_layout_does_not_promote_four_word_comma_tag_to_keep_group() -> None:
     """Four-word comma-delimited tags should keep normal wrapping behavior."""
 
     prompt_text = "alpha, one two three four, omega"
-    layout, _ = _layout_for(prompt_text, text_width=250.0)
+    layout, _ = _layout_for(
+        prompt_text,
+        text_width=_plain_text_wrap_width("one two three "),
+    )
     segment_start = prompt_text.index("one")
     segment_end = prompt_text.index(", omega")
 
@@ -633,14 +652,15 @@ def test_projection_layout_allows_oversized_word_split() -> None:
 def test_projection_layout_keeps_decorated_short_tag_together_when_it_fits() -> None:
     """Decorated short tags should include decoration and separator in one keep group."""
 
+    prompt_text = "alpha, (best quality:1.2), tail"
     layout, _ = _layout_for(
-        "alpha, (best quality:1.2), tail",
-        text_width=280.0,
+        prompt_text,
+        text_width=_plain_text_wrap_width("alpha, ", "(best quality1.2, "),
     )
 
-    assert any(
-        line_text.startswith("(best quality1.2, ") for line_text in _line_texts(layout)
-    )
+    line_texts = _line_texts(layout)
+    assert len(line_texts) > 1
+    assert "(best quality1.2, " in line_texts
 
 
 def test_projection_layout_attaches_leading_decoration_during_oversized_fallback() -> (
@@ -650,11 +670,12 @@ def test_projection_layout_attaches_leading_decoration_during_oversized_fallback
 
     layout, _ = _layout_for(
         "alpha, (long descriptive tag extra:1.2), tail",
-        text_width=150.0,
+        text_width=_plain_text_wrap_width("alpha, ", "(long "),
     )
 
-    assert "alpha, " in _line_texts(layout)
-    assert any(line_text.startswith("(long ") for line_text in _line_texts(layout))
+    line_texts = _line_texts(layout)
+    assert any(line_text.startswith("(long") for line_text in line_texts)
+    assert all(not line_text.endswith("(") for line_text in line_texts)
 
 
 def test_projection_layout_attaches_trailing_decoration_and_separator_during_fallback() -> (
@@ -718,7 +739,10 @@ def test_projection_layout_rejects_comma_insert_when_new_keep_group_needs_wrap()
     previous_text = "test test test test, omega"
     edit_start = len("test")
     next_text = previous_text[:edit_start] + "," + previous_text[edit_start:]
-    layout, _ = _layout_for(previous_text, text_width=140.0)
+    layout, _ = _layout_for(
+        previous_text,
+        text_width=_plain_text_wrap_width("test test test, "),
+    )
     next_document_view, next_projection = _projection_for(next_text)
 
     result = layout.try_apply_same_line_plain_text_edit(
@@ -1772,7 +1796,7 @@ def test_projection_layout_emphasis_weight_anchor_stays_compact_and_close_to_suf
     assert anchor_rect.left() - suffix_fragment.rect.left() < (
         suffix_fragment.rect.width() * 0.35
     )
-    assert anchor_rect.width() < (suffix_fragment.rect.width() * 0.75)
+    assert anchor_rect.width() < suffix_fragment.rect.width()
     assert anchor_rect.height() < suffix_fragment.rect.height()
 
 

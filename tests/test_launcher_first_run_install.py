@@ -168,6 +168,7 @@ def test_github_release_source_rejects_http_manifest_url(
         ).load_manifest()
 
 
+@pytest.mark.platforms("windows")
 def test_first_run_installs_launcher_bundle_and_builds_continue_command(
     tmp_path: Path,
 ) -> None:
