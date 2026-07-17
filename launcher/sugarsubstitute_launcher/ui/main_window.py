@@ -1184,10 +1184,17 @@ def _current_frozen_executable() -> Path | None:
 def _install_location_guidance() -> str:
     """Return writable-location guidance for the current launcher target."""
 
-    if detect_launcher_target().operating_system is LauncherOperatingSystem.MACOS:
+    operating_system = detect_launcher_target().operating_system
+    if operating_system is LauncherOperatingSystem.MACOS:
         return (
             "Use a writable folder in your home directory, such as "
             "~/Applications/SugarSubstitute. System Applications folders can require "
+            "administrator access for updates and runtime setup."
+        )
+    if operating_system is LauncherOperatingSystem.LINUX:
+        return (
+            "Use a writable folder in your home directory, such as "
+            "~/.local/share/SugarSubstitute. System application folders can require "
             "administrator access for updates and runtime setup."
         )
     return (

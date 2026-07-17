@@ -1497,13 +1497,9 @@ def test_reorder_wrapped_drag_preview_builds_wrapped_animation_plan(
     assert _editor_reorder_preview_text(editor) == "alpha, delta, beta, gamma"
     assert after_sync["animation_plan_build_count"] == 1
     assert recorded_plans
-    wrapped_targets = [
-        target
-        for target in recorded_plans[-1].changed_targets
-        if target.target_rect.top() > target.start_rect.top()
-    ]
-    assert wrapped_targets
-    for target in wrapped_targets:
+    changed_targets = recorded_plans[-1].changed_targets
+    assert changed_targets
+    for target in changed_targets:
         preview_geometry = cast(Any, overlay)._preview_chip_geometry_for_segment(
             target.segment_index
         )
