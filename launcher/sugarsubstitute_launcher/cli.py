@@ -29,26 +29,38 @@ class LauncherArguments:
     """Capture parsed launcher command-line behavior switches."""
 
     continue_install: bool
+    headless_install: bool
+    verify_release_connectivity: bool
     repair: bool
     no_update_check: bool
     install_root: Path | None
     handoff_geometry: str | None
+    manifest_url: str | None
 
 
 def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
     """Parse launcher flags used by setup, repair, and normal launch modes."""
 
     parser = argparse.ArgumentParser(add_help=True)
-    parser.add_argument("--continue-install", action="store_true")
+    execution_mode = parser.add_mutually_exclusive_group()
+    execution_mode.add_argument("--continue-install", action="store_true")
+    execution_mode.add_argument("--headless-install", action="store_true")
+    execution_mode.add_argument("--verify-release-connectivity", action="store_true")
     parser.add_argument("--repair", action="store_true")
     parser.add_argument("--no-update-check", action="store_true")
     parser.add_argument("--install-root", type=Path, default=None)
     parser.add_argument("--handoff-geometry", type=str, default=None)
+    parser.add_argument("--manifest-url", type=str, default=None)
     namespace = parser.parse_args(argv)
+    if namespace.headless_install and namespace.install_root is None:
+        parser.error("--headless-install requires --install-root")
     return LauncherArguments(
         continue_install=namespace.continue_install,
+        headless_install=namespace.headless_install,
+        verify_release_connectivity=namespace.verify_release_connectivity,
         repair=namespace.repair,
         no_update_check=namespace.no_update_check,
         install_root=namespace.install_root,
         handoff_geometry=namespace.handoff_geometry,
+        manifest_url=namespace.manifest_url,
     )

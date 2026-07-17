@@ -123,6 +123,42 @@ def test_launcher_args_parse_internal_flags(tmp_path: Path) -> None:
     assert args.no_update_check is True
     assert args.handoff_geometry == "10,20,1260,800"
     assert args.install_root == install_root
+    assert args.headless_install is False
+    assert args.verify_release_connectivity is False
+    assert args.manifest_url is None
+
+
+def test_launcher_args_parse_headless_release_probe_flags(tmp_path: Path) -> None:
+    """Packaged Linux validation modes should accept an explicit release source."""
+
+    install_root = tmp_path / "SugarSubstitute"
+    manifest_url = "https://github.com/acme/releases/download/test/manifest.json"
+
+    install_args = parse_launcher_args(
+        [
+            "--headless-install",
+            "--install-root",
+            str(install_root),
+            "--manifest-url",
+            manifest_url,
+        ]
+    )
+    connectivity_args = parse_launcher_args(
+        ["--verify-release-connectivity", "--manifest-url", manifest_url]
+    )
+
+    assert install_args.headless_install is True
+    assert install_args.install_root == install_root
+    assert install_args.manifest_url == manifest_url
+    assert connectivity_args.verify_release_connectivity is True
+    assert connectivity_args.manifest_url == manifest_url
+
+
+def test_headless_install_requires_explicit_install_root() -> None:
+    """Headless installation must never infer a target that automation can overwrite."""
+
+    with pytest.raises(SystemExit):
+        parse_launcher_args(["--headless-install"])
 
 
 def test_install_layout_resolves_target_paths(tmp_path: Path) -> None:
