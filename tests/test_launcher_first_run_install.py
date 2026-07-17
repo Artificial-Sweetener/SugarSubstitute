@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import ssl
 import zipfile
 from collections.abc import Callable, Sequence
 import hashlib
@@ -133,17 +134,26 @@ def test_github_release_source_loads_manifest_from_https_url(
 
             return manifest_path.read_bytes()
 
-    def _fake_urlopen(request: object, *, timeout: float) -> _Response:
+    tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
+    def _fake_urlopen(
+        request: object,
+        *,
+        timeout: float,
+        context: ssl.SSLContext,
+    ) -> _Response:
         """Validate the requested URL and return a fake response."""
 
         assert "manifest.json" in str(request.full_url)  # type: ignore[attr-defined]
         assert timeout == 30.0
+        assert context is tls_context
         return _Response()
 
     monkeypatch.setattr("urllib.request.urlopen", _fake_urlopen)
 
     manifest = GitHubReleaseSource(
-        "https://github.com/acme/SugarSubstitute/releases/download/v0.4.0/manifest.json"
+        "https://github.com/acme/SugarSubstitute/releases/download/v0.4.0/manifest.json",
+        tls_context=tls_context,
     ).load_manifest()
 
     assert manifest.version == "0.4.0"
@@ -317,7 +327,7 @@ def test_continue_install_persists_github_release_source(
 
     monkeypatch.setattr(
         "urllib.request.urlopen",
-        lambda _request, *, timeout: _Response(),
+        lambda _request, *, timeout, context: _Response(),
     )
 
     FirstRunInstaller().continue_install(
@@ -458,6 +468,62 @@ def test_asset_downloader_copies_file_url_to_destination(tmp_path: Path) -> None
     assert not destination.with_name(f"{destination.name}.partial").exists()
 
 
+def test_asset_downloader_uses_supplied_verified_tls_context(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """HTTPS assets should use the launcher's owned system-trust context."""
+
+    payload = b"payload"
+    tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
+    class _Response:
+        """Serve deterministic bytes through the urlopen response protocol."""
+
+        def __enter__(self) -> "_Response":
+            """Enter the fake response context."""
+
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            """Exit the fake response context."""
+
+        def read(self, _size: int = -1) -> bytes:
+            """Return payload bytes once, then signal end-of-stream."""
+
+            content, self._remaining = getattr(self, "_remaining", payload), b""
+            return content
+
+    def _fake_urlopen(
+        request: object,
+        *,
+        timeout: float,
+        context: ssl.SSLContext,
+    ) -> _Response:
+        """Require the downloader's explicit verified TLS context."""
+
+        assert str(request.full_url) == "https://example.invalid/payload.zip"  # type: ignore[attr-defined]
+        assert timeout == 60.0
+        assert context is tls_context
+        return _Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", _fake_urlopen)
+    asset = ReleaseAsset(
+        filename="payload.zip",
+        url="https://example.invalid/payload.zip",
+        sha256=_sha256_bytes(payload),
+        size_bytes=len(payload),
+    )
+    destination = tmp_path / "downloads" / asset.filename
+
+    result = AssetDownloader(tls_context=tls_context).download(
+        asset=asset,
+        destination_path=destination,
+    )
+
+    assert result.read_bytes() == payload
+
+
 def test_asset_downloader_rejects_http_remote_asset(tmp_path: Path) -> None:
     """Remote release assets must use HTTPS even though local file assets work."""
 
@@ -565,3 +631,9 @@ def _sha256(path: Path) -> str:
     """Return the SHA256 hex digest for one file."""
 
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _sha256_bytes(payload: bytes) -> str:
+    """Return the SHA256 hex digest for in-memory test bytes."""
+
+    return hashlib.sha256(payload).hexdigest()

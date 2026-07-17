@@ -19,12 +19,14 @@
 from __future__ import annotations
 
 import shutil
+import ssl
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset
+from launcher.sugarsubstitute_launcher.tls import SystemTrustTlsContext
 
 
 DEFAULT_DOWNLOAD_TIMEOUT_SECONDS = 60.0
@@ -38,11 +40,15 @@ class AssetDownloader:
     """Fetch release assets from file or HTTPS URLs."""
 
     def __init__(
-        self, *, timeout_seconds: float = DEFAULT_DOWNLOAD_TIMEOUT_SECONDS
+        self,
+        *,
+        timeout_seconds: float = DEFAULT_DOWNLOAD_TIMEOUT_SECONDS,
+        tls_context: ssl.SSLContext | None = None,
     ) -> None:
-        """Store the network timeout used for remote asset downloads."""
+        """Store the timeout and verified context used for remote downloads."""
 
         self._timeout_seconds = timeout_seconds
+        self._tls_context = tls_context or SystemTrustTlsContext.create()
 
     def download(self, *, asset: ReleaseAsset, destination_path: Path) -> Path:
         """Download one asset into a partial file before final promotion."""
@@ -83,7 +89,11 @@ class AssetDownloader:
 
         request = urllib.request.Request(url, method="GET")
         with (
-            urllib.request.urlopen(request, timeout=self._timeout_seconds) as response,
+            urllib.request.urlopen(
+                request,
+                timeout=self._timeout_seconds,
+                context=self._tls_context,
+            ) as response,
             partial_path.open("wb") as destination,
         ):
             shutil.copyfileobj(response, destination)
