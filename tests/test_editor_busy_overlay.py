@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import cast
 
 from PySide6.QtCore import Qt
-from PySide6.QtTest import QTest
+from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
 
 from substitute.presentation.shell.editor_busy_overlay import EditorBusyOverlay
@@ -162,17 +162,19 @@ def test_editor_busy_overlay_timer_updates_visible_label() -> None:
     ellipsis_label = overlay.findChild(QLabel, "EditorBusyOverlayEllipsisLabel")
     assert message_label is not None
     assert ellipsis_label is not None
+    timeout_spy = QSignalSpy(overlay._timer.timeout)
 
-    overlay.show_loading("Loading")
-    assert message_label.text() == "Loading"
-    assert ellipsis_label.text() == ""
+    try:
+        overlay.show_loading("Loading")
+        assert message_label.text() == "Loading"
+        assert ellipsis_label.text() == ""
 
-    QTest.qWait(450)
-    assert message_label.text() == "Loading"
-    assert ellipsis_label.text() == "."
+        assert timeout_spy.wait(2_000)
+        assert message_label.text() == "Loading"
+        assert ellipsis_label.text() == "."
 
-    QTest.qWait(450)
-    assert message_label.text() == "Loading"
-    assert ellipsis_label.text() == ".."
-
-    overlay.hide_loading()
+        assert timeout_spy.wait(2_000)
+        assert message_label.text() == "Loading"
+        assert ellipsis_label.text() == ".."
+    finally:
+        overlay.hide_loading()
