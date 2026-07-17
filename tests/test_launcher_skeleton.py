@@ -95,6 +95,13 @@ def _pump_events_until(
     raise AssertionError("Timed out waiting for launcher background work.")
 
 
+def _write_launcher_executable(layout: InstallLayout) -> None:
+    """Create the target-native launcher executable path for one test layout."""
+
+    layout.executable_path.parent.mkdir(parents=True, exist_ok=True)
+    layout.executable_path.write_text("", encoding="utf-8")
+
+
 def test_launcher_args_parse_internal_flags(tmp_path: Path) -> None:
     """The launcher accepts setup, repair, update, and install-root flags."""
 
@@ -273,7 +280,7 @@ def test_launcher_resolves_installed_exe_parent_as_install_root(
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     LauncherConfig.from_layout(layout=layout).save(layout.config_path)
-    layout.executable_path.write_text("", encoding="utf-8")
+    _write_launcher_executable(layout)
 
     resolved_root = resolve_install_root(
         explicit_install_root=None,
@@ -290,7 +297,7 @@ def test_launcher_ignores_adjacent_app_without_launcher_config(
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     layout.root.mkdir(parents=True)
-    layout.executable_path.write_text("", encoding="utf-8")
+    _write_launcher_executable(layout)
     layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
     layout.app_entrypoint.write_text("", encoding="utf-8")
 
@@ -397,7 +404,14 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
     assert isinstance(window._progress_log, TerminalOutputView)  # noqa: SLF001
     assert window._progress_log.log_view.minimumHeight() == 260  # noqa: SLF001
     assert window._progress_log.log_view.maximumHeight() == 340  # noqa: SLF001
-    assert "Avoid Program Files" in window._install_location_guidance_label.text()  # noqa: SLF001
+    guidance = window._install_location_guidance_label.text()  # noqa: SLF001
+    target = detect_launcher_target()
+    if target.operating_system is LauncherOperatingSystem.WINDOWS:
+        assert "Avoid Program Files" in guidance
+    elif target.operating_system is LauncherOperatingSystem.MACOS:
+        assert "~/Applications/SugarSubstitute" in guidance
+    else:
+        assert "~/.local/share/SugarSubstitute" in guidance
     assert "Ready." in window._progress_log.log_view.toPlainText()  # noqa: SLF001
     assert window._status_panel is not None  # noqa: SLF001
     assert window._status_panel.isHidden() is True  # noqa: SLF001
@@ -456,7 +470,7 @@ def test_launcher_main_repairs_moved_installed_exe_config(
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     other_layout = InstallLayout.from_root(tmp_path / "OtherSugarSubstitute")
     LauncherConfig.from_layout(layout=other_layout).save(layout.config_path)
-    layout.executable_path.write_text("", encoding="utf-8")
+    _write_launcher_executable(layout)
     windows: list[dict[str, object]] = []
 
     class _FakeWindow:
@@ -493,7 +507,7 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     LauncherConfig.from_layout(layout=layout).save(layout.config_path)
-    layout.executable_path.write_text("", encoding="utf-8")
+    _write_launcher_executable(layout)
     layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
     layout.app_entrypoint.write_text("", encoding="utf-8")
     layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
@@ -535,7 +549,7 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     LauncherConfig.from_layout(layout=layout).save(layout.config_path)
-    layout.executable_path.write_text("", encoding="utf-8")
+    _write_launcher_executable(layout)
     layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
     layout.app_entrypoint.write_text("", encoding="utf-8")
     layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
@@ -614,7 +628,7 @@ def test_launcher_main_hands_off_pending_launcher_update_instead_of_app(
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     LauncherConfig.from_layout(layout=layout).save(layout.config_path)
-    layout.executable_path.write_text("", encoding="utf-8")
+    _write_launcher_executable(layout)
     layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
     layout.app_entrypoint.write_text("", encoding="utf-8")
     layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)

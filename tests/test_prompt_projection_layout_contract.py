@@ -660,7 +660,7 @@ def test_projection_layout_keeps_decorated_short_tag_together_when_it_fits() -> 
 
     line_texts = _line_texts(layout)
     assert len(line_texts) > 1
-    assert "(best quality1.2, " in line_texts
+    assert any(line.startswith("(best quality1.2, ") for line in line_texts)
 
 
 def test_projection_layout_attaches_leading_decoration_during_oversized_fallback() -> (

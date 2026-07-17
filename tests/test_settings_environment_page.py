@@ -604,7 +604,7 @@ def test_environment_page_dependency_names_elide_with_tooltips() -> None:
         for label in page.detail_claimants_label.findChildren(QLabel)
         if label.toolTip() == "base-helper"
     )
-    constrained_width = dependency_label.fontMetrics().horizontalAdvance("base-")
+    constrained_width = dependency_label.fontMetrics().horizontalAdvance("base")
     dependency_label.setFixedWidth(constrained_width)
     dependency_label.resize(constrained_width, dependency_label.height())
     _process_events(app)
