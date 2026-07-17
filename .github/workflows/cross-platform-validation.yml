@@ -1,9 +1,6 @@
 name: cross-platform validation
 
 on:
-  push:
-    branches:
-      - "agent/**"
   workflow_dispatch:
 
 permissions:

@@ -29,6 +29,17 @@ import yaml  # type: ignore[import-untyped]
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_cross_platform_validation_requires_explicit_invocation() -> None:
+    """Keep prerelease publication behind an explicit workflow dispatch."""
+
+    workflow_text = (
+        PROJECT_ROOT / ".github" / "workflows" / "cross-platform-validation.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "  workflow_dispatch:" in workflow_text
+    assert "  push:" not in workflow_text
+
+
 def test_release_workflow_builds_every_published_platform_after_version_resolution() -> (
     None
 ):
