@@ -19,8 +19,10 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 from pathlib import Path
+import ssl
 import subprocess
 import sys
 import time
@@ -32,6 +34,7 @@ from substitute.infrastructure.launcher_update.legacy_bridge import (
     LegacyLauncherUpdateBridge,
 )
 from sugarsubstitute_shared.launcher_update.archive import SecureArchiveError
+from sugarsubstitute_shared.launcher_update.downloader import LauncherBundleDownloader
 from sugarsubstitute_shared.launcher_update.models import (
     LauncherBundleAsset,
     LauncherInstallationRecord,
@@ -44,6 +47,48 @@ from sugarsubstitute_shared.launcher_update.transaction import (
     LauncherUpdateTransactionError,
 )
 import sugarsubstitute_shared.launcher_update.transaction as transaction_module
+
+
+def test_launcher_bundle_download_uses_explicit_system_trust_context(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Launcher replacement downloads must share the verified TLS policy."""
+
+    content = b"launcher bundle"
+    tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    observed: list[tuple[float, ssl.SSLContext]] = []
+
+    def fake_urlopen(
+        _request: object,
+        *,
+        timeout: float,
+        context: ssl.SSLContext,
+    ) -> io.BytesIO:
+        """Record the HTTPS context and return one in-memory bundle."""
+
+        observed.append((timeout, context))
+        return io.BytesIO(content)
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    destination = tmp_path / "launcher.zip"
+
+    result = LauncherBundleDownloader(
+        timeout_seconds=15.0,
+        tls_context=tls_context,
+    ).download(
+        asset=LauncherBundleAsset(
+            filename="launcher.zip",
+            url="https://github.example/launcher.zip",
+            sha256=hashlib.sha256(content).hexdigest(),
+            size_bytes=len(content),
+        ),
+        destination=destination,
+    )
+
+    assert result == destination
+    assert destination.read_bytes() == content
+    assert observed == [(15.0, tls_context)]
 
 
 def test_stager_verifies_and_persists_complete_bundle(tmp_path: Path) -> None:

@@ -33,7 +33,7 @@ from launcher.sugarsubstitute_launcher.config import (
     ReleaseSourceConfig,
 )
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
-from launcher.sugarsubstitute_launcher.tls import SystemTrustTlsContext
+from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 
 class ReleaseSource(Protocol):
