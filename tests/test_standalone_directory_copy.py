@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -61,7 +60,7 @@ def test_concurrent_directory_copier_preserves_tree_and_reports_progress(
     )
 
 
-@pytest.mark.skipif(os.name == "nt", reason="Windows symlinks require user policy.")
+@pytest.mark.platforms("linux", "macos")
 def test_concurrent_directory_copier_rewrites_internal_absolute_symlink(
     tmp_path: Path,
 ) -> None:

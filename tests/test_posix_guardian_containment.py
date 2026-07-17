@@ -35,10 +35,7 @@ from substitute.infrastructure.comfy.managed_process_containment import (
     build_launch_request,
 )
 
-pytestmark = pytest.mark.skipif(
-    not sys.platform.startswith("linux"),
-    reason="POSIX guardian integration coverage runs on Linux.",
-)
+pytestmark = pytest.mark.platforms("linux")
 
 
 def test_guardian_launch_reports_child_pid_and_process_group(tmp_path: Path) -> None:

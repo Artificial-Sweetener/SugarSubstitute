@@ -28,10 +28,7 @@ import pytest
 
 from substitute.infrastructure.comfy.managed_process_probe import is_process_running
 
-pytestmark = pytest.mark.skipif(
-    os.name != "nt",
-    reason="Windows crash-path containment integration applies only on Windows.",
-)
+pytestmark = pytest.mark.platforms("windows")
 
 
 def test_windows_job_object_kills_child_when_owner_process_exits(

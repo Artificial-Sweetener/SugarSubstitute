@@ -39,7 +39,7 @@ from substitute.infrastructure.comfy.workspace_python_discovery import (
 )
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="Uses Windows process inspection.")
+@pytest.mark.platforms("windows")
 def test_real_comfy_process_can_be_discovered_bound_and_closed(tmp_path: Path) -> None:
     """Capture the exact interpreter from a real process and close it safely."""
 

@@ -29,6 +29,28 @@ import yaml  # type: ignore[import-untyped]
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_default_ci_runs_complete_partitioned_suite_on_every_platform() -> None:
+    """Require every supported operating system to run parallel and serial tests."""
+
+    workflow = yaml.safe_load(
+        (PROJECT_ROOT / ".github" / "workflows" / "tests.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    platform_job = workflow["jobs"]["platform-tests"]
+    matrix = platform_job["strategy"]["matrix"]["include"]
+
+    assert {entry["os"] for entry in matrix} == {
+        "windows-latest",
+        "ubuntu-24.04",
+        "macos-15",
+    }
+    job_script = _job_script(platform_job)
+    assert '-m "not serial"' in job_script
+    assert "tools.ci.run_serial_test_modules" in job_script
+    assert "--junitxml=" in job_script
+
+
 def test_cross_platform_validation_requires_explicit_invocation() -> None:
     """Keep prerelease publication behind an explicit workflow dispatch."""
 
