@@ -48,6 +48,8 @@ class _VisualTextWidget(Protocol):
 
     def contentsMargins(self) -> Any: ...
 
+    def clearFocus(self) -> None: ...
+
     def cursorRect(self) -> Any: ...
 
     def document(self) -> Any: ...
@@ -146,6 +148,8 @@ def show_text_widget(
         cast(QWidget, widget).activateWindow()
         cast(QWidget, widget).raise_()
         widget.setFocus()
+    else:
+        widget.clearFocus()
     process_events(app)
     return widget
 

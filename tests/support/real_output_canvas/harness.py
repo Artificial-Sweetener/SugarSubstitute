@@ -64,6 +64,7 @@ class RealShellOutputCanvasHarness:
     def close(self) -> None:
         """Close real Qt widgets owned by the harness."""
 
+        self.shell.shell_resource_lifecycle.shutdown_or_raise()
         self.shell.close()
         self.shell.execution_runtime.shutdown()
         self.process_events()

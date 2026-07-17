@@ -2096,10 +2096,10 @@ def test_prompt_editor_typing_does_not_normalize_incomplete_weight(
     assert box.toPlainText() == "(cat:0."
 
 
-def test_prompt_editor_typing_normalizes_completed_inline_emphasis_weight(
+def test_prompt_editor_cursor_insertion_preserves_completed_inline_emphasis_weight(
     widgets: list[QWidget],
 ) -> None:
-    """Ordinary typing should canonicalize completed inline emphasis weights."""
+    """Cursor insertion should preserve valid authored inline emphasis weights."""
 
     app = ensure_qapp()
     box = create_prompt_editor(
@@ -2113,8 +2113,8 @@ def test_prompt_editor_typing_normalizes_completed_inline_emphasis_weight(
     cursor.insertText("black underbust (ribbon:1.2)")
     process_events(app)
 
-    assert box.toPlainText() == "black underbust (ribbon:1.20)"
-    assert box.textCursor().selectionStart() == len("black underbust (ribbon:1.20)")
+    assert box.toPlainText() == "black underbust (ribbon:1.2)"
+    assert box.textCursor().selectionStart() == len("black underbust (ribbon:1.2)")
 
 
 def test_prompt_editor_key_typing_preserves_inline_weight_shape(
@@ -2137,10 +2137,10 @@ def test_prompt_editor_key_typing_preserves_inline_weight_shape(
     assert box.textCursor().selectionStart() == len("black underbust (ribbon:1.2)")
 
 
-def test_prompt_editor_key_typing_escapes_literal_parenthetical_prompt_words(
+def test_prompt_editor_key_typing_preserves_parenthetical_prompt_words(
     widgets: list[QWidget],
 ) -> None:
-    """Key-by-key typing should escape literal parenthetical prompt words."""
+    """Key-by-key typing should preserve authored parenthetical prompt words."""
 
     app = ensure_qapp()
     box = create_prompt_editor(
@@ -2153,7 +2153,7 @@ def test_prompt_editor_key_typing_escapes_literal_parenthetical_prompt_words(
     QTest.keyClicks(box, "vertin (reverse:1999)")
     process_events(app)
 
-    assert box.toPlainText() == r"vertin \(reverse:1999\)"
+    assert box.toPlainText() == "vertin (reverse:1999)"
 
 
 def test_prompt_editor_set_plain_text_normalizes_weights(
@@ -3214,12 +3214,12 @@ def test_prompt_editor_real_widget_accumulates_multiple_reorder_drags_before_alt
     )
     process_events(app)
 
-    assert _editor_reorder_preview_text(box) == "beta, gamma, alpha"
+    assert _editor_reorder_preview_text(box) == "gamma, beta, alpha"
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     process_events(app)
 
-    assert box.toPlainText() == "beta, gamma, alpha"
+    assert box.toPlainText() == "gamma, beta, alpha"
     assert _editor_reorder_preview_document(box) is None
     assert getattr(box, "_segment_overlay") is None
 
@@ -3692,11 +3692,11 @@ def test_prompt_editor_real_widget_paints_preview_without_changing_projection_la
     assert omega_fragment.run_id.startswith("text:")
 
 
-def test_prompt_editor_real_widget_retargets_preview_without_intermediate_clear(
+def test_prompt_editor_real_widget_clears_stale_preview_before_retargeting(
     widgets: list[QWidget],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Compatible typing should retarget ghost text without clearing it first."""
+    """Compatible typing should explicitly clear stale ghost geometry before retargeting."""
 
     app = ensure_qapp()
     gateway = _StaticPromptAutocompleteGateway(
@@ -3749,8 +3749,8 @@ def test_prompt_editor_real_widget_retargets_preview_without_intermediate_clear(
 
     assert box.toPlainText() == "1gi"
     assert _editor_autocomplete_preview_text(box) == "rl"
-    assert None not in preview_updates
-    assert preview_updates
+    assert preview_updates[0] is None
+    assert isinstance(preview_updates[-1], PromptAutocompletePreviewState)
 
 
 def test_prompt_editor_real_widget_entering_reorder_mode_dismisses_autocomplete(

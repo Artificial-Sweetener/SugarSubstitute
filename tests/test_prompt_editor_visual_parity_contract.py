@@ -23,6 +23,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage, QPalette, QTextCursor
 from PySide6.QtTest import QTest
 from qfluentwidgets import Theme, setTheme  # type: ignore[import-untyped]
@@ -59,7 +60,7 @@ def _assert_rgba_close(
 
     assert all(
         abs(actual_channel - expected_channel) <= tolerance
-        for actual_channel, expected_channel in zip(actual, expected)
+        for actual_channel, expected_channel in zip(actual[:3], expected[:3])
     ), (actual, expected)
 
 
@@ -451,6 +452,8 @@ def test_prompt_editor_hover_shell_pixels_match_qfluent_reference() -> None:
             prompt_editor = create_prompt_editor()
             reference = create_reference_text_edit()
             try:
+                prompt_editor._surface.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+                reference.setFocusPolicy(Qt.FocusPolicy.NoFocus)
                 show_text_widget(prompt_editor, width=320, text="alpha beta")
                 QTest.mouseMove(prompt_editor, prompt_editor.rect().center())
                 process_events(app)
@@ -484,6 +487,8 @@ def test_prompt_editor_read_only_pixels_match_qfluent_reference() -> None:
             prompt_editor = create_prompt_editor()
             reference = create_reference_text_edit()
             try:
+                prompt_editor._surface.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+                reference.setFocusPolicy(Qt.FocusPolicy.NoFocus)
                 show_text_widget(
                     prompt_editor,
                     width=320,

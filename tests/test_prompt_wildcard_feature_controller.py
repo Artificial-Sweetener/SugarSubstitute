@@ -133,6 +133,9 @@ class _RequestHandle(Generic[TResult]):
         """Record a done callback for explicit completion."""
 
         _ = reason
+        if self._outcome is not None:
+            callback(self._outcome)
+            return
         self.callbacks.append(callback)
 
     def cancel(self, *, reason: str) -> None:
@@ -211,6 +214,21 @@ class _RequestChannel(Generic[TResult]):
         """Return the most recently submitted handle."""
 
         return self.handles[-1]
+
+
+class _ImmediateRequestChannel(_RequestChannel[TResult]):
+    """Complete submitted wildcard requests before returning their handle."""
+
+    def submit_latest(
+        self,
+        request: PromptAsyncRequest[TResult],
+    ) -> PromptEditorTaskHandle[TResult]:
+        """Run one request synchronously to exercise settled-handle ordering."""
+
+        handle = _RequestHandle(request)
+        self.handles.append(handle)
+        handle.complete()
+        return handle
 
 
 def _feature_controller(
@@ -314,6 +332,35 @@ def test_wildcard_controller_publishes_completed_autocomplete_snapshot() -> None
         row.tag for row in controller.wildcard_autocomplete_suggestions("a", limit=10)
     ] == ["aanimal"]
     assert controller.snapshot.autocomplete.cached_query_count == 1
+    assert controller.snapshot.autocomplete.status is not None
+    assert (
+        controller.snapshot.autocomplete.status.readiness
+        is CatalogSnapshotReadiness.WARM
+    )
+
+
+def test_wildcard_controller_preserves_immediately_completed_warm_snapshot() -> None:
+    """Return warm rows when a refresh settles during request submission."""
+
+    gateway = _WildcardGateway()
+    channel: _ImmediateRequestChannel[tuple[PromptAutocompleteSuggestion, ...]] = (
+        _ImmediateRequestChannel()
+    )
+    controller = _feature_controller(
+        (PromptEditorFeature.WILDCARD_AUTOCOMPLETE,),
+        gateway=gateway,
+        request_channel=channel,
+    )
+
+    snapshot = controller.wildcard_autocomplete_snapshot(
+        prefix="a",
+        limit=10,
+        query_identity=("wildcard", "a", 10),
+        current_query_identity=lambda: ("wildcard", "a", 10),
+    )
+
+    assert snapshot.status.readiness is CatalogSnapshotReadiness.WARM
+    assert [row.tag for row in snapshot.suggestions] == ["aanimal"]
     assert controller.snapshot.autocomplete.status is not None
     assert (
         controller.snapshot.autocomplete.status.readiness

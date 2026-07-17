@@ -22,14 +22,14 @@ import os
 import inspect
 import time
 from collections.abc import Callable
-from typing import Any, Protocol, cast
+from typing import Any, cast
 from uuid import UUID
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtCore import QPoint, QRect, Qt
-from PySide6.QtGui import QColor, QImage
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, Qt
+from PySide6.QtGui import QColor, QImage, QMouseEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QSizePolicy, QWidget
 from qfluentwidgets import EditableComboBox, LineEdit, Theme  # type: ignore[import-untyped]
@@ -45,9 +45,9 @@ from substitute.domain.model_metadata import BANNER_THUMBNAIL_ROLE, ThumbnailAss
 from substitute.presentation.shell.output_canvas_thumbnail_choices import (
     OutputCanvasThumbnailChoice,
 )
-import substitute.presentation.widgets.model_metadata_context_menu as model_metadata_context_menu_module
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextMenuTarget,
+    ModelMetadataMenuAction,
 )
 import substitute.presentation.widgets.model_picker.model_picker_field as model_picker_field_module
 from substitute.presentation.widgets.model_picker import (
@@ -239,13 +239,6 @@ class _MetadataActionHandler:
         """Ignore output thumbnail requests in existing field tests."""
 
         _ = (target, image_id)
-
-
-class _TriggerableAction(Protocol):
-    """Describe the QAction trigger API used by menu tests."""
-
-    def trigger(self) -> None:
-        """Trigger the action."""
 
 
 def ensure_qapp() -> QApplication:
@@ -1138,41 +1131,29 @@ def test_model_picker_field_typing_does_not_emit_backend_value_signal() -> None:
     host.deleteLater()
 
 
+def _right_click_closed_picker_surface(surface: _ModelPickerComboSurface) -> None:
+    """Deliver a deterministic right-button press to a closed picker surface."""
+
+    position = QPoint(12, 12)
+    surface.mousePressEvent(
+        QMouseEvent(
+            QEvent.Type.MouseButtonPress,
+            QPointF(position),
+            QPointF(surface.mapToGlobal(position)),
+            Qt.MouseButton.RightButton,
+            Qt.MouseButton.RightButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+    )
+
+
 def test_model_picker_field_right_click_menu_opens_selected_civitai_page(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Right-clicking a closed picker field should expose selected model CivitAI URL."""
 
-    class _FakeRoundMenu:
-        """Record menu actions without opening a modal Qt menu."""
-
-        def __init__(self, parent: QWidget | None = None) -> None:
-            """Store the menu parent and initialize recorded calls."""
-
-            self.parent = parent
-            self.actions: list[object] = []
-            self.exec_positions: list[QPoint] = []
-
-        def addAction(self, action: object) -> None:
-            """Record one action added to the fake menu."""
-
-            self.actions.append(action)
-
-        def exec(self, pos: QPoint) -> None:
-            """Record the requested menu position without blocking the test."""
-
-            self.exec_positions.append(pos)
-
     app = ensure_qapp()
     opened_urls: list[str] = []
-    created_menus: list[_FakeRoundMenu] = []
-
-    def fake_round_menu(parent: QWidget | None = None) -> _FakeRoundMenu:
-        """Return a recorded fake menu instance."""
-
-        menu = _FakeRoundMenu(parent)
-        created_menus.append(menu)
-        return menu
 
     def open_url(url: str) -> bool:
         """Record URL opens without launching a browser."""
@@ -1180,11 +1161,6 @@ def test_model_picker_field_right_click_menu_opens_selected_civitai_page(
         opened_urls.append(url)
         return True
 
-    monkeypatch.setattr(
-        model_metadata_context_menu_module,
-        "RoundMenu",
-        fake_round_menu,
-    )
     host = QWidget()
     host.resize(640, 480)
     host.show()
@@ -1208,16 +1184,27 @@ def test_model_picker_field_right_click_menu_opens_selected_civitai_page(
     app.processEvents()
     surface = field.findChild(_ModelPickerComboSurface, "modelPickerComboSurface")
     assert surface is not None
+    shown_targets: list[ModelMetadataContextMenuTarget] = []
 
-    QTest.mouseClick(surface, Qt.MouseButton.RightButton, pos=QPoint(12, 12))
+    def show_menu(target: ModelMetadataContextMenuTarget, _pos: QPoint) -> bool:
+        """Record and invoke the selected model's page action."""
+
+        shown_targets.append(target)
+        actions = tuple(
+            item
+            for item in field._metadata_context_menu.menu_items_for_target(target)
+            if isinstance(item, ModelMetadataMenuAction)
+        )
+        actions[0].callback()
+        return True
+
+    monkeypatch.setattr(field._metadata_context_menu, "show_menu", show_menu)
+
+    _right_click_closed_picker_surface(surface)
     app.processEvents()
 
-    assert len(created_menus) == 1
-    assert len(created_menus[0].actions) == 1
-    assert created_menus[0].exec_positions
-
-    cast(_TriggerableAction, created_menus[0].actions[0]).trigger()
-
+    assert len(shown_targets) == 1
+    assert shown_targets[0].backend_value == "models/alpha.safetensors"
     assert opened_urls == ["https://civitai.com/models/1?modelVersionId=2"]
     host.deleteLater()
 
@@ -1227,21 +1214,6 @@ def test_model_picker_field_right_click_menu_omits_missing_civitai_metadata(
 ) -> None:
     """Right-clicking a local-only selection should not show an empty context menu."""
 
-    created_menus: list[object] = []
-
-    def fake_round_menu(parent: QWidget | None = None) -> object:
-        """Record unexpected menu creation."""
-
-        _ = parent
-        menu = object()
-        created_menus.append(menu)
-        return menu
-
-    monkeypatch.setattr(
-        model_metadata_context_menu_module,
-        "RoundMenu",
-        fake_round_menu,
-    )
     app = ensure_qapp()
     host = QWidget()
     host.resize(640, 480)
@@ -1258,11 +1230,25 @@ def test_model_picker_field_right_click_menu_omits_missing_civitai_metadata(
     app.processEvents()
     surface = field.findChild(_ModelPickerComboSurface, "modelPickerComboSurface")
     assert surface is not None
+    shown_targets: list[ModelMetadataContextMenuTarget] = []
 
-    QTest.mouseClick(surface, Qt.MouseButton.RightButton, pos=QPoint(12, 12))
+    def show_menu(target: ModelMetadataContextMenuTarget, _pos: QPoint) -> bool:
+        """Record the request while preserving empty-menu suppression."""
+
+        shown_targets.append(target)
+        return bool(field._metadata_context_menu.menu_items_for_target(target))
+
+    monkeypatch.setattr(
+        field._metadata_context_menu,
+        "show_menu",
+        show_menu,
+    )
+
+    _right_click_closed_picker_surface(surface)
     app.processEvents()
 
-    assert created_menus == []
+    assert len(shown_targets) == 1
+    assert field._metadata_context_menu.menu_items_for_target(shown_targets[0]) == ()
     host.deleteLater()
 
 
@@ -1271,42 +1257,8 @@ def test_model_picker_field_right_click_refresh_targets_selected_model(
 ) -> None:
     """Right-clicking a selected model should expose manual metadata refresh."""
 
-    class _FakeRoundMenu:
-        """Record menu actions without opening a modal Qt menu."""
-
-        def __init__(self, parent: QWidget | None = None) -> None:
-            """Store the menu parent and initialize recorded calls."""
-
-            self.parent = parent
-            self.actions: list[object] = []
-            self.exec_positions: list[QPoint] = []
-
-        def addAction(self, action: object) -> None:
-            """Record one action added to the fake menu."""
-
-            self.actions.append(action)
-
-        def exec(self, pos: QPoint) -> None:
-            """Record the requested menu position without blocking the test."""
-
-            self.exec_positions.append(pos)
-
     app = ensure_qapp()
     handler = _MetadataActionHandler()
-    created_menus: list[_FakeRoundMenu] = []
-
-    def fake_round_menu(parent: QWidget | None = None) -> _FakeRoundMenu:
-        """Return a recorded fake menu instance."""
-
-        menu = _FakeRoundMenu(parent)
-        created_menus.append(menu)
-        return menu
-
-    monkeypatch.setattr(
-        model_metadata_context_menu_module,
-        "RoundMenu",
-        fake_round_menu,
-    )
     host = QWidget()
     host.resize(640, 480)
     host.show()
@@ -1323,20 +1275,29 @@ def test_model_picker_field_right_click_refresh_targets_selected_model(
     app.processEvents()
     surface = field.findChild(_ModelPickerComboSurface, "modelPickerComboSurface")
     assert surface is not None
+    shown_targets: list[ModelMetadataContextMenuTarget] = []
 
-    QTest.mouseClick(surface, Qt.MouseButton.RightButton, pos=QPoint(12, 12))
+    def show_menu(target: ModelMetadataContextMenuTarget, _pos: QPoint) -> bool:
+        """Record and invoke the selected model's refresh action."""
+
+        shown_targets.append(target)
+        actions = tuple(
+            item
+            for item in field._metadata_context_menu.menu_items_for_target(target)
+            if isinstance(item, ModelMetadataMenuAction)
+        )
+        refresh_action = next(
+            action for action in actions if action.label == "Refresh CivitAI metadata"
+        )
+        refresh_action.callback()
+        return True
+
+    monkeypatch.setattr(field._metadata_context_menu, "show_menu", show_menu)
+
+    _right_click_closed_picker_surface(surface)
     app.processEvents()
 
-    assert len(created_menus) == 1
-    assert len(created_menus[0].actions) == 2
-    assert [getattr(action, "text")() for action in created_menus[0].actions] == [
-        "Refresh CivitAI metadata",
-        "Set thumbnail from canvas",
-    ]
-    assert getattr(created_menus[0].actions[1], "isEnabled")() is False
-    refresh_action = cast(_TriggerableAction, created_menus[0].actions[0])
-    refresh_action.trigger()
-
+    assert len(shown_targets) == 1
     assert len(handler.refresh_targets) == 1
     refresh_target = handler.refresh_targets[0]
     assert getattr(refresh_target, "model_kind") == "checkpoints"

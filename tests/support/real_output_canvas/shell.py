@@ -70,6 +70,9 @@ from substitute.presentation.shell.main_window_dependencies import (
 from substitute.presentation.shell.main_window_signal_binder import (
     MainWindowSignalBinder,
 )
+from substitute.presentation.shell.shell_resource_lifecycle import (
+    ShellResourceLifecycle,
+)
 from substitute.presentation.shell.main_window_workspace import (
     build_main_window_workspace,
 )
@@ -109,6 +112,7 @@ class _HarnessShell(QMainWindow):
 
         super().__init__()
         self.execution_runtime = ExecutionRuntime()
+        self.shell_resource_lifecycle = ShellResourceLifecycle()
         self.canvas_io_service = canvas_io_service
         self.path_bundle = _path_bundle()
         self.output_preview_registry = OutputPreviewRegistry()

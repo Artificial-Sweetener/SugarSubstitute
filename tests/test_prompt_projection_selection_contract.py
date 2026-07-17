@@ -47,6 +47,7 @@ from tests.prompt_projection_test_helpers import (
     StaticPromptWildcardCatalogGateway,
     ensure_qapp,
     process_events,
+    projection_paint_state_for,
     show_prompt_editor,
     surface_for,
 )
@@ -664,8 +665,9 @@ def test_projection_selection_double_click_keeps_editor_active_after_segment_sel
     segment_end = segment_start + len(segment_text)
     click_point = _point_for_source_position(box, segment_start + 1, app=app)
 
-    assert app.focusWidget() is box
-    assert box.hasFocus() is True
+    surface = surface_for(box)
+    assert app.focusWidget() is surface
+    assert surface.hasFocus() is True
 
     QTest.mouseDClick(
         box.viewport(),
@@ -678,8 +680,8 @@ def test_projection_selection_double_click_keeps_editor_active_after_segment_sel
     assert cursor.selectionStart() == segment_start
     assert cursor.selectionEnd() == segment_end
     assert cursor.selectedText() == segment_text
-    assert app.focusWidget() is box
-    assert box.hasFocus() is True
+    assert app.focusWidget() is surface
+    assert surface.hasFocus() is True
 
 
 def test_projection_selection_click_after_double_click_refines_to_clicked_word(
@@ -746,10 +748,12 @@ def test_projection_selection_ctrl_up_wraps_the_entire_manual_multiword_selectio
     assert box.toPlainText() == "(blue green:1.05) red"
     assert cursor.selectionStart() == 11
     assert cursor.selectionEnd() == 11
-    assert token.decoration_accented is True
+    assert projection_paint_state_for(box).is_token_decoration_accented(token.token_id)
     QTest.qWait(260)
     process_events(app)
-    assert _first_emphasis_token(box).decoration_accented is False
+    assert not projection_paint_state_for(box).is_token_decoration_accented(
+        token.token_id
+    )
 
 
 def test_prompt_editor_keypress_mutes_autocomplete_after_accepted_ctrl_arrow(
@@ -819,10 +823,12 @@ def test_projection_selection_ctrl_down_adjusts_existing_emphasis_when_surface_r
     assert box.toPlainText() == "(blue green:1.05) red"
     assert cursor.selectionStart() == 11
     assert cursor.selectionEnd() == 11
-    assert token.decoration_accented is True
+    assert projection_paint_state_for(box).is_token_decoration_accented(token.token_id)
     QTest.qWait(260)
     process_events(app)
-    assert _first_emphasis_token(box).decoration_accented is False
+    assert not projection_paint_state_for(box).is_token_decoration_accented(
+        token.token_id
+    )
 
 
 def test_projection_selection_ctrl_down_can_continue_below_transient_neutral_emphasis(

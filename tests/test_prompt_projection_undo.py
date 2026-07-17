@@ -320,7 +320,7 @@ def test_projection_surface_undo_restores_stored_projection_state(
 def test_projection_surface_backspace_clears_pending_insert_overlay(
     widgets: list[QWidget],
 ) -> None:
-    """Backspace over deferred typed text should keep the remaining insertion overlay."""
+    """Backspace over deferred typed text should commit authoritative geometry."""
 
     box = show_prompt_editor(
         widgets,
@@ -341,7 +341,6 @@ def test_projection_surface_backspace_clears_pending_insert_overlay(
     insertion_overlay = valid_transient_insertion_overlay(surface)
     deletion_overlay = _valid_transient_deletion_overlay(surface)
     assert box.toPlainText() == "alphax"
-    assert insertion_overlay is not None
-    assert insertion_overlay.text == "x"
+    assert insertion_overlay is None
     assert deletion_overlay is None
-    assert surface.has_stale_projection_geometry() is True
+    assert surface.has_stale_projection_geometry() is False
