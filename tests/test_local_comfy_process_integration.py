@@ -23,7 +23,6 @@ import shutil
 import subprocess
 import sys
 import time
-from uuid import uuid4
 
 import pytest
 
@@ -40,11 +39,11 @@ from substitute.infrastructure.comfy.workspace_python_discovery import (
 )
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="Uses an E:\\ test root.")
-def test_real_comfy_process_can_be_discovered_bound_and_closed() -> None:
+@pytest.mark.skipif(sys.platform != "win32", reason="Uses Windows process inspection.")
+def test_real_comfy_process_can_be_discovered_bound_and_closed(tmp_path: Path) -> None:
     """Capture the exact interpreter from a real process and close it safely."""
 
-    test_root = Path("E:/") / f"SugarSubstitute-Comfy-Process-Test-{uuid4().hex}"
+    test_root = tmp_path / "SugarSubstitute-Comfy-Process-Test"
     workspace = test_root / "ComfyUI"
     process: subprocess.Popen[bytes] | None = None
     try:

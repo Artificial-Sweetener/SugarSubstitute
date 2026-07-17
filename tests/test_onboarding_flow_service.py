@@ -417,7 +417,7 @@ class _OutputPreferenceService:
     preferences: OutputOrganizationPreferences = field(
         default_factory=default_output_organization_preferences
     )
-    effective_root: Path = Path("E:/Substitute/user/outputs")
+    effective_root: Path = Path("Substitute/user/outputs")
 
     def load_preferences(self) -> OutputOrganizationPreferences:
         """Return default output organization preferences."""
@@ -884,6 +884,7 @@ def test_flow_service_maps_missing_attached_workspace_to_user_copy(
     """Attached-local missing-folder readiness should explain how to recover."""
 
     context = _build_context(tmp_path, ComfyTargetMode.ATTACHED_LOCAL)
+    missing_workspace = tmp_path / "missing-comfyui"
     service = OnboardingFlowService(
         service_bundle_factory=lambda _root: _Bundle(
             onboarding_service=_StaticOnboardingService(context),
@@ -895,7 +896,10 @@ def test_flow_service_maps_missing_attached_workspace_to_user_copy(
                         ReadinessIssue(
                             code=ReadinessIssueCode.ATTACHED_WORKSPACE_MISSING,
                             summary="The saved ComfyUI folder could not be found.",
-                            detail="Attached ComfyUI folder does not exist: E:\\ComfyUIExternalTest",
+                            detail=(
+                                "Attached ComfyUI folder does not exist: "
+                                f"{missing_workspace}"
+                            ),
                         ),
                     ),
                 )
@@ -916,10 +920,8 @@ def test_flow_service_maps_missing_attached_workspace_to_user_copy(
                 endpoint_host="127.0.0.1",
                 endpoint_port=8190,
                 managed_workspace_path=tmp_path / "comfyui",
-                attached_workspace_path=Path(r"E:\ComfyUIExternalTest"),
-                attached_python_binding=_python_binding(
-                    Path(r"E:\ComfyUIExternalTest")
-                ),
+                attached_workspace_path=missing_workspace,
+                attached_python_binding=_python_binding(missing_workspace),
             ),
             restart_required=False,
             on_status=lambda message: None,

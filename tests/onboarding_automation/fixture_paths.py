@@ -26,7 +26,7 @@ import tempfile
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _ARTIFACT_ROOT = Path(tempfile.gettempdir()) / "sugarsubstitute_onboarding_automation"
-_EXTERNAL_COMFY_ROOT = Path(r"E:\ComfyUIExternalTest")
+_EXTERNAL_COMFY_ROOT = _ARTIFACT_ROOT / "external-comfy"
 
 
 @dataclass(frozen=True)
