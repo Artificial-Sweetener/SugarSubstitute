@@ -30,12 +30,12 @@ from launcher.sugarsubstitute_launcher.first_run import (
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
-from launcher.sugarsubstitute_launcher.resources import launcher_uv_path
 from launcher.sugarsubstitute_launcher.runtime import (
     RuntimeProvisioningResult,
     SubprocessRuntimeCommandRunner,
     UvManagedRuntimeInstaller,
 )
+from launcher.sugarsubstitute_launcher.runtime_resources import launcher_uv_path
 
 
 _LOGGER = logging.getLogger(__name__)
