@@ -7,8 +7,8 @@ permissions:
   contents: write
 
 env:
-  PYTHON_VERSION: "3.12"
-  UV_VERSION: "0.11.18"
+  PYTHON_VERSION: "3.12.10"
+  LINUX_PYTHON_VERSION: "3.12.13"
   TEST_VERSION: "0.9.${{ github.run_number }}"
   TEST_TAG: "ci-${{ github.run_id }}-${{ github.run_attempt }}"
   LINUX_QT_PACKAGES: >-
@@ -25,23 +25,26 @@ jobs:
         include:
           - name: Windows x64
             os: windows-latest
+            python-version: ${{ env.PYTHON_VERSION }}
           - name: Linux x64
             os: ubuntu-24.04
+            python-version: ${{ env.LINUX_PYTHON_VERSION }}
           - name: macOS Apple Silicon
             os: macos-15
+            python-version: ${{ env.PYTHON_VERSION }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ matrix.python-version }}
       - name: Check license headers
         run: python tools/license_headers.py --check
       - name: Install Linux Qt runtime dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
       - name: Install project and quality dependencies
-        run: python -m pip install -r requirements.txt pytest pytest-xdist ruff mypy pyinstaller uv==${{ env.UV_VERSION }}
+        run: python -m pip install --requirement requirements-toolchain.txt
       - name: Verify runner architecture
         shell: python
         run: |
@@ -84,11 +87,11 @@ jobs:
     needs: quality
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - run: python -m pip install -r requirements.txt pyinstaller uv==${{ env.UV_VERSION }}
+      - run: python -m pip install --requirement requirements-toolchain.txt
       - run: node scripts/update-release-versions.mjs ${{ env.TEST_VERSION }}
       - name: Build launchers
         shell: pwsh
@@ -101,7 +104,7 @@ jobs:
           Copy-Item dist\SugarSubstitute-Setup-Windows-x64.exe build\ci\windows\installer\SugarSubstitute-Installer-Windows-x64.exe
       - name: Smoke setup executable
         run: python tools/ci/native_process_smoke.py --env QT_QPA_PLATFORM=offscreen -- dist/SugarSubstitute-Setup-Windows-x64.exe --install-root=${{ runner.temp }}/SugarSubstitute
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: native-windows
           path: build/ci/windows
@@ -113,11 +116,11 @@ jobs:
     needs: quality
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - run: python -m pip install -r requirements.txt pyinstaller uv==${{ env.UV_VERSION }}
+      - run: python -m pip install --requirement requirements-toolchain.txt
       - run: node scripts/update-release-versions.mjs ${{ env.TEST_VERSION }}
       - name: Build launchers and DMG
         run: |
@@ -137,7 +140,7 @@ jobs:
           hdiutil attach build/ci/macos/installer/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg -mountpoint "${{ runner.temp }}/dmg" -nobrowse
           python tools/ci/native_process_smoke.py -- "${{ runner.temp }}/dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup" --install-root=${{ runner.temp }}/SugarSubstitute-dmg
           hdiutil detach "${{ runner.temp }}/dmg"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: native-macos
           path: build/ci/macos
@@ -149,13 +152,13 @@ jobs:
     needs: quality
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ env.LINUX_PYTHON_VERSION }}
       - name: Install native dependencies
         run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
-      - run: python -m pip install -r requirements.txt pyinstaller uv==${{ env.UV_VERSION }}
+      - run: python -m pip install --requirement requirements-toolchain.txt
       - run: node scripts/update-release-versions.mjs ${{ env.TEST_VERSION }}
       - name: Build launchers
         run: |
@@ -174,7 +177,7 @@ jobs:
           sudo dpkg -i build/ci/linux/installer/SugarSubstitute-Installer-Linux-amd64.deb
           python tools/ci/native_process_smoke.py -- xvfb-run -a sugarsubstitute-setup --install-root=${{ runner.temp }}/SugarSubstitute-deb
           sudo dpkg -r sugarsubstitute
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: native-linux
           path: build/ci/linux
@@ -188,20 +191,20 @@ jobs:
     outputs:
       release-url: ${{ steps.publish.outputs.url }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - run: python -m pip install -r requirements.txt
-      - uses: actions/download-artifact@v7
+          python-version: ${{ env.LINUX_PYTHON_VERSION }}
+      - run: python -m pip install --requirement requirements-toolchain.txt
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: native-windows
           path: build/native/windows
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: native-macos
           path: build/native/macos
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: native-linux
           path: build/native/linux
@@ -216,7 +219,7 @@ jobs:
           gh release create "${{ env.TEST_TAG }}" .local-release-channel/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Cross-platform validation ${{ env.TEST_VERSION }}" --notes "Automated private installer validation release." --prerelease
           gh release view "${{ env.TEST_TAG }}" --repo "${{ github.repository }}" --json url,assets > build/release-readback.json
           python -c 'import json; from pathlib import Path; p=json.loads(Path("build/release-readback.json").read_text()); names={a["name"] for a in p["assets"]}; expected={x.name for x in Path(".local-release-channel").iterdir() if x.is_file()}; assert names==expected,(names,expected); print("RELEASE_READBACK_OK",p["url"]); print("url="+p["url"], file=open("$GITHUB_OUTPUT","a"))'
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: release-channel
           path: .local-release-channel
@@ -253,7 +256,7 @@ jobs:
               zypper --non-interactive install ca-certificates
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: native-linux
           path: build/native/linux
@@ -290,21 +293,24 @@ jobs:
         include:
           - name: Windows x64
             os: windows-latest
+            python-version: ${{ env.PYTHON_VERSION }}
           - name: Linux x64
             os: ubuntu-24.04
+            python-version: ${{ env.LINUX_PYTHON_VERSION }}
           - name: macOS Apple Silicon
             os: macos-15
+            python-version: ${{ env.PYTHON_VERSION }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ matrix.python-version }}
       - name: Install Linux Qt runtime dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
-      - run: python -m pip install -r requirements.txt uv==${{ env.UV_VERSION }}
-      - uses: actions/download-artifact@v7
+      - run: python -m pip install --requirement requirements-toolchain.txt
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: release-channel
           path: .local-release-channel
