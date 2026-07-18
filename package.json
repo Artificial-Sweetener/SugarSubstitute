@@ -4,16 +4,17 @@
   "version": "0.12.3",
   "license": "GPL-3.0-or-later",
   "type": "module",
+  "packageManager": "npm@10.9.2",
   "scripts": {
     "release": "semantic-release"
   },
   "devDependencies": {
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/commit-analyzer": "^13.0.1",
-    "@semantic-release/exec": "^7.1.0",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^11.0.0",
-    "@semantic-release/release-notes-generator": "^14.1.0",
-    "semantic-release": "^25.0.0"
+    "@semantic-release/changelog": "6.0.3",
+    "@semantic-release/commit-analyzer": "13.0.1",
+    "@semantic-release/exec": "7.1.0",
+    "@semantic-release/git": "10.0.1",
+    "@semantic-release/github": "11.0.6",
+    "@semantic-release/release-notes-generator": "14.1.1",
+    "semantic-release": "25.0.5"
   }
 }

@@ -5,6 +5,8 @@ on:
     branches-ignore:
       - main
   pull_request:
+  schedule:
+    - cron: "17 13 * * 1"
   workflow_call:
 
 permissions:
@@ -15,7 +17,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22.14.0"
+  PYTHON_VERSION: "3.12.10"
+  LINUX_PYTHON_VERSION: "3.12.13"
+  # photoshop 0.21.9 requires wheel<0.42; the app never invokes the affected
+  # wheel unpack command. Remove this exception when that constraint is removed.
+  PIP_AUDIT_IGNORED_VULNERABILITY: CVE-2026-24049
   QT_QPA_PLATFORM: offscreen
   QT_OPENGL: software
   SUBSTITUTE_DISABLE_APP_USER_MODEL_ID: "1"
@@ -32,20 +39,27 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
       - name: Create virtual environment
         run: python -m venv .venv
       - name: Install project and quality dependencies
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          .\.venv\Scripts\python.exe -m pip install --upgrade pip
-          .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-          .\.venv\Scripts\python.exe -m pip install pytest pytest-xdist ruff mypy
+          .\.venv\Scripts\python.exe -m pip install --requirement requirements-toolchain.txt
+      - name: Install release dependencies
+        run: npm ci
+      - name: Audit release dependencies
+        run: npm audit --audit-level=high
       - name: Check license headers
         run: .\.venv\Scripts\python.exe tools\license_headers.py --check
       - name: Check formatting
@@ -63,25 +77,28 @@ jobs:
         include:
           - name: Windows x64
             os: windows-latest
+            python-version: ${{ env.PYTHON_VERSION }}
             python: ./.venv/Scripts/python.exe
             artifact: windows
           - name: Linux x64
             os: ubuntu-24.04
+            python-version: ${{ env.LINUX_PYTHON_VERSION }}
             python: ./.venv/bin/python
             artifact: linux
           - name: macOS Apple Silicon
             os: macos-15
+            python-version: ${{ env.PYTHON_VERSION }}
             python: ./.venv/bin/python
             artifact: macos
     runs-on: ${{ matrix.os }}
     timeout-minutes: 180
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ matrix.python-version }}
       - name: Install Linux Qt runtime dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
@@ -89,9 +106,12 @@ jobs:
         run: python -m venv .venv
       - name: Install project and test dependencies
         run: |
-          ${{ matrix.python }} -m pip install --upgrade pip
-          ${{ matrix.python }} -m pip install -r requirements.txt
-          ${{ matrix.python }} -m pip install pytest pytest-xdist
+          ${{ matrix.python }} -m pip install --requirement requirements-toolchain.txt
+      - name: Audit installed Python dependency graph
+        run: >-
+          ${{ matrix.python }} -m pip_audit
+          --local --strict --progress-spinner off
+          --ignore-vuln ${{ env.PIP_AUDIT_IGNORED_VULNERABILITY }}
       - name: Prepare test result directory
         run: >-
           ${{ matrix.python }} -c
@@ -107,9 +127,22 @@ jobs:
           --junit-dir=build/test-results/${{ matrix.artifact }}-serial
       - name: Upload test results
         if: ${{ always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: test-results-${{ matrix.artifact }}
           path: build/test-results
           if-no-files-found: warn
           retention-days: 7
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Reject newly introduced vulnerable dependencies
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate

@@ -27,6 +27,15 @@ import yaml  # type: ignore[import-untyped]
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+_ACTION_REVISIONS = {
+    "actions/checkout": "df4cb1c069e1874edd31b4311f1884172cec0e10",
+    "actions/dependency-review-action": "a1d282b36b6f3519aa1f3fc636f609c47dddb294",
+    "actions/download-artifact": "37930b1c2abaa49bbe596cd826c3c89aef350131",
+    "actions/setup-node": "249970729cb0ef3589644e2896645e5dc5ba9c38",
+    "actions/setup-python": "ece7cb06caefa5fff74198d8649806c4678c61a1",
+    "actions/upload-artifact": "b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+}
+_WORKFLOW_PATHS = tuple((PROJECT_ROOT / ".github" / "workflows").glob("*.yml"))
 
 
 def test_default_ci_runs_complete_partitioned_suite_on_every_platform() -> None:
@@ -45,10 +54,91 @@ def test_default_ci_runs_complete_partitioned_suite_on_every_platform() -> None:
         "ubuntu-24.04",
         "macos-15",
     }
+    assert {entry["os"]: entry["python-version"] for entry in matrix} == {
+        "windows-latest": "${{ env.PYTHON_VERSION }}",
+        "ubuntu-24.04": "${{ env.LINUX_PYTHON_VERSION }}",
+        "macos-15": "${{ env.PYTHON_VERSION }}",
+    }
     job_script = _job_script(platform_job)
     assert '-m "not serial"' in job_script
     assert "tools.ci.run_serial_test_modules" in job_script
     assert "--junitxml=" in job_script
+
+
+def test_ci_uses_exact_language_and_package_toolchains() -> None:
+    """Keep every workflow on the shared verified Python and Node toolchains."""
+
+    workflows = {
+        path.name: yaml.safe_load(path.read_text(encoding="utf-8"))
+        for path in _WORKFLOW_PATHS
+    }
+
+    assert all(
+        workflow["env"]["PYTHON_VERSION"] == "3.12.10"
+        for workflow in workflows.values()
+    )
+    assert all(
+        workflow["env"]["LINUX_PYTHON_VERSION"] == "3.12.13"
+        for workflow in workflows.values()
+    )
+    assert workflows["release.yml"]["env"]["NODE_VERSION"] == "22.14.0"
+
+    workflow_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in _WORKFLOW_PATHS
+    )
+    assert "requirements-toolchain.txt" in workflow_text
+    assert "pip install -r requirements.txt" not in workflow_text
+    assert "pip install --upgrade pip" not in workflow_text
+    assert "uv==" not in workflow_text
+
+
+def test_ci_actions_use_immutable_verified_revisions() -> None:
+    """Prevent mutable action tags from changing the CI toolchain silently."""
+
+    observed_actions: set[str] = set()
+    for workflow_path in _WORKFLOW_PATHS:
+        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+        for job in workflow["jobs"].values():
+            for step in job.get("steps", ()):
+                action_reference = step.get("uses", "")
+                if not action_reference.startswith("actions/"):
+                    continue
+                action, revision = action_reference.rsplit("@", maxsplit=1)
+                assert revision == _ACTION_REVISIONS[action]
+                observed_actions.add(action)
+
+    assert observed_actions == _ACTION_REVISIONS.keys()
+
+
+def test_pre_commit_hooks_use_an_immutable_verified_revision() -> None:
+    """Prevent local commit gates from changing without repository review."""
+
+    configuration = (PROJECT_ROOT / ".pre-commit-config.yaml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "rev: 2c9f875913ee60ca25ce70243dc24d5b6415598c # v4.6.0" in configuration
+
+
+def test_release_node_dependencies_use_exact_verified_versions() -> None:
+    """Keep semantic-release packages reproducible through the npm lockfile."""
+
+    package = json.loads((PROJECT_ROOT / "package.json").read_text(encoding="utf-8"))
+    lock = json.loads((PROJECT_ROOT / "package-lock.json").read_text(encoding="utf-8"))
+
+    assert package["packageManager"] == "npm@10.9.2"
+    assert package["devDependencies"] == {
+        "@semantic-release/changelog": "6.0.3",
+        "@semantic-release/commit-analyzer": "13.0.1",
+        "@semantic-release/exec": "7.1.0",
+        "@semantic-release/git": "10.0.1",
+        "@semantic-release/github": "11.0.6",
+        "@semantic-release/release-notes-generator": "14.1.1",
+        "semantic-release": "25.0.5",
+    }
+    assert lock["packages"][""]["devDependencies"] == package["devDependencies"]
+    for dependency, version in package["devDependencies"].items():
+        assert lock["packages"][f"node_modules/{dependency}"]["version"] == version
 
 
 def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
@@ -268,7 +358,8 @@ def test_large_workflow_artifacts_expire_after_handoff() -> None:
             step
             for job in workflow["jobs"].values()
             for step in job.get("steps", ())
-            if step.get("uses") == "actions/upload-artifact@v6"
+            if step.get("uses")
+            == f"actions/upload-artifact@{_ACTION_REVISIONS['actions/upload-artifact']}"
         ]
         assert upload_steps
         assert all(

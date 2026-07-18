@@ -18,6 +18,11 @@ on:
 permissions:
   contents: write
 
+env:
+  NODE_VERSION: "22.14.0"
+  PYTHON_VERSION: "3.12.10"
+  LINUX_PYTHON_VERSION: "3.12.13"
+
 jobs:
   tests:
     name: Required cross-platform tests
@@ -34,15 +39,15 @@ jobs:
 
     steps:
       - name: Checkout complete history
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
           fetch-tags: true
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 22.14.0
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install release dependencies
@@ -62,21 +67,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install build dependencies
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           python -m venv .venv
-          .\.venv\Scripts\python.exe -m pip install --upgrade pip
-          .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-          .\.venv\Scripts\python.exe -m pip install pyinstaller uv==0.11.18
+          .\.venv\Scripts\python.exe -m pip install --requirement requirements-toolchain.txt
 
       - name: Apply release version
         shell: pwsh
@@ -93,7 +96,7 @@ jobs:
           .\.venv\Scripts\python.exe tools\build_release_payload.py package-launcher --target windows_x64 --bundle-dir build\launcher-bundles\SugarSubstitute --output-path build\release-inputs\windows\installer-payload-windows-x64.zip
 
       - name: Upload Windows release inputs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: release-inputs-windows
           path: build/release-inputs/windows
@@ -108,19 +111,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install build dependencies
         run: |
           python -m venv .venv
-          .venv/bin/python -m pip install --upgrade pip
-          .venv/bin/python -m pip install -r requirements.txt
-          .venv/bin/python -m pip install pyinstaller uv==0.11.18
+          .venv/bin/python -m pip install --requirement requirements-toolchain.txt
 
       - name: Apply release version
         run: node scripts/update-release-versions.mjs ${{ needs.determine-version.outputs.version }}
@@ -143,7 +144,7 @@ jobs:
           .venv/bin/python tools/build_macos_dmg.py --setup-app "dist/SugarSubstitute Setup.app" --output build/release-inputs/macos/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg
 
       - name: Upload Apple Silicon release inputs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: release-inputs-macos
           path: build/release-inputs/macos
@@ -158,19 +159,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.12"
+          python-version: ${{ env.LINUX_PYTHON_VERSION }}
 
       - name: Install build dependencies
         run: |
           python -m venv .venv
-          .venv/bin/python -m pip install --upgrade pip
-          .venv/bin/python -m pip install -r requirements.txt
-          .venv/bin/python -m pip install pyinstaller uv==0.11.18
+          .venv/bin/python -m pip install --requirement requirements-toolchain.txt
 
       - name: Apply release version
         run: node scripts/update-release-versions.mjs ${{ needs.determine-version.outputs.version }}
@@ -195,7 +194,7 @@ jobs:
           .venv/bin/python tools/build_linux_installers.py --setup-bundle "dist/SugarSubstitute Setup" --icon substitute/presentation/resources/app_icons/app_icon_256.png --appimagetool build/tools/appimagetool-x86_64.AppImage --version ${{ needs.determine-version.outputs.version }} --appimage-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-x86_64.AppImage --deb-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-amd64.deb
 
       - name: Upload Linux release inputs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: release-inputs-linux
           path: build/release-inputs/linux
@@ -213,21 +212,21 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
           fetch-tags: true
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 22.14.0
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install release dependencies
         shell: pwsh
@@ -236,19 +235,19 @@ jobs:
           python -m venv .venv
 
       - name: Download Windows release inputs
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: release-inputs-windows
           path: build/release-inputs/windows
 
       - name: Download Apple Silicon release inputs
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: release-inputs-macos
           path: build/release-inputs/macos
 
       - name: Download Linux release inputs
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: release-inputs-linux
           path: build/release-inputs/linux
