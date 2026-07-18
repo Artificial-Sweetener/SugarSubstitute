@@ -20,12 +20,13 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from collections.abc import Callable
 from typing import Any, cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtCore import QPoint, QPointF, QRect, Qt
+from PySide6.QtCore import QElapsedTimer, QPoint, QPointF, QRect, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QScrollArea, QVBoxLayout, QWidget
 
@@ -126,6 +127,22 @@ def process_events(app: QApplication, cycles: int = 5) -> None:
 
     for _ in range(cycles):
         app.processEvents()
+
+
+def wait_until(
+    app: QApplication,
+    predicate: Callable[[], bool],
+    *,
+    timeout_ms: int = 1000,
+) -> bool:
+    """Wait for observable Qt state while processing bounded event-loop turns."""
+
+    timer = QElapsedTimer()
+    timer.start()
+    while not predicate() and timer.elapsed() < timeout_ms:
+        QTest.qWait(10)
+        process_events(app, cycles=1)
+    return predicate()
 
 
 def _create_editor(
@@ -1215,8 +1232,10 @@ def test_segment_reorder_overlay_autoscrolls_editor_scrollbar_while_dragging_nea
         ),
         10,
     )
-    process_events(app)
-    QTest.qWait(120)
+    scrolled = wait_until(
+        app,
+        lambda: scrollbar.value() > initial_scroll_value,
+    )
     QTest.mouseRelease(
         dragged_chip,
         Qt.MouseButton.LeftButton,
@@ -1227,4 +1246,4 @@ def test_segment_reorder_overlay_autoscrolls_editor_scrollbar_while_dragging_nea
     )
     process_events(app)
 
-    assert scrollbar.value() > initial_scroll_value
+    assert scrolled
