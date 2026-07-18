@@ -104,7 +104,7 @@ jobs:
           Copy-Item dist\SugarSubstitute-Setup-Windows-x64.exe build\ci\windows\installer\SugarSubstitute-Installer-Windows-x64.exe
       - name: Smoke setup executable
         run: python tools/ci/native_process_smoke.py --env QT_QPA_PLATFORM=offscreen -- dist/SugarSubstitute-Setup-Windows-x64.exe --install-root=${{ runner.temp }}/SugarSubstitute
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: native-windows
           path: build/ci/windows
@@ -140,7 +140,7 @@ jobs:
           hdiutil attach build/ci/macos/installer/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg -mountpoint "${{ runner.temp }}/dmg" -nobrowse
           python tools/ci/native_process_smoke.py -- "${{ runner.temp }}/dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup" --install-root=${{ runner.temp }}/SugarSubstitute-dmg
           hdiutil detach "${{ runner.temp }}/dmg"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: native-macos
           path: build/ci/macos
@@ -177,7 +177,7 @@ jobs:
           sudo dpkg -i build/ci/linux/installer/SugarSubstitute-Installer-Linux-amd64.deb
           python tools/ci/native_process_smoke.py -- xvfb-run -a sugarsubstitute-setup --install-root=${{ runner.temp }}/SugarSubstitute-deb
           sudo dpkg -r sugarsubstitute
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: native-linux
           path: build/ci/linux
@@ -219,7 +219,7 @@ jobs:
           gh release create "${{ env.TEST_TAG }}" .local-release-channel/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Cross-platform validation ${{ env.TEST_VERSION }}" --notes "Automated private installer validation release." --prerelease
           gh release view "${{ env.TEST_TAG }}" --repo "${{ github.repository }}" --json url,assets > build/release-readback.json
           python -c 'import json; from pathlib import Path; p=json.loads(Path("build/release-readback.json").read_text()); names={a["name"] for a in p["assets"]}; expected={x.name for x in Path(".local-release-channel").iterdir() if x.is_file()}; assert names==expected,(names,expected); print("RELEASE_READBACK_OK",p["url"]); print("url="+p["url"], file=open("$GITHUB_OUTPUT","a"))'
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-channel
           path: .local-release-channel
