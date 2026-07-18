@@ -1,3 +1,15 @@
+# [0.13.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.12.4...v0.13.0) (2026-07-18)
+
+
+### Bug Fixes
+
+* **tests:** resolve live prompt field registry ([ef57a0c](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ef57a0cfc357a8ea44a2ea68e988c97bc1216cd1))
+
+
+### Features
+
+* **workflows:** support direct Comfy workflows ([f691bf2](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f691bf2f65bf8d862314f3a1f42ef99947703926))
+
 ## [0.12.4](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.12.3...v0.12.4) (2026-07-18)
 
 
