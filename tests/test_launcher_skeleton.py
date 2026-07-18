@@ -918,11 +918,25 @@ def test_setup_handoff_closes_only_after_worker_thread_stops(
     qt_application: QApplication,
     tmp_path: Path,
 ) -> None:
-    """Successful handoff must keep Qt alive until its worker thread has stopped."""
+    """Successful handoff must hide promptly and close after its thread stops."""
 
-    _ = qt_application
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     close_calls_ref = {"count": 0}
+
+    class _FakeSetupThread:
+        """Record an explicit request to stop the setup worker thread."""
+
+        def __init__(self) -> None:
+            """Initialize the quit-call counter."""
+
+            self.quit_calls = 0
+
+        def quit(self) -> None:
+            """Record one worker event-loop shutdown request."""
+
+            self.quit_calls += 1
+
+    setup_thread = _FakeSetupThread()
     window = LauncherMainWindow(
         initial_layout=layout,
         continue_install=False,
@@ -931,7 +945,9 @@ def test_setup_handoff_closes_only_after_worker_thread_stops(
         process_starter=lambda _command: None,
         runtime_installer=cast(Any, object()),
     )
-    window._setup_thread = cast(Any, object())  # noqa: SLF001
+    window.show()
+    qt_application.processEvents()
+    window._setup_thread = cast(Any, setup_thread)  # noqa: SLF001
     window._setup_worker = cast(Any, object())  # noqa: SLF001
     window._close_after_successful_handoff = lambda: _record_close_call(  # type: ignore[method-assign]  # noqa: SLF001
         close_calls_ref
@@ -940,6 +956,8 @@ def test_setup_handoff_closes_only_after_worker_thread_stops(
     window._handle_setup_worker_succeeded()  # noqa: SLF001
 
     assert window._primary_button.text() == "Setup started"  # noqa: SLF001
+    assert window.isVisible() is False
+    assert setup_thread.quit_calls == 1
     assert close_calls_ref["count"] == 0
 
     window._forget_setup_worker()  # noqa: SLF001
