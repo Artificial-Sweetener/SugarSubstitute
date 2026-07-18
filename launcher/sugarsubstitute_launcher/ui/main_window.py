@@ -901,11 +901,16 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
     @Slot()
     def _handle_setup_worker_succeeded(self) -> None:
-        """Mark handoff complete while the worker thread finishes shutting down."""
+        """Hide the installer and request deterministic worker shutdown."""
 
         self._ui_state = LauncherUiState.COMPLETE
         self._refresh_primary_button()
+        self.hide()
+        if self._setup_thread is None:
+            self._close_after_successful_handoff()
+            return
         self._setup_handoff_close_pending = True
+        self._setup_thread.quit()
 
     def _close_after_successful_handoff(self) -> None:
         """Close the installer after the installed app process has started."""
