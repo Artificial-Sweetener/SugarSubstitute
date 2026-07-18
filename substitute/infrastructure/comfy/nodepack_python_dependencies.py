@@ -19,14 +19,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-import os
 from pathlib import Path
-import shutil
 
 from substitute.infrastructure.comfy.nodepack_manifest import (
     CLI_INSTALL_TIMEOUT_SECONDS,
     CoreComfyNodepack,
 )
+from substitute.infrastructure.filesystem import remove_app_owned_path
 from substitute.infrastructure.process.hidden_process_runner import (
     run_command,
     stream_command,
@@ -169,7 +168,7 @@ def remove_noncanonical_python_distribution_metadata(
             continue
         if normalized_distribution_name(metadata_name) == canonical_name:
             continue
-        shutil.rmtree(metadata_dir, onexc=_clear_readonly_and_retry)
+        remove_app_owned_path(metadata_dir)
         _emit_log(
             on_log,
             (
@@ -285,18 +284,6 @@ def _emit_log(callback: LogCallback | None, message: str) -> None:
     log_info(_LOGGER, message)
     if callback is not None:
         callback(message)
-
-
-def _clear_readonly_and_retry(
-    function: Callable[[str], object],
-    path: str,
-    excinfo: BaseException,
-) -> None:
-    """Clear a readonly bit and retry rmtree cleanup on Windows."""
-
-    _ = excinfo
-    os.chmod(path, 0o700)
-    function(path)
 
 
 __all__ = [

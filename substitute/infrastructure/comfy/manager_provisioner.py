@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
-import shutil
 import subprocess
 from typing import Callable
 
@@ -34,6 +33,7 @@ from substitute.domain.comfy_manager import (
 from substitute.infrastructure.comfy.workspace_python_resolver import (
     resolve_workspace_python,
 )
+from substitute.infrastructure.filesystem import remove_app_owned_path
 from substitute.infrastructure.comfy.manager_environment import (
     integrated_manager_environment,
     integrated_manager_pygit2_requirement,
@@ -134,7 +134,7 @@ def ensure_managed_workspace_manager(
             on_log,
             f"[Manager] Removing app-owned legacy Manager checkout: {legacy_directory}",
         )
-        _remove_path(legacy_directory)
+        remove_app_owned_path(legacy_directory)
     return runtime
 
 
@@ -415,15 +415,6 @@ def _log_command_output(
 
     for line in _command_output(result).splitlines():
         _emit_log(callback, line)
-
-
-def _remove_path(path: Path) -> None:
-    """Remove one app-owned legacy Manager path after integrated validation."""
-
-    if path.is_dir():
-        shutil.rmtree(path)
-    else:
-        path.unlink(missing_ok=True)
 
 
 def _emit_log(callback: LogCallback | None, message: str) -> None:

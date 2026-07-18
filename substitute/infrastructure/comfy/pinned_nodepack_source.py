@@ -26,7 +26,6 @@ import urllib.request
 import zipfile
 
 from substitute.infrastructure.comfy.local_nodepack_source import (
-    clear_readonly_and_retry,
     copy_local_nodepack_source,
 )
 from substitute.infrastructure.comfy.nodepack_git_maintenance import (
@@ -44,6 +43,7 @@ from substitute.infrastructure.comfy.nodepack_workspace_inspector import (
     source_contains_sentinels,
     tracked_source_files,
 )
+from substitute.infrastructure.filesystem import remove_app_owned_path
 from sugarsubstitute_shared.tls import SystemTrustTlsContext
 from substitute.shared.logging.logger import get_logger, log_info
 
@@ -171,7 +171,7 @@ def replace_with_pinned_source_archive(
                 on_log=on_log,
                 env=env,
             )
-            shutil.rmtree(target_path, onexc=clear_readonly_and_retry)
+            remove_app_owned_path(target_path)
         shutil.move(str(replacement_path), str(target_path))
 
 

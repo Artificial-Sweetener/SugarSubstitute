@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
+import stat
 import subprocess
 from typing import cast
 
@@ -117,6 +118,40 @@ def test_managed_manager_installs_integrated_package_then_removes_legacy(
     assert "cm_cli" not in commands[0][2]
     assert "git_compat.USE_PYGIT2" in commands[0][2]
     assert all(environment["CM_USE_PYGIT2"] == "1" for environment in environments)
+
+
+@pytest.mark.platforms("windows")
+def test_managed_manager_removes_legacy_checkout_with_readonly_git_packs(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Managed migration should remove real Windows read-only Git pack files."""
+
+    python = _prepare_modern_workspace(tmp_path)
+    legacy = manager_provisioner.workspace_manager_directory(tmp_path)
+    pack_root = legacy / ".git" / "objects" / "pack"
+    pack_root.mkdir(parents=True)
+    pack_file = pack_root / "pack-fixture.idx"
+    pack_file.write_bytes(b"pack fixture")
+    pack_file.chmod(stat.S_IREAD)
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.manager_provisioner.subprocess.run",
+        lambda command, **_kwargs: subprocess.CompletedProcess(
+            command,
+            0,
+            stdout="4.2.2\n",
+            stderr="",
+        ),
+    )
+
+    runtime = manager_provisioner.ensure_managed_workspace_manager(
+        tmp_path,
+        python_executable=python,
+    )
+
+    assert runtime.kind is ComfyManagerKind.INTEGRATED
+    assert not legacy.exists()
 
 
 def test_managed_manager_preserves_legacy_when_integrated_validation_fails(
