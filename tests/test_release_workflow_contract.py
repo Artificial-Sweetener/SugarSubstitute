@@ -192,7 +192,9 @@ def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
     }
     assert jobs["determine-version"]["needs"] == "tests"
     assert "  workflow_call:" in tests_workflow_text
-    assert "    branches-ignore:\n      - main" in tests_workflow_text
+    assert '    branches-ignore:\n      - main\n      - "dependabot/**"' in (
+        tests_workflow_text
+    )
 
 
 def test_cross_platform_validation_requires_explicit_invocation() -> None:
