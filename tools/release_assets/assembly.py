@@ -22,7 +22,7 @@ import shutil
 from collections.abc import Sequence
 from pathlib import Path
 
-from sugarsubstitute_shared.launcher_update.staging import safe_launcher_version
+from sugarsubstitute_shared.launcher_version import safe_launcher_version
 from tools.release_assets.launcher_archive import prepare_installed_launcher_archive
 from tools.release_assets.models import LocalReleaseBuildResult, PlatformReleaseInput
 from tools.release_assets.payload import (
