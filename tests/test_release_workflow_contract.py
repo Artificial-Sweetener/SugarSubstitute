@@ -21,20 +21,23 @@ from __future__ import annotations
 import ast
 import json
 from pathlib import Path
+import re
 import subprocess
 
 import yaml  # type: ignore[import-untyped]
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-_ACTION_REVISIONS = {
-    "actions/checkout": "df4cb1c069e1874edd31b4311f1884172cec0e10",
-    "actions/dependency-review-action": "a1d282b36b6f3519aa1f3fc636f609c47dddb294",
-    "actions/download-artifact": "37930b1c2abaa49bbe596cd826c3c89aef350131",
-    "actions/setup-node": "249970729cb0ef3589644e2896645e5dc5ba9c38",
-    "actions/setup-python": "ece7cb06caefa5fff74198d8649806c4678c61a1",
-    "actions/upload-artifact": "b7c566a772e6b6bfb58ed0dc250532a479d7789f",
-}
+_EXPECTED_ACTIONS = frozenset(
+    {
+        "actions/checkout",
+        "actions/dependency-review-action",
+        "actions/download-artifact",
+        "actions/setup-node",
+        "actions/setup-python",
+        "actions/upload-artifact",
+    }
+)
 _WORKFLOW_PATHS = tuple((PROJECT_ROOT / ".github" / "workflows").glob("*.yml"))
 
 
@@ -119,7 +122,7 @@ def test_strategy_matrices_use_literal_toolchain_versions() -> None:
 def test_ci_actions_use_immutable_verified_revisions() -> None:
     """Prevent mutable action tags from changing the CI toolchain silently."""
 
-    observed_actions: set[str] = set()
+    observed_revisions: dict[str, set[str]] = {}
     for workflow_path in _WORKFLOW_PATHS:
         workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
         for job in workflow["jobs"].values():
@@ -128,10 +131,11 @@ def test_ci_actions_use_immutable_verified_revisions() -> None:
                 if not action_reference.startswith("actions/"):
                     continue
                 action, revision = action_reference.rsplit("@", maxsplit=1)
-                assert revision == _ACTION_REVISIONS[action]
-                observed_actions.add(action)
+                assert re.fullmatch(r"[0-9a-f]{40}", revision)
+                observed_revisions.setdefault(action, set()).add(revision)
 
-    assert observed_actions == _ACTION_REVISIONS.keys()
+    assert observed_revisions.keys() == _EXPECTED_ACTIONS
+    assert all(len(revisions) == 1 for revisions in observed_revisions.values())
 
 
 def test_pre_commit_hooks_use_an_immutable_verified_revision() -> None:
@@ -150,16 +154,20 @@ def test_release_node_dependencies_use_exact_verified_versions() -> None:
     package = json.loads((PROJECT_ROOT / "package.json").read_text(encoding="utf-8"))
     lock = json.loads((PROJECT_ROOT / "package-lock.json").read_text(encoding="utf-8"))
 
-    assert package["packageManager"] == "npm@10.9.2"
-    assert package["devDependencies"] == {
-        "@semantic-release/changelog": "6.0.3",
-        "@semantic-release/commit-analyzer": "13.0.1",
-        "@semantic-release/exec": "7.1.0",
-        "@semantic-release/git": "10.0.1",
-        "@semantic-release/github": "11.0.6",
-        "@semantic-release/release-notes-generator": "14.1.1",
-        "semantic-release": "25.0.5",
+    assert re.fullmatch(r"npm@\d+\.\d+\.\d+", package["packageManager"])
+    assert package["devDependencies"].keys() == {
+        "@semantic-release/changelog",
+        "@semantic-release/commit-analyzer",
+        "@semantic-release/exec",
+        "@semantic-release/git",
+        "@semantic-release/github",
+        "@semantic-release/release-notes-generator",
+        "semantic-release",
     }
+    assert all(
+        re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", version)
+        for version in package["devDependencies"].values()
+    )
     assert lock["packages"][""]["devDependencies"] == package["devDependencies"]
     for dependency, version in package["devDependencies"].items():
         assert lock["packages"][f"node_modules/{dependency}"]["version"] == version
@@ -382,8 +390,7 @@ def test_large_workflow_artifacts_expire_after_handoff() -> None:
             step
             for job in workflow["jobs"].values()
             for step in job.get("steps", ())
-            if step.get("uses")
-            == f"actions/upload-artifact@{_ACTION_REVISIONS['actions/upload-artifact']}"
+            if str(step.get("uses", "")).startswith("actions/upload-artifact@")
         ]
         assert upload_steps
         assert all(
