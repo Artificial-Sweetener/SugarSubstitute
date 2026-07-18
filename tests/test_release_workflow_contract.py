@@ -584,6 +584,21 @@ def test_readme_routes_beta_downloads_and_explains_automatic_updates() -> None:
     assert '- <img src="docs/release/platforms/' not in readme
 
 
+def test_readme_test_badge_tracks_authoritative_main_workflow() -> None:
+    """Report the workflow that proves the complete suite on current main."""
+
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+
+    badge = (
+        '<a href="https://github.com/Artificial-Sweetener/SugarSubstitute/'
+        'actions/workflows/release.yml"><img src="https://img.shields.io/github/'
+        "actions/workflow/status/Artificial-Sweetener/SugarSubstitute/"
+        'release.yml?branch=main&label=Tests" alt="Test status"></a>'
+    )
+    assert badge in readme
+    assert "actions/workflows/tests.yml/badge.svg" not in readme
+
+
 def test_readme_explains_comfy_setup_modes_and_remote_requirements() -> None:
     """Keep setup ownership and remote requirements visible to installers."""
 
