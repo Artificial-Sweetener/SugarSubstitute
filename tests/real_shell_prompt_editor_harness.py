@@ -588,11 +588,11 @@ class RealShellPromptEditorHarness:
             panel.show()
             panel.reveal_loaded_cube(cube_alias)
         field_key = (cube_alias, "positive_prompt", "text")
-        input_widgets = _panel_input_widgets(panel)
-        self.wait_until(lambda: field_key in input_widgets)
-        editor = input_widgets[field_key]
-        if not isinstance(editor, PromptEditor):
-            raise AssertionError(f"target field is {type(editor)!r}, not PromptEditor")
+        editor = self._wait_for_panel_prompt_editor(
+            panel,
+            field_key,
+            require_projection_idle=activate,
+        )
         if activate:
             self.wait_until(lambda: editor.isVisible())
         self.process_events()
@@ -668,11 +668,7 @@ class RealShellPromptEditorHarness:
         for cube_alias in stack_order:
             panel.reveal_loaded_cube(cube_alias)
         field_key = (stack_order[0], "positive_prompt", "text")
-        input_widgets = _panel_input_widgets(panel)
-        self.wait_until(lambda: field_key in input_widgets)
-        editor = input_widgets[field_key]
-        if not isinstance(editor, PromptEditor):
-            raise AssertionError(f"target field is {type(editor)!r}, not PromptEditor")
+        editor = self._wait_for_panel_prompt_editor(panel, field_key)
         self.process_events(cycles=8)
         field = PromptFieldHandle(
             workflow=handle,
@@ -747,13 +743,7 @@ class RealShellPromptEditorHarness:
         panel.show()
         panel.reveal_loaded_cube(cube_alias)
         field_key = (cube_alias, "encoder", "text")
-        input_widgets = _panel_input_widgets(panel)
-        self.wait_until(
-            lambda: field_key in input_widgets and not panel.is_projection_active()
-        )
-        editor = input_widgets[field_key]
-        if not isinstance(editor, PromptEditor):
-            raise AssertionError(f"target field is {type(editor)!r}, not PromptEditor")
+        editor = self._wait_for_panel_prompt_editor(panel, field_key)
         self.process_events(cycles=8)
         field = PromptFieldHandle(
             workflow=handle,
@@ -884,10 +874,7 @@ class RealShellPromptEditorHarness:
         workflow = self.workflows[alias]
         panel = self.shell.editor_panels[workflow.workflow_id]
         field_key = (workflow.cube_alias, "positive_prompt", "text")
-        input_widgets = _panel_input_widgets(panel)
-        widget = input_widgets[field_key]
-        if not isinstance(widget, PromptEditor):
-            raise AssertionError(f"target field is {type(widget)!r}, not PromptEditor")
+        widget = self._wait_for_panel_prompt_editor(panel, field_key)
         self.wait_until(lambda: widget.isVisible())
         return PromptFieldHandle(
             workflow=workflow,
@@ -895,6 +882,31 @@ class RealShellPromptEditorHarness:
             field_key="text",
             editor=widget,
         )
+
+    def _wait_for_panel_prompt_editor(
+        self,
+        panel: EditorPanel,
+        field_key: tuple[str, str, str],
+        *,
+        require_projection_idle: bool = True,
+    ) -> PromptEditor:
+        """Resolve a prompt editor from the settled live panel registry."""
+
+        self.wait_until(
+            lambda: (
+                (not require_projection_idle or not panel.is_projection_active())
+                and isinstance(
+                    _panel_input_widgets(panel).get(field_key),
+                    PromptEditor,
+                )
+            )
+        )
+        editor = _panel_input_widgets(panel).get(field_key)
+        if not isinstance(editor, PromptEditor):
+            raise AssertionError(
+                f"settled field {field_key!r} is {type(editor)!r}, not PromptEditor"
+            )
+        return editor
 
     def focus_editor(self, field: PromptFieldHandle) -> QWidget:
         """Focus the real prompt projection surface used for keyboard input."""
