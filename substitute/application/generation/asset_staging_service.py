@@ -30,9 +30,26 @@ from substitute.application.recipes.workflow_payload_nodes import (
     executable_prompt_nodes,
 )
 from substitute.application.workflows.workflow_asset_service import WorkflowAssetService
+from substitute.application.generation.input_asset_staging_plan_service import (
+    InputAssetStagingPlanService,
+    InputAssetStagingTarget,
+)
+from substitute.application.workflows.input_asset_endpoint_service import (
+    InputAssetEndpointService,
+)
+from substitute.application.workflows.workflow_node_definition_service import (
+    WorkflowNodeDefinitionService,
+)
+from substitute.application.workflows.workflow_graph_section_service import (
+    WorkflowGraphSectionService,
+)
 from substitute.domain.common import JsonObject, WorkflowId
 from substitute.domain.generation import AssetStagingFailure, ComfyStagedAsset
-from substitute.domain.workflow import ProjectMaskAssetRef, WorkflowState
+from substitute.domain.workflow import (
+    InputAssetRole,
+    ProjectMaskAssetRef,
+    WorkflowState,
+)
 from substitute.shared.logging.logger import (
     get_logger,
     log_debug,
@@ -56,10 +73,22 @@ class ComfyAssetStagingResult:
 class ComfyAssetStagingService:
     """Own generation-time rewriting of local assets for the active Comfy target."""
 
-    def __init__(self, *, stager: ComfyAssetStager) -> None:
+    def __init__(
+        self,
+        *,
+        stager: ComfyAssetStager,
+        input_asset_staging_plan_service: InputAssetStagingPlanService | None = None,
+    ) -> None:
         """Capture the concrete target stager used for source files."""
 
         self._stager = stager
+        self._input_asset_staging_plan_service = (
+            input_asset_staging_plan_service
+            or InputAssetStagingPlanService(
+                InputAssetEndpointService(WorkflowNodeDefinitionService()),
+                WorkflowGraphSectionService(),
+            )
+        )
         self._projects_dir: Path | None = None
 
     @classmethod
@@ -68,10 +97,14 @@ class ComfyAssetStagingService:
         *,
         stager: ComfyAssetStager,
         projects_dir: Path,
+        input_asset_staging_plan_service: InputAssetStagingPlanService | None = None,
     ) -> "ComfyAssetStagingService":
         """Build a staging service that can resolve project-relative mask assets."""
 
-        service = cls(stager=stager)
+        service = cls(
+            stager=stager,
+            input_asset_staging_plan_service=input_asset_staging_plan_service,
+        )
         service._projects_dir = projects_dir
         return service
 
@@ -106,22 +139,23 @@ class ComfyAssetStagingService:
             f"substitute/{_safe_subfolder_component(workflow_id or workflow_name)}"
         )
 
-        for node_id, node_data in prompt.items():
+        targets = self._staging_targets(workflow=workflow, prompt=prompt)
+        for target in targets:
+            node_id = target.executable_node_id
+            node_data = prompt.get(node_id)
             if not isinstance(node_data, dict):
                 continue
             node_class = node_data.get("class_type")
-            if node_class not in _LOAD_IMAGE_CLASSES:
-                continue
             inputs = node_data.get("inputs", {})
             if not isinstance(inputs, dict):
                 continue
-            image_value = inputs.get("image")
+            image_value = inputs.get(target.field_key)
             if not isinstance(image_value, str) or not image_value:
                 failures.append(
                     AssetStagingFailure(
                         node_id=str(node_id),
                         node_class=str(node_class),
-                        input_name="image",
+                        input_name=target.field_key,
                         source_value=image_value
                         if isinstance(image_value, str)
                         else "",
@@ -131,8 +165,7 @@ class ComfyAssetStagingService:
                 continue
             source_path = self._source_path_for_load_image_value(
                 image_value=image_value,
-                node_class=str(node_class),
-                node_data=node_data,
+                target=target,
                 workflow_name=workflow_name,
                 workflow=workflow,
             )
@@ -152,7 +185,7 @@ class ComfyAssetStagingService:
                     AssetStagingFailure(
                         node_id=str(node_id),
                         node_class=str(node_class),
-                        input_name="image",
+                        input_name=target.field_key,
                         source_value=image_value,
                         message="Referenced local image file does not exist.",
                     )
@@ -178,17 +211,16 @@ class ComfyAssetStagingService:
                     AssetStagingFailure(
                         node_id=str(node_id),
                         node_class=str(node_class),
-                        input_name="image",
+                        input_name=target.field_key,
                         source_value=image_value,
                         message=str(error),
                     )
                 )
                 continue
-            inputs["image"] = staged_asset.execution_value
+            inputs[target.field_key] = staged_asset.execution_value
             if self._should_use_project_mask_color_channel(
                 image_value=image_value,
-                node_class=str(node_class),
-                node_data=node_data,
+                target=target,
                 source_path=source_path,
                 workflow_name=workflow_name,
                 workflow=workflow,
@@ -225,12 +257,47 @@ class ComfyAssetStagingService:
             failures=tuple(failures),
         )
 
+    def _staging_targets(
+        self,
+        *,
+        workflow: object | None,
+        prompt: Mapping[str, object],
+    ) -> tuple[InputAssetStagingTarget, ...]:
+        """Return semantic targets or exact built-in fallbacks without workflow state."""
+
+        if isinstance(workflow, WorkflowState):
+            return self._input_asset_staging_plan_service.targets_for_prompt(
+                workflow,
+                prompt,
+            )
+        targets: list[InputAssetStagingTarget] = []
+        for raw_node_id, raw_node in prompt.items():
+            if not isinstance(raw_node, Mapping):
+                continue
+            class_type = raw_node.get("class_type")
+            if class_type not in _LOAD_IMAGE_CLASSES:
+                continue
+            node_id = str(raw_node_id)
+            targets.append(
+                InputAssetStagingTarget(
+                    executable_node_id=node_id,
+                    section_key="",
+                    node_name=node_id,
+                    field_key="image",
+                    role=(
+                        InputAssetRole.MASK
+                        if class_type == "LoadImageMask"
+                        else InputAssetRole.IMAGE
+                    ),
+                )
+            )
+        return tuple(targets)
+
     def _source_path_for_load_image_value(
         self,
         *,
         image_value: str,
-        node_class: str,
-        node_data: Mapping[str, object],
+        target: InputAssetStagingTarget,
         workflow_name: str,
         workflow: object | None,
     ) -> Path | None:
@@ -238,7 +305,7 @@ class ComfyAssetStagingService:
 
         if _looks_like_local_path(image_value):
             return Path(image_value)
-        if node_class != "LoadImageMask" or self._projects_dir is None:
+        if target.role is not InputAssetRole.MASK or self._projects_dir is None:
             return None
         candidate = self._projects_dir / workflow_name / "masks" / image_value
         if candidate.exists():
@@ -253,29 +320,26 @@ class ComfyAssetStagingService:
             return candidate
         if self._is_project_mask_asset(
             workflow=workflow,
-            node_data=node_data,
+            target=target,
         ):
             return candidate
         return None
 
-    @staticmethod
     def _is_project_mask_asset(
+        self,
         *,
         workflow: object | None,
-        node_data: Mapping[str, object],
+        target: InputAssetStagingTarget,
     ) -> bool:
         """Return whether compiled metadata points to a project mask asset ref."""
 
         if not isinstance(workflow, WorkflowState):
             return False
-        identity = _compiled_node_identity(node_data)
-        if identity is None:
-            return False
-        cube_alias, node_name = identity
         asset_ref = WorkflowAssetService().input_mask_asset_ref(
             workflow,
-            cube_alias=cube_alias,
-            node_name=node_name,
+            section_key=target.section_key,
+            node_name=target.node_name,
+            field_key=target.field_key,
         )
         return isinstance(asset_ref, ProjectMaskAssetRef)
 
@@ -283,17 +347,16 @@ class ComfyAssetStagingService:
         self,
         *,
         image_value: str,
-        node_class: str,
-        node_data: Mapping[str, object],
+        target: InputAssetStagingTarget,
         source_path: Path,
         workflow_name: str,
         workflow: object | None,
     ) -> bool:
         """Return whether a staged LoadImageMask is a Substitute grayscale mask."""
 
-        if node_class != "LoadImageMask":
+        if target.role is not InputAssetRole.MASK:
             return False
-        if self._is_project_mask_asset(workflow=workflow, node_data=node_data):
+        if self._is_project_mask_asset(workflow=workflow, target=target):
             return True
         if self._projects_dir is None:
             return False
@@ -311,21 +374,6 @@ def _prompt_nodes(workflow_payload: JsonObject) -> dict[str, object] | None:
 
     nodes = executable_prompt_nodes(workflow_payload)
     return nodes if isinstance(nodes, dict) else None
-
-
-def _compiled_node_identity(node_data: Mapping[str, object]) -> tuple[str, str] | None:
-    """Return cube alias and node name from compiled workflow metadata."""
-
-    meta = node_data.get("_meta")
-    if not isinstance(meta, Mapping):
-        return None
-    title = meta.get("title")
-    if not isinstance(title, str):
-        return None
-    cube_alias, separator, node_name = title.partition(".")
-    if not cube_alias or separator != "." or not node_name:
-        return None
-    return cube_alias, node_name
 
 
 def _looks_like_local_path(value: str) -> bool:

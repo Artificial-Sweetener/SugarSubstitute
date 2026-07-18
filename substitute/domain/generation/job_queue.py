@@ -24,6 +24,8 @@ from pathlib import Path
 from collections.abc import Mapping
 from typing import Literal
 
+from substitute.domain.comfy_workflow import DirectWorkflowGenerationPlan
+
 GenerationJobStatus = Literal[
     "pending",
     "dispatching",
@@ -42,6 +44,7 @@ class GenerationJobSnapshot:
     workflow_id: str
     workflow_name: str
     sugar_script_text: str
+    direct_workflow_plan: DirectWorkflowGenerationPlan | None = None
     positive_prompt_preview: str | None = None
     scene_run_id: str | None = None
     scene_key: str | None = None

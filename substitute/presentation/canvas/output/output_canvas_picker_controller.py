@@ -60,7 +60,7 @@ class OutputCanvasPickerController:
     """Own non-compare Output canvas picker presentation decisions."""
 
     visible_compare_state: Callable[[], OutputCompareState]
-    grid_available_for_current_source: Callable[[], bool]
+    grid_available_for_visible_sources: Callable[[], bool]
     set_count: Callable[[], int]
     active_set_index: Callable[[], int]
     set_selector_button: Callable[[], object]
@@ -122,7 +122,7 @@ class OutputCanvasPickerController:
         if self.visible_compare_state().enabled:
             self.show_compare_set_picker("base")
             return
-        include_grid = self.grid_available_for_current_source()
+        include_grid = self.grid_available_for_visible_sources()
         set_count = self.set_count()
         if set_count <= 1 and not include_grid:
             return

@@ -199,6 +199,7 @@ def _behavior_snapshot(node_names: tuple[str, ...]) -> object:
             "Cube": {node_name: resolved_behavior for node_name in node_names}
         },
         card_decisions_by_alias={"Cube": {}},
+        card_order_by_alias={"Cube": node_names},
     )
 
 

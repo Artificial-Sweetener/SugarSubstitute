@@ -37,6 +37,7 @@ class DropIntent(Enum):
 
     NONE = "none"
     LOAD_WORKFLOW_RECIPE = "load_workflow_recipe"
+    LOAD_DIRECT_COMFY_WORKFLOW = "load_direct_comfy_workflow"
     LOAD_NODE_IMAGE = "load_node_image"
 
 
@@ -92,16 +93,27 @@ class RecipeDocumentClassifierProtocol(Protocol):
         """Classify a path for recipe loading."""
 
 
+class DirectWorkflowDocumentClassifier:
+    """Recognize the explicit file boundary for Comfy UI workflow documents."""
+
+    def supports(self, path: Path) -> bool:
+        """Return whether the path can contain a direct Comfy workflow."""
+
+        return path.suffix.casefold() == ".json"
+
+
 class WorkflowRecipeDropClassifier:
     """Classify workspace fallback drops that should load workflow recipes."""
 
     def __init__(
         self,
         recipe_classifier: RecipeDocumentClassifierProtocol,
+        direct_workflow_classifier: DirectWorkflowDocumentClassifier | None = None,
     ) -> None:
-        """Store the recipe document classifier dependency."""
+        """Store document classification dependencies."""
 
         self._recipe_classifier = recipe_classifier
+        self._direct_workflow_classifier = direct_workflow_classifier
 
     def classify_mime_data(self, mime_data: MimeDataProtocol) -> DropClassification:
         """Classify mime data for workspace fallback drag/drop handling."""
@@ -121,6 +133,16 @@ class WorkflowRecipeDropClassifier:
 
     def classify_path(self, path: Path) -> DropClassification:
         """Classify one local path for workspace fallback drag/drop handling."""
+
+        if (
+            self._direct_workflow_classifier is not None
+            and self._direct_workflow_classifier.supports(path)
+        ):
+            return DropClassification(
+                DropIntent.LOAD_DIRECT_COMFY_WORKFLOW,
+                path=path,
+                reason="comfy_workflow_json",
+            )
 
         recipe_classification = self._recipe_classifier.classify_recipe_document(path)
         if not recipe_classification.supported:
@@ -145,12 +167,14 @@ class WorkspaceDropController:
         classifier: WorkflowRecipeDropClassifier,
         ignored_drag_source: Callable[[object | None], bool],
         load_recipe_document: Callable[[Path], str | None],
+        load_direct_workflow_document: Callable[[Path], str | None] | None = None,
     ) -> None:
         """Store drop classification and workflow-loading collaborators."""
 
         self._classifier = classifier
         self._ignored_drag_source = ignored_drag_source
         self._load_recipe_document = load_recipe_document
+        self._load_direct_workflow_document = load_direct_workflow_document
 
     def handle_drag_enter(self, event: DropEventProtocol) -> bool:
         """Accept drag-enter only for workflow recipe drops."""
@@ -169,28 +193,46 @@ class WorkspaceDropController:
             return False
         classification = self._classifier.classify_mime_data(event.mimeData())
         self._log_classification("drop", classification)
-        if classification.intent is not DropIntent.LOAD_WORKFLOW_RECIPE:
+        if classification.intent not in _LOADABLE_WORKSPACE_INTENTS:
             event.ignore()
             return False
         if classification.path is None:
             event.ignore()
             return False
+        load_document = self._load_document_for_intent(classification.intent)
+        if load_document is None:
+            event.ignore()
+            return False
         event.acceptProposedAction()
         log_debug(
             _LOGGER,
-            "Workspace recipe drop loading started",
+            "Workspace document drop loading started",
             path=classification.path,
             reason=classification.reason,
+            intent=classification.intent.value,
         )
-        workflow_id = self._load_recipe_document(classification.path)
+        workflow_id = load_document(classification.path)
         log_debug(
             _LOGGER,
-            "Workspace recipe drop loading queued",
+            "Workspace document drop loading completed",
             path=classification.path,
             reason=classification.reason,
+            intent=classification.intent.value,
             workflow_id=workflow_id,
         )
         return True
+
+    def _load_document_for_intent(
+        self,
+        intent: DropIntent,
+    ) -> Callable[[Path], str | None] | None:
+        """Return the single shell load action owned by a classified intent."""
+
+        if intent is DropIntent.LOAD_WORKFLOW_RECIPE:
+            return self._load_recipe_document
+        if intent is DropIntent.LOAD_DIRECT_COMFY_WORKFLOW:
+            return self._load_direct_workflow_document
+        return None
 
     def _ignore_internal_drag(
         self,
@@ -227,12 +269,15 @@ class WorkspaceDropController:
         should_log = phase != "drag_move"
         if should_log:
             self._log_classification(phase, classification)
-        if classification.intent is DropIntent.LOAD_WORKFLOW_RECIPE:
+        if (
+            classification.intent in _LOADABLE_WORKSPACE_INTENTS
+            and self._load_document_for_intent(classification.intent) is not None
+        ):
             event.acceptProposedAction()
             if should_log:
                 log_debug(
                     _LOGGER,
-                    "Workspace recipe drop accepted",
+                    "Workspace document drop accepted",
                     phase=phase,
                     path=classification.path,
                     reason=classification.reason,
@@ -267,9 +312,15 @@ class WorkspaceDropController:
         )
 
 
+_LOADABLE_WORKSPACE_INTENTS = frozenset(
+    {DropIntent.LOAD_WORKFLOW_RECIPE, DropIntent.LOAD_DIRECT_COMFY_WORKFLOW}
+)
+
+
 __all__ = [
     "DropClassification",
     "DropIntent",
+    "DirectWorkflowDocumentClassifier",
     "WorkspaceDropController",
     "WorkflowRecipeDropClassifier",
 ]

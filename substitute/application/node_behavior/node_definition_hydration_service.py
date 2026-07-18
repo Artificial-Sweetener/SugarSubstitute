@@ -71,6 +71,9 @@ class EditorNodeDefinitionHydrationService:
         node_classes = tuple(
             sorted({requirement.class_type for requirement in requirements})
         )
+        required_requirements = tuple(
+            requirement for requirement in requirements if requirement.live_required
+        )
         ensure_node_definitions = _ensure_node_definitions_callable(self._hydrator)
         if ensure_node_definitions is None:
             log_warning(
@@ -79,12 +82,19 @@ class EditorNodeDefinitionHydrationService:
                 stack_order_count=len(stack_order),
                 requested_node_classes=",".join(node_classes),
             )
-            if node_classes:
+            if required_requirements:
                 raise LiveNodeDefinitionError(
                     operation="hydrate editor projection node definitions",
                     missing_definitions=_missing_definitions_for_classes(
-                        node_classes,
-                        requirements=requirements,
+                        tuple(
+                            sorted(
+                                {
+                                    requirement.class_type
+                                    for requirement in required_requirements
+                                }
+                            )
+                        ),
+                        requirements=required_requirements,
                     ),
                 )
             return None
@@ -99,6 +109,15 @@ class EditorNodeDefinitionHydrationService:
             unavailable_count=len(result.unavailable),
             unavailable_node_classes=",".join(result.unavailable),
         )
+        blocking_unavailable = tuple(
+            sorted(
+                {
+                    requirement.class_type
+                    for requirement in required_requirements
+                    if requirement.class_type in result.unavailable
+                }
+            )
+        )
         if result.unavailable:
             log_warning(
                 _LOGGER,
@@ -106,11 +125,12 @@ class EditorNodeDefinitionHydrationService:
                 stack_order_count=len(stack_order),
                 unavailable_node_classes=",".join(result.unavailable),
             )
+        if blocking_unavailable:
             raise LiveNodeDefinitionError(
                 operation="hydrate editor projection node definitions",
                 missing_definitions=_missing_definitions_for_classes(
-                    result.unavailable,
-                    requirements=requirements,
+                    blocking_unavailable,
+                    requirements=required_requirements,
                 ),
             )
         return result

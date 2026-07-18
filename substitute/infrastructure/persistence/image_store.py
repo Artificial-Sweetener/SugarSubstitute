@@ -21,7 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QImage, QImageReader
+from PySide6.QtGui import QColor, QImage, QImageReader
 
 from substitute.shared.logging.logger import get_logger, log_exception, log_warning
 
@@ -113,8 +113,6 @@ class QtImageStore:
                 size_type=type(size).__name__,
             )
             return False
-
-        resolved_path = Path(path)
         try:
             width = int(width_getter())
             height = int(height_getter())
@@ -126,6 +124,7 @@ class QtImageStore:
                     height=height,
                 )
                 return False
+            resolved_path = Path(path)
             resolved_path.parent.mkdir(parents=True, exist_ok=True)
             blank_image = QImage(
                 width, height, QImage.Format.Format_ARGB32_Premultiplied
@@ -136,7 +135,36 @@ class QtImageStore:
             log_exception(
                 _LOGGER,
                 "Failed to save blank mask image",
+                path=path,
+                error=error,
+            )
+            return False
+
+    def save_blank_image(self, path: Path, *, width: int, height: int) -> bool:
+        """Write an opaque neutral RGB image for synthetic Input canvas backing."""
+
+        resolved_path = Path(path)
+        if width <= 0 or height <= 0:
+            log_warning(
+                _LOGGER,
+                "Blank image save rejected because dimensions are invalid",
                 path=resolved_path,
+                width=width,
+                height=height,
+            )
+            return False
+        try:
+            resolved_path.parent.mkdir(parents=True, exist_ok=True)
+            blank_image = QImage(width, height, QImage.Format.Format_RGB32)
+            blank_image.fill(QColor(24, 24, 24))
+            return bool(blank_image.save(str(resolved_path)))
+        except Exception as error:
+            log_exception(
+                _LOGGER,
+                "Failed to save blank Input canvas image",
+                path=resolved_path,
+                width=width,
+                height=height,
                 error=error,
             )
             return False

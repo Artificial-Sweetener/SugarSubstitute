@@ -265,6 +265,25 @@ def test_route_model_resolves_concrete_set_from_first_available_source() -> None
     assert result == ("b", source_b_item)
 
 
+def test_route_model_does_not_approximate_explicit_set_on_active_source() -> None:
+    """Explicit batch selection should cross sources instead of choosing a neighbor."""
+
+    source_a_item = _item(uuid4(), 1)
+    source_b_item = _item(uuid4(), 2)
+    sources = {
+        "a": _source("a", source_a_item),
+        "b": _source("b", source_b_item),
+    }
+
+    result = OutputCanvasRouteModel.concrete_set_selection(
+        sources,
+        active_source_key="a",
+        set_index=2,
+    )
+
+    assert result == ("b", source_b_item)
+
+
 def test_route_model_returns_none_when_concrete_set_has_no_item() -> None:
     """Set selector changes without any matching item should not activate output."""
 
@@ -275,6 +294,28 @@ def test_route_model_returns_none_when_concrete_set_has_no_item() -> None:
     )
 
     assert result is None
+
+
+def test_route_model_distinguishes_renderable_grid_from_batch_overview() -> None:
+    """A one-image source can render a grid without offering batch navigation."""
+
+    one_item = _source("one", _item(uuid4(), 1))
+    batch = _source("batch", _item(uuid4(), 1), _item(uuid4(), 2))
+
+    assert OutputCanvasRouteModel.grid_available_for_source(one_item) is True
+    assert OutputCanvasRouteModel.batch_overview_available_for_source(one_item) is False
+    assert OutputCanvasRouteModel.batch_overview_available_for_source(batch) is True
+
+
+def test_route_model_finds_first_source_with_batch_overview() -> None:
+    """Batch-overview routing should skip renderable one-image sources."""
+
+    sources = {
+        "one": _source("one", _item(uuid4(), 1)),
+        "batch": _source("batch", _item(uuid4(), 1), _item(uuid4(), 2)),
+    }
+
+    assert OutputCanvasRouteModel.first_batch_overview_source_key(sources) == "batch"
 
 
 def _item(image_id: UUID, set_index: int) -> OutputCanvasImageItem:

@@ -26,6 +26,10 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 from qfluentwidgets import FluentIcon as FIF  # type: ignore[import-untyped]
 
+from substitute.application.workflows.output_scene_navigation_selection import (
+    OutputSceneNavigationSelection,
+)
+
 from substitute.presentation.shell import main_window_signal_binder as signal_binder_mod
 from substitute.presentation.shell.main_window_signal_binder import (
     MainWindowSignalBinder,
@@ -141,7 +145,7 @@ def test_app_orb_menu_routes_file_actions_and_runtime_requests() -> None:
     restart_calls: list[str] = []
     shell = SimpleNamespace(
         _active_workspace_route=SETTINGS_WORKSPACE_ROUTE,
-        shell_layout_controller=SimpleNamespace(
+        shell_chrome_controller=SimpleNamespace(
             set_app_orb_workflow_file_actions_enabled=enabled_calls.append,
         ),
         workspace_controller=SimpleNamespace(
@@ -409,8 +413,8 @@ def test_canvas_signals_route_output_events_and_canvas_selection_autosave() -> N
             on_active_output_grid_changed=lambda source_key: events.append(
                 ("active_output_grid", source_key)
             ),
-            on_active_output_scene_changed=lambda scene_key, overview: events.append(
-                ("active_output_scene", (scene_key, overview))
+            on_active_output_scene_changed=lambda selection: events.append(
+                ("active_output_scene", selection)
             ),
             on_output_compare_changed=lambda compare_key: events.append(
                 ("compare", compare_key)
@@ -427,7 +431,14 @@ def test_canvas_signals_route_output_events_and_canvas_selection_autosave() -> N
     )
     output_canvas.activeOutputChanged.fire("out-1")
     output_canvas.activeOutputGridChanged.fire("source-a")
-    output_canvas.activeOutputSceneChanged.fire("scene-a", False)
+    scene_selection = OutputSceneNavigationSelection(
+        scene_key="scene-a",
+        overview=False,
+        source_key="source-a",
+        set_index=0,
+        image_id=None,
+    )
+    output_canvas.activeOutputSceneChanged.fire(scene_selection)
     output_canvas.activeOutputCompareChanged.fire("compare-a")
     input_canvas.inputMaskSaved.fire("mask-1", "buffer.png")
     input_canvas.inputImageLoaded.fire("node-1", "input.png")
@@ -435,7 +446,7 @@ def test_canvas_signals_route_output_events_and_canvas_selection_autosave() -> N
     assert events == [
         ("active_output", "out-1"),
         ("active_output_grid", "source-a"),
-        ("active_output_scene", ("scene-a", False)),
+        ("active_output_scene", scene_selection),
         ("compare", "compare-a"),
     ]
     assert autosaves == [

@@ -291,9 +291,10 @@ class FieldRowBuilder:
                 Qt.AlignmentFlag.AlignVCenter,
             )
 
-        if _should_apply_editor_control_height(field_behavior):
-            apply_editor_control_height(widget)
-        widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        if _surface_may_size_field(field_behavior):
+            if _should_apply_editor_control_height(field_behavior):
+                apply_editor_control_height(widget)
+            widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         row_layout.addWidget(
             widget,
             _field_stretch_for_field(widget),
@@ -400,9 +401,10 @@ class FieldRowBuilder:
                     _label_stretch_for_field(widget),
                     Qt.AlignmentFlag.AlignVCenter,
                 )
-            if _should_apply_editor_control_height(behavior):
-                apply_editor_control_height(widget)
-            widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+            if _surface_may_size_field(behavior):
+                if _should_apply_editor_control_height(behavior):
+                    apply_editor_control_height(widget)
+                widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
             col_layout.addWidget(
                 widget,
                 _field_stretch_for_field(widget),
@@ -532,6 +534,15 @@ def _should_apply_editor_control_height(field_behavior: FieldBehavior | None) ->
     ):
         return False
     return True
+
+
+def _surface_may_size_field(field_behavior: FieldBehavior | None) -> bool:
+    """Return whether generic row policy may override a control's owned geometry."""
+
+    return not (
+        field_behavior is not None
+        and field_behavior.presentation is FieldPresentation.SEED_BOX
+    )
 
 
 def _label_stretch_for_field(widget: QWidget) -> int:

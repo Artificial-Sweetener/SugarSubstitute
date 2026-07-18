@@ -28,6 +28,9 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasImageItem,
     OutputCanvasSourceGroup,
 )
+from substitute.application.workflows.output_scene_navigation_selection import (
+    OutputSceneNavigationSelection,
+)
 from substitute.presentation.canvas.output.output_canvas_interaction_controller import (
     ActivateFinalOutputItemGridCommand,
     ActivateSceneGridCommand,
@@ -50,12 +53,10 @@ class OutputCanvasGridEventController:
     hit_at: Callable[[GridPoint], OutputCanvasHitValidation]
     active_scene_overview: Callable[[], bool]
     active_set_index: Callable[[], int]
-    active_source_key: Callable[[], str | None]
     source_groups_by_key: Callable[[], Mapping[str, OutputCanvasSourceGroup]]
-    activate_scene: Callable[[str], bool]
+    activate_scene: Callable[[str], OutputSceneNavigationSelection | None]
     activate_item: Callable[[str, OutputCanvasImageItem], None]
-    emit_scene_changed: Callable[[str, bool], None]
-    emit_grid_changed: Callable[[str], None]
+    emit_scene_changed: Callable[[OutputSceneNavigationSelection], None]
     press_type: object
     release_type: object
 
@@ -101,12 +102,10 @@ class OutputCanvasGridEventController:
     def _activate_scene_grid_tile(self, command: ActivateSceneGridCommand) -> None:
         """Activate a scene-overview tile and emit host-facing route signals."""
 
-        if not self.activate_scene(command.scene_key):
+        selection = self.activate_scene(command.scene_key)
+        if selection is None:
             return
-        self.emit_scene_changed(command.scene_key, False)
-        active_source_key = self.active_source_key()
-        if self.active_set_index() == 0 and active_source_key is not None:
-            self.emit_grid_changed(active_source_key)
+        self.emit_scene_changed(selection)
 
 
 __all__ = ["OutputCanvasGridEventController"]

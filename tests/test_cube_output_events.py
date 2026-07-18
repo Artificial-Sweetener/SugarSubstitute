@@ -26,9 +26,9 @@ from substitute.domain.onboarding import ComfyEndpoint
 from substitute.infrastructure.comfy.artifact_fetcher import ComfyArtifactFetcher
 from substitute.infrastructure.comfy.artifact_urls import artifact_view_url
 from substitute.infrastructure.comfy.cube_output_event import (
-    CubeOutputArtifact,
     parse_cube_output_event,
 )
+from substitute.infrastructure.comfy.image_artifact import ComfyImageArtifact
 
 
 def _payload() -> dict[str, object]:
@@ -122,7 +122,7 @@ def test_artifact_view_url_encodes_query_values() -> None:
     """Artifact URLs should encode every Comfy view query value."""
 
     endpoint = ComfyEndpoint(host="127.0.0.1", port=8188)
-    artifact = CubeOutputArtifact(
+    artifact = ComfyImageArtifact(
         filename="ComfyUI temp 00001.png",
         subfolder="nested folder",
         type="temp",
@@ -160,7 +160,7 @@ def test_artifact_fetcher_returns_response_bytes(
         endpoint=ComfyEndpoint(host="10.0.0.2", port=8190),
         timeout_seconds=3.5,
     )
-    artifact = CubeOutputArtifact(
+    artifact = ComfyImageArtifact(
         filename="image.png",
         subfolder="",
         type="temp",

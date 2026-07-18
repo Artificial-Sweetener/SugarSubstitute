@@ -19,25 +19,37 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
 from substitute.application.cubes import LoadedCubeDefinition
-from substitute.application.workspace_state.restore_projection_cache import (
-    APP_PROJECTION_VERSION,
-    RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
-    CachedCubeProjection,
-    CachedNodeProjection,
-    CachedWorkflowProjection,
-    RestoreProjectionArtifact,
-    RestoreProjectionCacheState,
-    RestoreProjectionValidationService,
+from substitute.application.workspace_state.restore_projection_identity import (
     cube_definition_fingerprint,
     fingerprint_json,
     node_definition_fingerprint,
     prompt_feature_profile_fingerprint,
     workspace_projection_fingerprint,
 )
+from substitute.application.workspace_state.restore_projection_codec import (
+    restore_projection_artifact_from_json,
+    restore_projection_artifact_to_json,
+)
+from substitute.application.workspace_state.restore_projection_models import (
+    APP_PROJECTION_VERSION,
+    RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
+    CachedCubeProjection,
+    CachedCubeStackProjection,
+    CachedEditorSectionProjection,
+    CachedNodeProjection,
+    CachedWorkflowProjection,
+    RestoreProjectionArtifact,
+)
+from substitute.application.workspace_state.restore_projection_validation import (
+    RestoreProjectionCacheState,
+    RestoreProjectionValidationService,
+)
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.prompt import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
@@ -53,7 +65,9 @@ def test_restore_projection_artifact_round_trips_through_json() -> None:
     workspace = _workspace()
     artifact = _artifact(workspace)
 
-    restored = RestoreProjectionArtifact.from_json(artifact.to_json())
+    restored = restore_projection_artifact_from_json(
+        restore_projection_artifact_to_json(artifact)
+    )
 
     assert restored == artifact
 
@@ -62,23 +76,23 @@ def test_restore_projection_artifact_rejects_invalid_json() -> None:
     """Invalid payloads should fail before bootstrap depends on them."""
 
     with pytest.raises(ValueError, match="restore projection artifact"):
-        RestoreProjectionArtifact.from_json([])
+        restore_projection_artifact_from_json([])
 
-    payload = _artifact(_workspace()).to_json()
+    payload = restore_projection_artifact_to_json(_artifact(_workspace()))
     payload["workflows"] = "not-a-list"
 
     with pytest.raises(ValueError, match="workflows"):
-        RestoreProjectionArtifact.from_json(payload)
+        restore_projection_artifact_from_json(payload)
 
 
 def test_restore_projection_artifact_rejects_schema_mismatch() -> None:
     """Durable cache parsing should reject incompatible schema versions."""
 
-    payload = _artifact(_workspace()).to_json()
+    payload = restore_projection_artifact_to_json(_artifact(_workspace()))
     payload["schema_version"] = RESTORE_PROJECTION_CACHE_SCHEMA_VERSION + 1
 
     with pytest.raises(ValueError, match="schema_version"):
-        RestoreProjectionArtifact.from_json(payload)
+        restore_projection_artifact_from_json(payload)
 
 
 def test_validate_before_backend_rejects_target_mismatch() -> None:
@@ -135,7 +149,7 @@ def test_validate_before_backend_rejects_qt_unsafe_numeric_cache_metadata() -> N
 
     workspace = _workspace()
     node = replace(
-        _artifact(workspace).workflows[0].cubes[0].nodes[0],
+        _artifact(workspace).workflows[0].cube_stack.cubes[0].section.nodes[0],  # type: ignore[union-attr]
         resolved_field_specs={
             "value": {
                 "label": "Scale Factor",
@@ -146,8 +160,15 @@ def test_validate_before_backend_rejects_qt_unsafe_numeric_cache_metadata() -> N
         },
     )
     base_artifact = _artifact(workspace)
-    cube = replace(base_artifact.workflows[0].cubes[0], nodes=(node,))
-    workflow = replace(base_artifact.workflows[0], cubes=(cube,))
+    cube_stack = base_artifact.workflows[0].cube_stack
+    assert cube_stack is not None
+    cube = replace(
+        cube_stack.cubes[0], section=replace(cube_stack.cubes[0].section, nodes=(node,))
+    )
+    workflow = replace(
+        base_artifact.workflows[0],
+        cube_stack=replace(cube_stack, cubes=(cube,)),
+    )
     artifact = replace(base_artifact, workflows=(workflow,))
 
     result = RestoreProjectionValidationService().validate_before_backend(
@@ -196,6 +217,46 @@ def test_workspace_projection_fingerprint_includes_cube_bypass_state() -> None:
     )
 
 
+def test_workspace_projection_fingerprint_tracks_direct_render_state() -> None:
+    """Direct buffer and durable UI changes should invalidate cached projection."""
+
+    workspace = _direct_workspace(seed=7, expanded=True)
+    changed_buffer = _direct_workspace(seed=8, expanded=True)
+    changed_ui = _direct_workspace(seed=7, expanded=False)
+
+    assert workspace_projection_fingerprint(changed_buffer) != (
+        workspace_projection_fingerprint(workspace)
+    )
+    assert workspace_projection_fingerprint(changed_ui) != (
+        workspace_projection_fingerprint(workspace)
+    )
+
+
+def test_workspace_projection_fingerprint_ignores_direct_file_metadata() -> None:
+    """Source path and dirty state should not invalidate identical projections."""
+
+    workspace = _direct_workspace(seed=7, expanded=True)
+    direct = workspace.workflows[0].workflow.direct_workflow
+    assert direct is not None
+    changed_direct = replace(
+        direct,
+        source_path=Path("moved/direct.json"),
+        dirty=not direct.dirty,
+    )
+    changed_state = replace(
+        workspace.workflows[0].workflow,
+        direct_workflow=changed_direct,
+    )
+    changed_workspace = replace(
+        workspace,
+        workflows=(replace(workspace.workflows[0], workflow=changed_state),),
+    )
+
+    assert workspace_projection_fingerprint(changed_workspace) == (
+        workspace_projection_fingerprint(workspace)
+    )
+
+
 def test_validate_before_backend_accepts_active_cube_alias_drift() -> None:
     """Pre-backend validation should accept caches when only cube focus changed."""
 
@@ -216,32 +277,6 @@ def test_validate_before_backend_accepts_active_cube_alias_drift() -> None:
     assert result.can_build_provisionally
 
 
-def test_validate_before_backend_accepts_legacy_active_alias_fingerprint() -> None:
-    """Old cache files should survive when only their stored cube focus differs."""
-
-    workspace = _workspace()
-    artifact = replace(
-        _artifact(workspace),
-        workspace_fingerprint=_legacy_workspace_projection_fingerprint(workspace),
-    )
-    changed_workspace = replace(
-        workspace,
-        workflows=(replace(workspace.workflows[0], active_cube_alias=None),),
-    )
-
-    result = RestoreProjectionValidationService().validate_before_backend(
-        artifact,
-        target_key="target-a",
-        workspace=changed_workspace,
-    )
-
-    assert result.state is RestoreProjectionCacheState.BACKEND_PENDING
-    assert result.can_build_provisionally
-    assert result.reasons == (
-        "Cache matches local restore identity after ignoring cube focus drift.",
-    )
-
-
 def test_validate_after_backend_rejects_missing_cube_fingerprint() -> None:
     """Live validation should mark absent cube identities as stale."""
 
@@ -254,7 +289,7 @@ def test_validate_after_backend_rejects_missing_cube_fingerprint() -> None:
     )
 
     assert result.state is RestoreProjectionCacheState.STALE_CUBE
-    assert result.stale_cube_aliases == ("Scene",)
+    assert result.stale_cube_aliases == ("workflow-a:Scene",)
     assert not result.is_valid
 
 
@@ -265,7 +300,7 @@ def test_validate_after_backend_rejects_stale_node_definition() -> None:
 
     result = RestoreProjectionValidationService().validate_after_backend(
         artifact,
-        live_cube_fingerprints={"Scene": "cube-fp"},
+        live_cube_fingerprints={"workflow-a:Scene": "cube-fp"},
         live_node_fingerprints={"CLIPTextEncode": "changed"},
     )
 
@@ -281,7 +316,7 @@ def test_validate_after_backend_accepts_matching_live_fingerprints() -> None:
 
     result = RestoreProjectionValidationService().validate_after_backend(
         artifact,
-        live_cube_fingerprints={"Scene": "cube-fp"},
+        live_cube_fingerprints={"workflow-a:Scene": "cube-fp"},
         live_node_fingerprints={"CLIPTextEncode": "node-fp"},
     )
 
@@ -368,13 +403,8 @@ def _artifact(
         resolved_card_visibility={"visible": True},
         prompt_field_metadata={"text": {"feature_profile": "profile-fp"}},
     )
-    cube = CachedCubeProjection(
-        alias="Scene",
-        requested_cube_id="cube.scene",
-        canonical_cube_id="cube.scene",
-        cube_version="1.0.0",
-        content_hash="hash",
-        catalog_revision="rev",
+    section = CachedEditorSectionProjection(
+        section_key="Scene",
         buffer_fingerprint=fingerprint_json(
             workspace.workflows[0].workflow.cubes["Scene"].buffer
         ),
@@ -387,14 +417,24 @@ def _artifact(
         prompt_field_metadata={"Prompt": {"text": {"syntax": "default"}}},
         nodes=(node,),
     )
+    cube = CachedCubeProjection(
+        requested_cube_id="cube.scene",
+        canonical_cube_id="cube.scene",
+        cube_version="1.0.0",
+        content_hash="hash",
+        catalog_revision="rev",
+        section=section,
+    )
     workflow = CachedWorkflowProjection(
         workflow_id="workflow-a",
         tab_label="Workflow A",
-        stack_order=("Scene",),
-        active_cube_alias="Scene",
-        cube_aliases=("Scene",),
+        document_kind=workspace.workflows[0].workflow.document_kind,
         workflow_fingerprint=fingerprint_json({"workflow_id": "workflow-a"}),
-        cubes=(cube,),
+        cube_stack=CachedCubeStackProjection(
+            stack_order=("Scene",),
+            active_cube_alias="Scene",
+            cubes=(cube,),
+        ),
     )
     return RestoreProjectionArtifact(
         schema_version=RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
@@ -407,7 +447,7 @@ def _artifact(
         workflows=(workflow,),
         prompt_editor_feature_profile_fingerprint="profile-fp",
         node_definition_fingerprints={"CLIPTextEncode": "node-fp"},
-        cube_definition_fingerprints={"Scene": "cube-fp"},
+        cube_definition_fingerprints={"workflow-a:Scene": "cube-fp"},
         projection={"mode": "live"},
     )
 
@@ -451,34 +491,34 @@ def _workspace(*, prompt_text: str = "hello") -> WorkspaceSnapshot:
     )
 
 
-def _legacy_workspace_projection_fingerprint(snapshot: WorkspaceSnapshot) -> str:
-    """Return the previous selection-sensitive workspace cache fingerprint."""
+def _direct_workspace(*, seed: int, expanded: bool) -> WorkspaceSnapshot:
+    """Build one deterministic direct-workflow snapshot."""
 
-    workflow = snapshot.workflows[0]
-    cube = workflow.workflow.cubes["Scene"]
-    return fingerprint_json(
-        {
-            "schema_version": snapshot.schema_version,
-            "active_route": snapshot.active_route,
-            "active_workflow_id": snapshot.active_workflow_id,
-            "tab_order": list(snapshot.tab_order),
-            "workflows": [
-                {
-                    "workflow_id": workflow.workflow_id,
-                    "tab_label": workflow.tab_label,
-                    "active_cube_alias": workflow.active_cube_alias,
-                    "stack_order": list(workflow.workflow.stack_order),
-                    "global_overrides": workflow.workflow.global_overrides,
-                    "cubes": [
-                        {
-                            "alias": "Scene",
-                            "cube_id": cube.cube_id,
-                            "version": cube.version,
-                            "display_name": cube.display_name,
-                            "buffer_fingerprint": fingerprint_json(cube.buffer),
-                        }
-                    ],
+    direct = DirectWorkflowState(
+        source_path=Path("workflows/direct.json"),
+        source_workflow={"nodes": {}},
+        buffer={
+            "nodes": {
+                "1": {
+                    "class_type": "KSampler",
+                    "inputs": {"seed": seed},
+                    "mode": 0,
                 }
-            ],
-        }
+            }
+        },
+        ui={"expanded": {"1": expanded}},
+        dirty=True,
+    )
+    return WorkspaceSnapshot(
+        schema_version="1",
+        workflows=(
+            WorkflowSnapshot(
+                workflow_id="direct",
+                tab_label="Direct",
+                workflow=WorkflowState(direct_workflow=direct),
+            ),
+        ),
+        tab_order=("direct",),
+        active_route="direct",
+        active_workflow_id="direct",
     )

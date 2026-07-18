@@ -282,9 +282,9 @@ class SessionAutosaveController:
         )
 
     def _log_editor_width_trace(self, event: str, **context: object) -> None:
-        """Log through the shell layout controller when it is present."""
+        """Log through the durable workspace layout owner when it is present."""
 
-        controller = getattr(self._shell, "shell_layout_controller", None)
+        controller = getattr(self._shell, "workspace_layout_controller", None)
         log_editor_width_trace = getattr(controller, "log_editor_width_trace", None)
         if callable(log_editor_width_trace):
             log_editor_width_trace(event, **context)

@@ -106,6 +106,20 @@ class _FakeWorkspaceFileActions:
 class _FakeWorkflowWorkspace:
     """Stand in for workflow lifecycle coordination exposed by the controller."""
 
+    def add_workflow(self) -> str:
+        """Return a stable fake workflow id for document-action wiring."""
+
+        return "workflow-new"
+
+    def reconcile_active_workflow_after_structural_mutation(
+        self,
+        *,
+        force_refresh: bool,
+    ) -> None:
+        """Accept direct-document refresh wiring without performing UI work."""
+
+        _ = force_refresh
+
 
 class _FakeWorkflowDuplicateService:
     """Stand in for workflow duplication service exposed by the controller."""
@@ -169,10 +183,15 @@ class _FakeShellGenerationFeedbackSink:
 class _FakeWorkflowRecipeDropClassifier:
     """Capture the recipe IO service used for workflow drops."""
 
-    def __init__(self, recipe_io_service: object) -> None:
+    def __init__(
+        self,
+        recipe_io_service: object,
+        direct_workflow_classifier: object | None = None,
+    ) -> None:
         """Store the recipe IO dependency."""
 
         self.recipe_io_service = recipe_io_service
+        self.direct_workflow_classifier = direct_workflow_classifier
 
 
 class _FakeWorkspaceCanvasDragSourceClassifier:
@@ -230,6 +249,9 @@ class _FakeController:
         """Record shell layout trace messages."""
 
         self.layout_trace_messages.append(message)
+
+    def position_search_box(self) -> None:
+        """Accept search-overlay positioning during controller composition."""
 
 
 class _Signal:
@@ -320,10 +342,15 @@ class _FakeWorkflowInputCanvasService:
 class _FakeInputCanvasCapabilityService:
     """Capture input-canvas capability service dependency."""
 
-    def __init__(self, cube_mask_binding_service: object) -> None:
-        """Store the cube-mask binding service for assertions."""
+    def __init__(
+        self,
+        input_canvas_plan_service: object,
+        graph_section_service: object,
+    ) -> None:
+        """Store canvas planning and graph section services for assertions."""
 
-        self.cube_mask_binding_service = cube_mask_binding_service
+        self.input_canvas_plan_service = input_canvas_plan_service
+        self.graph_section_service = graph_section_service
 
 
 class _FakeOutputImagePipeline:
@@ -472,7 +499,9 @@ def _dependencies() -> SimpleNamespace:
     dependency_names = [
         "cube_load_service",
         "cube_icon_factory",
-        "cube_mask_binding_service",
+        "input_asset_endpoint_service",
+        "input_canvas_plan_service",
+        "graph_section_service",
         "recipe_io_service",
         "create_recipe_model_load_resolver",
         "recipe_model_download_resolution_service",
@@ -730,7 +759,9 @@ def test_compose_shell_controllers_assigns_controllers_and_initial_state(
     controller_names = [
         "WorkflowIssueState",
         "CubeStackService",
-        "ShellLayoutController",
+        "ShellChromeController",
+        "ShellLayoutRestoreController",
+        "WorkspaceLayoutController",
         "SessionSnapshotCaptureAdapter",
         "SessionAutosaveController",
         "WorkspaceRestoreController",
@@ -756,27 +787,40 @@ def test_compose_shell_controllers_assigns_controllers_and_initial_state(
         "ShellActiveSurfaceController",
         "ShellRestoreWarmupController",
         "ShellPrehydratedRestoreController",
-        "CubeStackModeTransition",
+        "WorkspaceSplitterController",
+        "CubeStackPresentationController",
         "GenerationQueuePanelTransition",
         "GenerationQueueController",
     ]
     for name in controller_names:
         monkeypatch.setattr(main_window_composition, name, _FakeController)
     shell = SimpleNamespace(
-        workflow_session_service=SimpleNamespace(active_workflow_id="wf-a")
+        workflow_session_service=SimpleNamespace(active_workflow_id="wf-a"),
+        splitter=object(),
+        editor_output_container=object(),
+        canvas_tabs_container=object(),
+        cube_stack_container=object(),
+        cube_stacks={},
+        cubeStackModeButton=object(),
+        workspace_body_material_surface=object(),
+        request_session_autosave=lambda: None,
     )
 
     composition = main_window_composition.compose_shell_controllers(shell)
 
-    assert composition.shell_layout_controller is shell.shell_layout_controller
+    assert composition.shell_chrome_controller is shell.shell_chrome_controller
+    assert (
+        composition.shell_layout_restore_controller
+        is shell.shell_layout_restore_controller
+    )
+    assert composition.workspace_layout_controller is shell.workspace_layout_controller
     assert composition.canvas_route_controller is shell.canvas_route_controller
     assert shell.generation_queue_controller.installed is True
     assert shell.shell_prehydrated_restore_controller.restore_initialized is True
     assert shell.session_autosave_controller.coordinator_ensured is True
-    assert shell.shell_layout_controller.layout_trace_messages == [
+    assert getattr(shell.workspace_layout_controller, "layout_trace_messages") == [
         "initialized durable layout state"
     ]
-    assert shell._cube_stack_compact is False
     assert shell._generation_queue_panel_visible is False
     assert shell._active_workspace_route == "wf-a"
     assert shell._remembered_workflow_splitter_sizes == ()
@@ -838,7 +882,8 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     )
     shell = SimpleNamespace(
         canvas_tabs=SimpleNamespace(canvas_map={"Input": input_canvas}),
-        cube_mask_binding_service=object(),
+        input_canvas_plan_service=object(),
+        graph_section_service=object(),
         input_canvas_state_service=object(),
         canvas_io_service=object(),
         workflow_asset_service=object(),
@@ -857,10 +902,11 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     assert composition.input_canvas_presenter is shell.input_canvas_presenter
     assert composition.input_mask_save_controller is shell.input_mask_save_controller
     assert shell.workflow_input_canvas_service.kwargs == {
-        "cube_mask_binding_service": shell.cube_mask_binding_service,
+        "input_canvas_plan_service": shell.input_canvas_plan_service,
         "input_canvas_state_service": shell.input_canvas_state_service,
         "canvas_io_service": shell.canvas_io_service,
         "workflow_asset_service": shell.workflow_asset_service,
+        "graph_section_service": shell.graph_section_service,
     }
     assert shell.input_mask_tool_controller.kwargs == {
         "input_pane": pane,
@@ -895,8 +941,12 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     refresh_saved_mask("cube-a", "node-a", object())
     assert shell.input_canvas_presenter.refreshed_masks == [("cube-a", "node-a")]
     assert (
-        shell.input_canvas_capability_service.cube_mask_binding_service
-        is shell.cube_mask_binding_service
+        shell.input_canvas_capability_service.input_canvas_plan_service
+        is shell.input_canvas_plan_service
+    )
+    assert (
+        shell.input_canvas_capability_service.graph_section_service
+        is shell.graph_section_service
     )
 
 
@@ -1307,7 +1357,7 @@ def test_connect_shell_signals_wires_controllers_and_startup_callbacks() -> None
         canvas_route_controller=SimpleNamespace(
             connect_canvas_route_signals=lambda: canvas_route_calls.append("connect")
         ),
-        shell_layout_controller=SimpleNamespace(
+        workspace_layout_controller=SimpleNamespace(
             toggle_canvas_tabs=lambda: None,
             handle_main_splitter_moved=lambda: None,
             handle_editor_output_splitter_moved=lambda: None,
@@ -1353,13 +1403,13 @@ def test_connect_shell_signals_wires_controllers_and_startup_callbacks() -> None
     assert canvas_route_calls == ["connect"]
     assert autosave_calls == ["canvas"]
     assert visibility_changed.connected == [
-        shell.shell_layout_controller.toggle_canvas_tabs
+        shell.workspace_layout_controller.toggle_canvas_tabs
     ]
     assert splitter_moved.connected == [
-        shell.shell_layout_controller.handle_main_splitter_moved
+        shell.workspace_layout_controller.handle_main_splitter_moved
     ]
     assert output_splitter_moved.connected == [
-        shell.shell_layout_controller.handle_editor_output_splitter_moved
+        shell.workspace_layout_controller.handle_editor_output_splitter_moved
     ]
     assert len(panel_changed.connected) == 1
     assert generation_mode_calls == ["generate"]
@@ -1367,7 +1417,7 @@ def test_connect_shell_signals_wires_controllers_and_startup_callbacks() -> None
     assert comfy_visibility_calls == [False]
     assert layout_trace_calls == ["scheduling startup default splitter layout"]
     assert scheduled == [
-        (0, shell.shell_layout_controller.apply_startup_default_splitter_layout),
+        (0, shell.workspace_layout_controller.apply_startup_default_splitter_layout),
         (0, shell.progress_overlay_controller.position_progress_overlay),
         (0, shell.search_overlay_controller.position_search_box),
     ]

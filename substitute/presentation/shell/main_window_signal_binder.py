@@ -70,7 +70,7 @@ class MainWindowSignalBinder:
         """Connect shell menu and toolbar actions to controller entry points."""
 
         self._shell.cubeStackModeButton.toggled.connect(
-            self._shell.shell_layout_controller.set_cube_stack_compact
+            self._shell.cube_stack_presentation_controller.request_preference
         )
         self._shell._global_override_menu.triggered.connect(
             self._shell.workspace_search_actions.proxy_override_menu_toggled
@@ -80,7 +80,7 @@ class MainWindowSignalBinder:
         """Connect the frame-owned app orb menu to controller entry points."""
 
         self._shell.appOrbMenuButton = app_orb_menu
-        self._shell.shell_layout_controller.set_app_orb_workflow_file_actions_enabled(
+        self._shell.shell_chrome_controller.set_app_orb_workflow_file_actions_enabled(
             getattr(self._shell, "_active_workspace_route", None)
             != SETTINGS_WORKSPACE_ROUTE,
         )

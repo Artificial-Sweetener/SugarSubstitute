@@ -26,7 +26,7 @@ import pytest
 
 from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.shell import settings_route_controller
-from substitute.presentation.shell.shell_layout_controller import ShellLayoutController
+from substitute.presentation.shell.shell_chrome_controller import ShellChromeController
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -289,7 +289,12 @@ def test_route_helpers_switch_workspace_pages_without_geometry_changes() -> None
             set_route_active=settings_route_active.append
         ),
     )
-    shell.shell_layout_controller = ShellLayoutController(shell)
+    shell.shell_chrome_controller = ShellChromeController(shell)
+    shell.cube_stack_presentation_controller = SimpleNamespace(
+        set_workflow_route_active=lambda active: material_regions.append(
+            cube_stack_container if active else None
+        )
+    )
 
     controller = settings_route_controller.SettingsRouteController(
         shell,

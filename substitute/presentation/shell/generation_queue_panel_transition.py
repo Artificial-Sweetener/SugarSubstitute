@@ -232,7 +232,7 @@ class GenerationQueuePanelTransition(QObject):
         )
         sizes[snapshot.side_index] = max(_SIDE_MINIMUM_RENDERED_WIDTH, rendered_width)
         snapshot.splitter.setSizes(sizes)
-        layout_controller = getattr(self._view, "shell_layout_controller", None)
+        layout_controller = getattr(self._view, "workspace_layout_controller", None)
         remember_sizes = getattr(
             layout_controller,
             "remember_workflow_splitter_sizes",
@@ -368,7 +368,7 @@ class GenerationQueuePanelTransition(QObject):
     def _trace(self, event: str, **context: object) -> None:
         """Log side-panel transition shell layout context."""
 
-        layout_controller = getattr(self._view, "shell_layout_controller", None)
+        layout_controller = getattr(self._view, "workspace_layout_controller", None)
         view_trace = getattr(layout_controller, "log_editor_width_trace", None)
         if callable(view_trace):
             view_trace(

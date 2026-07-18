@@ -18,9 +18,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
-from substitute.domain.workflow import WorkflowState
+from substitute.domain.workflow import WorkflowDocumentKind, WorkflowState
 from substitute.domain.workspace_snapshot import (
     EditorViewportSnapshot,
     WorkflowSnapshot,
@@ -130,6 +130,7 @@ class SnapshotNormalizationService:
     ) -> WorkflowSnapshot:
         """Normalize cube order, image references, and focus fields for one tab."""
 
+        document_kind = workflow.workflow.document_kind
         existing_cube_aliases = set(workflow.workflow.cubes)
         stack_order = [
             alias
@@ -164,14 +165,15 @@ class SnapshotNormalizationService:
             output_uuid_texts=output_uuid_texts,
             warnings=warnings,
         )
-        active_cube_alias = workflow.active_cube_alias
-        if active_cube_alias not in set(stack_order):
-            active_cube_alias = stack_order[-1] if stack_order else None
-            warnings.append(
-                f"Repaired active cube for workflow {workflow.workflow_id}."
-            )
+        active_cube_alias = self._normalize_active_cube_alias(
+            workflow,
+            document_kind=document_kind,
+            stack_order=stack_order,
+            warnings=warnings,
+        )
         editor_viewport = self._normalize_editor_viewport(
             workflow.editor_viewport,
+            document_kind=document_kind,
             stack_order=stack_order,
             active_cube_alias=active_cube_alias,
             workflow_id=workflow.workflow_id,
@@ -188,10 +190,29 @@ class SnapshotNormalizationService:
             editor_viewport=editor_viewport,
         )
 
+    @staticmethod
+    def _normalize_active_cube_alias(
+        workflow: WorkflowSnapshot,
+        *,
+        document_kind: WorkflowDocumentKind,
+        stack_order: list[str],
+        warnings: list[str],
+    ) -> str | None:
+        """Return document-appropriate active cube focus state."""
+
+        if document_kind is WorkflowDocumentKind.DIRECT_COMFY:
+            return None
+        active_cube_alias = workflow.active_cube_alias
+        if active_cube_alias in set(stack_order):
+            return active_cube_alias
+        warnings.append(f"Repaired active cube for workflow {workflow.workflow_id}.")
+        return stack_order[-1] if stack_order else None
+
     def _normalize_editor_viewport(
         self,
         editor_viewport: EditorViewportSnapshot | None,
         *,
+        document_kind: WorkflowDocumentKind,
         stack_order: list[str],
         active_cube_alias: str | None,
         workflow_id: str,
@@ -203,6 +224,12 @@ class SnapshotNormalizationService:
             return None
         scroll_maximum = max(0, editor_viewport.scroll_maximum)
         scroll_value = min(max(0, editor_viewport.scroll_value), scroll_maximum)
+        if document_kind is WorkflowDocumentKind.DIRECT_COMFY:
+            return EditorViewportSnapshot(
+                scroll_value=scroll_value,
+                scroll_maximum=scroll_maximum,
+                anchor_cube_alias=None,
+            )
         anchor_cube_alias = editor_viewport.anchor_cube_alias
         if anchor_cube_alias not in set(stack_order):
             anchor_cube_alias = (
@@ -239,7 +266,8 @@ class SnapshotNormalizationService:
         ):
             active_output_uuid = None
             warnings.append("Cleared stale active output UUID.")
-        return WorkflowState(
+        return replace(
+            state,
             cubes=dict(state.cubes),
             stack_order=stack_order,
             metadata=dict(state.metadata),

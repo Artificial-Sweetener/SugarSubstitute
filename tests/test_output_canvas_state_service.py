@@ -41,6 +41,7 @@ from substitute.domain.workflow import (
     OutputFocusMode,
     WorkflowState,
 )
+from substitute.domain.generation import OutputResultPosition
 
 
 def test_register_generated_output_preserves_backend_metadata_and_result_identity() -> (
@@ -99,12 +100,42 @@ def test_register_generated_output_preserves_backend_metadata_and_result_identit
     assert stored_meta.path == "E:/out.png"
     assert stored_meta.cube_execution_duration_ms == 123.0
     assert stored_meta.list_index == 2
+    assert stored_meta.batch_index == 0
 
     projection = build_output_canvas_projection(
         workflow,
         registry.metadata_for_ids(workflow.output_image_uuids),
     )
-    assert projection.sources[0].images_by_set[3].image_id == image_id
+    assert projection.sources[0].images_by_set[1].image_id == image_id
+
+
+def test_register_generated_output_preserves_manual_focus() -> None:
+    """A final arriving after user navigation must not replace manual focus."""
+
+    first_id = uuid.uuid4()
+    second_id = uuid.uuid4()
+    registry = CanvasImageRegistry()
+    registry.store(first_id, payload=object(), metadata=_live_image_meta())
+    service = OutputCanvasStateService(
+        image_registry=registry,
+        uuid_factory=lambda: second_id,
+    )
+    workflow = WorkflowState()
+    workflow.output_image_uuids = [first_id]
+    service.set_active_output_uuid(workflow, str(first_id))
+
+    result = service.register_generated_output(
+        {"wf": workflow},
+        active_workflow_id="wf",
+        event=_live_final_event(),
+        image=object(),
+        image_meta=_live_image_meta(),
+    )
+
+    assert result.registered is True
+    assert workflow.output_image_uuids == [first_id, second_id]
+    assert workflow.output_focus_mode is OutputFocusMode.MANUAL
+    assert workflow.active_output_uuid == first_id
 
 
 def test_register_generated_output_rejects_node_mismatch() -> None:
@@ -294,7 +325,7 @@ def _live_final_event() -> LiveFinalOutputEvent:
         node_id="save-node",
         workflow_payload={"save-node": {"class_type": "SugarCubes.CubeOutput"}},
         file_path=Path("E:/out.png"),
-        list_index=2,
+        position=OutputResultPosition(list_index=2, batch_index=0),
         artifact_width=640,
         artifact_height=480,
     )
@@ -323,5 +354,6 @@ def _live_image_meta(node_id: str = "save-node") -> ImageMeta:
         width=640,
         height=480,
         list_index=2,
+        batch_index=0,
         cube_execution_duration_ms=123.0,
     )

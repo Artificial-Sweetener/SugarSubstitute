@@ -89,7 +89,7 @@ from substitute.application.user_presets import UserPresetService
 from substitute.application.overrides import SamplerSchedulerLinkStateService
 from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.editor.panel.widgets.masonry_grid_layout import (
-    EDITOR_CUBE_SECTION_GAP,
+    EDITOR_SECTION_GAP,
     MasonryGridLayout,
 )
 from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
@@ -113,6 +113,7 @@ from .cube_reveal_controller import (
     EditorPanelCubeRevealController,
     EditorPanelCubeRevealHost,
 )
+from .content_gutter_controller import EditorPanelContentGutterController
 from .cube_registry import EditorCubeRegistry, EditorCubeRegistryHost
 from .field_sync_controller import (
     EditorPanelFieldSyncController,
@@ -181,8 +182,6 @@ from .node_card_builder import NodeCardBuilder, NodeCardPromptFieldInputs
 from .widgets.cube_section import CubeSectionBuilder
 
 _LOGGER = get_logger("presentation.editor.panel.view")
-EDITOR_PANEL_LEFT_GUTTER = 6
-EDITOR_PANEL_RIGHT_GUTTER = 14
 
 
 def isValid(obj: object) -> bool:  # noqa: N802
@@ -405,7 +404,7 @@ def _refresh_prompt_scene_diagnostics_if_available(panel: object) -> None:
 class EditorPanel(QWidget):
     """Render one workflow editor surface and coordinate cube-section refreshes."""
 
-    CUBE_SPACING = EDITOR_CUBE_SECTION_GAP
+    CUBE_SPACING = EDITOR_SECTION_GAP
     currentCubeVisibleChanged = Signal(str)
     inputImageChanged = Signal(str, str, str)
     inputImageClicked = Signal(str, str, str)
@@ -783,12 +782,7 @@ class EditorPanel(QWidget):
 
         content = QWidget()
         content.setLayout(self._layout)
-        content.setContentsMargins(
-            EDITOR_PANEL_LEFT_GUTTER,
-            0,
-            EDITOR_PANEL_RIGHT_GUTTER,
-            0,
-        )
+        self._content_gutter_controller = EditorPanelContentGutterController(content)
         content.setMinimumWidth(1)
         content.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
 
@@ -904,6 +898,16 @@ class EditorPanel(QWidget):
         self._search_field_match_keys: set[tuple[str, str, str]] | None = None
         self._field_search_active = False
         self._last_behavior_snapshot: EditorBehaviorSnapshot | None = None
+
+    def set_cube_stack_unavailable_progress(self, progress: float) -> None:
+        """Apply the shared stack-transition progress to editor content spacing."""
+
+        self._content_gutter_controller.apply_cube_stack_unavailable_progress(progress)
+
+    def content_horizontal_gutters(self) -> tuple[int, int]:
+        """Return live editor content gutters for shell geometry diagnostics."""
+
+        return self._content_gutter_controller.horizontal_gutters()
 
     @property
     def node_definition_gateway(self) -> NodeDefinitionGateway:
@@ -1803,6 +1807,11 @@ class EditorPanel(QWidget):
                 self
             ).finalize_pending_visible_projection()
         )
+
+    def is_projection_active(self) -> bool:
+        """Return whether this panel still owns full-projection work."""
+
+        return _projection_coordinator_for_panel(self).is_projection_active()
 
     def insert_cube_section(
         self,

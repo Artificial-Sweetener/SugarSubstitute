@@ -32,7 +32,6 @@ from substitute.infrastructure.comfy.artifact_fetcher import ComfyArtifactFetche
 from substitute.infrastructure.comfy.cube_output_event import SubstituteVisualIdentity
 from substitute.infrastructure.comfy.cube_output_event_handler import (
     CubeOutputEventHandler,
-    DelegatingCubeOutputArtifactFetcher,
 )
 from substitute.infrastructure.comfy.cube_output_event_router import (
     CubeOutputDiagnostic,
@@ -52,6 +51,14 @@ from substitute.infrastructure.comfy.output_source_identity_resolver import (
 from substitute.infrastructure.comfy.output_image_persistence import (
     OutputImagePersistence,
 )
+from substitute.infrastructure.comfy.final_image_event import FinalImageScene
+from substitute.infrastructure.comfy.final_image_event_handler import (
+    FinalImageEventHandler,
+)
+from substitute.infrastructure.comfy.standard_executed_image_handler import (
+    StandardExecutedImageContext,
+    StandardExecutedImageHandler,
+)
 from substitute.shared.logging.logger import get_logger, log_warning
 
 _LOGGER = get_logger("infrastructure.comfy.listener_output_pipeline")
@@ -64,6 +71,7 @@ class ListenerOutputPipeline:
     cube_output_node_ids: set[str]
     output_source_resolver: ListenerOutputSourceResolver
     cube_output_handler: CubeOutputEventHandler
+    standard_output_handler: StandardExecutedImageHandler
 
 
 def build_listener_output_pipeline(
@@ -107,6 +115,11 @@ def build_listener_output_pipeline(
         sugar_script=request.sugar_script,
         cube_numbers_by_alias=cube_numbers_by_alias,
     )
+    final_image_handler = FinalImageEventHandler(
+        artifact_fetcher=artifact_fetcher,
+        output_persistence=output_persistence,
+        on_output_image=callbacks.on_output_image,
+    )
     cube_output_handler = CubeOutputEventHandler(
         context=CubeOutputRouteContext(
             workflow_id=request.workflow_id,
@@ -114,23 +127,40 @@ def build_listener_output_pipeline(
             prompt_id=request.prompt_id,
         ),
         workflow_payload=request.workflow_payload,
-        artifact_fetcher=DelegatingCubeOutputArtifactFetcher(
-            artifact_fetcher_provider=lambda: artifact_fetcher,
-        ),
-        output_persistence=output_persistence,
+        final_image_handler=final_image_handler,
         identity_acceptor=lambda identity, prompt_id, node_id: _accept_final_output(
             visual_event_guard=visual_event_guard,
             identity=identity,
             prompt_id=prompt_id,
             node_id=node_id,
         ),
-        on_output_image=callbacks.on_output_image,
         on_diagnostic=on_cube_output_diagnostic,
+    )
+    standard_output_handler = StandardExecutedImageHandler(
+        context=StandardExecutedImageContext(
+            workflow_id=request.workflow_id,
+            generation_run_id=request.generation_run_id,
+            prompt_id=request.prompt_id,
+            client_id=request.client_id,
+            workflow_payload=request.workflow_payload,
+            scene=FinalImageScene(
+                run_id=request.scene_run_id,
+                key=request.scene_key,
+                title=request.scene_title,
+                order=request.scene_order,
+                count=request.scene_count,
+            ),
+        ),
+        sources_by_node={
+            source.node_id: source for source in request.standard_output_sources
+        },
+        final_image_handler=final_image_handler,
     )
     return ListenerOutputPipeline(
         cube_output_node_ids=cube_output_node_ids,
         output_source_resolver=output_source_resolver,
         cube_output_handler=cube_output_handler,
+        standard_output_handler=standard_output_handler,
     )
 
 

@@ -14,31 +14,12 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Compute deterministic prompts-first wired order for editor node cards."""
+"""Compute deterministic graph order and reachability for editor node cards."""
 
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Mapping, Sequence
-
-from substitute.domain.node_behavior import PromptRole
-from substitute.domain.node_behavior.inference import prompt_role_from_label
-
-
-def order_node_cards(
-    nodes: Mapping[str, object],
-    *,
-    layout_nodes: Mapping[str, object] | None = None,
-) -> list[str]:
-    """Return node names in prompts-first wired card order."""
-
-    ordered = wired_node_order(nodes)
-    priority_nodes = prompt_priority_nodes(
-        ordered,
-        nodes=nodes,
-        layout_nodes=layout_nodes,
-    )
-    return priority_nodes + [name for name in ordered if name not in priority_nodes]
+from collections.abc import Mapping
 
 
 def wired_node_order(nodes: Mapping[str, object]) -> list[str]:
@@ -46,7 +27,7 @@ def wired_node_order(nodes: Mapping[str, object]) -> list[str]:
 
     node_names = [name for name in nodes if isinstance(name, str)]
     in_degree = {name: 0 for name in node_names}
-    graph: dict[str, list[str]] = {name: [] for name in node_names}
+    graph = downstream_node_graph(nodes)
 
     for node_name, node_data in nodes.items():
         if not isinstance(node_name, str) or not isinstance(node_data, Mapping):
@@ -57,8 +38,6 @@ def wired_node_order(nodes: Mapping[str, object]) -> list[str]:
         for input_value in inputs.values():
             if not _is_local_node_link(input_value, in_degree):
                 continue
-            dependency = input_value[0]
-            graph[dependency].append(node_name)
             in_degree[node_name] += 1
 
     queue = deque(name for name in node_names if in_degree[name] == 0)
@@ -75,60 +54,48 @@ def wired_node_order(nodes: Mapping[str, object]) -> list[str]:
     return ordered
 
 
-def prompt_priority_nodes(
-    ordered_nodes: Sequence[str],
-    *,
-    nodes: Mapping[str, object],
-    layout_nodes: Mapping[str, object] | None = None,
-) -> list[str]:
-    """Return prompt nodes in positive, negative priority order."""
+def downstream_node_graph(nodes: Mapping[str, object]) -> dict[str, tuple[str, ...]]:
+    """Return local source-to-dependent adjacency in persisted node order."""
 
-    priority_nodes: list[str] = []
-    resolved_layout_nodes = layout_nodes or {}
-    for role in (PromptRole.POSITIVE, PromptRole.NEGATIVE):
-        for node_name in ordered_nodes:
-            if node_name in priority_nodes:
-                continue
-            title = node_title_for_order(
-                node_name=node_name,
-                node_data=nodes.get(node_name),
-                layout_nodes=resolved_layout_nodes,
-            )
-            if title is not None and prompt_role_from_label(title) == role:
-                priority_nodes.append(node_name)
-    for legacy_name in ("positive_prompt", "negative_prompt"):
-        if legacy_name in ordered_nodes and legacy_name not in priority_nodes:
-            priority_nodes.append(legacy_name)
-    return priority_nodes
+    node_names = {name for name in nodes if isinstance(name, str)}
+    dependents: dict[str, list[str]] = {name: [] for name in node_names}
+    for node_name, node_data in nodes.items():
+        if not isinstance(node_name, str) or not isinstance(node_data, Mapping):
+            continue
+        inputs = node_data.get("inputs", {})
+        if not isinstance(inputs, Mapping):
+            continue
+        for input_value in inputs.values():
+            if _is_local_node_link(input_value, dependents):
+                dependents[input_value[0]].append(node_name)
+    return {name: tuple(items) for name, items in dependents.items()}
 
 
-def node_title_for_order(
-    *,
-    node_name: str,
-    node_data: object,
-    layout_nodes: Mapping[str, object],
-) -> str | None:
-    """Return the author-facing node title used for prompt role detection."""
+def node_reaches(
+    graph: Mapping[str, tuple[str, ...]],
+    source: str,
+    target: str,
+) -> bool:
+    """Return whether target is downstream of source without recursing through cycles."""
 
-    layout_node = layout_nodes.get(node_name)
-    if isinstance(layout_node, Mapping):
-        layout_title = layout_node.get("title")
-        if isinstance(layout_title, str):
-            return layout_title
-    if isinstance(node_data, Mapping):
-        meta = node_data.get("_meta")
-        if isinstance(meta, Mapping):
-            meta_title = meta.get("title")
-            if isinstance(meta_title, str):
-                return meta_title
-    if node_name in {"positive_prompt", "negative_prompt"}:
-        return node_name
-    return None
+    if source == target:
+        return True
+    visited = {source}
+    pending = list(graph.get(source, ()))
+    while pending:
+        current = pending.pop()
+        if current == target:
+            return True
+        if current in visited:
+            continue
+        visited.add(current)
+        pending.extend(graph.get(current, ()))
+    return False
 
 
 def _is_local_node_link(
     input_value: object,
-    node_names: Mapping[str, int],
+    node_names: Mapping[str, object],
 ) -> bool:
     """Return whether one input value links to another node in the same cube."""
 
@@ -141,8 +108,7 @@ def _is_local_node_link(
 
 
 __all__ = [
-    "node_title_for_order",
-    "order_node_cards",
-    "prompt_priority_nodes",
+    "downstream_node_graph",
+    "node_reaches",
     "wired_node_order",
 ]

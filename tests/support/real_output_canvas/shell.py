@@ -320,6 +320,7 @@ class _CanvasIoService:
         source_label: str = "",
         node_id: str = "",
         list_index: int | None = None,
+        batch_index: int | None = None,
         generation_run_id: str | None = None,
         prompt_id: str | None = None,
         client_id: str | None = None,
@@ -354,6 +355,7 @@ class _CanvasIoService:
             width=width,
             height=height,
             list_index=list_index,
+            batch_index=batch_index,
             cube_execution_duration_ms=cube_execution_duration_ms,
         )
 

@@ -33,6 +33,9 @@ from substitute.infrastructure.comfy.binary_websocket_event_router import (
 from substitute.infrastructure.comfy.cube_output_event_handler import (
     CubeOutputEventHandler,
 )
+from substitute.infrastructure.comfy.standard_executed_image_handler import (
+    StandardExecutedImageHandler,
+)
 from substitute.infrastructure.comfy.listener_binary_event_runtime import (
     build_listener_binary_event_runtime,
 )
@@ -82,6 +85,7 @@ class ListenerRuntimeComposition:
     progress_context: ListenerProgressContext
     output_source_resolver: ListenerOutputSourceResolver
     cube_output_handler: CubeOutputEventHandler
+    standard_output_handler: StandardExecutedImageHandler
     model_load_source_metadata_resolver: ListenerModelLoadSourceMetadataResolver
     binary_event_router: BinaryWebsocketEventRouter
     cube_output_node_ids: set[str]
@@ -168,6 +172,7 @@ def build_listener_runtime_composition(
         progress_context=progress_context,
         output_source_resolver=output_pipeline.output_source_resolver,
         cube_output_handler=output_pipeline.cube_output_handler,
+        standard_output_handler=output_pipeline.standard_output_handler,
         model_load_source_metadata_resolver=model_load_source_metadata_resolver,
         binary_event_router=binary_event_runtime.binary_event_router,
         cube_output_node_ids=output_pipeline.cube_output_node_ids,

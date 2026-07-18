@@ -24,6 +24,7 @@ from pathlib import Path
 from PySide6.QtGui import QImage
 
 from substitute.application.workflows.output_visual_events import LiveFinalOutputEvent
+from substitute.domain.generation import OutputResultPosition
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +41,7 @@ class OutputImageCommitRequest:
     generation_run_id: str | None = None
     prompt_id: str | None = None
     client_id: str | None = None
-    list_index: int | None = None
+    position: OutputResultPosition | None = None
     artifact_width: int | None = None
     artifact_height: int | None = None
     live_event: LiveFinalOutputEvent | None = None

@@ -23,9 +23,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from substitute.application.ports.comfy_gateway import OutputImageUpdate
-from substitute.infrastructure.comfy.cube_output_event import CubeOutputArtifact
+from substitute.infrastructure.comfy.image_artifact import ComfyImageArtifact
 from substitute.infrastructure.comfy.cube_output_event_handler import (
     CubeOutputEventHandler,
+)
+from substitute.infrastructure.comfy.final_image_event_handler import (
+    FinalImageEventHandler,
 )
 from substitute.infrastructure.comfy.cube_output_event_router import (
     CubeOutputDiagnostic,
@@ -82,9 +85,9 @@ def _payload(**updates: object) -> dict[str, object]:
 class _ArtifactFetcher:
     """Record fetched artifacts and return deterministic image bytes."""
 
-    artifacts: list[CubeOutputArtifact]
+    artifacts: list[ComfyImageArtifact]
 
-    def fetch(self, artifact: CubeOutputArtifact) -> bytes:
+    def fetch(self, artifact: ComfyImageArtifact) -> bytes:
         """Record one fetched artifact."""
 
         self.artifacts.append(artifact)
@@ -141,10 +144,12 @@ def _handler(
             prompt_id="pid-1",
         ),
         workflow_payload={"output-node": {"class_type": "SugarCubes.CubeOutput"}},
-        artifact_fetcher=fetcher or _ArtifactFetcher([]),
-        output_persistence=persistence or _OutputPersistence([]),
+        final_image_handler=FinalImageEventHandler(
+            artifact_fetcher=fetcher or _ArtifactFetcher([]),
+            output_persistence=persistence or _OutputPersistence([]),
+            on_output_image=captured_output_events.append,
+        ),
         identity_acceptor=lambda _identity, _prompt_id, _node_id: identity_accepted,
-        on_output_image=captured_output_events.append,
         on_diagnostic=captured_diagnostics.append,
     )
 
@@ -186,7 +191,7 @@ def test_cube_output_event_handler_keeps_infrastructure_boundary() -> None:
 def test_handler_fetches_persists_and_emits_output_image_update() -> None:
     """Valid image artifacts should be fetched, persisted, and emitted."""
 
-    fetched_artifacts: list[CubeOutputArtifact] = []
+    fetched_artifacts: list[ComfyImageArtifact] = []
     persisted_calls: list[tuple[bytes, OutputSourceIdentity]] = []
     output_events: list[OutputImageUpdate] = []
     handler = _handler(
@@ -259,7 +264,7 @@ def test_handler_uses_persisted_dimensions_when_artifact_dimensions_are_missing(
 def test_handler_skips_non_image_artifacts_inside_image_events() -> None:
     """Non-image artifacts should not be fetched or emitted."""
 
-    fetched_artifacts: list[CubeOutputArtifact] = []
+    fetched_artifacts: list[ComfyImageArtifact] = []
     output_events: list[OutputImageUpdate] = []
     handler = _handler(
         fetcher=_ArtifactFetcher(fetched_artifacts),
@@ -272,21 +277,27 @@ def test_handler_skips_non_image_artifacts_inside_image_events() -> None:
                 "subfolder": "",
                 "type": "output",
                 "media_kind": "value",
-            }
+            },
+            {
+                "filename": "image.png",
+                "subfolder": "",
+                "type": "output",
+                "media_kind": "image",
+            },
         ]
     )
 
     handler.handle(payload)
 
-    assert fetched_artifacts == []
-    assert output_events == []
+    assert [artifact.filename for artifact in fetched_artifacts] == ["image.png"]
+    assert [event.batch_index for event in output_events] == [0]
 
 
 def test_handler_emits_diagnostics_without_fetching_artifacts() -> None:
     """Invalid cube-output payloads should route diagnostics and stop."""
 
     diagnostics: list[CubeOutputDiagnostic] = []
-    fetched_artifacts: list[CubeOutputArtifact] = []
+    fetched_artifacts: list[ComfyImageArtifact] = []
     handler = _handler(
         fetcher=_ArtifactFetcher(fetched_artifacts),
         diagnostics=diagnostics,
@@ -302,7 +313,7 @@ def test_handler_emits_diagnostics_without_fetching_artifacts() -> None:
 def test_handler_suppresses_output_after_identity_rejection() -> None:
     """Rejected Substitute visual identity should not fetch or emit outputs."""
 
-    fetched_artifacts: list[CubeOutputArtifact] = []
+    fetched_artifacts: list[ComfyImageArtifact] = []
     output_events: list[OutputImageUpdate] = []
     handler = _handler(
         fetcher=_ArtifactFetcher(fetched_artifacts),

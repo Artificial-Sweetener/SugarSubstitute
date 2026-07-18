@@ -76,6 +76,11 @@ class WorkflowDuplicateService:
             global_overrides=deepcopy(source.global_overrides),
             override_control_states=deepcopy(source.override_control_states),
             global_override_selections=deepcopy(source.global_override_selections),
+            direct_workflow=(
+                source.direct_workflow.duplicate()
+                if source.direct_workflow is not None
+                else None
+            ),
         )
         elapsed_ms = elapsed_ms_since(started_at, clock=self._clock)
         log_context = {

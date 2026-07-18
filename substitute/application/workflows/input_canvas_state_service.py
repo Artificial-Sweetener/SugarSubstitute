@@ -25,7 +25,7 @@ from uuid import UUID, uuid4
 
 from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
 from substitute.application.workflows.canvas_pane_catalog_port import (
-    CanvasPaneCatalogPort,
+    InputCanvasPaneCatalogPort,
 )
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
@@ -64,7 +64,7 @@ class InputCanvasStateService:
         self,
         *,
         input_pane: InputMaskPanePort,
-        input_catalog: CanvasPaneCatalogPort,
+        input_catalog: InputCanvasPaneCatalogPort,
         input_route_projector: InputRouteProjectorPort,
         canvas_session_boundary: CanvasRouteSessionBoundaryPort | None = None,
         image_registry: CanvasImageRegistry | None = None,
@@ -78,6 +78,11 @@ class InputCanvasStateService:
             canvas_session_boundary or create_canvas_session_boundary()
         )
         self._image_registry = image_registry or CanvasImageRegistry()
+
+    def input_image_path(self, image_id: UUID) -> Path | None:
+        """Return the exact persisted path owned by one loaded Input image."""
+
+        return self._input_catalog.image_path(image_id)
 
     def project_workflow(
         self,
@@ -488,6 +493,42 @@ class InputCanvasStateService:
             mask_id=str(mask_id),
             pane_removed=removed,
         )
+
+    def drop_input_surface(
+        self,
+        workflows: Mapping[str, WorkflowState],
+        workflow_id: str,
+        input_key: str,
+    ) -> bool:
+        """Drop one obsolete Input surface, its mask layers, and cached image."""
+
+        workflow = workflows.get(workflow_id)
+        if workflow is None:
+            return False
+        image_id = workflow.canvas.input_key_map.pop(input_key, None)
+        if image_id is None:
+            return False
+        association_keys = tuple(
+            association_key
+            for association_key, mask_id in workflow.canvas.mask_associations.items()
+            if workflow.canvas.mask_to_image_map.get(mask_id) == image_id
+        )
+        for association_key in association_keys:
+            self.drop_mask_association(workflow, association_key)
+        if workflow.canvas.input_image_uuid == image_id:
+            workflow.canvas.input_image_uuid = None
+            workflow.canvas.active_input_mask_uuid = None
+        self._bind_input_route_scope(workflow_id, workflow)
+        self._remove_input_uuid_if_unreferenced(image_id, workflows)
+        log_debug(
+            _LOGGER,
+            "Dropped obsolete Input canvas surface",
+            workflow_id=workflow_id,
+            input_key=input_key,
+            image_id=str(image_id),
+            dropped_mask_count=len(association_keys),
+        )
+        return True
 
     def prune_closed_workflow_images(
         self,

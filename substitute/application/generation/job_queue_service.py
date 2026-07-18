@@ -952,6 +952,7 @@ class GenerationJobQueueService:
             workflow_id=committed_job.snapshot.workflow_id,
             workflow_name=committed_job.snapshot.workflow_name,
             sugar_script_text=committed_job.snapshot.sugar_script_text,
+            direct_workflow_plan=committed_job.snapshot.direct_workflow_plan,
             output_run_number=committed_job.output_run_number,
             output_job_started_at=job_started_at,
             scene_run_id=committed_job.snapshot.scene_run_id,
@@ -1284,7 +1285,12 @@ class GenerationJobQueueService:
                 scene_order=event.scene_order,
                 scene_count=event.scene_count,
                 node_title=None,
-                metadata={},
+                metadata={
+                    "list_index": event.list_index,
+                    "batch_index": event.batch_index,
+                    "width": event.artifact_width,
+                    "height": event.artifact_height,
+                },
             )
         )
 

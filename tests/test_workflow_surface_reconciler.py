@@ -371,9 +371,7 @@ def _active_surface_shell(
             has_cancellable_jobs=lambda: False,
             jobs=lambda: (),
         ),
-        shell_layout_controller=SimpleNamespace(
-            current_generation_queue_panel_visible=lambda: False
-        ),
+        generation_queue_controller=SimpleNamespace(panel_visible=False),
     )
     shell.generation_action_controller = GenerationActionController(shell)
     return shell

@@ -33,6 +33,7 @@ from substitute.application.ports.comfy_gateway import (
     ProgressUpdate,
 )
 from substitute.domain.common import WorkflowId
+from substitute.domain.comfy_workflow import DirectWorkflowGenerationPlan
 
 if TYPE_CHECKING:
     from substitute.application.recipes.recipe_io_service import (
@@ -47,6 +48,7 @@ class PreparedGenerationRequest:
     workflow_id: WorkflowId
     workflow_name: str
     sugar_script_text: str
+    direct_workflow_plan: DirectWorkflowGenerationPlan | None = None
     workflow: RecipeWorkflowLike | None = None
     output_run_number: int | None = None
     output_job_started_at: datetime | None = None

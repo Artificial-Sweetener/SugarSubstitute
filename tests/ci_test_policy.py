@@ -123,7 +123,8 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_prompt_wildcard_overlay_contract.py",
         # QFluent menu construction can terminate an xdist Qt worker.
         "tests/test_qfluent_menu_renderer.py",
-        "tests/test_real_shell_cube_stack_scenarios.py",
+        # Real Output QPane interaction owns native scene and popup state.
+        "tests/test_real_shell_output_canvas_abuse_matrix.py",
         "tests/test_real_shell_output_canvas_scenarios.py",
         "tests/test_real_shell_prompt_editor_autocomplete_scenarios.py",
         "tests/test_real_shell_prompt_editor_harness.py",

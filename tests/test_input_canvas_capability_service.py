@@ -18,8 +18,25 @@
 
 from __future__ import annotations
 
-from substitute.application.cubes import CubeMaskBindingService
-from substitute.application.workflows import InputCanvasCapabilityService
+from pathlib import Path
+
+from substitute.application.workflows import (
+    InputCanvasCapabilityService,
+)
+from substitute.application.workflows.input_asset_endpoint_service import (
+    InputAssetEndpointService,
+)
+from substitute.application.workflows.input_canvas_plan_service import (
+    InputCanvasPlanService,
+)
+from substitute.application.workflows.workflow_graph_section_service import (
+    WorkflowGraphSectionService,
+)
+from substitute.application.workflows.workflow_node_definition_service import (
+    WorkflowNodeDefinitionService,
+)
+from substitute.domain.comfy_workflow import DirectWorkflowState
+from substitute.domain.common import JsonObject
 from substitute.domain.workflow import CubeState, WorkflowState
 
 
@@ -38,11 +55,18 @@ def _cube_state(nodes: dict[str, object]) -> CubeState:
 def _service() -> InputCanvasCapabilityService:
     """Build the capability service with production binding rules."""
 
-    return InputCanvasCapabilityService(CubeMaskBindingService())
+    definitions = WorkflowNodeDefinitionService()
+    return InputCanvasCapabilityService(
+        InputCanvasPlanService(
+            node_definition_service=definitions,
+            endpoint_service=InputAssetEndpointService(definitions),
+        ),
+        WorkflowGraphSectionService(),
+    )
 
 
-def test_workflow_needs_input_canvas_for_load_image_image_field() -> None:
-    """A LoadImage image field should expose the Input canvas before selection."""
+def test_workflow_needs_input_canvas_for_used_load_image() -> None:
+    """A connected LoadImage output should expose the Input canvas."""
 
     workflow = WorkflowState(
         cubes={
@@ -51,10 +75,41 @@ def test_workflow_needs_input_canvas_for_load_image_image_field() -> None:
                     "input_image": {
                         "class_type": "LoadImage",
                         "inputs": {"image": ""},
-                    }
+                    },
+                    "consumer": {
+                        "class_type": "Consumer",
+                        "inputs": {"pixels": ["input_image", 0]},
+                    },
                 }
             )
+        },
+        stack_order=["CubeA"],
+    )
+
+    assert _service().workflow_needs_input_canvas(workflow) is True
+
+
+def test_direct_workflow_uses_same_input_canvas_capability_path() -> None:
+    """A direct graph should expose input capability through the shared projection."""
+
+    graph: JsonObject = {
+        "nodes": {
+            "input_image": {
+                "class_type": "LoadImage",
+                "inputs": {"image": "photo.png"},
+            },
+            "consumer": {
+                "class_type": "Consumer",
+                "inputs": {"pixels": ["input_image", 0]},
+            },
         }
+    }
+    workflow = WorkflowState(
+        direct_workflow=DirectWorkflowState(
+            source_path=Path("workflow.json"),
+            source_workflow=graph,
+            buffer=graph,
+        )
     )
 
     assert _service().workflow_needs_input_canvas(workflow) is True
@@ -84,7 +139,8 @@ def test_workflow_needs_input_canvas_for_editable_mask_binding() -> None:
                     },
                 }
             )
-        }
+        },
+        stack_order=["CubeA"],
     )
 
     assert _service().workflow_needs_input_canvas(workflow) is True
@@ -109,7 +165,8 @@ def test_workflow_with_plain_nodes_does_not_need_input_canvas() -> None:
                     }
                 }
             )
-        }
+        },
+        stack_order=["CubeA"],
     )
 
     assert _service().workflow_needs_input_canvas(workflow) is False
@@ -128,7 +185,8 @@ def test_standalone_load_image_mask_does_not_need_input_canvas() -> None:
                     }
                 }
             )
-        }
+        },
+        stack_order=["CubeA"],
     )
 
     assert _service().workflow_needs_input_canvas(workflow) is False

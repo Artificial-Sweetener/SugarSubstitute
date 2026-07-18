@@ -276,7 +276,8 @@ def test_presenter_refreshes_user_selected_mask_from_asset_state(
                 selected_dimensions=None,
                 required_dimensions=None,
                 materialization_result=None,
-            )
+            ),
+            resolve_input_mask_path=lambda *_args, **_kwargs: asset_path,
         ),
     )
 
@@ -336,7 +337,7 @@ def test_explicit_and_debounced_saves_refresh_from_asset_state(
             resolve_mask_save_path=lambda **_kwargs: old_path,
             save_mask_image=lambda **_kwargs: True,
         ),
-        workflow_asset_service=SimpleNamespace(
+        workflow_input_canvas_service=SimpleNamespace(
             associate_project_input_mask=lambda *_args, **_kwargs: True
         ),
         workflow_name_provider=lambda _workflow_id: "Recipe",
@@ -515,6 +516,7 @@ def _presenter(
         bindings_for_image=lambda *_args: (
             SimpleNamespace(association_key=("CubeA", "MaskNode")),
         ),
+        resolve_input_mask_path=lambda *_args, **_kwargs: asset_path,
     )
     input_canvas_state_service = input_canvas_state_service or SimpleNamespace(
         set_active_input_image=lambda *_args: True,
@@ -535,9 +537,6 @@ def _presenter(
         ),
         workflow_input_canvas_service=cast(Any, workflow_input_canvas_service),
         input_canvas_state_service=cast(Any, input_canvas_state_service),
-        workflow_asset_service=SimpleNamespace(
-            resolve_input_mask_path=lambda *_args, **_kwargs: asset_path
-        ),
         canvas_tabs_provider=lambda: cast(Any, canvas_tabs),
         workflow_name_provider=lambda _workflow_id: "Recipe",
         projects_dir_provider=lambda: asset_path.parent,

@@ -26,6 +26,9 @@ from substitute.application.generation import (
     GenerationRequest,
     GenerationPreparationService,
 )
+from substitute.application.direct_workflows import (
+    DirectWorkflowGenerationPlanService,
+)
 from substitute.application.workflows import WorkflowDuplicateService
 from substitute.presentation.shell.cube_loader import CubeLoadUiCallbacks
 from substitute.presentation.shell.workflow_workspace_coordinator import (
@@ -361,6 +364,16 @@ class WorkspaceController:
             prompt_wildcard_preprocessing_service=cast(
                 Any,
                 getattr(view, "prompt_wildcard_preprocessing_service", None),
+            ),
+            direct_workflow_graph_service=DirectWorkflowGenerationPlanService(
+                node_definition_hydrator=cast(
+                    Any,
+                    getattr(view, "node_definition_gateway", None),
+                ),
+                node_definition_gateway=cast(
+                    Any,
+                    getattr(view, "node_definition_gateway", None),
+                ),
             ),
         )
 

@@ -38,6 +38,7 @@ except ImportError:  # pragma: no cover - test-stub fallback only
 from substitute.application.overrides.control_registry_service import (
     register_editor_control_builders,
 )
+from substitute.domain.node_behavior import FieldPresentation
 from substitute.presentation.editor.panel.widgets.field_row import (
     apply_editor_control_height,
 )
@@ -82,6 +83,7 @@ class NumericFieldBuildRequest:
     value: object
     field_meta: dict[str, object]
     field_type: object = None
+    field_presentation: FieldPresentation = FieldPresentation.STANDARD
     constraints: dict[str, object] = field(default_factory=dict)
 
 
@@ -104,6 +106,7 @@ class NumericFieldFactory:
                 request.value,
                 request.field_meta,
                 field_type=request.field_type,
+                field_presentation=request.field_presentation,
                 constraints=request.constraints,
             )
             if result is not None:
@@ -477,10 +480,10 @@ def widget_factory_seedbox(
     field_meta: dict[str, object],
     **kwargs: object,
 ) -> object | None:
-    """Build a seed box for the canonical `seed` field."""
+    """Build a seed box when resolved behavior selects seed presentation."""
 
     _ = (node_name, field_meta)
-    if key != "seed":
+    if kwargs.get("field_presentation") is not FieldPresentation.SEED_BOX:
         return None
 
     raw_constraints = kwargs.get("constraints", {})
@@ -519,7 +522,14 @@ def widget_factory_int(
         return None
 
     int_value = _to_int(value)
-    if abs(int_value) > 2_147_483_647:
+    minimum = _to_int(constraint_or(constraints, "min", -2_147_483_648))
+    maximum = _to_int(constraint_or(constraints, "max", 2_147_483_647))
+    if (
+        int_value < -2_147_483_648
+        or int_value > 2_147_483_647
+        or minimum < -2_147_483_648
+        or maximum > 2_147_483_647
+    ):
         line_edit: Any = LineEdit(parent)
         line_edit.setText(str(value))
         return cast(object, line_edit)
@@ -528,8 +538,8 @@ def widget_factory_int(
     field_widget.setSymbolVisible(False)
     _apply_widget_font(field_widget, 14)
 
-    field_widget.setMinimum(_to_int(constraint_or(constraints, "min", -2_147_483_648)))
-    field_widget.setMaximum(_to_int(constraint_or(constraints, "max", 2_147_483_647)))
+    field_widget.setMinimum(minimum)
+    field_widget.setMaximum(maximum)
     field_widget.setSingleStep(_to_int(constraint_or(constraints, "step", 1)))
     field_widget.setValue(int_value)
 

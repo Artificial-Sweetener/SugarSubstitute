@@ -363,22 +363,6 @@ class WorkflowStateProtocol(Protocol):
     stack_order: list[str]
 
 
-class ShellLayoutControllerProtocol(Protocol):
-    """Describe shell layout behavior consumed by cube actions."""
-
-    def set_cube_stack_compact(
-        self,
-        compact: bool,
-        *,
-        on_complete: Callable[[], None] | None = None,
-        manual: bool = True,
-    ) -> None:
-        """Toggle shell-owned cube stack compact mode."""
-
-    def current_cube_stack_compact(self) -> bool:
-        """Return shell-owned cube stack compact mode."""
-
-
 class ActiveWorkflowSurfaceRefresherProtocol(Protocol):
     """Describe structural active workflow surface reconciliation."""
 
@@ -410,7 +394,6 @@ class WorkspaceCubePickerActionView(Protocol):
     editor_panels: dict[str, object]
     active_cube_stack: CubeStackProtocol | None
     active_editor_panel: EditorPanelProtocol | None
-    shell_layout_controller: ShellLayoutControllerProtocol
     active_workflow_surface_refresher: ActiveWorkflowSurfaceRefresherProtocol
     editor_busy: EditorBusyControllerProtocol
     _pending_cubes: dict[str, int]

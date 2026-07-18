@@ -23,6 +23,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from uuid import UUID
 
+from substitute.domain.generation import OutputResultPosition
 from substitute.domain.workflow import (
     ImageMeta,
     OutputCompareState,
@@ -38,6 +39,7 @@ class OutputCanvasImageItem:
     image_id: UUID
     image_meta: ImageMeta
     set_index: int
+    position: OutputResultPosition | None = None
 
 
 @dataclass(frozen=True)
@@ -134,8 +136,15 @@ def build_output_canvas_projection(
     """Return grouped output-canvas presentation state for a workflow."""
 
     projection_items = _projection_items(workflow, image_meta_map)
-    sources, set_count, items_by_uuid = _source_groups_for_items(projection_items)
-    scene_groups = _scene_groups_for_items(projection_items)
+    preferred_image_id = _manually_selected_image_id(workflow, image_meta_map)
+    sources, set_count, items_by_uuid = _source_groups_for_items(
+        projection_items,
+        preferred_image_id=preferred_image_id,
+    )
+    scene_groups = _scene_groups_for_items(
+        projection_items,
+        preferred_image_id=preferred_image_id,
+    )
     scene_count = _scene_count_for_items(projection_items, scene_groups)
     active_scene_key = _active_scene_key_for_workflow(
         workflow,
@@ -194,6 +203,8 @@ def _projection_items(
 
 def _source_groups_for_items(
     image_items: tuple[tuple[UUID, ImageMeta], ...],
+    *,
+    preferred_image_id: UUID | None = None,
 ) -> tuple[
     tuple[OutputCanvasSourceGroup, ...],
     int,
@@ -212,17 +223,62 @@ def _source_groups_for_items(
     set_count = 0
     items_by_uuid: dict[UUID, tuple[str, OutputCanvasImageItem]] = {}
 
-    for source_key, source_image_items in grouped_items.items():
+    source_entries = tuple(grouped_items.items())
+    if source_entries and all(
+        source_key.startswith("direct:") for source_key, _items in source_entries
+    ):
+        source_entries = tuple(
+            sorted(
+                source_entries,
+                key=lambda entry: _direct_source_order(source_labels.get(entry[0], "")),
+            )
+        )
+
+    for source_key, source_image_items in source_entries:
         images_by_set: dict[int, OutputCanvasImageItem] = {}
         fallback_index = 1
-        for image_id, image_meta in source_image_items:
+        positioned_items = tuple(
+            (image_id, image_meta)
+            for image_id, image_meta in source_image_items
+            if image_meta.list_index is not None
+        )
+        uses_explicit_batch_coordinates = any(
+            image_meta.batch_index is not None
+            for _image_id, image_meta in positioned_items
+        )
+        ordered_positioned_items = (
+            tuple(
+                sorted(
+                    _items_for_projected_positions(
+                        positioned_items,
+                        preferred_image_id=preferred_image_id,
+                    ),
+                    key=_position_sort_key,
+                )
+            )
+            if uses_explicit_batch_coordinates
+            else positioned_items
+        )
+        for ordinal, (image_id, image_meta) in enumerate(
+            ordered_positioned_items,
+            start=1,
+        ):
             if image_meta.list_index is None:
                 continue
-            set_index = image_meta.list_index + 1
+            position = OutputResultPosition(
+                list_index=image_meta.list_index,
+                batch_index=image_meta.batch_index or 0,
+            )
+            set_index = (
+                ordinal
+                if uses_explicit_batch_coordinates
+                else image_meta.list_index + 1
+            )
             item = OutputCanvasImageItem(
                 image_id=image_id,
                 image_meta=image_meta,
                 set_index=set_index,
+                position=position,
             )
             images_by_set[set_index] = item
             items_by_uuid[image_id] = (source_key, item)
@@ -237,6 +293,7 @@ def _source_groups_for_items(
                 image_id=image_id,
                 image_meta=image_meta,
                 set_index=fallback_index,
+                position=None,
             )
             images_by_set[fallback_index] = item
             items_by_uuid[image_id] = (source_key, item)
@@ -255,8 +312,48 @@ def _source_groups_for_items(
     return tuple(sources), set_count, items_by_uuid
 
 
+def _position_sort_key(entry: tuple[UUID, ImageMeta]) -> tuple[int, int]:
+    """Return a total order for metadata known to carry a list coordinate."""
+
+    image_meta = entry[1]
+    return image_meta.list_index or 0, image_meta.batch_index or 0
+
+
+def _items_for_projected_positions(
+    image_items: tuple[tuple[UUID, ImageMeta], ...],
+    *,
+    preferred_image_id: UUID | None,
+) -> tuple[tuple[UUID, ImageMeta], ...]:
+    """Keep one result per backend position while retaining manual focus."""
+
+    latest_by_position: dict[tuple[int, int], tuple[UUID, ImageMeta]] = {}
+    for image_id, image_meta in image_items:
+        latest_by_position[
+            (image_meta.list_index or 0, image_meta.batch_index or 0)
+        ] = (image_id, image_meta)
+    for image_id, image_meta in image_items:
+        if image_id != preferred_image_id:
+            continue
+        latest_by_position[
+            (image_meta.list_index or 0, image_meta.batch_index or 0)
+        ] = (image_id, image_meta)
+        break
+    return tuple(latest_by_position.values())
+
+
+def _direct_source_order(label: str) -> tuple[int, str]:
+    """Return numeric manifest order for direct-workflow source labels."""
+
+    try:
+        return int(label), label
+    except ValueError:
+        return 2_147_483_647, label
+
+
 def _scene_groups_for_items(
     image_items: tuple[tuple[UUID, ImageMeta], ...],
+    *,
+    preferred_image_id: UUID | None = None,
 ) -> tuple[OutputCanvasSceneGroup, ...]:
     """Return prompt-scene groups in scene order for output items."""
 
@@ -274,7 +371,8 @@ def _scene_groups_for_items(
     groups: list[OutputCanvasSceneGroup] = []
     for scene_key, grouped_scene_items in grouped_items.items():
         sources, _set_count, _items_by_uuid = _source_groups_for_items(
-            tuple(grouped_scene_items)
+            tuple(grouped_scene_items),
+            preferred_image_id=preferred_image_id,
         )
         representative_source_key, representative_set_index, primary_image_id = (
             _scene_representative_for_sources(sources)
@@ -292,6 +390,22 @@ def _scene_groups_for_items(
             )
         )
     return tuple(sorted(groups, key=lambda group: (group.order, group.scene_key)))
+
+
+def _manually_selected_image_id(
+    workflow: WorkflowState,
+    image_meta_map: Mapping[UUID, ImageMeta],
+) -> UUID | None:
+    """Return a valid concrete manual selection that projection must retain."""
+
+    selected_image_id = workflow.active_output_uuid
+    if (
+        workflow.output_focus_mode is not OutputFocusMode.MANUAL
+        or workflow.active_output_set_index <= 0
+        or selected_image_id not in image_meta_map
+    ):
+        return None
+    return selected_image_id
 
 
 def _scene_representative_for_sources(
@@ -471,7 +585,7 @@ def _manual_grid_focus(
         else None
     )
     if source is not None:
-        if _source_has_grid(source):
+        if _source_can_render_grid(source):
             return source.source_key, 0, None
         item = source.nearest_item(1)
         if item is not None:
@@ -537,9 +651,15 @@ def _source_for_key(
 
 
 def _source_has_grid(source: OutputCanvasSourceGroup) -> bool:
-    """Return whether a source has enough finished outputs for grid set zero."""
+    """Return whether automatic focus benefits from a multi-batch grid."""
 
     return len(source.images_by_set) > 1
+
+
+def _source_can_render_grid(source: OutputCanvasSourceGroup) -> bool:
+    """Return whether manual grid intent has at least one renderable tile."""
+
+    return bool(source.images_by_set)
 
 
 def _source_key_for(image_id: UUID, image_meta: ImageMeta) -> str:

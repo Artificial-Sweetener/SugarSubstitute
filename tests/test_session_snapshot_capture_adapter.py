@@ -29,6 +29,7 @@ from substitute.domain.workflow import (
     ProjectMaskAssetRef,
     WorkflowState,
 )
+from substitute.domain.workspace_snapshot import InputImageReference
 from substitute.presentation.shell.session_snapshot_capture_adapter import (
     SessionSnapshotCaptureAdapter,
     snapshot_capture_adapter_for,
@@ -164,29 +165,36 @@ def test_adapter_resolves_input_image_and_mask_references(tmp_path: Path) -> Non
     def input_image_asset_ref(
         _workflow: object,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
     ) -> ProjectAssetRef:
         """Record an input image asset lookup."""
 
-        asset_calls.append((cube_alias, node_name))
+        asset_calls.append((section_key, node_name))
         return ProjectAssetRef(relative_path="inputs/image.png")
 
     def input_mask_asset_ref(
         _workflow: object,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
     ) -> ProjectMaskAssetRef:
         """Record an input mask asset lookup."""
 
-        asset_calls.append((cube_alias, node_name))
+        asset_calls.append((section_key, node_name))
         return ProjectMaskAssetRef(relative_path="mask.png")
 
     shell = SimpleNamespace(
         workflow_tabbar=_TabBar(),
         path_bundle=SimpleNamespace(projects_dir=tmp_path / "projects"),
-        workflow_asset_service=SimpleNamespace(
+        input_canvas_state_service=SimpleNamespace(
+            input_image_path=lambda candidate_id: (
+                tmp_path / "projects" / "Recipe" / "inputs/image.png"
+                if candidate_id == image_id
+                else None
+            )
+        ),
+        workflow_input_canvas_service=SimpleNamespace(
             input_image_asset_ref=input_image_asset_ref,
             input_mask_asset_ref=input_mask_asset_ref,
         ),
@@ -205,7 +213,48 @@ def test_adapter_resolves_input_image_and_mask_references(tmp_path: Path) -> Non
         input_masks[0].path == tmp_path / "projects" / "Recipe" / "masks" / "mask.png"
     )
     assert input_masks[0].association_key == ("Cube", "Mask")
-    assert asset_calls == [("Cube", "Image"), ("Cube", "Mask")]
+    assert asset_calls == [("Cube", "Mask")]
+
+
+def test_adapter_captures_synthetic_input_surface_from_canvas_catalog(
+    tmp_path: Path,
+) -> None:
+    """Synthetic surfaces should persist by their loaded path without a graph node."""
+
+    image_id = uuid4()
+    surface_path = (
+        tmp_path
+        / "projects"
+        / "Regional"
+        / "input_surfaces"
+        / "direct"
+        / "mask-authority.png"
+    )
+    workflow = WorkflowState()
+    workflow.canvas.input_key_map = {
+        "direct:@synthetic/mask-authority": image_id,
+    }
+    shell = SimpleNamespace(
+        workflow_tabbar=_TabBar(),
+        input_canvas_state_service=SimpleNamespace(
+            input_image_path=lambda candidate_id: (
+                surface_path if candidate_id == image_id else None
+            )
+        ),
+    )
+
+    references = SessionSnapshotCaptureAdapter(shell).input_image_references(
+        "wf-a",
+        workflow,
+    )
+
+    assert references == (
+        InputImageReference(
+            image_id=str(image_id),
+            path=surface_path,
+            sequence=1,
+        ),
+    )
 
 
 def test_adapter_captures_output_image_metadata_snapshot(tmp_path: Path) -> None:

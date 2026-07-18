@@ -19,7 +19,13 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
+
+from substitute.application.workflows.output_canvas_projection import (
+    OutputCanvasProjection,
+    OutputCanvasSceneGroup,
+    OutputCanvasSourceGroup,
+)
 
 from substitute.presentation.canvas.output.output_canvas_navigation_chrome import (
     update_output_tabbar_container,
@@ -151,6 +157,61 @@ class _Widget:
         return None
 
 
+def _scene_chrome_host(*, batch_count: int) -> SimpleNamespace:
+    """Return a lightweight scene-overview host with uniform batch counts."""
+
+    scenes = tuple(
+        OutputCanvasSceneGroup(
+            scene_run_id="run",
+            scene_key=f"scene{scene_index}",
+            title=f"Scene {scene_index}",
+            order=scene_index,
+            sources=(
+                OutputCanvasSourceGroup(
+                    source_key="text",
+                    label="Text",
+                    images_by_set={
+                        set_index: cast(Any, object())
+                        for set_index in range(1, batch_count + 1)
+                    },
+                ),
+            ),
+        )
+        for scene_index in range(1, 4)
+    )
+    tabbar = _Widget(size_hint_width=80)
+    tabbar.items = {"text": object()}
+    return SimpleNamespace(
+        tabbar=tabbar,
+        scene_selector_button=_Widget(width=58),
+        set_selector_button=_Widget(width=34),
+        source_selector_button=_Widget(width=58),
+        tabbar_container=_Widget(),
+        tabbar_bg=_Widget(),
+        comparison_nav_container=_Widget(),
+        _output_projection=OutputCanvasProjection(
+            sources=(),
+            active_source_key=None,
+            active_set_index=1,
+            active_uuid=None,
+            set_count=0,
+            scene_groups=scenes,
+            active_scene_overview=True,
+            scene_count=3,
+        ),
+        scene_count=3,
+        active_scene_key=None,
+        active_scene_overview=True,
+        set_count=0,
+        active_set_index=1,
+        active_source_key=None,
+        source_groups={},
+        preview_ids_by_source_key={},
+        height=lambda: 400,
+        width=lambda: 600,
+    )
+
+
 def test_refresh_tabbar_container_visibility_and_geometry() -> None:
     """Tabbar container should hide for <2 items and place 2+ item chrome."""
 
@@ -190,6 +251,55 @@ def test_refresh_tabbar_container_visibility_and_geometry() -> None:
 
     assert selector.shown == 1
     assert container.shown == 2
+
+
+def test_scene_chrome_requires_real_batch_alternatives() -> None:
+    """Scene and batch controls should hide when every scene has one result set."""
+
+    batchless = _scene_chrome_host(batch_count=1)
+
+    _refresh_tabbar_container(batchless)
+
+    assert batchless.scene_selector_button.visible is False
+    assert batchless.set_selector_button.visible is False
+    assert batchless.tabbar_container.visible is False
+
+    batched = _scene_chrome_host(batch_count=2)
+
+    _refresh_tabbar_container(batched)
+
+    assert batched.scene_selector_button.visible is True
+    assert batched.set_selector_button.visible is False
+    assert batched.tabbar_container.visible is True
+
+
+def test_one_tile_grid_route_hides_batch_selector() -> None:
+    """Internal All Batches state should not create a useless one-item control."""
+
+    tabbar = _Widget(size_hint_width=80)
+    tabbar.items = {"text": object()}
+    fake = SimpleNamespace(
+        tabbar=tabbar,
+        set_selector_button=_Widget(width=34),
+        source_selector_button=_Widget(width=58),
+        tabbar_container=_Widget(),
+        tabbar_bg=_Widget(),
+        comparison_nav_container=_Widget(),
+        scene_count=1,
+        active_scene_overview=False,
+        set_count=1,
+        active_set_index=0,
+        active_source_key="text",
+        source_groups={},
+        preview_ids_by_source_key={},
+        height=lambda: 400,
+        width=lambda: 600,
+    )
+
+    _refresh_tabbar_container(fake)
+
+    assert fake.set_selector_button.visible is False
+    assert fake.tabbar_container.visible is False
 
 
 def test_source_tabs_collapse_and_expand_on_width() -> None:

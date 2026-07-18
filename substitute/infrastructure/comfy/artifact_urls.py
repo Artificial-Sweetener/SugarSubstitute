@@ -21,10 +21,10 @@ from __future__ import annotations
 from urllib.parse import urlencode
 
 from substitute.domain.onboarding import ComfyEndpoint
-from substitute.infrastructure.comfy.cube_output_event import CubeOutputArtifact
+from substitute.infrastructure.comfy.image_artifact import ComfyImageArtifact
 
 
-def artifact_view_url(endpoint: ComfyEndpoint, artifact: CubeOutputArtifact) -> str:
+def artifact_view_url(endpoint: ComfyEndpoint, artifact: ComfyImageArtifact) -> str:
     """Return the encoded Comfy ``/view`` URL for one artifact."""
 
     query = urlencode(

@@ -56,4 +56,15 @@ class CanvasPaneCatalogPort(Protocol):
         """Return the raw catalog snapshot for diagnostics-only callers."""
 
 
-__all__ = ["CanvasCatalogMutation", "CanvasPaneCatalogPort"]
+class InputCanvasPaneCatalogPort(CanvasPaneCatalogPort, Protocol):
+    """Add restorable source-path lookup required only by the Input canvas."""
+
+    def image_path(self, image_id: UUID) -> Path | None:
+        """Return the exact local path cached for one image when available."""
+
+
+__all__ = [
+    "CanvasCatalogMutation",
+    "CanvasPaneCatalogPort",
+    "InputCanvasPaneCatalogPort",
+]

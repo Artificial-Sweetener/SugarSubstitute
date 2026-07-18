@@ -100,7 +100,7 @@ class OutputCanvas(QWidget):
 
     activeOutputChanged = Signal(str)
     activeOutputGridChanged = Signal(str)
-    activeOutputSceneChanged = Signal(str, bool)
+    activeOutputSceneChanged = Signal(object)
     activeOutputCompareChanged = Signal(object)
     dockActionRequested = Signal()
 

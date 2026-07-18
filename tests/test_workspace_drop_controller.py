@@ -24,6 +24,7 @@ from pathlib import Path
 from substitute.application.ports.recipe_repository import LoadedRecipeDocument
 from substitute.application.recipes.recipe_io_service import RecipeIoService
 from substitute.presentation.shell.workspace_drop_controller import (
+    DirectWorkflowDocumentClassifier,
     DropIntent,
     WorkspaceDropController,
     WorkflowRecipeDropClassifier,
@@ -144,6 +145,15 @@ def _classifier() -> WorkflowRecipeDropClassifier:
     )
 
 
+def _direct_workflow_classifier() -> WorkflowRecipeDropClassifier:
+    """Build a classifier that additionally recognizes Comfy workflow JSON."""
+
+    return WorkflowRecipeDropClassifier(
+        RecipeIoService(recipe_repository=_FakeRecipeRepository()),
+        DirectWorkflowDocumentClassifier(),
+    )
+
+
 def _controller(
     load_recipe_document: Callable[[Path], str | None],
 ) -> WorkspaceDropController:
@@ -163,6 +173,17 @@ def test_workflow_recipe_drop_classifier_accepts_text_recipe_path() -> None:
 
     assert classified.intent is DropIntent.LOAD_WORKFLOW_RECIPE
     assert classified.reason == "text_recipe_extension"
+
+
+def test_workspace_drop_classifier_accepts_direct_comfy_json() -> None:
+    """JSON should route to the direct Comfy document load boundary."""
+
+    classified = _direct_workflow_classifier().classify_path(
+        Path("workflows/demo.json")
+    )
+
+    assert classified.intent is DropIntent.LOAD_DIRECT_COMFY_WORKFLOW
+    assert classified.reason == "comfy_workflow_json"
 
 
 def test_workflow_recipe_drop_classifier_accepts_recipe_bearing_png() -> None:
@@ -269,6 +290,29 @@ def test_workspace_drop_controller_loads_accepted_recipe_drop() -> None:
     assert event.accepted is True
     assert event.ignored is False
     assert loaded_paths == [Path("E:/recipes/embedded.png")]
+
+
+def test_workspace_drop_controller_loads_direct_comfy_workflow() -> None:
+    """A JSON drop should invoke only the direct-workflow action."""
+
+    event = _Event(_MimeData((_Url("workflows/demo.json"),)))
+    recipe_paths: list[Path] = []
+    direct_paths: list[Path] = []
+    controller = WorkspaceDropController(
+        classifier=_direct_workflow_classifier(),
+        ignored_drag_source=lambda _source: False,
+        load_recipe_document=lambda path: _append_then(recipe_paths, path, "recipe"),
+        load_direct_workflow_document=lambda path: _append_then(
+            direct_paths, path, "direct"
+        ),
+    )
+
+    handled = controller.handle_drop(event)
+
+    assert handled is True
+    assert event.accepted is True
+    assert recipe_paths == []
+    assert direct_paths == [Path("workflows/demo.json")]
 
 
 def test_workspace_drop_controller_does_not_load_ignored_drop() -> None:

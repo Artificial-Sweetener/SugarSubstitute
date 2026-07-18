@@ -130,6 +130,8 @@ class WorkflowRouteProjector:
         editor_panel_present = self._route_port.set_current_editor_panel(workflow_id)
         editor_panel_swap_elapsed_ms = elapsed_ms_since(phase_started_at)
 
+        self._route_port.present_cube_stack_for_workflow(workflow_id, animated=True)
+
         phase_started_at = perf_counter()
         overrides_projected = self._project_shared_overrides(workflow_id)
         override_projection_elapsed_ms = elapsed_ms_since(phase_started_at)

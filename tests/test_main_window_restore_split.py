@@ -39,7 +39,7 @@ from substitute.domain.workspace_snapshot.models import (
 import substitute.presentation.shell.generation_result_workspace_materializer as generation_result_workspace_materializer_module
 import substitute.presentation.shell.restore_projection_controller as restore_projection_controller_module
 import substitute.presentation.shell.shell_prehydrated_restore_controller as shell_prehydrated_restore_controller_module
-import substitute.presentation.shell.shell_layout_controller as shell_layout_controller_module
+import substitute.presentation.shell.shell_layout_restore_controller as shell_layout_restore_controller_module
 from substitute.presentation.shell.generation_action_state import (
     GenerationActionPresentation,
 )
@@ -59,7 +59,12 @@ from substitute.presentation.shell.shell_workspace_materialization_port import (
 from substitute.presentation.shell.workspace_restore_image_adapter import (
     WorkspaceRestoreImageAdapter,
 )
-from substitute.presentation.shell.shell_layout_controller import ShellLayoutController
+from substitute.presentation.shell.shell_layout_restore_controller import (
+    ShellLayoutRestoreController,
+)
+from substitute.presentation.shell.generation_queue_controller import (
+    GenerationQueueController,
+)
 from substitute.presentation.workflows.workflow_tabs_view import (
     SETTINGS_WORKSPACE_ROUTE,
 )
@@ -95,7 +100,7 @@ def test_hidden_restore_runtime_prep_hydrates_installs_without_projection_or_lay
         ),
         project_restored_settings=lambda: events.append("settings"),
     )
-    view.shell_layout_controller = SimpleNamespace(
+    view.shell_layout_restore_controller = SimpleNamespace(
         apply_restored_shell_layout=lambda _snapshot: events.append("layout")
     )
 
@@ -237,7 +242,7 @@ def test_visible_restore_layout_finish_applies_layout_and_deferred_settings() ->
         ),
         project_restored_settings=lambda: events.append("settings"),
     )
-    view.shell_layout_controller = SimpleNamespace(
+    view.shell_layout_restore_controller = SimpleNamespace(
         apply_restored_shell_layout=lambda snapshot: events.append(
             f"layout:{snapshot is not None}"
         )
@@ -407,7 +412,7 @@ def test_restore_split_methods_are_idempotent() -> None:
         project_restored_workflow=lambda _workflow_id: events.append("project"),
         project_restored_settings=lambda: events.append("settings"),
     )
-    view.shell_layout_controller = SimpleNamespace(
+    view.shell_layout_restore_controller = SimpleNamespace(
         apply_restored_shell_layout=lambda _snapshot: events.append("layout")
     )
 
@@ -453,7 +458,7 @@ def test_finalize_initial_workspace_restore_delegates_to_split_flow() -> None:
         project_restored_workflow=lambda _workflow_id: events.append("project"),
         project_restored_settings=lambda: events.append("settings"),
     )
-    view.shell_layout_controller = SimpleNamespace(
+    view.shell_layout_restore_controller = SimpleNamespace(
         apply_restored_shell_layout=lambda _snapshot: events.append("layout")
     )
 
@@ -575,10 +580,21 @@ def test_restored_queue_panel_visibility_refreshes_titlebar_segment(
     view.cubeStackModeButton = SimpleNamespace(setToolTip=lambda _tooltip: None)
     view.restore_finalized = SimpleNamespace(emit=lambda: None)
     view._pending_restore_projection_cache_capture_workflow_id = ""
-    view.shell_layout_controller = ShellLayoutController(view)
+    view.workspace_layout_controller = SimpleNamespace(
+        current_main_splitter_sizes=lambda: (1, 2),
+        remember_workflow_splitter_sizes=lambda _sizes: None,
+        apply_workflow_splitter_sizes=lambda _sizes: None,
+        workflow_splitter_sizes_for_snapshot=lambda: (1, 2),
+    )
+    view.cube_stack_presentation_controller = SimpleNamespace(
+        restore_preference=lambda _compact: None,
+        preference=SimpleNamespace(value="expanded"),
+    )
+    view.generation_queue_controller = GenerationQueueController(view)
+    view.shell_layout_restore_controller = ShellLayoutRestoreController(view)
     view.generation_action_controller = GenerationActionController(view)
     monkeypatch.setattr(
-        shell_layout_controller_module,
+        shell_layout_restore_controller_module,
         "build_shell_layout_restore_plan",
         lambda *_args, **_kwargs: SimpleNamespace(
             cube_stack_compact=False,
@@ -597,7 +613,7 @@ def test_restored_queue_panel_visibility_refreshes_titlebar_segment(
     assert cluster.queue_segment_visible_calls == [True]
     assert side_panel_host.is_queue_panel_visible() is False
 
-    view.shell_layout_controller.apply_deferred_restored_shell_layout(
+    view.shell_layout_restore_controller.apply_deferred_restored_shell_layout(
         snapshot,
         finalize=False,
     )
@@ -707,6 +723,9 @@ def _restore_view(snapshot: WorkspaceSnapshot) -> Any:
     view._prehydrated_settings_projection_pending = False
     view._deferred_prehydrated_input_masks = []
     view._shell_restore_lifecycle = "prehydrating"
+    view.cube_stack_presentation_controller = SimpleNamespace(
+        activate_document_kind=lambda _kind, *, animated: None
+    )
     return view
 
 
@@ -723,6 +742,8 @@ class _Artifact:
 
         self.active_workflow_id = active_workflow_id
         self.workflows = workflows
+        self.cube_definition_fingerprints: dict[str, str] = {}
+        self.node_definition_fingerprints: dict[str, str] = {}
 
 
 class _WorkflowSession:
@@ -732,6 +753,7 @@ class _WorkflowSession:
         """Store the shared event sink."""
 
         self._events = events
+        self.workflows = {"wf-a": WorkflowState()}
 
     def activate_workflow(self, workflow_id: str) -> None:
         """Record activation of one workflow."""

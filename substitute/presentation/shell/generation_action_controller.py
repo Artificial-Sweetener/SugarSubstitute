@@ -393,13 +393,11 @@ class GenerationActionController:
             ),
             pending_queue_count=pending_generation_queue_job_count(resolved_queue_jobs),
             queue_has_visible_jobs=bool(resolved_queue_jobs),
-            queue_panel_visible=(
-                self._shell.shell_layout_controller.current_generation_queue_panel_visible()
-            ),
+            queue_panel_visible=(self._shell.generation_queue_controller.panel_visible),
         )
 
     def active_workflow_has_generation_source(self) -> bool:
-        """Return whether the active workflow has at least one loaded cube."""
+        """Return whether the active workflow has one executable document source."""
 
         workflow_session_service = getattr(
             self._shell,
@@ -411,6 +409,8 @@ class GenerationActionController:
         if workflow_id is None or not isinstance(workflows, Mapping):
             return False
         workflow = workflows.get(workflow_id)
+        if getattr(workflow, "direct_workflow", None) is not None:
+            return True
         cubes = getattr(workflow, "cubes", None)
         return isinstance(cubes, Mapping) and bool(cubes)
 

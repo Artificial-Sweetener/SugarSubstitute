@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     )
     from substitute.application.comfy_environment import ComfyEnvironmentService
     from substitute.application.cube_library import CubeLibraryManagementService
-    from substitute.application.cubes import CubeLoadService, CubeMaskBindingService
+    from substitute.application.cubes import CubeLoadService
     from substitute.application.danbooru import (
         DanbooruImagePreviewService,
         DanbooruPreferenceService,
@@ -60,6 +60,15 @@ if TYPE_CHECKING:
         RecipeOutputSiblingDiscoveryService,
     )
     from substitute.application.generation import GenerationJobQueueService
+    from substitute.application.workflows.input_asset_endpoint_service import (
+        InputAssetEndpointService,
+    )
+    from substitute.application.workflows.input_canvas_plan_service import (
+        InputCanvasPlanService,
+    )
+    from substitute.application.workflows.workflow_graph_section_service import (
+        WorkflowGraphSectionService,
+    )
     from substitute.application.model_metadata import (
         ModelCatalogService,
         ModelMetadataUpdateSink,
@@ -110,7 +119,7 @@ if TYPE_CHECKING:
         ShellResourceLifecycle,
     )
     from substitute.application.workspace_state import SessionAutosaveService
-    from substitute.application.workspace_state.restore_projection_cache import (
+    from substitute.application.workspace_state.restore_projection_models import (
         RestoreProjectionCacheRepository,
     )
     from substitute.presentation.editor.panel.service_bundle import (
@@ -192,7 +201,9 @@ class MainWindowDependencies:
     create_scoped_metadata_refresh_service: ScopedMetadataRefreshServiceFactory
     cube_icon_factory: CubeIconFactory
     invalidate_cube_catalog_cache: Callable[[], None]
-    cube_mask_binding_service: CubeMaskBindingService
+    input_asset_endpoint_service: InputAssetEndpointService
+    input_canvas_plan_service: InputCanvasPlanService
+    graph_section_service: WorkflowGraphSectionService
     recipe_io_service: RecipeIoService
     workflow_export_service: WorkflowExportService
     progress_service: ProgressService

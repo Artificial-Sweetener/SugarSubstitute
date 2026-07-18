@@ -18,9 +18,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
-from substitute.application.workspace_state import RestoreProjectionArtifact
+from substitute.application.workflows import DIRECT_WORKFLOW_SECTION_KEY
+from substitute.application.workspace_state.restore_projection_codec import (
+    restore_projection_artifact_from_json,
+    restore_projection_artifact_to_json,
+)
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.domain.workspace_snapshot import WorkflowSnapshot, WorkspaceSnapshot
 from substitute.application.workspace_state.restored_editor_projection import (
@@ -70,16 +76,18 @@ def test_restored_editor_projection_extractor_captures_qt_free_artifact() -> Non
         node_definition_gateway=gateway,
     )
 
-    RestoreProjectionArtifact.from_json(artifact.to_json())
+    restore_projection_artifact_from_json(restore_projection_artifact_to_json(artifact))
     assert artifact.target_key == "target"
     assert artifact.active_workflow_id == "workflow-a"
-    assert artifact.cube_definition_fingerprints.keys() == {"Scene"}
+    assert artifact.cube_definition_fingerprints.keys() == {"workflow-a:Scene"}
     assert artifact.node_definition_fingerprints.keys() == {"CLIPTextEncode"}
-    cube = artifact.workflows[0].cubes[0]
+    cube_stack = artifact.workflows[0].cube_stack
+    assert cube_stack is not None
+    cube = cube_stack.cubes[0]
     assert cube.alias == "Scene"
-    assert cube.projected_node_order == ("Prompt",)
-    assert cube.field_order == {"Prompt": ("text",)}
-    assert cube.prompt_field_metadata == {
+    assert cube.section.projected_node_order == ("Prompt",)
+    assert cube.section.field_order == {"Prompt": ("text",)}
+    assert cube.section.prompt_field_metadata == {
         "Prompt": {
             "text": {
                 "field_type": "STRING",
@@ -87,6 +95,61 @@ def test_restored_editor_projection_extractor_captures_qt_free_artifact() -> Non
             }
         }
     }
+
+
+def test_restored_editor_projection_extractor_captures_direct_document() -> None:
+    """Direct documents should use the shared section and node-definition cache."""
+
+    snapshot = _direct_workspace()
+    panel = SimpleNamespace(
+        _last_behavior_snapshot=SimpleNamespace(
+            field_specs_by_alias={
+                DIRECT_WORKFLOW_SECTION_KEY: {
+                    "1": {
+                        "seed": SimpleNamespace(
+                            cube_alias=DIRECT_WORKFLOW_SECTION_KEY,
+                            node_name="1",
+                            class_type="KSampler",
+                            field_key="seed",
+                            field_type="INT",
+                            constraints={"min": 0, "max": 100},
+                            field_info=["INT", {"default": 0}],
+                            value_source="explicit",
+                            field_behavior=SimpleNamespace(
+                                presentation="seed_box",
+                                control_name="seed",
+                                label_override="",
+                                style={},
+                            ),
+                        )
+                    }
+                }
+            },
+            card_decisions_by_alias={
+                DIRECT_WORKFLOW_SECTION_KEY: {"1": {"visible": True}}
+            },
+        )
+    )
+    gateway = _NodeDefinitionGateway(
+        {"KSampler": {"input": {"required": {"seed": ["INT", {}]}}}}
+    )
+
+    artifact = RestoredEditorProjectionCacheExtractor().capture(
+        snapshot=snapshot,
+        target_key="target",
+        editor_panels={"direct": panel},
+        node_definition_gateway=gateway,
+    )
+
+    restore_projection_artifact_from_json(restore_projection_artifact_to_json(artifact))
+    cached = artifact.workflows[0]
+    assert cached.cube_stack is None
+    assert cached.direct_workflow is not None
+    assert cached.direct_workflow.section.section_key == DIRECT_WORKFLOW_SECTION_KEY
+    assert cached.direct_workflow.section.projected_node_order == ("1",)
+    assert cached.direct_workflow.section.field_order == {"1": ("seed",)}
+    assert artifact.node_definition_fingerprints.keys() == {"KSampler"}
+    assert artifact.cube_definition_fingerprints == {}
 
 
 class _NodeDefinitionGateway:
@@ -147,4 +210,36 @@ def _workspace() -> WorkspaceSnapshot:
         tab_order=("workflow-a",),
         active_route="editor",
         active_workflow_id="workflow-a",
+    )
+
+
+def _direct_workspace() -> WorkspaceSnapshot:
+    """Build one direct workflow for projection extraction."""
+
+    direct = DirectWorkflowState(
+        source_path=Path("workflows/direct.json"),
+        source_workflow={"nodes": {}},
+        buffer={
+            "nodes": {
+                "1": {
+                    "class_type": "KSampler",
+                    "inputs": {"seed": 7},
+                    "mode": 0,
+                }
+            }
+        },
+        ui={"expanded": {"1": True}},
+    )
+    return WorkspaceSnapshot(
+        schema_version="1",
+        workflows=(
+            WorkflowSnapshot(
+                workflow_id="direct",
+                tab_label="Direct",
+                workflow=WorkflowState(direct_workflow=direct),
+            ),
+        ),
+        tab_order=("direct",),
+        active_route="direct",
+        active_workflow_id="direct",
     )

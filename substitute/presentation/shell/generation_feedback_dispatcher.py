@@ -497,7 +497,8 @@ def _output_image_context(update: LiveFinalOutputEvent) -> dict[str, object]:
         "node_id": update.node_id,
         "source_key": update.identity.source_key,
         "source_label": update.identity.source_label,
-        "list_index": update.list_index,
+        "list_index": update.position.list_index,
+        "batch_index": update.position.batch_index,
         "file_path": str(update.file_path),
     }
 

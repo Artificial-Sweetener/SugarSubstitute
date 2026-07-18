@@ -23,6 +23,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
+from substitute.application.workflows.workflow_graph_section_service import (
+    WorkflowGraphSectionService,
+)
 from substitute.domain.workflow import WorkflowState
 from substitute.domain.workflow.asset_models import (
     ComfyInputAssetRef,
@@ -61,6 +64,16 @@ class CubeAssetAssociationCopyResult:
 
 class WorkflowAssetService:
     """Own durable asset references attached to workflow graph inputs."""
+
+    def __init__(
+        self,
+        graph_section_service: WorkflowGraphSectionService | None = None,
+    ) -> None:
+        """Capture the section-neutral graph mutation authority."""
+
+        self._graph_section_service = (
+            graph_section_service or WorkflowGraphSectionService()
+        )
 
     def duplicate_cube_associations(
         self,
@@ -125,16 +138,18 @@ class WorkflowAssetService:
         self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
         asset_ref: WorkflowAssetRef,
     ) -> bool:
         """Associate one image input node with an asset reference and buffer value."""
 
         return self._associate_node_asset(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
             asset_ref=asset_ref,
             collection_key=_INPUT_IMAGES_KEY,
             log_subject="input image",
@@ -144,16 +159,18 @@ class WorkflowAssetService:
         self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
         asset_ref: WorkflowAssetRef,
     ) -> bool:
         """Associate one mask input node with an asset reference and buffer value."""
 
         return self._associate_node_asset(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
             asset_ref=asset_ref,
             collection_key=_INPUT_MASKS_KEY,
             log_subject="input mask",
@@ -163,16 +180,18 @@ class WorkflowAssetService:
         self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
         relative_path: Path | str,
     ) -> bool:
         """Associate one mask input node with a Substitute-owned project mask."""
 
         return self.associate_input_mask(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
             asset_ref=ProjectMaskAssetRef(relative_path=str(relative_path)),
         )
 
@@ -180,16 +199,18 @@ class WorkflowAssetService:
         self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
         relative_path: Path | str,
     ) -> bool:
         """Associate one image input node with a Substitute-owned project asset."""
 
         return self.associate_input_image(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
             asset_ref=ProjectAssetRef(relative_path=str(relative_path)),
         )
 
@@ -197,16 +218,18 @@ class WorkflowAssetService:
         self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
         name: str,
     ) -> bool:
         """Associate one image input node with a Comfy input namespace asset."""
 
         return self.associate_input_image(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
             asset_ref=ComfyInputAssetRef(name=name),
         )
 
@@ -214,16 +237,18 @@ class WorkflowAssetService:
         self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
         name: str,
     ) -> bool:
         """Associate one mask input node with a Comfy input namespace asset."""
 
         return self.associate_input_mask(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
             asset_ref=ComfyInputAssetRef(name=name),
         )
 
@@ -231,76 +256,60 @@ class WorkflowAssetService:
         self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
         asset_ref: WorkflowAssetRef,
         collection_key: str,
         log_subject: str,
     ) -> bool:
         """Associate one LoadImage-style node with a typed asset reference."""
 
-        cube_state = workflow.cubes.get(cube_alias)
-        if cube_state is None:
+        section_state = self._graph_section_service.section_state(workflow, section_key)
+        if section_state is None:
             log_warning(
                 _LOGGER,
-                f"Cannot associate {log_subject} because cube is missing",
-                cube_alias=cube_alias,
+                f"Cannot associate {log_subject} because graph section is missing",
+                section_key=section_key,
                 node_name=node_name,
+                field_key=field_key,
                 asset_ref_kind=asset_ref.kind,
                 target_value=workflow_asset_ref_authoring_value(asset_ref),
             )
             return False
-        nodes = cube_state.buffer.get("nodes", {})
-        if not isinstance(nodes, dict):
+        new_value = workflow_asset_ref_authoring_value(asset_ref)
+        mutation = self._graph_section_service.set_input_value(
+            workflow,
+            section_key=section_key,
+            node_name=node_name,
+            field_key=field_key,
+            value=new_value,
+        )
+        if not mutation.changed:
             log_warning(
                 _LOGGER,
-                f"Cannot associate {log_subject} because cube nodes are unavailable",
-                cube_alias=cube_alias,
+                f"Cannot associate {log_subject} because graph input is unavailable",
+                section_key=section_key,
                 node_name=node_name,
+                field_key=field_key,
                 asset_ref_kind=asset_ref.kind,
                 target_value=workflow_asset_ref_authoring_value(asset_ref),
-            )
-            return False
-        node = nodes.get(node_name)
-        if not isinstance(node, dict):
-            log_warning(
-                _LOGGER,
-                f"Cannot associate {log_subject} because node is missing",
-                cube_alias=cube_alias,
-                node_name=node_name,
-                asset_ref_kind=asset_ref.kind,
-                target_value=workflow_asset_ref_authoring_value(asset_ref),
-            )
-            return False
-        inputs = node.setdefault("inputs", {})
-        if not isinstance(inputs, dict):
-            log_warning(
-                _LOGGER,
-                f"Cannot associate {log_subject} because node inputs are invalid",
-                cube_alias=cube_alias,
-                node_name=node_name,
-                asset_ref_kind=asset_ref.kind,
-                target_value=workflow_asset_ref_authoring_value(asset_ref),
-                input_type=type(inputs).__name__,
             )
             return False
 
-        old_value = inputs.get("image")
-        new_value = workflow_asset_ref_authoring_value(asset_ref)
-        inputs["image"] = new_value
         self._asset_metadata(workflow, collection_key)[
-            self._association_key(cube_alias, node_name)
+            self._association_key(section_key, node_name)
         ] = workflow_asset_ref_to_json(asset_ref)
-        cube_state.dirty = True
         log_debug(
             _LOGGER,
             f"Associated workflow {log_subject} asset",
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
-            old_image_value=old_value,
-            new_image_value=new_value,
+            field_key=field_key,
+            old_value=mutation.old_value,
+            new_value=new_value,
             asset_ref_kind=asset_ref.kind,
-            cube_dirty=cube_state.dirty,
+            section_dirty=getattr(section_state, "dirty", None),
         )
         return True
 
@@ -308,16 +317,18 @@ class WorkflowAssetService:
         self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
         image_path: Path | str,
     ) -> bool:
         """Associate one image input node with a user-selected local file."""
 
         return self.associate_input_image(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
             asset_ref=LocalFileAssetRef.from_path(image_path),
         )
 
@@ -325,16 +336,18 @@ class WorkflowAssetService:
         self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
         mask_path: Path | str,
     ) -> bool:
         """Associate one mask input node with a user-selected local mask file."""
 
         return self.associate_input_mask(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
             asset_ref=LocalFileAssetRef.from_path(mask_path),
         )
 
@@ -342,15 +355,17 @@ class WorkflowAssetService:
         self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
     ) -> WorkflowAssetRef | None:
         """Return the durable asset reference for one input node when available."""
 
         return self._node_asset_ref(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
             collection_key=_INPUT_IMAGES_KEY,
             log_subject="input image",
         )
@@ -359,15 +374,17 @@ class WorkflowAssetService:
         self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
     ) -> WorkflowAssetRef | None:
         """Return the durable asset reference for one input mask node when available."""
 
         return self._node_asset_ref(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
             collection_key=_INPUT_MASKS_KEY,
             log_subject="input mask",
         )
@@ -377,16 +394,18 @@ class WorkflowAssetService:
         workflow: WorkflowState,
         *,
         workflow_name: str,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
         projects_dir: Path,
     ) -> Path | None:
         """Resolve the display path for one input mask from authoritative asset state."""
 
         asset_ref = self.input_mask_asset_ref(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
         )
         if isinstance(asset_ref, ProjectMaskAssetRef):
             try:
@@ -400,7 +419,7 @@ class WorkflowAssetService:
                     _LOGGER,
                     "Failed to resolve input mask path from project mask asset",
                     workflow_name=workflow_name,
-                    cube_alias=cube_alias,
+                    section_key=section_key,
                     node_name=node_name,
                     mask_path=asset_ref.relative_path,
                     asset_ref_kind=asset_ref.kind,
@@ -411,7 +430,7 @@ class WorkflowAssetService:
                 _LOGGER,
                 "Resolved input mask path from workflow asset metadata",
                 workflow_name=workflow_name,
-                cube_alias=cube_alias,
+                section_key=section_key,
                 node_name=node_name,
                 path=str(resolved_path),
                 asset_ref_kind=asset_ref.kind,
@@ -422,7 +441,7 @@ class WorkflowAssetService:
                 _LOGGER,
                 "Resolved input mask path from local file asset metadata",
                 workflow_name=workflow_name,
-                cube_alias=cube_alias,
+                section_key=section_key,
                 node_name=node_name,
                 path=asset_ref.path,
                 asset_ref_kind=asset_ref.kind,
@@ -440,7 +459,7 @@ class WorkflowAssetService:
                     _LOGGER,
                     "Failed to resolve input mask path from project asset metadata",
                     workflow_name=workflow_name,
-                    cube_alias=cube_alias,
+                    section_key=section_key,
                     node_name=node_name,
                     project_path=asset_ref.relative_path,
                     asset_ref_kind=asset_ref.kind,
@@ -451,7 +470,7 @@ class WorkflowAssetService:
                 _LOGGER,
                 "Resolved input mask path from project asset metadata",
                 workflow_name=workflow_name,
-                cube_alias=cube_alias,
+                section_key=section_key,
                 node_name=node_name,
                 path=str(resolved_path),
                 asset_ref_kind=asset_ref.kind,
@@ -462,7 +481,7 @@ class WorkflowAssetService:
                 _LOGGER,
                 "Skipping input mask path resolution for Comfy input asset",
                 workflow_name=workflow_name,
-                cube_alias=cube_alias,
+                section_key=section_key,
                 node_name=node_name,
                 asset_ref_kind=asset_ref.kind,
                 comfy_input_name=asset_ref.name,
@@ -471,8 +490,9 @@ class WorkflowAssetService:
 
         path_from_buffer = self._buffer_image_value(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
         )
         if path_from_buffer is None:
             return None
@@ -487,7 +507,7 @@ class WorkflowAssetService:
                 _LOGGER,
                 "Failed to resolve input mask path from workflow buffer",
                 workflow_name=workflow_name,
-                cube_alias=cube_alias,
+                section_key=section_key,
                 node_name=node_name,
                 mask_path=path_from_buffer,
                 error=error,
@@ -497,8 +517,9 @@ class WorkflowAssetService:
             _LOGGER,
             "Resolved input mask path from workflow buffer",
             workflow_name=workflow_name,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
             path=str(resolved_path),
         )
         return resolved_path
@@ -507,14 +528,15 @@ class WorkflowAssetService:
         self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
         collection_key: str,
         log_subject: str,
     ) -> WorkflowAssetRef | None:
         """Return a typed asset reference from metadata or current buffer values."""
 
-        key = self._association_key(cube_alias, node_name)
+        key = self._association_key(section_key, node_name)
         asset_refs = workflow.metadata.get(_ASSET_REFS_KEY, {})
         if isinstance(asset_refs, dict):
             collection = asset_refs.get(collection_key, {})
@@ -527,15 +549,17 @@ class WorkflowAssetService:
                         log_warning(
                             _LOGGER,
                             f"Ignoring invalid workflow {log_subject} asset metadata",
-                            cube_alias=cube_alias,
+                            section_key=section_key,
                             node_name=node_name,
+                            field_key=field_key,
                             error=error,
                         )
 
         authoring_value = self._buffer_image_value(
             workflow,
-            cube_alias=cube_alias,
+            section_key=section_key,
             node_name=node_name,
+            field_key=field_key,
         )
         if authoring_value is None:
             return None
@@ -571,35 +595,29 @@ class WorkflowAssetService:
             asset_refs[collection_key] = collection
         return collection
 
-    @staticmethod
     def _buffer_image_value(
+        self,
         workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
+        field_key: str,
     ) -> str | None:
         """Return the current graph-buffer image value for one input node."""
 
-        cube_state = workflow.cubes.get(cube_alias)
-        if cube_state is None:
-            return None
-        nodes = cube_state.buffer.get("nodes", {})
-        if not isinstance(nodes, dict):
-            return None
-        node = nodes.get(node_name)
-        if not isinstance(node, dict):
-            return None
-        inputs = node.get("inputs", {})
-        if not isinstance(inputs, dict):
-            return None
-        value = inputs.get("image")
+        value = self._graph_section_service.input_value(
+            workflow,
+            section_key=section_key,
+            node_name=node_name,
+            field_key=field_key,
+        )
         return value if isinstance(value, str) and value else None
 
     @staticmethod
-    def _association_key(cube_alias: str, node_name: str) -> str:
-        """Return the persisted metadata key for one cube node input."""
+    def _association_key(section_key: str, node_name: str) -> str:
+        """Return the persisted metadata key for one graph-section node input."""
 
-        return f"{cube_alias}:{node_name}"
+        return f"{section_key}:{node_name}"
 
 
 def _looks_like_local_path(value: str) -> bool:

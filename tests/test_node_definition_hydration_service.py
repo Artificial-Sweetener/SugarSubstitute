@@ -230,3 +230,69 @@ def test_hydration_service_attributes_same_missing_class_to_each_cube() -> None:
         ("sampler_a",),
         ("sampler_b",),
     )
+
+
+def test_hydration_skips_frontend_value_proxy_and_tolerates_local_fallback() -> None:
+    """Local workflow schemas should render without backend-only UI node classes."""
+
+    class _UnavailableHydrator:
+        """Record optional enrichment and report it unavailable."""
+
+        def __init__(self) -> None:
+            self.requests: list[tuple[str, ...]] = []
+
+        def ensure_node_definitions(
+            self,
+            node_classes: Sequence[str],
+        ) -> NodeDefinitionHydrationResult:
+            requested = tuple(node_classes)
+            self.requests.append(requested)
+            return NodeDefinitionHydrationResult(
+                requested=requested,
+                available=(),
+                unavailable=requested,
+            )
+
+    hydrator = _UnavailableHydrator()
+    service = EditorNodeDefinitionHydrationService(hydrator)
+    result = service.hydrate_for_projection(
+        cube_states={
+            "A": _CubeState(
+                buffer={
+                    "nodes": {
+                        "45": {
+                            "class_type": "PrimitiveNode",
+                            "inputs": {"steps": 25},
+                            "_workflow": {
+                                "execution_role": "value_proxy",
+                                "editor_definition": {
+                                    "input": {
+                                        "required": {"steps": ["INT", {"default": 25}]}
+                                    }
+                                },
+                            },
+                        },
+                        "7": {
+                            "class_type": "MissingCustomNode",
+                            "inputs": {"amount": 0.75},
+                            "_workflow": {
+                                "execution_role": "executable",
+                                "editor_definition": {
+                                    "input": {
+                                        "required": {
+                                            "amount": ["FLOAT", {"default": 0.75}]
+                                        }
+                                    }
+                                },
+                            },
+                        },
+                    }
+                }
+            )
+        },
+        stack_order=["A"],
+    )
+
+    assert result is not None
+    assert hydrator.requests == [("MissingCustomNode",)]
+    assert result.unavailable == ("MissingCustomNode",)

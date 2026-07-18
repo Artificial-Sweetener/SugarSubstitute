@@ -21,7 +21,7 @@ from __future__ import annotations
 from PySide6.QtCore import QRect, QSize
 from PySide6.QtWidgets import QLayout, QLayoutItem, QWidget
 
-EDITOR_CUBE_SECTION_GAP = 8
+EDITOR_SECTION_GAP = 8
 
 
 class MasonryGridLayout(QLayout):

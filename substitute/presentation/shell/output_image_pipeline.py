@@ -35,6 +35,7 @@ from substitute.application.workflows.output_canvas_state_service import (
     OutputImageRegistrationResult,
     OutputProjectionSchedulingIntent,
 )
+from substitute.domain.generation import OutputResultPosition
 from substitute.presentation.shell.canvas_projection_scheduler import (
     CanvasProjectionScheduler,
     ProjectionReason,
@@ -257,7 +258,7 @@ class OutputImagePipeline(QObject):
             generation_run_id=live_event.identity.generation_run_id,
             prompt_id=live_event.identity.prompt_id,
             client_id=live_event.identity.client_id,
-            list_index=live_event.list_index,
+            position=live_event.position,
             artifact_width=live_event.artifact_width,
             artifact_height=live_event.artifact_height,
             scene_fields=_scene_fields(live_event),
@@ -281,7 +282,7 @@ class OutputImagePipeline(QObject):
             generation_run_id=output_update.generation_run_id,
             prompt_id=output_update.prompt_id,
             client_id=output_update.client_id,
-            list_index=output_update.list_index,
+            position=_position_from_update(output_update),
             artifact_width=output_update.artifact_width,
             artifact_height=output_update.artifact_height,
             scene_fields=(
@@ -307,7 +308,7 @@ class OutputImagePipeline(QObject):
         generation_run_id: str | None,
         prompt_id: str | None,
         client_id: str | None,
-        list_index: int | None,
+        position: OutputResultPosition | None,
         artifact_width: int | None,
         artifact_height: int | None,
         scene_fields: tuple[str | None, str | None, str | None, int | None, int | None],
@@ -352,7 +353,7 @@ class OutputImagePipeline(QObject):
             generation_run_id=generation_run_id,
             prompt_id=prompt_id,
             client_id=client_id,
-            list_index=list_index,
+            position=position,
             artifact_width=artifact_width,
             artifact_height=artifact_height,
             live_event=live_event,
@@ -477,6 +478,12 @@ def _live_final_rejection_reason(output_update: OutputImageUpdate) -> str:
         return "non_integer_list_index"
     if output_update.list_index < 0:
         return "negative_list_index"
+    if output_update.batch_index is None:
+        return "missing_batch_index"
+    if type(output_update.batch_index) is not int:
+        return "non_integer_batch_index"
+    if output_update.batch_index < 0:
+        return "negative_batch_index"
     if (
         type(output_update.artifact_width) is not int
         or output_update.artifact_width <= 0
@@ -488,6 +495,24 @@ def _live_final_rejection_reason(output_update: OutputImageUpdate) -> str:
     ):
         return "missing_artifact_height"
     return "partial_scene_identity"
+
+
+def _position_from_update(
+    output_update: OutputImageUpdate,
+) -> OutputResultPosition | None:
+    """Return a typed result position when both transport coordinates exist."""
+
+    if (
+        type(output_update.list_index) is not int
+        or output_update.list_index < 0
+        or type(output_update.batch_index) is not int
+        or output_update.batch_index < 0
+    ):
+        return None
+    return OutputResultPosition(
+        list_index=output_update.list_index,
+        batch_index=output_update.batch_index,
+    )
 
 
 def _scene_fields(

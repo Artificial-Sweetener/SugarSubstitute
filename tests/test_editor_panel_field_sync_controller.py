@@ -191,6 +191,36 @@ class _SeedBoxDouble:
         self.modeChanged.emit(mode)
 
 
+class _LineEditDouble:
+    """Line-edit test double with separate text and commit signals."""
+
+    def __init__(self, metadata: dict[str, object], text: str = "") -> None:
+        """Initialize text, metadata, and Qt-like signals."""
+
+        self._metadata = metadata
+        self._text = text
+        self.textChanged = _SignalDouble()
+        self.editingFinished = _SignalDouble()
+
+    def property(self, name: str) -> object:
+        """Return one Qt-style property."""
+
+        if name == "input_metadata":
+            return self._metadata
+        return None
+
+    def text(self) -> str:
+        """Return the displayed text."""
+
+        return self._text
+
+    def setText(self, text: str) -> None:  # noqa: N802
+        """Replace displayed text and emit the text-change signal."""
+
+        self._text = text
+        self.textChanged.emit(text)
+
+
 class _CubeParent:
     """Cube-section parent double that records height refresh requests."""
 
@@ -306,6 +336,39 @@ def test_wire_seedbox_state_restores_and_persists_seed_mode(
     seedbox.setMode("random")
 
     assert cube_state.field_control_states["KSampler"]["seed"].mode == SeedMode.RANDOM
+    assert cube_state.dirty is True
+
+
+def test_wire_integer_lineedit_state_persists_python_integer() -> None:
+    """Large INT fallbacks should commit integer values instead of strings."""
+
+    lineedit = _LineEditDouble(
+        {
+            "cube_alias": "DirectWorkflow",
+            "node_name": "PrimitiveInt",
+            "key": "value",
+            "type": "INT",
+        },
+        text="stale",
+    )
+    cube_state = SimpleNamespace(
+        buffer={"nodes": {"PrimitiveInt": {"inputs": {"value": 0}}}},
+        dirty=False,
+    )
+
+    EditorPanelFieldStateController().wire_lineedit_state(
+        cast(Any, lineedit), cube_state
+    )
+
+    assert lineedit.text() == "0"
+    lineedit.setText("18446744073709551615")
+    assert cube_state.buffer["nodes"]["PrimitiveInt"]["inputs"]["value"] == 0
+
+    lineedit.editingFinished.emit()
+
+    stored_value = cube_state.buffer["nodes"]["PrimitiveInt"]["inputs"]["value"]
+    assert stored_value == 18_446_744_073_709_551_615
+    assert isinstance(stored_value, int)
     assert cube_state.dirty is True
 
 

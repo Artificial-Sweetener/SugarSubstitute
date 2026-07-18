@@ -27,6 +27,9 @@ from substitute.application.workflows.canvas_image_registry import CanvasImageRe
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
 )
+from substitute.application.workflows.output_scene_navigation_selection import (
+    OutputSceneNavigationSelection,
+)
 from substitute.application.workflows.output_visual_events import (
     LiveFinalOutputEvent,
     OutputSceneIdentity,
@@ -498,20 +501,17 @@ class OutputCanvasStateService:
     def set_active_output_scene(
         self,
         workflow: WorkflowState,
-        scene_key: str | None,
-        *,
-        overview: bool,
+        selection: OutputSceneNavigationSelection,
     ) -> OutputFocusMutationResult:
-        """Persist manual scene-level Output navigation intent."""
+        """Persist one complete manual scene-level Output route selection."""
 
         before = OutputFocusSnapshot.from_workflow(workflow)
         workflow.output_focus_mode = OutputFocusMode.MANUAL
-        workflow.active_output_scene_key = scene_key
-        workflow.active_output_scene_overview = overview
-        if overview:
-            workflow.active_output_uuid = None
-            workflow.active_output_source_key = None
-            workflow.active_output_set_index = 1
+        workflow.active_output_scene_key = selection.scene_key
+        workflow.active_output_scene_overview = selection.overview
+        workflow.active_output_source_key = selection.source_key
+        workflow.active_output_set_index = selection.set_index
+        workflow.active_output_uuid = selection.image_id
         return OutputFocusMutationResult(
             before=before,
             after=OutputFocusSnapshot.from_workflow(workflow),
@@ -704,8 +704,10 @@ def _live_metadata_rejection_reason(
         return "generation_run_id_mismatch"
     if image_meta.node_id != event.node_id:
         return "node_id_mismatch"
-    if image_meta.list_index != event.list_index:
+    if image_meta.list_index != event.position.list_index:
         return "list_index_mismatch"
+    if (image_meta.batch_index or 0) != event.position.batch_index:
+        return "batch_index_mismatch"
     if image_meta.width != event.artifact_width:
         return "artifact_width_mismatch"
     if image_meta.height != event.artifact_height:

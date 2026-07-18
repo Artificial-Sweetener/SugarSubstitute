@@ -33,7 +33,8 @@ from substitute.application.workflows.prompt_endpoint_service import (
 from substitute.application.workflows.node_link_endpoint_service import (
     NodeLinkEndpointService,
 )
-from substitute.domain.cubes import SubgraphWrapperDefinitionIndex
+from substitute.domain.comfy_workflow import NodeActivationStorage
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.links.prompt_endpoints import PromptEndpointIndex
 from substitute.domain.links.node_links import NodeLinkEndpointIndex
 from substitute.domain.node_behavior import (
@@ -44,7 +45,12 @@ from substitute.domain.node_behavior import (
     EditorBehaviorContext,
     FieldPresentation,
     compute_editor_behavior,
+    merge_node_behavior_patches,
     resolve_node_behavior,
+)
+from substitute.domain.node_behavior.prompt_graph import (
+    PromptDetectionResult,
+    PromptGraphContext,
 )
 from substitute.shared.logging.logger import (
     get_logger,
@@ -53,10 +59,8 @@ from substitute.shared.logging.logger import (
 )
 
 from .field_classification import NodeFieldKind, classify_node_field
-from .live_definition_authority import (
-    LiveNodeDefinitionError,
-    LiveNodeFieldDefinition,
-    MissingLiveNodeDefinition,
+from .direct_output_behavior_inference_service import (
+    DirectOutputBehaviorInferenceService,
 )
 from .list_value_resolver import (
     extract_live_list_options,
@@ -66,31 +70,14 @@ from .list_value_resolver import (
 )
 from .model_backed_node_detector import ModelBackedNodeDetector
 from .models import EditorBehaviorSnapshot, FieldValueSource, ResolvedFieldSpec
-from .node_card_order import node_title_for_order, order_node_cards
+from .prompt_behavior_inference_service import PromptBehaviorInferenceService
+from .section_node_source import (
+    SectionNodeSourceFactory,
+    is_subgraph_wrapper_definition,
+)
+from .section_card_order_service import SectionCardOrderService
 
 _LOGGER = get_logger("application.node_behavior.behavior_service")
-_WRAPPER_STRUCTURAL_METADATA_KEYS = frozenset(
-    {
-        "subgraph_wrapper",
-        "subgraph_id",
-        "interface_id",
-        "interface_type",
-        "localized_name",
-        "label",
-        "min",
-        "max",
-        "step",
-        "placeholder",
-        "multiline",
-        "dynamicPrompts",
-        "shape",
-        "body_node_type",
-        "body_input_name",
-        "default_source",
-        "has_authored_default",
-    }
-)
-_LIVE_METADATA_FALLBACK_SOURCE = "live_metadata_fallback"
 
 
 class CubeStateProtocol(Protocol):
@@ -99,6 +86,14 @@ class CubeStateProtocol(Protocol):
     buffer: dict[str, object]
     ui: dict[str, object]
     dirty: bool
+
+    @property
+    def activation_storage(self) -> NodeActivationStorage | str:
+        """Return the graph's authoritative node activation storage mode."""
+
+    @property
+    def uses_node_titles_as_card_labels(self) -> bool:
+        """Return whether source node titles own visible card labels."""
 
 
 @dataclass
@@ -121,10 +116,17 @@ class NodeBehaviorService:
     ) -> None:
         """Initialize the service with live node-definition collaborators."""
 
-        self._node_definition_gateway = node_definition_gateway
+        self._section_node_source_factory = SectionNodeSourceFactory(
+            node_definition_gateway
+        )
         self._model_backed_node_detector = model_backed_node_detector
         self._prompt_endpoint_service = PromptEndpointService()
         self._node_link_endpoint_service = NodeLinkEndpointService()
+        self._prompt_behavior_inference_service = PromptBehaviorInferenceService()
+        self._direct_output_behavior_inference_service = (
+            DirectOutputBehaviorInferenceService()
+        )
+        self._section_card_order_service = SectionCardOrderService()
 
     @staticmethod
     def ensure_runtime_state(cube_state: CubeStateProtocol) -> NodeBehaviorRuntimeState:
@@ -169,6 +171,9 @@ class NodeBehaviorService:
         resolved_by_alias: dict[str, dict[str, ResolvedNodeBehavior]] = {}
         field_specs_by_alias: dict[str, dict[str, dict[str, ResolvedFieldSpec]]] = {}
         declarative_by_alias: dict[str, PackageBehaviorPatch | None] = {}
+        prompt_detection_results_by_alias: dict[str, PromptDetectionResult] = {}
+        prompt_contexts_by_alias: dict[str, tuple[PromptGraphContext, ...]] = {}
+        baseline_order_by_alias: dict[str, tuple[str, ...]] = {}
         node_count = 0
         field_count = 0
         node_definition_lookup_count = 0
@@ -182,55 +187,50 @@ class NodeBehaviorService:
             runtime_state = self.ensure_runtime_state(cube_state)
             declarative_by_alias[alias] = declarative_patch
             buffer = getattr(cube_state, "buffer", {}) if cube_state is not None else {}
-            nodes = buffer.get("nodes", {}) if isinstance(buffer, dict) else {}
-            layout_nodes = self._layout_nodes(buffer)
-            wrapper_definitions = (
-                SubgraphWrapperDefinitionIndex.from_runtime_graph(buffer)
-                if isinstance(buffer, Mapping)
-                else SubgraphWrapperDefinitionIndex.from_runtime_graph({})
-            )
             per_node: dict[str, ResolvedNodeBehavior] = {}
             per_node_specs: dict[str, dict[str, ResolvedFieldSpec]] = {}
-            for node_name in self._ordered_node_names(nodes, layout_nodes=layout_nodes):
-                node_data = nodes.get(node_name)
-                if not isinstance(node_data, dict):
-                    continue
-                class_type = node_data.get("class_type")
-                if not isinstance(class_type, str):
-                    continue
-                node_count += 1
-                unique_class_types.add(class_type)
-                node_definition_lookup_count += 1
-                live_definition = self._lookup_node_definition(
-                    class_type=class_type,
-                    wrapper_definitions=wrapper_definitions,
+            sources = self._section_node_source_factory.prepare(
+                alias=alias,
+                buffer=buffer,
+            )
+            baseline_order_by_alias[alias] = tuple(
+                source.node_name for source in sources
+            )
+            node_count += len(sources)
+            node_definition_lookup_count += len(sources)
+            unique_class_types.update(source.class_type for source in sources)
+            prompt_inference = self._prompt_behavior_inference_service.infer(sources)
+            graph_nodes = buffer.get("nodes", {}) if isinstance(buffer, Mapping) else {}
+            output_patches = (
+                self._direct_output_behavior_inference_service.infer(
+                    graph=graph_nodes if isinstance(graph_nodes, Mapping) else {},
+                    sources=sources,
+                )
+                if isinstance(cube_state, DirectWorkflowState)
+                else {}
+            )
+            prompt_detection_results_by_alias[alias] = prompt_inference.detection_result
+            prompt_contexts_by_alias[alias] = prompt_inference.graph_contexts
+            if prompt_inference.detection_result.ambiguities:
+                log_debug(
+                    _LOGGER,
+                    "Withheld ambiguous prompt behavior",
                     cube_alias=alias,
-                    node_name=node_name,
+                    ambiguity_count=len(prompt_inference.detection_result.ambiguities),
                 )
-                wrapper_display_name = wrapper_definitions.display_name_for_class_type(
-                    class_type
-                )
-                input_keys = tuple(
-                    key
-                    for key in self._ordered_input_keys(
-                        node_name=node_name,
-                        class_type=class_type,
-                        node_inputs=node_data.get("inputs", {}),
-                        resolved_definition=live_definition,
-                    )
-                )
+            for source in sources:
+                node_name = source.node_name
+                node_data = source.node_data
+                class_type = source.class_type
+                live_definition = source.node_definition
+                input_keys = source.input_keys
                 instance_key = f"{alias}:{node_name}"
                 context = self._build_node_context(
                     alias=alias,
                     stack_order=stack_order,
                     node_name=node_name,
                     class_type=class_type,
-                    node_title=self._node_title(
-                        node_name=node_name,
-                        node_data=node_data,
-                        layout_nodes=layout_nodes,
-                    )
-                    or wrapper_display_name,
+                    node_title=source.node_title,
                     live_definition=live_definition,
                     declarative_patch=declarative_patch,
                     hook_patch=None,
@@ -242,6 +242,13 @@ class NodeBehaviorService:
                         if runtime_state.node_instance_patch.by_node_instance
                         else None
                     ),
+                    graph_inference_patch=merge_node_behavior_patches(
+                        prompt_inference.patches_by_node.get(
+                            node_name,
+                            NodeBehaviorPatch(),
+                        ),
+                        output_patches.get(node_name, NodeBehaviorPatch()),
+                    ),
                 )
                 resolved = resolve_node_behavior(
                     node_name=node_name,
@@ -249,7 +256,18 @@ class NodeBehaviorService:
                     input_keys=input_keys,
                     context=context,
                 )
-                if self._is_subgraph_wrapper_definition(live_definition):
+                if (
+                    bool(
+                        getattr(
+                            cube_state,
+                            "uses_node_titles_as_card_labels",
+                            False,
+                        )
+                    )
+                    and context.node_title is not None
+                ):
+                    resolved = replace(resolved, display_name=context.node_title)
+                elif is_subgraph_wrapper_definition(live_definition):
                     resolved = replace(resolved, display_name=context.node_title)
                 resolved = self._with_node_tooltip(
                     live_definition=live_definition,
@@ -307,6 +325,14 @@ class NodeBehaviorService:
             ctx,
             declarative_by_alias=declarative_by_alias,
         )
+        card_order_by_alias = self._section_card_order_service.plan(
+            section_states=cube_states,
+            section_order=stack_order,
+            baseline_order_by_alias=baseline_order_by_alias,
+            field_specs_by_alias=field_specs_by_alias,
+            card_decisions_by_alias=card_decisions,
+            prompt_contexts_by_alias=prompt_contexts_by_alias,
+        )
         snapshot = EditorBehaviorSnapshot(
             resolved_nodes_by_alias=resolved_by_alias,
             field_specs_by_alias=field_specs_by_alias,
@@ -315,6 +341,9 @@ class NodeBehaviorService:
             card_decisions_by_alias=card_decisions,
             hidden_field_keys_by_alias=hidden_keys,
             reveal_entries_by_alias=reveal_entries,
+            prompt_detection_results_by_alias=prompt_detection_results_by_alias,
+            prompt_contexts_by_alias=prompt_contexts_by_alias,
+            card_order_by_alias=card_order_by_alias,
         )
         log_timing(
             _LOGGER,
@@ -383,6 +412,20 @@ class NodeBehaviorService:
         if not isinstance(node_payload, dict):
             return
 
+        activation_storage = getattr(
+            cube_state,
+            "activation_storage",
+            NodeActivationStorage.ENABLED_OVERRIDE,
+        )
+        if str(activation_storage) in {
+            NodeActivationStorage.COMFY_MODE,
+            NodeActivationStorage.COMFY_MODE.value,
+        }:
+            set_node_activation = getattr(cube_state, "set_node_activation", None)
+            if callable(set_node_activation):
+                set_node_activation(node_name, explicit_enabled is not False)
+            return
+
         previous = node_payload.get("enabled") if "enabled" in node_payload else None
         if explicit_enabled is None:
             if "enabled" in node_payload:
@@ -442,6 +485,22 @@ class NodeBehaviorService:
         if not isinstance(node_payload, dict):
             return
 
+        activation_storage = getattr(
+            cube_state,
+            "activation_storage",
+            NodeActivationStorage.ENABLED_OVERRIDE,
+        )
+        if str(activation_storage) in {
+            NodeActivationStorage.COMFY_MODE,
+            NodeActivationStorage.COMFY_MODE.value,
+        }:
+            self.set_node_activation_override(
+                cube_state,
+                node_name,
+                node_payload.get("mode", 0) == 4,
+            )
+            return
+
         current = node_payload.get("enabled") if "enabled" in node_payload else None
         next_override = None if current is True else True
         self.set_node_activation_override(cube_state, node_name, next_override)
@@ -459,6 +518,7 @@ class NodeBehaviorService:
         hook_patch: PackageBehaviorPatch | None,
         workflow_overrides: Mapping[str, object],
         runtime_patch: NodeBehaviorPatch | None,
+        graph_inference_patch: NodeBehaviorPatch | None,
     ) -> NodeBehaviorContext:
         """Return the domain resolution context for one node instance."""
 
@@ -473,65 +533,8 @@ class NodeBehaviorService:
             hook_patch=hook_patch,
             workflow_overrides=workflow_overrides,
             node_instance_patch=runtime_patch if runtime_patch is not None else None,
+            graph_inference_patch=graph_inference_patch,
         )
-
-    def _lookup_node_definition(
-        self,
-        *,
-        class_type: str,
-        wrapper_definitions: SubgraphWrapperDefinitionIndex,
-        cube_alias: str,
-        node_name: str,
-    ) -> Mapping[str, object] | None:
-        """Return live-only runtime metadata for one class type."""
-
-        lookup_started_at = perf_counter()
-        wrapper_definition = wrapper_definitions.definition_for_class_type(class_type)
-        if wrapper_definition is not None:
-            subgraph_name = wrapper_definitions.display_name_for_class_type(class_type)
-            wrapper_definition = self._merge_wrapper_body_live_metadata(
-                wrapper_definition,
-                wrapper_definitions=wrapper_definitions,
-                cube_alias=cube_alias,
-                node_name=node_name,
-            )
-            log_timing(
-                _LOGGER,
-                "Resolved node definition from subgraph wrapper interface",
-                started_at=lookup_started_at,
-                level="debug",
-                class_type=class_type,
-                subgraph_wrapper_definition_available=True,
-                subgraph_name=subgraph_name,
-            )
-            return wrapper_definition
-
-        live_definitions = self._node_definition_gateway.get_node_definition(class_type)
-        from_live = (
-            live_definitions.get(class_type)
-            if isinstance(live_definitions, Mapping)
-            else None
-        )
-        if isinstance(from_live, Mapping):
-            log_timing(
-                _LOGGER,
-                "Resolved node definition from live metadata",
-                started_at=lookup_started_at,
-                level="debug",
-                class_type=class_type,
-                live_definition_available=True,
-                cube_definition_available=False,
-            )
-            return from_live
-        log_timing(
-            _LOGGER,
-            "Resolved empty node definition without live metadata",
-            started_at=lookup_started_at,
-            level="debug",
-            class_type=class_type,
-            live_definition_available=False,
-        )
-        return None
 
     def _with_model_default_icon(
         self,
@@ -607,262 +610,6 @@ class NodeBehaviorService:
             ):
                 return True
         return False
-
-    def _merge_wrapper_body_live_metadata(
-        self,
-        wrapper_definition: Mapping[str, object],
-        *,
-        wrapper_definitions: SubgraphWrapperDefinitionIndex,
-        cube_alias: str,
-        node_name: str,
-    ) -> Mapping[str, object]:
-        """Replace wrapper runtime metadata with linked live body definitions."""
-
-        enriched = deepcopy(dict(wrapper_definition))
-        input_section = enriched.get("input")
-        if not isinstance(input_section, dict):
-            return enriched
-        for section_name in ("required", "optional"):
-            section = input_section.get(section_name)
-            if not isinstance(section, dict):
-                continue
-            for field_spec in section.values():
-                self._merge_wrapper_field_body_live_metadata(
-                    field_spec,
-                    wrapper_definitions=wrapper_definitions,
-                    cube_alias=cube_alias,
-                    node_name=node_name,
-                )
-        return enriched
-
-    def _merge_wrapper_field_body_live_metadata(
-        self,
-        field_spec: object,
-        *,
-        wrapper_definitions: SubgraphWrapperDefinitionIndex,
-        cube_alias: str,
-        node_name: str,
-    ) -> None:
-        """Replace one mutable wrapper field spec with live body metadata."""
-
-        if (
-            not isinstance(field_spec, list)
-            or len(field_spec) < 2
-            or not isinstance(field_spec[1], dict)
-        ):
-            return
-        metadata = field_spec[1]
-        body_node_type = metadata.get("body_node_type")
-        body_input_name = metadata.get("body_input_name")
-        if not isinstance(body_node_type, str) or not isinstance(
-            body_input_name,
-            str,
-        ):
-            return
-        live_payload = self._node_definition_gateway.get_required_node_definition(
-            body_node_type
-        )
-        body_definition = (
-            live_payload.get(body_node_type)
-            if isinstance(live_payload, Mapping)
-            else None
-        )
-        if not isinstance(body_definition, Mapping):
-            nested_wrapper_definition = wrapper_definitions.definition_for_class_type(
-                body_node_type
-            )
-            if nested_wrapper_definition is not None:
-                body_definition = self._merge_wrapper_body_live_metadata(
-                    nested_wrapper_definition,
-                    wrapper_definitions=wrapper_definitions,
-                    cube_alias=cube_alias,
-                    node_name=node_name,
-                )
-        if not isinstance(body_definition, Mapping):
-            raise LiveNodeDefinitionError(
-                operation="resolve wrapper body node metadata",
-                missing_definitions=(
-                    MissingLiveNodeDefinition(
-                        class_type=body_node_type,
-                        cube_aliases=(cube_alias,),
-                        node_names=(node_name,),
-                    ),
-                ),
-            )
-        body_field_info = self._raw_field_definition(
-            live_definition=body_definition,
-            field_key=body_input_name,
-        )
-        if body_field_info is None:
-            raise LiveNodeDefinitionError(
-                operation="resolve wrapper body node metadata",
-                missing_definitions=(),
-                missing_fields=(
-                    LiveNodeFieldDefinition(
-                        class_type=body_node_type,
-                        field_key=body_input_name,
-                        field_type=None,
-                        meta_info={},
-                        field_info=None,
-                    ),
-                ),
-            )
-        body_metadata = self._live_metadata_from_field_info(body_field_info)
-        body_options = extract_live_list_options(body_field_info)
-        if body_options:
-            body_metadata = dict(body_metadata)
-            body_metadata["options"] = list(body_options)
-        structural_metadata = self._wrapper_structural_metadata(metadata)
-        replacement_field = deepcopy(body_field_info)
-        if not replacement_field:
-            return
-        if len(replacement_field) < 2 or not isinstance(replacement_field[1], Mapping):
-            replacement_field = [replacement_field[0], {}, *replacement_field[1:]]
-        replacement_metadata = deepcopy(body_metadata)
-        if metadata.get("has_authored_default") is True and "default" in metadata:
-            replacement_metadata["default"] = deepcopy(metadata["default"])
-            replacement_metadata["default_source"] = metadata.get("default_source")
-            replacement_metadata["has_authored_default"] = True
-        elif "default" not in replacement_metadata and "default" in metadata:
-            replacement_metadata["default"] = deepcopy(metadata["default"])
-            replacement_metadata["default_source"] = metadata.get("default_source")
-            replacement_metadata["has_authored_default"] = bool(
-                metadata.get("has_authored_default")
-            )
-        else:
-            replacement_metadata.setdefault(
-                "default_source",
-                _LIVE_METADATA_FALLBACK_SOURCE,
-            )
-            replacement_metadata.setdefault("has_authored_default", False)
-        replacement_metadata.update(structural_metadata)
-        replacement_field[1] = replacement_metadata
-        field_spec[:] = replacement_field
-
-    @staticmethod
-    def _wrapper_structural_metadata(
-        metadata: dict[str, object],
-    ) -> dict[str, object]:
-        """Return wrapper-only metadata that is structural rather than runtime."""
-
-        return {
-            key: deepcopy(value)
-            for key, value in metadata.items()
-            if key in _WRAPPER_STRUCTURAL_METADATA_KEYS
-        }
-
-    @staticmethod
-    def _ordered_input_keys(
-        *,
-        node_name: str,
-        class_type: str,
-        node_inputs: object,
-        resolved_definition: Mapping[str, object] | None,
-    ) -> list[str]:
-        """Return definition-owned field order plus persisted extras."""
-
-        _ = node_name, class_type
-        present = list(node_inputs.keys()) if isinstance(node_inputs, dict) else []
-        definition_input = (
-            resolved_definition.get("input", {})
-            if isinstance(resolved_definition, Mapping)
-            else {}
-        )
-        definition_keys: list[str] = []
-        definition_fields: dict[str, object] = {}
-        if isinstance(definition_input, Mapping):
-            for section_name in ("required", "optional"):
-                section = definition_input.get(section_name, {})
-                if isinstance(section, Mapping):
-                    definition_fields.update(
-                        (key, value)
-                        for key, value in section.items()
-                        if isinstance(key, str)
-                    )
-                    definition_keys.extend(
-                        key for key in section.keys() if isinstance(key, str)
-                    )
-        ordered: list[str] = []
-        if NodeBehaviorService._is_subgraph_wrapper_definition(resolved_definition):
-            for key in definition_keys:
-                if (
-                    key in present
-                    or NodeBehaviorService._definition_field_renders_without_input(
-                        definition_fields.get(key)
-                    )
-                ) and key not in ordered:
-                    ordered.append(key)
-            for key in present:
-                if isinstance(key, str) and key not in ordered:
-                    ordered.append(key)
-            return ordered
-        for key in definition_keys:
-            if key not in ordered:
-                ordered.append(key)
-        for key in present:
-            if isinstance(key, str) and key not in ordered:
-                ordered.append(key)
-        return ordered
-
-    @staticmethod
-    def _is_subgraph_wrapper_definition(
-        resolved_definition: Mapping[str, object] | None,
-    ) -> bool:
-        """Return whether the resolved definition describes a wrapper surface node."""
-
-        return bool(
-            isinstance(resolved_definition, Mapping)
-            and resolved_definition.get("subgraph_wrapper") is True
-        )
-
-    @staticmethod
-    def _definition_field_renders_without_input(field_definition: object) -> bool:
-        """Return whether a wrapper field is renderable without authored input."""
-
-        if (
-            not isinstance(field_definition, list)
-            or len(field_definition) < 2
-            or not isinstance(field_definition[1], Mapping)
-        ):
-            return False
-        return "default" in field_definition[1] or bool(
-            extract_live_list_options(field_definition)
-        )
-
-    @staticmethod
-    def _ordered_node_names(
-        nodes: Mapping[str, object],
-        *,
-        layout_nodes: Mapping[str, object] | None = None,
-    ) -> list[str]:
-        """Return deterministic node render order matching editor card layout."""
-
-        return order_node_cards(nodes, layout_nodes=layout_nodes)
-
-    @staticmethod
-    def _layout_nodes(buffer: Mapping[str, object]) -> Mapping[str, object]:
-        """Return cube layout node metadata when present."""
-
-        layout = buffer.get("layout")
-        if not isinstance(layout, Mapping):
-            return {}
-        layout_nodes = layout.get("nodes")
-        return layout_nodes if isinstance(layout_nodes, Mapping) else {}
-
-    @staticmethod
-    def _node_title(
-        *,
-        node_name: str,
-        node_data: object,
-        layout_nodes: Mapping[str, object],
-    ) -> str | None:
-        """Return the author-facing title for one node using canonical source order."""
-
-        return node_title_for_order(
-            node_name=node_name,
-            node_data=node_data,
-            layout_nodes=layout_nodes,
-        )
 
     @staticmethod
     def _resolve_field_definition(

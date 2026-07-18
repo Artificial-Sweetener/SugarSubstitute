@@ -22,6 +22,11 @@ from importlib import import_module
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from substitute.application.workflows.editor_projection_service import (
+        DIRECT_WORKFLOW_SECTION_KEY,
+        WorkflowEditorProjection,
+        WorkflowEditorProjectionService,
+    )
     from substitute.application.workflows.asset_reveal_service import AssetRevealService
     from substitute.application.workflows.canvas_image_registry import (
         CanvasImageRecord,
@@ -60,6 +65,12 @@ if TYPE_CHECKING:
     )
     from substitute.application.workflows.input_canvas_capability_service import (
         InputCanvasCapabilityService,
+    )
+    from substitute.application.workflows.input_asset_endpoint_service import (
+        InputAssetEndpointService,
+    )
+    from substitute.application.workflows.input_canvas_plan_service import (
+        InputCanvasPlanService,
     )
     from substitute.application.workflows.input_canvas_state_service import (
         InputCanvasStateService,
@@ -205,6 +216,9 @@ if TYPE_CHECKING:
     )
 
 _EXPORT_MODULES = {
+    "DIRECT_WORKFLOW_SECTION_KEY": (
+        "substitute.application.workflows.editor_projection_service"
+    ),
     "AssetRevealService": "substitute.application.workflows.asset_reveal_service",
     "CanvasIoService": "substitute.application.workflows.canvas_io_service",
     "CanvasImageRecord": "substitute.application.workflows.canvas_image_registry",
@@ -254,6 +268,12 @@ _EXPORT_MODULES = {
     "ImageMeta": "substitute.domain.workflow",
     "InputCanvasMaterializationResult": (
         "substitute.application.workflows.workflow_input_canvas_service"
+    ),
+    "InputAssetEndpointService": (
+        "substitute.application.workflows.input_asset_endpoint_service"
+    ),
+    "InputCanvasPlanService": (
+        "substitute.application.workflows.input_canvas_plan_service"
     ),
     "InputCanvasCapabilityService": (
         "substitute.application.workflows.input_canvas_capability_service"
@@ -308,6 +328,9 @@ _EXPORT_MODULES = {
     ),
     "OutputCanvasStateService": (
         "substitute.application.workflows.output_canvas_state_service"
+    ),
+    "OutputSceneNavigationSelection": (
+        "substitute.application.workflows.output_scene_navigation_selection"
     ),
     "allowed_output_composition_ids": (
         "substitute.application.workflows.output_canvas_session"
@@ -480,9 +503,16 @@ _EXPORT_MODULES = {
     "resolve_output_compare_selection": (
         "substitute.application.workflows.output_compare_resolution"
     ),
+    "WorkflowEditorProjection": (
+        "substitute.application.workflows.editor_projection_service"
+    ),
+    "WorkflowEditorProjectionService": (
+        "substitute.application.workflows.editor_projection_service"
+    ),
 }
 
 __all__ = [
+    "DIRECT_WORKFLOW_SECTION_KEY",
     "AssetRevealService",
     "CanvasIoService",
     "CanvasImageRecord",
@@ -506,8 +536,10 @@ __all__ = [
     "DEFAULT_WORKFLOW_TAB_LABEL",
     "ExternalImageEditorGateway",
     "ImageMeta",
+    "InputAssetEndpointService",
     "InputCanvasMaterializationResult",
     "InputCanvasCapabilityService",
+    "InputCanvasPlanService",
     "InputCanvasStateService",
     "LoadedInputCanvasImageIdentityResolution",
     "LiveFinalOutputEvent",
@@ -531,6 +563,7 @@ __all__ = [
     "OutputCanvasSessionBoundary",
     "OutputCanvasSourceGroup",
     "OutputCanvasStateService",
+    "OutputSceneNavigationSelection",
     "allowed_output_composition_ids",
     "allowed_output_image_ids",
     "allowed_output_scene_keys",
@@ -575,6 +608,8 @@ __all__ = [
     "WorkflowCreationTransition",
     "WorkflowAssetService",
     "WorkflowDuplicateService",
+    "WorkflowEditorProjection",
+    "WorkflowEditorProjectionService",
     "WorkflowInlineRenameDecision",
     "WorkflowIssueState",
     "live_node_definition_error_to_cube_issues",

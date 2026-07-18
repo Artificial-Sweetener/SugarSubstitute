@@ -22,7 +22,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
-from substitute.application.node_behavior import ResolvedFieldSpec, order_node_cards
+from substitute.application.node_behavior import ResolvedFieldSpec
 
 
 NodeCardBuildOutcomeKind = Literal[
@@ -64,17 +64,6 @@ def node_card_build_outcome(
         field_spec_count=field_spec_count,
         message=message,
     )
-
-
-def node_order_for_cube(
-    nodes: Mapping[str, object],
-    field_specs_by_node: Mapping[str, Mapping[str, ResolvedFieldSpec]],
-) -> list[str]:
-    """Return field-spec order when available, otherwise Comfy node-card order."""
-
-    if field_specs_by_node:
-        return list(field_specs_by_node.keys())
-    return order_node_cards(nodes)
 
 
 def leading_first_usable_node_count(

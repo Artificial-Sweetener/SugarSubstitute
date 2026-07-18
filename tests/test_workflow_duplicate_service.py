@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
 
@@ -26,6 +27,7 @@ import pytest
 
 from substitute.application.workflows import WorkflowDuplicateService
 from substitute.domain.generation.seed_control import SeedControlState, SeedMode
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.cube_library import CubeUpdatePolicy
 from substitute.domain.workflow import CubeState, OutputFocusMode, WorkflowState
 
@@ -197,6 +199,31 @@ def test_duplicate_workflow_deep_copies_mutable_cube_state() -> None:
             "Prompt.text": False,
         },
     }
+
+
+def test_duplicate_direct_workflow_copies_authoring_state_without_runtime() -> None:
+    """Direct document duplication should reset live behavior collaborators."""
+
+    source = WorkflowState(
+        direct_workflow=DirectWorkflowState(
+            source_path=Path("workflows/demo.json"),
+            source_workflow={"nodes": [], "links": []},
+            buffer={"nodes": {"1": {"class_type": "KSampler", "inputs": {}}}},
+            ui={"expanded": {"1": True}, "node_behavior_runtime": object()},
+            dirty=True,
+        )
+    )
+
+    duplicate = WorkflowDuplicateService().duplicate_workflow(source)
+
+    source_direct = source.direct_workflow
+    assert source_direct is not None
+    assert duplicate.direct_workflow is not None
+    assert duplicate.direct_workflow is not source_direct
+    assert duplicate.direct_workflow.buffer == source_direct.buffer
+    assert duplicate.direct_workflow.buffer is not source_direct.buffer
+    assert duplicate.direct_workflow.ui == {"expanded": {"1": True}}
+    assert duplicate.direct_workflow.dirty is True
 
 
 def test_duplicate_workflow_deep_copies_metadata_and_overrides() -> None:

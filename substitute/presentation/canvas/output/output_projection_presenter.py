@@ -211,14 +211,8 @@ class OutputProjectionPresenter:
 
         view = self.view
         projection = view._output_projection
-        if view.scene_count > 1:
-            view.active_scene_key = projection.active_scene_key
-            view.active_scene_overview = projection.active_scene_overview
-            if view.active_scene_key is None:
-                view.active_scene_key = next(iter(source_groups), None)
-        else:
-            view.active_scene_key = None
-            view.active_scene_overview = False
+        view.active_scene_key = projection.active_scene_key
+        view.active_scene_overview = projection.active_scene_overview
         view.active_source_key = projection.active_source_key
         view.active_set_index = projection.active_set_index
         if view.active_set_index > 0:

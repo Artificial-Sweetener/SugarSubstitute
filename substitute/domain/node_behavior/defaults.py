@@ -24,8 +24,6 @@ from .models import (
     ActivationDefault,
     ActivationSwitchSource,
     CardBehaviorPatch,
-    CardMode,
-    CollapseMode,
     EnabledSwitchPolicy,
     FieldBehaviorPatch,
     FieldPresentation,
@@ -33,11 +31,11 @@ from .models import (
     NodeBehaviorPatch,
     OverrideBehaviorPatch,
     OverridePinPolicy,
-    PromptFieldBehaviorPatch,
     PromptRole,
     RowMode,
     TitleControl,
 )
+from .prompt_behavior_patch import prompt_node_behavior_patch
 
 
 _PROMPT_NODE_NAMES: Final[frozenset[str]] = frozenset(
@@ -48,39 +46,13 @@ _PROMPT_NODE_NAMES: Final[frozenset[str]] = frozenset(
 )
 
 _NODE_DEFAULTS: Final[dict[str, NodeBehaviorPatch]] = {
-    "positive_prompt": NodeBehaviorPatch(
-        card=CardBehaviorPatch(
-            card_mode=CardMode.PROMPT,
-            collapse_mode=CollapseMode.EXEMPT,
-            icon_name="edit",
-            title_controls=(TitleControl.NODE_LINK_SELECTOR,),
-        ),
-        field_patches={
-            "prompt_template": FieldBehaviorPatch(
-                presentation=FieldPresentation.PROMPT_BOX,
-                row_mode=RowMode.FULL_WIDTH,
-                label_mode=LabelMode.PROMPT,
-                style={"prompt_syntaxes": ["emphasis", "wildcard", "lora"]},
-                prompt=PromptFieldBehaviorPatch(role=PromptRole.POSITIVE),
-            )
-        },
+    "positive_prompt": prompt_node_behavior_patch(
+        field_key="prompt_template",
+        role=PromptRole.POSITIVE,
     ),
-    "negative_prompt": NodeBehaviorPatch(
-        card=CardBehaviorPatch(
-            card_mode=CardMode.PROMPT,
-            collapse_mode=CollapseMode.EXEMPT,
-            icon_name="eraser",
-            title_controls=(TitleControl.NODE_LINK_SELECTOR,),
-        ),
-        field_patches={
-            "prompt_template": FieldBehaviorPatch(
-                presentation=FieldPresentation.PROMPT_BOX,
-                row_mode=RowMode.FULL_WIDTH,
-                label_mode=LabelMode.PROMPT,
-                style={"prompt_syntaxes": ["emphasis", "wildcard", "lora"]},
-                prompt=PromptFieldBehaviorPatch(role=PromptRole.NEGATIVE),
-            )
-        },
+    "negative_prompt": prompt_node_behavior_patch(
+        field_key="prompt_template",
+        role=PromptRole.NEGATIVE,
     ),
 }
 
@@ -198,11 +170,20 @@ _CLASS_DEFAULTS: Final[dict[str, NodeBehaviorPatch]] = {
 
 _FIELD_DEFAULTS: Final[dict[str, FieldBehaviorPatch]] = {
     "seed": FieldBehaviorPatch(
+        presentation=FieldPresentation.SEED_BOX,
         override_behavior=OverrideBehaviorPatch(
             override_key="seed",
             pin_policy=OverridePinPolicy.DEFAULT_PINNED,
             toolbar_order=60,
-        )
+        ),
+    ),
+    "noise_seed": FieldBehaviorPatch(
+        presentation=FieldPresentation.SEED_BOX,
+        override_behavior=OverrideBehaviorPatch(
+            override_key="seed",
+            pin_policy=OverridePinPolicy.DEFAULT_PINNED,
+            toolbar_order=60,
+        ),
     ),
     "sampler_name": FieldBehaviorPatch(
         override_behavior=OverrideBehaviorPatch(

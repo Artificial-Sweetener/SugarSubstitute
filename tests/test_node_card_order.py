@@ -14,15 +14,19 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Contract tests for prompts-first wired node-card ordering."""
+"""Contract tests for stable graph order and reachability."""
 
 from __future__ import annotations
 
-from substitute.application.node_behavior.node_card_order import order_node_cards
+from substitute.application.node_behavior.node_card_order import (
+    downstream_node_graph,
+    node_reaches,
+    wired_node_order,
+)
 
 
-def test_order_node_cards_keeps_prompt_nodes_first_by_legacy_name() -> None:
-    """Prompt nodes should stay pinned before the wired graph body."""
+def test_wired_order_does_not_assign_prompt_priority_before_resolution() -> None:
+    """Baseline metadata order should remain independent of presentation semantics."""
 
     nodes: dict[str, object] = {
         "ksampler": {
@@ -36,13 +40,13 @@ def test_order_node_cards_keeps_prompt_nodes_first_by_legacy_name() -> None:
         "positive_prompt": {"inputs": {}},
     }
 
-    order = order_node_cards(nodes)
+    order = wired_node_order(nodes)
 
-    assert order[:2] == ["positive_prompt", "negative_prompt"]
+    assert order == ["upstream", "negative_prompt", "positive_prompt", "ksampler"]
     assert set(order) == set(nodes)
 
 
-def test_order_node_cards_keeps_simple_wired_chain_order() -> None:
+def test_wired_node_order_keeps_simple_wired_chain_order() -> None:
     """Wired dependencies should order upstream nodes before consumers."""
 
     nodes: dict[str, object] = {
@@ -52,10 +56,10 @@ def test_order_node_cards_keeps_simple_wired_chain_order() -> None:
         "encoder": {"inputs": {"model": ["loader", 0]}},
     }
 
-    assert order_node_cards(nodes) == ["loader", "encoder", "sampler", "save"]
+    assert wired_node_order(nodes) == ["loader", "encoder", "sampler", "save"]
 
 
-def test_order_node_cards_preserves_mapping_order_for_independent_branches() -> None:
+def test_wired_node_order_preserves_mapping_order_for_independent_branches() -> None:
     """Independent zero-degree branches should retain source mapping order."""
 
     nodes: dict[str, object] = {
@@ -65,7 +69,7 @@ def test_order_node_cards_preserves_mapping_order_for_independent_branches() -> 
         "branch_a_output": {"inputs": {"value": ["branch_a_source", 0]}},
     }
 
-    assert order_node_cards(nodes) == [
+    assert wired_node_order(nodes) == [
         "branch_b_source",
         "branch_a_source",
         "branch_b_output",
@@ -73,7 +77,7 @@ def test_order_node_cards_preserves_mapping_order_for_independent_branches() -> 
     ]
 
 
-def test_order_node_cards_appends_cycles_in_mapping_order() -> None:
+def test_wired_node_order_appends_cycles_in_mapping_order() -> None:
     """Cyclic leftovers should not crash and should keep deterministic order."""
 
     nodes: dict[str, object] = {
@@ -82,10 +86,10 @@ def test_order_node_cards_appends_cycles_in_mapping_order() -> None:
         "cycle_b": {"inputs": {"value": ["cycle_a", 0]}},
     }
 
-    assert order_node_cards(nodes) == ["acyclic", "cycle_a", "cycle_b"]
+    assert wired_node_order(nodes) == ["acyclic", "cycle_a", "cycle_b"]
 
 
-def test_order_node_cards_does_not_prioritize_model_or_sampler_names() -> None:
+def test_wired_node_order_does_not_prioritize_model_or_sampler_names() -> None:
     """Model and sampler class names should not jump ahead of wired inputs."""
 
     nodes: dict[str, object] = {
@@ -103,28 +107,21 @@ def test_order_node_cards_does_not_prioritize_model_or_sampler_names() -> None:
         },
     }
 
-    assert order_node_cards(nodes) == ["checkpoint", "latent_source", "ksampler"]
+    assert wired_node_order(nodes) == ["checkpoint", "latent_source", "ksampler"]
 
 
-def test_order_node_cards_uses_layout_title_for_prompt_roles() -> None:
-    """Layout titles should identify prompt roles before legacy-name fallback."""
+def test_node_reachability_is_cycle_safe_and_directional() -> None:
+    """Segment planning should query local topology without recursion hazards."""
 
-    nodes: dict[str, object] = {
-        "sampler": {
-            "inputs": {
-                "positive": ["text_b", 0],
-                "negative": ["text_a", 0],
-            }
-        },
-        "text_a": {"inputs": {}},
-        "text_b": {"inputs": {}},
-    }
-    layout_nodes: dict[str, object] = {
-        "text_a": {"title": "Negative Prompt"},
-        "text_b": {"title": "Positive Prompt"},
-    }
+    graph = downstream_node_graph(
+        {
+            "source": {"inputs": {}},
+            "cycle_a": {"inputs": {"value": ["source", 0], "loop": ["cycle_b", 0]}},
+            "cycle_b": {"inputs": {"value": ["cycle_a", 0]}},
+            "sink": {"inputs": {"value": ["cycle_b", 0]}},
+        }
+    )
 
-    assert order_node_cards(nodes, layout_nodes=layout_nodes)[:2] == [
-        "text_b",
-        "text_a",
-    ]
+    assert node_reaches(graph, "source", "sink")
+    assert node_reaches(graph, "cycle_b", "cycle_a")
+    assert not node_reaches(graph, "sink", "source")

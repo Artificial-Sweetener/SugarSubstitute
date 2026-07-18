@@ -25,6 +25,7 @@ from typing import cast
 from substitute.presentation.shell.initial_workspace_controller import (
     InitialWorkspaceController,
 )
+from substitute.presentation.shell.workflow_surface_results import WorkflowUiSurfaces
 
 
 def test_initialize_initial_workspace_bootstraps_first_editor_pair() -> None:
@@ -57,8 +58,11 @@ def test_initialize_initial_workspace_bootstraps_first_editor_pair() -> None:
         ),
         workflow_ui_factory=SimpleNamespace(
             create_workflow_ui=lambda workflow_id, set_as_current=True: (
-                cube_stack,
-                editor_panel,
+                WorkflowUiSurfaces(
+                    cube_stack=cube_stack,
+                    editor_panel=editor_panel,
+                    created=True,
+                )
             )
         ),
         active_override_manager=SimpleNamespace(
@@ -116,8 +120,11 @@ def test_initialize_initial_workspace_does_not_duplicate_existing_tab() -> None:
         ),
         workflow_ui_factory=SimpleNamespace(
             create_workflow_ui=lambda _workflow_id, set_as_current=True: (
-                object(),
-                SimpleNamespace(load_all_cubes=lambda **_kwargs: None),
+                WorkflowUiSurfaces(
+                    cube_stack=object(),
+                    editor_panel=SimpleNamespace(load_all_cubes=lambda **_kwargs: None),
+                    created=True,
+                )
             )
         ),
         active_override_manager=None,

@@ -55,6 +55,7 @@ class InfrastructureGateway(Protocol):
         workflow_payload: dict[str, object],
         *,
         client_id: str,
+        execution_targets: tuple[str, ...] | None = None,
         preview_method: str | None = None,
         sugar_script: str | None = None,
         visual_context: QueueVisualRunContext | None = None,
@@ -98,6 +99,7 @@ class InfrastructureComfyGatewayAdapter(ComfyGateway):
         workflow_payload: dict[str, object],
         *,
         client_id: str,
+        execution_targets: tuple[str, ...] | None = None,
         preview_method: str | None = None,
         sugar_script: str | None = None,
         visual_context: QueueVisualRunContext | None = None,
@@ -107,6 +109,7 @@ class InfrastructureComfyGatewayAdapter(ComfyGateway):
         result: InfraQueuePromptResult = self.gateway.queue_prompt(
             workflow_payload,
             client_id=client_id,
+            execution_targets=execution_targets,
             preview_method=preview_method,
             sugar_script=sugar_script,
             visual_context=visual_context,

@@ -67,6 +67,9 @@ class CubeStackService:
     ) -> None:
         """Add cube alias to a target workflow state."""
 
+        if getattr(workflow, "direct_workflow", None) is not None:
+            raise ValueError("Direct Comfy workflows cannot be mixed with cubes.")
+
         manager = self._manager_for_workflow(workflow)
         manager.add_cube(cube_id, alias_name, cube_state)
         workflow.cubes[alias_name] = cube_state

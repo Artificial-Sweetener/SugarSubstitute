@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from substitute.application.workflows import build_output_canvas_projection
 from substitute.domain.workflow import ImageMeta, OutputFocusMode, WorkflowState
@@ -196,6 +196,187 @@ def test_projection_fallback_placement_uses_unoccupied_restore_slots() -> None:
     assert source.images_by_set[2].image_id == fallback_id
 
 
+def test_explicit_batch_coordinates_keep_every_image_without_overwrite() -> None:
+    """Images sharing a Comfy list slot must remain separate batch results."""
+
+    ids = (uuid4(), uuid4(), uuid4())
+    workflow = WorkflowState(output_image_uuids=list(ids))
+    metadata = {
+        image_id: _meta(
+            "Direct",
+            source_key="direct:source",
+            list_index=0,
+        )
+        for image_id in ids
+    }
+    for batch_index, image_id in enumerate(ids):
+        metadata[image_id].batch_index = batch_index
+
+    projection = build_output_canvas_projection(workflow, metadata)
+
+    source = projection.sources[0]
+    assert tuple(source.images_by_set) == (1, 2, 3)
+    assert tuple(item.image_id for item in source.images_by_set.values()) == ids
+    assert tuple(
+        item.position.batch_index if item.position is not None else None
+        for item in source.images_by_set.values()
+    ) == (0, 1, 2)
+
+
+def test_new_generation_replaces_an_occupied_batch_position() -> None:
+    """A newer run should replace history at the same backend result position."""
+
+    previous_id = uuid4()
+    latest_id = uuid4()
+    workflow = WorkflowState(
+        output_image_uuids=[previous_id, latest_id],
+        active_output_uuid=latest_id,
+    )
+    metadata = {
+        previous_id: _meta(
+            "Direct",
+            source_key="direct:source",
+            list_index=0,
+            generation_run_id="run-1",
+            prompt_id="prompt-1",
+            client_id="client-1",
+            node_id="node-1",
+        ),
+        latest_id: _meta(
+            "Direct",
+            source_key="direct:source",
+            list_index=0,
+            generation_run_id="run-2",
+            prompt_id="prompt-2",
+            client_id="client-2",
+            node_id="node-1",
+        ),
+    }
+    metadata[previous_id].batch_index = 0
+    metadata[latest_id].batch_index = 0
+
+    projection = build_output_canvas_projection(workflow, metadata)
+
+    source = projection.sources[0]
+    assert tuple(source.images_by_set) == (1,)
+    assert source.images_by_set[1].image_id == latest_id
+    assert projection.active_uuid == latest_id
+
+
+def test_new_generation_preserves_manual_image_at_occupied_batch_position() -> None:
+    """A newer result must not displace a concrete manual selection."""
+
+    selected_id = uuid4()
+    latest_id = uuid4()
+    workflow = WorkflowState(
+        output_image_uuids=[selected_id, latest_id],
+        active_output_uuid=selected_id,
+        active_output_source_key="direct:source",
+        active_output_set_index=1,
+        output_focus_mode=OutputFocusMode.MANUAL,
+    )
+    metadata = {
+        selected_id: _meta(
+            "Direct",
+            source_key="direct:source",
+            list_index=0,
+            generation_run_id="run-1",
+            prompt_id="prompt-1",
+            client_id="client-1",
+            node_id="node-1",
+        ),
+        latest_id: _meta(
+            "Direct",
+            source_key="direct:source",
+            list_index=0,
+            generation_run_id="run-2",
+            prompt_id="prompt-2",
+            client_id="client-2",
+            node_id="node-1",
+        ),
+    }
+    metadata[selected_id].batch_index = 0
+    metadata[latest_id].batch_index = 0
+
+    projection = build_output_canvas_projection(workflow, metadata)
+
+    source = projection.sources[0]
+    assert tuple(source.images_by_set) == (1,)
+    assert source.images_by_set[1].image_id == selected_id
+    assert projection.active_uuid == selected_id
+
+
+def test_direct_sources_follow_numbered_manifest_order_not_event_arrival() -> None:
+    """Concurrent recovery completion must not reorder direct source tabs."""
+
+    second_id = uuid4()
+    first_id = uuid4()
+    workflow = WorkflowState(output_image_uuids=[second_id, first_id])
+    metadata = {
+        second_id: _meta(
+            "2",
+            source_key="direct:blue:0",
+            list_index=0,
+        ),
+        first_id: _meta(
+            "1",
+            source_key="direct:red:0",
+            list_index=0,
+        ),
+    }
+    metadata[second_id].source_label = "2"
+    metadata[second_id].batch_index = 0
+    metadata[first_id].source_label = "1"
+    metadata[first_id].batch_index = 0
+
+    projection = build_output_canvas_projection(workflow, metadata)
+
+    assert tuple(source.label for source in projection.sources) == ("1", "2")
+
+
+def test_direct_scene_groups_preserve_source_order_and_every_batch_item() -> None:
+    """Each scene should independently retain numbered sources and tensor batches."""
+
+    metadata: dict[UUID, ImageMeta] = {}
+    image_ids: list[UUID] = []
+    for scene_order, scene_key in enumerate(("day", "night")):
+        for source_label, source_key in (("2", "direct:blue:0"), ("1", "direct:red:0")):
+            for batch_index in (1, 0):
+                image_id = uuid4()
+                image_ids.append(image_id)
+                image_meta = _meta(
+                    source_label,
+                    source_key=source_key,
+                    scene_key=scene_key,
+                    scene_title=scene_key.title(),
+                    scene_order=scene_order,
+                    scene_count=2,
+                    list_index=0,
+                )
+                image_meta.batch_index = batch_index
+                metadata[image_id] = image_meta
+    workflow = WorkflowState(output_image_uuids=image_ids)
+
+    projection = build_output_canvas_projection(workflow, metadata)
+
+    assert tuple(scene.scene_key for scene in projection.scene_groups) == (
+        "day",
+        "night",
+    )
+    for scene in projection.scene_groups:
+        assert tuple(source.label for source in scene.sources) == ("1", "2")
+        assert all(tuple(source.images_by_set) == (1, 2) for source in scene.sources)
+        assert all(
+            tuple(
+                item.position.batch_index
+                for item in source.images_by_set.values()
+                if item.position is not None
+            )
+            == (0, 1)
+            for source in scene.sources
+        )
+
+
 def test_projection_rejects_backend_identity_without_list_index_fallback() -> None:
     """Backend-routed records without list placement should not use fallback slots."""
 
@@ -334,6 +515,33 @@ def test_projection_manual_grid_selection_stays_sticky() -> None:
     )
 
     assert projection.active_source_key == "wf:text"
+    assert projection.active_set_index == 0
+    assert projection.active_uuid is None
+
+
+def test_projection_manual_single_item_grid_selection_stays_sticky() -> None:
+    """Manual grid focus should preserve hierarchy for a one-image source."""
+
+    workflow = WorkflowState()
+    image_id = uuid4()
+    workflow.output_image_uuids = [image_id]
+    workflow.output_focus_mode = OutputFocusMode.MANUAL
+    workflow.active_output_uuid = None
+    workflow.active_output_set_index = 0
+    workflow.active_output_source_key = "wf:upscale"
+
+    projection = build_output_canvas_projection(
+        workflow,
+        {
+            image_id: _meta(
+                "Diffusion Upscale",
+                source_key="wf:upscale",
+                image_number=1,
+            )
+        },
+    )
+
+    assert projection.active_source_key == "wf:upscale"
     assert projection.active_set_index == 0
     assert projection.active_uuid is None
 

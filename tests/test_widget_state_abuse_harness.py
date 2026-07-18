@@ -47,6 +47,7 @@ from substitute.domain.workspace_snapshot.codecs import (
 from substitute.presentation.editor.panel.factories.numeric_factory import (
     widget_factory_seedbox,
 )
+from substitute.domain.node_behavior import FieldPresentation
 from substitute.presentation.editor.panel.field_state_controller import (
     EditorPanelFieldStateController,
 )
@@ -233,6 +234,11 @@ def _field_spec(
         value=value,
         field_behavior=FieldBehavior(
             field_key=field_key,
+            presentation=(
+                FieldPresentation.SEED_BOX
+                if field_key == "seed"
+                else FieldPresentation.STANDARD
+            ),
             override_behavior=OverrideBehavior(
                 override_key=field_key,
                 pin_policy=OverridePinPolicy.DEFAULT_PINNED,
@@ -328,6 +334,7 @@ def _render_harness(workflow: WorkflowState | None = None) -> WidgetStateAbuseHa
         "seed",
         7,
         {},
+        field_presentation=FieldPresentation.SEED_BOX,
         constraints={"min": 0, "max": 999},
     )
     assert isinstance(node_seed_result, SeedBox)

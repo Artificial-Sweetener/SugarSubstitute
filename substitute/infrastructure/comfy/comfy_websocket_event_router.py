@@ -68,6 +68,23 @@ class CubeOutputMessageHandler(Protocol):
         """Handle one parsed Substitute cube-output payload."""
 
 
+class StandardOutputMessageHandler(Protocol):
+    """Describe standard executed-image handling needed by JSON routing."""
+
+    def handle(self, data: Mapping[str, object]) -> bool:
+        """Handle one event when it belongs to a recovery image source."""
+
+
+class NullStandardOutputMessageHandler:
+    """Ignore standard image events for listeners without recovery sources."""
+
+    def handle(self, data: Mapping[str, object]) -> bool:
+        """Return false because no recovery node is owned by this listener."""
+
+        _ = data
+        return False
+
+
 @dataclass(frozen=True)
 class WebsocketProgressEmission:
     """Describe one progress callback requested by JSON event routing."""
@@ -113,6 +130,7 @@ class ComfyWebsocketEventRouter:
         cube_output_handler: CubeOutputMessageHandler,
         runtime_context_provider: Callable[[], RuntimeReportContext],
         on_model_load_progress: Callable[[ModelLoadProgressUpdate], None],
+        standard_output_handler: StandardOutputMessageHandler | None = None,
     ) -> None:
         """Initialize routing context and mutable event-stream state."""
 
@@ -125,6 +143,9 @@ class ComfyWebsocketEventRouter:
         self._source_identity_resolver = source_identity_resolver
         self._source_metadata_resolver = source_metadata_resolver
         self._cube_output_handler = cube_output_handler
+        self._standard_output_handler = (
+            standard_output_handler or NullStandardOutputMessageHandler()
+        )
         self._runtime_context_provider = runtime_context_provider
         self._on_model_load_progress = on_model_load_progress
         self._current_node: str | None = None
@@ -210,6 +231,9 @@ class ComfyWebsocketEventRouter:
         if message_type == "substitute_cube_output":
             self._cube_output_handler.handle(data)
             return WebsocketJsonRouteResult()
+
+        if message_type == "executed":
+            self._standard_output_handler.handle(data)
 
         execution_error_route = route_execution_error_event(
             message_type,
@@ -314,6 +338,8 @@ class ComfyWebsocketEventRouter:
 
 __all__ = [
     "ComfyWebsocketEventRouter",
+    "NullStandardOutputMessageHandler",
+    "StandardOutputMessageHandler",
     "WebsocketExecutionFailure",
     "WebsocketJsonRouteResult",
     "WebsocketProgressEmission",

@@ -131,7 +131,7 @@ def test_shell_workspace_materialization_port_delegates_to_restore_owners() -> N
             ),
             project_restored_settings=lambda: calls.append(("project_settings", "")),
         ),
-        shell_layout_controller=SimpleNamespace(
+        shell_layout_restore_controller=SimpleNamespace(
             apply_restored_shell_layout=lambda snapshot: calls.append(
                 ("layout", snapshot)
             )

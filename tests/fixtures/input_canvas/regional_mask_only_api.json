@@ -1,0 +1,55 @@
+{
+  "nodes": {
+    "1": {
+      "class_type": "LoadImageMask",
+      "inputs": {
+        "image": "regional-mask.png",
+        "channel": "red"
+      }
+    },
+    "2": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "regional prompt"
+      }
+    },
+    "3": {
+      "class_type": "ConditioningSetMask",
+      "inputs": {
+        "conditioning": ["2", 0],
+        "mask": ["1", 0],
+        "strength": 1.0,
+        "set_cond_area": "default"
+      }
+    },
+    "4": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 768,
+        "batch_size": 2
+      }
+    },
+    "5": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": ["6", 0],
+        "positive": ["3", 0],
+        "negative": ["2", 0],
+        "latent_image": ["4", 0],
+        "seed": 42,
+        "steps": 20,
+        "cfg": 7.0,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0
+      }
+    },
+    "6": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "fixture.safetensors"
+      }
+    }
+  }
+}

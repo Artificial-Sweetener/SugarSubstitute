@@ -1,0 +1,332 @@
+{
+  "version": 0.4,
+  "last_node_id": 51,
+  "last_link_id": 48,
+  "nodes": [
+    {
+      "id": 5,
+      "type": "EmptyLatentImage",
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "LATENT", "type": "LATENT", "links": [27]}
+      ],
+      "widgets_values": [1024, 1024, 1]
+    },
+    {
+      "id": 4,
+      "type": "CheckpointLoaderSimple",
+      "title": "Load Checkpoint - BASE",
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "MODEL", "type": "MODEL", "links": [10]},
+        {"name": "CLIP", "type": "CLIP", "links": [3, 5]},
+        {"name": "VAE", "type": "VAE", "links": []}
+      ],
+      "widgets_values": ["fixture-base.safetensors"]
+    },
+    {
+      "id": 12,
+      "type": "CheckpointLoaderSimple",
+      "title": "Load Checkpoint - REFINER",
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "MODEL", "type": "MODEL", "links": [14]},
+        {"name": "CLIP", "type": "CLIP", "links": [19, 20]},
+        {"name": "VAE", "type": "VAE", "links": [34]}
+      ],
+      "widgets_values": ["fixture-refiner.safetensors"]
+    },
+    {
+      "id": 45,
+      "type": "PrimitiveNode",
+      "title": "steps",
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "widget": {"name": "steps"},
+          "links": [38, 41]
+        }
+      ],
+      "widgets_values": [25, "fixed"]
+    },
+    {
+      "id": 47,
+      "type": "PrimitiveNode",
+      "title": "end_at_step",
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "widget": {"name": "end_at_step"},
+          "links": [43, 44]
+        }
+      ],
+      "widgets_values": [20, "fixed"]
+    },
+    {
+      "id": 51,
+      "type": "PrimitiveNode",
+      "title": "Positive Prompt (Text)",
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "widget": {"name": "text"},
+          "links": [45, 47]
+        }
+      ],
+      "widgets_values": ["fixture positive prompt"]
+    },
+    {
+      "id": 50,
+      "type": "PrimitiveNode",
+      "title": "Negative Prompt (Text)",
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "widget": {"name": "text"},
+          "links": [46, 48]
+        }
+      ],
+      "widgets_values": ["fixture negative prompt"]
+    },
+    {
+      "id": 49,
+      "type": "MarkdownNote",
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "widgets_values": ["# This annotation must not render"]
+    },
+    {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip", "type": "CLIP", "link": 3},
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {"name": "text"},
+          "link": 45
+        }
+      ],
+      "outputs": [
+        {"name": "CONDITIONING", "type": "CONDITIONING", "links": [11]}
+      ],
+      "widgets_values": ["fixture positive prompt"]
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip", "type": "CLIP", "link": 5},
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {"name": "text"},
+          "link": 46
+        }
+      ],
+      "outputs": [
+        {"name": "CONDITIONING", "type": "CONDITIONING", "links": [12]}
+      ],
+      "widgets_values": ["fixture negative prompt"]
+    },
+    {
+      "id": 15,
+      "type": "CLIPTextEncode",
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip", "type": "CLIP", "link": 19},
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {"name": "text"},
+          "link": 47
+        }
+      ],
+      "outputs": [
+        {"name": "CONDITIONING", "type": "CONDITIONING", "links": [23]}
+      ],
+      "widgets_values": ["fixture positive prompt"]
+    },
+    {
+      "id": 16,
+      "type": "CLIPTextEncode",
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip", "type": "CLIP", "link": 20},
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {"name": "text"},
+          "link": 48
+        }
+      ],
+      "outputs": [
+        {"name": "CONDITIONING", "type": "CONDITIONING", "links": [24]}
+      ],
+      "widgets_values": ["fixture negative prompt"]
+    },
+    {
+      "id": 10,
+      "type": "KSamplerAdvanced",
+      "title": "KSampler (Advanced) - BASE",
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {"name": "model", "type": "MODEL", "link": 10},
+        {"name": "positive", "type": "CONDITIONING", "link": 11},
+        {"name": "negative", "type": "CONDITIONING", "link": 12},
+        {"name": "latent_image", "type": "LATENT", "link": 27},
+        {
+          "name": "steps",
+          "type": "INT",
+          "widget": {"name": "steps"},
+          "link": 41
+        },
+        {
+          "name": "end_at_step",
+          "type": "INT",
+          "widget": {"name": "end_at_step"},
+          "link": 43
+        }
+      ],
+      "outputs": [
+        {"name": "LATENT", "type": "LATENT", "links": [13]}
+      ],
+      "widgets_values": [
+        "enable",
+        123456,
+        "fixed",
+        25,
+        8.0,
+        "euler",
+        "normal",
+        0,
+        20,
+        "enable"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "KSamplerAdvanced",
+      "title": "KSampler (Advanced) - REFINER",
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {"name": "model", "type": "MODEL", "link": 14},
+        {"name": "positive", "type": "CONDITIONING", "link": 23},
+        {"name": "negative", "type": "CONDITIONING", "link": 24},
+        {"name": "latent_image", "type": "LATENT", "link": 13},
+        {
+          "name": "steps",
+          "type": "INT",
+          "widget": {"name": "steps"},
+          "link": 38
+        },
+        {
+          "name": "start_at_step",
+          "type": "INT",
+          "widget": {"name": "start_at_step"},
+          "link": 44
+        }
+      ],
+      "outputs": [
+        {"name": "LATENT", "type": "LATENT", "links": [25]}
+      ],
+      "widgets_values": [
+        "disable",
+        0,
+        "fixed",
+        25,
+        8.0,
+        "euler",
+        "normal",
+        20,
+        10000,
+        "disable"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "VAEDecode",
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {"name": "samples", "type": "LATENT", "link": 25},
+        {"name": "vae", "type": "VAE", "link": 34}
+      ],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [28]}
+      ],
+      "widgets_values": []
+    },
+    {
+      "id": 19,
+      "type": "SaveImage",
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {"name": "images", "type": "IMAGE", "link": 28}
+      ],
+      "outputs": [],
+      "widgets_values": ["ComfyUI"]
+    }
+  ],
+  "links": [
+    [3, 4, 1, 6, 0, "CLIP"],
+    [5, 4, 1, 7, 0, "CLIP"],
+    [10, 4, 0, 10, 0, "MODEL"],
+    [11, 6, 0, 10, 1, "CONDITIONING"],
+    [12, 7, 0, 10, 2, "CONDITIONING"],
+    [13, 10, 0, 11, 3, "LATENT"],
+    [14, 12, 0, 11, 0, "MODEL"],
+    [19, 12, 1, 15, 0, "CLIP"],
+    [20, 12, 1, 16, 0, "CLIP"],
+    [23, 15, 0, 11, 1, "CONDITIONING"],
+    [24, 16, 0, 11, 2, "CONDITIONING"],
+    [25, 11, 0, 17, 0, "LATENT"],
+    [27, 5, 0, 10, 3, "LATENT"],
+    [28, 17, 0, 19, 0, "IMAGE"],
+    [34, 12, 2, 17, 1, "VAE"],
+    [38, 45, 0, 11, 4, "INT"],
+    [41, 45, 0, 10, 4, "INT"],
+    [43, 47, 0, 10, 5, "INT"],
+    [44, 47, 0, 11, 5, "INT"],
+    [45, 51, 0, 6, 1, "STRING"],
+    [46, 50, 0, 7, 1, "STRING"],
+    [47, 51, 0, 15, 1, "STRING"],
+    [48, 50, 0, 16, 1, "STRING"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {}
+}

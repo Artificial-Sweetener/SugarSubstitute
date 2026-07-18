@@ -79,6 +79,20 @@ from .resolver import (
     merge_node_behavior_patches,
     resolve_node_behavior,
 )
+from .prompt_behavior_patch import prompt_node_behavior_patch
+from .prompt_context_resolver import PromptGraphContextResolver
+from .prompt_graph import (
+    PromptAmbiguityReason,
+    PromptDetectionResult,
+    PromptEvidence,
+    PromptEvidenceKind,
+    PromptFieldLocator,
+    PromptGraphContext,
+    PromptRoleAmbiguity,
+    PromptRoleDetection,
+    PromptSinkLocator,
+)
+from .prompt_graph_analyzer import PromptGraphAnalyzer
 
 __all__ = [
     "ActivationDefault",
@@ -107,7 +121,18 @@ __all__ = [
     "PackageBehaviorPatch",
     "PromptFieldBehavior",
     "PromptFieldBehaviorPatch",
+    "PromptAmbiguityReason",
+    "PromptDetectionResult",
+    "PromptEvidence",
+    "PromptEvidenceKind",
+    "PromptFieldLocator",
+    "PromptGraphContext",
+    "PromptGraphContextResolver",
+    "PromptGraphAnalyzer",
     "PromptRole",
+    "PromptRoleAmbiguity",
+    "PromptRoleDetection",
+    "PromptSinkLocator",
     "ResolvedNodeBehavior",
     "RevealMenuEntry",
     "RevealMode",
@@ -127,6 +152,7 @@ __all__ = [
     "multiline_string_input_keys",
     "normalize_prompt_label",
     "prompt_role_from_label",
+    "prompt_node_behavior_patch",
     "is_prompt_node_name",
     "merge_card_behavior_patches",
     "merge_field_behavior_patches",

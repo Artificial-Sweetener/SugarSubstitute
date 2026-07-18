@@ -58,6 +58,24 @@ def import_canvas_modules(monkeypatch: Any) -> tuple[Any, Any]:
 def install_canvas_view_stubs(monkeypatch: Any) -> None:
     """Install lightweight runtime stubs needed for canvas widget imports."""
 
+    zoom_indicator = types.ModuleType(
+        "substitute.presentation.canvas.shared.canvas_zoom_indicator"
+    )
+    setattr(
+        zoom_indicator,
+        "CanvasZoomIndicator",
+        type(
+            "CanvasZoomIndicator",
+            (),
+            {"__init__": lambda self, _pane: None},
+        ),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "substitute.presentation.canvas.shared.canvas_zoom_indicator",
+        zoom_indicator,
+    )
+
     if "PySide6" not in sys.modules:
         pyside = types.ModuleType("PySide6")
         pyside.__spec__ = importlib.machinery.ModuleSpec(

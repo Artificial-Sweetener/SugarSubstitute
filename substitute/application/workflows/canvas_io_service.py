@@ -136,6 +136,58 @@ class CanvasIoService:
 
         return self._image_repository.save_blank_mask(destination, size=size)
 
+    def synthetic_input_surface_path(
+        self,
+        *,
+        workflow_name: str,
+        section_key: str,
+        surface_key: str,
+        width: int,
+        height: int,
+        projects_dir: Path,
+    ) -> Path:
+        """Return a deterministic project path for one synthetic backing image."""
+
+        safe_workflow_name = validate_top_level_name(workflow_name, subject="Workflow")
+        surface_dir = ensure_within_root(
+            projects_dir / safe_workflow_name / "input_surfaces",
+            root_path=projects_dir,
+            subject="Synthetic input surface directory",
+        )
+        filename = "__".join(
+            (
+                _safe_identity_component(section_key),
+                _safe_identity_component(surface_key),
+                _image_size_component((width, height)),
+            )
+        )
+        return ensure_within_root(
+            surface_dir / f"{filename}.png",
+            root_path=projects_dir,
+            subject="Synthetic input surface path",
+        )
+
+    def create_blank_input_surface(
+        self,
+        *,
+        destination: Path,
+        width: int,
+        height: int,
+    ) -> object | None:
+        """Persist and load a neutral synthetic Input canvas backing image."""
+
+        if destination.exists() and self.image_dimensions(destination) == (
+            width,
+            height,
+        ):
+            return self.load_input_image(destination)
+        saved = self._image_repository.save_blank_image(
+            destination,
+            width=width,
+            height=height,
+        )
+        return self.load_input_image(destination) if saved else None
+
     def save_mask_image(self, *, destination: Path, image: object) -> bool:
         """Persist existing mask image payload through image repository adapter."""
 
@@ -218,6 +270,7 @@ class CanvasIoService:
         width: int | None = None,
         height: int | None = None,
         list_index: int | None = None,
+        batch_index: int | None = None,
         cube_execution_duration_ms: float | None = None,
     ) -> ImageMeta:
         """Build output metadata payload from workflow label, node title, and file path."""
@@ -251,6 +304,7 @@ class CanvasIoService:
             width=width,
             height=height,
             list_index=list_index,
+            batch_index=batch_index,
             cube_execution_duration_ms=cube_execution_duration_ms,
         )
 

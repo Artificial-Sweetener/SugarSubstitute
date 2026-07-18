@@ -21,8 +21,6 @@ from __future__ import annotations
 import importlib
 from types import SimpleNamespace
 
-from substitute.application.node_behavior.node_card_order import order_node_cards
-
 
 def _import_module():
     """Import the cube reveal controller module."""
@@ -115,27 +113,6 @@ class _Action:
         """Record action payload."""
 
         self.payload = payload
-
-
-def test_shared_node_card_order_keeps_prompt_nodes_first() -> None:
-    """Cube-section fallback ordering should use prompts-first wired order."""
-
-    nodes = {
-        "ksampler": {
-            "inputs": {
-                "positive": ["positive_prompt", 0],
-                "negative": ["negative_prompt", 0],
-            }
-        },
-        "positive_prompt": {"inputs": {}},
-        "negative_prompt": {"inputs": {}},
-        "upstream": {"inputs": {}},
-    }
-
-    order = order_node_cards(nodes)
-
-    assert order[:2] == ["positive_prompt", "negative_prompt"]
-    assert set(order) == set(nodes.keys())
 
 
 def test_rebuild_cube_visibility_menu_hides_button_without_entries() -> None:

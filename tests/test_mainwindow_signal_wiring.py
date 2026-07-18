@@ -63,8 +63,8 @@ def test_menu_action_signals_route_toolbar_controls() -> None:
     shell = SimpleNamespace(
         cubeStackModeButton=SimpleNamespace(toggled=_Signal()),
         _global_override_menu=SimpleNamespace(triggered=_Signal()),
-        shell_layout_controller=SimpleNamespace(
-            set_cube_stack_compact=compact_calls.append
+        cube_stack_presentation_controller=SimpleNamespace(
+            request_preference=compact_calls.append
         ),
         workspace_search_actions=SimpleNamespace(
             proxy_override_menu_toggled=override_calls.append,

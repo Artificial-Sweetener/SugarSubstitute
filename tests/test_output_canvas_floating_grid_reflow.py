@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from PySide6.QtCore import QRectF
 import pytest
@@ -36,10 +37,12 @@ if os.environ.get("PYTEST_XDIST_WORKER"):
     )
 
 
-def test_floating_and_docked_hosts_choose_same_physical_grid_topology() -> None:
+def test_floating_and_docked_hosts_choose_same_physical_grid_topology(
+    tmp_path: Path,
+) -> None:
     """The same QPane extent should produce the same topology in either host."""
 
-    harness = RealShellOutputCanvasHarness()
+    harness = RealShellOutputCanvasHarness(output_root=tmp_path)
     window: FloatingCanvasWindow | None = None
     try:
         harness.add_workflow("alpha", activate=True)

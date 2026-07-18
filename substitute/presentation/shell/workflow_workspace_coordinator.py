@@ -59,13 +59,25 @@ from substitute.presentation.shell.workflow_surface_refresh_scheduler import (
 from substitute.presentation.shell.workflow_route_projector import (
     WorkflowRouteProjector,
 )
-from substitute.presentation.shell.workflow_shell_adapters import (
+from substitute.presentation.shell.main_window_canvas_route_adapter import (
     MainWindowCanvasRouteAdapter,
+)
+from substitute.presentation.shell.main_window_editor_surface_adapter import (
     MainWindowEditorSurfaceAdapter,
+)
+from substitute.presentation.shell.main_window_generation_availability_adapter import (
     MainWindowGenerationAvailabilityAdapter,
+)
+from substitute.presentation.shell.main_window_override_surface_adapter import (
     MainWindowOverrideSurfaceAdapter,
+)
+from substitute.presentation.shell.main_window_workflow_activity_adapter import (
     MainWindowWorkflowActivityAdapter,
+)
+from substitute.presentation.shell.main_window_workflow_route_adapter import (
     MainWindowWorkflowRouteAdapter,
+)
+from substitute.presentation.shell.main_window_workflow_session_state_adapter import (
     MainWindowWorkflowSessionStateAdapter,
 )
 from substitute.presentation.shell.generation_feedback_presenter import (

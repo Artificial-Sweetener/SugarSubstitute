@@ -276,6 +276,7 @@ def build_widget_for_field_behavior(
             value=value,
             field_meta=field_meta,
             field_type=kwargs.get("field_type"),
+            field_presentation=field_behavior.presentation,
             constraints=constraints,
         )
     )

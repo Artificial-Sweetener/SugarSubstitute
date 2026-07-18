@@ -349,6 +349,45 @@ def test_scheduler_rekeys_pending_work_for_renamed_workflow() -> None:
     assert calls == [("wf-renamed", image_id)]
 
 
+def test_scheduler_preserves_inactive_workflow_request_until_return() -> None:
+    """Switching workflows before flush should retain each workflow's request."""
+
+    _app()
+    calls: list[tuple[str, object]] = []
+    active_workflow = "first"
+    first_image_id = uuid4()
+    second_image_id = uuid4()
+
+    def project(workflow_id: str, image_id: object = None) -> None:
+        calls.append((workflow_id, image_id))
+
+    scheduler = CanvasProjectionScheduler(
+        project_workflow=project,
+        active_workflow_id=lambda: active_workflow,
+        output_canvas_visible=lambda: True,
+    )
+    scheduler.request_projection(
+        "first",
+        reason=ProjectionReason.GENERATED_OUTPUT,
+        registered_image_id=first_image_id,
+    )
+
+    active_workflow = "second"
+    scheduler.request_projection(
+        "second",
+        reason=ProjectionReason.GENERATED_OUTPUT,
+        registered_image_id=second_image_id,
+    )
+    scheduler.flush()
+
+    assert calls == [("second", second_image_id)]
+
+    active_workflow = "first"
+    scheduler.flush()
+
+    assert calls == [("second", second_image_id), ("first", first_image_id)]
+
+
 def _app() -> QApplication:
     """Return a QApplication for QTimer-backed scheduler tests."""
 

@@ -52,6 +52,7 @@ from substitute.domain.generation.output_organization import (
     OutputRunBucket,
     default_output_organization_preferences,
 )
+from substitute.domain.generation.output_position import OutputResultPosition
 from substitute.domain.generation.result_snapshot import (
     GENERATION_RESULT_SNAPSHOT_SCHEMA_VERSION,
     GenerationResultSnapshot,
@@ -85,6 +86,7 @@ __all__ = [
     "OutputPathRenderResult",
     "OutputPathToken",
     "OutputRunBucket",
+    "OutputResultPosition",
     "SUPPORTED_OUTPUT_PATH_TOKEN_NAMES",
     "SUPPORTED_OUTPUT_PATH_TOKENS",
     "SeedControlState",

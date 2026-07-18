@@ -489,6 +489,7 @@ def resolve_node_behavior(
             node_title=context.node_title,
             input_keys=input_keys,
         ),
+        context.graph_inference_patch or NodeBehaviorPatch(),
         _patch_with_enabled_switch_source(
             (
                 context.declarative_patch.by_class.get(class_type, NodeBehaviorPatch())

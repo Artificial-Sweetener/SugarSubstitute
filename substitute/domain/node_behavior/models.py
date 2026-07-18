@@ -80,6 +80,7 @@ class FieldPresentation(StrEnum):
     IMAGE_PICKER = "image_picker"
     MASK_PICKER = "mask_picker"
     MODEL_PICKER = "model_picker"
+    SEED_BOX = "seed_box"
     CUSTOM = "custom"
 
 
@@ -292,6 +293,7 @@ class NodeBehaviorContext:
     hook_patch: PackageBehaviorPatch | None
     workflow_overrides: Mapping[str, object]
     node_instance_patch: NodeBehaviorPatch | None
+    graph_inference_patch: NodeBehaviorPatch | None = None
 
 
 @dataclass(frozen=True)

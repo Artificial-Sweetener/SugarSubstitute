@@ -132,6 +132,16 @@ class EditorPanelProjectionCoordinator:
 
         return self._composition.visible_commits.finalize_pending_visible_projection()
 
+    def is_projection_active(self) -> bool:
+        """Return whether a full projection still owns build or reveal work."""
+
+        session = self._composition.projection_sessions.active_session
+        return (
+            session is not None
+            and not session.resolved
+            or self.has_pending_visible_projection_commit()
+        )
+
     def reorder_cube_widgets(self) -> None:
         """Reattach cube widgets in stack order and refresh link widgets once."""
 

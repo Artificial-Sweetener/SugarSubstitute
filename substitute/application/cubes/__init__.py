@@ -38,9 +38,6 @@ from substitute.application.cubes.cube_alias_display import (
     cube_alias_body,
     split_cube_alias_prefix,
 )
-from substitute.application.cubes.cube_mask_binding_service import (
-    CubeMaskBindingService,
-)
 from substitute.application.cubes.cube_picker_models import (
     CubePickerClassification,
     CubePickerEntry,
@@ -98,7 +95,6 @@ from substitute.application.cubes.cube_workflow_add_service import (
 __all__ = [
     "CubeAddResult",
     "CubeAliasDisplayParts",
-    "CubeMaskBindingService",
     "CubeLoadService",
     "CubeInstanceStateTransferReport",
     "CubeInstanceStateTransferResult",

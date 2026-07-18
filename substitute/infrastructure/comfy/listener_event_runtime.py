@@ -42,6 +42,8 @@ from substitute.infrastructure.comfy.comfy_progress_event_parser import (
 from substitute.infrastructure.comfy.comfy_websocket_event_router import (
     ComfyWebsocketEventRouter,
     CubeOutputMessageHandler,
+    NullStandardOutputMessageHandler,
+    StandardOutputMessageHandler,
 )
 from substitute.infrastructure.comfy.listener_progress_emitter import (
     ListenerProgressContext,
@@ -105,6 +107,7 @@ def build_listener_event_runtime(
         ComfyWebsocketTrace.from_environment
     ),
     clock_ms: Callable[[], float] | None = None,
+    standard_output_handler: StandardOutputMessageHandler | None = None,
 ) -> ListenerEventRuntime:
     """Build prompt-scoped routing, timing, trace, and progress collaborators."""
 
@@ -137,6 +140,9 @@ def build_listener_event_runtime(
         source_identity_resolver=source_identity_resolver,
         source_metadata_resolver=source_metadata_resolver,
         cube_output_handler=cube_output_handler,
+        standard_output_handler=(
+            standard_output_handler or NullStandardOutputMessageHandler()
+        ),
         runtime_context_provider=lambda: fetch_runtime_report_context(endpoint),
         on_model_load_progress=callbacks.on_model_load_progress,
     )
