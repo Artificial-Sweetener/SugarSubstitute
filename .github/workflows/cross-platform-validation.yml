@@ -25,13 +25,13 @@ jobs:
         include:
           - name: Windows x64
             os: windows-latest
-            python-version: ${{ env.PYTHON_VERSION }}
+            python-version: "3.12.10"
           - name: Linux x64
             os: ubuntu-24.04
-            python-version: ${{ env.LINUX_PYTHON_VERSION }}
+            python-version: "3.12.13"
           - name: macOS Apple Silicon
             os: macos-15
-            python-version: ${{ env.PYTHON_VERSION }}
+            python-version: "3.12.10"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -293,13 +293,13 @@ jobs:
         include:
           - name: Windows x64
             os: windows-latest
-            python-version: ${{ env.PYTHON_VERSION }}
+            python-version: "3.12.10"
           - name: Linux x64
             os: ubuntu-24.04
-            python-version: ${{ env.LINUX_PYTHON_VERSION }}
+            python-version: "3.12.13"
           - name: macOS Apple Silicon
             os: macos-15
-            python-version: ${{ env.PYTHON_VERSION }}
+            python-version: "3.12.10"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3

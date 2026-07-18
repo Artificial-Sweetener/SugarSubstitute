@@ -23,15 +23,15 @@ jobs:
         include:
           - name: Linux x64
             os: ubuntu-24.04
-            python-version: ${{ env.LINUX_PYTHON_VERSION }}
+            python-version: "3.12.13"
             artifact: linux
           - name: Windows x64
             os: windows-latest
-            python-version: ${{ env.PYTHON_VERSION }}
+            python-version: "3.12.10"
             artifact: windows
           - name: macOS Apple Silicon
             os: macos-15
-            python-version: ${{ env.PYTHON_VERSION }}
+            python-version: "3.12.10"
             artifact: macos
     runs-on: ${{ matrix.os }}
     steps:
