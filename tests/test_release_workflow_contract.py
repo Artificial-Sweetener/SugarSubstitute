@@ -55,9 +55,9 @@ def test_default_ci_runs_complete_partitioned_suite_on_every_platform() -> None:
         "macos-15",
     }
     assert {entry["os"]: entry["python-version"] for entry in matrix} == {
-        "windows-latest": "${{ env.PYTHON_VERSION }}",
-        "ubuntu-24.04": "${{ env.LINUX_PYTHON_VERSION }}",
-        "macos-15": "${{ env.PYTHON_VERSION }}",
+        "windows-latest": "3.12.10",
+        "ubuntu-24.04": "3.12.13",
+        "macos-15": "3.12.10",
     }
     job_script = _job_script(platform_job)
     assert '-m "not serial"' in job_script
@@ -90,6 +90,30 @@ def test_ci_uses_exact_language_and_package_toolchains() -> None:
     assert "pip install -r requirements.txt" not in workflow_text
     assert "pip install --upgrade pip" not in workflow_text
     assert "uv==" not in workflow_text
+
+
+def test_strategy_matrices_use_literal_toolchain_versions() -> None:
+    """Avoid expression contexts that GitHub rejects while expanding matrices."""
+
+    expected_versions = {
+        "windows-latest": "3.12.10",
+        "ubuntu-24.04": "3.12.13",
+        "macos-15": "3.12.10",
+    }
+    observed_entries = 0
+    for workflow_path in _WORKFLOW_PATHS:
+        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+        for job in workflow["jobs"].values():
+            strategy = job.get("strategy", {})
+            matrix = strategy.get("matrix", {})
+            for entry in matrix.get("include", ()):
+                if "python-version" not in entry:
+                    continue
+                assert entry["python-version"] == expected_versions[entry["os"]]
+                assert "${{" not in entry["python-version"]
+                observed_entries += 1
+
+    assert observed_entries == 12
 
 
 def test_ci_actions_use_immutable_verified_revisions() -> None:

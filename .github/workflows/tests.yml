@@ -77,17 +77,17 @@ jobs:
         include:
           - name: Windows x64
             os: windows-latest
-            python-version: ${{ env.PYTHON_VERSION }}
+            python-version: "3.12.10"
             python: ./.venv/Scripts/python.exe
             artifact: windows
           - name: Linux x64
             os: ubuntu-24.04
-            python-version: ${{ env.LINUX_PYTHON_VERSION }}
+            python-version: "3.12.13"
             python: ./.venv/bin/python
             artifact: linux
           - name: macOS Apple Silicon
             os: macos-15
-            python-version: ${{ env.PYTHON_VERSION }}
+            python-version: "3.12.10"
             python: ./.venv/bin/python
             artifact: macos
     runs-on: ${{ matrix.os }}
