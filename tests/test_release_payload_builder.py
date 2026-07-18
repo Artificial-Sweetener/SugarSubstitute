@@ -65,6 +65,7 @@ def test_release_payload_cli_runs_by_file_path(tmp_path: Path) -> None:
     result = subprocess.run(
         [
             sys.executable,
+            "-S",
             str(REPO_ROOT / "tools" / "build_release_payload.py"),
             "--help",
         ],

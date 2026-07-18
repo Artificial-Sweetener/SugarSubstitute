@@ -22,6 +22,7 @@ import hashlib
 import shutil
 from pathlib import Path
 
+from sugarsubstitute_shared.launcher_version import safe_launcher_version
 from sugarsubstitute_shared.launcher_update.archive import safe_extract_zip
 from sugarsubstitute_shared.launcher_update.downloader import (
     LauncherBundleDownloader,
@@ -133,18 +134,9 @@ def _verify_sha256(path: Path, *, expected: str) -> None:
         )
 
 
-def safe_launcher_version(version: str) -> str:
-    """Return a filesystem-safe release version identifier."""
-
-    if not version or any(character not in "0123456789.-" for character in version):
-        raise ValueError(f"Unsafe launcher version: {version!r}")
-    return version
-
-
 __all__ = [
     "LauncherBundleStager",
     "LauncherBundleValidationError",
     "normalize_staged_bundle_permissions",
-    "safe_launcher_version",
     "validate_staged_bundle",
 ]

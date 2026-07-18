@@ -16,19 +16,38 @@
 
 """Share launcher bundle update contracts between the app and launcher."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from sugarsubstitute_shared.launcher_update.models import (
     LauncherBundleAsset,
     LauncherInstallationRecord,
     LauncherRelease,
     LauncherUpdateRequest,
 )
-from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
 from sugarsubstitute_shared.launcher_update.targets import (
     LauncherBundleTarget,
     detect_launcher_bundle_target,
     launcher_bundle_target_for_key,
 )
+
+if TYPE_CHECKING:
+    from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
+
+
+def __getattr__(name: str) -> object:
+    """Load network-backed update services only when explicitly requested."""
+
+    if name == "LauncherBundleStager":
+        from sugarsubstitute_shared.launcher_update.staging import (
+            LauncherBundleStager as launcher_bundle_stager,
+        )
+
+        return launcher_bundle_stager
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "LauncherBundleAsset",
