@@ -126,6 +126,18 @@ def test_dependency_audits_run_without_repository_changes() -> None:
     assert workflow[True]["schedule"] == [{"cron": "17 13 * * 1"}]
 
 
+def test_dependabot_pull_requests_run_one_authoritative_suite() -> None:
+    """Avoid duplicate push and pull-request matrices for bot branches."""
+
+    workflow = yaml.safe_load(
+        (PROJECT_ROOT / ".github" / "workflows" / "tests.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert workflow[True]["push"]["branches-ignore"] == ["main", "dependabot/**"]
+
+
 def _job_script(job: dict[str, object]) -> str:
     """Combine one workflow job's command steps for policy assertions."""
 
