@@ -28,6 +28,9 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSceneGroup,
     OutputCanvasSourceGroup,
 )
+from substitute.application.workflows.output_scene_navigation_selection import (
+    OutputSceneNavigationSelection,
+)
 from substitute.domain.workflow import ImageMeta
 from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
     OutputCanvasNavigationController,
@@ -38,6 +41,9 @@ from substitute.presentation.canvas.output.output_canvas_navigation_controller i
     sync_output_scene_selector_button,
     sync_output_set_selector_button,
     sync_output_source_selector_button,
+)
+from substitute.presentation.canvas.output.output_canvas_navigation_policy import (
+    OutputCanvasNavigationPolicy,
 )
 from substitute.presentation.canvas.shared.output_nav_layout import OutputNavBarGeometry
 
@@ -381,7 +387,7 @@ def test_source_fallback_item_prefers_nearest_last_real_set() -> None:
         images_by_set={1: first_item, 3: nearest_item},
     )
 
-    item = OutputCanvasNavigationController.source_fallback_item(
+    item = OutputCanvasNavigationPolicy.source_fallback_item(
         {"source-a": source},
         "source-a",
         last_real_set_index=4,
@@ -393,7 +399,7 @@ def test_source_fallback_item_prefers_nearest_last_real_set() -> None:
 def test_source_fallback_item_returns_none_for_unknown_source() -> None:
     """Missing sources should not produce a fallback activation item."""
 
-    item = OutputCanvasNavigationController.source_fallback_item(
+    item = OutputCanvasNavigationPolicy.source_fallback_item(
         {},
         "missing-source",
         last_real_set_index=2,
@@ -405,7 +411,7 @@ def test_source_fallback_item_returns_none_for_unknown_source() -> None:
 def test_tab_change_action_ignores_suppressed_signal() -> None:
     """Suppressed tabbar changes should not trigger navigation work."""
 
-    action = OutputCanvasNavigationController.tab_change_action(
+    action = OutputCanvasNavigationPolicy.tab_change_action(
         route_key="wf:text",
         suppress_tab_change=True,
         active_set_index=1,
@@ -420,7 +426,7 @@ def test_tab_change_action_ignores_suppressed_signal() -> None:
 def test_tab_change_action_activates_grid_for_grid_set() -> None:
     """Grid mode tab changes should keep source-grid activation when available."""
 
-    action = OutputCanvasNavigationController.tab_change_action(
+    action = OutputCanvasNavigationPolicy.tab_change_action(
         route_key="wf:text",
         suppress_tab_change=False,
         active_set_index=0,
@@ -431,24 +437,24 @@ def test_tab_change_action_activates_grid_for_grid_set() -> None:
     assert action.source_key == "wf:text"
 
 
-def test_tab_change_action_falls_back_when_grid_is_missing() -> None:
-    """Grid mode tab changes should fall back when a source cannot render a grid."""
+def test_tab_change_action_preserves_grid_for_single_image_source() -> None:
+    """Grid mode tab changes should preserve hierarchy for a one-tile source."""
 
-    action = OutputCanvasNavigationController.tab_change_action(
+    action = OutputCanvasNavigationPolicy.tab_change_action(
         route_key="wf:text",
         suppress_tab_change=False,
         active_set_index=0,
         source_groups_by_key={"wf:text": _source("wf:text", set_indexes=(1,))},
     )
 
-    assert action.kind == "activate_source_fallback"
+    assert action.kind == "activate_grid"
     assert action.source_key == "wf:text"
 
 
 def test_tab_change_action_returns_concrete_output_item() -> None:
     """Concrete set tab changes should resolve the selected source item."""
 
-    action = OutputCanvasNavigationController.tab_change_action(
+    action = OutputCanvasNavigationPolicy.tab_change_action(
         route_key="wf:text",
         suppress_tab_change=False,
         active_set_index=2,
@@ -461,10 +467,26 @@ def test_tab_change_action_returns_concrete_output_item() -> None:
     assert action.item.set_index == 2
 
 
+def test_tab_change_action_uses_nearest_batch_within_selected_source() -> None:
+    """Source tab changes should resolve missing batches within that source."""
+
+    action = OutputCanvasNavigationPolicy.tab_change_action(
+        route_key="wf:upscale",
+        suppress_tab_change=False,
+        active_set_index=2,
+        source_groups_by_key={"wf:upscale": _source("wf:upscale", set_indexes=(1,))},
+    )
+
+    assert action.kind == "activate_output_item"
+    assert action.source_key == "wf:upscale"
+    assert action.item is not None
+    assert action.item.set_index == 1
+
+
 def test_tab_change_action_reports_unknown_source() -> None:
     """Concrete set tab changes should report unknown routes for widget logging."""
 
-    action = OutputCanvasNavigationController.tab_change_action(
+    action = OutputCanvasNavigationPolicy.tab_change_action(
         route_key="missing",
         suppress_tab_change=False,
         active_set_index=1,
@@ -479,7 +501,7 @@ def test_tab_change_action_reports_unknown_source() -> None:
 def test_scene_selection_action_activates_scene_overview_for_all() -> None:
     """The All scene picker row should request scene-overview activation."""
 
-    action = OutputCanvasNavigationController.scene_selection_action("all")
+    action = OutputCanvasNavigationPolicy.scene_selection_action("all")
 
     assert action.kind == "activate_scene_overview"
     assert action.scene_key == "all"
@@ -488,7 +510,7 @@ def test_scene_selection_action_activates_scene_overview_for_all() -> None:
 def test_scene_selection_action_activates_concrete_scene() -> None:
     """Concrete scene picker rows should request scoped scene activation."""
 
-    action = OutputCanvasNavigationController.scene_selection_action("portrait")
+    action = OutputCanvasNavigationPolicy.scene_selection_action("portrait")
 
     assert action.kind == "activate_scene"
     assert action.scene_key == "portrait"
@@ -497,7 +519,7 @@ def test_scene_selection_action_activates_concrete_scene() -> None:
 def test_set_selection_action_activates_grid_set() -> None:
     """Set index zero should request source-grid activation for the active source."""
 
-    action = OutputCanvasNavigationController.set_selection_action(
+    action = OutputCanvasNavigationPolicy.set_selection_action(
         set_index=0,
         active_source_key="wf:text",
         source_groups_by_key={"wf:text": _source("wf:text", set_indexes=(1, 2))},
@@ -511,7 +533,7 @@ def test_set_selection_action_activates_grid_set() -> None:
 def test_set_selection_action_returns_active_source_item() -> None:
     """Concrete set selection should prefer the active source when available."""
 
-    action = OutputCanvasNavigationController.set_selection_action(
+    action = OutputCanvasNavigationPolicy.set_selection_action(
         set_index=2,
         active_source_key="wf:text",
         source_groups_by_key={"wf:text": _source("wf:text", set_indexes=(1, 2))},
@@ -526,7 +548,7 @@ def test_set_selection_action_returns_active_source_item() -> None:
 def test_set_selection_action_falls_back_to_first_source_for_set() -> None:
     """Concrete set selection should use the first source containing the set."""
 
-    action = OutputCanvasNavigationController.set_selection_action(
+    action = OutputCanvasNavigationPolicy.set_selection_action(
         set_index=2,
         active_source_key="missing",
         source_groups_by_key={
@@ -544,7 +566,7 @@ def test_set_selection_action_falls_back_to_first_source_for_set() -> None:
 def test_set_selection_action_returns_none_without_target() -> None:
     """Missing set targets should not ask the widget to mutate visible state."""
 
-    action = OutputCanvasNavigationController.set_selection_action(
+    action = OutputCanvasNavigationPolicy.set_selection_action(
         set_index=3,
         active_source_key="wf:text",
         source_groups_by_key={"wf:text": _source("wf:text", set_indexes=())},
@@ -558,7 +580,7 @@ def test_set_selection_action_returns_none_without_target() -> None:
 def test_scene_activation_plan_returns_none_for_unknown_scene() -> None:
     """Unknown scene activation should not ask the widget to mutate visible state."""
 
-    plan = OutputCanvasNavigationController.scene_activation_plan(
+    plan = OutputCanvasNavigationPolicy.scene_activation_plan(
         scene_key="missing",
         scene_groups_by_key={},
         was_scene_overview=False,
@@ -571,7 +593,7 @@ def test_scene_activation_plan_returns_none_for_unknown_scene() -> None:
 def test_scene_activation_plan_prefers_representative_from_overview() -> None:
     """Leaving overview should prefer the scene representative source."""
 
-    plan = OutputCanvasNavigationController.scene_activation_plan(
+    plan = OutputCanvasNavigationPolicy.scene_activation_plan(
         scene_key="portrait",
         scene_groups_by_key={
             "portrait": _scene(
@@ -594,10 +616,36 @@ def test_scene_activation_plan_prefers_representative_from_overview() -> None:
     assert plan.followup == "activate_grid"
 
 
+def test_scene_activation_plan_uses_batch_grid_before_single_representative() -> None:
+    """Scene entry must not skip a sibling batch grid for a terminal single output."""
+
+    plan = OutputCanvasNavigationPolicy.scene_activation_plan(
+        scene_key="portrait",
+        scene_groups_by_key={
+            "portrait": _scene(
+                "portrait",
+                sources=(
+                    _source("wf:text", set_indexes=(1, 2, 3)),
+                    _source("wf:upscale", set_indexes=(1,)),
+                ),
+                representative_source_key="wf:upscale",
+            )
+        },
+        was_scene_overview=True,
+        active_source_key=None,
+    )
+
+    assert plan is not None
+    assert plan.scene_key == "portrait"
+    assert plan.active_source_key == "wf:text"
+    assert plan.set_count == 3
+    assert plan.followup == "activate_grid"
+
+
 def test_scene_activation_plan_preserves_previous_source_when_possible() -> None:
     """Scene activation should preserve the active source outside overview."""
 
-    plan = OutputCanvasNavigationController.scene_activation_plan(
+    plan = OutputCanvasNavigationPolicy.scene_activation_plan(
         scene_key="portrait",
         scene_groups_by_key={
             "portrait": _scene(
@@ -616,13 +664,13 @@ def test_scene_activation_plan_preserves_previous_source_when_possible() -> None
     assert plan is not None
     assert plan.active_source_key == "wf:text"
     assert plan.set_count == 1
-    assert plan.followup == "activate_source_fallback"
+    assert plan.followup == "activate_grid"
 
 
 def test_scene_activation_plan_reports_no_followup_without_sources() -> None:
     """Empty scenes should activate without requesting source follow-up."""
 
-    plan = OutputCanvasNavigationController.scene_activation_plan(
+    plan = OutputCanvasNavigationPolicy.scene_activation_plan(
         scene_key="empty",
         scene_groups_by_key={"empty": _scene("empty", sources=())},
         was_scene_overview=False,
@@ -676,7 +724,13 @@ def test_activate_output_scene_applies_host_state_and_source_grid_followup() -> 
         update_tabbar_container=lambda: calls.append(("tabbar", None)),
     )
 
-    assert activated is True
+    assert activated == OutputSceneNavigationSelection(
+        scene_key="portrait",
+        overview=False,
+        source_key="wf:upscale",
+        set_index=0,
+        image_id=None,
+    )
     assert host.active_scene_key == "portrait"
     assert host.active_scene_overview is False
     assert host.active_source_key == "wf:upscale"
@@ -704,7 +758,7 @@ def test_activate_output_scene_rejects_unknown_scene() -> None:
         update_tabbar_container=lambda: None,
     )
 
-    assert activated is False
+    assert activated is None
     assert host.active_scene_key == "old"
 
 
@@ -796,7 +850,7 @@ def test_sync_output_source_selector_button_applies_host_source_label() -> None:
 def test_grid_activation_plan_uses_explicit_grid_source() -> None:
     """Explicit source-grid activation should accept sources with multiple sets."""
 
-    plan = OutputCanvasNavigationController.grid_activation_plan(
+    plan = OutputCanvasNavigationPolicy.grid_activation_plan(
         source_key="wf:text",
         source_groups_by_key={"wf:text": _source("wf:text", set_indexes=(1, 2))},
     )
@@ -808,7 +862,7 @@ def test_grid_activation_plan_uses_explicit_grid_source() -> None:
 def test_grid_activation_plan_uses_first_grid_source_when_missing() -> None:
     """Missing source input should fall back to the first source that can grid."""
 
-    plan = OutputCanvasNavigationController.grid_activation_plan(
+    plan = OutputCanvasNavigationPolicy.grid_activation_plan(
         source_key=None,
         source_groups_by_key={
             "wf:text": _source("wf:text", set_indexes=(1,)),
@@ -820,11 +874,26 @@ def test_grid_activation_plan_uses_first_grid_source_when_missing() -> None:
     assert plan.source_key == "wf:upscale"
 
 
+def test_grid_activation_plan_preserves_requested_single_item_source() -> None:
+    """Explicit grid selection should preserve the requested one-tile source."""
+
+    plan = OutputCanvasNavigationPolicy.grid_activation_plan(
+        source_key="wf:upscale",
+        source_groups_by_key={
+            "wf:text": _source("wf:text", set_indexes=(1, 2, 3)),
+            "wf:upscale": _source("wf:upscale", set_indexes=(1,)),
+        },
+    )
+
+    assert plan is not None
+    assert plan.source_key == "wf:upscale"
+
+
 def test_grid_activation_plan_rejects_unknown_source() -> None:
     """Unknown source-grid activation should not mutate visible state."""
 
     assert (
-        OutputCanvasNavigationController.grid_activation_plan(
+        OutputCanvasNavigationPolicy.grid_activation_plan(
             source_key="missing",
             source_groups_by_key={"wf:text": _source("wf:text", set_indexes=(1, 2))},
         )
@@ -832,16 +901,16 @@ def test_grid_activation_plan_rejects_unknown_source() -> None:
     )
 
 
-def test_grid_activation_plan_rejects_single_item_source() -> None:
-    """Sources without multiple sets cannot render a source grid."""
+def test_grid_activation_plan_accepts_single_item_source() -> None:
+    """A one-item source can render its batch hierarchy as a one-tile grid."""
 
-    assert (
-        OutputCanvasNavigationController.grid_activation_plan(
-            source_key="wf:text",
-            source_groups_by_key={"wf:text": _source("wf:text", set_indexes=(1,))},
-        )
-        is None
+    plan = OutputCanvasNavigationPolicy.grid_activation_plan(
+        source_key="wf:text",
+        source_groups_by_key={"wf:text": _source("wf:text", set_indexes=(1,))},
     )
+
+    assert plan is not None
+    assert plan.source_key == "wf:text"
 
 
 def test_activate_output_grid_for_source_applies_host_state_and_signal() -> None:
@@ -885,8 +954,8 @@ def test_activate_output_grid_for_source_applies_host_state_and_signal() -> None
     ]
 
 
-def test_activate_output_grid_for_source_rejects_single_item_source() -> None:
-    """Source-grid adapter should not mutate host state without a grid source."""
+def test_activate_output_grid_for_source_accepts_single_item_source() -> None:
+    """Source-grid adapter should preserve set zero for a one-tile source."""
 
     host = SimpleNamespace(active_source_key="wf:text", active_set_index=1)
 
@@ -897,16 +966,16 @@ def test_activate_output_grid_for_source_rejects_single_item_source() -> None:
         update_tabbar_container=lambda: None,
     )
 
-    assert activated is False
+    assert activated is True
     assert host.active_source_key == "wf:text"
-    assert host.active_set_index == 1
+    assert host.active_set_index == 0
 
 
 def test_scene_overview_activation_plan_rejects_single_scene() -> None:
     """All-scenes overview should activate only when multiple scenes exist."""
 
     assert (
-        OutputCanvasNavigationController.scene_overview_activation_plan(scene_count=1)
+        OutputCanvasNavigationPolicy.scene_overview_activation_plan(scene_count=1)
         is None
     )
 
@@ -914,7 +983,7 @@ def test_scene_overview_activation_plan_rejects_single_scene() -> None:
 def test_scene_overview_activation_plan_sets_overview_navigation_state() -> None:
     """All-scenes overview activation should expose the existing overview defaults."""
 
-    plan = OutputCanvasNavigationController.scene_overview_activation_plan(
+    plan = OutputCanvasNavigationPolicy.scene_overview_activation_plan(
         scene_count=2,
     )
 
@@ -982,7 +1051,7 @@ def test_item_activation_plan_uses_item_identity_and_set() -> None:
 
     item = _output_item(set_index=3)
 
-    plan = OutputCanvasNavigationController.item_activation_plan(
+    plan = OutputCanvasNavigationPolicy.item_activation_plan(
         source_key="wf:upscale",
         item=item,
     )

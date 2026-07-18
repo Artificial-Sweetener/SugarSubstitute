@@ -1,0 +1,55 @@
+{
+  "version": 0.4,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UnknownTextEncoder",
+      "title": "Text Encoder",
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {"name": "text"},
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [1, 2]
+        }
+      ],
+      "widgets_values": ["shared prompt"]
+    },
+    {
+      "id": 2,
+      "type": "UnknownSampler",
+      "inputs": [
+        {"name": "positive", "type": "CONDITIONING", "link": 1},
+        {"name": "negative", "type": "CONDITIONING", "link": 2}
+      ],
+      "outputs": [],
+      "widgets_values": []
+    },
+    {
+      "id": 3,
+      "type": "MetadataWriter",
+      "title": "Generation Metadata",
+      "inputs": [
+        {
+          "name": "description",
+          "type": "STRING",
+          "widget": {"name": "description"},
+          "link": null
+        }
+      ],
+      "outputs": [],
+      "widgets_values": ["This multiline text is not a prompt."]
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "CONDITIONING"],
+    [2, 1, 0, 2, 1, "CONDITIONING"]
+  ]
+}

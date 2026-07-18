@@ -116,6 +116,7 @@ DISABLE_WINDOWS_APP_USER_MODEL_ID_ENV = "SUBSTITUTE_DISABLE_APP_USER_MODEL_ID"
 
 if TYPE_CHECKING:
     from substitute.application.model_metadata import ModelCatalogSnapshot
+    from substitute.application.ports import NodeDefinitionHydrationResult
     from substitute.application.ports.comfy_gateway import (
         ComfyGateway,
         ComfyQueueMutationResult,
@@ -252,6 +253,7 @@ class _LazyComfyGateway:
         workflow_payload: dict[str, object],
         *,
         client_id: str,
+        execution_targets: tuple[str, ...] | None = None,
         preview_method: str | None = None,
         sugar_script: str | None = None,
         visual_context: "QueueVisualRunContext | None" = None,
@@ -261,6 +263,7 @@ class _LazyComfyGateway:
         return self._resolve().queue_prompt(
             workflow_payload,
             client_id=client_id,
+            execution_targets=execution_targets,
             preview_method=preview_method,
             sugar_script=sugar_script,
             visual_context=visual_context,
@@ -795,10 +798,16 @@ class _LazyComfyObjectInfoClient:
 
         return cast(int, self._resolve().prewarm_node_classes(node_classes))
 
-    def ensure_node_definitions(self, node_classes: Iterable[str]) -> object:
+    def ensure_node_definitions(
+        self,
+        node_classes: Iterable[str],
+    ) -> "NodeDefinitionHydrationResult":
         """Hydrate node definitions through the concrete client on first use."""
 
-        return self._resolve().ensure_node_definitions(node_classes)
+        return cast(
+            "NodeDefinitionHydrationResult",
+            self._resolve().ensure_node_definitions(node_classes),
+        )
 
     def refresh_node_definitions(
         self,
@@ -1155,7 +1164,11 @@ def _configure_control_registry_service() -> None:
     )
 
 
-def _build_comfy_asset_staging_service(context: InstallationContext) -> Any:
+def _build_comfy_asset_staging_service(
+    context: InstallationContext,
+    *,
+    input_asset_staging_plan_service: Any | None = None,
+) -> Any:
     """Compose target-specific Comfy asset staging at the bootstrap boundary."""
 
     from substitute.application.generation.asset_staging_service import (
@@ -1177,6 +1190,7 @@ def _build_comfy_asset_staging_service(context: InstallationContext) -> Any:
     return ComfyAssetStagingService.with_projects_dir(
         stager=stager,
         projects_dir=context.projects_dir,
+        input_asset_staging_plan_service=input_asset_staging_plan_service,
     )
 
 
@@ -1208,7 +1222,7 @@ def _build_main_window_dependencies(
             elapsed_ms=round((perf_counter() - started_at) * 1000, 3),
         )
 
-    from substitute.application.cubes import CubeLoadService, CubeMaskBindingService
+    from substitute.application.cubes import CubeLoadService
     from substitute.application.cube_library import CubeLibraryManagementService
 
     record_dependency_phase("imports.application.cubes")
@@ -1260,6 +1274,9 @@ def _build_main_window_dependencies(
     record_dependency_phase("imports.application.generation.result_snapshot")
 
     from substitute.application.generation.generation_service import GenerationService
+    from substitute.application.direct_workflows import (
+        DirectWorkflowGenerationPlanService,
+    )
 
     record_dependency_phase("imports.application.generation.service")
 
@@ -1370,6 +1387,18 @@ def _build_main_window_dependencies(
         AssetRevealService,
         CanvasIoService,
         WorkflowAssetService,
+    )
+    from substitute.application.workflows.input_asset_endpoint_service import (
+        InputAssetEndpointService,
+    )
+    from substitute.application.workflows.input_canvas_plan_service import (
+        InputCanvasPlanService,
+    )
+    from substitute.application.workflows.workflow_graph_section_service import (
+        WorkflowGraphSectionService,
+    )
+    from substitute.application.workflows.workflow_node_definition_service import (
+        WorkflowNodeDefinitionService,
     )
 
     record_dependency_phase("imports.application.workflows")
@@ -1632,7 +1661,7 @@ def _build_main_window_dependencies(
             target_key=cube_cache_target_key,
         ),
     )
-    cube_mask_binding_service = CubeMaskBindingService()
+    graph_section_service = WorkflowGraphSectionService()
     image_store = QtImageStore()
     photoshop_gateway = PhotoshopGateway()
     asset_reveal_service = AssetRevealService(NativeFileManagerGateway())
@@ -1640,7 +1669,7 @@ def _build_main_window_dependencies(
         image_repository=image_store,
         external_image_gateway=photoshop_gateway,
     )
-    workflow_asset_service = WorkflowAssetService()
+    workflow_asset_service = WorkflowAssetService(graph_section_service)
     record_dependency_phase("cube_canvas_services")
     generation_queue_transition_relay = GenerationQueueTransitionRelay()
     generation_listener_dispatcher = QtOwnerThreadDispatcher(
@@ -1661,12 +1690,6 @@ def _build_main_window_dependencies(
             )
         ),
         listener_preview_image_decoder=_decode_generation_preview_image_to_qimage,
-    )
-    node_definition_phase_started_at = perf_counter()
-    comfy_asset_staging_service = _build_comfy_asset_staging_service(context)
-    record_dependency_checkpoint(
-        "comfy_node_definition_services.asset_staging",
-        node_definition_phase_started_at,
     )
     node_definition_step_started_at = perf_counter()
     node_definition_submitter = runtime_services.execution_runtime.submitter(
@@ -1728,6 +1751,28 @@ def _build_main_window_dependencies(
         endpoint=context.comfy_target.endpoint,
         background_scheduler=schedule_node_definition_refresh,
         shutdown_background_scheduler=shutdown_node_definition_refresh,
+    )
+    workflow_node_definition_service = WorkflowNodeDefinitionService(
+        node_definition_gateway
+    )
+    input_asset_endpoint_service = InputAssetEndpointService(
+        workflow_node_definition_service
+    )
+    input_canvas_plan_service = InputCanvasPlanService(
+        node_definition_service=workflow_node_definition_service,
+        endpoint_service=input_asset_endpoint_service,
+    )
+    from substitute.application.generation.input_asset_staging_plan_service import (
+        InputAssetStagingPlanService,
+    )
+
+    input_asset_staging_plan_service = InputAssetStagingPlanService(
+        input_asset_endpoint_service,
+        graph_section_service,
+    )
+    comfy_asset_staging_service = _build_comfy_asset_staging_service(
+        context,
+        input_asset_staging_plan_service=input_asset_staging_plan_service,
     )
     shell_resource_lifecycle.register(
         "node_definition_cache",
@@ -2082,6 +2127,10 @@ def _build_main_window_dependencies(
         prompt_wildcard_preprocessing_service=(prompt_wildcard_preprocessing_service),
         preview_method_resolver=generation_preview_preference_service,
         output_organization_service=output_organization_preference_service,
+        direct_workflow_graph_service=DirectWorkflowGenerationPlanService(
+            node_definition_hydrator=node_definition_gateway,
+            node_definition_gateway=node_definition_gateway,
+        ),
         output_dir=context.projects_dir,
     )
     generation_dispatch_submitter = runtime_services.execution_runtime.submitter(
@@ -2412,7 +2461,9 @@ def _build_main_window_dependencies(
         create_scoped_metadata_refresh_service=create_scoped_metadata_refresh_service,
         cube_icon_factory=cube_icon_factory,
         invalidate_cube_catalog_cache=cube_repository.invalidate_cache,
-        cube_mask_binding_service=cube_mask_binding_service,
+        input_asset_endpoint_service=input_asset_endpoint_service,
+        input_canvas_plan_service=input_canvas_plan_service,
+        graph_section_service=graph_section_service,
         recipe_io_service=recipe_io_service,
         create_recipe_model_load_resolver=lambda: RecipeModelLoadResolver(
             RecipeModelResolutionIndex.from_catalog(

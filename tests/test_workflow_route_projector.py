@@ -19,14 +19,24 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+
+from substitute.domain.workflow import WorkflowState
 from substitute.presentation.shell.workflow_route_projector import (
     WorkflowRouteProjector,
 )
-from substitute.presentation.shell.workflow_shell_adapters import (
+from substitute.presentation.shell.main_window_canvas_route_adapter import (
     MainWindowCanvasRouteAdapter,
+)
+from substitute.presentation.shell.main_window_editor_surface_adapter import (
     MainWindowEditorSurfaceAdapter,
+)
+from substitute.presentation.shell.main_window_override_surface_adapter import (
     MainWindowOverrideSurfaceAdapter,
+)
+from substitute.presentation.shell.main_window_workflow_activity_adapter import (
     MainWindowWorkflowActivityAdapter,
+)
+from substitute.presentation.shell.main_window_workflow_route_adapter import (
     MainWindowWorkflowRouteAdapter,
 )
 from substitute.presentation.shell.workflow_surface_invalidation import (
@@ -37,6 +47,7 @@ from substitute.presentation.shell.workflow_surface_invalidation import (
 from substitute.presentation.shell.workflow_surface_registry import (
     WorkflowSurfaceRegistry,
 )
+from substitute.presentation.shell.workflow_surface_results import WorkflowUiSurfaces
 
 
 class _TabBar:
@@ -113,7 +124,7 @@ def _build_projector_view() -> SimpleNamespace:
         calls=calls,
         workflow_session_service=SimpleNamespace(
             active_workflow_id="wf-b",
-            workflows={"wf-a": object(), "wf-b": object()},
+            workflows={"wf-a": WorkflowState(), "wf-b": WorkflowState()},
         ),
         workflow_tabbar=tabbar,
         workflow_canvas_projection_coordinator=SimpleNamespace(
@@ -137,6 +148,11 @@ def _build_projector_view() -> SimpleNamespace:
         ),
         generation_action_controller=SimpleNamespace(
             apply_generation_action_availability=lambda: calls.append("actions")
+        ),
+        cube_stack_presentation_controller=SimpleNamespace(
+            activate_document_kind=lambda kind, *, animated: calls.append(
+                f"presentation:{kind.value}:{animated}"
+            )
         ),
         settings_route_controller=SimpleNamespace(
             show_workflow_workspace=lambda: calls.append("route")
@@ -182,6 +198,9 @@ def test_projector_swaps_visible_widgets_and_projects_shared_canvas() -> None:
     )
     assert view.calls.index("route") < view.calls.index("canvas:wf-b")
     assert f"editor:{id(view.editor_panels['wf-b'])}" in view.calls
+    assert view.calls.index(
+        f"editor:{id(view.editor_panels['wf-b'])}"
+    ) < view.calls.index("presentation:cube_stack:True")
     assert view._active_workspace_route == "wf-b"
     assert "actions" in view.calls
     assert "position" in view.calls
@@ -213,13 +232,17 @@ def test_route_adapter_materializes_missing_workflow_ui_through_materializer() -
         workflow_id: str,
         *,
         set_as_current: bool = True,
-    ) -> tuple[object, object]:
+    ) -> WorkflowUiSurfaces:
         """Record workflow UI creation and install fake widgets."""
 
         created.append((workflow_id, set_as_current))
         view.cube_stacks[workflow_id] = cube_stack
         view.editor_panels[workflow_id] = editor_panel
-        return cube_stack, editor_panel
+        return WorkflowUiSurfaces(
+            cube_stack=cube_stack,
+            editor_panel=editor_panel,
+            created=True,
+        )
 
     view.workflow_ui_factory = SimpleNamespace(create_workflow_ui=create_workflow_ui)
 
@@ -349,7 +372,7 @@ def test_projector_materializes_missing_ui_once() -> None:
     def create_new_workflow_ui(
         workflow_id: str,
         set_as_current: bool = True,
-    ) -> tuple[object, object]:
+    ) -> WorkflowUiSurfaces:
         """Create missing cached widgets for one workflow."""
 
         cube_stack = object()
@@ -357,7 +380,11 @@ def test_projector_materializes_missing_ui_once() -> None:
         view.cube_stacks[workflow_id] = cube_stack
         view.editor_panels[workflow_id] = editor_panel
         view.calls.append(f"create:{workflow_id}:{set_as_current}")
-        return cube_stack, editor_panel
+        return WorkflowUiSurfaces(
+            cube_stack=cube_stack,
+            editor_panel=editor_panel,
+            created=True,
+        )
 
     view.workflow_ui_factory = SimpleNamespace(
         create_workflow_ui=create_new_workflow_ui

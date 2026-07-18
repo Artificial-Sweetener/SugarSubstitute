@@ -26,11 +26,19 @@ from typing import cast
 from substitute.presentation.shell.workflow_route_ports import (
     CanvasRouteProjectionPort,
 )
-from substitute.presentation.shell.workflow_shell_adapters import (
+from substitute.presentation.shell.main_window_canvas_route_adapter import (
     MainWindowCanvasRouteAdapter,
+)
+from substitute.presentation.shell.main_window_editor_surface_adapter import (
     MainWindowEditorSurfaceAdapter,
+)
+from substitute.presentation.shell.main_window_generation_availability_adapter import (
     MainWindowGenerationAvailabilityAdapter,
+)
+from substitute.presentation.shell.main_window_override_surface_adapter import (
     MainWindowOverrideSurfaceAdapter,
+)
+from substitute.presentation.shell.main_window_workflow_session_state_adapter import (
     MainWindowWorkflowSessionStateAdapter,
 )
 from substitute.presentation.shell.workflow_surface_invalidation import (

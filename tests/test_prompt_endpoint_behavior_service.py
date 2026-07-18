@@ -98,8 +98,8 @@ def test_behavior_snapshot_omits_ambiguous_duplicate_prompt_endpoints() -> None:
     assert snapshot.node_link_endpoint_index.identities_for_cube("A") == ()
 
 
-def test_behavior_snapshot_prioritizes_label_prompt_nodes_before_other_nodes() -> None:
-    """Prompt labels should determine prompt-first node ordering for arbitrary ids."""
+def test_behavior_snapshot_orders_unpaired_label_prompts_positive_first() -> None:
+    """Hoist confidently authored prompts under the positive-first contract."""
 
     definitions: dict[str, dict[str, object]] = {
         "CustomPromptNode": {
@@ -132,7 +132,8 @@ def test_behavior_snapshot_prioritizes_label_prompt_nodes_before_other_nodes() -
         definitions_by_class=definitions,
     )
 
-    assert list(snapshot.resolved_nodes_by_alias["A"].keys())[:2] == ["pos", "neg"]
+    assert list(snapshot.resolved_nodes_by_alias["A"]) == ["sampler", "neg", "pos"]
+    assert snapshot.card_order_by_alias["A"] == ("pos", "neg", "sampler")
 
 
 def test_behavior_snapshot_exposes_prompt_node_link_endpoint() -> None:

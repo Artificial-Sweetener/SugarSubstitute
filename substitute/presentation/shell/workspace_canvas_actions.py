@@ -49,6 +49,9 @@ from substitute.application.workflows.output_canvas_state_service import (
     OutputProjectionSchedulingIntent,
 )
 from substitute.application.workflows.output_canvas_session import OutputCanvasSession
+from substitute.application.workflows.output_scene_navigation_selection import (
+    OutputSceneNavigationSelection,
+)
 from substitute.domain.workflow import OutputFocusMode
 from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.shell.output_image_commit_pipeline import (
@@ -196,6 +199,7 @@ class CanvasIoServiceProtocol(Protocol):
         source_label: str = "",
         node_id: str = "",
         list_index: int | None = None,
+        batch_index: int | None = None,
         generation_run_id: str | None = None,
         prompt_id: str | None = None,
         client_id: str | None = None,
@@ -239,11 +243,9 @@ class OutputCanvasStateServiceProtocol(Protocol):
     def set_active_output_scene(
         self,
         workflow: "WorkflowStateProtocol",
-        scene_key: str | None,
-        *,
-        overview: bool,
+        selection: OutputSceneNavigationSelection,
     ) -> None:
-        """Persist selected output scene for one workflow."""
+        """Persist one complete output scene route for one workflow."""
 
     def set_output_compare_state(
         self,
@@ -397,16 +399,18 @@ class WorkspaceCanvasActions:
             )
             self._project_user_selected_output()
 
-    def on_active_output_scene_changed(self, scene_key: str, overview: bool) -> None:
-        """Persist the currently selected output scene into workflow state."""
+    def on_active_output_scene_changed(
+        self,
+        selection: OutputSceneNavigationSelection,
+    ) -> None:
+        """Persist one atomic scene-level Output route selection."""
 
         view = self._view
         active_workflow = view.get_active_workflow()
         if active_workflow is not None:
             view.output_canvas_state_service.set_active_output_scene(
                 active_workflow,
-                scene_key or None,
-                overview=overview,
+                selection,
             )
             self._project_user_selected_output()
 
@@ -651,7 +655,12 @@ class WorkspaceCanvasActions:
             scene_title=request.scene_title,
             scene_order=request.scene_order,
             scene_count=request.scene_count,
-            list_index=request.list_index,
+            list_index=(
+                request.position.list_index if request.position is not None else None
+            ),
+            batch_index=(
+                request.position.batch_index if request.position is not None else None
+            ),
             width=request.artifact_width or prepared.image.width(),
             height=request.artifact_height or prepared.image.height(),
             cube_execution_duration_ms=cube_execution_duration_ms,

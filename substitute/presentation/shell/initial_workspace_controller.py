@@ -24,6 +24,7 @@ from typing import cast
 from substitute.application.workflows import DEFAULT_WORKFLOW_TAB_LABEL
 from substitute.presentation.shell.main_window_startup_trace import startup_phase
 from substitute.presentation.shell.workflow_ui_factory import workflow_ui_factory_for
+from substitute.presentation.shell.workflow_surface_results import WorkflowUiSurfaces
 from substitute.shared.logging.logger import get_logger, log_info
 from substitute.shared.startup_trace import trace_mark
 
@@ -52,12 +53,12 @@ class InitialWorkspaceController:
             workflow_id=initial_workflow_id,
         )
         self.ensure_initial_workflow_tab(initial_workflow_id)
-        cube_stack, editor_panel = self._create_workflow_ui(
+        surfaces = self._create_workflow_ui(
             initial_workflow_id,
             set_as_current=True,
         )
-        self._shell.cube_stack = cube_stack
-        self._shell.editor_panel = editor_panel
+        self._shell.cube_stack = surfaces.cube_stack
+        self._shell.editor_panel = surfaces.editor_panel
 
         initial_manager = self._shell.active_override_manager
         if initial_manager is not None:
@@ -68,7 +69,7 @@ class InitialWorkspaceController:
             getattr(self._shell, "_startup_timer", None),
             "mainwindow.load_initial_editor_cubes",
         ):
-            self.load_initial_editor_cubes(editor_panel)
+            self.load_initial_editor_cubes(surfaces.editor_panel)
         self._shell.canvas_route_controller.refresh_input_canvas_availability()
         trace_mark(
             "main_window.initialize_initial_workspace.end",
@@ -117,14 +118,14 @@ class InitialWorkspaceController:
         workflow_id: str,
         *,
         set_as_current: bool,
-    ) -> tuple[object, object]:
+    ) -> WorkflowUiSurfaces:
         """Create workflow widgets through the composed workflow UI owner."""
 
         factory = getattr(self._shell, "workflow_ui_factory", None)
         create_workflow_ui = getattr(factory, "create_workflow_ui", None)
         if callable(create_workflow_ui):
             return cast(
-                "tuple[object, object]",
+                WorkflowUiSurfaces,
                 create_workflow_ui(workflow_id, set_as_current=set_as_current),
             )
         return workflow_ui_factory_for(self._shell).create_workflow_ui(

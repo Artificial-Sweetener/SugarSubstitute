@@ -155,6 +155,19 @@ class NodeDefinitionRefreshController:
             if callable(refresh_projection):
                 refresh_projection(refreshed_node_classes=fallback_node_classes)
 
+        canvas_route_controller = getattr(
+            self._shell,
+            "canvas_route_controller",
+            None,
+        )
+        refresh_input_availability = getattr(
+            canvas_route_controller,
+            "refresh_input_canvas_availability",
+            None,
+        )
+        if callable(refresh_input_availability):
+            refresh_input_availability()
+
         if active_manager is None:
             return
         rebuild_menu = getattr(active_manager, "rebuild_override_menu", None)

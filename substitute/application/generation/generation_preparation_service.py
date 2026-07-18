@@ -28,6 +28,10 @@ from uuid import uuid4
 from substitute.application.generation.generation_preparation_input import (
     CapturedGenerationRequest,
 )
+from substitute.application.direct_workflows import (
+    DirectWorkflowGenerationPlanService,
+    DirectWorkflowScenePreparationService,
+)
 from substitute.application.generation.positive_prompt_preview import (
     positive_prompt_preview_from_prompt_overrides,
 )
@@ -45,6 +49,10 @@ from substitute.application.recipes.recipe_serialization_context import (
     RecipeSerializationContext,
 )
 from substitute.domain.generation import GenerationJobSnapshot
+from substitute.domain.comfy_workflow import (
+    DirectWorkflowGenerationPlan,
+    DirectWorkflowState,
+)
 from substitute.domain.links import PromptEndpointIndex
 from substitute.shared.logging.logger import get_logger, log_debug, log_timing
 
@@ -85,6 +93,8 @@ class GenerationPreparationService:
         prompt_wildcard_preprocessing_service: (
             GenerationPromptWildcardPreprocessor | None
         ) = None,
+        direct_workflow_graph_service: DirectWorkflowGenerationPlanService
+        | None = None,
     ) -> None:
         """Store application services used by generation preparation."""
 
@@ -94,6 +104,12 @@ class GenerationPreparationService:
         )
         self._scene_analysis_service = PromptSceneAnalysisService()
         self._scene_plan_builder = PromptScenePreparationPlanBuilder()
+        self._direct_workflow_graph_service = (
+            direct_workflow_graph_service or DirectWorkflowGenerationPlanService()
+        )
+        self._direct_scene_preparation_service = DirectWorkflowScenePreparationService(
+            wildcard_preprocessor=prompt_wildcard_preprocessing_service
+        )
 
     def prepare_queued_snapshots(
         self,
@@ -135,6 +151,35 @@ class GenerationPreparationService:
         """Prepare queued snapshots without presentation-thread logging concerns."""
 
         behavior_snapshot = request.behavior_snapshot
+        direct_document = getattr(request.workflow, "direct_workflow", None)
+        direct_plan = (
+            self._direct_workflow_graph_service.build(direct_document)
+            if isinstance(direct_document, DirectWorkflowState)
+            else None
+        )
+        if isinstance(direct_document, DirectWorkflowState) and direct_plan is not None:
+            if behavior_snapshot is None:
+                return self._single_direct_result(request, direct_plan)
+            scene_analysis = self._direct_scene_preparation_service.analyze(
+                document=direct_document,
+                endpoint_index=behavior_snapshot.prompt_endpoint_index,
+            )
+            if len(scene_analysis.scenes) <= 1:
+                return self._single_direct_result(request, direct_plan)
+            direct_result = self._direct_scene_preparation_service.prepare_all(
+                document=direct_document,
+                plan=direct_plan,
+                workflow_id=request.workflow_id,
+                workflow_name=request.workflow_name,
+                endpoint_index=behavior_snapshot.prompt_endpoint_index,
+                scene_analysis=scene_analysis,
+                scene_run_id=scene_run_id,
+            )
+            return GenerationPreparationResult(
+                snapshots=direct_result.snapshots,
+                scene_run_id=direct_result.scene_run_id,
+                scene_count=direct_result.scene_count,
+            )
         if behavior_snapshot is None:
             return GenerationPreparationResult(
                 snapshots=(self._prepare_single_snapshot(request=request),)
@@ -166,6 +211,29 @@ class GenerationPreparationService:
         behavior_snapshot = request.behavior_snapshot
         if behavior_snapshot is None:
             raise ValueError("Scene generation requires a prompt endpoint index.")
+        direct_document = getattr(request.workflow, "direct_workflow", None)
+        if isinstance(direct_document, DirectWorkflowState):
+            direct_plan = self._direct_workflow_graph_service.build(direct_document)
+            resolved_analysis = scene_analysis or (
+                self._direct_scene_preparation_service.analyze(
+                    document=direct_document,
+                    endpoint_index=behavior_snapshot.prompt_endpoint_index,
+                )
+            )
+            direct_result = self._direct_scene_preparation_service.prepare_all(
+                document=direct_document,
+                plan=direct_plan,
+                workflow_id=request.workflow_id,
+                workflow_name=request.workflow_name,
+                endpoint_index=behavior_snapshot.prompt_endpoint_index,
+                scene_analysis=resolved_analysis,
+                scene_run_id=scene_run_id,
+            )
+            return GenerationPreparationResult(
+                snapshots=direct_result.snapshots,
+                scene_run_id=direct_result.scene_run_id,
+                scene_count=direct_result.scene_count,
+            )
         resolved_scene_analysis = (
             scene_analysis
             or self._scene_analysis_service.analyze(
@@ -216,6 +284,23 @@ class GenerationPreparationService:
         behavior_snapshot = request.behavior_snapshot
         if behavior_snapshot is None:
             raise ValueError("Scene generation requires a prompt endpoint index.")
+        direct_document = getattr(request.workflow, "direct_workflow", None)
+        if isinstance(direct_document, DirectWorkflowState):
+            direct_plan = self._direct_workflow_graph_service.build(direct_document)
+            direct_analysis = self._direct_scene_preparation_service.analyze(
+                document=direct_document,
+                endpoint_index=behavior_snapshot.prompt_endpoint_index,
+            )
+            return self._direct_scene_preparation_service.prepare_one(
+                document=direct_document,
+                plan=direct_plan,
+                workflow_id=request.workflow_id,
+                workflow_name=request.workflow_name,
+                endpoint_index=behavior_snapshot.prompt_endpoint_index,
+                scene_analysis=direct_analysis,
+                scene_key=scene_key,
+                scene_run_id=scene_run_id,
+            )
         scene_analysis = self._scene_analysis_service.analyze(
             workflow=cast(Any, request.workflow),
             endpoint_index=behavior_snapshot.prompt_endpoint_index,
@@ -275,6 +360,24 @@ class GenerationPreparationService:
             prompt_scene_field_count=0,
         )
         return snapshot
+
+    @staticmethod
+    def _single_direct_result(
+        request: CapturedGenerationRequest,
+        direct_plan: DirectWorkflowGenerationPlan,
+    ) -> GenerationPreparationResult:
+        """Return one non-scene direct workflow snapshot."""
+
+        return GenerationPreparationResult(
+            snapshots=(
+                GenerationJobSnapshot(
+                    workflow_id=request.workflow_id,
+                    workflow_name=request.workflow_name,
+                    sugar_script_text="",
+                    direct_workflow_plan=direct_plan,
+                ),
+            )
+        )
 
     def _prepare_scene_snapshot(
         self,

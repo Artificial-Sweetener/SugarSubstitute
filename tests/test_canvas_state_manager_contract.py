@@ -41,6 +41,9 @@ from substitute.application.workflows.output_canvas_session import OutputCanvasS
 from substitute.application.workflows.output_canvas_state_service import (
     OutputCanvasStateService,
 )
+from substitute.application.workflows.output_scene_navigation_selection import (
+    OutputSceneNavigationSelection,
+)
 from substitute.application.workflows.output_visual_events import (
     LiveFinalOutputEvent,
     OutputVisualIdentity,
@@ -55,6 +58,7 @@ from substitute.domain.workflow import (
     OutputFocusMode,
     WorkflowState,
 )
+from substitute.domain.generation import OutputResultPosition
 from substitute.presentation.canvas.qpane import (
     CanvasPaneCatalog,
     InputQPaneRouteAdapter,
@@ -368,7 +372,7 @@ def _live_final_event() -> LiveFinalOutputEvent:
         node_id="node",
         workflow_payload={"node": {"class_type": "SugarCubes.CubeOutput"}},
         file_path=Path("E:/out.png"),
-        list_index=0,
+        position=OutputResultPosition(list_index=0, batch_index=0),
         artifact_width=640,
         artifact_height=480,
     )
@@ -1454,6 +1458,7 @@ def test_register_generated_output_rejects_missing_workflow(caplog) -> None:
         prompt_id="pid-1",
         client_id="client-1",
         list_index=0,
+        batch_index=0,
         width=640,
         height=480,
     )
@@ -1537,7 +1542,7 @@ def test_register_generated_output_rejects_dimension_or_scene_drift(caplog) -> N
         node_id="node",
         workflow_payload={"node": {"class_type": "SugarCubes.CubeOutput"}},
         file_path=Path("E:/out.png"),
-        list_index=0,
+        position=OutputResultPosition(list_index=0, batch_index=0),
         artifact_width=640,
         artifact_height=480,
     )
@@ -2314,7 +2319,14 @@ def test_set_active_output_scene_records_manual_scene_intent() -> None:
     workflow.active_output_set_index = 0
 
     service.output_canvas_state_service.set_active_output_scene(
-        workflow, "scene2", overview=False
+        workflow,
+        OutputSceneNavigationSelection(
+            scene_key="scene2",
+            overview=False,
+            source_key="wf:node",
+            set_index=0,
+            image_id=None,
+        ),
     )
 
     assert workflow.output_focus_mode is OutputFocusMode.MANUAL
@@ -2322,6 +2334,7 @@ def test_set_active_output_scene_records_manual_scene_intent() -> None:
     assert workflow.active_output_scene_overview is False
     assert workflow.active_output_source_key == "wf:node"
     assert workflow.active_output_set_index == 0
+    assert workflow.active_output_uuid is None
 
 
 def test_set_active_output_scene_overview_records_manual_all_intent() -> None:
@@ -2334,7 +2347,14 @@ def test_set_active_output_scene_overview_records_manual_all_intent() -> None:
     workflow.active_output_set_index = 0
 
     service.output_canvas_state_service.set_active_output_scene(
-        workflow, None, overview=True
+        workflow,
+        OutputSceneNavigationSelection(
+            scene_key=None,
+            overview=True,
+            source_key=None,
+            set_index=1,
+            image_id=None,
+        ),
     )
 
     assert workflow.output_focus_mode is OutputFocusMode.MANUAL
@@ -2532,6 +2552,40 @@ def test_create_mask_for_image_tracks_explicit_image_association() -> None:
     assert input_pane.current_id == image_id
     assert workflow.canvas.mask_associations[association_key] == mask_id
     assert workflow.canvas.mask_to_image_map[mask_id] == image_id
+
+
+def test_drop_input_surface_prunes_owned_image_and_mask_state() -> None:
+    """Synthetic invalidation should remove its image, masks, and active route state."""
+
+    _service, input_service, input_pane, _output_pane, _output_canvas = (
+        _build_services()
+    )
+    workflow = WorkflowState()
+    image_id = uuid.uuid4()
+    mask_id = uuid.uuid4()
+    input_key = "Regional:@synthetic/obsolete"
+    association_key = ("Regional", "mask")
+    workflow.canvas.input_key_map[input_key] = image_id
+    workflow.canvas.input_image_uuid = image_id
+    workflow.canvas.active_input_mask_uuid = mask_id
+    workflow.canvas.mask_associations[association_key] = mask_id
+    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    input_pane.images[image_id] = (object(), Path("synthetic.png"))
+
+    dropped = input_service.drop_input_surface(
+        {"wf": workflow},
+        "wf",
+        input_key,
+    )
+
+    assert dropped is True
+    assert workflow.canvas.input_key_map == {}
+    assert workflow.canvas.input_image_uuid is None
+    assert workflow.canvas.active_input_mask_uuid is None
+    assert workflow.canvas.mask_associations == {}
+    assert workflow.canvas.mask_to_image_map == {}
+    assert input_pane.removed_masks == [(image_id, mask_id)]
+    assert image_id not in input_pane.images
 
 
 def test_prune_closed_workflow_input_images_cleans_input_catalog_and_metadata() -> None:

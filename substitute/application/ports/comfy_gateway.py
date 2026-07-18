@@ -180,6 +180,7 @@ class OutputImageUpdate:
     source_key: str = ""
     source_label: str = ""
     list_index: int | None = None
+    batch_index: int | None = 0
     artifact_width: int | None = None
     artifact_height: int | None = None
     scene_run_id: str | None = None
@@ -293,6 +294,15 @@ class ListenerSessionConnectResult:
     error: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class ListenerOutputSource:
+    """Identify one standard Comfy output node intercepted by the listener."""
+
+    node_id: str
+    source_key: str
+    source_label: str
+
+
 @dataclass(frozen=True)
 class ListenerStartRequest:
     """Describe the listener start payload for one queued prompt."""
@@ -313,6 +323,7 @@ class ListenerStartRequest:
     scene_title: str | None = None
     scene_order: int | None = None
     scene_count: int | None = None
+    standard_output_sources: tuple[ListenerOutputSource, ...] = ()
 
 
 @dataclass
@@ -363,6 +374,7 @@ class ComfyGateway(Protocol):
         workflow_payload: JsonObject,
         *,
         client_id: str,
+        execution_targets: tuple[str, ...] | None = None,
         preview_method: str | None = None,
         sugar_script: str | None = None,
         visual_context: QueueVisualRunContext | None = None,
@@ -403,6 +415,7 @@ __all__ = [
     "ListenerCompleted",
     "ListenerFailure",
     "ListenerHandle",
+    "ListenerOutputSource",
     "ListenerSessionConnectRequest",
     "ListenerSessionConnectResult",
     "ListenerSessionHandle",

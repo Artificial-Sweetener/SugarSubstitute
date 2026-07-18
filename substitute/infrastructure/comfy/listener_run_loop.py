@@ -61,6 +61,7 @@ def run_listener_runtime(
                 runtime.model_load_source_metadata_resolver.resolve
             ),
             cube_output_handler=runtime.cube_output_handler,
+            standard_output_handler=getattr(runtime, "standard_output_handler", None),
         )
         timing_emitter = event_runtime.timing_emitter
 

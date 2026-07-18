@@ -27,6 +27,7 @@ from substitute.application.generation import (
     VisualAuthorizationService,
     WorkflowProgressService,
 )
+from substitute.application.direct_workflows import DirectWorkflowLoadService
 from substitute.application.execution import DirectExecutionDispatcher
 from substitute.application.workflows.closed_workflow_buffer import (
     ClosedWorkflowBuffer,
@@ -57,11 +58,18 @@ from substitute.presentation.editor.panel.lora_metadata_refresh_controller impor
 from substitute.presentation.errors import ErrorPresenter
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
 from substitute.presentation.restart_requirements import RestartRequirementUiController
+from substitute.infrastructure.comfy.workflow_json_repository import (
+    JsonComfyWorkflowRepository,
+)
 
 from .canvas_route_controller import CanvasRouteController
 from .comfy_runtime_actions import ComfyRuntimeActions
 from .cube_library_update_controller import CubeLibraryUpdateController
-from .cube_stack_mode_transition import CubeStackModeTransition
+from .cube_stack_presentation_controller import (
+    CubeStackMaterialSurface,
+    CubeStackPresentationController,
+)
+from .direct_workflow_file_actions import DirectWorkflowFileActions
 from .editor_busy_coordinator import EditorBusyCoordinator
 from .editor_viewport_restore import EditorViewportRestoreController
 from .generation_interrupt_failure_presenter import (
@@ -105,7 +113,8 @@ from .session_snapshot_capture_adapter import SessionSnapshotCaptureAdapter
 from .shell_active_surface_controller import ShellActiveSurfaceController
 from .shell_event_filter_controller import ShellEventFilterController
 from .shell_frame_integration_controller import ShellFrameIntegrationController
-from .shell_layout_controller import ShellLayoutController
+from .shell_chrome_controller import ShellChromeController
+from .shell_layout_restore_controller import ShellLayoutRestoreController
 from .shell_prehydrated_restore_controller import ShellPrehydratedRestoreController
 from .shell_recipe_model_resolution_controller import (
     ShellRecipeModelResolutionController,
@@ -119,11 +128,14 @@ from .workflow_surface_invalidation import WorkflowSurfaceInvalidationService
 from .workspace_controller import WorkspaceController
 from .workspace_drag_source import WorkspaceCanvasDragSourceClassifier
 from .workspace_drop_controller import (
+    DirectWorkflowDocumentClassifier,
     WorkflowRecipeDropClassifier,
     WorkspaceDropController,
 )
 from .workspace_restore_controller import WorkspaceRestoreController
 from .workspace_restore_image_adapter import WorkspaceRestoreImageAdapter
+from .workspace_splitter_controller import WorkspaceSplitterController
+from .workspace_layout_controller import WorkspaceLayoutController
 from substitute.presentation.canvas.input.input_canvas_presenter import (
     InputCanvasPresenter,
 )
@@ -153,6 +165,7 @@ class MainWindowInitialComposition:
     output_preview_registry: OutputPreviewRegistry
     workspace_controller: WorkspaceController
     workspace_file_actions: Any
+    direct_workflow_file_actions: DirectWorkflowFileActions
     workflow_workspace: Any
     workflow_duplicate_service: Any
     workspace_generation_actions: Any
@@ -174,7 +187,9 @@ class MainWindowControllerComposition:
 
     workflow_issue_state: Any
     cube_stack_service: Any
-    shell_layout_controller: Any
+    shell_chrome_controller: ShellChromeController
+    shell_layout_restore_controller: ShellLayoutRestoreController
+    workspace_layout_controller: WorkspaceLayoutController
     session_snapshot_capture_adapter: Any
     session_autosave_controller: Any
     workspace_restore_controller: Any
@@ -200,7 +215,8 @@ class MainWindowControllerComposition:
     shell_active_surface_controller: Any
     shell_restore_warmup_controller: Any
     shell_prehydrated_restore_controller: Any
-    cube_stack_mode_transition: Any
+    workspace_splitter_controller: WorkspaceSplitterController
+    cube_stack_presentation_controller: CubeStackPresentationController
     generation_queue_panel_transition: Any
     generation_queue_controller: Any
 
@@ -288,7 +304,9 @@ def capture_dependencies(
 
     shell.cube_load_service = dependencies.cube_load_service
     shell.cube_icon_factory = dependencies.cube_icon_factory
-    shell.cube_mask_binding_service = dependencies.cube_mask_binding_service
+    shell.input_asset_endpoint_service = dependencies.input_asset_endpoint_service
+    shell.input_canvas_plan_service = dependencies.input_canvas_plan_service
+    shell.graph_section_service = dependencies.graph_section_service
     shell.recipe_io_service = dependencies.recipe_io_service
     shell.create_recipe_model_load_resolver = (
         dependencies.create_recipe_model_load_resolver
@@ -422,12 +440,36 @@ def capture_dependencies(
     workspace_cube_picker_actions = workspace_controller.cube_picker_actions
     workspace_cube_stack_actions = workspace_controller.cube_stack_actions
     workspace_canvas_actions = workspace_controller.canvas_actions
+    direct_workflow_file_actions = DirectWorkflowFileActions(
+        view=shell,
+        load_service=DirectWorkflowLoadService(
+            JsonComfyWorkflowRepository(),
+            node_definition_gateway=shell.node_definition_gateway,
+        ),
+        add_workflow_tab=workflow_workspace.add_workflow,
+        refresh_active_workflow=lambda: workflow_workspace.project_workflow(
+            shell.workflow_session_service.active_workflow_id,
+            force_refresh=True,
+            source="direct_workflow_loaded",
+        ),
+        materialize_loaded_section=lambda workflow_id, section_key: (
+            shell.input_canvas_presenter.materialize_loaded_workflow_section(
+                workflow_id,
+                section_key,
+            )
+        ),
+        error_presenter=_ensure_error_presenter(shell),
+    )
     workspace_drop_controller = WorkspaceDropController(
-        classifier=WorkflowRecipeDropClassifier(shell.recipe_io_service),
+        classifier=WorkflowRecipeDropClassifier(
+            shell.recipe_io_service,
+            DirectWorkflowDocumentClassifier(),
+        ),
         ignored_drag_source=(
             workspace_canvas_drag_source_classifier.is_workspace_canvas_drag_source
         ),
         load_recipe_document=workspace_file_actions.load_recipe_document,
+        load_direct_workflow_document=direct_workflow_file_actions.load_document,
     )
     composition = MainWindowInitialComposition(
         workflow_surface_invalidation_service=workflow_surface_invalidation_service,
@@ -437,6 +479,7 @@ def capture_dependencies(
         output_preview_registry=output_preview_registry,
         workspace_controller=workspace_controller,
         workspace_file_actions=workspace_file_actions,
+        direct_workflow_file_actions=direct_workflow_file_actions,
         workflow_workspace=workflow_workspace,
         workflow_duplicate_service=workflow_duplicate_service,
         workspace_generation_actions=workspace_generation_actions,
@@ -462,6 +505,7 @@ def capture_dependencies(
     shell.output_preview_registry = composition.output_preview_registry
     shell.workspace_controller = composition.workspace_controller
     shell.workspace_file_actions = composition.workspace_file_actions
+    shell.direct_workflow_file_actions = composition.direct_workflow_file_actions
     shell.workflow_workspace = composition.workflow_workspace
     shell.workflow_duplicate_service = composition.workflow_duplicate_service
     shell.workspace_generation_actions = composition.workspace_generation_actions
@@ -599,10 +643,11 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         raise RuntimeError("Canvas tabs must include an Input canvas.")
 
     workflow_input_canvas_service = WorkflowInputCanvasService(
-        cube_mask_binding_service=shell.cube_mask_binding_service,
+        input_canvas_plan_service=shell.input_canvas_plan_service,
         input_canvas_state_service=shell.input_canvas_state_service,
         canvas_io_service=shell.canvas_io_service,
         workflow_asset_service=shell.workflow_asset_service,
+        graph_section_service=shell.graph_section_service,
     )
     input_mask_tool_controller = InputMaskToolController(
         input_pane=input_canvas.pane,
@@ -624,7 +669,6 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         workflow_session_service=shell.workflow_session_service,
         workflow_input_canvas_service=workflow_input_canvas_service,
         input_canvas_state_service=shell.input_canvas_state_service,
-        workflow_asset_service=shell.workflow_asset_service,
         canvas_tabs_provider=lambda: shell.canvas_tabs,
         workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
         projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
@@ -652,13 +696,14 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         dirty_tracker=input_mask_dirty_tracker,
         workflow_session_service=shell.workflow_session_service,
         canvas_io_service=shell.canvas_io_service,
-        workflow_asset_service=shell.workflow_asset_service,
+        workflow_input_canvas_service=workflow_input_canvas_service,
         workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
         projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
         refresh_saved_mask=refresh_saved_input_mask,
     )
     input_canvas_capability_service = InputCanvasCapabilityService(
-        shell.cube_mask_binding_service
+        shell.input_canvas_plan_service,
+        shell.graph_section_service,
     )
     composition = MainWindowInputCanvasComposition(
         workflow_input_canvas_service=workflow_input_canvas_service,
@@ -744,10 +789,33 @@ def compose_editor_metadata_controllers(
 def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
     """Create shell controllers after MainWindow has built its widgets."""
 
+    search_overlay_controller = SearchOverlayController(shell)
+    workspace_splitter_controller = WorkspaceSplitterController(
+        splitter=shell.splitter,
+        details_widget=shell.editor_output_container,
+        canvas_widget=shell.canvas_tabs_container,
+    )
+    cube_stack_presentation_controller = CubeStackPresentationController(
+        container=shell.cube_stack_container,
+        stacks=lambda: tuple(shell.cube_stacks.values()),
+        mode_button=shell.cubeStackModeButton,
+        material_surface=cast(
+            CubeStackMaterialSurface,
+            shell.workspace_body_material_surface,
+        ),
+        active_editor_surface=lambda: shell.active_editor_panel,
+        splitter_controller=workspace_splitter_controller,
+        position_search_box=search_overlay_controller.position_search_box,
+        request_autosave=shell.request_session_autosave,
+        parent=shell,
+    )
+    workspace_layout_controller = WorkspaceLayoutController(shell)
     composition = MainWindowControllerComposition(
         workflow_issue_state=WorkflowIssueState(),
         cube_stack_service=CubeStackService(),
-        shell_layout_controller=ShellLayoutController(shell),
+        shell_chrome_controller=ShellChromeController(shell),
+        shell_layout_restore_controller=ShellLayoutRestoreController(shell),
+        workspace_layout_controller=workspace_layout_controller,
         session_snapshot_capture_adapter=SessionSnapshotCaptureAdapter(shell),
         session_autosave_controller=SessionAutosaveController(shell),
         workspace_restore_controller=WorkspaceRestoreController(shell),
@@ -759,7 +827,7 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
             GenerationResultWorkspaceMaterializer(shell)
         ),
         initial_workspace_controller=InitialWorkspaceController(shell),
-        search_overlay_controller=SearchOverlayController(shell),
+        search_overlay_controller=search_overlay_controller,
         progress_overlay_controller=ProgressOverlayController(shell),
         generation_action_controller=GenerationActionController(shell),
         generation_feedback_presenter=GenerationFeedbackPresenter(shell),
@@ -777,14 +845,16 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
         shell_active_surface_controller=ShellActiveSurfaceController(shell),
         shell_restore_warmup_controller=ShellRestoreWarmupController(shell),
         shell_prehydrated_restore_controller=ShellPrehydratedRestoreController(shell),
-        cube_stack_mode_transition=CubeStackModeTransition(shell),
+        workspace_splitter_controller=workspace_splitter_controller,
+        cube_stack_presentation_controller=cube_stack_presentation_controller,
         generation_queue_panel_transition=GenerationQueuePanelTransition(shell),
         generation_queue_controller=GenerationQueueController(shell),
     )
     shell.workflow_issue_state = composition.workflow_issue_state
     shell.cube_stack_service = composition.cube_stack_service
-    shell._cube_stack_compact = False
-    shell.shell_layout_controller = composition.shell_layout_controller
+    shell.shell_chrome_controller = composition.shell_chrome_controller
+    shell.shell_layout_restore_controller = composition.shell_layout_restore_controller
+    shell.workspace_layout_controller = composition.workspace_layout_controller
     shell.session_snapshot_capture_adapter = (
         composition.session_snapshot_capture_adapter
     )
@@ -826,7 +896,10 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
     shell.shell_prehydrated_restore_controller = (
         composition.shell_prehydrated_restore_controller
     )
-    shell._cube_stack_mode_transition = composition.cube_stack_mode_transition
+    shell.workspace_splitter_controller = composition.workspace_splitter_controller
+    shell.cube_stack_presentation_controller = (
+        composition.cube_stack_presentation_controller
+    )
     shell._generation_queue_panel_visible = False
     shell._generation_queue_panel_transition = (
         composition.generation_queue_panel_transition
@@ -841,7 +914,7 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
     shell._restore_asset_preload = None
     shell._startup_autosave_unmuted_marked = False
     shell.session_autosave_controller.ensure_coordinator()
-    shell.shell_layout_controller.log_editor_width_trace(
+    shell.workspace_layout_controller.log_editor_width_trace(
         "initialized durable layout state"
     )
     return composition
@@ -980,14 +1053,14 @@ def connect_shell_signals(
     )
     shell.canvas_route_controller.connect_canvas_route_signals()
     shell.canvas_tabs.visibility_changed.connect(
-        shell.shell_layout_controller.toggle_canvas_tabs
+        shell.workspace_layout_controller.toggle_canvas_tabs
     )
     shell.session_autosave_controller.connect_canvas_layout_autosave()
     shell.splitter.splitterMoved.connect(
-        shell.shell_layout_controller.handle_main_splitter_moved
+        shell.workspace_layout_controller.handle_main_splitter_moved
     )
     shell.editor_output_splitter.splitterMoved.connect(
-        shell.shell_layout_controller.handle_editor_output_splitter_moved
+        shell.workspace_layout_controller.handle_editor_output_splitter_moved
     )
     current_panel_changed = getattr(
         shell.editor_panel_container, "currentChanged", None
@@ -1008,7 +1081,7 @@ def connect_shell_signals(
 
     shell.comfy_runtime_actions.set_comfy_output_panel_visible(False)
 
-    shell.shell_layout_controller.log_editor_width_trace(
+    shell.workspace_layout_controller.log_editor_width_trace(
         "scheduling startup default splitter layout",
     )
     trace_mark(
@@ -1017,7 +1090,7 @@ def connect_shell_signals(
     )
     single_shot(
         0,
-        shell.shell_layout_controller.apply_startup_default_splitter_layout,
+        shell.workspace_layout_controller.apply_startup_default_splitter_layout,
     )
     trace_mark(
         "main_window.position_progress_overlay",

@@ -328,7 +328,7 @@ def _controller(
     )
     controller = OutputCanvasPickerController(
         visible_compare_state=lambda: compare_state or OutputCompareState(),
-        grid_available_for_current_source=lambda: grid_available,
+        grid_available_for_visible_sources=lambda: grid_available,
         set_count=lambda: set_count,
         active_set_index=lambda: active_set_index,
         set_selector_button=lambda: "set-button",

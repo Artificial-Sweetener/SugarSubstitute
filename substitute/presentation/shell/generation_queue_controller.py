@@ -43,6 +43,13 @@ class GenerationQueueController:
         self._shell = shell
         self._dropdown: GenerationQueueDropdown | None = None
         self._panel: GenerationQueuePanel | None = None
+        self._panel_visible = False
+
+    @property
+    def panel_visible(self) -> bool:
+        """Return the target visibility owned by the queue presentation."""
+
+        return self._panel_visible
 
     def install_surfaces(self) -> None:
         """Create queue flyout and side-panel widgets for the shell."""
@@ -79,9 +86,7 @@ class GenerationQueueController:
     def show_context_menu_for(self, target: QWidget) -> None:
         """Show queue display options anchored to the titlebar segment."""
 
-        panel_visible = (
-            self._shell.shell_layout_controller.current_generation_queue_panel_visible()
-        )
+        panel_visible = self.panel_visible
         action_label = (
             "Hide Full Queue Panel" if panel_visible else "Show Full Queue Panel"
         )
@@ -124,9 +129,8 @@ class GenerationQueueController:
     ) -> None:
         """Set queue panel target visibility and refresh derived shell controls."""
 
-        self._shell.shell_layout_controller.set_generation_queue_panel_visible_state(
-            visible
-        )
+        self._panel_visible = visible
+        self._shell._generation_queue_panel_visible = visible
         transition = getattr(self._shell, "_generation_queue_panel_transition", None)
         if animated and transition is not None:
             transition.transition_to(visible)

@@ -25,6 +25,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from PySide6.QtCore import QRectF
 from PySide6.QtWidgets import QApplication
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
@@ -371,7 +372,7 @@ def test_cube_close_button_centers_in_text_cutoff_reserve():
 def test_cube_stack_text_rows_center_against_icon():
     """The two text rows should be vertically centered in the expanded cube tab."""
     mod = _import_stack_panel_module()
-    text_rect = mod.QRectF(72, 0, 68, mod.CUBE_ITEM_HEIGHT)
+    text_rect = QRectF(72, 0, 68, mod.CUBE_ITEM_HEIGHT)
 
     primary_rect, secondary_rect = mod.CubeItem._text_row_rects(text_rect)
     block_top = primary_rect.y()
@@ -414,22 +415,24 @@ def test_cube_stack_indicator_overlay_class_is_exported():
 def test_cube_stack_selected_indicator_uses_viewport_overlay_layer():
     """Cube stack should paint the selected indicator above item widgets."""
 
-    source_path = (
+    stack_source_path = (
         Path(__file__).parents[1]
         / "substitute"
         / "presentation"
         / "workflows"
         / "cube_stack_view.py"
     )
-    source = source_path.read_text(encoding="utf-8")
-    stack_paint_event = source.split(
+    overlay_source_path = stack_source_path.with_name("cube_stack_indicator_overlay.py")
+    stack_source = stack_source_path.read_text(encoding="utf-8")
+    overlay_source = overlay_source_path.read_text(encoding="utf-8")
+    stack_paint_event = stack_source.split(
         "def paintEvent(self, event: QMouseEvent) -> None:"
     )[1].split("def mousePressEvent", maxsplit=1)[0]
 
-    assert "class CubeStackIndicatorOverlay(QWidget):" in source
-    assert "super().__init__(stack.view)" in source
-    assert "self.raise_()" in source
-    assert "self.indicatorOverlay = CubeStackIndicatorOverlay(self)" in source
+    assert "class CubeStackIndicatorOverlay(QWidget):" in overlay_source
+    assert "super().__init__(stack.view)" in overlay_source
+    assert "self.raise_()" in overlay_source
+    assert "self.indicatorOverlay = CubeStackIndicatorOverlay(self)" in stack_source
     assert "drawRoundedRect" not in stack_paint_event
     assert "themeColor()" not in stack_paint_event
 
@@ -532,26 +535,20 @@ def test_cube_stack_select_cube_uses_route_key_for_selection():
     assert slide.end_value == item1.y() + item1.height() // 2 - 8
 
 
-def test_cube_stack_indicator_realign_is_coalesced_until_layout_tick(monkeypatch):
-    """Tab layout mutations should schedule one deferred indicator realign."""
+def test_cube_stack_indicator_realign_is_coalesced_on_owned_timer():
+    """Tab layout mutations should schedule one owned deferred realignment."""
 
     mod = _import_stack_panel_module()
-    callbacks = []
-    monkeypatch.setattr(
-        mod.QTimer,
-        "singleShot",
-        staticmethod(lambda _msec, callback: callbacks.append(callback)),
-    )
-    complete_calls: list[str] = []
+    starts: list[int] = []
     fake = SimpleNamespace(
         _indicator_realign_pending=False,
-        _complete_indicator_realign=lambda: complete_calls.append("complete"),
+        _indicator_realign_timer=SimpleNamespace(
+            start=lambda interval: starts.append(interval)
+        ),
     )
 
     mod.CubeStack._schedule_indicator_realign(fake)
     mod.CubeStack._schedule_indicator_realign(fake)
 
-    assert len(callbacks) == 1
+    assert starts == [0]
     assert fake._indicator_realign_pending is True
-    callbacks[0]()
-    assert complete_calls == ["complete"]

@@ -14,14 +14,24 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Contract tests for editable cube mask binding discovery."""
+"""Cube regression tests for shared editable mask binding discovery."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 
-from substitute.application.cubes import CubeMaskBindingService
 from substitute.application.workflows import CanvasIoService
+from substitute.application.workflows.input_asset_endpoint_service import (
+    InputAssetEndpointService,
+)
+from substitute.application.workflows.input_canvas_plan_service import (
+    InputCanvasPlanService,
+)
+from substitute.application.workflows.workflow_node_definition_service import (
+    WorkflowNodeDefinitionService,
+)
+from substitute.domain.workflow import InputCanvasPlan
 
 
 class _DimensionlessRepository:
@@ -45,6 +55,12 @@ class _DimensionlessRepository:
         _ = path, size
         return True
 
+    def save_blank_image(self, path: Path, *, width: int, height: int) -> bool:
+        """Return success for unused blank-image calls."""
+
+        _ = path, width, height
+        return True
+
     def image_dimensions(self, path: Path) -> tuple[int, int] | None:
         """Return no dimensions for unused dimension calls."""
 
@@ -55,13 +71,15 @@ class _DimensionlessRepository:
 def test_build_index_discovers_editable_binding_from_inpaint_cube() -> None:
     """The inpaint cube should expose a single editable LoadImageMask binding."""
 
-    index = CubeMaskBindingService().build_index("Inpaint", _inpaint_cube_graph())
+    plan = _canvas_plan("Inpaint", _inpaint_cube_graph())
 
-    assert index.image_identities() == (("Inpaint", "load_image"),)
-    assert len(index.bindings) == 1
-    binding = index.bindings[0]
-    assert binding.cube_alias == "Inpaint"
-    assert binding.image_node_name == "load_image"
+    assert [endpoint.identity for endpoint in plan.image_endpoints] == [
+        ("Inpaint", "load_image")
+    ]
+    assert len(plan.mask_bindings) == 1
+    binding = plan.mask_bindings[0]
+    assert binding.section_key == "Inpaint"
+    assert binding.surface.surface_key == "load_image"
     assert binding.mask_node_name == "load_image_as_mask"
     assert binding.consumer_node_name == "encode_inpaint_conds"
 
@@ -85,13 +103,13 @@ def test_build_index_discovers_multiple_masks_for_one_image_provider() -> None:
         }
     }
 
-    index = CubeMaskBindingService().build_index("CubeA", cube_graph)
+    plan = _canvas_plan("CubeA", cube_graph)
 
-    assert [binding.mask_node_name for binding in index.bindings] == [
+    assert [binding.mask_node_name for binding in plan.mask_bindings] == [
         "mask_a",
         "mask_b",
     ]
-    assert index.bindings_for_image("CubeA", "image") == index.bindings
+    assert plan.bindings_for_surface_key("image") == plan.mask_bindings
 
 
 def test_build_index_ignores_unrelated_mask_loader() -> None:
@@ -112,9 +130,9 @@ def test_build_index_ignores_unrelated_mask_loader() -> None:
         }
     }
 
-    index = CubeMaskBindingService().build_index("CubeA", cube_graph)
+    plan = _canvas_plan("CubeA", cube_graph)
 
-    assert [binding.mask_node_name for binding in index.bindings] == ["mask"]
+    assert [binding.mask_node_name for binding in plan.mask_bindings] == ["mask"]
 
 
 def test_inpaint_binding_participates_in_input_bound_mask_path_policy(
@@ -122,18 +140,14 @@ def test_inpaint_binding_participates_in_input_bound_mask_path_policy(
 ) -> None:
     """The inpaint LoadImageMask binding should produce input-bound mask names."""
 
-    binding = (
-        CubeMaskBindingService()
-        .build_index("Inpaint", _inpaint_cube_graph())
-        .bindings[0]
-    )
+    binding = _canvas_plan("Inpaint", _inpaint_cube_graph()).mask_bindings[0]
 
     mask_path = CanvasIoService(
         image_repository=_DimensionlessRepository()
     ).expected_bound_mask_path(
         workflow_name="Recipe",
         associated_image_path=Path("E:/photos/cat.png"),
-        cube_alias=binding.cube_alias,
+        cube_alias=binding.section_key,
         mask_node_name=binding.mask_node_name,
         image_size=(1024, 768),
         projects_dir=tmp_path,
@@ -161,6 +175,19 @@ def _inpaint_cube_graph() -> dict[str, object]:
     }
 
 
+def _canvas_plan(
+    section_key: str,
+    graph: Mapping[str, object],
+) -> InputCanvasPlan:
+    """Build one cube-scoped plan through the shared production services."""
+
+    definitions = WorkflowNodeDefinitionService()
+    return InputCanvasPlanService(
+        node_definition_service=definitions,
+        endpoint_service=InputAssetEndpointService(definitions),
+    ).build_plan(section_key, graph)
+
+
 def test_build_index_fails_closed_for_ambiguous_mask_binding() -> None:
     """One mask feeding multiple eligible consumers should be treated as ambiguous."""
 
@@ -180,7 +207,7 @@ def test_build_index_fails_closed_for_ambiguous_mask_binding() -> None:
         }
     }
 
-    index = CubeMaskBindingService().build_index("CubeA", cube_graph)
+    plan = _canvas_plan("CubeA", cube_graph)
 
-    assert index.bindings == ()
-    assert index.ambiguous_mask_keys == {("CubeA", "mask")}
+    assert plan.mask_bindings == ()
+    assert plan.rejected_mask_nodes == ("mask",)

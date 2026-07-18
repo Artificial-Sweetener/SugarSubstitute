@@ -126,7 +126,9 @@ class ShellWorkspaceMaterializationPort:
     ) -> None:
         """Apply restored shell layout facts after widgets exist."""
 
-        self._shell.shell_layout_controller.apply_restored_shell_layout(snapshot)
+        self._shell.shell_layout_restore_controller.apply_restored_shell_layout(
+            snapshot
+        )
 
 
 __all__ = ["ShellWorkspaceMaterializationPort"]

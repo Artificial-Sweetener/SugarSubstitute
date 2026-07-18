@@ -306,7 +306,7 @@ class ShellPrehydratedRestoreController:
                     self._shell._prehydrated_active_workflow_projection_pending
                 )
                 self._shell._prehydrated_active_workflow_projection_pending = ""
-            self._shell.shell_layout_controller.apply_restored_shell_layout(
+            self._shell.shell_layout_restore_controller.apply_restored_shell_layout(
                 self._shell._prehydrated_shell_layout
             )
             if self._shell._prehydrated_settings_projection_pending:

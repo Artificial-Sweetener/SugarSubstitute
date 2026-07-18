@@ -32,6 +32,7 @@ from substitute.application.workflows.output_visual_events import (
     OutputVisualIdentity,
     SourceOnlyOutputIdentity,
 )
+from substitute.domain.generation import OutputResultPosition
 from substitute.presentation.shell.generation_action_controller import (
     GenerationActionController,
 )
@@ -245,9 +246,7 @@ def test_generation_action_availability_fans_out_through_registry() -> None:
             has_cancellable_jobs=lambda: False,
             jobs=lambda: (),
         ),
-        shell_layout_controller=SimpleNamespace(
-            current_generation_queue_panel_visible=lambda: False
-        ),
+        generation_queue_controller=SimpleNamespace(panel_visible=False),
     )
 
     GenerationActionController(shell).apply_generation_action_availability()
@@ -273,7 +272,7 @@ def _live_output(tmp_path: Path) -> LiveFinalOutputEvent:
         node_id="N1",
         workflow_payload={"N1": {"_meta": {"title": "MyCube.KSampler"}}},
         file_path=tmp_path / "007_cube_preview.png",
-        list_index=0,
+        position=OutputResultPosition(list_index=0, batch_index=0),
         artifact_width=640,
         artifact_height=480,
     )

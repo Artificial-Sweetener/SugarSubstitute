@@ -44,6 +44,7 @@ class ImageMetaSnapshot:
     prompt_id: str = ""
     client_id: str = ""
     list_index: int | None = None
+    batch_index: int | None = None
     scene_run_id: str | None = None
     scene_key: str | None = None
     scene_title: str | None = None

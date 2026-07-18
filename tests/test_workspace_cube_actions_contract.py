@@ -1558,42 +1558,42 @@ def test_cube_rename_edit_request_expands_compact_stack_before_editing() -> None
 
     stack = _Stack()
 
-    def set_cube_stack_compact(
-        compact: bool,
+    lease = SimpleNamespace(release=lambda: events.append(("release", "Old")))
+
+    def acquire_expansion(
         *,
-        on_complete: Callable[[], None] | None = None,
-        manual: bool = True,
-    ) -> None:
-        events.append(("set_compact", (compact, manual)))
-        if on_complete is not None:
-            completion_callbacks.append(on_complete)
+        on_expanded: Callable[[], None] | None = None,
+    ) -> object:
+        events.append(("acquire", "Old"))
+        if on_expanded is not None:
+            completion_callbacks.append(on_expanded)
+        return lease
 
     view = SimpleNamespace(
         active_cube_stack=stack,
         active_editor_panel=object(),
-        shell_layout_controller=SimpleNamespace(
-            current_cube_stack_compact=lambda: True,
-            set_cube_stack_compact=set_cube_stack_compact,
+        cube_stack_presentation_controller=SimpleNamespace(
+            acquire_expansion=acquire_expansion,
         ),
     )
     actions = _stack_actions(mod, view)
 
     actions.on_cube_rename_edit_requested("Old")
 
-    assert events == [("set_compact", (False, False))]
+    assert events == [("acquire", "Old")]
     assert stack.edit_requests == []
 
     completion_callbacks[0]()
 
     assert stack.edit_requests == ["Old"]
     assert events == [
-        ("set_compact", (False, False)),
+        ("acquire", "Old"),
         ("begin_edit", "Old"),
     ]
 
 
-def test_cube_rename_edit_finish_restores_only_temporary_compact_state() -> None:
-    """Alias editing should restore compact mode only when this session expanded it."""
+def test_cube_rename_edit_finish_releases_temporary_expansion_lease() -> None:
+    """Alias editing should release its presentation lease on every finish path."""
 
     mod = _import_stack_module()
     events: list[tuple[str, object]] = []
@@ -1606,23 +1606,26 @@ def test_cube_rename_edit_finish_restores_only_temporary_compact_state() -> None
         def isCompact(self) -> bool:
             return False
 
-    def set_cube_stack_compact(
-        compact: bool,
-        *,
-        on_complete: Callable[[], None] | None = None,
-        manual: bool = True,
-    ) -> None:
-        events.append(("set_compact", (compact, manual)))
-        if on_complete is not None:
-            on_complete()
+    lease_counter = {"value": 0}
 
-    compact_state = {"value": True}
+    def acquire_expansion(
+        *,
+        on_expanded: Callable[[], None] | None = None,
+    ) -> object:
+        lease_counter["value"] += 1
+        lease_id = lease_counter["value"]
+        events.append(("acquire", lease_id))
+        if on_expanded is not None:
+            on_expanded()
+        return SimpleNamespace(
+            release=lambda: events.append(("release", lease_id)),
+        )
+
     view = SimpleNamespace(
         active_cube_stack=_Stack(),
         active_editor_panel=object(),
-        shell_layout_controller=SimpleNamespace(
-            current_cube_stack_compact=lambda: compact_state["value"],
-            set_cube_stack_compact=set_cube_stack_compact,
+        cube_stack_presentation_controller=SimpleNamespace(
+            acquire_expansion=acquire_expansion,
         ),
     )
     actions = _stack_actions(mod, view)
@@ -1630,15 +1633,16 @@ def test_cube_rename_edit_finish_restores_only_temporary_compact_state() -> None
     actions.on_cube_rename_edit_requested("CompactAlias")
     actions.on_cube_rename_edit_finished("CompactAlias")
 
-    compact_state["value"] = False
     actions.on_cube_rename_edit_requested("ExpandedAlias")
     actions.on_cube_rename_edit_finished("ExpandedAlias")
 
     assert events == [
-        ("set_compact", (False, False)),
+        ("acquire", 1),
         ("begin_edit", "CompactAlias"),
-        ("set_compact", (True, False)),
+        ("release", 1),
+        ("acquire", 2),
         ("begin_edit", "ExpandedAlias"),
+        ("release", 2),
     ]
 
 
@@ -1656,22 +1660,22 @@ def test_cube_rename_edit_abort_restores_compact_when_item_disappears() -> None:
         def isCompact(self) -> bool:
             return True
 
-    def set_cube_stack_compact(
-        compact: bool,
+    def acquire_expansion(
         *,
-        on_complete: Callable[[], None] | None = None,
-        manual: bool = True,
-    ) -> None:
-        events.append(("set_compact", (compact, manual)))
-        if on_complete is not None:
-            on_complete()
+        on_expanded: Callable[[], None] | None = None,
+    ) -> object:
+        events.append(("acquire", "Gone"))
+        if on_expanded is not None:
+            on_expanded()
+        return SimpleNamespace(
+            release=lambda: events.append(("release", "Gone")),
+        )
 
     view = SimpleNamespace(
         active_cube_stack=_Stack(),
         active_editor_panel=object(),
-        shell_layout_controller=SimpleNamespace(
-            current_cube_stack_compact=lambda: True,
-            set_cube_stack_compact=set_cube_stack_compact,
+        cube_stack_presentation_controller=SimpleNamespace(
+            acquire_expansion=acquire_expansion,
         ),
     )
     actions = _stack_actions(mod, view)
@@ -1679,9 +1683,9 @@ def test_cube_rename_edit_abort_restores_compact_when_item_disappears() -> None:
     actions.on_cube_rename_edit_requested("Gone")
 
     assert events == [
-        ("set_compact", (False, False)),
+        ("acquire", "Gone"),
         ("begin_edit", "Gone"),
-        ("set_compact", (True, False)),
+        ("release", "Gone"),
     ]
 
 

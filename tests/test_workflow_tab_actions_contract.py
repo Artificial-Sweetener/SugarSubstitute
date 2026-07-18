@@ -52,6 +52,7 @@ from substitute.presentation.shell.workflow_surface_invalidation import (
     WorkflowSurface,
     WorkflowSurfaceInvalidationService,
 )
+from substitute.presentation.shell.workflow_surface_results import WorkflowUiSurfaces
 
 _WINDOWS_XDIST_QT_SKIP = pytest.mark.skipif(
     bool(os.environ.get("PYTEST_XDIST_WORKER")),
@@ -384,13 +385,14 @@ def _build_view(
     def create_new_workflow_ui(
         workflow_id: str,
         set_as_current: bool = True,
-    ) -> tuple[object, object]:
+    ) -> WorkflowUiSurfaces:
         """Create workflow UI doubles and record the request."""
 
         calls.append(f"create:{workflow_id}:{set_as_current}")
-        return (
-            _deletable(f"{workflow_id}:cube", calls),
-            _deletable(f"{workflow_id}:editor", calls),
+        return WorkflowUiSurfaces(
+            cube_stack=_deletable(f"{workflow_id}:cube", calls),
+            editor_panel=_deletable(f"{workflow_id}:editor", calls),
+            created=True,
         )
 
     view = SimpleNamespace(
@@ -1049,7 +1051,7 @@ def test_duplicate_workflow_registers_cloned_state_and_projects_unique_tab(
     def _create_workflow_ui(
         workflow_id: str,
         set_as_current: bool = True,
-    ) -> tuple[object, object]:
+    ) -> WorkflowUiSurfaces:
         """Create workflow-scoped doubles for the duplicated workflow."""
 
         cube_stack = _CubeStack(f"{workflow_id}:cube", view.calls)
@@ -1058,7 +1060,7 @@ def test_duplicate_workflow_registers_cloned_state_and_projects_unique_tab(
         view.editor_panels[workflow_id] = editor_panel
         view.override_managers[workflow_id] = _Manager(workflow_id, view.calls)
         view.calls.append(f"create:{workflow_id}:{set_as_current}")
-        return cube_stack, editor_panel
+        return WorkflowUiSurfaces(cube_stack, editor_panel, True)
 
     view.workflow_ui_factory = SimpleNamespace(create_workflow_ui=_create_workflow_ui)
     caplog.set_level(
@@ -1165,7 +1167,7 @@ def test_duplicate_workflow_preserves_asset_metadata_and_resets_live_canvas() ->
     def _create_workflow_ui(
         workflow_id: str,
         set_as_current: bool = True,
-    ) -> tuple[object, object]:
+    ) -> WorkflowUiSurfaces:
         """Create workflow-scoped doubles for the duplicated workflow."""
 
         del set_as_current
@@ -1174,7 +1176,7 @@ def test_duplicate_workflow_preserves_asset_metadata_and_resets_live_canvas() ->
         view.cube_stacks[workflow_id] = cube_stack
         view.editor_panels[workflow_id] = editor_panel
         view.override_managers[workflow_id] = _Manager(workflow_id, view.calls)
-        return cube_stack, editor_panel
+        return WorkflowUiSurfaces(cube_stack, editor_panel, True)
 
     view.workflow_ui_factory = SimpleNamespace(create_workflow_ui=_create_workflow_ui)
     cloned_workflow = WorkflowDuplicateService().duplicate_workflow(source_workflow)
@@ -1243,7 +1245,7 @@ def test_duplicate_workflow_materializes_cube_stack_icons() -> None:
     def _create_workflow_ui(
         workflow_id: str,
         set_as_current: bool = True,
-    ) -> tuple[object, object]:
+    ) -> WorkflowUiSurfaces:
         """Create duplicate UI with cube stack that records icons."""
 
         del set_as_current
@@ -1253,7 +1255,11 @@ def test_duplicate_workflow_materializes_cube_stack_icons() -> None:
             f"{workflow_id}:editor", view.calls
         )
         view.override_managers[workflow_id] = _Manager(workflow_id, view.calls)
-        return cube_stack, view.editor_panels[workflow_id]
+        return WorkflowUiSurfaces(
+            cube_stack,
+            view.editor_panels[workflow_id],
+            True,
+        )
 
     view.workflow_ui_factory = SimpleNamespace(create_workflow_ui=_create_workflow_ui)
 
@@ -1311,7 +1317,7 @@ def test_duplicate_workflow_applies_fallback_icon_when_resolution_fails() -> Non
     def _create_workflow_ui(
         workflow_id: str,
         set_as_current: bool = True,
-    ) -> tuple[object, object]:
+    ) -> WorkflowUiSurfaces:
         """Create duplicate UI with cube stack that records icons."""
 
         del set_as_current
@@ -1321,7 +1327,11 @@ def test_duplicate_workflow_applies_fallback_icon_when_resolution_fails() -> Non
             f"{workflow_id}:editor", view.calls
         )
         view.override_managers[workflow_id] = _Manager(workflow_id, view.calls)
-        return cube_stack, view.editor_panels[workflow_id]
+        return WorkflowUiSurfaces(
+            cube_stack,
+            view.editor_panels[workflow_id],
+            True,
+        )
 
     view.workflow_ui_factory = SimpleNamespace(create_workflow_ui=_create_workflow_ui)
 
@@ -1391,7 +1401,7 @@ def test_duplicate_workflow_projects_cloned_cube_metadata_tooltip() -> None:
     def _create_workflow_ui(
         workflow_id: str,
         set_as_current: bool = True,
-    ) -> tuple[object, object]:
+    ) -> WorkflowUiSurfaces:
         """Create duplicate UI with presentation-recording cube stack."""
 
         del set_as_current
@@ -1401,7 +1411,11 @@ def test_duplicate_workflow_projects_cloned_cube_metadata_tooltip() -> None:
             f"{workflow_id}:editor", view.calls
         )
         view.override_managers[workflow_id] = _Manager(workflow_id, view.calls)
-        return cube_stack, view.editor_panels[workflow_id]
+        return WorkflowUiSurfaces(
+            cube_stack,
+            view.editor_panels[workflow_id],
+            True,
+        )
 
     view.workflow_ui_factory = SimpleNamespace(create_workflow_ui=_create_workflow_ui)
 
@@ -1451,7 +1465,7 @@ def test_duplicate_workflow_projects_cloned_cubes_into_active_editor() -> None:
     def _create_workflow_ui(
         workflow_id: str,
         set_as_current: bool = True,
-    ) -> tuple[object, object]:
+    ) -> WorkflowUiSurfaces:
         """Create duplicated workflow UI doubles with editor-load capture."""
 
         cube_stack = _CubeStack(f"{workflow_id}:cube", view.calls)
@@ -1462,7 +1476,7 @@ def test_duplicate_workflow_projects_cloned_cubes_into_active_editor() -> None:
         view.editor_panels[workflow_id] = editor_panel
         view.override_managers[workflow_id] = _Manager(workflow_id, view.calls)
         view.calls.append(f"create:{workflow_id}:{set_as_current}")
-        return cube_stack, editor_panel
+        return WorkflowUiSurfaces(cube_stack, editor_panel, True)
 
     def _refresh_active_workflow_surface(**_kwargs: object) -> None:
         """Refresh active editor double from the active workflow session."""

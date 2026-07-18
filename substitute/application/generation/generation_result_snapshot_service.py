@@ -19,10 +19,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from copy import deepcopy
+from pathlib import Path
 from typing import Protocol, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from substitute.domain.common import JsonObject
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.generation import (
     GENERATION_RESULT_SNAPSHOT_SCHEMA_VERSION,
     GenerationJobOutputRecord,
@@ -101,12 +104,18 @@ class GenerationResultSnapshotService:
                 snapshot=None,
                 warnings=(f"Generation job {job_id} was not found.",),
             )
-        parsed_script = self._recipe_parser.parse_recipe_script(
-            job.snapshot.sugar_script_text
-        )
         outputs = self._live_results.output_records_for_job(job_id)
         workflow_id = self._workflow_id_for_job(job_id)
-        workflow = self._workflow_from_script(parsed_script)
+        if job.snapshot.direct_workflow_plan is not None:
+            workflow = self._workflow_from_direct_graph(
+                job_id=job_id,
+                graph=job.snapshot.direct_workflow_plan.authored_api_graph,
+            )
+        else:
+            parsed_script = self._recipe_parser.parse_recipe_script(
+                job.snapshot.sugar_script_text
+            )
+            workflow = self._workflow_from_script(parsed_script)
         output_references = tuple(
             self._output_reference(
                 job_id=job_id,
@@ -181,6 +190,22 @@ class GenerationResultSnapshotService:
         return workflow
 
     @staticmethod
+    def _workflow_from_direct_graph(
+        *,
+        job_id: str,
+        graph: JsonObject,
+    ) -> WorkflowState:
+        """Build a restorable editor document from a queued direct API graph."""
+
+        return WorkflowState(
+            direct_workflow=DirectWorkflowState(
+                source_path=Path(f"generation-{job_id}.json"),
+                source_workflow={"nodes": [], "links": []},
+                buffer={"nodes": deepcopy(graph)},
+            )
+        )
+
+    @staticmethod
     def _restore_output_group_focus(
         workflow: WorkflowState,
         output: GenerationJobOutputRecord,
@@ -224,6 +249,9 @@ class GenerationResultSnapshotService:
                 generation_run_id=job_id,
                 list_index=_optional_non_negative_int(
                     output.metadata.get("list_index")
+                ),
+                batch_index=_optional_non_negative_int(
+                    output.metadata.get("batch_index")
                 ),
                 scene_run_id=output.scene_run_id,
                 scene_key=output.scene_key,

@@ -27,11 +27,11 @@ from substitute.presentation.shell.generation_action_controller import (
 from substitute.presentation.shell.generation_action_state import (
     GenerationActionPresentation,
 )
-from substitute.presentation.shell.shell_layout_controller import ShellLayoutController
+from substitute.presentation.shell.shell_chrome_controller import ShellChromeController
 from substitute.presentation.shell.settings_route_controller import (
     SettingsRouteController,
 )
-from substitute.presentation.shell.workflow_shell_adapters import (
+from substitute.presentation.shell.main_window_workflow_route_adapter import (
     MainWindowWorkflowRouteAdapter,
 )
 from substitute.presentation.workflows.cube_stack_view import (
@@ -229,7 +229,32 @@ class _SettingsPanel:
 def _settings_controller(view: object) -> SettingsRouteController:
     """Return a Settings controller wired to shell adapter methods."""
 
-    setattr(view, "shell_layout_controller", ShellLayoutController(view))
+    setattr(view, "shell_chrome_controller", ShellChromeController(view))
+    if not hasattr(view, "generation_queue_controller"):
+        setattr(
+            view, "generation_queue_controller", SimpleNamespace(panel_visible=False)
+        )
+    if not hasattr(view, "cube_stack_presentation_controller"):
+
+        def set_workflow_route_active(active: bool) -> None:
+            """Project route activity through the presentation owner test port."""
+
+            material = getattr(view, "workspace_body_material_surface", None)
+            set_region = getattr(material, "set_cube_stack_region_widget", None)
+            if callable(set_region):
+                set_region(
+                    getattr(view, "cube_stack_container", None) if active else None
+                )
+            button = getattr(view, "cubeStackModeButton", None)
+            set_enabled = getattr(button, "setEnabled", None)
+            if callable(set_enabled):
+                set_enabled(active)
+
+        setattr(
+            view,
+            "cube_stack_presentation_controller",
+            SimpleNamespace(set_workflow_route_active=set_workflow_route_active),
+        )
     if not hasattr(view, "generation_action_controller"):
         setattr(view, "generation_action_controller", GenerationActionController(view))
     return SettingsRouteController(view, error_presenter=None)
@@ -411,7 +436,10 @@ def _availability_view(
             is_queue_panel_visible=lambda: queue_panel_visible,
         ),
     )
-    view.shell_layout_controller = ShellLayoutController(view)
+    view.shell_chrome_controller = ShellChromeController(view)
+    view.generation_queue_controller = SimpleNamespace(
+        panel_visible=queue_panel_visible
+    )
     view.generation_action_controller = GenerationActionController(view)
     return view
 
@@ -645,33 +673,6 @@ def test_settings_route_projection_does_not_restore_workflow_geometry() -> None:
     assert view.cube_stack_container.fixed_widths == []
     assert material_regions == [cube_stack_container]
     assert route_stack.current_widget is workflow_page
-
-
-def test_cube_stack_compact_does_not_shrink_settings_navigation() -> None:
-    """Compact changes on Settings should target hidden workflow stacks only."""
-
-    calls: list[str] = []
-    cube_stack = _CubeStack()
-    material_opacity: list[float] = []
-    view = SimpleNamespace(
-        _active_workspace_route=SETTINGS_WORKSPACE_ROUTE,
-        cube_stacks={"wf-a": cube_stack},
-        cube_stack_container=_StackContainer(CUBE_STACK_EXPANDED_WIDTH, calls),
-        cubeStackModeButton=_Button(),
-        workspace_body_material_surface=SimpleNamespace(
-            set_cube_stack_wash_opacity=lambda value: material_opacity.append(value)
-        ),
-        search_overlay_controller=SimpleNamespace(
-            position_search_box=lambda: calls.append("position")
-        ),
-    )
-
-    ShellLayoutController(view).set_cube_stack_compact(True)
-
-    assert cube_stack.compact_values == [True]
-    assert view.cube_stack_container.fixed_widths == [CUBE_STACK_COMPACT_WIDTH]
-    assert material_opacity == [0.0]
-    assert calls == [f"stack:width:{CUBE_STACK_COMPACT_WIDTH}", "position"]
 
 
 def test_settings_route_disables_new_generation_and_redundant_skip_action() -> None:

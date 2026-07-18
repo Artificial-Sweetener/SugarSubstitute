@@ -46,6 +46,26 @@ def collect_canvas_fingerprint(shell: Any) -> CanvasFingerprint:
             workflow_id: tuple(workflow.output_image_uuids)
             for workflow_id, workflow in shell.workflow_session_service.workflows.items()
         },
+        workflow_output_routes={
+            workflow_id: (
+                workflow.active_output_scene_key,
+                workflow.active_output_scene_overview,
+                workflow.active_output_source_key,
+                workflow.active_output_set_index,
+                workflow.active_output_uuid,
+            )
+            for workflow_id, workflow in shell.workflow_session_service.workflows.items()
+        },
+        workflow_output_focus_modes={
+            workflow_id: workflow.output_focus_mode.value
+            for workflow_id, workflow in shell.workflow_session_service.workflows.items()
+        },
+        active_source_tab_key=_active_source_tab_key(output_canvas.tabbar),
+        navigation_container_hidden=output_canvas.tabbar_container.isHidden(),
+        scene_selector_hidden=output_canvas.scene_selector_button.isHidden(),
+        set_selector_hidden=output_canvas.set_selector_button.isHidden(),
+        source_tabs_hidden=output_canvas.tabbar.isHidden(),
+        source_selector_hidden=output_canvas.source_selector_button.isHidden(),
         preview_image_ids=tuple(shell.output_preview_registry.images_by_id()),
         preview_lane_keys=_preview_lane_keys(
             shell.output_preview_registry.lanes_for_session_like()
@@ -72,6 +92,16 @@ def collect_canvas_fingerprint(shell: Any) -> CanvasFingerprint:
         current_image_is_null=_image_is_null(current_image),
         current_image_rgb=_sample_rgb(current_image),
     )
+
+
+def _active_source_tab_key(tabbar: object) -> str | None:
+    """Return the concrete source tab selected by the rendered navigation bar."""
+
+    current_route_key = getattr(tabbar, "currentRouteKey", None)
+    if not callable(current_route_key):
+        return None
+    route_key = current_route_key()
+    return route_key if isinstance(route_key, str) and route_key else None
 
 
 def _pane_image_ids(pane: object) -> tuple[UUID, ...]:

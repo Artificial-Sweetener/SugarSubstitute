@@ -23,6 +23,7 @@ from typing import Any
 import pytest
 
 import substitute.presentation.editor.panel.factories.numeric_factory as numeric_factory
+from substitute.domain.node_behavior import FieldPresentation
 from substitute.presentation.editor.panel.factories.numeric_factory import (
     NumericFieldBuildRequest,
     NumericFieldFactory,
@@ -199,6 +200,7 @@ def test_numeric_factory_builds_seedbox_before_generic_int(
             value=123,
             field_meta={},
             field_type="INT",
+            field_presentation=FieldPresentation.SEED_BOX,
             constraints={"min": 0, "max": 999, "step": 1},
         )
     )
@@ -208,6 +210,80 @@ def test_numeric_factory_builds_seedbox_before_generic_int(
     assert widget.maximum == 999
     assert widget.step == 1
     assert widget.value == 123
+
+
+def test_numeric_factory_builds_seedbox_for_comfy_noise_seed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Comfy's noise_seed field should use the same SeedBox as seed."""
+
+    monkeypatch.setattr(numeric_factory, "SeedBox", _FakeSeedBox)
+
+    widget = NumericFieldFactory().build_field_widget(
+        NumericFieldBuildRequest(
+            parent=None,
+            node_name="SamplerCustom",
+            key="noise_seed",
+            value=0,
+            field_meta={},
+            field_type="INT",
+            field_presentation=FieldPresentation.SEED_BOX,
+            constraints={"min": 0, "max": 18_446_744_073_709_551_615, "step": 1},
+        )
+    )
+
+    assert isinstance(widget, _FakeSeedBox)
+    assert widget.minimum == 0
+    assert widget.maximum == 18_446_744_073_709_551_615
+    assert widget.step == 1
+    assert widget.value == 0
+
+
+def test_numeric_factory_does_not_infer_seedbox_from_raw_field_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Raw aliases should not bypass resolved field-presentation ownership."""
+
+    monkeypatch.setattr(numeric_factory, "SeedBox", _FakeSeedBox)
+    monkeypatch.setattr(numeric_factory, "SpinBox", _FakeSpinBox)
+
+    widget = NumericFieldFactory().build_field_widget(
+        NumericFieldBuildRequest(
+            parent=None,
+            node_name="node",
+            key="seed",
+            value=7,
+            field_meta={},
+            field_type="INT",
+            constraints={"min": 0, "max": 999, "step": 1},
+        )
+    )
+
+    assert isinstance(widget, _FakeSpinBox)
+    assert not isinstance(widget, _FakeSeedBox)
+
+
+def test_numeric_factory_uses_integer_fallback_for_nonseed_unsigned_range(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Non-seed INT ranges outside Qt's limits should keep the generic fallback."""
+
+    monkeypatch.setattr(numeric_factory, "LineEdit", _FakeLineEdit)
+
+    widget = NumericFieldFactory().build_field_widget(
+        NumericFieldBuildRequest(
+            parent=None,
+            node_name="PrimitiveInt",
+            key="value",
+            value=0,
+            field_meta={},
+            field_type="INT",
+            constraints={"min": 0, "max": 18_446_744_073_709_551_615, "step": 1},
+        )
+    )
+
+    assert isinstance(widget, _FakeLineEdit)
+    assert widget.text == "0"
 
 
 def test_numeric_factory_spinner_slider_uses_default_constraints(

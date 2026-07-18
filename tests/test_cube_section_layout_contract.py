@@ -268,7 +268,40 @@ def test_cube_section_header_gap_matches_editor_cube_gap() -> None:
         assert header_layout is not None
         margins = header_layout.contentsMargins()
 
-        assert margins.bottom() == mod.EDITOR_CUBE_SECTION_GAP
+        assert margins.bottom() == mod.EDITOR_SECTION_GAP
+    finally:
+        panel.deleteLater()
+
+
+def test_direct_workflow_section_hides_cube_title_chrome() -> None:
+    """A complete Comfy document should render without a cube heading separator."""
+
+    _ensure_qapp()
+    mod = importlib.import_module(
+        "substitute.presentation.editor.panel.widgets.cube_section"
+    )
+    panel = cast(Any, QWidget())
+    panel._last_behavior_snapshot = SimpleNamespace(field_specs_by_alias={})
+    panel.scroll = SimpleNamespace(schedule_metrics_refresh=lambda: None)
+    panel.cube_headers = {}
+    panel._cube_visibility_btns = {}
+    panel._cube_visibility_menus = {}
+    panel._cube_states = {
+        "__direct_comfy_workflow__": SimpleNamespace(
+            shows_cube_section_title=False,
+            buffer={"nodes": {}},
+        )
+    }
+    try:
+        parts = mod.CubeSectionBuilder(panel).build_cube_section(
+            "__direct_comfy_workflow__"
+        )
+
+        header_layout = parts.widget._header.layout()
+        assert header_layout is not None
+        assert header_layout.contentsMargins().bottom() == 0
+        assert parts.header_label.isHidden() is True
+        assert parts.reveal_button.isHidden() is False
     finally:
         panel.deleteLater()
 

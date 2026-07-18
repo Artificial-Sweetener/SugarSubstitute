@@ -31,6 +31,7 @@ def _repo(**overrides: object) -> SimpleNamespace:
     defaults = {
         "load_image": lambda _path: None,
         "save_blank_mask": lambda *_a, **_k: True,
+        "save_blank_image": lambda *_a, **_k: True,
         "save_image": lambda *_a, **_k: True,
         "image_dimensions": lambda _path: None,
     }
@@ -156,6 +157,37 @@ def test_image_dimensions_delegates_to_image_repository(tmp_path: Path) -> None:
 
     assert dimensions == (320, 240)
     assert calls == [path]
+
+
+def test_synthetic_input_surface_path_is_deterministic_and_project_scoped(
+    tmp_path: Path,
+) -> None:
+    """Synthetic surfaces should have stable safe paths under workflow ownership."""
+
+    service = CanvasIoService(image_repository=_repo())
+
+    first = service.synthetic_input_surface_path(
+        workflow_name="Regional",
+        section_key="SDXL/Regions",
+        surface_key="@synthetic/authority",
+        width=1024,
+        height=768,
+        projects_dir=tmp_path,
+    )
+    second = service.synthetic_input_surface_path(
+        workflow_name="Regional",
+        section_key="SDXL/Regions",
+        surface_key="@synthetic/authority",
+        width=1024,
+        height=768,
+        projects_dir=tmp_path,
+    )
+
+    assert first == second
+    assert first.parent == (tmp_path / "Regional" / "input_surfaces").resolve()
+    assert "1024x768" in first.name
+    assert "/" not in first.name
+    assert "\\" not in first.name
 
 
 def test_resolve_mask_path_handles_relative_and_absolute_paths(tmp_path: Path) -> None:

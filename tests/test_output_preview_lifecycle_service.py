@@ -248,6 +248,23 @@ def test_preview_slot_is_completed_uses_completed_slots_and_scene_outputs() -> N
         completed_preview_slots=set(),
     )
 
+    prior_generation_scene = _scene(
+        scene_run_id="scene-run",
+        sources=(
+            _source(
+                "wf:upscale",
+                "Upscale",
+                {2: uuid4()},
+                generation_run_id="prior-generation",
+            ),
+        ),
+    )
+    assert not preview_slot_is_completed(
+        slot_key=completed_slot,
+        scene=prior_generation_scene,
+        completed_preview_slots=set(),
+    )
+
 
 def test_preview_slot_for_scene_returns_only_valid_representative_slots() -> None:
     """Scene preview slots should be accepted only while cached and representative."""
@@ -1266,6 +1283,8 @@ def _source(
     source_key: str,
     label: str,
     images_by_set: dict[int, UUID],
+    *,
+    generation_run_id: str = "",
 ) -> OutputCanvasSourceGroup:
     """Return one source group with placeholder image metadata."""
 
@@ -1275,7 +1294,7 @@ def _source(
         images_by_set={
             set_index: OutputCanvasImageItem(
                 image_id=image_id,
-                image_meta=_meta(),
+                image_meta=_meta(generation_run_id=generation_run_id),
                 set_index=set_index,
             )
             for set_index, image_id in images_by_set.items()
@@ -1283,7 +1302,7 @@ def _source(
     )
 
 
-def _meta() -> ImageMeta:
+def _meta(*, generation_run_id: str = "") -> ImageMeta:
     """Return minimal image metadata for lifecycle source fixtures."""
 
     return ImageMeta(
@@ -1292,4 +1311,5 @@ def _meta() -> ImageMeta:
         image_number=1,
         suffix="",
         path="E:/out.png",
+        generation_run_id=generation_run_id,
     )

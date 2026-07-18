@@ -18,54 +18,42 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-
-from substitute.application.cubes import CubeMaskBindingService
+from substitute.application.workflows.input_canvas_plan_service import (
+    InputCanvasPlanService,
+)
+from substitute.application.workflows.workflow_graph_section_service import (
+    WorkflowGraphSectionService,
+)
 from substitute.domain.workflow import WorkflowState
-from substitute.shared.logging.logger import get_logger
-
-_LOGGER = get_logger("application.workflows.input_canvas_capability_service")
 
 
 class InputCanvasCapabilityService:
     """Resolve active workflow capability for the shared Input canvas."""
 
-    def __init__(self, cube_mask_binding_service: CubeMaskBindingService) -> None:
-        """Capture the binding service used for editable mask detection."""
+    def __init__(
+        self,
+        input_canvas_plan_service: InputCanvasPlanService,
+        graph_section_service: WorkflowGraphSectionService,
+    ) -> None:
+        """Capture the shared graph-section and endpoint authorities."""
 
-        self._cube_mask_binding_service = cube_mask_binding_service
+        self._input_canvas_plan_service = input_canvas_plan_service
+        self._graph_section_service = graph_section_service
 
     def workflow_needs_input_canvas(self, workflow: WorkflowState | None) -> bool:
         """Return whether a workflow should expose input-canvas UI."""
 
         if workflow is None:
             return False
-        for cube_alias, cube_state in workflow.cubes.items():
-            cube_graph = cube_state.buffer
-            if self._has_load_image_asset_field(cube_graph):
-                return True
-            binding_index = self._cube_mask_binding_service.build_index(
-                cube_alias,
-                cube_graph,
+        for section_key in self._graph_section_service.section_keys(workflow):
+            graph = self._graph_section_service.graph(workflow, section_key)
+            if graph is None:
+                continue
+            plan = self._input_canvas_plan_service.build_plan(
+                section_key,
+                graph,
             )
-            if binding_index.bindings:
-                return True
-        return False
-
-    @staticmethod
-    def _has_load_image_asset_field(cube_graph: Mapping[str, object]) -> bool:
-        """Return whether a cube graph contains a LoadImage image input."""
-
-        nodes = cube_graph.get("nodes", {})
-        if not isinstance(nodes, Mapping):
-            return False
-        for node_data in nodes.values():
-            if not isinstance(node_data, Mapping):
-                continue
-            if node_data.get("class_type") != "LoadImage":
-                continue
-            inputs = node_data.get("inputs", {})
-            if isinstance(inputs, Mapping) and "image" in inputs:
+            if plan.exposes_input_canvas:
                 return True
         return False
 

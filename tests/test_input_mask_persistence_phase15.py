@@ -130,13 +130,13 @@ def test_save_controller_debounces_mask_updates_and_persists_current_pixels(
     def associate_project_input_mask(
         _workflow: object,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
         relative_path: Path | str,
     ) -> bool:
         """Record one project mask association."""
 
-        asset_calls.append((cube_alias, node_name, str(relative_path)))
+        asset_calls.append((section_key, node_name, str(relative_path)))
         return True
 
     controller = InputMaskSaveController(
@@ -149,7 +149,7 @@ def test_save_controller_debounces_mask_updates_and_persists_current_pixels(
             resolve_mask_save_path=lambda **_kwargs: tmp_path / "mask.png",
             save_mask_image=save_mask_image,
         ),
-        workflow_asset_service=SimpleNamespace(
+        workflow_input_canvas_service=SimpleNamespace(
             associate_project_input_mask=associate_project_input_mask
         ),
         workflow_name_provider=lambda _workflow_id: "Recipe",
@@ -196,13 +196,13 @@ def test_preflight_persists_dirty_workflow_associated_masks(tmp_path: Path) -> N
     def associate_project_input_mask(
         _workflow: object,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
         relative_path: Path | str,
     ) -> bool:
         """Record one preflight asset update."""
 
-        asset_calls.append((cube_alias, node_name, str(relative_path)))
+        asset_calls.append((section_key, node_name, str(relative_path)))
         return True
 
     controller = InputMaskSaveController(
@@ -215,7 +215,7 @@ def test_preflight_persists_dirty_workflow_associated_masks(tmp_path: Path) -> N
             resolve_mask_save_path=lambda **_kwargs: tmp_path / "mask.png",
             save_mask_image=save_mask_image,
         ),
-        workflow_asset_service=SimpleNamespace(
+        workflow_input_canvas_service=SimpleNamespace(
             associate_project_input_mask=associate_project_input_mask
         ),
         workflow_name_provider=lambda _workflow_id: "Recipe",
@@ -246,7 +246,7 @@ def test_preflight_fails_closed_when_pixels_are_unavailable(tmp_path: Path) -> N
             resolve_mask_save_path=lambda **_kwargs: tmp_path / "mask.png",
             save_mask_image=lambda **kwargs: save_calls.append(kwargs),
         ),
-        workflow_asset_service=SimpleNamespace(
+        workflow_input_canvas_service=SimpleNamespace(
             associate_project_input_mask=lambda *_args, **_kwargs: True
         ),
         workflow_name_provider=lambda _workflow_id: "Recipe",
@@ -276,7 +276,7 @@ def test_preflight_fails_closed_when_save_io_fails(tmp_path: Path) -> None:
             resolve_mask_save_path=lambda **_kwargs: tmp_path / "mask.png",
             save_mask_image=lambda **_kwargs: False,
         ),
-        workflow_asset_service=SimpleNamespace(
+        workflow_input_canvas_service=SimpleNamespace(
             associate_project_input_mask=lambda *args, **kwargs: asset_calls.append(
                 (args, kwargs)
             )
@@ -310,7 +310,7 @@ def test_preflight_fails_closed_when_dirty_signal_is_unavailable(
             resolve_mask_save_path=lambda **_kwargs: tmp_path / "mask.png",
             save_mask_image=lambda **kwargs: save_calls.append(kwargs),
         ),
-        workflow_asset_service=SimpleNamespace(
+        workflow_input_canvas_service=SimpleNamespace(
             associate_project_input_mask=lambda *_args, **_kwargs: True
         ),
         workflow_name_provider=lambda _workflow_id: "Recipe",
@@ -343,7 +343,7 @@ def test_preflight_fails_closed_when_mask_ownership_is_unproven(
             resolve_mask_save_path=lambda **_kwargs: tmp_path / "mask.png",
             save_mask_image=lambda **kwargs: save_calls.append(kwargs),
         ),
-        workflow_asset_service=SimpleNamespace(
+        workflow_input_canvas_service=SimpleNamespace(
             associate_project_input_mask=lambda *_args, **_kwargs: True
         ),
         workflow_name_provider=lambda _workflow_id: "Recipe",
@@ -371,7 +371,7 @@ def test_preflight_fails_closed_when_save_api_is_missing(tmp_path: Path) -> None
         canvas_io_service=SimpleNamespace(
             resolve_mask_save_path=lambda **_kwargs: tmp_path / "mask.png",
         ),
-        workflow_asset_service=SimpleNamespace(
+        workflow_input_canvas_service=SimpleNamespace(
             associate_project_input_mask=lambda *_args, **_kwargs: True
         ),
         workflow_name_provider=lambda _workflow_id: "Recipe",
@@ -401,7 +401,7 @@ def test_preflight_fails_closed_when_path_resolution_api_is_missing(
         canvas_io_service=SimpleNamespace(
             save_mask_image=lambda **kwargs: save_calls.append(kwargs),
         ),
-        workflow_asset_service=SimpleNamespace(
+        workflow_input_canvas_service=SimpleNamespace(
             associate_project_input_mask=lambda *_args, **_kwargs: True
         ),
         workflow_name_provider=lambda _workflow_id: "Recipe",
@@ -439,7 +439,7 @@ def test_preflight_fails_closed_when_asset_api_is_missing(tmp_path: Path) -> Non
             resolve_mask_save_path=lambda **_kwargs: tmp_path / "mask.png",
             save_mask_image=save_mask_image,
         ),
-        workflow_asset_service=SimpleNamespace(),
+        workflow_input_canvas_service=SimpleNamespace(),
         workflow_name_provider=lambda _workflow_id: "Recipe",
         projects_dir_provider=lambda: tmp_path,
     )
@@ -468,7 +468,7 @@ def test_preflight_fails_closed_when_asset_association_fails(
             resolve_mask_save_path=lambda **_kwargs: tmp_path / "mask.png",
             save_mask_image=lambda **_kwargs: True,
         ),
-        workflow_asset_service=SimpleNamespace(
+        workflow_input_canvas_service=SimpleNamespace(
             associate_project_input_mask=lambda *_args, **_kwargs: False
         ),
         workflow_name_provider=lambda _workflow_id: "Recipe",

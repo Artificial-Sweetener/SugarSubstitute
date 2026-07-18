@@ -34,6 +34,7 @@ from substitute.domain.generation.seed_control import (
     seed_control_state_from_json,
     seed_control_state_to_json,
 )
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.workflow import (
     CubeState,
     OutputCompareSelection,
@@ -142,6 +143,7 @@ def workflow_state_to_json(state: WorkflowState) -> JsonObject:
         "output_compare_state": _output_compare_state_to_json(
             state.output_compare_state
         ),
+        "direct_workflow": _direct_workflow_to_json(state.direct_workflow),
     }
 
 
@@ -193,6 +195,52 @@ def workflow_state_from_json(payload: Mapping[str, object]) -> WorkflowState:
         output_compare_state=_output_compare_state_from_json(
             payload.get("output_compare_state")
         ),
+        direct_workflow=_direct_workflow_from_json(payload.get("direct_workflow")),
+    )
+
+
+def _direct_workflow_to_json(
+    state: DirectWorkflowState | None,
+) -> JsonObject | None:
+    """Return durable direct-workflow state without runtime-only editor objects."""
+
+    if state is None:
+        return None
+    return {
+        "source_path": str(state.source_path),
+        "source_workflow": _json_object_to_json(
+            state.source_workflow,
+            path="workflow.direct_workflow.source_workflow",
+        ),
+        "buffer": _json_object_to_json(
+            state.buffer,
+            path="workflow.direct_workflow.buffer",
+        ),
+        "ui": {
+            key: _json_value_to_json(
+                value,
+                path=f"workflow.direct_workflow.ui.{key}",
+            )
+            for key, value in state.ui.items()
+            if key != "node_behavior_runtime"
+        },
+        "dirty": state.dirty,
+    }
+
+
+def _direct_workflow_from_json(value: object) -> DirectWorkflowState | None:
+    """Build optional direct-workflow state from a persisted workflow payload."""
+
+    if value is None:
+        return None
+    payload = _required_mapping(value)
+    source_path = _required_str(payload, "source_path")
+    return DirectWorkflowState(
+        source_path=Path(source_path),
+        source_workflow=dict(_required_mapping(payload.get("source_workflow"))),
+        buffer=dict(_required_mapping(payload.get("buffer"))),
+        ui=dict(_optional_mapping(payload.get("ui"))),
+        dirty=payload.get("dirty") is True,
     )
 
 
@@ -540,6 +588,7 @@ def _image_meta_to_json(metadata: ImageMetaSnapshot) -> JsonObject:
         "prompt_id": metadata.prompt_id,
         "client_id": metadata.client_id,
         "list_index": metadata.list_index,
+        "batch_index": metadata.batch_index,
         "scene_run_id": metadata.scene_run_id,
         "scene_key": metadata.scene_key,
         "scene_title": metadata.scene_title,
@@ -568,6 +617,7 @@ def _image_meta_from_json(value: object) -> ImageMetaSnapshot:
         prompt_id=_optional_str(payload.get("prompt_id")) or "",
         client_id=_optional_str(payload.get("client_id")) or "",
         list_index=_optional_int(payload.get("list_index"), default=None),
+        batch_index=_optional_int(payload.get("batch_index"), default=None),
         scene_run_id=_optional_str(payload.get("scene_run_id")),
         scene_key=_optional_str(payload.get("scene_key")),
         scene_title=_optional_str(payload.get("scene_title")),

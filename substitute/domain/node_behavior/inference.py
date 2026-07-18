@@ -26,20 +26,11 @@ from .models import (
     ActivationSwitchRole,
     ActivationSwitchSource,
     CardBehaviorPatch,
-    CardMode,
-    CollapseMode,
     EnabledSwitchPolicy,
-    FieldBehaviorPatch,
-    FieldPresentation,
-    LabelMode,
     NodeBehaviorPatch,
-    PromptFieldBehaviorPatch,
     PromptRole,
-    RowMode,
-    TitleControl,
 )
 
-_PROMPT_SYNTAX_STYLE = {"prompt_syntaxes": ["emphasis", "wildcard", "lora"]}
 _SAMPLER_WORKER_INPUTS = frozenset({"steps", "denoise"})
 _INTEGER_LIKE_INPUT_TYPES = frozenset({"INT", "INTEGER", "FLOAT", "NUMBER"})
 _FLOAT_LIKE_INPUT_TYPES = frozenset({"FLOAT", "NUMBER"})
@@ -237,48 +228,6 @@ def multiline_string_input_keys(
     return tuple(candidates)
 
 
-def _infer_prompt_patch(
-    *,
-    node_title: str | None,
-    node_definition: Mapping[str, object] | None,
-    input_keys: tuple[str, ...],
-) -> NodeBehaviorPatch:
-    """Return prompt behavior inferred from an explicit prompt node label."""
-
-    role = prompt_role_from_label(node_title)
-    if role is None:
-        return NodeBehaviorPatch()
-    candidate_keys = multiline_string_input_keys(node_definition, input_keys)
-    if len(candidate_keys) != 1:
-        return NodeBehaviorPatch()
-    field_key = candidate_keys[0]
-    return NodeBehaviorPatch(
-        card=CardBehaviorPatch(
-            card_mode=CardMode.PROMPT,
-            collapse_mode=CollapseMode.EXEMPT,
-            icon_name=_prompt_icon_name(role),
-            title_controls=(TitleControl.NODE_LINK_SELECTOR,),
-        ),
-        field_patches={
-            field_key: FieldBehaviorPatch(
-                presentation=FieldPresentation.PROMPT_BOX,
-                row_mode=RowMode.FULL_WIDTH,
-                label_mode=LabelMode.PROMPT,
-                style=_PROMPT_SYNTAX_STYLE,
-                prompt=PromptFieldBehaviorPatch(role=role, linkable=True),
-            )
-        },
-    )
-
-
-def _prompt_icon_name(role: PromptRole) -> str:
-    """Return the title icon semantic name for one inferred prompt role."""
-
-    if role is PromptRole.NEGATIVE:
-        return "eraser"
-    return "edit"
-
-
 def infer_node_behavior_patch(
     node_definition: Mapping[str, object] | None,
     *,
@@ -287,42 +236,27 @@ def infer_node_behavior_patch(
 ) -> NodeBehaviorPatch:
     """Return the built-in inference patch for one live node definition."""
 
-    prompt_patch = _infer_prompt_patch(
-        node_title=node_title,
-        node_definition=node_definition,
-        input_keys=input_keys,
-    )
+    _ = node_title
     if infer_sampler_worker_node(node_definition, input_keys=input_keys):
         return NodeBehaviorPatch(
             card=CardBehaviorPatch(
-                card_mode=prompt_patch.card.card_mode,
-                collapse_mode=prompt_patch.card.collapse_mode,
                 enabled_switch_policy=EnabledSwitchPolicy.NEVER,
                 enabled_switch_source=ActivationSwitchSource.INFERRED,
                 activation_switch_role=ActivationSwitchRole.SAMPLER_WORKER,
                 icon_name="application",
-                title_controls=prompt_patch.card.title_controls,
             ),
-            field_patches=prompt_patch.field_patches,
-            field_groups=prompt_patch.field_groups,
         )
     activation_signal_types = infer_typed_transform_signal_types(node_definition)
     if activation_signal_types:
         return NodeBehaviorPatch(
             card=CardBehaviorPatch(
-                card_mode=prompt_patch.card.card_mode,
-                collapse_mode=prompt_patch.card.collapse_mode,
                 enabled_switch_policy=EnabledSwitchPolicy.ALWAYS,
                 enabled_switch_source=ActivationSwitchSource.INFERRED,
                 activation_switch_role=ActivationSwitchRole.TYPED_TRANSFORM,
                 activation_signal_types=activation_signal_types,
-                icon_name=prompt_patch.card.icon_name,
-                title_controls=prompt_patch.card.title_controls,
             ),
-            field_patches=prompt_patch.field_patches,
-            field_groups=prompt_patch.field_groups,
         )
-    return prompt_patch
+    return NodeBehaviorPatch()
 
 
 __all__ = [

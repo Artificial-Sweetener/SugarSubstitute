@@ -23,6 +23,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol, cast
 
+from substitute.application.workflows.editor_projection_service import (
+    WorkflowEditorProjectionService,
+)
+from substitute.domain.workflow import WorkflowDocumentKind, WorkflowState
+
 from substitute.presentation.shell.workflow_surface_invalidation import (
     WorkflowSurface,
     WorkflowSurfaceDirtyState,
@@ -148,9 +153,16 @@ class WorkflowSurfaceRegistry:
         return self._override_managers.get(workflow_id)
 
     def workflow_ui_materialized(self, workflow_id: str) -> bool:
-        """Return whether cached editor and cube-stack widgets already exist."""
+        """Return whether all surfaces required by the document kind exist."""
 
-        return workflow_id in self._editor_panels and workflow_id in self._cube_stacks
+        if workflow_id not in self._editor_panels:
+            return False
+        workflow = self._workflows.get(workflow_id)
+        if not isinstance(workflow, WorkflowState):
+            return False
+        if workflow.document_kind is WorkflowDocumentKind.DIRECT_COMFY:
+            return workflow_id not in self._cube_stacks
+        return workflow_id in self._cube_stacks
 
     def editor_lifecycle_state(
         self,
@@ -174,16 +186,11 @@ class WorkflowSurfaceRegistry:
             is_projection_clean
         ):
             return WorkflowSurfaceLifecycleState.CLEAN
-        cube_states_object = getattr(workflow, "cubes", {})
-        if not isinstance(cube_states_object, Mapping):
-            return WorkflowSurfaceLifecycleState.MATERIALIZED_UNPROJECTED
-        cube_states = cast(Mapping[str, object], cube_states_object)
-        stack_order_object = getattr(workflow, "stack_order", ())
-        if not isinstance(stack_order_object, (list, tuple)):
-            return WorkflowSurfaceLifecycleState.MATERIALIZED_UNPROJECTED
-        stack_order = [str(alias) for alias in stack_order_object]
         try:
-            cube_entries = [(alias, cube_states[alias]) for alias in stack_order]
+            projection = WorkflowEditorProjectionService().project(workflow)
+            cube_states = projection.states
+            stack_order = list(projection.order)
+            cube_entries = list(projection.entries)
             probe = cast(EditorProjectionProbe, editor_panel)
             projection_signature = probe.current_projection_signature(
                 workflow_id=workflow_id,

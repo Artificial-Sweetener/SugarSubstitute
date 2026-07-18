@@ -125,7 +125,8 @@ def test_live_final_event_preserves_list_index_dimensions_and_scene_identity() -
 
     assert event is not None
     assert event.node_id == "save"
-    assert event.list_index == 3
+    assert event.position.list_index == 3
+    assert event.position.batch_index == 0
     assert event.artifact_width == 640
     assert event.artifact_height == 480
     assert event.identity.scene == OutputSceneIdentity(

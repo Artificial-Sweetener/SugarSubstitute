@@ -45,8 +45,10 @@ from substitute.application.generation import (
     RecipeOutputSiblingDiscoveryResult,
 )
 from substitute.application.workflows import (
-    is_default_workflow_tab_label,
     normalize_default_workflow_tab_label,
+)
+from substitute.presentation.shell.workflow_document_target import (
+    WorkflowDocumentTargetResolver,
 )
 from substitute.application.recipes import (
     RecipeModelLoadResolver,
@@ -873,7 +875,6 @@ class WorkspaceFileActions:
         current_index = view.workflow_tabbar.currentIndex()
         current_tab_item = view.workflow_tabbar.tabItem(current_index)
         current_id = current_tab_item.routeKey()
-        current_workflow = view.workflow_session_service.get_workflow(current_id)
         log_debug(
             _LOGGER,
             "Recipe load flow started",
@@ -885,22 +886,16 @@ class WorkspaceFileActions:
             source_path=source_path,
         )
 
-        is_blank_and_default = (
-            current_workflow is not None
-            and not current_workflow.stack_order
-            and not current_workflow.cubes
-            and is_default_workflow_tab_label(current_tab_item.text())
+        target_workflow_id = WorkflowDocumentTargetResolver().resolve(
+            view,
+            add_workflow_tab=self._add_workflow_tab_requested,
         )
-        if is_blank_and_default:
-            target_workflow_id = current_id
-        else:
-            self._add_workflow_tab_requested()
-            target_workflow_id = view.workflow_session_service.active_workflow_id
+        reused_blank_default = target_workflow_id == current_id
         log_info(
             _LOGGER,
             "Recipe load target workflow resolved",
             target_workflow_id=target_workflow_id,
-            reused_blank_default=is_blank_and_default,
+            reused_blank_default=reused_blank_default,
             active_workflow_id=view.workflow_session_service.active_workflow_id,
         )
 

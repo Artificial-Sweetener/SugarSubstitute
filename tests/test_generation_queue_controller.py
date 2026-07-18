@@ -29,7 +29,6 @@ from PySide6.QtWidgets import QWidget
 from substitute.presentation.shell.generation_queue_controller import (
     GenerationQueueController,
 )
-from substitute.presentation.shell.shell_layout_controller import ShellLayoutController
 from substitute.presentation.widgets.menu_model import MenuItem, MenuModel
 
 
@@ -51,7 +50,6 @@ def test_generation_queue_controller_user_toggle_uses_transition() -> None:
         ),
         request_session_autosave=lambda: autosaves.append(True),
     )
-    shell.shell_layout_controller = ShellLayoutController(shell)
     controller = GenerationQueueController(shell)
 
     controller.set_panel_visible(True)
@@ -86,7 +84,6 @@ def test_generation_queue_controller_restore_visibility_skips_transition() -> No
         ),
         request_session_autosave=lambda: autosaves.append(True),
     )
-    shell.shell_layout_controller = ShellLayoutController(shell)
     controller = GenerationQueueController(shell)
 
     controller.apply_panel_visibility(
@@ -331,7 +328,6 @@ def test_generation_queue_controller_context_menu_toggles_side_panel(
             """Create a fake shell with a queue side panel host."""
 
             self.sidePanelHost = FakeSidePanelHost()
-            self.shell_layout_controller = ShellLayoutController(self)
             self.autosaves: list[bool] = []
             self.generation_action_controller = SimpleNamespace(
                 apply_generation_action_availability=lambda: None

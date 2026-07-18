@@ -288,6 +288,7 @@ def _image_meta_from_snapshot(snapshot: ImageMetaSnapshot) -> ImageMeta:
         prompt_id=snapshot.prompt_id,
         client_id=snapshot.client_id,
         list_index=snapshot.list_index,
+        batch_index=snapshot.batch_index,
         scene_run_id=snapshot.scene_run_id or "",
         scene_key=snapshot.scene_key or "",
         scene_title=snapshot.scene_title or "",

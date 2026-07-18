@@ -30,7 +30,6 @@ from substitute.presentation.editor.panel.cube_section_build_plan import (
     is_first_usable_card,
     leading_first_usable_node_count,
     node_card_build_outcome,
-    node_order_for_cube,
 )
 
 
@@ -72,35 +71,6 @@ def _imported_module_names(source_path: Path) -> set[str]:
         elif isinstance(node, ast.ImportFrom) and node.module is not None:
             modules.add(node.module)
     return modules
-
-
-def test_node_order_prefers_field_spec_order_before_comfy_order() -> None:
-    """Prepared field specs should define the cube-section card order."""
-
-    nodes: dict[str, object] = {
-        "ksampler": {"class_type": "KSampler", "inputs": {}},
-        "positive": {"class_type": "CLIPTextEncode", "inputs": {}},
-    }
-    field_spec = cast(ResolvedFieldSpec, object())
-
-    assert node_order_for_cube(
-        nodes,
-        {
-            "ksampler": {"seed": field_spec},
-            "positive": {"text": field_spec},
-        },
-    ) == ["ksampler", "positive"]
-
-
-def test_node_order_falls_back_to_comfy_card_order() -> None:
-    """Missing field specs should use the shared Comfy node-card order."""
-
-    nodes: dict[str, object] = {
-        "ksampler": {"class_type": "KSampler", "inputs": {"positive": ["positive", 0]}},
-        "positive": {"class_type": "CLIPTextEncode", "inputs": {}},
-    }
-
-    assert node_order_for_cube(nodes, {}) == ["positive", "ksampler"]
 
 
 def test_first_usable_detection_uses_behavior_and_legacy_prompt_terms() -> None:

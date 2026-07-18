@@ -28,6 +28,10 @@ from typing import Any, Callable, Protocol, cast
 from uuid import uuid4
 
 from substitute.application.cubes import cube_alias_body
+from substitute.application.direct_workflows import (
+    DirectWorkflowExecutionProjector,
+    DirectWorkflowGenerationPlanService,
+)
 from substitute.application.ports.comfy_gateway import (
     ComfyGateway,
     ComfyQueueMutationResult,
@@ -37,12 +41,12 @@ from substitute.application.ports.comfy_gateway import (
     ListenerCompleted,
     ListenerFailure,
     ListenerHandle,
+    ListenerOutputSource,
     ListenerSessionConnectRequest,
     ListenerStartRequest,
     OutputImageUpdate,
     OutputSavePlan,
     PreviewImageUpdate,
-    QueueVisualRunContext,
 )
 from substitute.application.recipes.recipe_io_service import (
     RecipeIoService,
@@ -53,6 +57,7 @@ from substitute.application.recipes.workflow_payload_nodes import (
     executable_prompt_nodes,
 )
 from substitute.domain.common import WorkflowId
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.recipes import parse_sugar_script_document
 from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
 from substitute.domain.workflow import active_cube_aliases
@@ -73,6 +78,9 @@ from substitute.application.generation.output_organization_service import (
     OutputOrganizationPreferenceService,
 )
 from substitute.application.generation.output_seed_resolver import resolve_output_seed
+from substitute.application.generation.visual_run_context_builder import (
+    VisualRunContextBuilder,
+)
 from substitute.application.prompt_wildcards import PromptWildcardPreprocessingService
 from substitute.shared.logging.logger import (
     get_logger,
@@ -153,6 +161,11 @@ class GenerationService:
         ) = None,
         preview_method_resolver: GenerationPreviewMethodResolver | None = None,
         output_organization_service: OutputOrganizationPreferenceService | None = None,
+        direct_workflow_graph_service: DirectWorkflowGenerationPlanService
+        | None = None,
+        direct_workflow_execution_projector: DirectWorkflowExecutionProjector
+        | None = None,
+        visual_run_context_builder: VisualRunContextBuilder | None = None,
         output_dir: Path = DEFAULT_PROJECTS_DIR,
         client_id: str = "substitute",
     ) -> None:
@@ -168,6 +181,15 @@ class GenerationService:
             preview_method_resolver or _DefaultGenerationPreviewMethodResolver()
         )
         self._output_organization_service = output_organization_service
+        self._direct_workflow_graph_service = (
+            direct_workflow_graph_service or DirectWorkflowGenerationPlanService()
+        )
+        self._direct_workflow_execution_projector = (
+            direct_workflow_execution_projector or DirectWorkflowExecutionProjector()
+        )
+        self._visual_run_context_builder = (
+            visual_run_context_builder or VisualRunContextBuilder()
+        )
         self._output_dir = output_dir
         self._client_id = client_id
         self._active_listener_handles: list[ListenerHandle] = []
@@ -226,6 +248,25 @@ class GenerationService:
             if callbacks.randomize_seeds is not None:
                 callbacks.randomize_seeds()
             workflow = request.workflow
+            direct_document = getattr(workflow, "direct_workflow", None)
+            direct_plan = (
+                self._direct_workflow_graph_service.build(direct_document)
+                if isinstance(direct_document, DirectWorkflowState)
+                else None
+            )
+            if direct_plan is not None:
+                prepared_request = PreparedGenerationRequest(
+                    workflow_id=request.workflow_id,
+                    workflow_name=request.workflow_name,
+                    sugar_script_text="",
+                    direct_workflow_plan=direct_plan,
+                    workflow=workflow,
+                    output_run_number=None,
+                )
+                return self._start_prepared_generation(
+                    request=prepared_request,
+                    callbacks=callbacks,
+                )
             if self._prompt_wildcard_preprocessing_service is not None:
                 workflow = (
                     self._prompt_wildcard_preprocessing_service.preprocess_workflow(
@@ -285,15 +326,34 @@ class GenerationService:
         """Start one prepared generation attempt and wire listener callbacks."""
         try:
             sugar_script = request.sugar_script_text
-            if not _ordered_cube_aliases_from_script(sugar_script):
-                raise RuntimeError(
-                    "Cannot generate because the workflow has no active cubes."
+            execution_targets: tuple[str, ...] | None = None
+            standard_output_sources: tuple[ListenerOutputSource, ...] = ()
+            if request.direct_workflow_plan is not None:
+                direct_projection = self._direct_workflow_execution_projector.project(
+                    request.direct_workflow_plan
                 )
-            workflow_payload = self._workflow_export_service.compile_workflow_payload(
-                sugar_script_text=sugar_script,
-                output_dir=self._output_dir,
-                workflow=request.workflow,
-            )
+                workflow_payload = direct_projection.prompt
+                execution_targets = direct_projection.execution_targets
+                standard_output_sources = tuple(
+                    ListenerOutputSource(
+                        node_id=recovery.recovery_node_id,
+                        source_key=recovery.source_key,
+                        source_label=recovery.source_label,
+                    )
+                    for recovery in direct_projection.recovery_outputs
+                )
+            else:
+                if not _ordered_cube_aliases_from_script(sugar_script):
+                    raise RuntimeError(
+                        "Cannot generate because the workflow has no active cubes."
+                    )
+                workflow_payload = (
+                    self._workflow_export_service.compile_workflow_payload(
+                        sugar_script_text=sugar_script,
+                        output_dir=self._output_dir,
+                        workflow=request.workflow,
+                    )
+                )
             unresolved = find_unresolved_uuid_class_types(workflow_payload)
             _log_payload_image_inputs(
                 workflow_payload,
@@ -441,9 +501,10 @@ class GenerationService:
         queue_result = self._comfy_gateway.queue_prompt(
             workflow_payload,
             client_id=run_client_id,
+            execution_targets=execution_targets,
             preview_method=self._preview_method_resolver.resolved_comfy_preview_method(),
             sugar_script=sugar_script,
-            visual_context=_build_visual_run_context(
+            visual_context=self._visual_run_context_builder.build(
                 workflow_payload=workflow_payload,
                 workflow_id=request.workflow_id,
                 generation_run_id=generation_run_id,
@@ -453,6 +514,7 @@ class GenerationService:
                 scene_title=request.scene_title,
                 scene_order=request.scene_order,
                 scene_count=request.scene_count,
+                explicit_sources=standard_output_sources,
             ),
         )
         prompt_id = queue_result.prompt_id
@@ -554,6 +616,7 @@ class GenerationService:
                 scene_title=request.scene_title,
                 scene_order=request.scene_order,
                 scene_count=request.scene_count,
+                standard_output_sources=standard_output_sources,
             ),
             callbacks=listener_callbacks,
         )
@@ -781,145 +844,6 @@ def _add_cube_number_aliases(
         cleaned = key.strip()
         if cleaned and cleaned not in numbers:
             numbers[cleaned] = cube_number
-
-
-def _build_visual_run_context(
-    *,
-    workflow_payload: dict[str, object],
-    workflow_id: WorkflowId,
-    generation_run_id: str,
-    client_id: str,
-    scene_run_id: str | None,
-    scene_key: str | None,
-    scene_title: str | None,
-    scene_order: int | None,
-    scene_count: int | None,
-) -> QueueVisualRunContext:
-    """Build Backend queue metadata that makes visual routing explicit."""
-
-    prompt_nodes = executable_prompt_nodes(workflow_payload)
-    node_to_output_source = _node_to_cube_output_source(prompt_nodes, workflow_id)
-    sources: dict[str, dict[str, str]] = {}
-    for node_id, node_data in prompt_nodes.items():
-        if not isinstance(node_data, dict):
-            continue
-        source = node_to_output_source.get(node_id)
-        if source is None:
-            label = _source_label_for_prompt_node(node_id, node_data)
-            source = {
-                "sourceKey": f"{workflow_id}:{node_id}",
-                "sourceLabel": label,
-                "cubeAlias": label,
-            }
-        sources[node_id] = source
-    if not sources:
-        raise RuntimeError("Generation visual routing context has no source nodes.")
-    return QueueVisualRunContext(
-        workflow_id=workflow_id,
-        generation_run_id=generation_run_id,
-        client_id=client_id,
-        scene_run_id=scene_run_id,
-        scene_key=scene_key,
-        scene_title=scene_title,
-        scene_order=scene_order,
-        scene_count=scene_count,
-        sources=sources,
-    )
-
-
-def _source_label_for_prompt_node(node_id: str, node_data: dict[str, object]) -> str:
-    """Return the Substitute source label for one executable prompt node."""
-
-    meta = node_data.get("_meta")
-    meta_title = ""
-    if isinstance(meta, dict):
-        title = meta.get("title")
-        if isinstance(title, str):
-            meta_title = title
-    cube_alias = meta_title.split(".", 1)[0] if "." in meta_title else meta_title
-    return cube_alias_body(cube_alias) or node_id
-
-
-def _node_to_cube_output_source(
-    prompt_nodes: Mapping[str, object],
-    workflow_id: WorkflowId,
-) -> dict[str, dict[str, str]]:
-    """Map upstream executable nodes to their unambiguous cube-output source."""
-
-    output_sources: dict[str, dict[str, str]] = {}
-    candidate_sources_by_node: dict[str, list[dict[str, str]]] = {}
-    for node_id, node_data in prompt_nodes.items():
-        if not isinstance(node_data, dict):
-            continue
-        if node_data.get("class_type") != "SugarCubes.CubeOutput":
-            continue
-        label = _source_label_for_prompt_node(node_id, node_data)
-        source = {
-            "sourceKey": f"{workflow_id}:{node_id}",
-            "sourceLabel": label,
-            "cubeAlias": label,
-        }
-        output_sources[node_id] = source
-        for upstream_node_id in _upstream_node_ids(prompt_nodes, node_id):
-            candidate_sources_by_node.setdefault(upstream_node_id, []).append(source)
-    for node_id, source in output_sources.items():
-        candidate_sources_by_node[node_id] = [source]
-    return {
-        node_id: sources[0]
-        for node_id, sources in candidate_sources_by_node.items()
-        if len({source["sourceKey"] for source in sources}) == 1
-    }
-
-
-def _upstream_node_ids(
-    prompt_nodes: Mapping[str, object],
-    start_node_id: str,
-) -> set[str]:
-    """Return executable node ids that feed one output node."""
-
-    visited: set[str] = set()
-    pending = [start_node_id]
-    while pending:
-        node_id = pending.pop()
-        if node_id in visited:
-            continue
-        visited.add(node_id)
-        node_data = prompt_nodes.get(node_id)
-        if not isinstance(node_data, dict):
-            continue
-        inputs = node_data.get("inputs")
-        if not isinstance(inputs, Mapping):
-            continue
-        for upstream_node_id in _linked_node_ids(inputs.values()):
-            if upstream_node_id not in visited:
-                pending.append(upstream_node_id)
-    return visited
-
-
-def _linked_node_ids(values: object) -> tuple[str, ...]:
-    """Return Comfy link source node ids nested in input values."""
-
-    linked: list[str] = []
-    iterable: object
-    if isinstance(values, Mapping):
-        iterable = tuple(values.values())
-    elif isinstance(values, list | tuple):
-        iterable = values
-    else:
-        return ()
-    for value in iterable:
-        if (
-            isinstance(value, list | tuple)
-            and len(value) >= 2
-            and isinstance(value[0], str | int)
-            and isinstance(value[1], int)
-        ):
-            linked.append(str(value[0]))
-        elif isinstance(value, Mapping):
-            linked.extend(_linked_node_ids(tuple(value.values())))
-        elif isinstance(value, list | tuple):
-            linked.extend(_linked_node_ids(value))
-    return tuple(linked)
 
 
 __all__ = [

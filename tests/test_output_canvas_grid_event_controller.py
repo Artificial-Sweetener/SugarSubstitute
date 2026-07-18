@@ -29,6 +29,9 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasImageItem,
     OutputCanvasSourceGroup,
 )
+from substitute.application.workflows.output_scene_navigation_selection import (
+    OutputSceneNavigationSelection,
+)
 from substitute.domain.workflow import ImageMeta
 from substitute.presentation.canvas.output.output_canvas_grid_event_controller import (
     OutputCanvasGridEventController,
@@ -71,8 +74,8 @@ def test_grid_event_controller_activates_final_output_release() -> None:
     assert state.activated_items == [("source-a", item)]
 
 
-def test_grid_event_controller_emits_scene_and_grid_after_scene_activation() -> None:
-    """Scene-grid releases should emit scene and grid changes after activation."""
+def test_grid_event_controller_emits_one_atomic_scene_route_after_activation() -> None:
+    """Scene-grid releases should emit the complete activated route once."""
 
     state = _GridEventState(
         active_scene_overview=True,
@@ -80,13 +83,19 @@ def test_grid_event_controller_emits_scene_and_grid_after_scene_activation() -> 
         active_source_key=None,
     )
 
-    def _activate_scene(scene_key: str) -> bool:
+    selection = OutputSceneNavigationSelection(
+        scene_key="cafe",
+        overview=False,
+        source_key="source-a",
+        set_index=0,
+        image_id=None,
+    )
+
+    def _activate_scene(scene_key: str) -> OutputSceneNavigationSelection:
         activated_scenes = state.activated_scenes
         assert activated_scenes is not None
         activated_scenes.append(scene_key)
-        state.active_set_index = 0
-        state.active_source_key = "source-a"
-        return True
+        return selection
 
     controller = state.controller(
         hit_at=lambda point: OutputCanvasHitValidation.scene(scene_key="cafe"),
@@ -97,8 +106,7 @@ def test_grid_event_controller_emits_scene_and_grid_after_scene_activation() -> 
     controller.handle_event_filter("pane", _MouseEvent("release", 1, 1))
 
     assert state.activated_scenes == ["cafe"]
-    assert state.scene_changed == [("cafe", False)]
-    assert state.grid_changed == ["source-a"]
+    assert state.scene_changed == [selection]
 
 
 def test_grid_event_controller_ignores_non_mouse_events_without_type_lookup() -> None:
@@ -165,8 +173,7 @@ class _GridEventState:
     press_position: GridPoint | None = None
     activated_items: list[tuple[str, OutputCanvasImageItem]] | None = None
     activated_scenes: list[str] | None = None
-    scene_changed: list[tuple[str, bool]] | None = None
-    grid_changed: list[str] | None = None
+    scene_changed: list[OutputSceneNavigationSelection] | None = None
 
     def controller(
         self,
@@ -175,7 +182,9 @@ class _GridEventState:
         source_groups_by_key: (
             Callable[[], Mapping[str, OutputCanvasSourceGroup]] | None
         ) = None,
-        activate_scene: Callable[[str], bool] | None = None,
+        activate_scene: (
+            Callable[[str], OutputSceneNavigationSelection | None] | None
+        ) = None,
         is_mouse_event: Callable[[object], bool] | None = None,
         event_type: Callable[[object], object] | None = None,
     ) -> OutputCanvasGridEventController:
@@ -184,7 +193,6 @@ class _GridEventState:
         self.activated_items = []
         self.activated_scenes = []
         self.scene_changed = []
-        self.grid_changed = []
         interaction_controller = OutputCanvasInteractionController(
             press_position=lambda: self.press_position,
             set_press_position=self._set_press_position,
@@ -209,7 +217,6 @@ class _GridEventState:
             ),
             active_scene_overview=lambda: self.active_scene_overview,
             active_set_index=lambda: self.active_set_index,
-            active_source_key=lambda: self.active_source_key,
             source_groups_by_key=(
                 source_groups_by_key if source_groups_by_key is not None else lambda: {}
             ),
@@ -218,7 +225,6 @@ class _GridEventState:
             ),
             activate_item=self._activate_item,
             emit_scene_changed=self._emit_scene_changed,
-            emit_grid_changed=self._emit_grid_changed,
             press_type="press",
             release_type="release",
         )
@@ -228,12 +234,18 @@ class _GridEventState:
 
         self.press_position = position
 
-    def _activate_scene(self, scene_key: str) -> bool:
+    def _activate_scene(self, scene_key: str) -> OutputSceneNavigationSelection:
         """Record scene activation."""
 
         assert self.activated_scenes is not None
         self.activated_scenes.append(scene_key)
-        return True
+        return OutputSceneNavigationSelection(
+            scene_key=scene_key,
+            overview=False,
+            source_key=self.active_source_key,
+            set_index=self.active_set_index,
+            image_id=None,
+        )
 
     def _activate_item(
         self,
@@ -245,17 +257,11 @@ class _GridEventState:
         assert self.activated_items is not None
         self.activated_items.append((source_key, item))
 
-    def _emit_scene_changed(self, scene_key: str, overview: bool) -> None:
+    def _emit_scene_changed(self, selection: OutputSceneNavigationSelection) -> None:
         """Record scene change signals."""
 
         assert self.scene_changed is not None
-        self.scene_changed.append((scene_key, overview))
-
-    def _emit_grid_changed(self, source_key: str) -> None:
-        """Record grid change signals."""
-
-        assert self.grid_changed is not None
-        self.grid_changed.append(source_key)
+        self.scene_changed.append(selection)
 
 
 def _meta(*, source_key: str) -> ImageMeta:

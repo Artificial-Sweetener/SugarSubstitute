@@ -19,12 +19,16 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 
 from PySide6.QtCore import QTimer
 
 from substitute.application.workspace_state import RestoreProjectionArtifact
+from substitute.application.workspace_state.restore_projection_identity import (
+    node_definition_fingerprint,
+)
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.domain.workspace_snapshot import (
     EditorViewportSnapshot,
@@ -103,6 +107,66 @@ def test_pre_show_restore_projection_skips_mismatched_cache_artifact() -> None:
 
     assert result is False
     assert events == []
+
+
+def test_post_backend_validation_clears_stale_direct_node_cache() -> None:
+    """Pre-show restore should clear stale derived node-definition state."""
+
+    repository = _CacheRepository()
+    live_definition = {"input": {"required": {"seed": ["INT", {}]}}}
+    shell: Any = _projection_shell()
+    shell.restore_projection_cache_repository = repository
+    shell.cube_load_service = SimpleNamespace()
+    shell.node_definition_gateway = SimpleNamespace(
+        get_node_definition=lambda _node_class: live_definition
+    )
+    artifact = replace(
+        _artifact(active_workflow_id="wf-a"),
+        node_definition_fingerprints={"KSampler": "stale"},
+    )
+    events: list[str] = []
+
+    started = _ObservedRestoreProjectionController(
+        shell, events
+    ).start_pre_show_restore_projection(
+        artifact,
+        on_complete=lambda: events.append("complete"),
+    )
+
+    assert started is True
+    assert repository.clear_calls == 1
+    assert events == ["project:wf-a:True", "complete"]
+
+
+def test_post_backend_validation_accepts_matching_direct_node_cache() -> None:
+    """Pre-show restore should preserve matching derived definition state."""
+
+    repository = _CacheRepository()
+    live_definition = {"input": {"required": {"seed": ["INT", {}]}}}
+    shell: Any = _projection_shell()
+    shell.restore_projection_cache_repository = repository
+    shell.cube_load_service = SimpleNamespace()
+    shell.node_definition_gateway = SimpleNamespace(
+        get_node_definition=lambda _node_class: live_definition
+    )
+    artifact = replace(
+        _artifact(active_workflow_id="wf-a"),
+        node_definition_fingerprints={
+            "KSampler": node_definition_fingerprint(live_definition)
+        },
+    )
+    events: list[str] = []
+
+    started = _ObservedRestoreProjectionController(
+        shell, events
+    ).start_pre_show_restore_projection(
+        artifact,
+        on_complete=lambda: events.append("complete"),
+    )
+
+    assert started is True
+    assert repository.clear_calls == 0
+    assert events == ["project:wf-a:True", "complete"]
 
 
 def test_project_restored_settings_uses_settings_route_controller() -> None:
@@ -246,7 +310,11 @@ def test_queue_restore_projection_cache_capture_writes_when_running(
 
             writes.append(kwargs)
             return SimpleNamespace(
-                workflows=(SimpleNamespace(cubes={"CubeA": object()}),),
+                workflows=(
+                    SimpleNamespace(
+                        cube_stack=SimpleNamespace(cubes=(object(),)),
+                    ),
+                ),
                 node_definition_fingerprints={"node": "fingerprint"},
             )
 
@@ -339,6 +407,9 @@ def _projection_shell() -> Any:
         _prehydrated_restore_runtime_prepared=True,
         _prehydrated_active_workflow_projection_pending="wf-a",
         _active_workspace_route="",
+        cube_stack_presentation_controller=SimpleNamespace(
+            activate_document_kind=lambda _kind, *, animated: None
+        ),
     )
 
 
@@ -367,11 +438,48 @@ class _WorkflowSession:
         """Store the shared event sink."""
 
         self._events = events
+        self.workflows = {"wf-a": WorkflowState()}
 
     def activate_workflow(self, workflow_id: str) -> None:
         """Record workflow activation."""
 
         self._events.append(f"activate:{workflow_id}")
+
+
+class _CacheRepository:
+    """Record invalid cache clearing."""
+
+    def __init__(self) -> None:
+        """Initialize clear-call tracking."""
+
+        self.clear_calls = 0
+
+    def clear(self) -> None:
+        """Record one cache invalidation."""
+
+        self.clear_calls += 1
+
+
+class _ObservedRestoreProjectionController(RestoreProjectionController):
+    """Expose pre-show projection completion without constructing shell widgets."""
+
+    def __init__(self, shell: Any, events: list[str]) -> None:
+        """Store the projection event sink."""
+
+        super().__init__(shell)
+        self._events = events
+
+    def project_restored_workflow_editor_surface(
+        self,
+        workflow_id: str,
+        *,
+        suppress_visible_geometry: bool,
+        on_surface_complete: Callable[[], None],
+    ) -> None:
+        """Record the public projection request and complete it synchronously."""
+
+        self._events.append(f"project:{workflow_id}:{suppress_visible_geometry}")
+        on_surface_complete()
 
 
 class _WorkflowTabbar:

@@ -19,12 +19,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from substitute.application.cubes import LoadedCubeDefinition, LoadedCubeRuntime
 from substitute.application.node_behavior import NodeBehaviorRuntimeState
 from substitute.application.workspace_state.workspace_runtime_hydration_service import (
     WorkspaceRuntimeHydrationService,
 )
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.domain.workspace_snapshot import WorkflowSnapshot, WorkspaceSnapshot
 from substitute.domain.workspace_snapshot.models import (
@@ -229,6 +231,56 @@ def test_restore_preserves_cube_when_runtime_load_fails() -> None:
     assert workflow.workflow.stack_order == ["Restored"]
     assert workflow.active_cube_alias == "Restored"
     assert "runtime hydration failed" in result.warnings[0]
+
+
+def test_restore_preserves_direct_workflow_without_cube_runtime_calls() -> None:
+    """Direct documents should bypass cube hydration without losing shared state."""
+
+    direct_workflow = DirectWorkflowState(
+        source_path=Path("workflows/direct.json"),
+        source_workflow={"nodes": {"1": {"class_type": "KSampler"}}},
+        buffer={
+            "nodes": {
+                "1": {
+                    "class_type": "KSampler",
+                    "inputs": {"seed": 11},
+                }
+            }
+        },
+        ui={"expanded": {"1": False}},
+        dirty=True,
+    )
+    workflow = WorkflowState(
+        direct_workflow=direct_workflow,
+        global_overrides={"seed": {"value": 13}},
+    )
+    snapshot = WorkspaceSnapshot(
+        schema_version=WORKSPACE_SNAPSHOT_SCHEMA_VERSION,
+        workflows=(
+            WorkflowSnapshot(
+                workflow_id="direct",
+                tab_label="Direct",
+                workflow=workflow,
+            ),
+        ),
+        tab_order=("direct",),
+        active_route="direct",
+        active_workflow_id="direct",
+    )
+    loader = _CubeLoader()
+    service = WorkspaceRuntimeHydrationService(
+        cube_load_service=loader,
+        node_behavior_service=_NodeBehavior(),
+    )
+
+    result = service.hydrate(snapshot)
+
+    restored = result.snapshot.workflows[0]
+    assert loader.load_calls == []
+    assert restored.workflow.direct_workflow is direct_workflow
+    assert restored.workflow.global_overrides == {"seed": {"value": 13}}
+    assert restored.active_cube_alias is None
+    assert result.warnings == ()
 
 
 def _snapshot(cubes: list[CubeState]) -> WorkspaceSnapshot:

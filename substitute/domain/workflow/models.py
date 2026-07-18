@@ -30,6 +30,8 @@ from substitute.domain.common import (
 from substitute.domain.cube_library import CubeUpdatePolicy
 from substitute.domain.generation.seed_control import SeedControlState
 from substitute.domain.workflow.canvas_models import WorkflowCanvasState
+from substitute.domain.workflow.document_kind import WorkflowDocumentKind
+from substitute.domain.comfy_workflow.models import DirectWorkflowState
 
 
 class OutputFocusMode(StrEnum):
@@ -85,6 +87,24 @@ class CubeState:
         if not self.display_name:
             self.display_name = self.cube_id
 
+    @property
+    def activation_storage(self) -> str:
+        """Persist cube activation through Sugar's explicit enabled override."""
+
+        return "enabled_override"
+
+    @property
+    def shows_cube_section_title(self) -> bool:
+        """Render the normal cube section title for cube-stack documents."""
+
+        return True
+
+    @property
+    def uses_node_titles_as_card_labels(self) -> bool:
+        """Keep cube node keys as the source for normal card label formatting."""
+
+        return False
+
 
 @dataclass
 class WorkflowState:
@@ -105,6 +125,34 @@ class WorkflowState:
     active_output_scene_key: str | None = None
     active_output_scene_overview: bool = False
     output_compare_state: OutputCompareState = field(default_factory=OutputCompareState)
+    direct_workflow: DirectWorkflowState | None = None
+
+    def __post_init__(self) -> None:
+        """Reject persisted or constructed documents that mix graph source kinds."""
+
+        if self.direct_workflow is not None and (self.cubes or self.stack_order):
+            raise ValueError("Direct Comfy workflows cannot be mixed with cubes.")
+
+    @property
+    def is_direct_workflow(self) -> bool:
+        """Return whether this tab owns one direct Comfy workflow document."""
+
+        return self.document_kind is WorkflowDocumentKind.DIRECT_COMFY
+
+    @property
+    def document_kind(self) -> WorkflowDocumentKind:
+        """Return the mutually exclusive authoring model owned by this tab."""
+
+        if self.direct_workflow is not None:
+            return WorkflowDocumentKind.DIRECT_COMFY
+        return WorkflowDocumentKind.CUBE_STACK
+
+    def load_direct_workflow(self, document: DirectWorkflowState) -> None:
+        """Install a direct document only into an empty cube workflow."""
+
+        if self.cubes or self.stack_order:
+            raise ValueError("Direct Comfy workflows cannot be mixed with cubes.")
+        self.direct_workflow = document
 
 
 @dataclass
@@ -130,6 +178,7 @@ class ImageMeta:
     width: int | None = None
     height: int | None = None
     list_index: int | None = None
+    batch_index: int | None = None
     cube_execution_duration_ms: float | None = None
 
     def __post_init__(self) -> None:

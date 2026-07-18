@@ -25,6 +25,7 @@ from uuid import UUID
 
 from PySide6.QtCore import QTimer
 
+from substitute.domain.workflow import WorkflowState
 from substitute.presentation.canvas.input.input_mask_dirty_tracker import (
     InputMaskDirtyTracker,
 )
@@ -95,14 +96,14 @@ class CanvasIoServicePort(Protocol):
         """Persist one mask image payload to disk."""
 
 
-class WorkflowAssetServicePort(Protocol):
-    """Describe workflow mask asset persistence APIs."""
+class WorkflowInputCanvasServicePort(Protocol):
+    """Describe semantic workflow mask persistence APIs."""
 
     def associate_project_input_mask(
         self,
-        workflow: object,
+        workflow: WorkflowState,
         *,
-        cube_alias: str,
+        section_key: str,
         node_name: str,
         relative_path: Path | str,
     ) -> bool:
@@ -119,7 +120,7 @@ class InputMaskSaveController:
         dirty_tracker: InputMaskDirtyTracker,
         workflow_session_service: WorkflowSessionServicePort,
         canvas_io_service: CanvasIoServicePort,
-        workflow_asset_service: WorkflowAssetServicePort,
+        workflow_input_canvas_service: WorkflowInputCanvasServicePort,
         workflow_name_provider: Callable[[str], str],
         projects_dir_provider: Callable[[], Path],
         refresh_saved_mask: Callable[[str, str, str], None] | None = None,
@@ -131,7 +132,7 @@ class InputMaskSaveController:
         self._dirty_tracker = dirty_tracker
         self._workflow_session_service = workflow_session_service
         self._canvas_io_service = canvas_io_service
-        self._workflow_asset_service = workflow_asset_service
+        self._workflow_input_canvas_service = workflow_input_canvas_service
         self._workflow_name_provider = workflow_name_provider
         self._projects_dir_provider = projects_dir_provider
         self._refresh_saved_mask = refresh_saved_mask
@@ -474,7 +475,7 @@ class InputMaskSaveController:
             return False
 
         associate_project_input_mask = getattr(
-            self._workflow_asset_service,
+            self._workflow_input_canvas_service,
             "associate_project_input_mask",
             None,
         )
@@ -497,7 +498,7 @@ class InputMaskSaveController:
             associated = bool(
                 associate_project_input_mask(
                     workflow,
-                    cube_alias=cube_alias,
+                    section_key=cube_alias,
                     node_name=node_name,
                     relative_path=path.name,
                 )

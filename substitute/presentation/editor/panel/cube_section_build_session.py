@@ -31,6 +31,7 @@ from substitute.shared.logging.logger import (
     log_debug,
     log_timing,
     log_warning,
+    log_warning_exception,
 )
 
 from .cube_section_build_plan import (
@@ -407,14 +408,14 @@ class CubeSectionBuildSession:
                 field_spec_count=len(node_field_specs),
                 message=repr(error),
             )
-            log_warning(
+            log_warning_exception(
                 _LOGGER,
                 "Skipped cube-section node card after build failure",
+                error=error,
                 cube_alias=self._route_key,
                 node_name=node_name,
                 node_class_type=str(node_type),
                 field_spec_count=len(node_field_specs),
-                error_type=type(error).__name__,
             )
             log_debug(
                 _LOGGER,

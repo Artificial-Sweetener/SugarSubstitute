@@ -53,7 +53,7 @@ from shiboken6 import isValid
 
 from substitute.presentation.editor.panel.cube_section_title import cube_section_title
 from substitute.presentation.editor.panel.widgets.masonry_grid_layout import (
-    EDITOR_CUBE_SECTION_GAP,
+    EDITOR_SECTION_GAP,
     MasonryGridLayout,
 )
 from substitute.presentation.editor.panel.widgets.cube_title_label import (
@@ -218,6 +218,18 @@ class CubeSectionView(QWidget):
             return header.mapTo(self, header.rect().center()).y()
         except (RuntimeError, TypeError, AttributeError):
             return 0
+
+    def node_card_order(self) -> tuple[str, ...]:
+        """Return semantic node identities in authoritative masonry order."""
+
+        ordered: list[str] = []
+        for index in range(self._grid_layout.count()):
+            item = self._grid_layout.itemAt(index)
+            widget = item.widget() if item is not None else None
+            node_name = widget.property("node_name") if widget is not None else None
+            if isinstance(node_name, str):
+                ordered.append(node_name)
+        return tuple(ordered)
 
     def setIssueSeverity(self, severity: str | None) -> None:
         """Apply presentation-local runtime issue severity to the section."""
@@ -745,9 +757,16 @@ class CubeSectionBuilder:
         header_label = self._build_header_label(route_key)
         header_bar = QWidget()
         header_layout = QHBoxLayout(header_bar)
-        header_layout.setContentsMargins(4, 0, 0, EDITOR_CUBE_SECTION_GAP)
+        shows_title = self._section_shows_title(route_key)
+        header_layout.setContentsMargins(
+            4,
+            0,
+            0,
+            EDITOR_SECTION_GAP if shows_title else 0,
+        )
         header_layout.setSpacing(6)
         header_layout.addWidget(header_label)
+        header_label.setVisible(shows_title)
         header_layout.addItem(
             QSpacerItem(10, 1, QSizePolicy.Expanding, QSizePolicy.Minimum)
         )
@@ -786,6 +805,15 @@ class CubeSectionBuilder:
             reveal_menu=reveal_menu,
         )
 
+    def _section_shows_title(self, route_key: str) -> bool:
+        """Return whether the projected graph state uses cube title chrome."""
+
+        cube_states = getattr(self._panel, "_cube_states", None)
+        cube_state = (
+            cube_states.get(route_key) if isinstance(cube_states, Mapping) else None
+        )
+        return bool(getattr(cube_state, "shows_cube_section_title", True))
+
     def build_error_cube_widget(
         self,
         route_key: str,
@@ -798,7 +826,7 @@ class CubeSectionBuilder:
         header_label = self._build_header_label(route_key)
         header_bar = QWidget()
         header_layout = QHBoxLayout(header_bar)
-        header_layout.setContentsMargins(4, 0, 0, EDITOR_CUBE_SECTION_GAP)
+        header_layout.setContentsMargins(4, 0, 0, EDITOR_SECTION_GAP)
         header_layout.setSpacing(6)
         header_layout.addWidget(header_label)
         header_layout.addItem(

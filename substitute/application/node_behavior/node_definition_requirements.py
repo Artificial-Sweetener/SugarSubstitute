@@ -25,6 +25,11 @@ from substitute.domain.cubes import (
     SubgraphWrapperDefinitionIndex,
     is_subgraph_wrapper_class_type,
 )
+from substitute.domain.comfy_workflow.editor_definitions import (
+    workflow_local_editor_definition,
+    workflow_node_execution_role,
+)
+from substitute.domain.comfy_workflow.node_roles import WorkflowNodeExecutionRole
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +40,7 @@ class NodeDefinitionRequirement:
     cube_alias: str
     node_name: str
     source: str
+    live_required: bool = True
 
 
 def required_node_definition_classes_for_editor_projection(
@@ -109,12 +115,20 @@ def _node_requirements_from_mapping(
                         )
                     )
                 continue
+            if not isinstance(node_data, Mapping):
+                continue
+            if (
+                workflow_node_execution_role(node_data)
+                != WorkflowNodeExecutionRole.EXECUTABLE.value
+            ):
+                continue
             requirements.add(
                 NodeDefinitionRequirement(
                     class_type=node_class,
                     cube_alias=cube_alias,
                     node_name=str(node_name),
                     source="top_level",
+                    live_required=(workflow_local_editor_definition(node_data) is None),
                 )
             )
     return requirements

@@ -57,6 +57,23 @@ def test_save_blank_mask_creates_transparent_image_with_requested_size(
     assert store.image_dimensions(image_path) == (21, 34)
 
 
+def test_save_blank_image_creates_opaque_surface_with_requested_size(
+    tmp_path: Path,
+) -> None:
+    """Synthetic Input backing images should be readable opaque RGB surfaces."""
+
+    image_path = tmp_path / "input-surface.png"
+    store = QtImageStore()
+
+    saved = store.save_blank_image(image_path, width=1024, height=768)
+    loaded = store.load_image(image_path)
+
+    assert saved is True
+    assert store.image_dimensions(image_path) == (1024, 768)
+    assert isinstance(loaded, QImage)
+    assert loaded.hasAlphaChannel() is False
+
+
 def test_image_dimensions_returns_saved_image_size(tmp_path: Path) -> None:
     """Qt image store should report dimensions for readable image files."""
 

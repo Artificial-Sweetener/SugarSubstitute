@@ -22,6 +22,7 @@ from pathlib import Path
 from uuid import UUID
 
 from substitute.application.workspace_state import SnapshotNormalizationService
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.domain.workspace_snapshot import (
     CanvasLayoutSnapshot,
@@ -211,6 +212,58 @@ def test_snapshot_normalization_preserves_shell_canvas_layout() -> None:
 
     assert result.snapshot.shell_layout is not None
     assert result.snapshot.shell_layout.canvas_layout is canvas_layout
+
+
+def test_snapshot_normalization_preserves_direct_workflow_without_cube_repairs() -> (
+    None
+):
+    """Direct documents should retain authored state without cube-only warnings."""
+
+    direct_workflow = DirectWorkflowState(
+        source_path=Path("workflows/direct.json"),
+        source_workflow={"nodes": {"1": {"class_type": "KSampler"}}},
+        buffer={
+            "nodes": {
+                "1": {
+                    "class_type": "KSampler",
+                    "inputs": {"seed": 7},
+                    "mode": 4,
+                }
+            }
+        },
+        ui={"expanded": {"1": True}},
+        dirty=True,
+    )
+    snapshot = WorkspaceSnapshot(
+        schema_version=WORKSPACE_SNAPSHOT_SCHEMA_VERSION,
+        workflows=(
+            WorkflowSnapshot(
+                workflow_id="direct",
+                tab_label="Direct",
+                workflow=WorkflowState(direct_workflow=direct_workflow),
+                editor_viewport=EditorViewportSnapshot(
+                    scroll_value=45,
+                    scroll_maximum=100,
+                    anchor_cube_alias=None,
+                ),
+            ),
+        ),
+        tab_order=("direct",),
+        active_route="direct",
+        active_workflow_id="direct",
+    )
+
+    result = SnapshotNormalizationService().normalize(snapshot)
+
+    normalized = result.snapshot.workflows[0]
+    assert normalized.workflow.direct_workflow is direct_workflow
+    assert normalized.active_cube_alias is None
+    assert normalized.editor_viewport == EditorViewportSnapshot(
+        scroll_value=45,
+        scroll_maximum=100,
+        anchor_cube_alias=None,
+    )
+    assert not any("cube" in warning.lower() for warning in result.warnings)
 
 
 def _workflow(

@@ -26,10 +26,12 @@ from typing import Any, cast
 
 import pytest
 from PySide6.QtWidgets import QApplication, QSizePolicy, QWidget
+from qfluentwidgets import CaptionLabel  # type: ignore[import-untyped]
 
 from substitute.application.node_behavior import (
     EditorBehaviorSnapshot,
     FieldBehavior,
+    FieldPresentation,
     OverrideBehavior,
     OverridePinPolicy,
     ResolvedFieldSpec,
@@ -39,6 +41,7 @@ from substitute.presentation.editor.panel.overrides_controller import (
     GlobalOverridesManager,
 )
 from substitute.presentation.shell.main_window_menu import build_main_window_menu
+from substitute.presentation.widgets import SeedBox
 from substitute.presentation.workflows.workflow_tabs_view import (
     SETTINGS_WORKSPACE_ROUTE,
 )
@@ -61,6 +64,7 @@ class ToolbarHarness:
     root: QWidget
     parts: Any
     manager: GlobalOverridesManager
+    snapshot_source: _SnapshotSource
 
     def close(self) -> None:
         """Close the rendered harness widgets."""
@@ -80,6 +84,11 @@ class _SnapshotSource:
         """Return the current behavior snapshot."""
 
         return self._snapshot
+
+    def set_snapshot(self, snapshot: EditorBehaviorSnapshot) -> None:
+        """Replace the active behavior snapshot for document-switch tests."""
+
+        self._snapshot = snapshot
 
 
 class _NodeDefinitionGateway:
@@ -116,7 +125,11 @@ def _app() -> QApplication:
     return cast(QApplication, app)
 
 
-def _render_manager_toolbar(width: int) -> ToolbarHarness:
+def _render_manager_toolbar(
+    width: int,
+    *,
+    seed_field_key: str = "seed",
+) -> ToolbarHarness:
     """Render the production toolbar with a real override manager attached."""
 
     root = QWidget()
@@ -136,38 +149,13 @@ def _render_manager_toolbar(width: int) -> ToolbarHarness:
             "seed": {"value": 35092927453489153, "mode": "global"},
         },
     )
+    snapshot_source = _SnapshotSource(_override_snapshot(seed_field_key))
     shell = SimpleNamespace(
         menu_bar=parts.menu_bar,
         menu_bar_layout=parts.menu_bar_layout,
         pendingRestartButton=parts.pending_restart_button,
         _active_workspace_route="workflow",
-        active_editor_panel=_SnapshotSource(
-            _snapshot(
-                _field_spec(
-                    override_key="sampler_name",
-                    field_key="sampler_name",
-                    value="er_sde",
-                    order=10,
-                    field_type="LIST",
-                    field_info=[["er_sde", "euler"], {"default": "er_sde"}],
-                ),
-                _field_spec(
-                    override_key="scheduler",
-                    field_key="scheduler",
-                    value="simple",
-                    order=20,
-                    field_type="LIST",
-                    field_info=[["simple", "normal"], {"default": "simple"}],
-                ),
-                _field_spec(
-                    override_key="seed",
-                    field_key="seed",
-                    value=35092927453489153,
-                    order=30,
-                    field_type="INT",
-                ),
-            )
-        ),
+        active_editor_panel=snapshot_source,
         get_active_workflow=lambda: workflow,
     )
     manager = GlobalOverridesManager(
@@ -180,7 +168,43 @@ def _render_manager_toolbar(width: int) -> ToolbarHarness:
     manager.override_dropdown_btn = parts.override_dropdown_btn
     manager.sync_state_from_workflow()
     _flush_layout(parts)
-    return ToolbarHarness(root=root, parts=parts, manager=manager)
+    return ToolbarHarness(
+        root=root,
+        parts=parts,
+        manager=manager,
+        snapshot_source=snapshot_source,
+    )
+
+
+def _override_snapshot(seed_field_key: str) -> EditorBehaviorSnapshot:
+    """Return equivalent override behavior with a selected Comfy seed alias."""
+
+    return _snapshot(
+        _field_spec(
+            override_key="sampler_name",
+            field_key="sampler_name",
+            value="er_sde",
+            order=10,
+            field_type="LIST",
+            field_info=[["er_sde", "euler"], {"default": "er_sde"}],
+        ),
+        _field_spec(
+            override_key="scheduler",
+            field_key="scheduler",
+            value="simple",
+            order=20,
+            field_type="LIST",
+            field_info=[["simple", "normal"], {"default": "simple"}],
+        ),
+        _field_spec(
+            override_key="seed",
+            field_key=seed_field_key,
+            value=35092927453489153,
+            order=30,
+            field_type="INT",
+            presentation=FieldPresentation.SEED_BOX,
+        ),
+    )
 
 
 def _snapshot(*specs: ResolvedFieldSpec) -> EditorBehaviorSnapshot:
@@ -207,6 +231,7 @@ def _field_spec(
     order: int,
     field_type: str,
     field_info: list[object] | None = None,
+    presentation: FieldPresentation = FieldPresentation.STANDARD,
 ) -> ResolvedFieldSpec:
     """Build one field spec consumed by the real override manager."""
 
@@ -222,6 +247,7 @@ def _field_spec(
         value=value,
         field_behavior=FieldBehavior(
             field_key=field_key,
+            presentation=presentation,
             override_behavior=OverrideBehavior(
                 override_key=override_key,
                 pin_policy=OverridePinPolicy.DEFAULT_PINNED,
@@ -301,6 +327,106 @@ def _assert_natural_override_gaps(
 
     gaps = [_widget_gap(left, right) for left, right in zip(widgets, widgets[1:])]
     assert gaps == [spacing] * (len(widgets) - 1)
+
+
+def _seed_override_geometry(harness: ToolbarHarness) -> tuple[object, ...]:
+    """Return complete visible geometry for the production toolbar seed pair."""
+
+    _rebuild_real_overrides(harness)
+    label, control = harness.manager._global_override_controls["seed"]
+    assert isinstance(label, CaptionLabel)
+    assert isinstance(control, SeedBox)
+    return (
+        label.text(),
+        label.isVisible(),
+        label.geometry(),
+        type(control),
+        control.size(),
+        control.sizeHint(),
+        control.minimumSizeHint(),
+        control.sizePolicy(),
+        control.line_edit.geometry(),
+        control.split_button.geometry(),
+    )
+
+
+def test_seed_aliases_preserve_seedbox_owned_toolbar_geometry() -> None:
+    """Seed aliases should consume one behavior-owned toolbar render contract."""
+
+    _app()
+    seed = SeedBox()
+    noise_seed = SeedBox()
+    seed_spec = _field_spec(
+        override_key="seed",
+        field_key="seed",
+        value=1,
+        order=30,
+        field_type="INT",
+        presentation=FieldPresentation.SEED_BOX,
+    )
+    noise_seed_spec = _field_spec(
+        override_key="seed",
+        field_key="noise_seed",
+        value=1,
+        order=30,
+        field_type="INT",
+        presentation=FieldPresentation.SEED_BOX,
+    )
+
+    GlobalOverridesManager._apply_toolbar_widget_size(seed_spec, seed)
+    GlobalOverridesManager._apply_toolbar_widget_size(noise_seed_spec, noise_seed)
+
+    assert seed.height() == 33
+    assert noise_seed.height() == seed.height()
+    assert noise_seed.sizeHint() == seed.sizeHint()
+    assert noise_seed.minimumSizeHint() == seed.minimumSizeHint()
+    assert noise_seed.sizePolicy() == seed.sizePolicy()
+    assert noise_seed.line_edit.geometry() == seed.line_edit.geometry()
+    assert noise_seed.split_button.geometry() == seed.split_button.geometry()
+
+
+@pytest.mark.parametrize("width", [1600, 600])
+def test_cube_and_comfy_seed_aliases_render_identical_toolbar_pairs(width: int) -> None:
+    """Equivalent resolved aliases should produce identical production toolbar UI."""
+
+    cube = _render_manager_toolbar(width, seed_field_key="seed")
+    direct = _render_manager_toolbar(width, seed_field_key="noise_seed")
+    try:
+        _show_workflow_without_restart(cube)
+        _show_workflow_without_restart(direct)
+
+        cube_geometry = _seed_override_geometry(cube)
+        direct_geometry = _seed_override_geometry(direct)
+
+        assert cube_geometry == direct_geometry
+        assert cube_geometry[0] == "Seed"
+        assert cube_geometry[1] is True
+    finally:
+        cube.close()
+        direct.close()
+
+
+def test_cached_toolbar_seed_control_rebuilds_equally_across_alias_switches() -> None:
+    """Document switching should not retain alias-specific label or widget geometry."""
+
+    harness = _render_manager_toolbar(800, seed_field_key="seed")
+    try:
+        _show_workflow_without_restart(harness)
+        cube_geometry = _seed_override_geometry(harness)
+        _old_label, old_control = harness.manager._global_override_controls["seed"]
+
+        harness.snapshot_source.set_snapshot(_override_snapshot("noise_seed"))
+        direct_geometry = _seed_override_geometry(harness)
+        _new_label, direct_control = harness.manager._global_override_controls["seed"]
+
+        assert direct_control is not old_control
+        assert direct_geometry == cube_geometry
+
+        harness.snapshot_source.set_snapshot(_override_snapshot("seed"))
+        restored_geometry = _seed_override_geometry(harness)
+        assert restored_geometry == cube_geometry
+    finally:
+        harness.close()
 
 
 def test_settings_toolbar_search_is_centered_when_visible() -> None:

@@ -23,6 +23,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeGuard
 
+from substitute.domain.generation import OutputResultPosition
+
 if TYPE_CHECKING:
     from substitute.application.ports.comfy_gateway import (
         OutputImageUpdate,
@@ -141,7 +143,7 @@ class LiveFinalOutputEvent:
     node_id: str
     workflow_payload: Mapping[str, object]
     file_path: Path
-    list_index: int
+    position: OutputResultPosition
     artifact_width: int
     artifact_height: int
 
@@ -157,6 +159,7 @@ class LiveFinalOutputEvent:
             identity is None
             or not update.node_id
             or not _is_non_negative_int(update.list_index)
+            or not _is_non_negative_int(update.batch_index)
             or not _is_positive_int(update.artifact_width)
             or not _is_positive_int(update.artifact_height)
         ):
@@ -166,7 +169,10 @@ class LiveFinalOutputEvent:
             node_id=update.node_id,
             workflow_payload=update.workflow_payload,
             file_path=update.file_path,
-            list_index=update.list_index,
+            position=OutputResultPosition(
+                list_index=update.list_index,
+                batch_index=update.batch_index,
+            ),
             artifact_width=update.artifact_width,
             artifact_height=update.artifact_height,
         )

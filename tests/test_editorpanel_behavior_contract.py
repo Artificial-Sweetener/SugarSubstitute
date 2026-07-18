@@ -28,7 +28,6 @@ from substitute.application.node_behavior import (
     PromptRole,
     ResolvedFieldSpec,
 )
-from substitute.application.node_behavior.node_card_order import order_node_cards
 from substitute.application.prompt_editor import (
     PromptEditorFeatureProfile,
     PromptSyntaxProfile,
@@ -525,27 +524,6 @@ class _ClearLayout:
         """Remove and return one item."""
 
         return self._items.pop(index)
-
-
-def test_shared_node_card_order_keeps_prompt_nodes_first() -> None:
-    """Editor-panel behavior should use prompts-first wired order."""
-
-    nodes = {
-        "ksampler": {
-            "inputs": {
-                "positive": ["positive_prompt", 0],
-                "negative": ["negative_prompt", 0],
-            }
-        },
-        "positive_prompt": {"inputs": {}},
-        "negative_prompt": {"inputs": {}},
-        "upstream": {"inputs": {}},
-    }
-
-    order = order_node_cards(nodes)
-
-    assert order[:2] == ["positive_prompt", "negative_prompt"]
-    assert set(order) == set(nodes.keys())
 
 
 def test_clear_search_filters_resets_state_and_recomputes_visibility() -> None:

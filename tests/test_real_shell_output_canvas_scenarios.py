@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import QPoint, QRectF
 
 import os
@@ -40,10 +42,10 @@ if os.environ.get("PYTEST_XDIST_WORKER"):
 
 
 @pytest.fixture
-def harness() -> Iterator[RealShellOutputCanvasHarness]:
+def harness(tmp_path: Path) -> Iterator[RealShellOutputCanvasHarness]:
     """Create and close a real-shell Output canvas harness."""
 
-    shell_harness = RealShellOutputCanvasHarness()
+    shell_harness = RealShellOutputCanvasHarness(output_root=tmp_path)
     try:
         yield shell_harness
     finally:
@@ -603,8 +605,15 @@ def test_pending_final_does_not_override_manual_reselection(
         OutputSpec("alpha-save", "Alpha", (205, 125, 45)),
     )
     harness.select_output_id(first_output_id)
+    workflow_id = harness.workflows["alpha"].workflow_id
+    selected = harness.fingerprint()
+    assert selected.workflow_output_focus_modes[workflow_id] == "manual", selected
+    assert selected.workflow_output_routes[workflow_id][4] == first_output_id, selected
     harness.wait_for_output_count("alpha", 2)
 
+    settled = harness.fingerprint()
+    assert settled.workflow_output_focus_modes[workflow_id] == "manual", settled
+    assert settled.workflow_output_routes[workflow_id][4] == first_output_id, settled
     harness.assert_showing_workflow("alpha", color=(45, 125, 205))
 
 
@@ -692,6 +701,112 @@ def test_out_of_order_batch_arrivals_converge_to_active_workflow_route(
     harness.wait_for_output_count("alpha", 2)
 
     harness.assert_scene_composition_for_workflow("alpha")
+
+
+def test_unequal_scene_sources_navigate_exact_batches_and_grid(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Drill from scene to sibling batch grid and then a concrete Cube output."""
+
+    harness.add_workflow("alpha", activate=True)
+    harness.show_canvas("Output")
+    expected_output_count = 0
+    for scene_index in range(3):
+        run = harness.start_run("alpha", run_index=scene_index + 1)
+        scene = SceneSpec(
+            run_id="scene-run-alpha",
+            key=f"scene{scene_index + 1}",
+            title=f"scene{scene_index + 1}",
+            order=scene_index,
+            count=3,
+        )
+        for batch_index, color in enumerate(
+            ((210, 40, 40), (40, 210, 40), (40, 40, 210))
+        ):
+            harness.emit_output(
+                run,
+                OutputSpec(
+                    "alpha:text",
+                    "Text to Image",
+                    color,
+                    list_index=0,
+                    batch_index=batch_index,
+                    scene=scene,
+                ),
+            )
+        harness.emit_output(
+            run,
+            OutputSpec(
+                "alpha:upscale",
+                "Diffusion Upscale",
+                (150, 150, 150),
+                list_index=0,
+                batch_index=0,
+                scene=scene,
+            ),
+        )
+        expected_output_count += 4
+        harness.wait_for_output_count("alpha", expected_output_count)
+        harness.complete_run(run)
+
+    harness.project_workflow_directly("alpha")
+    scene3_text_ids = harness.output_ids_for_scene_source(
+        scene_key="scene3",
+        source_key="alpha:text",
+    )
+    scene3_upscale_id = harness.output_ids_for_scene_source(
+        scene_key="scene3",
+        source_key="alpha:upscale",
+    )[0]
+    harness.wait_until(lambda: len(harness.fingerprint().scene_layer_placements) == 3)
+    scene_overview = harness.fingerprint()
+    assert scene3_upscale_id in {
+        placement[1] for placement in scene_overview.scene_layer_placements
+    }
+
+    harness.click_canvas_image(scene3_upscale_id)
+    harness.wait_until(
+        lambda: (
+            {placement[1] for placement in harness.fingerprint().scene_layer_placements}
+            == set(scene3_text_ids)
+        )
+    )
+    workflow = harness.shell.workflow_session_service.workflows["workflow-alpha"]
+    batch_grid = harness.fingerprint()
+    assert workflow.active_output_scene_key == "scene3"
+    assert workflow.active_output_scene_overview is False
+    assert workflow.active_output_source_key == "alpha:text"
+    assert workflow.active_output_set_index == 0
+    assert workflow.active_output_uuid is None
+    assert batch_grid.pane_current_composition_id is not None
+
+    harness.click_canvas_image(scene3_text_ids[1])
+    harness.wait_until(
+        lambda: harness.fingerprint().pane_current_image_id == scene3_text_ids[1]
+    )
+    assert workflow.active_output_source_key == "alpha:text"
+    assert workflow.active_output_set_index == 2
+    assert workflow.active_output_uuid == scene3_text_ids[1]
+
+    assert harness.output_set_picker_keys() == ("0", "1", "2", "3")
+    harness.select_output_set(3)
+    harness.wait_until(
+        lambda: harness.fingerprint().pane_current_image_id == scene3_text_ids[2]
+    )
+    assert workflow.active_output_set_index == 3
+    assert workflow.active_output_uuid == scene3_text_ids[2]
+
+    assert harness.output_set_picker_keys() == ("0", "1", "2", "3")
+    harness.select_output_set(0)
+    harness.wait_until(lambda: len(harness.fingerprint().scene_layer_placements) == 3)
+    grid_state = harness.fingerprint()
+    assert workflow.active_output_source_key == "alpha:text"
+    assert workflow.active_output_set_index == 0
+    assert workflow.active_output_uuid is None
+    assert grid_state.pane_current_composition_id is not None
+    assert {placement[1] for placement in grid_state.scene_layer_placements} == set(
+        scene3_text_ids
+    )
 
 
 def test_multi_source_grid_survives_workflow_switching(

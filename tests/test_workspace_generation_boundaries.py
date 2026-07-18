@@ -56,7 +56,8 @@ FORBIDDEN_IMPORT_PREFIXES = (
     "substitute.presentation.shell.main_window",
     "substitute.presentation.shell.search_view",
     "substitute.presentation.shell.settings_",
-    "substitute.presentation.shell.shell_layout_controller",
+    "substitute.presentation.shell.shell_layout_restore_controller",
+    "substitute.presentation.shell.workspace_layout_controller",
     "substitute.presentation.shell.workspace_controller",
 )
 FORBIDDEN_SOURCE_TOKENS = (

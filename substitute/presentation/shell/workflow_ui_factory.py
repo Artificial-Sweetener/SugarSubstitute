@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from substitute.domain.workflow import WorkflowDocumentKind, WorkflowState
 from substitute.presentation.editor.panel.overrides_controller import (
     GlobalOverridesManager,
 )
@@ -27,6 +28,7 @@ from substitute.presentation.editor.panel.view import EditorPanel
 from substitute.presentation.shell.main_window_signal_binder import (
     main_window_signal_binder_for,
 )
+from substitute.presentation.shell.workflow_surface_results import WorkflowUiSurfaces
 from substitute.presentation.workflows.cube_stack_view import (
     CubeCloseButtonDisplayMode,
     CubeStack,
@@ -120,9 +122,7 @@ class WorkflowUiFactory:
             cube_stack
         )
         cube_stack.currentCubeChanged.connect(self.handle_cube_changed)
-        self._shell.shell_layout_controller.apply_current_cube_stack_mode_to_stack(
-            cube_stack
-        )
+        self._shell.cube_stack_presentation_controller.prepare_stack(cube_stack)
         trace_mark(
             "main_window.create_new_cube_stack.end",
             workflow_id=workflow_id,
@@ -144,8 +144,8 @@ class WorkflowUiFactory:
         workflow_id: str,
         *,
         set_as_current: bool = True,
-    ) -> tuple[CubeStack, EditorPanel]:
-        """Create, register, and optionally select one workflow UI pair."""
+    ) -> WorkflowUiSurfaces:
+        """Create required editor/override surfaces and an optional cube stack."""
 
         trace_mark(
             "main_window.create_new_workflow_ui.start",
@@ -154,9 +154,6 @@ class WorkflowUiFactory:
         )
         with trace_span("main_window.create_new_workflow_ui.editor_panel"):
             editor_panel = self.create_editor_panel(workflow_id)
-        with trace_span("main_window.create_new_workflow_ui.cube_stack"):
-            cube_stack = self.create_cube_stack(workflow_id)
-
         with trace_span("main_window.create_new_workflow_ui.override_manager"):
             manager = GlobalOverridesManager(
                 self._shell,
@@ -187,17 +184,18 @@ class WorkflowUiFactory:
         manager._global_override_menu = self._shell._global_override_menu
 
         self._shell.editor_panels[workflow_id] = editor_panel
-        self._shell.cube_stacks[workflow_id] = cube_stack
         self._shell.override_managers[workflow_id] = manager
 
         self._shell.editor_panel_container.addWidget(editor_panel)
-        self._shell.cube_stack_container.addWidget(cube_stack)
+        with trace_span("main_window.create_new_workflow_ui.cube_stack"):
+            cube_stack = self.reconcile_cube_stack_surface(
+                workflow_id,
+                set_as_current=set_as_current,
+            )
 
         if set_as_current:
             self._shell.editor_panel_container.setCurrentWidget(editor_panel)
-            self._shell.cube_stack_container.setCurrentWidget(cube_stack)
             self._shell.editor_panel = editor_panel
-            self._shell.cube_stack = cube_stack
 
         trace_mark(
             "main_window.create_new_workflow_ui.end",
@@ -205,7 +203,50 @@ class WorkflowUiFactory:
             editor_panel_count=len(self._shell.editor_panels),
             cube_stack_count=len(self._shell.cube_stacks),
         )
-        return cube_stack, editor_panel
+        return WorkflowUiSurfaces(
+            cube_stack=cube_stack,
+            editor_panel=editor_panel,
+            created=True,
+        )
+
+    def reconcile_cube_stack_surface(
+        self,
+        workflow_id: str,
+        *,
+        set_as_current: bool,
+    ) -> CubeStack | None:
+        """Create or dispose the cube stack required by the workflow document kind."""
+
+        workflow = self._workflow(workflow_id)
+        cube_stack = cast(
+            "CubeStack | None",
+            self._shell.cube_stacks.get(workflow_id),
+        )
+        if workflow.document_kind is WorkflowDocumentKind.DIRECT_COMFY:
+            if cube_stack is not None:
+                self._shell.cube_stack_container.removeWidget(cube_stack)
+                self._shell.cube_stacks.pop(workflow_id, None)
+                cube_stack.deleteLater()
+            if set_as_current:
+                self._shell.cube_stack = None
+            return None
+
+        if cube_stack is None:
+            cube_stack = self.create_cube_stack(workflow_id)
+            self._shell.cube_stacks[workflow_id] = cube_stack
+            self._shell.cube_stack_container.addWidget(cube_stack)
+        if set_as_current:
+            self._shell.cube_stack_container.setCurrentWidget(cube_stack)
+            self._shell.cube_stack = cube_stack
+        return cube_stack
+
+    def _workflow(self, workflow_id: str) -> WorkflowState:
+        """Return the typed workflow whose UI surfaces are being reconciled."""
+
+        workflow = self._shell.workflow_session_service.workflows.get(workflow_id)
+        if not isinstance(workflow, WorkflowState):
+            raise RuntimeError(f"Workflow state is unavailable for {workflow_id!r}.")
+        return workflow
 
 
 def workflow_ui_factory_for(shell: Any) -> WorkflowUiFactory:

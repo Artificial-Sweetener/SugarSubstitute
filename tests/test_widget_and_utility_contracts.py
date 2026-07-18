@@ -666,6 +666,7 @@ def test_seed_factory_does_not_force_node_card_minimum_width() -> None:
             123,
             {},
             field_type="INT",
+            field_presentation=numeric_factory.FieldPresentation.SEED_BOX,
             constraints={"min": 0, "max": 999, "step": 1},
         )
 

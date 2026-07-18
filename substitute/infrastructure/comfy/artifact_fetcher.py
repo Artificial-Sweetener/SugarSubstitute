@@ -22,7 +22,7 @@ import requests
 
 from substitute.domain.onboarding import ComfyEndpoint
 from substitute.infrastructure.comfy.artifact_urls import artifact_view_url
-from substitute.infrastructure.comfy.cube_output_event import CubeOutputArtifact
+from substitute.infrastructure.comfy.image_artifact import ComfyImageArtifact
 
 
 class ComfyArtifactFetcher:
@@ -39,7 +39,7 @@ class ComfyArtifactFetcher:
         self._endpoint = endpoint
         self._timeout_seconds = timeout_seconds
 
-    def fetch(self, artifact: CubeOutputArtifact) -> bytes:
+    def fetch(self, artifact: ComfyImageArtifact) -> bytes:
         """Fetch one artifact and return its response body."""
 
         response = requests.get(

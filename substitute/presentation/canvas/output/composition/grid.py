@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import cast
 from uuid import UUID
 
 from substitute.application.workflows.canvas_route_projector_port import (
@@ -104,10 +103,6 @@ def output_grid_event_controller_for_host(
             getattr(host, "active_scene_overview", False)
         ),
         active_set_index=lambda: int(getattr(host, "active_set_index", 0)),
-        active_source_key=lambda: cast(
-            str | None,
-            getattr(host, "active_source_key", None),
-        ),
         source_groups_by_key=lambda: visible_output_source_groups_by_key(
             output_route_state_snapshot(host)
         ),
@@ -125,14 +120,10 @@ def output_grid_event_controller_for_host(
             item,
             update_tabbar_container=update_tabbar_container,
         ),
-        emit_scene_changed=lambda scene_key, overview: getattr(
+        emit_scene_changed=lambda selection: getattr(
             host,
             "activeOutputSceneChanged",
-        ).emit(scene_key, overview),
-        emit_grid_changed=lambda source_key: getattr(
-            host,
-            "activeOutputGridChanged",
-        ).emit(source_key),
+        ).emit(selection),
         press_type=press_type,
         release_type=release_type,
     )

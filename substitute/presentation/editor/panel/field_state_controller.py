@@ -352,8 +352,18 @@ class EditorPanelFieldStateController:
             """Persist one changed widget value."""
 
             out_value = args[0] if args else get_val_func(widget)
-            if buffer_val_cast is not None:
-                out_value = buffer_val_cast(out_value)
+            try:
+                if buffer_val_cast is not None:
+                    out_value = buffer_val_cast(out_value)
+            except (TypeError, ValueError):
+                log_warning(
+                    _LOGGER,
+                    "Rejected invalid widget value",
+                    node_name=binding.node_name or "",
+                    field_key=binding.field_key,
+                    widget_type=widget.__class__.__name__,
+                )
+                return
             self.set_field_value(cube_state, binding, out_value)
 
         self._connect_signal(signal, on_changed)
@@ -554,13 +564,17 @@ class EditorPanelFieldStateController:
     def wire_lineedit_state(self, lineedit: LineEdit, cube_state: object) -> None:
         """Bind a line-edit value to cube field state."""
 
+        binding = EditorFieldBinding.from_widget(lineedit)
+        is_integer_field = binding is not None and binding.field_type == "INT"
         self.wire_widget_state(
             lineedit,
             cube_state,
             get_val_func=lambda widget: widget.text(),
             set_val_func=lambda widget, value: widget.setText(str(value)),
-            signal=lineedit.textChanged,
-            buffer_val_cast=str,
+            signal=lineedit.editingFinished
+            if is_integer_field
+            else lineedit.textChanged,
+            buffer_val_cast=int if is_integer_field else str,
         )
 
     def wire_checkbox_state(self, checkbox: CheckBox, cube_state: object) -> None:

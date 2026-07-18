@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Protocol, cast
 
 from PySide6.QtCore import QTimer
@@ -90,17 +90,15 @@ def update_output_tabbar_container(
     if comparison_nav is not None:
         comparison_nav.hide()
     source_tab_count = len(getattr(getattr(host, "tabbar", None), "items", {}))
-    scene_count = int(getattr(host, "scene_count", 0))
     active_scene_overview = bool(getattr(host, "active_scene_overview", False))
     source_selector = getattr(host, "source_selector_button", None)
-    show_scene_selector = scene_count > 1 and hasattr(host, "scene_selector_button")
+    scene_groups = _scene_groups_by_key(host)
+    show_scene_selector = _scenes_have_batch_navigation(scene_groups.values()) and (
+        hasattr(host, "scene_selector_button")
+    )
     show_source_navigation = source_tab_count > 1 and not active_scene_overview
-    show_set_selector = not active_scene_overview and (
-        int(getattr(host, "set_count", 0)) > 1
-        or OutputCanvasRouteModel.grid_available_for_current_source(
-            _visible_source_groups_by_key(host),
-            getattr(host, "active_source_key", None),
-        )
+    show_set_selector = (
+        not active_scene_overview and int(getattr(host, "set_count", 0)) > 1
     )
     padding_left = 12
     padding_bottom = 8
@@ -108,7 +106,7 @@ def update_output_tabbar_container(
     gap = 4
     scene_w = (
         scene_selector_current_width(
-            _scene_groups_by_key(host).values(),
+            scene_groups.values(),
             active_scene_key=getattr(host, "active_scene_key", None),
             active_scene_overview=active_scene_overview,
             widget=getattr(host, "scene_selector_button", None),
@@ -207,8 +205,11 @@ def update_output_compare_nav_containers(host: object) -> None:
     min_gap = 12
     control_h = 28
     bg_h = control_h + 2 * extra_pad
+    show_scene_selector = _scenes_have_batch_navigation(
+        _scene_groups_by_key(host).values()
+    )
     visibility = OutputCanvasNavigationController.compare_navigation_visibility(
-        scene_count=int(getattr(host, "scene_count", 0)),
+        scene_count=2 if show_scene_selector else 0,
         set_count=int(getattr(host, "set_count", 0)),
     )
     setattr(host, "_source_tabs_collapsed", visibility.source_tabs_collapsed)
@@ -232,7 +233,7 @@ def update_output_compare_nav_containers(host: object) -> None:
             maximum_width=_SCENE_SELECTOR_MAX_WIDTH,
             horizontal_padding=_SCENE_SELECTOR_HORIZONTAL_PADDING,
         )
-        if int(getattr(host, "scene_count", 0)) > 1
+        if show_scene_selector
         else 0
     )
     set_selector = getattr(host, "set_selector_button")
@@ -249,7 +250,7 @@ def update_output_compare_nav_containers(host: object) -> None:
         OutputCanvasNavigationController.button_width(
             getattr(host, "comparison_scene_selector_button"),
         )
-        if int(getattr(host, "scene_count", 0)) > 1
+        if show_scene_selector
         else 0
     )
     compare_controller = _compare_controller(host)
@@ -481,6 +482,17 @@ def _scene_groups_by_key(host: object) -> dict[str, OutputCanvasSceneGroup]:
             "preview_scene_groups_by_key",
             {},
         ),
+    )
+
+
+def _scenes_have_batch_navigation(
+    scene_groups: Iterable[OutputCanvasSceneGroup],
+) -> bool:
+    """Return whether multiple scenes contain any real batch alternatives."""
+
+    groups = tuple(scene_groups)
+    return len(groups) > 1 and any(
+        len(source.images_by_set) > 1 for scene in groups for source in scene.sources
     )
 
 

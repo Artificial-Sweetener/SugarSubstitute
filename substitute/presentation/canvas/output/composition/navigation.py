@@ -132,11 +132,12 @@ def output_canvas_picker_controller_for(
 
     return OutputCanvasPickerController(
         visible_compare_state=visible_compare_state,
-        grid_available_for_current_source=lambda: (
-            OutputCanvasRouteModel.grid_available_for_current_source(
-                visible_source_groups_by_key(),
-                host.active_source_key,
+        grid_available_for_visible_sources=lambda: (
+            int(getattr(host, "active_set_index", 1)) == 0
+            or OutputCanvasRouteModel.first_batch_overview_source_key(
+                visible_source_groups_by_key()
             )
+            is not None
         ),
         set_count=lambda: int(getattr(host, "set_count", 0)),
         active_set_index=lambda: int(getattr(host, "active_set_index", 0)),

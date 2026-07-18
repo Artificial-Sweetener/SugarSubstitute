@@ -197,6 +197,8 @@ class WorkspaceRuntimeHydrationService:
         """Return one workflow snapshot with hydrated cube runtime state."""
 
         workflow = snapshot.workflow
+        if workflow.is_direct_workflow:
+            return replace(snapshot, active_cube_alias=None)
         hydrated_cubes: dict[str, CubeState] = {}
         hydrated_stack_order: list[str] = []
         for alias in workflow.stack_order:
@@ -243,7 +245,7 @@ class WorkspaceRuntimeHydrationService:
         )
         return replace(
             snapshot,
-            workflow=_copy_workflow_with_cubes(
+            workflow=_replace_cube_runtime(
                 workflow,
                 cubes=hydrated_cubes,
                 stack_order=hydrated_stack_order,
@@ -447,30 +449,18 @@ def _merge_persistent_cube_state(
     return hydrated_cube
 
 
-def _copy_workflow_with_cubes(
+def _replace_cube_runtime(
     workflow: WorkflowState,
     *,
     cubes: dict[str, CubeState],
     stack_order: list[str],
 ) -> WorkflowState:
-    """Return a workflow copy preserving non-cube restored workflow state."""
+    """Return an isolated workflow copy with hydrated cube-owned state."""
 
-    return WorkflowState(
+    return replace(
+        copy.deepcopy(workflow),
         cubes=cubes,
         stack_order=stack_order,
-        metadata=copy.deepcopy(workflow.metadata),
-        global_overrides=copy.deepcopy(workflow.global_overrides),
-        override_control_states=copy.deepcopy(workflow.override_control_states),
-        global_override_selections=copy.deepcopy(workflow.global_override_selections),
-        canvas=copy.deepcopy(workflow.canvas),
-        output_image_uuids=list(workflow.output_image_uuids),
-        output_focus_mode=workflow.output_focus_mode,
-        active_output_uuid=workflow.active_output_uuid,
-        active_output_set_index=workflow.active_output_set_index,
-        active_output_source_key=workflow.active_output_source_key,
-        active_output_scene_key=workflow.active_output_scene_key,
-        active_output_scene_overview=workflow.active_output_scene_overview,
-        output_compare_state=workflow.output_compare_state,
     )
 
 

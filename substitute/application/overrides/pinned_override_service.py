@@ -29,6 +29,9 @@ from substitute.application.node_behavior.list_value_resolver import (
     extract_live_list_options,
     is_choice_field_type,
 )
+from substitute.application.workflows.editor_projection_service import (
+    WorkflowEditorProjection,
+)
 from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
 from substitute.domain.node_behavior import OverridePinPolicy
 from substitute.domain.workflow.override_keys import canonicalize_global_override_key
@@ -484,44 +487,44 @@ class PinnedOverrideService:
             "mode": mode,
         }
 
-    def apply_overrides_to_workflow(
+    def apply_overrides_to_projection(
         self,
         *,
         overrides: OverrideMap,
-        workflow: Any | None,
+        projection: WorkflowEditorProjection | None,
         behavior_snapshot: EditorBehaviorSnapshot | None,
     ) -> bool:
-        """Apply active overrides and return whether workflow inputs changed."""
+        """Apply active overrides and return whether projected graph inputs changed."""
 
-        workflow_stack_order = tuple(getattr(workflow, "stack_order", ()))
+        projection_order = projection.order if projection is not None else ()
         log_debug(
             _LOGGER,
-            "apply overrides to workflow started",
-            workflow_present=workflow is not None,
-            has_cubes=bool(workflow is not None and hasattr(workflow, "cubes")),
+            "apply overrides to editor projection started",
+            projection_present=projection is not None,
             behavior_snapshot_present=behavior_snapshot is not None,
             override_keys=tuple(sorted(overrides)),
-            stack_order=workflow_stack_order,
+            section_order=projection_order,
         )
-        if workflow is None or not hasattr(workflow, "cubes"):
+        if projection is None:
             return False
         if behavior_snapshot is None:
             return self._apply_overrides_without_snapshot(
-                overrides=overrides, workflow=workflow
+                overrides=overrides,
+                projection=projection,
             )
 
         participation_snapshot = self.build_participation_snapshot(
             overrides=overrides,
             behavior_snapshot=behavior_snapshot,
-            stack_order=getattr(workflow, "stack_order", []),
+            stack_order=projection.order,
         )
         participant_fields = participation_snapshot.participant_fields()
         changed = False
-        for alias in getattr(workflow, "stack_order", []):
-            cube_state = getattr(workflow, "cubes", {}).get(alias)
-            if cube_state is None:
+        for alias in projection.order:
+            graph_state = projection.states.get(alias)
+            if graph_state is None:
                 continue
-            buffer = getattr(cube_state, "buffer", {})
+            buffer = getattr(graph_state, "buffer", {})
             nodes = buffer.get("nodes", {}) if isinstance(buffer, dict) else {}
             for node_name, field_specs in behavior_snapshot.field_specs_by_alias.get(
                 alias,
@@ -732,13 +735,13 @@ class PinnedOverrideService:
         self,
         *,
         overrides: OverrideMap,
-        workflow: Any,
+        projection: WorkflowEditorProjection,
     ) -> bool:
         """Apply overrides without a snapshot and return whether inputs changed."""
 
         changed = False
-        for cube in getattr(workflow, "cubes", {}).values():
-            nodes = getattr(cube, "buffer", {}).get("nodes", {})
+        for graph_state in projection.states.values():
+            nodes = getattr(graph_state, "buffer", {}).get("nodes", {})
             for node in nodes.values():
                 if not isinstance(node, dict):
                     continue

@@ -33,6 +33,11 @@ from substitute.domain.generation import (
 )
 from substitute.domain.recipes.sugar_ast import ParsedSugarScript
 from substitute.domain.workflow import OutputFocusMode
+from substitute.domain.common import JsonObject
+from substitute.domain.comfy_workflow import (
+    DirectWorkflowGenerationPlan,
+    DirectWorkflowOutputManifest,
+)
 
 
 def test_generation_result_snapshot_service_builds_workspace_with_outputs() -> None:
@@ -112,6 +117,55 @@ def test_generation_result_snapshot_service_reports_missing_job() -> None:
 
     assert result.snapshot is None
     assert result.warnings == ("Generation job missing was not found.",)
+
+
+def test_generation_result_snapshot_service_restores_direct_graph_without_sugar() -> (
+    None
+):
+    """Direct generation replay should reconstruct the unified editor document."""
+
+    graph: JsonObject = {
+        "8": {"class_type": "KSampler", "inputs": {"seed": 321}},
+    }
+    job = GenerationQueueJob(
+        job_id="job-direct",
+        snapshot=GenerationJobSnapshot(
+            workflow_id="workflow-direct",
+            workflow_name="Direct Workflow",
+            sugar_script_text="",
+            direct_workflow_plan=DirectWorkflowGenerationPlan(
+                authored_api_graph=graph,
+                output_manifest=DirectWorkflowOutputManifest(
+                    sources=(),
+                    hijacked_sink_node_ids=frozenset(),
+                    preserved_output_node_ids=(),
+                ),
+            ),
+        ),
+        created_at=datetime(2026, 5, 8, tzinfo=timezone.utc),
+        status="completed",
+    )
+    service = GenerationResultSnapshotService(
+        live_results=_LiveResults(job=job, outputs=()),
+        recipe_parser=_FailingRecipeParser(),
+    )
+
+    result = service.build_for_live_job("job-direct")
+
+    assert result.snapshot is not None
+    workflow = result.snapshot.workspace.workflows[0].workflow
+    assert workflow.direct_workflow is not None
+    assert workflow.direct_workflow.buffer == {"nodes": graph}
+    assert workflow.cubes == {}
+
+
+class _FailingRecipeParser:
+    """Fail if direct result replay incorrectly enters Sugar parsing."""
+
+    def parse_recipe_script(self, sugar_script_text: str) -> ParsedSugarScript:
+        """Reject every unexpected recipe parse call."""
+
+        raise AssertionError(f"Unexpected Sugar parse: {sugar_script_text!r}")
 
 
 class _LiveResults:

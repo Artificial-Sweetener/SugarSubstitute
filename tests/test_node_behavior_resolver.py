@@ -37,6 +37,9 @@ from substitute.domain.node_behavior import (
     TitleControl,
     resolve_node_behavior,
 )
+from substitute.domain.node_behavior.prompt_behavior_patch import (
+    prompt_node_behavior_patch,
+)
 
 
 def _context(
@@ -255,10 +258,8 @@ def test_resolver_does_not_promote_card_mode_from_prompt_box_field() -> None:
     assert resolved.card.collapse_mode == CollapseMode.AUTO
 
 
-def test_resolver_infers_prompt_role_from_exact_node_title_and_multiline_string() -> (
-    None
-):
-    """A labeled prompt node with one multiline STRING field should become linkable."""
+def test_resolver_applies_graph_inferred_positive_prompt_patch() -> None:
+    """Prepared graph inference should become existing linkable prompt behavior."""
 
     context = NodeBehaviorContext(
         stack_order=("A",),
@@ -277,6 +278,10 @@ def test_resolver_infers_prompt_role_from_exact_node_title_and_multiline_string(
         hook_patch=None,
         workflow_overrides={},
         node_instance_patch=None,
+        graph_inference_patch=prompt_node_behavior_patch(
+            field_key="text",
+            role=PromptRole.POSITIVE,
+        ),
     )
 
     resolved = resolve_node_behavior(
@@ -298,8 +303,8 @@ def test_resolver_infers_prompt_role_from_exact_node_title_and_multiline_string(
     assert resolved.card.title_controls == (TitleControl.NODE_LINK_SELECTOR,)
 
 
-def test_resolver_infers_eraser_icon_for_negative_prompt_title() -> None:
-    """Inferred negative prompt cards should use the eraser icon."""
+def test_resolver_applies_graph_inferred_negative_prompt_icon() -> None:
+    """Prepared negative prompt behavior should use the eraser icon."""
 
     context = NodeBehaviorContext(
         stack_order=("A",),
@@ -318,11 +323,56 @@ def test_resolver_infers_eraser_icon_for_negative_prompt_title() -> None:
         hook_patch=None,
         workflow_overrides={},
         node_instance_patch=None,
+        graph_inference_patch=prompt_node_behavior_patch(
+            field_key="text",
+            role=PromptRole.NEGATIVE,
+        ),
     )
 
     resolved = resolve_node_behavior(
         node_name="node_18",
         class_type="CustomPrompt",
+        input_keys=("text",),
+        context=context,
+    )
+
+    assert resolved.fields["text"].prompt is not None
+    assert resolved.fields["text"].prompt.role == PromptRole.NEGATIVE
+    assert resolved.card.icon_name == "eraser"
+
+
+def test_authored_prompt_behavior_overrides_graph_inference() -> None:
+    """Declarative package behavior must remain authoritative over graph evidence."""
+
+    context = NodeBehaviorContext(
+        stack_order=("A",),
+        cube_alias="A",
+        node_name="encoder",
+        class_type="CustomEncoder",
+        node_title="Encoder",
+        live_node_definition={
+            "input": {"required": {"text": ["STRING", {"multiline": True}]}}
+        },
+        declarative_patch=PackageBehaviorPatch(
+            by_node={
+                "encoder": prompt_node_behavior_patch(
+                    field_key="text",
+                    role=PromptRole.NEGATIVE,
+                )
+            }
+        ),
+        hook_patch=None,
+        workflow_overrides={},
+        node_instance_patch=None,
+        graph_inference_patch=prompt_node_behavior_patch(
+            field_key="text",
+            role=PromptRole.POSITIVE,
+        ),
+    )
+
+    resolved = resolve_node_behavior(
+        node_name="encoder",
+        class_type="CustomEncoder",
         input_keys=("text",),
         context=context,
     )
@@ -570,6 +620,21 @@ def test_resolver_marks_steps_and_cfg_as_optional_override_candidates() -> None:
         override_behavior = resolved.fields[field_key].override_behavior
         assert override_behavior.override_key == field_key
         assert override_behavior.pin_policy == expected_policy
+
+
+def test_resolver_owns_seedbox_presentation_for_both_comfy_aliases() -> None:
+    """Seed aliases should resolve one presentation contract before Qt rendering."""
+
+    resolved = resolve_node_behavior(
+        node_name="sampler",
+        class_type="SamplerCustom",
+        input_keys=("seed", "noise_seed", "ordinary_int"),
+        context=_context(node_name="sampler", class_type="SamplerCustom"),
+    )
+
+    assert resolved.fields["seed"].presentation is FieldPresentation.SEED_BOX
+    assert resolved.fields["noise_seed"].presentation is FieldPresentation.SEED_BOX
+    assert resolved.fields["ordinary_int"].presentation is FieldPresentation.STANDARD
 
 
 def test_resolver_authored_groups_override_inferred_dimension_groups() -> None:

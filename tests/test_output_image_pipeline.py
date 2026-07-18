@@ -362,7 +362,9 @@ def test_pipeline_builds_strict_live_request_without_retaining_payload() -> None
     assert request.generation_run_id == "run-1"
     assert request.prompt_id == "prompt-1"
     assert request.client_id == "client-1"
-    assert request.list_index == 0
+    assert request.position is not None
+    assert request.position.list_index == 0
+    assert request.position.batch_index == 0
     assert request.artifact_width == 1024
     assert request.artifact_height == 768
     assert request.live_event is not None
@@ -443,7 +445,9 @@ def test_pipeline_preserves_backend_list_index_for_prepared_output_metadata() ->
     assert request.scene_title == "Scene A"
     assert request.scene_order == 2
     assert request.scene_count == 3
-    assert request.list_index == 4
+    assert request.position is not None
+    assert request.position.list_index == 4
+    assert request.position.batch_index == 0
     assert request.artifact_width == 512
     assert request.artifact_height == 256
 

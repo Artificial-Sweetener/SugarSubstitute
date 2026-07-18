@@ -35,6 +35,9 @@ from substitute.application.workflows.output_canvas_projection import (
 from substitute.application.workflows.output_canvas_session import (
     bind_output_canvas_session,
 )
+from substitute.application.workflows.output_scene_navigation_selection import (
+    OutputSceneNavigationSelection,
+)
 from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
     activate_output_grid_for_source,
     activate_output_scene,
@@ -335,7 +338,7 @@ def test_output_canvas_overview_scene_preview_updates_without_raw_focus(
 
 
 def test_output_canvas_scene_grid_click_activates_scene(monkeypatch: Any) -> None:
-    """Clicking an All-scenes tile should scope navigation to that scene."""
+    """Clicking an All-scenes tile should enter that scene's batch level."""
 
     _input_mod, output_mod = import_canvas_modules(monkeypatch)
     from substitute.presentation.canvas.qpane.canvas_route_projector import (  # noqa: PLC0415
@@ -482,8 +485,18 @@ def test_output_canvas_scene_grid_click_activates_scene(monkeypatch: Any) -> Non
     assert fake.active_scene_key == "cafe"
     assert fake.active_scene_overview is False
     assert fake.active_source_key == "source-a"
-    assert fake.active_set_index == 1
-    assert fake.activeOutputSceneChanged.calls == [("cafe", False)]
+    assert fake.active_set_index == 0
+    assert fake.activeOutputSceneChanged.calls == [
+        (
+            OutputSceneNavigationSelection(
+                scene_key="cafe",
+                overview=False,
+                source_key="source-a",
+                set_index=0,
+                image_id=None,
+            ),
+        )
+    ]
 
 
 def test_output_canvas_scene_grid_click_opens_representative_source_grid(
@@ -615,7 +628,7 @@ def test_output_canvas_scene_grid_click_opens_representative_source_grid(
             ),
             update_tabbar_container=fake._update_tabbar_container,
         )
-        is True
+        is not None
     )
 
     assert fake.active_source_key == "wf:upscale"

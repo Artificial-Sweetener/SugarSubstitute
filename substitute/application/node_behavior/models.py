@@ -29,6 +29,8 @@ from substitute.domain.node_behavior import (
 )
 from substitute.domain.links.node_links import NodeLinkEndpointIndex
 from substitute.domain.links.prompt_endpoints import PromptEndpointIndex
+from substitute.domain.node_behavior.prompt_graph import PromptDetectionResult
+from substitute.domain.node_behavior.prompt_graph import PromptGraphContext
 
 
 class FieldValueSource(StrEnum):
@@ -76,6 +78,13 @@ class EditorBehaviorSnapshot:
     node_link_endpoint_index: NodeLinkEndpointIndex = field(
         default_factory=NodeLinkEndpointIndex
     )
+    prompt_detection_results_by_alias: dict[str, PromptDetectionResult] = field(
+        default_factory=dict
+    )
+    prompt_contexts_by_alias: dict[str, tuple[PromptGraphContext, ...]] = field(
+        default_factory=dict
+    )
+    card_order_by_alias: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 __all__ = ["EditorBehaviorSnapshot", "FieldValueSource", "ResolvedFieldSpec"]

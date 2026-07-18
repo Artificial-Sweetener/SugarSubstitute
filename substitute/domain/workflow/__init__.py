@@ -23,9 +23,21 @@ from substitute.domain.workflow.cube_contract_validator import (
     validate_cube_contract,
 )
 from substitute.domain.workflow.canvas_models import (
-    EditableMaskBinding,
-    EditableMaskBindingIndex,
+    InputAssetEndpoint,
+    InputAssetEndpointIndex,
+    InputAssetRole,
     WorkflowCanvasState,
+)
+from substitute.domain.workflow.input_canvas_plan import (
+    CanvasDimensionAuthority,
+    CanvasDimensionResolution,
+    CanvasDimensionResolutionKind,
+    CanvasDimensions,
+    InputCanvasMaskBinding,
+    InputCanvasPlan,
+    InputCanvasPlanRejection,
+    InputCanvasSurface,
+    InputCanvasSurfaceKind,
 )
 from substitute.domain.workflow.canvas_session import (
     CanvasBoundSession,
@@ -68,6 +80,7 @@ from substitute.domain.workflow.execution_projection import (
     bypassed_cube_aliases,
     is_cube_bypassed,
 )
+from substitute.domain.workflow.document_kind import WorkflowDocumentKind
 from substitute.domain.workflow.policies import StackManager
 
 __all__ = [
@@ -85,13 +98,23 @@ __all__ = [
     "CanvasSessionRevision",
     "CanvasSessionToken",
     "CanvasWorkflowIdentity",
+    "CanvasDimensionAuthority",
+    "CanvasDimensionResolution",
+    "CanvasDimensionResolutionKind",
+    "CanvasDimensions",
     "ComfyInputAssetRef",
     "CubeContractError",
     "CubeState",
-    "EditableMaskBinding",
-    "EditableMaskBindingIndex",
+    "InputAssetEndpoint",
+    "InputAssetEndpointIndex",
+    "InputAssetRole",
+    "InputCanvasMaskBinding",
+    "InputCanvasPlan",
+    "InputCanvasPlanRejection",
     "ImageMeta",
     "InputCanvasSession",
+    "InputCanvasSurface",
+    "InputCanvasSurfaceKind",
     "LocalFileAssetRef",
     "OutputCompareSelection",
     "OutputCompareState",
@@ -104,6 +127,7 @@ __all__ = [
     "WorkflowAssetRef",
     "WorkflowCanvasState",
     "WorkflowExecutionState",
+    "WorkflowDocumentKind",
     "WorkflowState",
     "is_cube_bypassed",
     "validate_cube_contract",

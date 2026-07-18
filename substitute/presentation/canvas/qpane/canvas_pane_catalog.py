@@ -133,6 +133,12 @@ class CanvasPaneCatalog:
         catalog_contains_image = self._catalog_contains_image(image_id)
         return catalog_contains_image is True
 
+    def image_path(self, image_id: UUID) -> Path | None:
+        """Return the exact local path cached for one image when available."""
+
+        identity = self._payload_identity_by_id.get(image_id)
+        return identity.path if identity is not None else None
+
     def _catalog_contains_image(self, image_id: UUID) -> bool | None:
         """Return catalog availability, or None when the API is unavailable."""
 

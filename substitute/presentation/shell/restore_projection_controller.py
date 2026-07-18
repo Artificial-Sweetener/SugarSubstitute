@@ -25,7 +25,9 @@ from PySide6.QtCore import QTimer
 
 from substitute.application.workspace_state import (
     RestoredEditorProjectionCacheExtractor,
+    RestoreProjectionBackendIdentityService,
     RestoreProjectionArtifact,
+    RestoreProjectionValidationService,
 )
 from substitute.domain.workspace_snapshot import WorkflowSnapshot
 from substitute.presentation.shell.editor_viewport_restore import (
@@ -34,7 +36,12 @@ from substitute.presentation.shell.editor_viewport_restore import (
 from substitute.presentation.shell.restored_workflow_materializer import (
     restored_workflow_materializer_for,
 )
-from substitute.shared.logging.logger import get_logger, log_exception, log_info
+from substitute.shared.logging.logger import (
+    get_logger,
+    log_exception,
+    log_info,
+    log_warning,
+)
 from substitute.shared.startup_trace import trace_mark
 
 _LOGGER = get_logger("presentation.shell.restore_projection_controller")
@@ -116,6 +123,7 @@ class RestoreProjectionController:
                 projection_mode="pre_show_live",
             )
             return False
+        artifact = self._validate_restore_projection_after_backend(artifact)
 
         def finish_pre_show_projection() -> None:
             """Record hidden projection completion and continue startup reveal."""
@@ -148,6 +156,82 @@ class RestoreProjectionController:
             )
             return False
         return True
+
+    def _validate_restore_projection_after_backend(
+        self,
+        artifact: RestoreProjectionArtifact | None,
+    ) -> RestoreProjectionArtifact | None:
+        """Accept only artifacts matching live cube and node definitions."""
+
+        if artifact is None:
+            return None
+        repository = getattr(self._shell, "restore_projection_cache_repository", None)
+        try:
+            if (
+                artifact.cube_definition_fingerprints
+                or artifact.node_definition_fingerprints
+            ):
+                identity = RestoreProjectionBackendIdentityService().collect(
+                    artifact,
+                    cube_loader=self._shell.cube_load_service,
+                    node_definition_gateway=self._shell.node_definition_gateway,
+                )
+                cube_fingerprints = identity.cube_fingerprints
+                node_fingerprints = identity.node_fingerprints
+            else:
+                cube_fingerprints = {}
+                node_fingerprints = {}
+            validation = RestoreProjectionValidationService().validate_after_backend(
+                artifact,
+                live_cube_fingerprints=cube_fingerprints,
+                live_node_fingerprints=node_fingerprints,
+            )
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError) as error:
+            log_exception(
+                _LOGGER,
+                "Failed live restore projection cache validation",
+                error=error,
+            )
+            self._clear_invalid_restore_projection_cache(repository)
+            return None
+        if validation.is_valid:
+            trace_mark(
+                "restore_projection_cache.postbackend.valid",
+                cube_count=len(cube_fingerprints),
+                node_definition_count=len(node_fingerprints),
+            )
+            return artifact
+        log_warning(
+            _LOGGER,
+            "Rejected stale restore projection cache after backend validation",
+            state=validation.state.value,
+            stale_cube_aliases=validation.stale_cube_aliases,
+            stale_node_classes=validation.stale_node_classes,
+        )
+        trace_mark(
+            "restore_projection_cache.postbackend.invalid",
+            state=validation.state.value,
+            stale_cube_count=len(validation.stale_cube_aliases),
+            stale_node_count=len(validation.stale_node_classes),
+        )
+        self._clear_invalid_restore_projection_cache(repository)
+        return None
+
+    @staticmethod
+    def _clear_invalid_restore_projection_cache(repository: object | None) -> None:
+        """Clear a stale artifact without preventing live restore fallback."""
+
+        clear = getattr(repository, "clear", None)
+        if not callable(clear):
+            return
+        try:
+            clear()
+        except (OSError, RuntimeError) as error:
+            log_exception(
+                _LOGGER,
+                "Failed to clear invalid restore projection cache",
+                error=error,
+            )
 
     def project_restored_workflow(self, workflow_id: str) -> None:
         """Project a restored workflow into the shell."""
@@ -283,6 +367,12 @@ class RestoreProjectionController:
         editor_panel = self._shell.editor_panels.get(workflow_id)
         if editor_panel is not None:
             self._shell.editor_panel_container.setCurrentWidget(editor_panel)
+        workflow = self._shell.workflow_session_service.workflows.get(workflow_id)
+        if workflow is not None:
+            self._shell.cube_stack_presentation_controller.activate_document_kind(
+                workflow.document_kind,
+                animated=False,
+            )
         self.reconcile_active_workflow_for_restore_projection(
             force_refresh=True,
             on_complete=on_surface_complete,
@@ -375,7 +465,12 @@ class RestoreProjectionController:
                 "restore_projection_cache.capture.write",
                 workflow_id=workflow_id,
                 workflow_count=len(artifact.workflows),
-                cube_count=sum(len(workflow.cubes) for workflow in artifact.workflows),
+                cube_count=sum(
+                    len(workflow.cube_stack.cubes)
+                    if workflow.cube_stack is not None
+                    else 0
+                    for workflow in artifact.workflows
+                ),
                 node_definition_count=len(artifact.node_definition_fingerprints),
             )
         except (OSError, RuntimeError, TypeError, ValueError) as error:

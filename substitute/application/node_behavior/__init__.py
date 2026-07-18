@@ -43,17 +43,21 @@ from .live_definition_authority import (
 )
 from .model_backed_node_detector import ModelBackedNodeDetector
 from .models import EditorBehaviorSnapshot, FieldValueSource, ResolvedFieldSpec
-from .node_card_order import (
-    node_title_for_order,
-    order_node_cards,
-    prompt_priority_nodes,
-    wired_node_order,
+from .node_card_order import downstream_node_graph, node_reaches, wired_node_order
+from .node_card_order_planner import (
+    NodeCardOrderPlanner,
+    NodeCardOrderRequest,
+    NodeCardOrderingMode,
 )
 from .node_definition_hydration_service import EditorNodeDefinitionHydrationService
 from .node_definition_requirements import (
     NodeDefinitionRequirement,
     required_node_definition_classes_for_editor_projection,
     required_node_definition_requirements_for_editor_projection,
+)
+from .prompt_behavior_inference_service import (
+    PromptBehaviorInference,
+    PromptBehaviorInferenceService,
 )
 from substitute.domain.node_behavior.dimension_fields import (
     DimensionFieldPair,
@@ -138,14 +142,18 @@ __all__ = [
     "OverridePinPolicy",
     "NodeBehaviorRuntimeState",
     "NodeBehaviorService",
-    "node_title_for_order",
+    "downstream_node_graph",
     "ModelBackedNodeDetector",
-    "order_node_cards",
     "PackageBehaviorPatch",
     "PickerFallback",
-    "prompt_priority_nodes",
+    "node_reaches",
+    "NodeCardOrderPlanner",
+    "NodeCardOrderRequest",
+    "NodeCardOrderingMode",
     "PromptFieldBehavior",
     "PromptFieldBehaviorPatch",
+    "PromptBehaviorInference",
+    "PromptBehaviorInferenceService",
     "PromptRole",
     "ResolvedNodeBehavior",
     "RevealMenuEntry",

@@ -21,21 +21,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Mapping, cast
 
+from substitute.infrastructure.comfy.image_artifact import ComfyImageArtifact
+
 MediaKind = Literal["image", "audio", "video", "value", "unknown"]
-
-
-@dataclass(frozen=True)
-class CubeOutputArtifact:
-    """Describe one Comfy artifact referenced by a cube-output event."""
-
-    filename: str
-    subfolder: str
-    type: str
-    media_kind: MediaKind
-    mime_type: str | None = None
-    width: int | None = None
-    height: int | None = None
-    duration_seconds: float | None = None
 
 
 @dataclass(frozen=True)
@@ -51,7 +39,7 @@ class CubeOutputEvent:
     instance_id: str
     media_kind: MediaKind
     value_type: str
-    artifacts: tuple[CubeOutputArtifact, ...]
+    artifacts: tuple[ComfyImageArtifact, ...]
     substitute: "SubstituteVisualIdentity | None" = None
     version: int = 1
 
@@ -114,7 +102,7 @@ def parse_cube_output_event(data: Mapping[str, object]) -> CubeOutputEvent | Non
     )
 
 
-def _parse_artifact(value: object) -> CubeOutputArtifact | None:
+def _parse_artifact(value: object) -> ComfyImageArtifact | None:
     """Parse one artifact payload."""
 
     if not isinstance(value, dict):
@@ -125,7 +113,7 @@ def _parse_artifact(value: object) -> CubeOutputArtifact | None:
     media_kind = _media_kind(value.get("media_kind"))
     if filename is None or artifact_type is None or media_kind is None:
         return None
-    return CubeOutputArtifact(
+    return ComfyImageArtifact(
         filename=filename,
         subfolder=subfolder or "",
         type=artifact_type,

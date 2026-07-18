@@ -23,6 +23,8 @@ from typing import Any, cast
 
 import pytest
 
+from substitute.domain.workflow import WorkflowState
+from substitute.presentation.shell.workflow_surface_results import WorkflowUiSurfaces
 from substitute.presentation.shell.workflow_ui_factory import WorkflowUiFactory
 from substitute.presentation.workflows.cube_stack_view import CubeCloseButtonDisplayMode
 
@@ -155,7 +157,9 @@ def test_create_workflow_ui_registers_widgets_and_current_selection(
     shell = _workflow_shell()
     _install_signal_binder_stub(monkeypatch, shell)
 
-    cube_stack, editor_panel = WorkflowUiFactory(shell).create_workflow_ui("wf-1")
+    surfaces = WorkflowUiFactory(shell).create_workflow_ui("wf-1")
+    cube_stack = surfaces.cube_stack
+    editor_panel = surfaces.editor_panel
 
     assert shell.editor_panels == {"wf-1": editor_panel}
     assert shell.cube_stacks == {"wf-1": cube_stack}
@@ -193,10 +197,12 @@ def test_create_workflow_ui_can_register_without_selecting_current(
     shell = _workflow_shell()
     _install_signal_binder_stub(monkeypatch, shell)
 
-    cube_stack, editor_panel = WorkflowUiFactory(shell).create_workflow_ui(
+    surfaces = WorkflowUiFactory(shell).create_workflow_ui(
         "wf-1",
         set_as_current=False,
     )
+    cube_stack = surfaces.cube_stack
+    editor_panel = surfaces.editor_panel
 
     assert shell.editor_panels == {"wf-1": editor_panel}
     assert shell.cube_stacks == {"wf-1": cube_stack}
@@ -235,6 +241,7 @@ class _FakeCubeStack:
         self.movable_calls: list[bool] = []
         self.maximum_width_calls: list[int] = []
         self.close_button_modes: list[object] = []
+        self.deleted = False
 
     def setMovable(self, movable: bool) -> None:
         """Record movable configuration."""
@@ -250,6 +257,11 @@ class _FakeCubeStack:
         """Record close-button visibility mode."""
 
         self.close_button_modes.append(mode)
+
+    def deleteLater(self) -> None:
+        """Record deferred widget disposal."""
+
+        self.deleted = True
 
 
 class _FakeOverrideManager:
@@ -297,6 +309,13 @@ class _Container:
 
         self.current = widget
 
+    def removeWidget(self, widget: object) -> None:
+        """Record removal from this stacked container."""
+
+        self.added.remove(widget)
+        if self.current is widget:
+            self.current = None
+
 
 def _workflow_shell() -> SimpleNamespace:
     """Build a shell fake with workflow UI dependencies."""
@@ -340,11 +359,67 @@ def _workflow_shell() -> SimpleNamespace:
         "connected_editor_panels": connected_editor_panels,
         "connected_cube_stacks": connected_cube_stacks,
         "layout_applied_stacks": layout_applied_stacks,
-        "shell_layout_controller": SimpleNamespace(
-            apply_current_cube_stack_mode_to_stack=layout_applied_stacks.append
+        "workflow_session_service": SimpleNamespace(
+            workflows={"wf-1": WorkflowState()}
+        ),
+        "cube_stack_presentation_controller": SimpleNamespace(
+            prepare_stack=layout_applied_stacks.append
         ),
     }
     return SimpleNamespace(**values)
+
+
+def test_direct_workflow_creates_editor_without_phantom_cube_stack(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Direct documents should own an editor surface and no cube-stack widget."""
+
+    monkeypatch.setattr(
+        "substitute.presentation.shell.workflow_ui_factory.EditorPanel",
+        lambda **kwargs: _FakeEditorPanel(**kwargs),
+    )
+    monkeypatch.setattr(
+        "substitute.presentation.shell.workflow_ui_factory.GlobalOverridesManager",
+        lambda shell, **kwargs: _FakeOverrideManager(shell, **kwargs),
+    )
+    shell = _workflow_shell()
+    direct = WorkflowState()
+    direct.direct_workflow = cast(Any, object())
+    shell.workflow_session_service.workflows["wf-1"] = direct
+    _install_signal_binder_stub(monkeypatch, shell)
+
+    surfaces = WorkflowUiFactory(shell).create_workflow_ui("wf-1")
+
+    assert isinstance(surfaces, WorkflowUiSurfaces)
+    assert surfaces.editor_panel is shell.editor_panels["wf-1"]
+    assert surfaces.cube_stack is None
+    assert shell.cube_stacks == {}
+    assert shell.cube_stack is None
+
+
+def test_blank_cube_surface_is_disposed_when_document_becomes_direct() -> None:
+    """Loading direct JSON into the initial blank tab should remove its old stack."""
+
+    shell = _workflow_shell()
+    stack = _FakeCubeStack(shell)
+    shell.cube_stacks["wf-1"] = stack
+    shell.cube_stack_container.addWidget(stack)
+    shell.cube_stack_container.setCurrentWidget(stack)
+    shell.cube_stack = stack
+    direct = WorkflowState()
+    direct.direct_workflow = cast(Any, object())
+    shell.workflow_session_service.workflows["wf-1"] = direct
+
+    result = WorkflowUiFactory(shell).reconcile_cube_stack_surface(
+        "wf-1",
+        set_as_current=True,
+    )
+
+    assert result is None
+    assert shell.cube_stacks == {}
+    assert shell.cube_stack is None
+    assert shell.cube_stack_container.added == []
+    assert stack.deleted
 
 
 def _install_signal_binder_stub(

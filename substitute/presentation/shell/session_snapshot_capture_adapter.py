@@ -168,27 +168,16 @@ class SessionSnapshotCaptureAdapter:
     ) -> tuple[InputImageReference, ...]:
         """Return restorable input image references for one workflow."""
 
+        del workflow_id
         references: list[InputImageReference] = []
-        workflow_name = self.workflow_tab_label(workflow_id)
         input_key_map = getattr(workflow.canvas, "input_key_map", {})
         if not isinstance(input_key_map, dict):
             return ()
-        for sequence, (input_key, image_id) in enumerate(
-            input_key_map.items(),
+        for sequence, image_id in enumerate(
+            input_key_map.values(),
             start=1,
         ):
-            cube_alias, separator, node_name = str(input_key).partition(":")
-            if not separator:
-                continue
-            asset_ref = self._shell.workflow_asset_service.input_image_asset_ref(
-                workflow,
-                cube_alias=cube_alias,
-                node_name=node_name,
-            )
-            path = self.capture_path_for_asset_ref(
-                asset_ref,
-                workflow_name=workflow_name,
-            )
+            path = self._shell.input_canvas_state_service.input_image_path(image_id)
             if path is None:
                 continue
             references.append(
@@ -224,9 +213,9 @@ class SessionSnapshotCaptureAdapter:
             image_id = mask_to_image_map.get(mask_id)
             if image_id is None:
                 continue
-            asset_ref = self._shell.workflow_asset_service.input_mask_asset_ref(
+            asset_ref = self._shell.workflow_input_canvas_service.input_mask_asset_ref(
                 workflow,
-                cube_alias=cube_alias,
+                section_key=cube_alias,
                 node_name=node_name,
             )
             path = self.capture_path_for_asset_ref(
@@ -276,6 +265,7 @@ class SessionSnapshotCaptureAdapter:
                         prompt_id=image_meta.prompt_id,
                         client_id=image_meta.client_id,
                         list_index=image_meta.list_index,
+                        batch_index=image_meta.batch_index,
                         scene_run_id=image_meta.scene_run_id or None,
                         scene_key=image_meta.scene_key or None,
                         scene_title=image_meta.scene_title or None,
@@ -297,7 +287,7 @@ class SessionSnapshotCaptureAdapter:
 
         return cast(
             ShellLayoutSnapshot | None,
-            self._shell.shell_layout_controller.capture_shell_layout_snapshot(),
+            self._shell.shell_layout_restore_controller.capture_shell_layout_snapshot(),
         )
 
     def capture_path_for_asset_ref(

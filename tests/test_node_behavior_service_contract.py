@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Mapping
 
 import pytest
@@ -37,11 +38,13 @@ from substitute.application.node_behavior import (
     NodeBehaviorPatch,
     NodeBehaviorRuntimeState,
     PackageBehaviorPatch,
+    PromptRole,
 )
 from substitute.application.model_metadata import ModelCatalogItem
 from substitute.application.node_behavior.list_value_resolver import (
     extract_live_list_options,
 )
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from tests.node_behavior_test_helpers import (
     DummyNodeDefinitionGateway,
     build_behavior_snapshot,
@@ -369,8 +372,10 @@ def test_behavior_snapshot_does_not_project_subgraph_body_nodes() -> None:
     assert "DetailerForEach" not in snapshot.field_specs_by_alias["A"]
 
 
-def test_behavior_snapshot_preserves_prompts_first_wired_node_order() -> None:
-    """Behavior snapshot maps should expose the shared node-card order."""
+def test_behavior_snapshot_separates_baseline_resolution_from_final_card_order() -> (
+    None
+):
+    """Keep metadata maps wired while exposing prompt priority in the card plan."""
 
     cube = cube_state(
         nodes={
@@ -391,8 +396,14 @@ def test_behavior_snapshot_preserves_prompts_first_wired_node_order() -> None:
                 "class_type": "CheckpointLoaderSimple",
                 "inputs": {"ckpt_name": "model.safetensors"},
             },
-            "text_a": {"class_type": "CLIPTextEncode", "inputs": {}},
-            "text_b": {"class_type": "CLIPTextEncode", "inputs": {}},
+            "text_a": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {"text": "low quality"},
+            },
+            "text_b": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {"text": "portrait"},
+            },
         },
     )
     cube.buffer["layout"] = {
@@ -402,15 +413,41 @@ def test_behavior_snapshot_preserves_prompts_first_wired_node_order() -> None:
         }
     }
 
-    snapshot = build_behavior_snapshot(cube_states={"A": cube}, stack_order=["A"])
+    snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class={
+            "CLIPTextEncode": {
+                "input": {
+                    "required": {"text": ["STRING", {"multiline": True}]},
+                },
+                "output": ["CONDITIONING"],
+            },
+            "KSampler": {
+                "input": {
+                    "required": {
+                        "positive": ["CONDITIONING", {}],
+                        "negative": ["CONDITIONING", {}],
+                    }
+                }
+            },
+        },
+    )
 
     assert list(snapshot.resolved_nodes_by_alias["A"]) == [
+        "checkpoint",
+        "text_a",
+        "text_b",
+        "latent_source",
+        "ksampler",
+    ]
+    assert snapshot.card_order_by_alias["A"] == (
         "text_b",
         "text_a",
         "checkpoint",
         "latent_source",
         "ksampler",
-    ]
+    )
 
 
 def test_behavior_snapshot_does_not_query_live_gateway_for_uuid_wrapper() -> None:
@@ -478,6 +515,38 @@ def test_normal_node_raw_title_does_not_override_card_display_label() -> None:
 
     assert snapshot.resolved_nodes_by_alias["A"]["mahiro CFG"].display_name is None
     assert snapshot.resolved_nodes_by_alias["A"]["vectorscopeCC"].display_name is None
+
+
+def test_direct_workflow_node_title_owns_card_display_label() -> None:
+    """Direct graphs should display preserved titles instead of numeric node ids."""
+
+    direct = DirectWorkflowState(
+        source_path=Path("workflow.json"),
+        source_workflow={"nodes": [], "links": []},
+        buffer={
+            "nodes": {
+                "20": {
+                    "class_type": "CheckpointLoaderSimple",
+                    "inputs": {},
+                    "_meta": {"title": "Load model"},
+                },
+                "14": {
+                    "class_type": "KSamplerSelect",
+                    "inputs": {},
+                    "_meta": {"title": "KSamplerSelect"},
+                },
+            }
+        },
+    )
+
+    snapshot = build_behavior_snapshot(
+        cube_states={"Direct": direct},
+        stack_order=["Direct"],
+    )
+
+    resolved = snapshot.resolved_nodes_by_alias["Direct"]
+    assert resolved["20"].display_name == "Load model"
+    assert resolved["14"].display_name == "KSamplerSelect"
 
 
 def test_wrapper_surface_node_gets_title_control_when_all_inputs_are_linked() -> None:
@@ -1467,6 +1536,211 @@ def test_inferred_negative_prompt_card_uses_eraser_icon() -> None:
     assert snapshot.resolved_nodes_by_alias["A"]["node_18"].card.icon_name == "eraser"
 
 
+def test_prompt_title_inference_is_isolated_per_editor_section() -> None:
+    """Prompt behavior in one cube section must not affect another section."""
+
+    definitions = {
+        "CustomPrompt": {
+            "input": {
+                "required": {
+                    "text": ["STRING", {"multiline": True}],
+                }
+            }
+        }
+    }
+    positive = cube_state(
+        nodes={
+            "shared_id": {
+                "class_type": "CustomPrompt",
+                "inputs": {"text": "quality"},
+                "_meta": {"title": "Positive Prompt"},
+            }
+        }
+    )
+    negative = cube_state(
+        nodes={
+            "shared_id": {
+                "class_type": "CustomPrompt",
+                "inputs": {"text": "blurry"},
+                "_meta": {"title": "Negative Prompt"},
+            }
+        }
+    )
+
+    snapshot = build_behavior_snapshot(
+        cube_states={"positive": positive, "negative": negative},
+        stack_order=["positive", "negative"],
+        definitions_by_class=definitions,
+    )
+
+    positive_field = snapshot.resolved_nodes_by_alias["positive"]["shared_id"].fields[
+        "text"
+    ]
+    negative_field = snapshot.resolved_nodes_by_alias["negative"]["shared_id"].fields[
+        "text"
+    ]
+    assert positive_field.prompt is not None
+    assert positive_field.prompt.role == PromptRole.POSITIVE
+    assert negative_field.prompt is not None
+    assert negative_field.prompt.role == PromptRole.NEGATIVE
+
+
+def test_behavior_snapshot_infers_prompt_from_conditioning_topology() -> None:
+    """Unknown encoders should resolve through typed conditioning sink semantics."""
+
+    cube = cube_state(
+        nodes={
+            "encoder": {
+                "class_type": "UnknownTextEncoder",
+                "inputs": {"text": "quality"},
+            },
+            "sampler": {
+                "class_type": "UnknownSampler",
+                "inputs": {"positive": ["encoder", 0]},
+            },
+        }
+    )
+    snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class={
+            "UnknownTextEncoder": {
+                "input": {"required": {"text": ["STRING", {"multiline": True}]}},
+                "output": ["CONDITIONING"],
+            },
+            "UnknownSampler": {
+                "input": {"required": {"positive": ["CONDITIONING", {}]}}
+            },
+        },
+    )
+
+    behavior = snapshot.resolved_nodes_by_alias["A"]["encoder"]
+    assert behavior.card.card_mode == CardMode.PROMPT
+    assert behavior.fields["text"].presentation == FieldPresentation.PROMPT_BOX
+    assert behavior.fields["text"].prompt is not None
+    assert behavior.fields["text"].prompt.role == PromptRole.POSITIVE
+
+
+def test_behavior_snapshot_withholds_dual_role_conditioning_source() -> None:
+    """A shared prompt source should remain standard when polarity is ambiguous."""
+
+    cube = cube_state(
+        nodes={
+            "encoder": {
+                "class_type": "UnknownTextEncoder",
+                "inputs": {"text": "shared"},
+            },
+            "sampler": {
+                "class_type": "UnknownSampler",
+                "inputs": {
+                    "positive": ["encoder", 0],
+                    "negative": ["encoder", 0],
+                },
+            },
+        }
+    )
+    snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class={
+            "UnknownTextEncoder": {
+                "input": {"required": {"text": ["STRING", {"multiline": True}]}},
+                "output": ["CONDITIONING"],
+            },
+            "UnknownSampler": {
+                "input": {
+                    "required": {
+                        "positive": ["CONDITIONING", {}],
+                        "negative": ["CONDITIONING", {}],
+                    }
+                }
+            },
+        },
+    )
+
+    behavior = snapshot.resolved_nodes_by_alias["A"]["encoder"]
+    assert behavior.card.card_mode == CardMode.STANDARD
+    assert behavior.fields["text"].presentation == FieldPresentation.STANDARD
+    assert behavior.fields["text"].prompt is None
+
+
+def test_behavior_snapshot_never_traces_prompt_roles_across_cube_sections() -> None:
+    """A sink in another cube must not classify an encoder-only cube field."""
+
+    encoder_cube = cube_state(
+        nodes={
+            "encoder": {
+                "class_type": "UnknownTextEncoder",
+                "inputs": {"text": "quality"},
+            }
+        }
+    )
+    sink_cube = cube_state(
+        nodes={
+            "sampler": {
+                "class_type": "UnknownSampler",
+                "inputs": {"positive": ["encoder", 0]},
+            }
+        }
+    )
+    snapshot = build_behavior_snapshot(
+        cube_states={"encoder_cube": encoder_cube, "sink_cube": sink_cube},
+        stack_order=["encoder_cube", "sink_cube"],
+        definitions_by_class={
+            "UnknownTextEncoder": {
+                "input": {"required": {"text": ["STRING", {"multiline": True}]}},
+                "output": ["CONDITIONING"],
+            },
+            "UnknownSampler": {
+                "input": {"required": {"positive": ["CONDITIONING", {}]}}
+            },
+        },
+    )
+
+    field = snapshot.resolved_nodes_by_alias["encoder_cube"]["encoder"].fields["text"]
+    assert field.prompt is None
+    assert field.presentation == FieldPresentation.STANDARD
+
+
+def test_literal_prompt_name_remains_authoritative_over_graph_evidence() -> None:
+    """The established literal prompt alias should not be reclassified by topology."""
+
+    cube = cube_state(
+        nodes={
+            "positive_prompt": {
+                "class_type": "UnknownTextEncoder",
+                "inputs": {"prompt_template": "quality"},
+                "_meta": {"title": "Negative Prompt"},
+            },
+            "sampler": {
+                "class_type": "UnknownSampler",
+                "inputs": {"negative": ["positive_prompt", 0]},
+            },
+        }
+    )
+    snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class={
+            "UnknownTextEncoder": {
+                "input": {
+                    "required": {"prompt_template": ["STRING", {"multiline": True}]}
+                },
+                "output": ["CONDITIONING"],
+            },
+            "UnknownSampler": {
+                "input": {"required": {"negative": ["CONDITIONING", {}]}}
+            },
+        },
+    )
+
+    field = snapshot.resolved_nodes_by_alias["A"]["positive_prompt"].fields[
+        "prompt_template"
+    ]
+    assert field.prompt is not None
+    assert field.prompt.role == PromptRole.POSITIVE
+
+
 def test_simple_syrup_schedule_node_is_hidden_infrastructure() -> None:
     """SimpleSyrup schedule nodes should not expose editor card UI."""
 
@@ -1521,6 +1795,129 @@ def test_simple_syrup_schedule_node_is_hidden_infrastructure() -> None:
     assert negative_behavior.presentation is FieldPresentation.STANDARD
     assert negative_behavior.prompt is None
     assert style_behavior.presentation is FieldPresentation.STANDARD
+
+
+def test_workflow_local_definition_does_not_override_existing_hidden_policy() -> None:
+    """Renderable direct-workflow widgets must not force hidden nodes visible."""
+
+    node_class = "SimpleSyrup.ScheduleAndEncodePromptsWithPromptControl"
+    document = DirectWorkflowState(
+        source_path=Path("workflow.json"),
+        source_workflow={"nodes": [], "links": []},
+        buffer={
+            "nodes": {
+                "schedule": {
+                    "class_type": node_class,
+                    "inputs": {"positive_prompt": "quality"},
+                    "_workflow": {
+                        "execution_role": "executable",
+                        "editor_definition": {
+                            "input": {
+                                "required": {
+                                    "positive_prompt": [
+                                        "STRING",
+                                        {"multiline": True},
+                                    ]
+                                }
+                            }
+                        },
+                    },
+                }
+            }
+        },
+    )
+    service = NodeBehaviorService(node_definition_gateway=DummyNodeDefinitionGateway())
+
+    snapshot = service.build_snapshot(
+        cube_states={"direct": document},
+        stack_order=["direct"],
+    )
+
+    behavior = snapshot.resolved_nodes_by_alias["direct"]["schedule"]
+    decision = snapshot.card_decisions_by_alias["direct"]["schedule"]
+    assert "positive_prompt" in snapshot.field_specs_by_alias["direct"]["schedule"]
+    assert behavior.card.hidden is True
+    assert decision.visible is False
+    assert decision.revealable is False
+
+
+def test_direct_workflow_terminal_image_output_is_hard_hidden() -> None:
+    """Direct image sinks should disappear without becoming reveal-menu entries."""
+
+    document = DirectWorkflowState(
+        source_path=Path("workflow.json"),
+        source_workflow={"nodes": [], "links": []},
+        buffer={
+            "nodes": {
+                "source": {
+                    "class_type": "ImageSource",
+                    "inputs": {},
+                },
+                "sink": {
+                    "class_type": "UnfamiliarImageSink",
+                    "inputs": {"pictures": ["source", 0]},
+                },
+            }
+        },
+    )
+    service = NodeBehaviorService(
+        node_definition_gateway=DummyNodeDefinitionGateway(
+            {
+                "ImageSource": {"input": {"required": {}}, "output": ["IMAGE"]},
+                "UnfamiliarImageSink": {
+                    "input": {"required": {"pictures": ["IMAGE", {}]}},
+                    "output_node": True,
+                },
+            }
+        )
+    )
+
+    snapshot = service.build_snapshot(
+        cube_states={"direct": document},
+        stack_order=["direct"],
+    )
+
+    behavior = snapshot.resolved_nodes_by_alias["direct"]["sink"]
+    decision = snapshot.card_decisions_by_alias["direct"]["sink"]
+    assert behavior.card.hidden is True
+    assert decision.visible is False
+    assert decision.revealable is False
+    assert decision.show_enabled_switch is False
+    assert not any(
+        entry.node_name == "sink"
+        for entry in snapshot.reveal_entries_by_alias["direct"]
+    )
+
+
+def test_cube_terminal_image_output_keeps_existing_behavior() -> None:
+    """Output takeover visibility must remain scoped to direct workflows."""
+
+    cube = cube_state(
+        nodes={
+            "source": {"class_type": "ImageSource", "inputs": {}},
+            "sink": {
+                "class_type": "UnfamiliarImageSink",
+                "inputs": {"pictures": ["source", 0]},
+            },
+        }
+    )
+
+    snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class={
+            "ImageSource": {"input": {"required": {}}, "output": ["IMAGE"]},
+            "UnfamiliarImageSink": {
+                "input": {"required": {"pictures": ["IMAGE", {}]}},
+                "output_node": True,
+            },
+        },
+    )
+
+    behavior = snapshot.resolved_nodes_by_alias["A"]["sink"]
+    decision = snapshot.card_decisions_by_alias["A"]["sink"]
+    assert behavior.card.hidden is False
+    assert decision.visible is True
 
 
 def test_build_snapshot_keeps_definition_resolution_details_out_of_info_logs(

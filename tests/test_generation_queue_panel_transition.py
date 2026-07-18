@@ -27,7 +27,6 @@ from PySide6.QtWidgets import QApplication
 from substitute.presentation.shell.generation_queue_panel_transition import (
     GenerationQueuePanelTransition,
 )
-from substitute.presentation.shell.shell_layout_controller import ShellLayoutController
 
 _REDUCED_MOTION_PROPERTY = "substitute.reduce_motion"
 
@@ -142,9 +141,9 @@ def _view(
         canvas_tabs_container=canvas,
         remembered=remembered,
     )
-    view.shell_layout_controller = ShellLayoutController(view)
-    view.shell_layout_controller.remember_workflow_splitter_sizes = lambda sizes: (
-        remembered.append(list(sizes))
+    view.workspace_layout_controller = SimpleNamespace(
+        remember_workflow_splitter_sizes=lambda sizes: remembered.append(list(sizes)),
+        log_editor_width_trace=lambda *_args, **_kwargs: None,
     )
     return view
 

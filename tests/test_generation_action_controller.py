@@ -570,9 +570,7 @@ def _generation_action_shell(
             has_cancellable_jobs=has_cancellable_jobs,
             jobs=jobs,
         ),
-        shell_layout_controller=SimpleNamespace(
-            current_generation_queue_panel_visible=lambda: queue_panel_visible
-        ),
+        generation_queue_controller=SimpleNamespace(panel_visible=queue_panel_visible),
     )
 
 

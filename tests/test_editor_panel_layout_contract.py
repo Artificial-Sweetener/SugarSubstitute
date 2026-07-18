@@ -14,27 +14,47 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Source contracts for editor-panel workspace layout margins."""
+"""Behavior contracts for editor-panel workspace layout margins."""
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import cast
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-EDITOR_PANEL_PATH = (
-    REPO_ROOT / "substitute" / "presentation" / "editor" / "panel" / "view.py"
+from PySide6.QtWidgets import QApplication, QWidget
+
+from substitute.presentation.editor.panel.content_gutter_controller import (
+    CANVAS_ADJACENT_GUTTER,
+    CUBE_STACK_ADJACENT_GUTTER,
+    DIRECT_WORKFLOW_LEFT_GUTTER,
+    EditorPanelContentGutterController,
+)
+from substitute.presentation.editor.panel.widgets.masonry_grid_layout import (
+    EDITOR_SECTION_GAP,
 )
 
 
-def test_editor_panel_content_has_asymmetric_workspace_gutters() -> None:
-    """Editor content should not sit directly against the cube-stack edge."""
+def _application() -> QApplication:
+    """Return the QApplication required for real content-margin behavior."""
 
-    source = EDITOR_PANEL_PATH.read_text(encoding="utf-8")
+    return cast(QApplication, QApplication.instance() or QApplication([]))
 
-    assert "EDITOR_PANEL_LEFT_GUTTER = 6" in source
-    assert "EDITOR_PANEL_RIGHT_GUTTER = 14" in source
-    assert (
-        "content.setContentsMargins(\n            EDITOR_PANEL_LEFT_GUTTER," in source
+
+def test_editor_panel_content_gutters_follow_stack_availability_progress() -> None:
+    """Direct mode should match the fixed left gutter to the leading section gap."""
+
+    _application()
+    content = QWidget()
+    controller = EditorPanelContentGutterController(content)
+
+    assert controller.horizontal_gutters() == (
+        CUBE_STACK_ADJACENT_GUTTER,
+        CANVAS_ADJACENT_GUTTER,
     )
-    assert "            EDITOR_PANEL_RIGHT_GUTTER," in source
-    assert "content.setContentsMargins(0, 0, 20, 0)" not in source
+    controller.apply_cube_stack_unavailable_progress(0.5)
+    assert controller.horizontal_gutters() == (7, CANVAS_ADJACENT_GUTTER)
+    controller.apply_cube_stack_unavailable_progress(1.0)
+    assert controller.horizontal_gutters() == (
+        DIRECT_WORKFLOW_LEFT_GUTTER,
+        CANVAS_ADJACENT_GUTTER,
+    )
+    assert DIRECT_WORKFLOW_LEFT_GUTTER == EDITOR_SECTION_GAP

@@ -100,7 +100,7 @@ class WorkflowTabService:
         existing_workflow_ids: Collection[str],
     ) -> WorkflowTabCreation:
         """Plan a unique workflow id and tab label for a new workflow tab."""
-        unique_label = self._resolve_unique_label(base_name, existing_labels)
+        unique_label = self.resolve_unique_label(base_name, existing_labels)
         workflow_id = self._generate_unique_workflow_id(existing_workflow_ids)
         return WorkflowTabCreation(workflow_id=workflow_id, tab_label=unique_label)
 
@@ -167,10 +167,12 @@ class WorkflowTabService:
                 new_key=new_workflow_id,
             )
 
-    def _resolve_unique_label(
+    def resolve_unique_label(
         self, base_name: str, existing_labels: Collection[str]
     ) -> str:
-        """Return unique tab label by appending numeric suffix when needed."""
+        """Return a unique normalized tab label for document loading or creation."""
+
+        base_name = normalize_default_workflow_tab_label(base_name)
         if base_name not in existing_labels:
             return base_name
 

@@ -280,11 +280,17 @@ def scene_has_completed_source_set(
     *,
     source_key: str,
     set_index: int,
+    generation_run_id: str = "",
 ) -> bool:
     """Return whether a scene has a completed final output for one slot."""
 
     return any(
-        source.source_key == source_key and set_index in source.images_by_set
+        source.source_key == source_key
+        and (item := source.images_by_set.get(set_index)) is not None
+        and (
+            not generation_run_id
+            or item.image_meta.generation_run_id == generation_run_id
+        )
         for source in scene.sources
     )
 
@@ -412,6 +418,7 @@ def preview_slot_is_completed(
         scene,
         source_key=slot_key.source_key,
         set_index=slot_key.set_index,
+        generation_run_id=slot_key.generation_run_id,
     )
 
 
@@ -438,6 +445,7 @@ def preview_slot_for_scene(
         scene,
         source_key=preview_slot.source_key,
         set_index=preview_slot.set_index,
+        generation_run_id=preview_slot.generation_run_id,
     ):
         return None
     if scene.primary_image_id is None:

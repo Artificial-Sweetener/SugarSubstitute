@@ -101,6 +101,7 @@ class _FakeInfraGateway:
             tuple[
                 dict[str, object],
                 str,
+                tuple[str, ...] | None,
                 str | None,
                 str | None,
                 QueueVisualRunContext | None,
@@ -119,13 +120,21 @@ class _FakeInfraGateway:
         workflow_payload: dict[str, object],
         *,
         client_id: str,
+        execution_targets: tuple[str, ...] | None = None,
         preview_method: str | None = None,
         sugar_script: str | None = None,
         visual_context: QueueVisualRunContext | None = None,
     ) -> InfraQueuePromptResult:
         """Return configured queue result while recording call inputs."""
         self.queue_calls.append(
-            (workflow_payload, client_id, preview_method, sugar_script, visual_context)
+            (
+                workflow_payload,
+                client_id,
+                execution_targets,
+                preview_method,
+                sugar_script,
+                visual_context,
+            )
         )
         return self.queue_result
 
@@ -251,7 +260,7 @@ def test_queue_prompt_maps_infrastructure_result_to_application_port() -> None:
         error=None,
     )
     assert gateway.queue_calls == [
-        ({"N1": {"class_type": "KSampler"}}, "client-id", None, None, None)
+        ({"N1": {"class_type": "KSampler"}}, "client-id", None, None, None, None)
     ]
 
 
@@ -319,6 +328,7 @@ def test_queue_prompt_preserves_preview_method() -> None:
         (
             {"N1": {"class_type": "KSampler"}},
             "client-id",
+            None,
             "taesd",
             'use "cube" as A',
             None,

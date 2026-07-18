@@ -50,11 +50,11 @@ class SurfaceRefreshResult:
 
 
 @dataclass(frozen=True, slots=True)
-class WorkflowUiPair:
-    """Return workflow-scoped shell widgets materialized for a route."""
+class WorkflowUiSurfaces:
+    """Return workflow-scoped surfaces with document-kind-specific optional stack."""
 
     cube_stack: object | None
-    editor_panel: object | None
+    editor_panel: object
     created: bool
 
 
@@ -98,6 +98,6 @@ __all__ = [
     "ReconciliationToken",
     "SurfaceRefreshResult",
     "SurfaceRefreshStatus",
-    "WorkflowUiPair",
+    "WorkflowUiSurfaces",
     "surface_result",
 ]

@@ -20,7 +20,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from types import SimpleNamespace
+from pathlib import Path
 
+from substitute.domain.comfy_workflow import DirectWorkflowState
+from substitute.domain.workflow import WorkflowState
 from substitute.presentation.shell.workflow_surface_invalidation import (
     WorkflowInvalidationReason,
     WorkflowSurface,
@@ -106,6 +109,26 @@ def test_registry_returns_existing_cached_surfaces_without_materializing() -> No
     assert registry.override_manager("wf-a") is manager
     assert registry.editor_panel("missing") is None
     assert not registry.workflow_ui_materialized("missing")
+
+
+def test_registry_treats_direct_editor_without_stack_as_fully_materialized() -> None:
+    """Document topology should not require a phantom cube stack for direct JSON."""
+
+    workflow = WorkflowState(
+        direct_workflow=DirectWorkflowState(
+            source_path=Path("workflow.json"),
+            source_workflow={"nodes": []},
+            buffer={"nodes": {}},
+        )
+    )
+    registry = WorkflowSurfaceRegistry(
+        editor_panels={"wf-direct": object()},
+        cube_stacks={},
+        override_managers={"wf-direct": object()},
+        workflows={"wf-direct": workflow},
+    )
+
+    assert registry.workflow_ui_materialized("wf-direct")
 
 
 def test_registry_distinguishes_unprojected_editor_from_clean_editor() -> None:

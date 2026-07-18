@@ -219,6 +219,9 @@ def allowed_output_composition_ids(
     """Return stable host composition IDs addressable by this projection."""
 
     routes: set[CanvasRouteIdentity] = set()
+    active_route = output_route_identity_for_projection(projection)
+    if active_route.route_kind == "source_grid":
+        routes.add(active_route)
     scene_key = projection.active_scene_key or ""
     if projection.scene_count > 1:
         routes.add(

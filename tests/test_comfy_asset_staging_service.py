@@ -22,10 +22,23 @@ from pathlib import Path
 from typing import cast
 
 from substitute.application.generation import ComfyAssetStagingService
+from substitute.application.generation.input_asset_staging_plan_service import (
+    InputAssetStagingPlanService,
+)
+from substitute.application.workflows.input_asset_endpoint_service import (
+    InputAssetEndpointService,
+)
+from substitute.application.workflows.workflow_graph_section_service import (
+    WorkflowGraphSectionService,
+)
+from substitute.application.workflows.workflow_node_definition_service import (
+    WorkflowNodeDefinitionService,
+)
 from substitute.application.workflows import WorkflowAssetService
 from substitute.domain.common import JsonObject
 from substitute.domain.generation import ComfyStagedAsset
 from substitute.domain.workflow import CubeState, WorkflowState
+from substitute.domain.comfy_workflow import DirectWorkflowState
 
 
 class _FakeStager:
@@ -47,6 +60,25 @@ class _FakeStager:
             execution_value=f"{target_subfolder}/{source_path.name}",
             operation="uploaded",
         )
+
+
+class _DefinitionGateway:
+    """Return deterministic live definitions for custom upload nodes."""
+
+    def __init__(self, definitions: dict[str, JsonObject]) -> None:
+        """Store definitions by backend class name."""
+
+        self._definitions = definitions
+
+    def get_node_definition(self, node_class: str) -> JsonObject:
+        """Return one cached custom definition."""
+
+        return self._definitions.get(node_class, {})
+
+    def get_required_node_definition(self, node_class: str) -> JsonObject:
+        """Return one required custom definition."""
+
+        return self.get_node_definition(node_class)
 
 
 def test_stage_payload_rewrites_load_image_paths_without_mutating_authoring_payload(
@@ -241,16 +273,22 @@ def test_stage_payload_reports_missing_project_mask_asset(tmp_path: Path) -> Non
                         "load_image_as_mask": {
                             "class_type": "LoadImageMask",
                             "inputs": {"image": "missing_mask.png"},
-                        }
+                        },
+                        "consumer": {
+                            "class_type": "Consumer",
+                            "inputs": {"mask": ["load_image_as_mask", 0]},
+                        },
                     }
                 },
             )
-        }
+        },
+        stack_order=["Inpaint"],
     )
     assert WorkflowAssetService().associate_project_input_mask(
         workflow,
-        cube_alias="Inpaint",
+        section_key="Inpaint",
         node_name="load_image_as_mask",
+        field_key="image",
         relative_path="missing_mask.png",
     )
     payload: JsonObject = {
@@ -274,3 +312,175 @@ def test_stage_payload_reports_missing_project_mask_asset(tmp_path: Path) -> Non
     assert result.staged_assets == ()
     assert len(result.failures) == 1
     assert result.failures[0].source_value == "missing_mask.png"
+
+
+def test_direct_custom_upload_fields_stage_through_semantic_plan(
+    tmp_path: Path,
+) -> None:
+    """Custom direct image and mask upload fields should stage without name rules."""
+
+    image_path = tmp_path / "photo.png"
+    mask_path = tmp_path / "stencil.png"
+    image_path.write_bytes(b"photo")
+    mask_path.write_bytes(b"stencil")
+    graph: JsonObject = {
+        "nodes": {
+            "10": {
+                "class_type": "PhotoPicker",
+                "inputs": {"photo_path": str(image_path)},
+            },
+            "11": {
+                "class_type": "StencilPicker",
+                "inputs": {"stencil_path": str(mask_path)},
+            },
+            "12": {
+                "class_type": "Consumer",
+                "inputs": {"pixels": ["10", 0], "mask": ["11", 0]},
+            },
+        }
+    }
+    workflow = WorkflowState(
+        direct_workflow=DirectWorkflowState(
+            source_path=tmp_path / "workflow.json",
+            source_workflow=graph,
+            buffer=graph,
+        )
+    )
+    definitions: dict[str, JsonObject] = {
+        "PhotoPicker": {
+            "input": {
+                "required": {"photo_path": (["photo.png"], {"image_upload": True})}
+            },
+            "output": ["IMAGE"],
+        },
+        "StencilPicker": {
+            "input": {
+                "required": {"stencil_path": (["mask.png"], {"image_upload": True})}
+            },
+            "output": ["MASK"],
+        },
+        "Consumer": {
+            "input": {"required": {"pixels": ("IMAGE",), "mask": ("MASK",)}},
+            "output": [],
+        },
+    }
+    definition_service = WorkflowNodeDefinitionService(_DefinitionGateway(definitions))
+    endpoint_service = InputAssetEndpointService(definition_service)
+    staging_plan_service = InputAssetStagingPlanService(
+        endpoint_service,
+        WorkflowGraphSectionService(),
+    )
+    prompt = cast(JsonObject, graph["nodes"])
+
+    result = ComfyAssetStagingService(
+        stager=_FakeStager(),
+        input_asset_staging_plan_service=staging_plan_service,
+    ).stage_payload(
+        workflow_payload=prompt,
+        workflow_id="wf-direct",
+        workflow_name="Direct",
+        workflow=workflow,
+    )
+
+    assert result.failures == ()
+    assert len(result.staged_assets) == 2
+    staged_photo = cast(JsonObject, result.workflow_payload["10"])
+    staged_stencil = cast(JsonObject, result.workflow_payload["11"])
+    assert cast(JsonObject, staged_photo["inputs"])["photo_path"] == (
+        "substitute/wf-direct/photo.png"
+    )
+    assert cast(JsonObject, staged_stencil["inputs"])["stencil_path"] == (
+        "substitute/wf-direct/stencil.png"
+    )
+
+
+def test_mask_only_canvas_backing_surface_is_never_injected_or_staged(
+    tmp_path: Path,
+) -> None:
+    """Synthetic canvas ownership must remain outside the authored Comfy prompt."""
+
+    mask_path = tmp_path / "region-mask.png"
+    mask_path.write_bytes(b"mask")
+    nodes: JsonObject = {
+        "mask": {
+            "class_type": "StencilPicker",
+            "inputs": {"stencil_path": str(mask_path)},
+        },
+        "region": {
+            "class_type": "RegionalCondition",
+            "inputs": {"mask": ["mask", 0]},
+        },
+        "root": {
+            "class_type": "NoiseRoot",
+            "inputs": {"width": 1024, "height": 768},
+        },
+        "sampler": {
+            "class_type": "Sampler",
+            "inputs": {
+                "latent_image": ["root", 0],
+                "positive": ["region", 0],
+            },
+        },
+    }
+    graph: JsonObject = {"nodes": nodes}
+    workflow = WorkflowState(
+        direct_workflow=DirectWorkflowState(
+            source_path=tmp_path / "regional.json",
+            source_workflow=graph,
+            buffer=graph,
+        )
+    )
+    definitions: dict[str, JsonObject] = {
+        "StencilPicker": {
+            "input": {
+                "required": {
+                    "stencil_path": (
+                        ["region-mask.png"],
+                        {"image_upload": True},
+                    )
+                }
+            },
+            "output": ["MASK"],
+        },
+        "RegionalCondition": {
+            "input": {"required": {"mask": ("MASK",)}},
+            "output": ["CONDITIONING"],
+        },
+        "NoiseRoot": {
+            "input": {"required": {"width": ("INT",), "height": ("INT",)}},
+            "output": ["LATENT"],
+        },
+        "Sampler": {
+            "input": {
+                "required": {
+                    "latent_image": ("LATENT",),
+                    "positive": ("CONDITIONING",),
+                }
+            },
+            "output": ["LATENT"],
+        },
+    }
+    definition_service = WorkflowNodeDefinitionService(_DefinitionGateway(definitions))
+    staging_plan_service = InputAssetStagingPlanService(
+        InputAssetEndpointService(definition_service),
+        WorkflowGraphSectionService(),
+    )
+    stager = _FakeStager()
+
+    result = ComfyAssetStagingService(
+        stager=stager,
+        input_asset_staging_plan_service=staging_plan_service,
+    ).stage_payload(
+        workflow_payload=nodes,
+        workflow_id="wf-regional",
+        workflow_name="Regional",
+        workflow=workflow,
+    )
+
+    assert set(result.workflow_payload) == set(nodes)
+    assert not any(
+        node_id.startswith("@synthetic/") for node_id in result.workflow_payload
+    )
+    assert [call[0] for call in stager.calls] == [mask_path]
+    assert len(result.staged_assets) == 1
+    assert result.failures == ()

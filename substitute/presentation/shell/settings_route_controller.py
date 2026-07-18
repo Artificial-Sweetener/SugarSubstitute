@@ -174,7 +174,7 @@ class SettingsRouteController:
         """Show the integrated Settings navigation pane and active page host."""
 
         self._shell._active_workspace_route = SETTINGS_WORKSPACE_ROUTE
-        self._shell.shell_layout_controller.set_workflow_override_toolbar_visible(False)
+        self._shell.shell_chrome_controller.set_workflow_override_toolbar_visible(False)
         self._shell.generation_action_controller.apply_generation_action_availability()
         self._shell.workflow_tabbar.clear_selection()
         self.show_settings_workspace()
@@ -206,12 +206,11 @@ class SettingsRouteController:
         self._shell.workspace_route_container.setCurrentWidget(
             self._shell.settings_workspace_page
         )
-        layout = self._shell.shell_layout_controller
-        layout.set_cube_stack_material_region_enabled(False)
-        layout.set_cube_stack_mode_button_enabled(False)
-        layout.set_orb_action_cluster_visible(False)
-        layout.set_settings_toolbar_search_visible(True)
-        layout.set_app_orb_workflow_file_actions_enabled(False)
+        chrome = self._shell.shell_chrome_controller
+        self._shell.cube_stack_presentation_controller.set_workflow_route_active(False)
+        chrome.set_orb_action_cluster_visible(False)
+        chrome.set_settings_toolbar_search_visible(True)
+        chrome.set_app_orb_workflow_file_actions_enabled(False)
         settings_panel = getattr(self._shell, "settings_workspace_panel", None)
         set_route_active = getattr(settings_panel, "set_route_active", None)
         if callable(set_route_active):
@@ -233,12 +232,11 @@ class SettingsRouteController:
         self._shell.workspace_route_container.setCurrentWidget(
             self._shell.workflow_workspace_page
         )
-        layout = self._shell.shell_layout_controller
-        layout.set_cube_stack_material_region_enabled(True)
-        layout.set_cube_stack_mode_button_enabled(True)
-        layout.set_orb_action_cluster_visible(True)
-        layout.set_settings_toolbar_search_visible(False)
-        layout.set_app_orb_workflow_file_actions_enabled(True)
+        chrome = self._shell.shell_chrome_controller
+        self._shell.cube_stack_presentation_controller.set_workflow_route_active(True)
+        chrome.set_orb_action_cluster_visible(True)
+        chrome.set_settings_toolbar_search_visible(False)
+        chrome.set_app_orb_workflow_file_actions_enabled(True)
         settings_panel = getattr(self._shell, "settings_workspace_panel", None)
         set_route_active = getattr(settings_panel, "set_route_active", None)
         if callable(set_route_active):

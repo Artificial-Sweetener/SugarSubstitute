@@ -22,6 +22,7 @@ from typing import Any
 from typing import cast
 
 from substitute.application.workflows import WorkflowState
+from substitute.domain.workflow import WorkflowDocumentKind
 from substitute.application.workspace_state import WorkspaceAppendService
 from substitute.domain.workspace_snapshot import WorkflowSnapshot, WorkspaceSnapshot
 from substitute.presentation.shell.cube_stack_presenter import (
@@ -32,6 +33,7 @@ from substitute.presentation.shell.main_window_startup_trace import (
     workflow_snapshot_trace_fields,
 )
 from substitute.presentation.shell.workflow_ui_factory import workflow_ui_factory_for
+from substitute.presentation.shell.workflow_surface_results import WorkflowUiSurfaces
 from substitute.presentation.workflows.workflow_tabs_view import (
     SETTINGS_WORKSPACE_ROUTE,
 )
@@ -223,14 +225,14 @@ class RestoredWorkflowMaterializer:
             "main_window.add_restored_workflow.ensure_workflow_ui",
             workflow_id=snapshot.workflow_id,
         ):
-            cube_stack, editor_panel = self.ensure_workflow_ui(
+            surfaces = self.ensure_workflow_ui(
                 snapshot.workflow_id,
                 set_as_current=True,
             )
         if snapshot.workflow_id not in self._shell._pending_restored_workflow_snapshots:
             self.materialize_restored_cube_stack(snapshot)
-        self._shell.cube_stack = cube_stack
-        self._shell.editor_panel = editor_panel
+        self._shell.cube_stack = surfaces.cube_stack
+        self._shell.editor_panel = surfaces.editor_panel
         log_info(
             _LOGGER,
             "mainwindow add restored workflow completed",
@@ -262,8 +264,8 @@ class RestoredWorkflowMaterializer:
         workflow_id: str,
         *,
         set_as_current: bool = True,
-    ) -> tuple[object, object]:
-        """Create deferred workflow-scoped widgets before route activation."""
+    ) -> WorkflowUiSurfaces:
+        """Ensure the editor and document-kind-specific optional cube stack exist."""
 
         trace_mark(
             "main_window.ensure_workflow_ui.start",
@@ -274,15 +276,18 @@ class RestoredWorkflowMaterializer:
         )
         cube_stack = self._shell.cube_stacks.get(workflow_id)
         editor_panel = self._shell.editor_panels.get(workflow_id)
-        if cube_stack is None or editor_panel is None:
+        created = editor_panel is None
+        if editor_panel is None:
             with trace_span(
                 "main_window.ensure_workflow_ui.create_new",
                 workflow_id=workflow_id,
             ):
-                cube_stack, editor_panel = self._create_workflow_ui(
+                surfaces = self._create_workflow_ui(
                     workflow_id,
                     set_as_current=set_as_current,
                 )
+                cube_stack = surfaces.cube_stack
+                editor_panel = surfaces.editor_panel
             snapshot = self._shell._pending_restored_workflow_snapshots.pop(
                 workflow_id,
                 None,
@@ -300,30 +305,53 @@ class RestoredWorkflowMaterializer:
                     cube_count=len(snapshot.workflow.cubes),
                     stack_order=tuple(snapshot.workflow.stack_order),
                 )
-        elif set_as_current:
+        else:
+            workflows = getattr(
+                self._shell.workflow_session_service,
+                "workflows",
+                {},
+            )
+            workflow = workflows.get(workflow_id)
+            needs_reconciliation = cube_stack is None or (
+                isinstance(workflow, WorkflowState)
+                and workflow.document_kind is WorkflowDocumentKind.DIRECT_COMFY
+            )
+            if needs_reconciliation:
+                cube_stack = workflow_ui_factory_for(
+                    self._shell
+                ).reconcile_cube_stack_surface(
+                    workflow_id,
+                    set_as_current=set_as_current,
+                )
+        if set_as_current and not created:
             self._shell.editor_panel_container.setCurrentWidget(editor_panel)
-            self._shell.cube_stack_container.setCurrentWidget(cube_stack)
             self._shell.editor_panel = editor_panel
+            if cube_stack is not None:
+                self._shell.cube_stack_container.setCurrentWidget(cube_stack)
             self._shell.cube_stack = cube_stack
         trace_mark(
             "main_window.ensure_workflow_ui.end",
             workflow_id=workflow_id,
         )
-        return cube_stack, editor_panel
+        return WorkflowUiSurfaces(
+            cube_stack=cube_stack,
+            editor_panel=editor_panel,
+            created=created,
+        )
 
     def _create_workflow_ui(
         self,
         workflow_id: str,
         *,
         set_as_current: bool,
-    ) -> tuple[object, object]:
+    ) -> WorkflowUiSurfaces:
         """Create workflow widgets through the composed workflow UI owner."""
 
         factory = getattr(self._shell, "workflow_ui_factory", None)
         create_workflow_ui = getattr(factory, "create_workflow_ui", None)
         if callable(create_workflow_ui):
             return cast(
-                "tuple[object, object]",
+                WorkflowUiSurfaces,
                 create_workflow_ui(workflow_id, set_as_current=set_as_current),
             )
         return workflow_ui_factory_for(self._shell).create_workflow_ui(

@@ -22,18 +22,29 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from enum import Enum
 
+from substitute.application.cubes import LoadedCubeDefinition
 from substitute.application.ports import NodeDefinitionGateway
-from substitute.application.workspace_state.restore_projection_cache import (
+from substitute.application.workflows import DIRECT_WORKFLOW_SECTION_KEY
+from substitute.application.workspace_state.restore_projection_identity import (
+    cube_definition_fingerprint,
+    cube_projection_cache_key,
+    durable_direct_workflow_ui,
+    fingerprint_json,
+    node_definition_fingerprint,
+    workflow_projection_fingerprint,
+    workspace_projection_fingerprint,
+)
+from substitute.application.workspace_state.restore_projection_models import (
     APP_PROJECTION_VERSION,
     RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
     CachedCubeProjection,
+    CachedCubeStackProjection,
+    CachedDirectWorkflowProjection,
+    CachedEditorSectionProjection,
     CachedNodeProjection,
     CachedWorkflowProjection,
     RestoreProjectionArtifact,
     RestoreProjectionCacheRepository,
-    fingerprint_json,
-    node_definition_fingerprint,
-    workspace_projection_fingerprint,
 )
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import CubeState
@@ -84,20 +95,40 @@ class RestoredEditorProjectionCacheExtractor:
         node_fingerprints: dict[str, str] = {}
         cube_fingerprints: dict[str, str] = {}
         prompt_metadata: dict[str, object] = {}
+        source_workflows = {
+            workflow.workflow_id: workflow for workflow in snapshot.workflows
+        }
         for workflow in workflows:
-            for cube in workflow.cubes:
-                cube_fingerprints[cube.alias] = fingerprint_json(
-                    {
-                        "canonical_cube_id": cube.canonical_cube_id,
-                        "cube_version": cube.cube_version,
-                        "content_hash": cube.content_hash,
-                        "catalog_revision": cube.catalog_revision,
-                        "buffer_fingerprint": cube.buffer_fingerprint,
-                    }
+            cube_stack = workflow.cube_stack
+            for cube in cube_stack.cubes if cube_stack is not None else ():
+                source_workflow = source_workflows[workflow.workflow_id]
+                source_cube = source_workflow.workflow.cubes[cube.alias]
+                definition = LoadedCubeDefinition(
+                    cube_id=cube.requested_cube_id,
+                    version=cube.cube_version,
+                    display_name=cube.alias,
+                    graph=source_cube.original_cube,
+                    ui_payload=(
+                        source_cube.ui if isinstance(source_cube.ui, dict) else {}
+                    ),
                 )
-                node_fingerprints.update(cube.node_definition_fingerprint_by_class)
-                if cube.prompt_field_metadata:
-                    prompt_metadata[cube.alias] = cube.prompt_field_metadata
+                cube_fingerprints[
+                    cube_projection_cache_key(workflow.workflow_id, cube.alias)
+                ] = cube_definition_fingerprint(definition)
+                node_fingerprints.update(
+                    cube.section.node_definition_fingerprint_by_class
+                )
+                if cube.section.prompt_field_metadata:
+                    prompt_metadata[cube.alias] = cube.section.prompt_field_metadata
+            direct = workflow.direct_workflow
+            if direct is not None:
+                node_fingerprints.update(
+                    direct.section.node_definition_fingerprint_by_class
+                )
+                if direct.section.prompt_field_metadata:
+                    prompt_metadata[workflow.workflow_id] = (
+                        direct.section.prompt_field_metadata
+                    )
         return RestoreProjectionArtifact(
             schema_version=RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
             created_at=_utc_now_text(),
@@ -126,7 +157,29 @@ class RestoredEditorProjectionCacheExtractor:
     ) -> CachedWorkflowProjection:
         """Return cache projection data for one workflow snapshot."""
 
-        stack_order = tuple(workflow.workflow.stack_order)
+        state = workflow.workflow
+        if state.is_direct_workflow:
+            direct = state.direct_workflow
+            if direct is None:
+                raise ValueError("Direct workflow projection requires authoring state.")
+            return CachedWorkflowProjection(
+                workflow_id=workflow.workflow_id,
+                tab_label=workflow.tab_label,
+                document_kind=state.document_kind,
+                workflow_fingerprint=workflow_projection_fingerprint(workflow),
+                direct_workflow=CachedDirectWorkflowProjection(
+                    durable_ui_fingerprint=fingerprint_json(
+                        durable_direct_workflow_ui(direct.ui)
+                    ),
+                    section=self._section_projection(
+                        DIRECT_WORKFLOW_SECTION_KEY,
+                        direct.buffer,
+                        editor_panel=editor_panel,
+                        node_definition_gateway=node_definition_gateway,
+                    ),
+                ),
+            )
+        stack_order = tuple(state.stack_order)
         cubes = tuple(
             self._cube_projection(
                 alias,
@@ -140,16 +193,13 @@ class RestoredEditorProjectionCacheExtractor:
         return CachedWorkflowProjection(
             workflow_id=workflow.workflow_id,
             tab_label=workflow.tab_label,
-            stack_order=stack_order,
-            active_cube_alias=workflow.active_cube_alias,
-            cube_aliases=tuple(cube.alias for cube in cubes),
-            workflow_fingerprint=fingerprint_json(
-                {
-                    "workflow_id": workflow.workflow_id,
-                    "stack_order": stack_order,
-                }
+            document_kind=state.document_kind,
+            workflow_fingerprint=workflow_projection_fingerprint(workflow),
+            cube_stack=CachedCubeStackProjection(
+                stack_order=stack_order,
+                active_cube_alias=workflow.active_cube_alias,
+                cubes=cubes,
             ),
-            cubes=cubes,
         )
 
     def _cube_projection(
@@ -162,7 +212,39 @@ class RestoredEditorProjectionCacheExtractor:
     ) -> CachedCubeProjection:
         """Return cache projection data for one cube section."""
 
-        nodes = cube.buffer.get("nodes", {})
+        section = self._section_projection(
+            alias,
+            cube.buffer,
+            editor_panel=editor_panel,
+            node_definition_gateway=node_definition_gateway,
+        )
+        ui_payload = cube.ui if isinstance(cube.ui, dict) else {}
+        canonical_cube = ui_payload.get("canonical_cube")
+        canonical_cube_id = (
+            str(canonical_cube.get("cube_id", ""))
+            if isinstance(canonical_cube, dict)
+            else ""
+        ) or cube.cube_id
+        return CachedCubeProjection(
+            requested_cube_id=cube.cube_id,
+            canonical_cube_id=canonical_cube_id,
+            cube_version=cube.version,
+            content_hash=str(ui_payload.get("content_hash", "")),
+            catalog_revision=str(ui_payload.get("catalog_revision", "")),
+            section=section,
+        )
+
+    def _section_projection(
+        self,
+        section_key: str,
+        buffer: Mapping[str, object],
+        *,
+        editor_panel: object | None,
+        node_definition_gateway: NodeDefinitionGateway,
+    ) -> CachedEditorSectionProjection:
+        """Return shared cached node-card projection for one editor section."""
+
+        nodes = buffer.get("nodes", {})
         node_items = nodes.items() if isinstance(nodes, dict) else ()
         projected_node_order = tuple(str(node_name) for node_name, _node in node_items)
         node_classes = tuple(
@@ -189,12 +271,14 @@ class RestoredEditorProjectionCacheExtractor:
             else getattr(editor_panel, "_last_behavior_snapshot", None)
         )
         field_specs_by_node = (
-            getattr(behavior_snapshot, "field_specs_by_alias", {}).get(alias, {})
+            getattr(behavior_snapshot, "field_specs_by_alias", {}).get(section_key, {})
             if behavior_snapshot is not None
             else {}
         )
         card_decisions_by_node = (
-            getattr(behavior_snapshot, "card_decisions_by_alias", {}).get(alias, {})
+            getattr(behavior_snapshot, "card_decisions_by_alias", {}).get(
+                section_key, {}
+            )
             if behavior_snapshot is not None
             else {}
         )
@@ -209,7 +293,7 @@ class RestoredEditorProjectionCacheExtractor:
             field_order[str(node_name)] = node_field_order
             node_specs: JsonObject = {}
             node_prompt_metadata: JsonObject = {}
-            node_class = _node_class(cube, str(node_name))
+            node_class = _node_class(buffer, str(node_name))
             for field_key, field_spec in field_specs.items():
                 field_spec_json = _field_spec_projection(field_spec)
                 node_specs[str(field_key)] = field_spec_json
@@ -233,21 +317,9 @@ class RestoredEditorProjectionCacheExtractor:
                     prompt_field_metadata=node_prompt_metadata,
                 )
             )
-        ui_payload = cube.ui if isinstance(cube.ui, dict) else {}
-        canonical_cube = ui_payload.get("canonical_cube")
-        canonical_cube_id = (
-            str(canonical_cube.get("cube_id", ""))
-            if isinstance(canonical_cube, dict)
-            else ""
-        ) or cube.cube_id
-        return CachedCubeProjection(
-            alias=alias,
-            requested_cube_id=cube.cube_id,
-            canonical_cube_id=canonical_cube_id,
-            cube_version=cube.version,
-            content_hash=str(ui_payload.get("content_hash", "")),
-            catalog_revision=str(ui_payload.get("catalog_revision", "")),
-            buffer_fingerprint=fingerprint_json(cube.buffer),
+        return CachedEditorSectionProjection(
+            section_key=section_key,
+            buffer_fingerprint=fingerprint_json(buffer),
             node_classes=node_classes,
             node_definition_fingerprint_by_class=node_fingerprints,
             projected_node_order=projected_node_order,
@@ -283,10 +355,10 @@ def _field_spec_projection(field_spec: object) -> JsonObject:
     }
 
 
-def _node_class(cube: CubeState, node_name: str) -> str:
-    """Return the class type for one node in a cube buffer."""
+def _node_class(buffer: Mapping[str, object], node_name: str) -> str:
+    """Return the class type for one node in an editor-section buffer."""
 
-    nodes = cube.buffer.get("nodes", {})
+    nodes = buffer.get("nodes", {})
     node = nodes.get(node_name) if isinstance(nodes, dict) else None
     if not isinstance(node, dict):
         return ""

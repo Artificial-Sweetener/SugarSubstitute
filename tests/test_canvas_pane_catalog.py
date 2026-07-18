@@ -161,6 +161,20 @@ def test_catalog_replaces_when_path_identity_changes() -> None:
     ]
 
 
+def test_catalog_exposes_exact_loaded_path_for_snapshot_capture() -> None:
+    """Input snapshot capture should read paths from the live catalog owner."""
+
+    pane = _PaneDouble()
+    catalog = CanvasPaneCatalog(pane)
+    image_id = uuid4()
+    image_path = Path("project/input_surfaces/regional.png")
+
+    catalog.ensure_image_cached(image_id, object(), image_path)
+
+    assert catalog.image_path(image_id) == image_path
+    assert catalog.image_path(uuid4()) is None
+
+
 def test_catalog_contains_uses_public_image_ids() -> None:
     """Availability queries should report only QPane catalog membership."""
 

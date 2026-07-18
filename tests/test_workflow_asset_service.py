@@ -22,7 +22,11 @@ from pathlib import Path
 from typing import cast
 
 from substitute.application.workflows import WorkflowAssetService
+from substitute.application.workflows.editor_projection_service import (
+    DIRECT_WORKFLOW_SECTION_KEY,
+)
 from substitute.domain.common import JsonObject
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.workflow import (
     CubeState,
     LocalFileAssetRef,
@@ -50,13 +54,15 @@ def test_associate_local_input_image_updates_graph_and_persisted_asset_ref() -> 
                     }
                 },
             )
-        }
+        },
+        stack_order=["Inpaint"],
     )
 
     associated = WorkflowAssetService().associate_local_input_image(
         workflow,
-        cube_alias="Inpaint",
+        section_key="Inpaint",
         node_name="load_image",
+        field_key="image",
         image_path=Path("E:/images/selected.png"),
     )
 
@@ -95,13 +101,15 @@ def test_input_image_asset_ref_falls_back_to_existing_graph_value() -> None:
                     }
                 },
             )
-        }
+        },
+        stack_order=["Inpaint"],
     )
 
     asset_ref = WorkflowAssetService().input_image_asset_ref(
         workflow,
-        cube_alias="Inpaint",
+        section_key="Inpaint",
         node_name="load_image",
+        field_key="image",
     )
 
     assert asset_ref == LocalFileAssetRef(path="E:/images/legacy.png")
@@ -126,13 +134,15 @@ def test_associate_project_input_mask_updates_graph_and_persisted_asset_ref() ->
                     }
                 },
             )
-        }
+        },
+        stack_order=["Inpaint"],
     )
 
     associated = WorkflowAssetService().associate_project_input_mask(
         workflow,
-        cube_alias="Inpaint",
+        section_key="Inpaint",
         node_name="load_image_as_mask",
+        field_key="image",
         relative_path="test__2160x3072__Inpaint__load_image_as_mask.png",
     )
 
@@ -151,8 +161,9 @@ def test_associate_project_input_mask_updates_graph_and_persisted_asset_ref() ->
     }
     assert WorkflowAssetService().input_mask_asset_ref(
         workflow,
-        cube_alias="Inpaint",
+        section_key="Inpaint",
         node_name="load_image_as_mask",
+        field_key="image",
     ) == ProjectMaskAssetRef(
         relative_path="test__2160x3072__Inpaint__load_image_as_mask.png"
     )
@@ -177,13 +188,15 @@ def test_associate_local_input_mask_updates_graph_and_persisted_asset_ref() -> N
                     }
                 },
             )
-        }
+        },
+        stack_order=["Inpaint"],
     )
 
     associated = WorkflowAssetService().associate_local_input_mask(
         workflow,
-        cube_alias="Inpaint",
+        section_key="Inpaint",
         node_name="load_image_as_mask",
+        field_key="image",
         mask_path=Path("E:/masks/selected.png"),
     )
 
@@ -202,6 +215,47 @@ def test_associate_local_input_mask_updates_graph_and_persisted_asset_ref() -> N
     }
     assert WorkflowAssetService().input_mask_asset_ref(
         workflow,
-        cube_alias="Inpaint",
+        section_key="Inpaint",
         node_name="load_image_as_mask",
+        field_key="image",
     ) == LocalFileAssetRef(path=selected_mask_path)
+
+
+def test_direct_custom_upload_field_uses_shared_asset_mutation_owner() -> None:
+    """Direct documents should persist custom upload fields and dirty state identically."""
+
+    selected_image_path = Path("images/selected.png")
+    graph: JsonObject = {
+        "nodes": {
+            "17": {
+                "class_type": "CustomImagePicker",
+                "inputs": {"source_file": "before.png"},
+            }
+        }
+    }
+    direct = DirectWorkflowState(
+        source_path=Path("workflow.json"),
+        source_workflow=graph,
+        buffer=graph,
+    )
+    workflow = WorkflowState(direct_workflow=direct)
+
+    associated = WorkflowAssetService().associate_local_input_image(
+        workflow,
+        section_key=DIRECT_WORKFLOW_SECTION_KEY,
+        node_name="17",
+        field_key="source_file",
+        image_path=selected_image_path,
+    )
+
+    assert associated is True
+    nodes = cast(dict[str, JsonObject], direct.buffer["nodes"])
+    inputs = cast(JsonObject, nodes["17"]["inputs"])
+    assert inputs["source_file"] == str(selected_image_path)
+    assert direct.dirty is True
+    assert WorkflowAssetService().input_image_asset_ref(
+        workflow,
+        section_key=DIRECT_WORKFLOW_SECTION_KEY,
+        node_name="17",
+        field_key="source_file",
+    ) == LocalFileAssetRef(path=str(selected_image_path))

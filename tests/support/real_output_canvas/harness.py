@@ -22,7 +22,9 @@ from collections.abc import Callable
 from pathlib import Path
 from uuid import UUID
 
-from PySide6.QtCore import QEventLoop, QRectF, QTimer
+from PySide6.QtCore import QEvent, QEventLoop, QPoint, QPointF, QRectF, Qt, QTimer
+from PySide6.QtGui import QMouseEvent
+from PySide6.QtWidgets import QWidget
 
 from substitute.application.generation import (
     GenerationRunStarted,
@@ -32,7 +34,9 @@ from substitute.application.ports import (
     OutputImageUpdate,
     PreviewImageUpdate,
 )
+from substitute.application.workflows import OutputCanvasProjection
 from substitute.domain.workflow import WorkflowState
+from substitute.presentation.widgets.anchored_row_picker import AnchoredRowPickerView
 from tests.support.real_output_canvas.assertions import (
     collect_canvas_fingerprint,
 )
@@ -53,10 +57,11 @@ from tests.support.real_output_canvas.shell import (
 class RealShellOutputCanvasHarness:
     """Drive real shell Output canvas collaborators from fake Comfy callbacks."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, output_root: Path) -> None:
         """Create a real workspace/canvas shell with fake infrastructure services."""
 
         self.app = _ensure_qapp()
+        self.output_root = output_root
         self.canvas_io_service = _CanvasIoService()
         self.shell = _HarnessShell(self.canvas_io_service)
         self.workflows: dict[str, WorkflowHandle] = {}
@@ -146,9 +151,10 @@ class RealShellOutputCanvasHarness:
     def emit_output(self, run: GenerationRunHandle, spec: OutputSpec) -> Path:
         """Emit one fake Comfy final-output callback into the real dispatcher."""
 
-        path = Path(
-            f"E:/devprojects/SugarSubstitute/.tmp-output-canvas/"
-            f"{run.generation_run_id}-{spec.source_key}-{spec.list_index}.png"
+        safe_source_key = _portable_source_key(spec.source_key)
+        path = self.output_root / (
+            f"{run.generation_run_id}-{safe_source_key}-{spec.list_index}-"
+            f"{spec.batch_index}.png"
         )
         self._emit_output_path(run, spec, path=path, store_image=True)
         return path
@@ -160,9 +166,9 @@ class RealShellOutputCanvasHarness:
     ) -> Path:
         """Emit a final-output callback whose image path cannot be decoded."""
 
-        path = Path(
-            f"E:/devprojects/SugarSubstitute/.tmp-output-canvas/"
-            f"missing-{run.generation_run_id}-{spec.source_key}-{spec.list_index}.png"
+        safe_source_key = _portable_source_key(spec.source_key)
+        path = self.output_root / (
+            f"missing-{run.generation_run_id}-{safe_source_key}-{spec.list_index}.png"
         )
         self._emit_output_path(run, spec, path=path, store_image=False)
         return path
@@ -197,6 +203,7 @@ class RealShellOutputCanvasHarness:
                 source_key=spec.source_key,
                 source_label=spec.source_label,
                 list_index=spec.list_index,
+                batch_index=spec.batch_index,
                 artifact_width=spec.width,
                 artifact_height=spec.height,
                 scene_run_id=None if scene is None else scene.run_id,
@@ -282,11 +289,171 @@ class RealShellOutputCanvasHarness:
             ].output_image_uuids
         )
 
+    def output_ids_for_scene_source(
+        self,
+        *,
+        scene_key: str,
+        source_key: str,
+    ) -> tuple[UUID, ...]:
+        """Return projected output IDs for one scene source in batch order."""
+
+        projection = self.shell.output_canvas._output_projection
+        if not isinstance(projection, OutputCanvasProjection):
+            raise AssertionError("output projection is unavailable")
+        scene = next(
+            (
+                group
+                for group in projection.scene_groups
+                if group.scene_key == scene_key
+            ),
+            None,
+        )
+        if scene is None:
+            raise AssertionError(f"output scene is unavailable: {scene_key}")
+        source = next(
+            (group for group in scene.sources if group.source_key == source_key),
+            None,
+        )
+        if source is None:
+            raise AssertionError(f"output source is unavailable: {source_key}")
+        return tuple(
+            item.image_id for _set_index, item in sorted(source.images_by_set.items())
+        )
+
+    def output_representative_id_for_scene(self, scene_key: str) -> UUID:
+        """Return the rendered representative image ID for one output scene."""
+
+        projection = self.shell.output_canvas._output_projection
+        if not isinstance(projection, OutputCanvasProjection):
+            raise AssertionError("output projection is unavailable")
+        scene = next(
+            (
+                group
+                for group in projection.scene_groups
+                if group.scene_key == scene_key
+            ),
+            None,
+        )
+        if (
+            scene is None
+            or scene.representative_source_key is None
+            or scene.representative_set_index is None
+        ):
+            raise AssertionError(
+                f"output scene representative is unavailable: {scene_key}"
+            )
+        source = next(
+            (
+                group
+                for group in scene.sources
+                if group.source_key == scene.representative_source_key
+            ),
+            None,
+        )
+        if source is None:
+            raise AssertionError(
+                f"output scene representative source is unavailable: {scene_key}"
+            )
+        item = source.images_by_set.get(scene.representative_set_index)
+        if item is None:
+            raise AssertionError(
+                f"output scene representative batch is unavailable: {scene_key}"
+            )
+        return item.image_id
+
     def select_output_id(self, image_id: UUID) -> None:
         """Select an Output image through the real widget signal path."""
 
         self.shell.output_canvas.activeOutputChanged.emit(str(image_id))
         self.process_events()
+
+    def click_canvas_image(self, image_id: UUID) -> None:
+        """Click one visible QPane scene image through the production event filter."""
+
+        pane = self.shell.output_canvas.pane
+        point = self._canvas_point_for_image(image_id)
+        for event_type, buttons in (
+            (QEvent.Type.MouseButtonPress, Qt.MouseButton.LeftButton),
+            (QEvent.Type.MouseButtonRelease, Qt.MouseButton.NoButton),
+        ):
+            local_position = QPointF(point)
+            global_position = QPointF(pane.mapToGlobal(point))
+            event = QMouseEvent(
+                event_type,
+                local_position,
+                local_position,
+                global_position,
+                Qt.MouseButton.LeftButton,
+                buttons,
+                Qt.KeyboardModifier.NoModifier,
+            )
+            self.app.sendEvent(pane, event)
+        self.process_events()
+
+    def click_output_source_tab(self, source_key: str) -> None:
+        """Click one rendered Output source tab through its production signal path."""
+
+        tabbar = self.shell.output_canvas.tabbar
+        tab_item = tabbar.items.get(source_key)
+        if tab_item is None:
+            raise AssertionError(
+                f"output source tab is unavailable: {source_key}; "
+                f"available={tuple(tabbar.items)}"
+            )
+        tab_item.click()
+        self.process_events()
+
+    def _canvas_point_for_image(self, image_id: UUID) -> QPoint:
+        """Return a physical QPane point whose public hit identifies an image."""
+
+        pane = self.shell.output_canvas.pane
+        hit_test = getattr(pane, "sceneHitTest", None)
+        if not callable(hit_test):
+            raise AssertionError("output pane does not expose scene hit testing")
+        for y in range(2, max(3, pane.height()), 4):
+            for x in range(2, max(3, pane.width()), 4):
+                point = QPoint(x, y)
+                hit = hit_test(point)
+                if getattr(hit, "image_id", None) == image_id:
+                    return point
+        raise AssertionError(
+            f"output canvas image is not physically clickable: {image_id}"
+        )
+
+    def output_set_picker_keys(self) -> tuple[str, ...]:
+        """Open the production set picker and return its visible row keys."""
+
+        self.shell.output_canvas.set_selector_button.click()
+        self.process_events()
+        return self._visible_output_set_picker().item_keys()
+
+    def select_output_set(self, set_index: int) -> None:
+        """Select one batch or grid row through the production popup widget."""
+
+        if not self.shell.output_canvas._set_picker.is_visible():
+            self.shell.output_canvas.set_selector_button.click()
+            self.process_events()
+        picker = self._visible_output_set_picker()
+        row = picker.row_for_key(str(set_index))
+        if row is None:
+            raise AssertionError(
+                f"output set picker does not contain row {set_index}: "
+                f"{picker.item_keys()}"
+            )
+        row.click()
+        self.process_events()
+
+    def _visible_output_set_picker(self) -> AnchoredRowPickerView:
+        """Return the visible production output-set picker view."""
+
+        picker_adapter = self.shell.output_canvas._set_picker
+        flyout = picker_adapter._picker._flyout
+        if not isinstance(flyout, QWidget):
+            raise AssertionError("output set picker flyout is not visible")
+        picker = flyout.findChild(AnchoredRowPickerView)
+        if picker is None:
+            raise AssertionError("output set picker view was not mounted")
+        return picker
 
     def clear_output_for(self, alias: str) -> None:
         """Clear workflow Output through the real shell signal path."""
@@ -469,3 +636,12 @@ class RealShellOutputCanvasHarness:
         assert not state.preview_image_ids, state
         assert not state.preview_lane_keys, state
         assert state.pane_current_image_id not in state.preview_image_ids, state
+
+
+def _portable_source_key(source_key: str) -> str:
+    """Return a deterministic filename-safe form of an Output source key."""
+
+    return "".join(
+        character if character.isalnum() or character in "-_." else "_"
+        for character in source_key
+    )

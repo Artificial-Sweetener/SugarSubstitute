@@ -33,7 +33,6 @@ from substitute.presentation.shell.generation_action_controller import (
     GenerationActionController,
 )
 from substitute.presentation.shell.progress_projection import ProgressProjectionMode
-from substitute.presentation.shell.shell_layout_controller import ShellLayoutController
 from substitute.presentation.shell.workflow_surface_reconciler import (
     ActiveWorkflowSurfaceRefresher,
 )
@@ -180,10 +179,10 @@ def _progress_surface_fake(**kwargs: object) -> SimpleNamespace:
     return fake
 
 
-def _attach_shell_layout_controller(fake: SimpleNamespace) -> SimpleNamespace:
-    """Attach the composed shell layout controller expected by layout methods."""
+def _attach_queue_presentation(fake: SimpleNamespace) -> SimpleNamespace:
+    """Attach queue presentation state required by generation availability."""
 
-    fake.shell_layout_controller = ShellLayoutController(fake)
+    fake.generation_queue_controller = SimpleNamespace(panel_visible=False)
     if not hasattr(fake, "generation_action_controller"):
         fake.generation_action_controller = GenerationActionController(fake)
     if not hasattr(fake, "active_workflow_surface_refresher"):
@@ -216,7 +215,7 @@ def test_update_progress_labels_updates_overlay_bars_and_taskbar() -> None:
     fake.progress_overlay_controller = SimpleNamespace(
         position_progress_overlay=lambda: position_calls.append("position")
     )
-    fake = _attach_shell_layout_controller(fake)
+    fake = _attach_queue_presentation(fake)
 
     GenerationActionController(fake).update_progress_labels(33.0, 44.0)
 
@@ -264,7 +263,7 @@ def test_update_progress_labels_fans_out_to_progress_registry() -> None:
     fake.progress_overlay_controller = SimpleNamespace(
         position_progress_overlay=lambda: None
     )
-    fake = _attach_shell_layout_controller(fake)
+    fake = _attach_queue_presentation(fake)
 
     GenerationActionController(fake).update_progress_labels(33.0, 44.0)
 
@@ -295,7 +294,7 @@ def test_update_progress_labels_skips_duplicate_visible_state() -> None:
     fake.progress_overlay_controller = SimpleNamespace(
         position_progress_overlay=lambda: position_calls.append("position")
     )
-    fake = _attach_shell_layout_controller(fake)
+    fake = _attach_queue_presentation(fake)
 
     controller = GenerationActionController(fake)
     controller.update_progress_labels(33.0, 44.0)
@@ -345,7 +344,7 @@ def test_update_progress_labels_replays_duplicate_state_to_progress_registry() -
     fake.progress_overlay_controller = SimpleNamespace(
         position_progress_overlay=lambda: None
     )
-    fake = _attach_shell_layout_controller(fake)
+    fake = _attach_queue_presentation(fake)
 
     controller = GenerationActionController(fake)
     controller.update_progress_labels(33.0, 44.0)
@@ -518,7 +517,7 @@ def test_update_progress_labels_clears_taskbar_when_progress_is_not_visible() ->
         samplerOverlayBar=_ValueWidget(),
         _taskbar_progress_presenter=taskbar,
     )
-    fake = _attach_shell_layout_controller(fake)
+    fake = _attach_queue_presentation(fake)
 
     GenerationActionController(fake).update_progress_labels(100.0, None)
 

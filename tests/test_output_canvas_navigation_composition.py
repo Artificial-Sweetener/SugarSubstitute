@@ -28,6 +28,9 @@ from substitute.application.workflows.output_canvas_projection import (
 from substitute.application.workflows.output_compare_state import (
     OutputCompareState,
 )
+from substitute.application.workflows.output_scene_navigation_selection import (
+    OutputSceneNavigationSelection,
+)
 from substitute.presentation.canvas.output.composition.navigation import (
     OutputCanvasPickerHost,
     output_canvas_picker_controller_for,
@@ -281,5 +284,15 @@ def test_output_canvas_picker_composition_wires_scene_picker_to_navigation() -> 
     assert host.active_scene_overview is False
     assert host.active_source_key == "txt"
     assert host.active_set_index == 0
-    assert host.activeOutputSceneChanged.calls == [("portrait", False)]
-    assert host.activeOutputGridChanged.calls == [("txt",)]
+    assert host.activeOutputSceneChanged.calls == [
+        (
+            OutputSceneNavigationSelection(
+                scene_key="portrait",
+                overview=False,
+                source_key="txt",
+                set_index=0,
+                image_id=None,
+            ),
+        )
+    ]
+    assert host.activeOutputGridChanged.calls == []

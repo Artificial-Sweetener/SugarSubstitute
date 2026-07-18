@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 from substitute.application.node_behavior import (
@@ -28,6 +29,12 @@ from substitute.application.node_behavior import (
     ResolvedFieldSpec,
 )
 from substitute.application.overrides import PinnedOverrideService
+from substitute.application.workflows import (
+    DIRECT_WORKFLOW_SECTION_KEY,
+    WorkflowEditorProjectionService,
+)
+from substitute.domain.comfy_workflow import DirectWorkflowState
+from substitute.domain.workflow import WorkflowState
 
 
 def _field_spec(
@@ -300,7 +307,7 @@ def test_encode_style_scope_uses_wildcard_despite_hidden_same_key_link() -> None
     )
 
 
-def test_apply_overrides_to_workflow_preserves_non_override_same_key_links() -> None:
+def test_apply_overrides_to_projection_preserves_non_override_same_key_links() -> None:
     """Workflow writes should leave same-key non-participant graph links intact."""
 
     encode_options: list[object] = [["A1111", "Comfy"], {"default": "A1111"}]
@@ -355,9 +362,9 @@ def test_apply_overrides_to_workflow_preserves_non_override_same_key_links() -> 
     )
     service = PinnedOverrideService()
 
-    changed = service.apply_overrides_to_workflow(
+    changed = service.apply_overrides_to_projection(
         overrides={"encode_style": {"value": "Comfy", "mode": "global"}},
-        workflow=workflow,
+        projection=WorkflowEditorProjectionService().project(workflow),
         behavior_snapshot=snapshot,
     )
 
@@ -368,6 +375,59 @@ def test_apply_overrides_to_workflow_preserves_non_override_same_key_links() -> 
         "prompt_encode_style",
         0,
     ]
+
+
+def test_apply_overrides_updates_direct_workflow_editor_graph() -> None:
+    """The shared override writer should mutate a direct graph projection."""
+
+    snapshot = _snapshot(
+        {
+            DIRECT_WORKFLOW_SECTION_KEY: {
+                "13": {
+                    "noise_seed": _field_spec(
+                        cube_alias=DIRECT_WORKFLOW_SECTION_KEY,
+                        node_name="13",
+                        class_type="KSamplerAdvanced",
+                        field_key="noise_seed",
+                        value=7,
+                        override_key="seed",
+                        pin_policy=OverridePinPolicy.DEFAULT_PINNED,
+                    )
+                }
+            }
+        }
+    )
+    workflow = WorkflowState(
+        direct_workflow=DirectWorkflowState(
+            source_path=Path("direct.json"),
+            source_workflow={"nodes": []},
+            buffer={
+                "nodes": {
+                    "13": {
+                        "class_type": "KSamplerAdvanced",
+                        "inputs": {"noise_seed": 7},
+                    }
+                }
+            },
+        )
+    )
+
+    changed = PinnedOverrideService().apply_overrides_to_projection(
+        overrides={"seed": {"value": 42, "mode": "global"}},
+        projection=WorkflowEditorProjectionService().project(workflow),
+        behavior_snapshot=snapshot,
+    )
+
+    assert changed is True
+    direct_workflow = workflow.direct_workflow
+    assert direct_workflow is not None
+    nodes = direct_workflow.buffer["nodes"]
+    assert isinstance(nodes, dict)
+    sampler = nodes["13"]
+    assert isinstance(sampler, dict)
+    inputs = sampler["inputs"]
+    assert isinstance(inputs, dict)
+    assert inputs["noise_seed"] == 42
 
 
 def test_build_toolbar_snapshot_orders_candidates_deterministically() -> None:
@@ -704,7 +764,7 @@ def test_pin_override_activates_optional_cfg_candidate() -> None:
     assert overrides == {"cfg": {"value": 7.0, "mode": "global"}}
 
 
-def test_apply_overrides_to_workflow_uses_override_key_mapping() -> None:
+def test_apply_overrides_to_projection_uses_override_key_mapping() -> None:
     """Workflow application should follow override keys rather than raw field names."""
 
     snapshot = _snapshot(
@@ -750,9 +810,9 @@ def test_apply_overrides_to_workflow_uses_override_key_mapping() -> None:
     )
     service = PinnedOverrideService()
 
-    changed = service.apply_overrides_to_workflow(
+    changed = service.apply_overrides_to_projection(
         overrides={"style_strength": {"value": 0.75, "mode": "global"}},
-        workflow=workflow,
+        projection=WorkflowEditorProjectionService().project(workflow),
         behavior_snapshot=snapshot,
     )
 
@@ -761,7 +821,7 @@ def test_apply_overrides_to_workflow_uses_override_key_mapping() -> None:
     assert workflow.cubes["A"].buffer["nodes"]["style_b"]["inputs"]["amount"] == 0.75
 
 
-def test_apply_overrides_to_workflow_reports_changed_sampler_write() -> None:
+def test_apply_overrides_to_projection_reports_changed_sampler_write() -> None:
     """Changed override writes should force callers to rebuild stale snapshots."""
 
     snapshot = _snapshot(
@@ -791,9 +851,9 @@ def test_apply_overrides_to_workflow_reports_changed_sampler_write() -> None:
     )
     service = PinnedOverrideService()
 
-    changed = service.apply_overrides_to_workflow(
+    changed = service.apply_overrides_to_projection(
         overrides={"sampler_name": {"value": "euler_ancestral", "mode": "global"}},
-        workflow=workflow,
+        projection=WorkflowEditorProjectionService().project(workflow),
         behavior_snapshot=snapshot,
     )
 
@@ -804,7 +864,7 @@ def test_apply_overrides_to_workflow_reports_changed_sampler_write() -> None:
     )
 
 
-def test_apply_overrides_to_workflow_reports_unchanged_equal_values() -> None:
+def test_apply_overrides_to_projection_reports_unchanged_equal_values() -> None:
     """Equal override writes should allow callers to reuse current snapshots."""
 
     snapshot = _snapshot(
@@ -840,9 +900,9 @@ def test_apply_overrides_to_workflow_reports_unchanged_equal_values() -> None:
     )
     service = PinnedOverrideService()
 
-    changed = service.apply_overrides_to_workflow(
+    changed = service.apply_overrides_to_projection(
         overrides={"sampler_name": {"value": "euler_ancestral", "mode": "global"}},
-        workflow=workflow,
+        projection=WorkflowEditorProjectionService().project(workflow),
         behavior_snapshot=snapshot,
     )
 
@@ -853,7 +913,7 @@ def test_apply_overrides_to_workflow_reports_unchanged_equal_values() -> None:
     )
 
 
-def test_apply_overrides_to_workflow_materializes_snapshot_backed_inputs() -> None:
+def test_apply_overrides_to_projection_materializes_snapshot_backed_inputs() -> None:
     """Snapshot-backed overrides should write definition-backed missing inputs."""
 
     snapshot = _snapshot(
@@ -890,9 +950,9 @@ def test_apply_overrides_to_workflow_materializes_snapshot_backed_inputs() -> No
     )
     service = PinnedOverrideService()
 
-    changed = service.apply_overrides_to_workflow(
+    changed = service.apply_overrides_to_projection(
         overrides={"encode_style": {"value": "Comfy", "mode": "global"}},
-        workflow=workflow,
+        projection=WorkflowEditorProjectionService().project(workflow),
         behavior_snapshot=snapshot,
     )
 

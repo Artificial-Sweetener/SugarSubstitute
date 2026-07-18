@@ -183,6 +183,83 @@ def test_cube_section_build_session_skips_failed_node_and_continues() -> None:
     assert len(added_widgets) == 1
 
 
+def test_cube_section_build_session_preserves_successful_masonry_insertion_order() -> (
+    None
+):
+    """The build session should add visible cards in its supplied stable order."""
+
+    mod = importlib.import_module(
+        "substitute.presentation.editor.panel.cube_section_build_session"
+    )
+    added_node_names: list[str] = []
+
+    class _Card:
+        """Record the node identity carried into masonry insertion."""
+
+        def __init__(self, node_name: str) -> None:
+            """Store identity and expose the Qt-like card surface."""
+
+            self.node_name = node_name
+            self.destroyed = SimpleNamespace(connect=lambda _slot: None)
+
+        def setProperty(self, _key: str, _value: object) -> None:
+            """Accept card variant properties without changing identity."""
+
+    class _Panel:
+        """Build a card for every node and ignore wrapper bookkeeping."""
+
+        def build_node_card(
+            self,
+            node_name: str,
+            *_args: object,
+            **_kwargs: object,
+        ) -> _Card:
+            """Return a card carrying the requested node name."""
+
+            return _Card(node_name)
+
+        def register_card_wrapper(self, *_args: object) -> None:
+            """Accept wrapper registration."""
+
+        def remove_card_wrapper_if_current(self, *_args: object) -> None:
+            """Accept wrapper cleanup."""
+
+    node_order = ["third", "first", "second"]
+    behavior = SimpleNamespace(
+        card=SimpleNamespace(card_mode=SimpleNamespace(value="standard"))
+    )
+    session = mod.CubeSectionBuildSession(
+        panel=_Panel(),
+        route_key="Cube",
+        cube_state={"buffer": {}},
+        cube={
+            "nodes": {
+                node_name: {"class_type": "PrimitiveNode", "inputs": {"value": 1}}
+                for node_name in node_order
+            }
+        },
+        behavior_snapshot=SimpleNamespace(
+            resolved_nodes_by_alias={
+                "Cube": {node_name: behavior for node_name in node_order}
+            },
+            card_decisions_by_alias={"Cube": {}},
+        ),
+        field_specs_by_node={
+            node_name: {"value": SimpleNamespace(meta_info={})}
+            for node_name in node_order
+        },
+        node_order=node_order,
+        grid_layout=SimpleNamespace(
+            addWidget=lambda widget: added_node_names.append(widget.node_name)
+        ),
+        widget=SimpleNamespace(defer_update_cube_height=lambda: None),
+    )
+
+    session.finish()
+
+    assert added_node_names == node_order
+
+
 def test_cube_section_build_session_classifies_unbuilt_node_outcomes() -> None:
     """Skipped node cards should explain why each node was not rendered."""
 

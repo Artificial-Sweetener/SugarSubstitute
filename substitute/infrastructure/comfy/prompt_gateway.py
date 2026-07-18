@@ -209,6 +209,7 @@ class ComfyPromptGateway:
         workflow_payload: dict[str, object],
         *,
         client_id: str,
+        execution_targets: tuple[str, ...] | None = None,
         preview_method: str | None = None,
         sugar_script: str | None = None,
         visual_context: QueueVisualRunContext | None = None,
@@ -218,6 +219,7 @@ class ComfyPromptGateway:
             payload = queue_prompt(
                 workflow_payload,
                 client_id=client_id,
+                execution_targets=execution_targets,
                 preview_method=preview_method,
                 sugar_script=sugar_script,
                 visual_context=visual_context,
@@ -474,6 +476,7 @@ def queue_prompt(
     workflow_payload: dict[str, object],
     *,
     client_id: str,
+    execution_targets: tuple[str, ...] | None = None,
     preview_method: str | None = None,
     sugar_script: str | None = None,
     visual_context: QueueVisualRunContext | None = None,
@@ -489,6 +492,8 @@ def queue_prompt(
         "prompt": actual_prompt,
         "client_id": client_id,
     }
+    if execution_targets is not None:
+        body["partial_execution_targets"] = list(execution_targets)
     extra_data = _queue_extra_data(
         workflow_payload,
         preview_method=preview_method,

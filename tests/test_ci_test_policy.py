@@ -36,6 +36,7 @@ from tests.ci_test_policy import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TESTS_ROOT = PROJECT_ROOT / "tests"
+OUTPUT_NAVIGATION_CONTRACT_MODULE = "tests/test_output_canvas_navigation_contract.py"
 
 
 @pytest.mark.parametrize(
@@ -117,6 +118,18 @@ def test_serial_inventory_covers_existing_xdist_sensitive_modules() -> None:
         for relative_path in SERIAL_TEST_MODULES
         if not (PROJECT_ROOT / relative_path).is_file()
     } == set()
+
+
+def test_output_navigation_contract_remains_in_ordinary_parallel_ci() -> None:
+    """Keep the canvas navigation truth matrix in the always-run partition."""
+
+    contract_path = PROJECT_ROOT / OUTPUT_NAVIGATION_CONTRACT_MODULE
+    worker_environment_name = "PYTEST_" + "XDIST_WORKER"
+
+    assert contract_path.is_file()
+    assert OUTPUT_NAVIGATION_CONTRACT_MODULE not in SERIAL_TEST_MODULES
+    assert OUTPUT_NAVIGATION_CONTRACT_MODULE not in PLATFORM_TEST_MODULES
+    assert worker_environment_name not in contract_path.read_text(encoding="utf-8")
 
 
 def test_platform_module_inventory_references_existing_test_modules() -> None:

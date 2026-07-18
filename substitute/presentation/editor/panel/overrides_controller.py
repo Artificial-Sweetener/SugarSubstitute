@@ -36,6 +36,7 @@ from substitute.application.danbooru import (
 from substitute.application.display_labels import beautify_label
 from substitute.application.node_behavior import (
     EditorBehaviorSnapshot,
+    FieldPresentation,
     ResolvedFieldSpec,
     is_choice_field_type,
 )
@@ -46,6 +47,10 @@ from substitute.application.overrides import (
     PinnedOverrideControl,
     OverrideToolbarSnapshot,
     PinnedOverrideService,
+)
+from substitute.application.workflows.editor_projection_service import (
+    WorkflowEditorProjection,
+    WorkflowEditorProjectionService,
 )
 from substitute.application.ports import (
     NodeDefinitionGateway,
@@ -79,6 +84,9 @@ from substitute.presentation.editor.panel.factories.field_pipeline import (
 )
 from substitute.presentation.editor.panel.override_control_binding import (
     bind_override_control,
+)
+from substitute.presentation.editor.panel.override_control_identity import (
+    identify_override_surface,
 )
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
     PanelModelChoiceSnapshotController,
@@ -161,6 +169,7 @@ class GlobalOverridesManager:
         self._global_override_menu: Any = None
         self.override_dropdown_btn: Any = None
         self._toolbar_snapshot: OverrideToolbarSnapshot | None = None
+        self._workflow_projection_service = WorkflowEditorProjectionService()
 
     def sync_state_from_workflow(self) -> None:
         """Load canonicalized override state from the active workflow."""
@@ -231,7 +240,7 @@ class GlobalOverridesManager:
             workflow_present=workflow is not None,
             behavior_snapshot_present=behavior_snapshot is not None,
             existing_override_keys=tuple(sorted(self._global_overrides)),
-            stack_order=tuple(getattr(workflow, "stack_order", ())),
+            stack_order=self._current_projection_order(),
         )
         if workflow is None or behavior_snapshot is None:
             return False
@@ -239,7 +248,7 @@ class GlobalOverridesManager:
             overrides=self._global_overrides,
             selections=self._global_override_selections,
             behavior_snapshot=behavior_snapshot,
-            stack_order=workflow.stack_order,
+            stack_order=self._current_projection_order(),
         ):
             self._sync_overrides_to_workflow()
             return True
@@ -249,9 +258,9 @@ class GlobalOverridesManager:
         """Apply persisted overrides before a behavior snapshot can be trusted."""
 
         workflow = self.mainwindow.get_active_workflow()
-        changed = self._service.apply_overrides_to_workflow(
+        changed = self._service.apply_overrides_to_projection(
             overrides=self._global_overrides,
-            workflow=workflow,
+            projection=self._current_editor_projection(),
             behavior_snapshot=None,
         )
         log_debug(
@@ -414,9 +423,9 @@ class GlobalOverridesManager:
                 for key, value in sorted(self._global_overrides.items())
             ),
         )
-        overrides_changed = self._service.apply_overrides_to_workflow(
+        overrides_changed = self._service.apply_overrides_to_projection(
             overrides=self._global_overrides,
-            workflow=workflow,
+            projection=self._current_editor_projection(),
             behavior_snapshot=behavior_snapshot,
         )
         override_hidden_field_keys = self._override_hidden_field_keys(behavior_snapshot)
@@ -461,7 +470,7 @@ class GlobalOverridesManager:
         return self._service.build_participation_snapshot(
             overrides=self._global_overrides,
             behavior_snapshot=behavior_snapshot,
-            stack_order=workflow.stack_order,
+            stack_order=self._current_projection_order(),
         )
 
     def current_serialization_scopes(
@@ -476,7 +485,7 @@ class GlobalOverridesManager:
         return self._service.build_serialization_scopes(
             overrides=self._global_overrides,
             behavior_snapshot=behavior_snapshot,
-            stack_order=workflow.stack_order,
+            stack_order=self._current_projection_order(),
         )
 
     def _override_hidden_field_keys(
@@ -491,7 +500,7 @@ class GlobalOverridesManager:
         participation = self._service.build_participation_snapshot(
             overrides=self._global_overrides,
             behavior_snapshot=behavior_snapshot,
-            stack_order=workflow.stack_order,
+            stack_order=self._current_projection_order(),
         )
         return set(participation.participant_fields())
 
@@ -546,7 +555,7 @@ class GlobalOverridesManager:
             changed = self._service.pin_override(
                 overrides=workflow_overrides,
                 behavior_snapshot=behavior_snapshot,
-                stack_order=workflow.stack_order,
+                stack_order=self._current_projection_order(),
                 override_key=override_key,
             )
         else:
@@ -605,7 +614,7 @@ class GlobalOverridesManager:
             "refresh toolbar snapshot requested",
             workflow_present=workflow is not None,
             behavior_snapshot_present=behavior_snapshot is not None,
-            stack_order=tuple(getattr(workflow, "stack_order", ())),
+            stack_order=self._current_projection_order(),
             override_keys=tuple(sorted(self._global_overrides)),
         )
         if workflow is None or behavior_snapshot is None:
@@ -613,7 +622,7 @@ class GlobalOverridesManager:
             return self._toolbar_snapshot
         self._toolbar_snapshot = self._service.build_toolbar_snapshot(
             behavior_snapshot=behavior_snapshot,
-            stack_order=workflow.stack_order,
+            stack_order=self._current_projection_order(),
             overrides=self._global_overrides,
         )
         log_debug(
@@ -646,6 +655,20 @@ class GlobalOverridesManager:
             return snapshot if isinstance(snapshot, EditorBehaviorSnapshot) else None
         snapshot = getattr(panel, "_last_behavior_snapshot", None)
         return snapshot if isinstance(snapshot, EditorBehaviorSnapshot) else None
+
+    def _current_editor_projection(self) -> WorkflowEditorProjection | None:
+        """Return the unified graph-state projection for the active document."""
+
+        workflow = self.mainwindow.get_active_workflow()
+        if workflow is None:
+            return None
+        return self._workflow_projection_service.project(workflow)
+
+    def _current_projection_order(self) -> tuple[str, ...]:
+        """Return the active editor section order for override discovery."""
+
+        projection = self._current_editor_projection()
+        return projection.order if projection is not None else ()
 
     def _remove_override_widget(self, override_key: str) -> bool:
         """Remove one toolbar label/widget pair when present."""
@@ -959,6 +982,11 @@ class GlobalOverridesManager:
         label_widget.setContentsMargins(4, 0, 4, 0)
         self._apply_toolbar_label_size(label_widget)
         self._apply_toolbar_widget_size(control.spec, widget)
+        identify_override_surface(
+            override_key=control.override_key,
+            label_widget=label_widget,
+            control_widget=widget,
+        )
         from substitute.presentation.widgets.tooltips import (
             bind_fluent_tooltip,
             tooltip_from_field_meta,
@@ -1193,13 +1221,16 @@ class GlobalOverridesManager:
     def _apply_toolbar_widget_size(spec: ResolvedFieldSpec, widget: Any) -> None:
         """Keep override controls compact while allowing width-pressure shrinkage."""
 
+        if spec.field_behavior.presentation is FieldPresentation.SEED_BOX:
+            restore_size_contract = getattr(widget, "restore_size_contract", None)
+            if callable(restore_size_contract):
+                restore_size_contract()
+            return
         if hasattr(widget, "setSizePolicy"):
             widget.setSizePolicy(
                 QSizePolicy.Policy.Maximum,
                 QSizePolicy.Policy.Fixed,
             )
-        if spec.field_key == "seed":
-            return
         if spec.field_type in {"INT", "FLOAT"}:
             if hasattr(widget, "setFixedHeight"):
                 widget.setFixedHeight(_TOOLBAR_CONTROL_HEIGHT)

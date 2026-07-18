@@ -138,16 +138,16 @@ class _WorkflowInputCanvasServicePort(Protocol):
     ) -> object:
         """Associate one QPane-loaded image with workflow Input state."""
 
-    def materialize_loaded_cube(
+    def materialize_loaded_section(
         self,
         *,
         workflows: Mapping[str, WorkflowState],
         workflow_id: str,
-        cube_alias: str,
+        section_key: str,
         workflow_name: str,
         projects_dir: Path,
     ) -> tuple[object, ...]:
-        """Materialize editable Input images for one loaded cube."""
+        """Materialize editable Input images for one graph section."""
 
     def apply_user_selected_input_mask(
         self,
@@ -161,6 +161,17 @@ class _WorkflowInputCanvasServicePort(Protocol):
         projects_dir: Path,
     ) -> object:
         """Validate and apply one user-selected Input mask."""
+
+    def resolve_input_mask_path(
+        self,
+        workflow: WorkflowState,
+        *,
+        workflow_name: str,
+        section_key: str,
+        node_name: str,
+        projects_dir: Path,
+    ) -> Path | None:
+        """Resolve one mask path through semantic upload binding ownership."""
 
 
 class _InputCanvasStateServicePort(Protocol):
@@ -183,21 +194,6 @@ class _InputCanvasStateServicePort(Protocol):
         """Activate one workflow-owned Input image."""
 
 
-class _WorkflowAssetServicePort(Protocol):
-    """Describe authoritative mask asset-state reads."""
-
-    def resolve_input_mask_path(
-        self,
-        workflow: object,
-        *,
-        workflow_name: str,
-        cube_alias: str,
-        node_name: str,
-        projects_dir: Path,
-    ) -> Path | None:
-        """Resolve one mask picker path from workflow asset state."""
-
-
 class InputCanvasPresenter:
     """Own Input canvas view intent and editor-panel picker refresh policy."""
 
@@ -211,7 +207,6 @@ class InputCanvasPresenter:
         workflow_session_service: _WorkflowSessionServicePort,
         workflow_input_canvas_service: _WorkflowInputCanvasServicePort,
         input_canvas_state_service: _InputCanvasStateServicePort,
-        workflow_asset_service: _WorkflowAssetServicePort,
         canvas_tabs_provider: Callable[[], _CanvasTabsPort | None],
         workflow_name_provider: Callable[[str], str],
         projects_dir_provider: Callable[[], Path],
@@ -230,7 +225,6 @@ class InputCanvasPresenter:
         self._workflow_session_service = workflow_session_service
         self._workflow_input_canvas_service = workflow_input_canvas_service
         self._input_canvas_state_service = input_canvas_state_service
-        self._workflow_asset_service = workflow_asset_service
         self._canvas_tabs_provider = canvas_tabs_provider
         self._workflow_name_provider = workflow_name_provider
         self._projects_dir_provider = projects_dir_provider
@@ -560,11 +554,22 @@ class InputCanvasPresenter:
                 cube_alias=cube_alias,
             )
             return
+        self.materialize_loaded_workflow_section(workflow_id, cube_alias)
+
+    def materialize_loaded_workflow_section(
+        self,
+        workflow_id: str,
+        section_key: str,
+    ) -> None:
+        """Materialize local upload endpoints for one active graph section."""
+
+        if workflow_id != self._workflow_session_service.active_workflow_id:
+            return
         projects_dir = self._projects_dir_provider()
-        results = self._workflow_input_canvas_service.materialize_loaded_cube(
+        results = self._workflow_input_canvas_service.materialize_loaded_section(
             workflows=self._workflow_session_service.workflows,
             workflow_id=workflow_id,
-            cube_alias=cube_alias,
+            section_key=section_key,
             workflow_name=self._workflow_name_provider(workflow_id),
             projects_dir=projects_dir,
         )
@@ -574,9 +579,9 @@ class InputCanvasPresenter:
             self._mark_changed(workflow_id)
         log_info(
             _LOGGER,
-            "Completed loaded cube input-canvas materialization",
+            "Completed loaded graph-section input-canvas materialization",
             workflow_id=workflow_id,
-            cube_alias=cube_alias,
+            section_key=section_key,
             materialization_result_count=len(results),
         )
 
@@ -676,10 +681,10 @@ class InputCanvasPresenter:
             return False
         workflow_id = self._workflow_session_service.active_workflow_id
         resolved_projects_dir = projects_dir or self._projects_dir_provider()
-        resolved_path = self._workflow_asset_service.resolve_input_mask_path(
+        resolved_path = self._workflow_input_canvas_service.resolve_input_mask_path(
             active_workflow,
             workflow_name=self._workflow_name_provider(workflow_id),
-            cube_alias=cube_alias,
+            section_key=cube_alias,
             node_name=node_name,
             projects_dir=resolved_projects_dir,
         )

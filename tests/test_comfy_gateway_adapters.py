@@ -170,6 +170,40 @@ def test_queue_prompt_posts_preview_method_extra_data(monkeypatch) -> None:
     }
 
 
+def test_queue_prompt_posts_partial_execution_targets(monkeypatch) -> None:
+    """Queue transport should preserve explicit Comfy output targets."""
+
+    post_calls: list[dict[str, object]] = []
+
+    class _Response:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {"prompt_id": "pid-1"}
+
+    def _post(*args: object, **kwargs: object) -> _Response:
+        post_calls.append(kwargs)
+        return _Response()
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.prompt_gateway.requests.post",
+        _post,
+    )
+
+    queue_prompt(
+        {"N1": {"class_type": "PreviewImage"}},
+        client_id="client",
+        execution_targets=("N1",),
+    )
+
+    assert post_calls[0]["json"] == {
+        "prompt": {"N1": {"class_type": "PreviewImage"}},
+        "client_id": "client",
+        "partial_execution_targets": ["N1"],
+    }
+
+
 def test_queue_prompt_posts_ui_workflow_pnginfo(monkeypatch) -> None:
     """Queue transport should attach UI workflow metadata for Comfy image outputs."""
 

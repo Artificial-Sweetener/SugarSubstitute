@@ -373,9 +373,6 @@ class SeedBox(QWidget):
         self._allow_negative = allow_negative
         self._mode = "random"
         self._last_value: int | None = None
-        set_size_policy = getattr(self, "setSizePolicy", None)
-        if callable(set_size_policy):
-            set_size_policy(_maximum_policy(), _fixed_policy())
 
         self.line_edit = cast(Any, LineEdit(self))
         _set_strong_focus_policy(self.line_edit)
@@ -420,11 +417,26 @@ class SeedBox(QWidget):
         self.split_button.setMaximumWidth(split_button_total)
 
         total_width = SEED_PREFERRED_WIDTH
-        self.setFixedHeight(self.line_edit.height())
         self.line_edit.move(0, 0)
         self.resize(total_width, self.line_edit.height())
-        self._sync_child_geometry(total_width)
+        self.restore_size_contract()
         self.split_button.raise_()
+
+    def restore_size_contract(self) -> None:
+        """Reassert SeedBox-owned sizing after a surrounding surface reuses it."""
+
+        set_size_policy = getattr(self, "setSizePolicy", None)
+        if callable(set_size_policy):
+            set_size_policy(_maximum_policy(), _fixed_policy())
+        self.setFixedHeight(SEED_CONTROL_HEIGHT)
+        self.line_edit.setFixedHeight(SEED_CONTROL_HEIGHT)
+        self.split_button.setFixedHeight(SEED_CONTROL_HEIGHT)
+        self._set_part_height(self.split_button, "button", SEED_CONTROL_HEIGHT)
+        self._set_part_height(self.split_button, "dropButton", SEED_CONTROL_HEIGHT)
+        self._sync_child_geometry()
+        update_geometry = getattr(self, "updateGeometry", None)
+        if callable(update_geometry):
+            update_geometry()
 
     def _connect_primary_button(self) -> None:
         """Connect the split-button primary click to fixed/random toggling."""

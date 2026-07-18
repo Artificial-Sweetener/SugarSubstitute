@@ -21,10 +21,18 @@ from typing import Any
 from PySide6.QtCore import QEvent, QObject
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import QDockWidget, QWidget
-from substitute.presentation.shell.shell_layout_controller import ShellLayoutController
+from substitute.presentation.shell.shell_chrome_controller import ShellChromeController
+from substitute.presentation.shell.shell_layout_restore_controller import (
+    ShellLayoutRestoreController,
+)
+from substitute.presentation.shell.workspace_layout_controller import (
+    WorkspaceLayoutController,
+)
 
 class MainWindow:
-    shell_layout_controller: ShellLayoutController
+    shell_chrome_controller: ShellChromeController
+    shell_layout_restore_controller: ShellLayoutRestoreController
+    workspace_layout_controller: WorkspaceLayoutController
     def __init__(self, *args: Any, **kwargs: Any) -> None: ...
     def eventFilter(self, source: QObject, event: QEvent) -> bool: ...
     def get_active_workflow(self) -> object: ...

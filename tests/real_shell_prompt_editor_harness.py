@@ -59,6 +59,9 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QWidget,
 )
+from substitute.presentation.shell.app_orb_action_cluster import (
+    AppOrbCubeStackButton,
+)
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
@@ -72,6 +75,7 @@ from substitute.application.model_metadata import (
     ThumbnailAssetRepository,
 )
 from substitute.application.node_behavior import NodeBehaviorService
+from substitute.application.overrides import PinnedOverrideService
 from substitute.application.ports import (
     NodeDefinitionHydrationResult,
     PromptAutocompleteSuggestion,
@@ -83,10 +87,17 @@ from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
 from substitute.domain.workflow import CubeState, WorkflowState
+from substitute.domain.prompt import PromptWheelAdjustmentMode
 from substitute.presentation.editor.panel.view import EditorPanel
+from substitute.presentation.editor.panel.overrides_controller import (
+    GlobalOverridesManager,
+)
 from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.shell.generation_action_controller import (
     GenerationActionController,
+)
+from substitute.presentation.shell.cube_stack_presentation_controller import (
+    CubeStackPresentationController,
 )
 from substitute.presentation.shell.main_window_dependencies import (
     InstallationPathBundle,
@@ -107,6 +118,11 @@ from substitute.presentation.shell.workflow_workspace_coordinator import (
     WorkflowWorkspaceCoordinator,
     WorkflowWorkspaceView,
 )
+from substitute.presentation.shell.workflow_ui_factory import WorkflowUiFactory
+from substitute.presentation.shell.workspace_splitter_controller import (
+    WorkspaceSplitterController,
+)
+from substitute.presentation.workflows.cube_stack_view import CubeStack
 from tests.prompt_autocomplete_test_helpers import (
     EmptyPromptWildcardCatalogGateway,
     RecordingPromptAutocompleteGateway,
@@ -571,7 +587,6 @@ class RealShellPromptEditorHarness:
             self.shell.editor_panel = panel
             panel.show()
             panel.reveal_loaded_cube(cube_alias)
-        self._finalize_panel_projection(panel)
         field_key = (cube_alias, "positive_prompt", "text")
         input_widgets = _panel_input_widgets(panel)
         self.wait_until(lambda: field_key in input_widgets)
@@ -652,7 +667,6 @@ class RealShellPromptEditorHarness:
         panel.show()
         for cube_alias in stack_order:
             panel.reveal_loaded_cube(cube_alias)
-        self._finalize_panel_projection(panel)
         field_key = (stack_order[0], "positive_prompt", "text")
         input_widgets = _panel_input_widgets(panel)
         self.wait_until(lambda: field_key in input_widgets)
@@ -668,6 +682,101 @@ class RealShellPromptEditorHarness:
         )
         self._install_editor_observability(field)
         return field
+
+    def add_inferred_prompt_workflow(
+        self,
+        alias: str = "inferred-prompt-harness",
+        *,
+        initial_text: str = "",
+    ) -> PromptFieldHandle:
+        """Mount a cube whose prompt behavior comes only from typed graph flow."""
+
+        workflow_id = f"workflow-{alias}"
+        cube_alias = "Inferred Prompt Cube"
+        cube_state = _inferred_prompt_cube_state(initial_text, alias=cube_alias)
+        self.shell.node_definition_gateway.install_recorded_definitions(
+            {
+                "KSampler": {
+                    "input": {
+                        "required": {
+                            "positive": ["CONDITIONING"],
+                        }
+                    },
+                    "output": ["LATENT"],
+                },
+                "OrdinaryControl": {
+                    "input": {"required": {"value": ["INT", {"default": 1}]}},
+                    "output": [],
+                },
+            }
+        )
+        workflow = WorkflowState(
+            cubes={cube_alias: cube_state},
+            stack_order=[cube_alias],
+            metadata={"name": alias},
+        )
+        if not self.workflows:
+            self.shell.workflow_session_service.replace_workflows(
+                {workflow_id: workflow},
+                active_workflow_id=workflow_id,
+            )
+        else:
+            self.shell.workflow_session_service.add_existing_workflow(
+                workflow_id,
+                workflow,
+                activate=True,
+            )
+        self.shell.workflow_tabbar.addTab(workflow_id, alias)
+        self.shell.install_workflow_surface(workflow_id)
+        handle = PromptWorkflowHandle(
+            alias=alias,
+            workflow_id=workflow_id,
+            cube_alias=cube_alias,
+            cube_state=cube_state,
+        )
+        self.workflows[alias] = handle
+        self.activate_workflow(alias)
+        panel = self.shell.editor_panels[workflow_id]
+        panel.load_all_cubes(
+            [(cube_alias, cube_state)],
+            cube_states={cube_alias: cube_state},
+            stack_order=[cube_alias],
+        )
+        self.shell.editor_panel_container.setCurrentWidget(panel)
+        self.shell.editor_panel = panel
+        panel.show()
+        panel.reveal_loaded_cube(cube_alias)
+        field_key = (cube_alias, "encoder", "text")
+        input_widgets = _panel_input_widgets(panel)
+        self.wait_until(
+            lambda: field_key in input_widgets and not panel.is_projection_active()
+        )
+        editor = input_widgets[field_key]
+        if not isinstance(editor, PromptEditor):
+            raise AssertionError(f"target field is {type(editor)!r}, not PromptEditor")
+        self.process_events(cycles=8)
+        field = PromptFieldHandle(
+            workflow=handle,
+            node_name="encoder",
+            field_key="text",
+            editor=editor,
+        )
+        self._install_editor_observability(field)
+        return field
+
+    def rendered_node_card_order(
+        self,
+        field: PromptFieldHandle,
+    ) -> tuple[str, ...]:
+        """Return production masonry insertion order for one cube section."""
+
+        ancestor: QWidget | None = field.editor
+        while ancestor is not None:
+            node_card_order = getattr(ancestor, "node_card_order", None)
+            if callable(node_card_order):
+                return tuple(node_card_order())
+            ancestor = ancestor.parentWidget()
+        raise AssertionError("cube masonry owner is unavailable")
 
     def probe_prompt_segment_scopes(
         self,
@@ -2785,14 +2894,6 @@ class RealShellPromptEditorHarness:
         for _index in range(cycles):
             self.app.processEvents()
 
-    def _finalize_panel_projection(self, panel: EditorPanel) -> None:
-        """Drain editor-panel projection work until the target field is materialized."""
-
-        for _index in range(20):
-            if panel.has_pending_visible_projection_commit():
-                panel.finalize_pending_visible_projection()
-            self.process_events(cycles=4)
-
 
 class _HarnessShell(QMainWindow):
     """Own the real workspace and real prompt editor panel under test."""
@@ -2834,11 +2935,20 @@ class _HarnessShell(QMainWindow):
         self.prompt_scheduled_lora_service = None
         self.prompt_spellcheck_service = None
         self.prompt_feature_profile_service = None
+        self.prompt_editor_preference_service = SimpleNamespace(
+            load_preferences=lambda: SimpleNamespace(
+                wheel_adjustment_mode=PromptWheelAdjustmentMode.HOVER_DWELL
+            )
+        )
         self.model_catalog_service = model_catalog_service
         self.model_choice_resolver = None
+        self.model_metadata_context_action_handler = None
         self.thumbnail_asset_repository = thumbnail_asset_repository
         self.user_preset_service = user_preset_service
         self.workflow_issue_state = None
+        self.editor_panel_execution_factories = (
+            immediate_editor_panel_execution_factories()
+        )
 
         self.path_bundle = _path_bundle()
         self.output_preview_registry = OutputPreviewRegistry()
@@ -2877,10 +2987,11 @@ class _HarnessShell(QMainWindow):
             clear_progress=lambda: None,
             set_progress=lambda _value: None,
         )
-        self.cube_stacks: dict[str, QWidget] = {}
+        self.cube_stacks: dict[str, CubeStack] = {}
         self.editor_panels: dict[str, EditorPanel] = {}
         self.override_managers: dict[str, object] = {}
         self._pending_restored_workflow_snapshots: dict[str, object] = {}
+        self._restored_workflow_snapshots_by_id: dict[str, object] = {}
         self.generationActionCluster = None
         self.error_reports: list[object] = []
         self.workspace_cube_stack_actions = SimpleNamespace(
@@ -2903,6 +3014,7 @@ class _HarnessShell(QMainWindow):
         self._error_presenter = _ErrorPresenter(self.error_reports)
         self._menu_container = QWidget()
         self._menu_container.setLayout(QHBoxLayout())
+        self.menu_bar = self._menu_container
         self.focus_sentinel = QPushButton("focus-sentinel", self._menu_container)
         self.focus_sentinel.setObjectName("PromptHarnessFocusSentinel")
         self.focus_sentinel.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -2911,6 +3023,10 @@ class _HarnessShell(QMainWindow):
         if menu_layout is None:
             raise RuntimeError("Harness menu container must have a layout.")
         menu_layout.addWidget(self.focus_sentinel)
+        self.menu_bar_layout = menu_layout
+        self.override_dropdown_btn = None
+        self._global_override_menu = None
+        self.pinned_override_service = PinnedOverrideService()
         workspace_parts = build_main_window_workspace(
             self,
             backdrop_mode=None,
@@ -2930,8 +3046,12 @@ class _HarnessShell(QMainWindow):
             workspace_parts.workflow_session_service,
         )
         self.workflow_tabbar = workspace_parts.workflow_tabbar
+        self.workspace_body_material_surface = (
+            workspace_parts.workspace_body_material_surface
+        )
         self.canvas_tabs = workspace_parts.canvas_tabs
         self.cube_stack_container: QStackedWidget = workspace_parts.cube_stack_container
+        self.editor_output_container = workspace_parts.editor_output_container
         self.editor_panel_container: QStackedWidget = (
             workspace_parts.editor_panel_container
         )
@@ -2945,6 +3065,26 @@ class _HarnessShell(QMainWindow):
         )
         self.canvas_image_registry = workspace_parts.canvas_image_registry
         self.output_canvas = self.canvas_tabs.canvas_map["Output"]
+        self.canvas_tabs_container = workspace_parts.canvas_tabs_container
+        self.splitter = workspace_parts.splitter
+        self.cubeStackModeButton = AppOrbCubeStackButton(self)
+        self.workspace_splitter_controller = WorkspaceSplitterController(
+            splitter=self.splitter,
+            details_widget=self.editor_output_container,
+            canvas_widget=self.canvas_tabs_container,
+        )
+        self.cube_stack_presentation_controller = CubeStackPresentationController(
+            container=self.cube_stack_container,
+            stacks=lambda: tuple(self.cube_stacks.values()),
+            mode_button=self.cubeStackModeButton,
+            material_surface=self.workspace_body_material_surface,
+            active_editor_surface=lambda: self.active_editor_panel,
+            splitter_controller=self.workspace_splitter_controller,
+            position_search_box=self.search_overlay_controller.position_search_box,
+            request_autosave=self.request_session_autosave,
+            parent=self,
+        )
+        self.workflow_ui_factory = WorkflowUiFactory(self)
         self.workflow_workspace = WorkflowWorkspaceCoordinator(
             cast(WorkflowWorkspaceView, self)
         )
@@ -2961,10 +3101,11 @@ class _HarnessShell(QMainWindow):
 
         cube_stack = self.cube_stacks.get(workflow_id)
         if cube_stack is None:
-            cube_stack = QWidget()
+            cube_stack = CubeStack(self)
             cube_stack.setObjectName(f"{workflow_id}-cube-stack")
+            self.cube_stack_presentation_controller.prepare_stack(cube_stack)
             self.cube_stacks[workflow_id] = cube_stack
-            self.cube_stack_container.addWidget(cube_stack)
+            self.cube_stack_container.addWidget(cast(QWidget, cube_stack))
         editor_panel = self.editor_panels.get(workflow_id)
         if editor_panel is None:
             editor_panel = EditorPanel(
@@ -2987,12 +3128,35 @@ class _HarnessShell(QMainWindow):
             self.main_window_signal_binder.connect_editor_panel_signals(editor_panel)
             self.editor_panels[workflow_id] = editor_panel
             self.editor_panel_container.addWidget(editor_panel)
+        if workflow_id not in self.override_managers:
+            manager = GlobalOverridesManager(
+                self,
+                pinned_override_service=self.pinned_override_service,
+                node_definition_gateway=self.node_definition_gateway,
+                prompt_autocomplete_gateway=self.prompt_autocomplete_gateway,
+                prompt_wildcard_catalog_gateway=self.prompt_wildcard_catalog_gateway,
+                prompt_lora_catalog_service=self.prompt_lora_catalog_service,
+                model_choice_snapshot_controller=(
+                    editor_panel.model_choice_snapshot_controller
+                ),
+                thumbnail_asset_repository=self.thumbnail_asset_repository,
+            )
+            self.override_managers[workflow_id] = manager
 
     @property
     def active_editor_panel(self) -> EditorPanel | None:
         """Return the editor panel for the active workflow."""
 
         return self.editor_panels.get(self.workflow_session_service.active_workflow_id)
+
+    @property
+    def active_override_manager(self) -> GlobalOverridesManager | None:
+        """Return the override manager for the active workflow."""
+
+        manager = self.override_managers.get(
+            self.workflow_session_service.active_workflow_id
+        )
+        return manager if isinstance(manager, GlobalOverridesManager) else None
 
     def get_active_workflow(self) -> WorkflowState | None:
         """Return the active workflow state."""
@@ -3021,6 +3185,22 @@ class _PromptNodeDefinitionGateway:
         {"CLIPTextEncode", "SimpleSyrup.SimpleLoadAnima", "UNETLoader"}
     )
 
+    def __init__(self) -> None:
+        """Initialize optional recorded definitions for broader shell scenarios."""
+
+        self._recorded_definitions: dict[str, dict[str, object]] = {}
+
+    def install_recorded_definitions(
+        self,
+        definitions: Mapping[str, Mapping[str, object]],
+    ) -> None:
+        """Install deterministic Comfy definitions used by a headless scenario."""
+
+        self._recorded_definitions = {
+            class_type: dict(definition)
+            for class_type, definition in definitions.items()
+        }
+
     def ensure_node_definitions(
         self,
         node_classes: Sequence[str],
@@ -3032,11 +3212,13 @@ class _PromptNodeDefinitionGateway:
             node_class
             for node_class in requested
             if node_class in self._SUPPORTED_NODE_CLASSES
+            or node_class in self._recorded_definitions
         )
         unavailable = tuple(
             node_class
             for node_class in requested
             if node_class not in self._SUPPORTED_NODE_CLASSES
+            and node_class not in self._recorded_definitions
         )
         return NodeDefinitionHydrationResult(
             requested=requested,
@@ -3078,6 +3260,8 @@ class _PromptNodeDefinitionGateway:
             },
         }
         definition = definitions.get(node_class)
+        if definition is None:
+            definition = self._recorded_definitions.get(node_class)
         return {} if definition is None else {node_class: definition}
 
 
@@ -3221,6 +3405,41 @@ def _anima_prompt_cube_state(
     }
     return CubeState(
         cube_id=f"PromptHarness.{alias}.cube",
+        version="1.0",
+        alias=alias,
+        buffer=buffer,
+        original_cube={"workflow": buffer},
+        display_name=alias,
+        dirty=False,
+        ui={},
+        field_control_states={},
+    )
+
+
+def _inferred_prompt_cube_state(initial_text: str, *, alias: str) -> CubeState:
+    """Build a cube whose arbitrary encoder name feeds a semantic positive sink."""
+
+    buffer: dict[str, object] = {
+        "nodes": {
+            "ordinary": {
+                "class_type": "OrdinaryControl",
+                "inputs": {"value": 1},
+            },
+            "encoder": {
+                "class_type": "CLIPTextEncode",
+                "_meta": {"title": "Text Encoder"},
+                "inputs": {"text": initial_text},
+            },
+            "sampler": {
+                "class_type": "KSampler",
+                "inputs": {"positive": ["encoder", 0]},
+            },
+        },
+        "definitions": {},
+        "subgraphs": [],
+    }
+    return CubeState(
+        cube_id="PromptHarness.inferred.cube",
         version="1.0",
         alias=alias,
         buffer=buffer,

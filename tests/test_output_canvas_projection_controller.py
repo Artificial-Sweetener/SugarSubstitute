@@ -245,7 +245,7 @@ def test_bind_projection_session_applies_final_output_projection() -> None:
     assert view._projection_workflow_id == "workflow-a"
     assert view._output_projection is projection
     assert view.scene_count == 1
-    assert view.active_scene_key is None
+    assert view.active_scene_key == "scene-a"
     assert view.active_scene_overview is False
     assert view.active_source_key == "source-a"
     assert view.active_set_index == 1

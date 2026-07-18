@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import CheckBox, LineEdit  # type: ignore[import-untyped]
+from qfluentwidgets import CaptionLabel, CheckBox, LineEdit  # type: ignore[import-untyped]
 from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
     CustomStyleSheet,
     styleSheetManager,
@@ -42,7 +42,11 @@ from substitute.application.model_metadata import (
     RichChoiceItem,
     RichChoiceResolution,
 )
-from substitute.application.node_behavior import FieldBehavior, ResolvedFieldSpec
+from substitute.application.node_behavior import (
+    FieldBehavior,
+    FieldPresentation,
+    ResolvedFieldSpec,
+)
 from substitute.presentation.editor.panel.factories.field_pipeline import (
     build_widget_for_field_spec,
 )
@@ -213,6 +217,67 @@ def _builder(panel: _Panel) -> FieldRowBuilder:
         icon_builder=lambda _icon: QWidget(panel),
         icon_resolver=_resolve_icon,
     )
+
+
+def test_seed_alias_rows_preserve_shared_widget_geometry_and_visible_labels() -> None:
+    """Cube and Comfy seed aliases should differ only in authored label text."""
+
+    app = _ensure_qapp()
+    panel = _Panel()
+    panel.resize(600, 160)
+    seed = SeedBox(panel)
+    noise_seed = SeedBox(panel)
+    builder = _builder(panel)
+
+    seed_row = builder.build_input_row(
+        label="seed",
+        widget=seed,
+        field_behavior=FieldBehavior(
+            field_key="seed",
+            presentation=FieldPresentation.SEED_BOX,
+        ),
+    ).row
+    noise_seed_row = builder.build_input_row(
+        label="noise_seed",
+        widget=noise_seed,
+        field_behavior=FieldBehavior(
+            field_key="noise_seed",
+            presentation=FieldPresentation.SEED_BOX,
+        ),
+    ).row
+    seed_row.setGeometry(0, 0, 600, EDITOR_FIELD_ROW_HEIGHT)
+    noise_seed_row.setGeometry(0, EDITOR_FIELD_ROW_HEIGHT, 600, EDITOR_FIELD_ROW_HEIGHT)
+    panel.show()
+    seed_row.show()
+    noise_seed_row.show()
+    for row in (seed_row, noise_seed_row):
+        layout = row.layout()
+        assert isinstance(layout, QHBoxLayout)
+        layout.activate()
+    app.processEvents()
+
+    seed_layout = cast(QHBoxLayout, seed_row.layout())
+    noise_layout = cast(QHBoxLayout, noise_seed_row.layout())
+    seed_label_item = seed_layout.itemAt(1)
+    noise_label_item = noise_layout.itemAt(1)
+    assert seed_label_item is not None
+    assert noise_label_item is not None
+    seed_label = seed_label_item.widget()
+    noise_label = noise_label_item.widget()
+    assert isinstance(seed_label, CaptionLabel)
+    assert isinstance(noise_label, CaptionLabel)
+    assert seed_label.text() == "Seed"
+    assert noise_label.text() == "Noise Seed"
+    assert seed_label.isVisible()
+    assert noise_label.isVisible()
+    assert seed.size() == noise_seed.size()
+    assert seed.sizeHint() == noise_seed.sizeHint()
+    assert seed.minimumSizeHint() == noise_seed.minimumSizeHint()
+    assert seed.sizePolicy() == noise_seed.sizePolicy()
+    assert seed.line_edit.geometry() == noise_seed.line_edit.geometry()
+    assert seed.split_button.geometry() == noise_seed.split_button.geometry()
+
+    panel.close()
 
 
 def _ksampler_field_spec(

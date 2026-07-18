@@ -26,7 +26,6 @@ from typing import cast
 from substitute.application.node_behavior import ResolvedFieldSpec
 from substitute.shared.logging.logger import get_logger, log_debug, log_timing
 
-from .cube_section_build_plan import node_order_for_cube
 from .cube_section_build_session import CubeSectionBuildSession
 from .projection_observability import log_panel_projection_event
 from .projection_ports import (
@@ -103,12 +102,6 @@ class CubeSectionBuildController:
         )
         grid_layout = cast(MasonryGridLayout, getattr(section_parts, "grid_layout"))
 
-        raw_nodes = cube.get("nodes", {})
-        nodes = (
-            cast(Mapping[str, object], raw_nodes)
-            if isinstance(raw_nodes, Mapping)
-            else {}
-        )
         field_specs_by_alias = getattr(behavior_snapshot, "field_specs_by_alias", {})
         raw_field_specs_by_node = (
             field_specs_by_alias.get(route_key, {})
@@ -119,7 +112,19 @@ class CubeSectionBuildController:
             Mapping[str, Mapping[str, ResolvedFieldSpec]],
             raw_field_specs_by_node,
         )
-        node_order = node_order_for_cube(nodes, field_specs_by_node)
+        card_order_by_alias = getattr(behavior_snapshot, "card_order_by_alias", {})
+        raw_node_order = (
+            card_order_by_alias.get(route_key)
+            if isinstance(card_order_by_alias, Mapping)
+            else None
+        )
+        if not isinstance(raw_node_order, tuple) or not all(
+            isinstance(node_name, str) for node_name in raw_node_order
+        ):
+            raise RuntimeError(
+                f"Behavior snapshot omitted planned card order for {route_key}."
+            )
+        node_order = list(raw_node_order)
         log_timing(
             _LOGGER,
             "Prepared cube-section build session",
@@ -136,7 +141,7 @@ class CubeSectionBuildController:
             cube_alias=route_key,
             node_count=len(node_order),
             field_spec_node_count=len(field_specs_by_node),
-            nodes_payload_type=type(nodes).__name__,
+            nodes_payload_type=type(cube.get("nodes")).__name__,
             behavior_snapshot_present=behavior_snapshot is not None,
             wrapper_type=type(widget).__name__,
         )

@@ -18,112 +18,81 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass, field
+from enum import StrEnum
 from uuid import UUID
 
 from substitute.domain.common import (
     ImageIdentity,
     InputImageMap,
-    MaskAssociationKey,
     MaskAssociationMap,
     MaskToImageMap,
 )
 
 
-@dataclass(frozen=True)
-class EditableMaskBinding:
-    """Identify one editable image-mask relationship exposed by a cube graph."""
+class InputAssetRole(StrEnum):
+    """Classify one editable upload endpoint by its connected graph use."""
 
-    cube_alias: str
-    image_node_name: str
-    mask_node_name: str
-    consumer_node_name: str
-
-    @property
-    def association_key(self) -> MaskAssociationKey:
-        """Return the workflow mask-association key for this binding."""
-
-        return (self.cube_alias, self.mask_node_name)
-
-    @property
-    def image_identity(self) -> ImageIdentity:
-        """Return the workflow image identity for this binding."""
-
-        return (self.cube_alias, self.image_node_name)
+    IMAGE = "image"
+    MASK = "mask"
 
 
 @dataclass(frozen=True)
-class EditableMaskBindingIndex:
-    """Expose unambiguous editable mask bindings for one cube graph."""
+class InputAssetEndpoint:
+    """Describe one unambiguous upload widget and its used typed output socket."""
 
-    bindings: tuple[EditableMaskBinding, ...] = ()
-    ambiguous_mask_keys: frozenset[MaskAssociationKey] = frozenset()
+    section_key: str
+    node_name: str
+    field_key: str
+    output_index: int
+    role: InputAssetRole
 
-    @classmethod
-    def from_bindings(
-        cls,
-        bindings: Iterable[EditableMaskBinding],
-    ) -> EditableMaskBindingIndex:
-        """Build an index while dropping mask bindings that resolve ambiguously."""
+    @property
+    def identity(self) -> ImageIdentity:
+        """Return the stable section/node identity used by canvas state."""
 
-        ordered = tuple(bindings)
-        grouped: dict[MaskAssociationKey, list[EditableMaskBinding]] = {}
-        for binding in ordered:
-            grouped.setdefault(binding.association_key, []).append(binding)
+        return (self.section_key, self.node_name)
 
-        ambiguous = frozenset(
-            key for key, candidates in grouped.items() if len(candidates) > 1
-        )
-        unique_bindings: list[EditableMaskBinding] = []
-        seen_bindings: set[EditableMaskBinding] = set()
-        for binding in ordered:
-            if binding.association_key in ambiguous or binding in seen_bindings:
-                continue
-            seen_bindings.add(binding)
-            unique_bindings.append(binding)
-        return cls(bindings=tuple(unique_bindings), ambiguous_mask_keys=ambiguous)
 
-    def binding_for_mask(
-        self,
-        cube_alias: str,
-        mask_node_name: str,
-    ) -> EditableMaskBinding | None:
-        """Return the unique editable binding for one mask node when available."""
+@dataclass(frozen=True)
+class InputAssetEndpointIndex:
+    """Expose semantically classified upload endpoints for one graph section."""
 
-        association_key = (cube_alias, mask_node_name)
-        if association_key in self.ambiguous_mask_keys:
-            return None
-        for binding in self.bindings:
-            if binding.association_key == association_key:
-                return binding
-        return None
+    endpoints: tuple[InputAssetEndpoint, ...] = ()
+    ambiguous_endpoint_nodes: frozenset[str] = frozenset()
 
-    def bindings_for_image(
-        self,
-        cube_alias: str,
-        image_node_name: str,
-    ) -> tuple[EditableMaskBinding, ...]:
-        """Return editable mask bindings attached to one image identity."""
+    @property
+    def image_endpoints(self) -> tuple[InputAssetEndpoint, ...]:
+        """Return endpoints classified exclusively as editable images."""
 
-        image_identity = (cube_alias, image_node_name)
         return tuple(
-            binding
-            for binding in self.bindings
-            if binding.image_identity == image_identity
+            endpoint
+            for endpoint in self.endpoints
+            if endpoint.role is InputAssetRole.IMAGE
         )
 
-    def image_identities(self) -> tuple[ImageIdentity, ...]:
-        """Return image identities that expose at least one editable mask binding."""
+    @property
+    def mask_endpoints(self) -> tuple[InputAssetEndpoint, ...]:
+        """Return endpoints classified exclusively as editable masks."""
 
-        ordered: list[ImageIdentity] = []
-        seen: set[ImageIdentity] = set()
-        for binding in self.bindings:
-            if binding.image_identity in seen:
-                continue
-            seen.add(binding.image_identity)
-            ordered.append(binding.image_identity)
-        return tuple(ordered)
+        return tuple(
+            endpoint
+            for endpoint in self.endpoints
+            if endpoint.role is InputAssetRole.MASK
+        )
+
+    def image_endpoint_for_node(self, node_name: str) -> InputAssetEndpoint | None:
+        """Return one image upload widget when its node identity is unambiguous."""
+
+        candidates = tuple(
+            endpoint
+            for endpoint in self.image_endpoints
+            if endpoint.node_name == node_name
+        )
+        field_keys = {endpoint.field_key for endpoint in candidates}
+        if len(field_keys) != 1:
+            return None
+        return candidates[0]
 
 
 @dataclass
@@ -139,7 +108,8 @@ class WorkflowCanvasState:
 
 
 __all__ = [
-    "EditableMaskBinding",
-    "EditableMaskBindingIndex",
+    "InputAssetEndpoint",
+    "InputAssetEndpointIndex",
+    "InputAssetRole",
     "WorkflowCanvasState",
 ]

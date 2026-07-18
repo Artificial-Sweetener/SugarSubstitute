@@ -42,6 +42,7 @@ class WorkflowInvalidationReason(StrEnum):
     CUBE_BYPASS_CHANGED = "cube_bypass_changed"
     CUBE_LOADED = "cube_loaded"
     RECIPE_LOADED = "recipe_loaded"
+    DIRECT_WORKFLOW_LOADED = "direct_workflow_loaded"
     WORKFLOW_DUPLICATED = "workflow_duplicated"
     WORKFLOW_RESTORED = "workflow_restored"
     NODE_DEFINITIONS_REFRESHED = "node_definitions_refreshed"

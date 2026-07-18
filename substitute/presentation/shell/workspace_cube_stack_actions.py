@@ -169,20 +169,22 @@ class CubeStackServiceProtocol(Protocol):
         """Toggle cube bypass and return its new value."""
 
 
-class ShellLayoutControllerProtocol(Protocol):
-    """Describe compact-mode operations needed during inline rename."""
+class CubeStackExpansionLeaseProtocol(Protocol):
+    """Describe one cancellable temporary cube-stack expansion."""
 
-    def set_cube_stack_compact(
+    def release(self) -> None:
+        """Release the temporary expansion exactly once."""
+
+
+class CubeStackPresentationControllerProtocol(Protocol):
+    """Describe temporary expansion used during inline alias editing."""
+
+    def acquire_expansion(
         self,
-        compact: bool,
         *,
-        on_complete: Callable[[], None] | None = None,
-        manual: bool = True,
-    ) -> None:
-        """Set shell-owned cube-stack compact mode."""
-
-    def current_cube_stack_compact(self) -> bool:
-        """Return shell-owned cube-stack compact mode."""
+        on_expanded: Callable[[], None] | None = None,
+    ) -> CubeStackExpansionLeaseProtocol:
+        """Expand temporarily and notify when the endpoint is ready."""
 
 
 class ActiveWorkflowSurfaceRefresherProtocol(Protocol):
@@ -204,7 +206,7 @@ class WorkspaceCubeStackActionView(Protocol):
     workflow_session_service: object
     active_cube_stack: CubeStackProtocol | None
     active_editor_panel: EditorPanelProtocol | None
-    shell_layout_controller: ShellLayoutControllerProtocol
+    cube_stack_presentation_controller: CubeStackPresentationControllerProtocol
     active_workflow_surface_refresher: ActiveWorkflowSurfaceRefresherProtocol
 
     def get_active_workflow(self) -> WorkflowState:
@@ -213,11 +215,11 @@ class WorkspaceCubeStackActionView(Protocol):
 
 @dataclass(slots=True)
 class CubeRenameEditSession:
-    """Track a temporary compact-mode override for alias editing."""
+    """Track one alias edit and its cancellable temporary expansion."""
 
     route_key: str
-    restore_compact: bool
     session_id: int
+    expansion_lease: CubeStackExpansionLeaseProtocol | None = None
 
 
 class WorkspaceCubeStackActions:
@@ -264,25 +266,19 @@ class WorkspaceCubeStackActions:
         active_stack = self._view.active_cube_stack
         if active_stack is None:
             return
-        restore_compact = self._current_cube_stack_compact(active_stack)
-        session = self._start_cube_rename_edit_session(
-            route_key,
-            restore_compact=restore_compact,
-        )
+        session = self._start_cube_rename_edit_session(route_key)
 
         def begin_editing() -> None:
             """Begin editing after temporary expansion completes."""
 
             self._begin_cube_alias_editing_for_session(session)
 
-        if restore_compact:
-            self._view.shell_layout_controller.set_cube_stack_compact(
-                False,
-                on_complete=begin_editing,
-                manual=False,
-            )
-            return
-        begin_editing()
+        lease = self._view.cube_stack_presentation_controller.acquire_expansion(
+            on_expanded=begin_editing,
+        )
+        session.expansion_lease = lease
+        if self._cube_rename_edit_session is not session:
+            lease.release()
 
     def on_cube_rename_edit_finished(self, route_key: str) -> None:
         """Restore compact mode after a coordinated alias-edit session."""
@@ -291,14 +287,8 @@ class WorkspaceCubeStackActions:
         if session is None or session.route_key != route_key:
             return
         self._cube_rename_edit_session = None
-        if session.restore_compact:
-            self._restore_compact_for_rename_session(session)
-
-    def on_cube_stack_compact_mode_manually_requested(self, compact: bool) -> None:
-        """Drop pending rename restoration after an explicit mode change."""
-
-        del compact
-        self._cube_rename_edit_session = None
+        if session.expansion_lease is not None:
+            session.expansion_lease.release()
 
     def on_cube_rename_requested(
         self,
@@ -457,15 +447,18 @@ class WorkspaceCubeStackActions:
     def _start_cube_rename_edit_session(
         self,
         route_key: str,
-        *,
-        restore_compact: bool,
     ) -> CubeRenameEditSession:
         """Replace the active alias-edit session."""
 
+        previous_session = self._cube_rename_edit_session
+        if (
+            previous_session is not None
+            and previous_session.expansion_lease is not None
+        ):
+            previous_session.expansion_lease.release()
         self._cube_rename_edit_session_id += 1
         session = CubeRenameEditSession(
             route_key=route_key,
-            restore_compact=restore_compact,
             session_id=self._cube_rename_edit_session_id,
         )
         self._cube_rename_edit_session = session
@@ -485,32 +478,8 @@ class WorkspaceCubeStackActions:
         ):
             return
         self._cube_rename_edit_session = None
-        if session.restore_compact:
-            self._restore_compact_for_rename_session(session)
-
-    def _restore_compact_for_rename_session(
-        self,
-        session: CubeRenameEditSession,
-    ) -> None:
-        """Restore compact mode only for the active temporary session."""
-
-        if session.session_id == self._cube_rename_edit_session_id:
-            self._view.shell_layout_controller.set_cube_stack_compact(
-                True,
-                manual=False,
-            )
-
-    def _current_cube_stack_compact(self, active_stack: CubeStackProtocol) -> bool:
-        """Return shell-owned compact state with a stack-level fallback."""
-
-        current_compact = getattr(
-            self._view.shell_layout_controller,
-            "current_cube_stack_compact",
-            None,
-        )
-        if callable(current_compact):
-            return bool(current_compact())
-        return bool(active_stack.isCompact())
+        if session.expansion_lease is not None:
+            session.expansion_lease.release()
 
 
 def _stack_index_for_route_key(

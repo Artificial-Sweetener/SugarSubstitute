@@ -159,14 +159,14 @@ class OutputCanvasRouteModel:
         source_key: str | None,
         set_index: int,
     ) -> OutputCanvasImageItem | None:
-        """Return nearest item for a source/set selection."""
+        """Return the exact item for a source/set selection."""
 
         if source_key is None:
             return None
         source = source_groups.get(source_key)
         if source is None:
             return None
-        return source.nearest_item(set_index)
+        return source.images_by_set.get(set_index)
 
     @staticmethod
     def first_item_for_set(
@@ -229,7 +229,13 @@ class OutputCanvasRouteModel:
 
     @staticmethod
     def grid_available_for_source(source: OutputCanvasSourceGroup) -> bool:
-        """Return whether a source has enough data for a grid scene."""
+        """Return whether a source has any tile that a grid can render."""
+
+        return bool(source.images_by_set)
+
+    @staticmethod
+    def batch_overview_available_for_source(source: OutputCanvasSourceGroup) -> bool:
+        """Return whether a source provides a meaningful multi-batch overview."""
 
         return len(source.images_by_set) > 1
 
@@ -255,6 +261,18 @@ class OutputCanvasRouteModel:
 
         for source_key, source in source_groups.items():
             if cls.grid_available_for_source(source):
+                return source_key
+        return None
+
+    @classmethod
+    def first_batch_overview_source_key(
+        cls,
+        source_groups: Mapping[str, OutputCanvasSourceGroup],
+    ) -> str | None:
+        """Return the first source that provides more than one batch tile."""
+
+        for source_key, source in source_groups.items():
+            if cls.batch_overview_available_for_source(source):
                 return source_key
         return None
 

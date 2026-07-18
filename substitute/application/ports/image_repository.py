@@ -35,6 +35,9 @@ class ImageRepository(Protocol):
     def save_blank_mask(self, path: Path, *, size: object) -> bool:
         """Create and save a transparent mask image to the destination path."""
 
+    def save_blank_image(self, path: Path, *, width: int, height: int) -> bool:
+        """Create and save an opaque neutral image at explicit dimensions."""
+
     def image_dimensions(self, path: Path) -> tuple[int, int] | None:
         """Return image dimensions when the filesystem image is readable."""
 

@@ -24,9 +24,11 @@ from substitute.application.ports import SessionSnapshotRepository
 from substitute.application.workspace_state.snapshot_normalization_service import (
     SnapshotNormalizationService,
 )
-from substitute.application.workspace_state.restore_projection_cache import (
+from substitute.application.workspace_state.restore_projection_models import (
     RestoreProjectionArtifact,
     RestoreProjectionCacheRepository,
+)
+from substitute.application.workspace_state.restore_projection_validation import (
     RestoreProjectionCacheState,
     RestoreProjectionValidationResult,
     RestoreProjectionValidationService,

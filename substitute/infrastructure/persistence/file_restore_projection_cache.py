@@ -25,6 +25,8 @@ from pathlib import Path
 from substitute.application.workspace_state import (
     RestoreProjectionArtifact,
     RestoreProjectionCacheRepository,
+    restore_projection_artifact_from_json,
+    restore_projection_artifact_to_json,
 )
 from substitute.shared.logging.logger import get_logger, log_warning
 
@@ -57,7 +59,7 @@ class FileRestoreProjectionCacheRepository(RestoreProjectionCacheRepository):
             decoded = json.loads(self._path.read_text(encoding="utf-8"))
             if not isinstance(decoded, Mapping):
                 raise ValueError("Restore projection cache root must be an object.")
-            artifact = RestoreProjectionArtifact.from_json(decoded)
+            artifact = restore_projection_artifact_from_json(decoded)
         except (OSError, ValueError, json.JSONDecodeError) as error:
             log_warning(
                 _LOGGER,
@@ -71,7 +73,14 @@ class FileRestoreProjectionCacheRepository(RestoreProjectionCacheRepository):
     def save(self, artifact: RestoreProjectionArtifact) -> None:
         """Persist one restore projection artifact through atomic replacement."""
 
-        serialized = json.dumps(artifact.to_json(), indent=2, sort_keys=True) + "\n"
+        serialized = (
+            json.dumps(
+                restore_projection_artifact_to_json(artifact),
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        )
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         self._temp_path.write_text(serialized, encoding="utf-8")
         self._temp_path.replace(self._path)

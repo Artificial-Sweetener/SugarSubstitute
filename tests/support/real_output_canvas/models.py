@@ -63,6 +63,7 @@ class OutputSpec:
     color: tuple[int, int, int]
     node_id: str = "save-image"
     list_index: int = 0
+    batch_index: int = 0
     width: int = 48
     height: int = 32
     scene: SceneSpec | None = None
@@ -76,6 +77,17 @@ class CanvasFingerprint:
     active_canvas_visible: bool
     output_session_workflow_id: str | None
     workflow_output_image_ids: Mapping[str, tuple[UUID, ...]]
+    workflow_output_routes: Mapping[
+        str,
+        tuple[str | None, bool, str | None, int, UUID | None],
+    ]
+    workflow_output_focus_modes: Mapping[str, str]
+    active_source_tab_key: str | None
+    navigation_container_hidden: bool
+    scene_selector_hidden: bool
+    set_selector_hidden: bool
+    source_tabs_hidden: bool
+    source_selector_hidden: bool
     preview_image_ids: tuple[UUID, ...]
     preview_lane_keys: tuple[str, ...]
     pending_feedback_counts: Mapping[str, int]

@@ -195,6 +195,12 @@ def test_refresh_surfaces_reconciles_every_loaded_panel_before_toolbar() -> None
         def rebuild_active_override_controls(self) -> None:
             calls.append(("rebuild_active_override_controls", None))
 
+    class _CanvasRouteController:
+        def refresh_input_canvas_availability(self) -> None:
+            """Record semantic Input capability refresh after metadata arrives."""
+
+            calls.append(("refresh_input_canvas_availability", None))
+
     shell = SimpleNamespace(
         node_definition_gateway=object(),
         node_definition_refreshed=_Signal(),
@@ -202,6 +208,7 @@ def test_refresh_surfaces_reconciles_every_loaded_panel_before_toolbar() -> None
         editor_panels={"workflow-1": _Panel(), "workflow-2": _Panel()},
         active_editor_panel=None,
         active_override_manager=_Manager(),
+        canvas_route_controller=_CanvasRouteController(),
     )
     controller = node_definition_refresh_controller.NodeDefinitionRefreshController(
         shell
@@ -226,6 +233,7 @@ def test_refresh_surfaces_reconciles_every_loaded_panel_before_toolbar() -> None
             },
         ),
         ("reconcile_model_fields", {"refreshed_node_classes": ("KSampler",)}),
+        ("refresh_input_canvas_availability", None),
         ("rebuild_override_menu", None),
         ("rebuild_active_override_controls", None),
     ]

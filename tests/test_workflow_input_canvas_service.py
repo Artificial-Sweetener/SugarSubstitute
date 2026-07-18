@@ -18,16 +18,29 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
 from uuid import UUID, uuid4
 
-from substitute.application.cubes import CubeMaskBindingService
+from substitute.application.workflows.input_asset_endpoint_service import (
+    InputAssetEndpointService,
+)
+from substitute.application.workflows.input_canvas_plan_service import (
+    InputCanvasPlanService,
+)
+from substitute.application.workflows.workflow_node_definition_service import (
+    WorkflowNodeDefinitionService,
+)
 from substitute.application.workflows import (
     WorkflowAssetService,
     WorkflowInputCanvasService,
 )
+from substitute.application.workflows.editor_projection_service import (
+    DIRECT_WORKFLOW_SECTION_KEY,
+)
 from substitute.domain.common import JsonObject
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.workflow import CubeState, WorkflowState
 
 
@@ -47,6 +60,23 @@ class _FakeImage:
         """Return the fake image size payload."""
 
         return self._size_value
+
+
+class _DefinitionGateway:
+    """Return deterministic live node definitions for planner integration tests."""
+
+    def __init__(self, definitions: Mapping[str, JsonObject]) -> None:
+        self._definitions = definitions
+
+    def get_node_definition(self, node_class: str) -> JsonObject:
+        """Return one cached definition."""
+
+        return self._definitions.get(node_class, {})
+
+    def get_required_node_definition(self, node_class: str) -> JsonObject:
+        """Return one required definition through the same deterministic cache."""
+
+        return self.get_node_definition(node_class)
 
 
 class _FakeSize:
@@ -91,8 +121,13 @@ class _FakeInputCanvasStateService:
     ) -> UUID:
         """Return the configured input image identifier."""
 
-        _ = workflows, active_workflow_id, image
+        _ = image
         self.loaded_images.append((input_key, path))
+        if isinstance(workflows, Mapping):
+            workflow = workflows.get(active_workflow_id)
+            if isinstance(workflow, WorkflowState):
+                workflow.canvas.input_key_map[input_key] = self._image_id
+                workflow.canvas.input_image_uuid = self._image_id
         return self._image_id
 
     def set_active_input_image(
@@ -166,6 +201,28 @@ class _FakeInputCanvasStateService:
         if mask_id is not None:
             active_workflow.canvas.mask_to_image_map.pop(mask_id, None)
 
+    def drop_input_surface(
+        self,
+        workflows: Mapping[str, WorkflowState],
+        workflow_id: str,
+        input_key: str,
+    ) -> bool:
+        """Drop one fake surface and all masks associated with its image."""
+
+        workflow = workflows.get(workflow_id)
+        if workflow is None:
+            return False
+        image_id = workflow.canvas.input_key_map.pop(input_key, None)
+        if image_id is None:
+            return False
+        for association_key, mask_id in tuple(
+            workflow.canvas.mask_associations.items()
+        ):
+            if workflow.canvas.mask_to_image_map.get(mask_id) != image_id:
+                continue
+            self.drop_mask_association(workflow, association_key)
+        return True
+
     def update_mask_from_file(
         self,
         workflow_id: str,
@@ -207,6 +264,23 @@ class _FakeCanvasIoService:
 
         _ = path
         return self._image
+
+    def create_blank_input_surface(
+        self,
+        *,
+        destination: Path,
+        width: int,
+        height: int,
+    ) -> _FakeImage:
+        """Return the configured image for a synthetic backing request."""
+
+        _ = destination, width, height
+        return self._image
+
+    def synthetic_input_surface_path(self, **_kwargs: object) -> Path:
+        """Return a deterministic fake synthetic backing path."""
+
+        return self._expected_mask_path.with_name("synthetic.png")
 
     def expected_bound_mask_path(self, **_kwargs: object) -> Path:
         """Return the configured expected bound mask path."""
@@ -269,6 +343,7 @@ def _build_workflow(mask_path: str) -> WorkflowState:
             }
         },
     )
+    workflow.stack_order.append("CubeA")
     return workflow
 
 
@@ -315,10 +390,232 @@ def _workflow_input_service(
     """Build the workflow input-canvas service with standard collaborators."""
 
     return WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
     )
+
+
+def _input_canvas_plan_service(
+    definitions: Mapping[str, JsonObject] | None = None,
+) -> InputCanvasPlanService:
+    """Build one definition-backed Input canvas planner for service tests."""
+
+    definition_service = WorkflowNodeDefinitionService(
+        _DefinitionGateway(definitions or {})
+    )
+    return InputCanvasPlanService(
+        node_definition_service=definition_service,
+        endpoint_service=InputAssetEndpointService(definition_service),
+    )
+
+
+def test_materialize_loaded_section_creates_synthetic_mask_only_canvas(
+    tmp_path: Path,
+) -> None:
+    """A resolved spatial root should create one backing image and mask layer."""
+
+    workflow = WorkflowState()
+    workflow.cubes["Regional"] = CubeState(
+        cube_id="Regional",
+        version="1.0.0",
+        alias="Regional",
+        original_cube={"nodes": {}},
+        buffer={
+            "nodes": {
+                "mask": {
+                    "class_type": "LoadImageMask",
+                    "inputs": {"image": "mask.png"},
+                },
+                "region": {
+                    "class_type": "PackRegionalCondition",
+                    "inputs": {"mask": ["mask", 0]},
+                },
+                "noise": {
+                    "class_type": "PackNoiseLatent",
+                    "inputs": {"width": 896, "height": 1152},
+                },
+                "sampler": {
+                    "class_type": "PackSampler",
+                    "inputs": {
+                        "latent": ["noise", 0],
+                        "conditioning": ["region", 0],
+                    },
+                },
+            }
+        },
+    )
+    workflow.stack_order.append("Regional")
+    definitions: dict[str, JsonObject] = {
+        "LoadImageMask": {
+            "input": {
+                "required": {
+                    "image": [
+                        "STRING",
+                        {"image_upload": True, "image_folder": "input"},
+                    ]
+                }
+            },
+            "output": ["MASK"],
+        },
+        "PackRegionalCondition": {
+            "input": {"required": {"mask": ["MASK", {}]}},
+            "output": ["CONDITIONING"],
+        },
+        "PackNoiseLatent": {
+            "input": {
+                "required": {
+                    "width": ["INT", {}],
+                    "height": ["INT", {}],
+                }
+            },
+            "output": ["LATENT"],
+        },
+        "PackSampler": {
+            "input": {
+                "required": {
+                    "latent": ["LATENT", {}],
+                    "conditioning": ["CONDITIONING", {}],
+                }
+            },
+            "output": ["LATENT"],
+        },
+    }
+    image_id = uuid4()
+    mask_id = uuid4()
+    expected_mask = tmp_path / "Regional Recipe" / "masks" / "regional.png"
+    state_service = _FakeInputCanvasStateService(
+        image_id=image_id,
+        mask_id=mask_id,
+    )
+    io_service = _FakeCanvasIoService(
+        image=_FakeImage(size_value=_FakeSize(896, 1152)),
+        expected_mask_path=expected_mask,
+        dimensions_by_path={},
+        created_destinations=[],
+    )
+    service = WorkflowInputCanvasService(
+        input_canvas_plan_service=_input_canvas_plan_service(definitions),
+        input_canvas_state_service=state_service,
+        canvas_io_service=io_service,
+    )
+
+    results = service.materialize_loaded_section(
+        workflows={"workflow": workflow},
+        workflow_id="workflow",
+        section_key="Regional",
+        workflow_name="Regional Recipe",
+        projects_dir=tmp_path,
+    )
+
+    assert len(results) == 1
+    assert results[0].image_id == image_id
+    assert list(workflow.canvas.input_key_map.values()) == [image_id]
+    synthetic_key = next(iter(workflow.canvas.input_key_map))
+    assert synthetic_key.startswith("Regional:@synthetic/")
+    assert workflow.canvas.mask_associations[("Regional", "mask")] == mask_id
+    assert workflow.canvas.mask_to_image_map[mask_id] == image_id
+
+
+def test_synthetic_canvas_authority_change_invalidates_old_surface(
+    tmp_path: Path,
+) -> None:
+    """Dimension fingerprints should retire stale images and mask associations."""
+
+    workflow = WorkflowState()
+    workflow.cubes["Regional"] = CubeState(
+        cube_id="Regional",
+        version="1.0.0",
+        alias="Regional",
+        original_cube={"nodes": {}},
+        buffer={
+            "nodes": {
+                "mask": {
+                    "class_type": "LoadImageMask",
+                    "inputs": {"image": "old-mask.png"},
+                },
+                "region": {
+                    "class_type": "Regional",
+                    "inputs": {"mask": ["mask", 0]},
+                },
+                "root": {
+                    "class_type": "LatentFactory",
+                    "inputs": {"width": 768, "height": 1024},
+                },
+                "sampler": {
+                    "class_type": "Sampler",
+                    "inputs": {
+                        "latent": ["root", 0],
+                        "conditioning": ["region", 0],
+                    },
+                },
+            }
+        },
+    )
+    workflow.stack_order.append("Regional")
+    old_image_id = uuid4()
+    old_mask_id = uuid4()
+    old_key = "Regional:@synthetic/obsolete"
+    workflow.canvas.input_key_map[old_key] = old_image_id
+    workflow.canvas.mask_associations[("Regional", "mask")] = old_mask_id
+    workflow.canvas.mask_to_image_map[old_mask_id] = old_image_id
+    definitions: dict[str, JsonObject] = {
+        "LoadImageMask": {
+            "input": {"required": {"image": ["STRING", {"image_upload": True}]}},
+            "output": ["MASK"],
+        },
+        "Regional": {
+            "input": {"required": {"mask": ["MASK", {}]}},
+            "output": ["CONDITIONING"],
+        },
+        "LatentFactory": {
+            "input": {
+                "required": {
+                    "width": ["INT", {}],
+                    "height": ["INT", {}],
+                }
+            },
+            "output": ["LATENT"],
+        },
+        "Sampler": {
+            "input": {
+                "required": {
+                    "latent": ["LATENT", {}],
+                    "conditioning": ["CONDITIONING", {}],
+                }
+            },
+            "output": ["LATENT"],
+        },
+    }
+    new_image_id = uuid4()
+    new_mask_id = uuid4()
+    state_service = _FakeInputCanvasStateService(
+        image_id=new_image_id,
+        mask_id=new_mask_id,
+    )
+    io_service = _FakeCanvasIoService(
+        image=_FakeImage(size_value=_FakeSize(768, 1024)),
+        expected_mask_path=tmp_path / "Recipe" / "masks" / "new.png",
+        created_destinations=[],
+    )
+    service = WorkflowInputCanvasService(
+        input_canvas_plan_service=_input_canvas_plan_service(definitions),
+        input_canvas_state_service=state_service,
+        canvas_io_service=io_service,
+    )
+
+    service.materialize_loaded_section(
+        workflows={"workflow": workflow},
+        workflow_id="workflow",
+        section_key="Regional",
+        workflow_name="Recipe",
+        projects_dir=tmp_path,
+    )
+
+    assert old_key not in workflow.canvas.input_key_map
+    assert old_mask_id not in workflow.canvas.mask_to_image_map
+    assert workflow.canvas.mask_associations[("Regional", "mask")] == new_mask_id
+    assert list(workflow.canvas.input_key_map.values()) == [new_image_id]
 
 
 def test_materialize_input_image_updates_load_image_asset_ref(
@@ -380,7 +677,7 @@ def test_materialize_input_image_hydrates_existing_expected_mask_file(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
     )
@@ -427,7 +724,7 @@ def test_materialize_input_image_creates_input_bound_blank_mask_and_updates_buff
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
     )
@@ -476,7 +773,7 @@ def test_apply_user_selected_input_mask_rejects_wrong_size_before_mutation(
         created_destinations=[],
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
         workflow_asset_service=WorkflowAssetService(),
@@ -527,7 +824,7 @@ def test_apply_user_selected_input_mask_rejects_unverified_dimensions_before_mut
         created_destinations=[],
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
         workflow_asset_service=WorkflowAssetService(),
@@ -575,7 +872,7 @@ def test_materialize_input_image_ignores_stale_previous_mask_path(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
     )
@@ -623,7 +920,7 @@ def test_materialize_input_image_switching_back_reuses_compatible_bound_mask(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
     )
@@ -671,7 +968,7 @@ def test_materialize_input_image_replaces_mismatched_expected_mask_with_blank(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
     )
@@ -722,7 +1019,7 @@ def test_materialize_input_image_reuses_compatible_variant_after_mismatch(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
     )
@@ -804,8 +1101,9 @@ def test_materialize_input_image_preserves_explicit_manual_mask_asset(
     asset_service = WorkflowAssetService()
     assert asset_service.associate_local_input_mask(
         workflow,
-        cube_alias="CubeA",
+        section_key="CubeA",
         node_name="input_mask",
+        field_key="image",
         mask_path=selected_mask,
     )
     created_destinations: list[Path] = []
@@ -822,7 +1120,7 @@ def test_materialize_input_image_preserves_explicit_manual_mask_asset(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
         workflow_asset_service=asset_service,
@@ -862,8 +1160,9 @@ def test_materialize_input_image_replaces_wrong_size_explicit_manual_mask(
     asset_service = WorkflowAssetService()
     assert asset_service.associate_local_input_mask(
         workflow,
-        cube_alias="CubeA",
+        section_key="CubeA",
         node_name="input_mask",
+        field_key="image",
         mask_path=selected_mask,
     )
     created_destinations: list[Path] = []
@@ -877,7 +1176,7 @@ def test_materialize_input_image_replaces_wrong_size_explicit_manual_mask(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
         workflow_asset_service=asset_service,
@@ -931,7 +1230,7 @@ def test_materialize_input_image_creates_multiple_bound_masks(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
     )
@@ -1026,7 +1325,7 @@ def test_reconcile_loaded_input_canvas_image_preserves_existing_image_uuid(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
     )
@@ -1075,7 +1374,7 @@ def test_reconcile_loaded_input_canvas_image_reuses_existing_canvas_mask(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
     )
@@ -1141,7 +1440,7 @@ def test_reconcile_loaded_input_canvas_image_drops_stale_mask_association(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        cube_mask_binding_service=CubeMaskBindingService(),
+        input_canvas_plan_service=_input_canvas_plan_service(),
         input_canvas_state_service=input_canvas_state_service,
         canvas_io_service=canvas_io_service,
     )
@@ -1280,6 +1579,7 @@ def test_resolve_loaded_input_canvas_image_identity_rejects_ambiguous_bound_inpu
             }
         },
     )
+    workflow.stack_order.append("CubeB")
     service = _workflow_input_service(
         _FakeInputCanvasStateService(image_id=uuid4(), mask_id=uuid4()),
         _FakeCanvasIoService(
@@ -1331,10 +1631,10 @@ def test_materialize_loaded_cube_scans_graph_bound_local_images_only(
     results = _workflow_input_service(
         input_canvas_state_service,
         canvas_io_service,
-    ).materialize_loaded_cube(
+    ).materialize_loaded_section(
         workflows={"wf-a": workflow},
         workflow_id="wf-a",
-        cube_alias="CubeA",
+        section_key="CubeA",
         workflow_name="Recipe",
         projects_dir=tmp_path,
     )
@@ -1371,16 +1671,75 @@ def test_materialize_loaded_cube_ignores_non_local_image_values(
     results = _workflow_input_service(
         input_canvas_state_service,
         canvas_io_service,
-    ).materialize_loaded_cube(
+    ).materialize_loaded_section(
         workflows={"wf-a": workflow},
         workflow_id="wf-a",
-        cube_alias="CubeA",
+        section_key="CubeA",
         workflow_name="Recipe",
         projects_dir=tmp_path,
     )
 
     assert results == ()
     assert input_canvas_state_service.loaded_images == []
+
+
+def test_direct_workflow_materializes_image_and_bound_mask_through_shared_service(
+    tmp_path: Path,
+) -> None:
+    """Direct documents should use the same image, mask, and asset lifecycle as cubes."""
+
+    selected_image_path = Path("images/selected.png")
+    graph: JsonObject = {
+        "nodes": {
+            "1": {
+                "class_type": "LoadImage",
+                "inputs": {"image": str(Path("images/source.png"))},
+            },
+            "2": {
+                "class_type": "LoadImageMask",
+                "inputs": {"image": ""},
+            },
+            "3": {
+                "class_type": "Consumer",
+                "inputs": {"pixels": ["1", 0], "mask": ["2", 0]},
+            },
+        }
+    }
+    direct = DirectWorkflowState(
+        source_path=tmp_path / "workflow.json",
+        source_workflow=graph,
+        buffer=graph,
+    )
+    workflow = WorkflowState(direct_workflow=direct)
+    image_id = uuid4()
+    mask_id = uuid4()
+    expected_mask = tmp_path / "Direct" / "masks" / "source__mask.png"
+    input_state = _FakeInputCanvasStateService(image_id=image_id, mask_id=mask_id)
+    service = _workflow_input_service(
+        input_state,
+        _FakeCanvasIoService(
+            image=_FakeImage(),
+            expected_mask_path=expected_mask,
+            created_destinations=[],
+        ),
+    )
+
+    result = service.materialize_input_image(
+        workflows={"wf-direct": workflow},
+        workflow_id="wf-direct",
+        cube_alias=DIRECT_WORKFLOW_SECTION_KEY,
+        image_node_name="1",
+        image_path=str(selected_image_path),
+        workflow_name="Direct",
+        projects_dir=tmp_path,
+    )
+
+    assert result.image_id == image_id
+    assert [item.mask_id for item in result.mask_results] == [mask_id]
+    nodes = cast(dict[str, JsonObject], direct.buffer["nodes"])
+    assert cast(JsonObject, nodes["1"]["inputs"])["image"] == str(selected_image_path)
+    assert cast(JsonObject, nodes["2"]["inputs"])["image"] == expected_mask.name
+    assert direct.dirty is True
 
 
 def test_materialize_input_image_rejects_stale_workflow_without_graph_update(

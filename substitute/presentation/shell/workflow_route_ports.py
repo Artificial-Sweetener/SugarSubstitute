@@ -22,7 +22,7 @@ from typing import Protocol
 
 from substitute.presentation.shell.workflow_surface_results import (
     SurfaceRefreshResult,
-    WorkflowUiPair,
+    WorkflowUiSurfaces,
 )
 
 
@@ -47,7 +47,7 @@ class WorkflowRoutePort(Protocol):
         workflow_id: str,
         *,
         set_as_current: bool = True,
-    ) -> WorkflowUiPair:
+    ) -> WorkflowUiSurfaces:
         """Ensure workflow-scoped widgets exist for route projection."""
 
     def set_current_cube_stack(self, workflow_id: str) -> bool:
@@ -55,6 +55,14 @@ class WorkflowRoutePort(Protocol):
 
     def set_current_editor_panel(self, workflow_id: str) -> bool:
         """Show the cached editor panel for the workflow."""
+
+    def present_cube_stack_for_workflow(
+        self,
+        workflow_id: str,
+        *,
+        animated: bool = True,
+    ) -> None:
+        """Project document-kind availability after destination surfaces are active."""
 
     def position_search_box(self) -> None:
         """Reposition lightweight editor overlays."""

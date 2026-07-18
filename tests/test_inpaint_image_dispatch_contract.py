@@ -84,13 +84,14 @@ class _QueueRecorderGateway:
         workflow_payload: dict[str, object],
         *,
         client_id: str,
+        execution_targets: tuple[str, ...] | None = None,
         preview_method: str | None = None,
         sugar_script: str | None = None,
         visual_context: QueueVisualRunContext | None = None,
     ) -> QueuePromptResult:
         """Record queued workflow payload and return a prompt id."""
 
-        del client_id, preview_method, sugar_script, visual_context
+        del client_id, execution_targets, preview_method, sugar_script, visual_context
         self.queue_calls.append(workflow_payload)
         return QueuePromptResult(
             status="queued",
@@ -187,6 +188,13 @@ def _build_real_inpaint_workflow(
                         "channel": "red",
                     },
                 },
+                "consumer": {
+                    "class_type": "VAEEncodeForInpaint",
+                    "inputs": {
+                        "pixels": ["load_image", 0],
+                        "mask": ["load_image_as_mask", 0],
+                    },
+                },
             },
         },
         buffer={
@@ -202,6 +210,13 @@ def _build_real_inpaint_workflow(
                         "channel": "red",
                     },
                 },
+                "consumer": {
+                    "class_type": "VAEEncodeForInpaint",
+                    "inputs": {
+                        "pixels": ["load_image", 0],
+                        "mask": ["load_image_as_mask", 0],
+                    },
+                },
             }
         },
     )
@@ -212,16 +227,18 @@ def _build_real_inpaint_workflow(
     asset_service = WorkflowAssetService()
     associated = asset_service.associate_local_input_image(
         workflow,
-        cube_alias="Inpaint",
+        section_key="Inpaint",
         node_name="load_image",
+        field_key="image",
         image_path=selected_image,
     )
     assert associated is True
     if selected_mask is not None:
         mask_associated = asset_service.associate_project_input_mask(
             workflow,
-            cube_alias="Inpaint",
+            section_key="Inpaint",
             node_name="load_image_as_mask",
+            field_key="image",
             relative_path=selected_mask,
         )
         assert mask_associated is True
@@ -327,6 +344,7 @@ def test_real_inpaint_generation_queues_selected_load_image_instead_of_default(
                     "1": {
                         "class_type": "LoadImage",
                         "inputs": {"image": str(selected_image)},
+                        "_meta": {"title": "Inpaint.load_image"},
                     },
                     "2": {
                         "class_type": "LoadImageMask",
@@ -334,6 +352,7 @@ def test_real_inpaint_generation_queues_selected_load_image_instead_of_default(
                             "image": selected_mask.name,
                             "channel": "red",
                         },
+                        "_meta": {"title": "Inpaint.load_image_as_mask"},
                     },
                 }
             ),

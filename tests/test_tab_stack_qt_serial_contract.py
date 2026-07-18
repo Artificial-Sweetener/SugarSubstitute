@@ -351,6 +351,7 @@ def test_cube_item_alias_editor_geometry_matches_primary_text_row() -> None:
     app = _ensure_qapp()
     _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
+    item_mod = importlib.import_module("substitute.presentation.workflows.cube_item")
 
     stack = mod.CubeStack(None)
     first = stack.addTab("a", "SDXL/Text to Image")
@@ -365,7 +366,7 @@ def test_cube_item_alias_editor_geometry_matches_primary_text_row() -> None:
     first._startRename()
     app.processEvents()
 
-    expected_primary_rect, _secondary_rect = mod.CubeCardVisual.text_row_rects(
+    expected_primary_rect, _secondary_rect = item_mod.CubeCardVisual.text_row_rects(
         first._textRect()
     )
     assert first.closeButton.isHidden()
@@ -762,8 +763,9 @@ def test_cubeitem_compact_progress_clamps_and_drives_geometry_helpers() -> None:
     _ensure_qapp()
     _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
+    item_mod = importlib.import_module("substitute.presentation.workflows.cube_item")
 
-    item = mod.CubeItem("A", None, mod.FluentIcon.ADD)
+    item = item_mod.CubeItem("A", None, item_mod.FluentIcon.ADD)
 
     item.setCompactProgress(-1.0)
     assert item.compact_progress() == 0.0
@@ -803,7 +805,7 @@ def test_cube_item_context_menu_exposes_duplicate_and_remove_actions(
     """Cube item context menu should expose duplicate and X-independent removal."""
     _ensure_qapp()
     _clear_gui_stubs()
-    mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
+    item_mod = importlib.import_module("substitute.presentation.workflows.cube_item")
 
     class FakeAction:
         """Capture one rendered cube item context-menu action."""
@@ -862,9 +864,9 @@ def test_cube_item_context_menu_exposes_duplicate_and_remove_actions(
                     menu.addAction(FakeAction(entry))
             return menu
 
-    monkeypatch.setattr(mod, "QFluentMenuRenderer", FakeRenderer)
+    monkeypatch.setattr(item_mod, "QFluentMenuRenderer", FakeRenderer)
 
-    item = mod.CubeItem("A", None, None)
+    item = item_mod.CubeItem("A", None, None)
     closed_calls: list[bool] = []
     duplicate_calls: list[bool] = []
     item.closed.connect(lambda: closed_calls.append(True))
@@ -928,6 +930,52 @@ def test_cubestack_wheel_reroutes_when_stack_has_no_scroll_range() -> None:
 
     stack.close()
     stack.deleteLater()
+
+
+def test_cubestack_indicator_realign_timer_is_destroyed_with_stack() -> None:
+    """Deferred indicator work must not outlive a replaced cube-stack surface."""
+
+    app = _ensure_qapp()
+    _clear_gui_stubs()
+    mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
+    import shiboken6
+
+    stack = mod.CubeStack(None)
+    stack.addTab("a", "A")
+    timer = stack._indicator_realign_timer
+
+    assert timer.parent() is stack
+    assert timer.isSingleShot()
+    assert timer.isActive()
+
+    stack.deleteLater()
+    app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app.processEvents()
+
+    assert not shiboken6.isValid(timer)
+
+
+def test_cubestack_indicator_realign_ignores_deleted_content_view() -> None:
+    """A stale layout tick must stop when its owned content view was deleted."""
+
+    app = _ensure_qapp()
+    _clear_gui_stubs()
+    mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
+    import shiboken6
+
+    stack = mod.CubeStack(None)
+    stack._indicator_realign_timer.stop()
+    detached_view = stack.takeWidget()
+    assert detached_view is stack.view
+    detached_view.deleteLater()
+    app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app.processEvents()
+    assert not shiboken6.isValid(detached_view)
+
+    stack._complete_indicator_realign()
+
+    stack.deleteLater()
+    app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
 def test_cubestack_wheel_stays_owned_when_stack_can_scroll_at_boundary() -> None:

@@ -28,6 +28,7 @@ from typing import Any
 
 from PySide6.QtGui import QImage
 
+from substitute.domain.generation import OutputResultPosition
 from substitute.application.ports import PreviewImageUpdate
 from substitute.application.ports.file_manager_gateway import (
     FileRevealResult,
@@ -48,6 +49,9 @@ from substitute.application.workflows.output_canvas_state_service import (
     OutputImageRegistrationResult,
     OutputPreviewCloseIdentity,
     OutputProjectionSchedulingIntent,
+)
+from substitute.application.workflows.output_scene_navigation_selection import (
+    OutputSceneNavigationSelection,
 )
 from substitute.application.workflows.output_visual_events import LivePreviewEvent
 from substitute.domain.workflow import (
@@ -305,20 +309,35 @@ def test_active_output_scene_selection_records_manual_scene() -> None:
 
     mod = _import_module()
     workflow = WorkflowState()
-    calls: list[tuple[object, str | None, bool]] = []
+    calls: list[tuple[object, OutputSceneNavigationSelection]] = []
     view = SimpleNamespace(
         get_active_workflow=lambda: workflow,
         output_canvas_state_service=SimpleNamespace(
-            set_active_output_scene=lambda active_workflow, scene_key, *, overview: (
-                calls.append((active_workflow, scene_key, overview))
+            set_active_output_scene=lambda active_workflow, selection: calls.append(
+                (active_workflow, selection)
             )
         ),
     )
 
-    mod.WorkspaceCanvasActions(view).on_active_output_scene_changed("scene-a", False)
-    mod.WorkspaceCanvasActions(view).on_active_output_scene_changed("", True)
+    scene_selection = OutputSceneNavigationSelection(
+        scene_key="scene-a",
+        overview=False,
+        source_key="source-a",
+        set_index=0,
+        image_id=None,
+    )
+    overview_selection = OutputSceneNavigationSelection(
+        scene_key=None,
+        overview=True,
+        source_key=None,
+        set_index=1,
+        image_id=None,
+    )
+    actions = mod.WorkspaceCanvasActions(view)
+    actions.on_active_output_scene_changed(scene_selection)
+    actions.on_active_output_scene_changed(overview_selection)
 
-    assert calls == [(workflow, "scene-a", False), (workflow, None, True)]
+    assert calls == [(workflow, scene_selection), (workflow, overview_selection)]
 
 
 def test_output_compare_selection_records_compare_state() -> None:
@@ -374,7 +393,15 @@ def test_output_selection_intents_schedule_active_projection() -> None:
 
     actions.on_active_output_changed("out-1")
     actions.on_active_output_grid_changed("wf:node")
-    actions.on_active_output_scene_changed("scene-a", False)
+    actions.on_active_output_scene_changed(
+        OutputSceneNavigationSelection(
+            scene_key="scene-a",
+            overview=False,
+            source_key="source-a",
+            set_index=0,
+            image_id=None,
+        )
+    )
     actions.on_output_compare_changed(state)
 
     assert scheduled == ["wf", "wf", "wf", "wf"]
@@ -835,6 +862,7 @@ def test_commit_prepared_live_output_uses_generated_registration() -> None:
         prompt_id="prompt-1",
         client_id="client-1",
         list_index=2,
+        batch_index=0,
     )
     live_event = LiveFinalOutputEvent(
         identity=OutputVisualIdentity(
@@ -849,7 +877,7 @@ def test_commit_prepared_live_output_uses_generated_registration() -> None:
         node_id="save",
         workflow_payload={"save": {"class_type": "SugarCubes.CubeOutput"}},
         file_path=Path("E:/out.png"),
-        list_index=2,
+        position=OutputResultPosition(list_index=2, batch_index=0),
         artifact_width=640,
         artifact_height=480,
     )
@@ -897,7 +925,7 @@ def test_commit_prepared_live_output_uses_generated_registration() -> None:
                 generation_run_id="run-1",
                 prompt_id="prompt-1",
                 client_id="client-1",
-                list_index=2,
+                position=OutputResultPosition(list_index=2, batch_index=0),
                 artifact_width=640,
                 artifact_height=480,
                 live_event=live_event,
@@ -941,6 +969,7 @@ def test_commit_prepared_live_output_rejection_skips_routes_and_activity() -> No
         prompt_id="prompt-1",
         client_id="client-1",
         list_index=2,
+        batch_index=0,
     )
     live_event = LiveFinalOutputEvent(
         identity=OutputVisualIdentity(
@@ -955,7 +984,7 @@ def test_commit_prepared_live_output_rejection_skips_routes_and_activity() -> No
         node_id="save",
         workflow_payload={"save": {"class_type": "SugarCubes.CubeOutput"}},
         file_path=Path("E:/out.png"),
-        list_index=2,
+        position=OutputResultPosition(list_index=2, batch_index=0),
         artifact_width=640,
         artifact_height=480,
     )
@@ -1001,7 +1030,7 @@ def test_commit_prepared_live_output_rejection_skips_routes_and_activity() -> No
                 generation_run_id="run-1",
                 prompt_id="prompt-1",
                 client_id="client-1",
-                list_index=2,
+                position=OutputResultPosition(list_index=2, batch_index=0),
                 artifact_width=640,
                 artifact_height=480,
                 live_event=live_event,

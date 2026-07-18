@@ -30,6 +30,7 @@ from substitute.presentation.resources.app_icon import AppIcon
 from substitute.presentation.shell.restored_workflow_materializer import (
     RestoredWorkflowMaterializer,
 )
+from substitute.presentation.shell.workflow_surface_results import WorkflowUiSurfaces
 
 
 class _TabItem:
@@ -180,13 +181,17 @@ class _WorkflowUiShell:
         workflow_id: str,
         *,
         set_as_current: bool = True,
-    ) -> tuple[_RestoredCubeStack, object]:
+    ) -> WorkflowUiSurfaces:
         """Create fake workflow-scoped widgets."""
 
         self.created.append((workflow_id, set_as_current))
         stack = self.cube_stacks.setdefault(workflow_id, _RestoredCubeStack())
         editor_panel = self.editor_panels.setdefault(workflow_id, object())
-        return stack, editor_panel
+        return WorkflowUiSurfaces(
+            cube_stack=stack,
+            editor_panel=editor_panel,
+            created=True,
+        )
 
 
 def _workflow_snapshot(
@@ -317,13 +322,17 @@ def test_add_restored_workflow_clears_outgoing_override_toolbar_on_activation() 
         workflow_id: str,
         *,
         set_as_current: bool = True,
-    ) -> tuple[_RestoredCubeStack, object]:
+    ) -> WorkflowUiSurfaces:
         """Record workflow UI creation and return fake widgets."""
 
         calls.append(f"create:{workflow_id}:{set_as_current}")
         stack = shell.cube_stacks.setdefault(workflow_id, _RestoredCubeStack())
         editor = shell.editor_panels.setdefault(workflow_id, object())
-        return stack, editor
+        return WorkflowUiSurfaces(
+            cube_stack=stack,
+            editor_panel=editor,
+            created=True,
+        )
 
     shell.workflow_ui_factory = SimpleNamespace(create_workflow_ui=create_workflow_ui)
     snapshot = _workflow_snapshot(workflow_id="wf-restored", tab_label="Restored")
@@ -345,10 +354,12 @@ def test_ensure_workflow_ui_hydrates_deferred_restored_snapshot() -> None:
     snapshot = _workflow_snapshot(workflow_id="wf-inactive", tab_label="Inactive")
     shell = _WorkflowUiShell(snapshot)
 
-    cube_stack, editor_panel = RestoredWorkflowMaterializer(shell).ensure_workflow_ui(
+    surfaces = RestoredWorkflowMaterializer(shell).ensure_workflow_ui(
         "wf-inactive",
         set_as_current=True,
     )
+    cube_stack = surfaces.cube_stack
+    editor_panel = surfaces.editor_panel
 
     assert shell.created == [("wf-inactive", True)]
     assert cube_stack is shell.cube_stacks["wf-inactive"]
