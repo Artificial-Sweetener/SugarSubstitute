@@ -397,7 +397,7 @@ def test_project_requirements_pin_current_qpane_baseline() -> None:
 
     requirements = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8")
 
-    assert "qpane[mask,sam]>=2.0.4" in requirements
+    assert "qpane[mask,sam]==2.1.1" in requirements
 
 
 def _write_fixture_repo(tmp_path: Path) -> Path:

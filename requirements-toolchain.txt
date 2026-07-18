@@ -1,0 +1,15 @@
+###############################################
+# Sugar Substitute development and CI toolchain
+###############################################
+
+-r requirements.txt
+
+pip==26.1.2
+pip-audit==2.10.1
+pre-commit==4.6.0
+pytest==9.1.1
+pytest-xdist==3.8.0
+ruff==0.15.22
+mypy==2.3.0
+pyinstaller==6.21.0
+uv==0.11.18
