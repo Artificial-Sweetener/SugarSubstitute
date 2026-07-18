@@ -26,7 +26,9 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 
 ### Required command forms (PowerShell)
 
-- Tests: `.\.venv\Scripts\python.exe -m pytest -n auto -q`
+- Focused tests: `.\.venv\Scripts\python.exe -m pytest -n auto -q <paths>`
+- Full parallel tests: `.\.venv\Scripts\python.exe -m pytest -n auto -q -m "not serial"`
+- Full serial tests: `.\.venv\Scripts\python.exe -m tools.ci.run_serial_test_modules --junit-dir=build\test-results\local-serial`
 - Lint: `.\.venv\Scripts\ruff.exe check .`
 - Format: `.\.venv\Scripts\ruff.exe format .`
 - Type check: `.\.venv\Scripts\mypy.exe --strict substitute tests`
@@ -179,13 +181,15 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 ## Test Execution Rules
 
 - Run local tests against the repository `.venv`.
-- Run tests in parallel using xdist.
-- Default command: `.\.venv\Scripts\python.exe -m pytest -n auto -q`.
 - Run focused tests continuously during development.
-- Run the complete local suite before reporting completion.
+- Before ending a normal implementation turn, run tests covering the changed behavior and its blast area, plus targeted formatting, lint, and strict typing checks for changed files.
+- Report the checks run and state when full commit gates remain pending.
+- Run the complete repository format, lint, strict type, parallel test, and serial test gates before committing, not merely because a turn is ending.
+- Full-gate results remain valid for the exact commit-relevant worktree they verified and may be reused if that content has not changed. Staging, unstaging, and ignored verification artifacts do not invalidate them.
+- After a commit-relevant change, rerun every affected gate; rerun all gates when impact is uncertain.
 - CI must run the complete applicable suite on Windows, Linux, and macOS.
 - Report which platforms were actually verified; do not infer cross-platform success from one operating system.
-- Failing and flaky tests are blocking.
+- Failing and flaky applicable tests are blocking.
 
 ## Python Toolchain
 
@@ -198,13 +202,13 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 
 - Run focused checks continuously while implementing.
 - Verify the specific reported behavior directly when feasible; do not declare a UI or interaction issue fixed from code inspection alone.
-- Run full gates before reporting completion.
+- Use focused blast-area verification for normal turn completion and full repository gates for commit readiness.
 - Distinguish observed results from inferred results in updates and completion reports.
 - Do not introduce new lint/type failures in modified files.
-- Do not report completion if any blocking gate fails.
+- Do not report completion when an applicable focused gate fails; do not commit when any full gate fails or remains incomplete.
 - If a gate is intentionally deferred, explicitly state the reason and risk.
 
-## Definition of Done (Per Change)
+## Definition of Done
 
 - Behavior safeguarded by tests.
 - New/modified code follows architecture boundaries.
@@ -212,10 +216,8 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 - New/modified code is typed.
 - Required docstrings are present and meaningful.
 - Logging/error handling is actionable.
-- `ruff format` passes.
-- `ruff check` passes.
-- `mypy --strict` passes for the enforced scope.
-- `pytest -n auto -q` passes.
+- A normal implementation handoff has passing focused tests and targeted format, lint, and strict typing checks for the blast area.
+- A commit has passing full repository format, lint, strict typing, parallel test, and serial test gates for its exact contents.
 
 ## Commit Policy
 
