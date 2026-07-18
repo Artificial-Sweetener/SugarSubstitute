@@ -2,7 +2,7 @@
 
 ## Mission Statement
 
-This project exists to provide a high-quality PySide6 frontend for ComfyUI with excellent usability, reliability, and maintainability.  
+This project exists to provide a high-quality PySide6 frontend for ComfyUI with excellent usability, reliability, and maintainability.
 Engineering priority is strict architecture, strong separation of concerns, behavior safety during structural change, and long-term developer velocity.
 
 ## Purpose
@@ -135,14 +135,33 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 
 ## Testing Policy
 
+- Treat Windows, Linux, and macOS as first-class supported platforms.
+- Tests are cross-platform by default. Use `@pytest.mark.platforms(...)` only when behavior genuinely depends on the host operating system.
+- Never add a platform exclusion merely to suppress a failure. Fix portable behavior and portable assertions instead.
 - Add or update tests for every behavior change and every bug fix.
 - Add characterization tests before structural changes to behavior-critical areas.
 - New behavior must not be unverified.
-- Include success and failure path coverage.
-- Include regression tests for fixed bugs.
-- Keep tests deterministic and isolated.
-- Prefer real behavior tests over excessive mocking; mock only external boundaries.
-- UI-critical behavior should be covered by automated tests, including Qt behavior where feasible.
+- Test observable behavior through the component that owns it. Avoid coupling tests to private helpers, incidental call order, or implementation details.
+- Include success, failure, boundary, and regression coverage.
+- Keep tests deterministic, isolated, order-independent, and safe for repeated execution.
+- Control clocks, randomness, environment variables, filesystem state, subprocesses, and network boundaries when they affect test results.
+- Use `tmp_path` and `pathlib.Path`. Portable tests must not assume drive letters, path separators, case sensitivity, permission models, executable bits, or process behavior.
+- When native operating-system behavior is the subject of a test, exercise the real native behavior and mark the applicable platforms explicitly.
+- Prefer real application components over mocks. Mock or fake external boundaries, not the behavior being tested.
+- Qt tests must wait for observable signals or state transitions with bounded timeouts. Do not use arbitrary sleeps or assume queued work completes immediately.
+- Qt tests must clean up widgets, timers, threads, subprocesses, and event-loop work they create.
+- Assert semantic state and relationships. Exact font metrics, pixel geometry, and rendering details belong in controlled rendering harnesses.
+- UI-critical behavior must have automated coverage where technically feasible.
+- Do not weaken assertions, add retries, skip tests, or serialize tests to conceal nondeterminism.
+
+### Test Classification
+
+- Use `@pytest.mark.platforms(...)` for individual platform-specific tests.
+- Use a module-level platform marker when every test in that module has the same applicability.
+- Use `PLATFORM_TEST_MODULES` only when unsupported platform imports prevent the module from being collected.
+- Tests are parallel-safe by default.
+- Add a module to `SERIAL_TEST_MODULES` only for a demonstrated native Qt, process, or resource-isolation constraint.
+- Document non-obvious platform and serial classifications in `tests/ci_test_policy.py`.
 
 ### Prompt Editor Harness
 
@@ -159,10 +178,14 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 
 ## Test Execution Rules
 
+- Run local tests against the repository `.venv`.
 - Run tests in parallel using xdist.
 - Default command: `.\.venv\Scripts\python.exe -m pytest -n auto -q`.
-- If running a focused subset during development, run full suite before completion.
-- Failing tests are blocking.
+- Run focused tests continuously during development.
+- Run the complete local suite before reporting completion.
+- CI must run the complete applicable suite on Windows, Linux, and macOS.
+- Report which platforms were actually verified; do not infer cross-platform success from one operating system.
+- Failing and flaky tests are blocking.
 
 ## Python Toolchain
 
