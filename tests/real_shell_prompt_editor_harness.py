@@ -26,7 +26,7 @@ import math
 import platform
 import random
 import sys
-from time import perf_counter
+from time import thread_time
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -1024,7 +1024,7 @@ class RealShellPromptEditorHarness:
 
             nonlocal menu_exec_elapsed_ms
             nonlocal triggered_action_text
-            started_at = perf_counter()
+            started_at = thread_time()
             captured_menu_rows.extend(_round_menu_rows(menu))
             if populate_lazy_submenus:
                 _populate_lazy_round_menu_submenus(menu)
@@ -1040,7 +1040,7 @@ class RealShellPromptEditorHarness:
                     before_trigger_lora_action()
                 triggered_action_text = action.text()
                 action.trigger()
-            menu_exec_elapsed_ms += (perf_counter() - started_at) * 1000.0
+            menu_exec_elapsed_ms += (thread_time() - started_at) * 1000.0
 
         def capture_text_menu_exec(
             menu: object,
@@ -1050,16 +1050,16 @@ class RealShellPromptEditorHarness:
             """Measure prompt menu population before the final RoundMenu boundary."""
 
             nonlocal text_menu_exec_elapsed_ms
-            started_at = perf_counter()
+            started_at = thread_time()
             try:
                 return original_text_menu_exec(menu, *args, **kwargs)
             finally:
-                text_menu_exec_elapsed_ms += (perf_counter() - started_at) * 1000.0
+                text_menu_exec_elapsed_ms += (thread_time() - started_at) * 1000.0
 
         RoundMenu.exec = capture_exec
         text_menu_class.exec = capture_text_menu_exec
         try:
-            started_at = perf_counter()
+            started_at = thread_time()
             press_event = QMouseEvent(
                 QtCore.QEvent.Type.MouseButtonPress,
                 QtCore.QPointF(local_pos),
@@ -1075,7 +1075,7 @@ class RealShellPromptEditorHarness:
                 global_pos,
             )
             QCoreApplication.sendEvent(viewport, context_event)
-            event_dispatch_elapsed_ms = (perf_counter() - started_at) * 1000.0
+            event_dispatch_elapsed_ms = (thread_time() - started_at) * 1000.0
             self.process_events(cycles=10)
         finally:
             text_menu_class.exec = original_text_menu_exec

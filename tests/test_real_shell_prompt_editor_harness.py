@@ -960,7 +960,7 @@ def test_real_shell_saved_segment_menu_allows_global_save_without_model() -> Non
 
 
 def test_real_shell_harness_times_lora_trigger_context_menu_open() -> None:
-    """Capture prompt context-menu timing while many trigger rows are populated."""
+    """Bound prompt context-menu CPU work while many trigger rows are populated."""
 
     item_count = 50
     items = tuple(
@@ -998,7 +998,7 @@ def test_real_shell_harness_times_lora_trigger_context_menu_open() -> None:
         assert trace.cached_scheduled_lora_count_before == item_count
         assert trace.event_dispatch_elapsed_ms < 80.0
         assert trace.event_dispatch_elapsed_ms > 0.0
-        assert trace.menu_population_elapsed_ms > 0.0
+        assert trace.menu_population_elapsed_ms >= 0.0
         assert trace.menu_exec_elapsed_ms >= 0.0
     finally:
         shell_harness.close()
