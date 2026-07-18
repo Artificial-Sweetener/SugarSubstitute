@@ -31,6 +31,7 @@ from substitute.infrastructure.comfy.managed_validation import (
     workspace_python_dir,
     workspace_venv_dir,
 )
+from substitute.infrastructure.filesystem import remove_app_owned_path
 from substitute.infrastructure.version_control import (
     RepositoryOperationError,
     RepositoryService,
@@ -62,13 +63,10 @@ def migrate_nested_workspace_layout(workspace: Path) -> bool:
         if entry.name in preserve:
             continue
         destination = workspace / entry.name
-        if destination.exists():
-            if destination.is_dir():
-                shutil.rmtree(destination)
-            else:
-                destination.unlink()
+        if destination.exists() or destination.is_symlink():
+            remove_app_owned_path(destination)
         shutil.move(str(entry), str(destination))
-    shutil.rmtree(nested_repo, ignore_errors=True)
+    remove_app_owned_path(nested_repo)
     return True
 
 
@@ -89,7 +87,7 @@ def remove_invalid_bootstrap_workspace(workspace: Path) -> bool:
         return True
     if not present_entries.issubset(allowed_entries):
         return False
-    shutil.rmtree(workspace, ignore_errors=True)
+    remove_app_owned_path(workspace)
     return True
 
 

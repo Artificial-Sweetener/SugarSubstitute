@@ -18,12 +18,13 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 
+from substitute.infrastructure.filesystem import remove_app_owned_path
 from substitute.infrastructure.version_control.repository import (
     RepositoryOperationError,
 )
@@ -31,6 +32,7 @@ from substitute.infrastructure.version_control.repository import (
 
 _DEFAULT_CLONE_TIMEOUT_SECONDS = 120.0
 _OUTPUT_TAIL_LIMIT = 2_000
+_LOGGER = logging.getLogger(__name__)
 
 
 class Pygit2CloneProcess:
@@ -85,20 +87,20 @@ class Pygit2CloneProcess:
                 creationflags=creationflags,
             )
         except subprocess.TimeoutExpired as error:
-            shutil.rmtree(target_path, ignore_errors=True)
+            _discard_partial_clone(target_path)
             raise RepositoryOperationError(
                 f"Repository clone timed out after {self._timeout_seconds:g} seconds: "
                 f"{repository_url}"
             ) from error
         except OSError as error:
-            shutil.rmtree(target_path, ignore_errors=True)
+            _discard_partial_clone(target_path)
             raise RepositoryOperationError(
                 f"Could not start the bundled repository clone process: {error}"
             ) from error
 
         if completed.returncode == 0:
             return
-        shutil.rmtree(target_path, ignore_errors=True)
+        _discard_partial_clone(target_path)
         detail = _tail_output(completed.stdout)
         suffix = f" Details: {detail}" if detail else ""
         raise RepositoryOperationError(
@@ -116,6 +118,19 @@ def _hidden_process_options() -> tuple[subprocess.STARTUPINFO | None, int]:
     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     startupinfo.wShowWindow = 0
     return startupinfo, subprocess.CREATE_NO_WINDOW
+
+
+def _discard_partial_clone(target_path: Path) -> None:
+    """Best-effort remove app-owned clone output without masking clone failure."""
+
+    try:
+        remove_app_owned_path(target_path)
+    except OSError:
+        _LOGGER.warning(
+            "Could not remove partial repository clone | target=%s",
+            target_path,
+            exc_info=True,
+        )
 
 
 def _tail_output(output: str | None) -> str:

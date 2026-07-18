@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import os
 from pathlib import Path
 import shutil
@@ -74,20 +73,7 @@ def copy_local_nodepack_source(
     )
 
 
-def clear_readonly_and_retry(
-    function: Callable[[str], object],
-    path: str,
-    excinfo: BaseException,
-) -> None:
-    """Clear a readonly bit and retry rmtree cleanup on Windows."""
-
-    _ = excinfo
-    os.chmod(path, 0o700)
-    function(path)
-
-
 __all__ = [
-    "clear_readonly_and_retry",
     "copy_local_nodepack_source",
     "resolve_local_nodepack_source",
 ]

@@ -19,13 +19,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-import shutil
 
 from substitute.infrastructure.version_control import (
     RepositoryOperationError,
     RepositoryService,
     repository_service,
 )
+from substitute.infrastructure.filesystem import remove_app_owned_path
 
 from substitute.infrastructure.comfy.nodepack_reconciliation_logger import LogCallback
 
@@ -61,10 +61,7 @@ def install_trusted_nodepack_repository(
 def _remove_partial_clone(target_path: Path) -> None:
     """Remove a partially materialized clone after the repository backend fails."""
 
-    if target_path.is_dir():
-        shutil.rmtree(target_path)
-    else:
-        target_path.unlink(missing_ok=True)
+    remove_app_owned_path(target_path)
 
 
 __all__ = ["install_trusted_nodepack_repository"]

@@ -24,7 +24,6 @@ from pathlib import Path
 import pytest
 
 from substitute.infrastructure.comfy.local_nodepack_source import (
-    clear_readonly_and_retry,
     copy_local_nodepack_source,
     resolve_local_nodepack_source,
 )
@@ -164,25 +163,6 @@ def test_resolve_local_nodepack_source_rejects_invalid_configured_path(
 
     with pytest.raises(RuntimeError, match=env_var):
         resolve_local_nodepack_source(nodepack)
-
-
-def test_clear_readonly_and_retry_invokes_chmod_then_original_function(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Read-only cleanup should make the path writable before retrying removal."""
-
-    chmod_calls: list[tuple[str, int]] = []
-    retried: list[str] = []
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.local_nodepack_source.os.chmod",
-        lambda path, mode: chmod_calls.append((path, mode)),
-    )
-
-    clear_readonly_and_retry(retried.append, "locked.txt", RuntimeError("locked"))
-
-    assert chmod_calls == [("locked.txt", 0o700)]
-    assert retried == ["locked.txt"]
 
 
 def _write_file(path: Path, content: str) -> None:
