@@ -1,3 +1,10 @@
+## [0.12.4](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.12.3...v0.12.4) (2026-07-18)
+
+
+### Bug Fixes
+
+* **deps:** pin verified dependencies and automate audits ([925434a](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/925434a5a27b736e5dd83ef65d137194a410577f))
+
 ## [0.12.3](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.12.2...v0.12.3) (2026-07-18)
 
 
