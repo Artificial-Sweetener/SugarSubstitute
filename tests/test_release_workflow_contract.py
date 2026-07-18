@@ -51,6 +51,28 @@ def test_default_ci_runs_complete_partitioned_suite_on_every_platform() -> None:
     assert "--junitxml=" in job_script
 
 
+def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
+    """Prevent version resolution until the exact release commit passes all tests."""
+
+    release_workflow = yaml.safe_load(
+        (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    tests_workflow_text = (
+        PROJECT_ROOT / ".github" / "workflows" / "tests.yml"
+    ).read_text(encoding="utf-8")
+
+    jobs = release_workflow["jobs"]
+    assert jobs["tests"] == {
+        "name": "Required cross-platform tests",
+        "uses": "./.github/workflows/tests.yml",
+    }
+    assert jobs["determine-version"]["needs"] == "tests"
+    assert "  workflow_call:" in tests_workflow_text
+    assert "    branches-ignore:\n      - main" in tests_workflow_text
+
+
 def test_cross_platform_validation_requires_explicit_invocation() -> None:
     """Keep prerelease publication behind an explicit workflow dispatch."""
 
@@ -103,7 +125,7 @@ def test_release_workflow_builds_every_published_platform_after_version_resoluti
     )
     jobs = workflow["jobs"]
     assert set(jobs) == {
-        "quality",
+        "tests",
         "determine-version",
         "build-windows",
         "build-macos",
@@ -245,7 +267,7 @@ def test_large_workflow_artifacts_expire_after_handoff() -> None:
         upload_steps = [
             step
             for job in workflow["jobs"].values()
-            for step in job["steps"]
+            for step in job.get("steps", ())
             if step.get("uses") == "actions/upload-artifact@v6"
         ]
         assert upload_steps
