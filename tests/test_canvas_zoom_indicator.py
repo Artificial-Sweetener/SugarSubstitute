@@ -28,6 +28,7 @@ from PySide6.QtWidgets import QApplication
 from qpane import (
     ComparisonDividerState,
     ComparisonOrientation,
+    Config,
     OverlayState,
     QPane,
 )
@@ -291,7 +292,7 @@ def test_real_qpane_wheel_zoom_shows_and_paints_indicator() -> None:
     image_id = uuid4()
     image = QImage(320, 240, QImage.Format.Format_RGB32)
     image.fill(Qt.GlobalColor.red)
-    pane = QPane(features=())
+    pane = QPane(config=Config(smooth_zoom_enabled=False), features=())
     pane.resize(640, 480)
     pane.setImagesByID(QPane.imageMapFromLists((image,), ids=(image_id,)), image_id)
     indicator = CanvasZoomIndicator(pane)
@@ -304,7 +305,7 @@ def test_real_qpane_wheel_zoom_shows_and_paints_indicator() -> None:
     try:
         indicator.eventFilter(pane, event)
         pane.wheelEvent(event)
-        QTest.qWait(100)
+        application.processEvents()
 
         assert pane.currentZoom() > initial_zoom
         assert indicator.opacity == 1.0
