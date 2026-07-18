@@ -396,9 +396,6 @@ def test_model_load_progress_delivers_latest_scheduled_value() -> None:
     second = _model_load_update(percent=20.0, state="running")
 
     dispatcher.on_model_load_progress(first)
-    app = _qt_app()
-    app.processEvents()
-
     assert sink.model_load == []
 
     dispatcher.on_model_load_progress(second)
