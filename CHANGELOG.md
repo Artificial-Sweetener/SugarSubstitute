@@ -1,3 +1,10 @@
+## [0.12.3](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.12.2...v0.12.3) (2026-07-18)
+
+
+### Bug Fixes
+
+* **release:** replace unverified 0.12.2 build ([5028b2e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/5028b2e92fa10d6a79d7a8e378cea6228060d794))
+
 ## [0.12.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.12.1...v0.12.2) (2026-07-18)
 
 
