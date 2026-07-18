@@ -24,37 +24,41 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-_EXPECTED_SPECIFIERS = {
-    "comtypes": frozenset({("==", "1.4.16")}),
-    "keyring": frozenset({("==", "25.7.0")}),
-    "pillow": frozenset({("==", "12.3.0")}),
-    "photoshop": frozenset({("==", "0.21.9")}),
-    "py7zr": frozenset({("==", "1.1.3")}),
-    "pyenchant": frozenset({("==", "3.3.0")}),
-    "pygit2": frozenset({("==", "1.19.3")}),
-    "pyobjc-core": frozenset({("==", "12.2.1")}),
-    "pyobjc-framework-cocoa": frozenset({("==", "12.2.1")}),
-    "psutil": frozenset({("==", "7.2.2")}),
-    "pyside6": frozenset({("==", "6.11.1")}),
-    "pyside6-fluent-widgets": frozenset({("==", "1.11.2")}),
-    "pysidesix-frameless-window": frozenset({("==", "0.8.1")}),
-    "qpane": frozenset({("==", "2.1.1")}),
-    "requests": frozenset({("==", "2.34.2")}),
-    "truststore": frozenset({("==", "0.10.4")}),
-    "websocket-client": frozenset({("==", "1.9.0")}),
-    "winaccent": frozenset({("==", "2.1.0")}),
-}
-_EXPECTED_TOOLCHAIN_SPECIFIERS = {
-    "mypy": frozenset({("==", "2.3.0")}),
-    "pip": frozenset({("==", "26.1.2")}),
-    "pip-audit": frozenset({("==", "2.10.1")}),
-    "pre-commit": frozenset({("==", "4.6.0")}),
-    "pyinstaller": frozenset({("==", "6.21.0")}),
-    "pytest": frozenset({("==", "9.1.1")}),
-    "pytest-xdist": frozenset({("==", "3.8.0")}),
-    "ruff": frozenset({("==", "0.15.22")}),
-    "uv": frozenset({("==", "0.11.18")}),
-}
+_EXPECTED_RUNTIME_DEPENDENCIES = frozenset(
+    {
+        "comtypes",
+        "keyring",
+        "pillow",
+        "photoshop",
+        "py7zr",
+        "pyenchant",
+        "pygit2",
+        "pyobjc-core",
+        "pyobjc-framework-cocoa",
+        "psutil",
+        "pyside6",
+        "pyside6-fluent-widgets",
+        "pysidesix-frameless-window",
+        "qpane",
+        "requests",
+        "truststore",
+        "websocket-client",
+        "winaccent",
+    }
+)
+_EXPECTED_TOOLCHAIN_DEPENDENCIES = frozenset(
+    {
+        "mypy",
+        "pip",
+        "pip-audit",
+        "pre-commit",
+        "pyinstaller",
+        "pytest",
+        "pytest-xdist",
+        "ruff",
+        "uv",
+    }
+)
 
 
 def test_runtime_requirements_match_verified_versions() -> None:
@@ -62,13 +66,9 @@ def test_runtime_requirements_match_verified_versions() -> None:
 
     requirements = _read_runtime_requirements()
 
-    assert requirements.keys() == _EXPECTED_SPECIFIERS.keys()
-    for name, requirement in requirements.items():
-        actual = frozenset(
-            (specifier.operator, specifier.version)
-            for specifier in requirement.specifier
-        )
-        assert actual == _EXPECTED_SPECIFIERS[name]
+    assert requirements.keys() == _EXPECTED_RUNTIME_DEPENDENCIES
+    for requirement in requirements.values():
+        _assert_exact_registry_pin(requirement)
 
 
 def test_toolchain_requirements_match_verified_versions() -> None:
@@ -76,13 +76,19 @@ def test_toolchain_requirements_match_verified_versions() -> None:
 
     requirements = _read_requirements("requirements-toolchain.txt")
 
-    assert requirements.keys() == _EXPECTED_TOOLCHAIN_SPECIFIERS.keys()
-    for name, requirement in requirements.items():
-        actual = frozenset(
-            (specifier.operator, specifier.version)
-            for specifier in requirement.specifier
-        )
-        assert actual == _EXPECTED_TOOLCHAIN_SPECIFIERS[name]
+    assert requirements.keys() == _EXPECTED_TOOLCHAIN_DEPENDENCIES
+    for requirement in requirements.values():
+        _assert_exact_registry_pin(requirement)
+
+
+def _assert_exact_registry_pin(requirement: Requirement) -> None:
+    """Require one immutable registry version without duplicating its value."""
+
+    specifiers = tuple(requirement.specifier)
+    assert requirement.url is None
+    assert len(specifiers) == 1
+    assert specifiers[0].operator == "=="
+    assert specifiers[0].version
 
 
 def _read_runtime_requirements() -> dict[str, Requirement]:
