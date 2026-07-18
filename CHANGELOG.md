@@ -1,3 +1,21 @@
+## [0.12.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.12.1...v0.12.2) (2026-07-18)
+
+
+### Bug Fixes
+
+* **ci:** make cross-platform tests portable ([8aa70bc](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/8aa70bc6c0a908a3505dc7bbbbee93470c7b6e87))
+* **ci:** resolve remaining unix test contracts ([15a3742](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/15a3742d6b831e5a2bd42a0d0d38e5c8bfffa1b6))
+* **ci:** stabilize cross-platform Qt contracts ([3b6a2b0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/3b6a2b03f4b694ea2e2b16cf4b89208a54624779))
+* **filesystem:** remove read-only app-owned paths ([76fe068](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/76fe0682d7900e6ca00dbf97ab59251a9156b746))
+* **launcher:** keep headless startup Qt-free ([ea5e943](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ea5e9430641a723f04057f142d7cb26634c7514c))
+* **launcher:** stabilize setup handoff shutdown ([15ff98c](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/15ff98ced6ebea9d5c4e5aea31c6335da0ea0f9a))
+* **launcher:** use host certificate trust ([33b6cb4](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/33b6cb4e956d846877b834d82527a58f4367171a))
+* **linux:** preserve installed launcher executable mode ([9197d98](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/9197d98e54463c176b1ed03fabd596afd7313cfd))
+* **network:** unify system trust across downloads ([fbbafc1](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/fbbafc127b1cee731a27bd57d9e33767ac30692e))
+* **release:** isolate asset assembly dependencies ([7992f80](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/7992f80cccf1365e45b49c915bc10a9ebd9a89d7))
+* **settings:** keep claimant labels shrinkable ([e45eb1d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e45eb1dbc960ffbda0e331e66d6af3573396828c))
+* **tests:** stabilize isolated Qt execution ([e9dad1b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e9dad1b5f3524e2313ae0ea06006f9aea8befb7c))
+
 ## [0.12.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.12.0...v0.12.1) (2026-07-17)
 
 
