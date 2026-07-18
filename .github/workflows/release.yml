@@ -96,7 +96,7 @@ jobs:
           .\.venv\Scripts\python.exe tools\build_release_payload.py package-launcher --target windows_x64 --bundle-dir build\launcher-bundles\SugarSubstitute --output-path build\release-inputs\windows\installer-payload-windows-x64.zip
 
       - name: Upload Windows release inputs
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-inputs-windows
           path: build/release-inputs/windows
@@ -144,7 +144,7 @@ jobs:
           .venv/bin/python tools/build_macos_dmg.py --setup-app "dist/SugarSubstitute Setup.app" --output build/release-inputs/macos/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg
 
       - name: Upload Apple Silicon release inputs
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-inputs-macos
           path: build/release-inputs/macos
@@ -194,7 +194,7 @@ jobs:
           .venv/bin/python tools/build_linux_installers.py --setup-bundle "dist/SugarSubstitute Setup" --icon substitute/presentation/resources/app_icons/app_icon_256.png --appimagetool build/tools/appimagetool-x86_64.AppImage --version ${{ needs.determine-version.outputs.version }} --appimage-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-x86_64.AppImage --deb-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-amd64.deb
 
       - name: Upload Linux release inputs
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-inputs-linux
           path: build/release-inputs/linux
