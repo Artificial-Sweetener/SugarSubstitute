@@ -18,10 +18,21 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import cast
 from uuid import uuid4
 
-from PySide6.QtCore import QEvent, QLineF, QPoint, QPointF, QRect, QRectF, QSize, Qt
+from PySide6.QtCore import (
+    QElapsedTimer,
+    QEvent,
+    QLineF,
+    QPoint,
+    QPointF,
+    QRect,
+    QRectF,
+    QSize,
+    Qt,
+)
 from PySide6.QtGui import QColor, QImage, QMouseEvent, QPen, QTransform, QWheelEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
@@ -369,8 +380,8 @@ def test_undocked_indicator_uses_same_cursor_geometry_as_docked_canvas() -> None
     assert rendered.size() == QSize(800, 600)
 
 
-def test_new_zoom_restarts_hold_before_indicator_fades() -> None:
-    """Each new gesture should extend visibility before the short fade completes."""
+def test_new_zoom_restores_full_opacity_and_restarts_fade() -> None:
+    """Each new gesture should restore visibility before beginning a fresh fade."""
 
     _application()
     pane = QPane(features=())
@@ -378,14 +389,14 @@ def test_new_zoom_restarts_hold_before_indicator_fades() -> None:
     try:
         _arm_wheel(indicator, pane, QPointF(100.0, 100.0))
         pane.zoomChanged.emit(1.25)
-        QTest.qWait(500)
+        assert _wait_until(lambda: indicator.opacity < 1.0)
+
         _arm_wheel(indicator, pane, QPointF(120.0, 120.0))
         pane.zoomChanged.emit(1.5)
-        QTest.qWait(500)
         assert indicator.opacity == 1.0
 
-        QTest.qWait(500)
-        assert indicator.opacity == 0.0
+        assert _wait_until(lambda: indicator.opacity < 1.0)
+        assert _wait_until(lambda: indicator.opacity == 0.0)
     finally:
         indicator.close()
         pane.close()
@@ -547,3 +558,14 @@ def _application() -> QApplication:
 
     instance = QApplication.instance()
     return cast(QApplication, instance) if instance is not None else QApplication([])
+
+
+def _wait_until(predicate: Callable[[], bool], *, timeout_ms: int = 1_500) -> bool:
+    """Process Qt work until an observable condition holds or the timeout expires."""
+
+    timer = QElapsedTimer()
+    timer.start()
+    while not predicate() and timer.elapsed() < timeout_ms:
+        QTest.qWait(10)
+        QApplication.processEvents()
+    return predicate()
