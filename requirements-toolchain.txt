@@ -12,4 +12,4 @@ pytest-xdist==3.8.0
 ruff==0.15.22
 mypy==2.3.0
 pyinstaller==6.21.0
-uv==0.11.18
+uv==0.11.29
