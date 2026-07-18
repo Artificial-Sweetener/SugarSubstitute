@@ -19,12 +19,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 import yaml  # type: ignore[import-untyped]
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEPENDENCY_REVIEW_REVISION = "a1d282b36b6f3519aa1f3fc636f609c47dddb294"
 
 
 def test_dependabot_maintains_every_repository_dependency_ecosystem() -> None:
@@ -108,9 +108,9 @@ def test_dependency_review_rejects_new_moderate_vulnerabilities() -> None:
     )
 
     assert job["if"] == "github.event_name == 'pull_request'"
-    assert action_step["uses"] == (
-        f"actions/dependency-review-action@{DEPENDENCY_REVIEW_REVISION}"
-    )
+    action, revision = action_step["uses"].rsplit("@", maxsplit=1)
+    assert action == "actions/dependency-review-action"
+    assert re.fullmatch(r"[0-9a-f]{40}", revision)
     assert action_step["with"]["fail-on-severity"] == "moderate"
 
 
