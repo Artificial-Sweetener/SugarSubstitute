@@ -31,6 +31,7 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     ComboBox,
     PushButton,
     SearchLineEdit,
+    SwitchButton,
     TitleLabel,
 )
 
@@ -62,7 +63,7 @@ from substitute.application.danbooru.preferences_service import (
 )
 from substitute.application.generation import (
     GenerationPreviewPreferenceService,
-    OutputOrganizationPreferenceService,
+    OutputPreferenceService,
 )
 from substitute.application.onboarding import (
     ComfyConnectionSettingsService,
@@ -87,7 +88,9 @@ from substitute.domain.onboarding import (
 )
 from substitute.domain.generation import (
     GenerationPreviewPreferences,
-    OutputOrganizationPreferences,
+    JpegSizingMode,
+    OutputPersistenceMode,
+    OutputPreferences,
     default_generation_preview_preferences,
 )
 from substitute.domain.civitai import CivitaiThumbnailSafetyPolicy
@@ -343,7 +346,7 @@ def test_settings_workspace_resyncs_width_after_hidden_route_resize() -> None:
         preference_service=GenerationPreviewPreferenceService(
             _GenerationPreviewPreferenceRepository()
         ),
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             _OutputOrganizationPreferenceRepository(),
             default_output_root=Path("E:/projects"),
         ),
@@ -602,7 +605,7 @@ def test_settings_workspace_uses_user_intent_navigation_order(
         generation_preview_preference_service=GenerationPreviewPreferenceService(
             _GenerationPreviewPreferenceRepository()
         ),
-        output_organization_preference_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             _OutputOrganizationPreferenceRepository(),
             default_output_root=Path("E:/projects"),
         ),
@@ -621,6 +624,53 @@ def test_settings_workspace_uses_user_intent_navigation_order(
     )
     assert widgets.panel.page_ids() == widgets.navigation_pane.page_ids()
     assert widgets.panel.active_page_id() == ABOUT_SECTION_ID
+
+
+def test_generation_output_catalog_controls_persist_unified_output_policy(
+    tmp_path: Path,
+) -> None:
+    """Generation controls should mutate the authoritative output aggregate."""
+
+    _app()
+    repository = _OutputOrganizationPreferenceRepository()
+    service = OutputPreferenceService(repository, default_output_root=tmp_path)
+    page = settings_catalog_builders.build_generation_settings_page(
+        settings_catalog_builders.GenerationSettingsContext(
+            generation_preview_service=cast(
+                GenerationPreviewPreferenceService,
+                object(),
+            ),
+            output_preference_service=service,
+            civitai_preference_service=cast(CivitaiPreferenceService, object()),
+            task_runner_factory=_task_runner_factory,
+        )
+    )
+    parent = QWidget()
+
+    persistence_row = _appearance_control(
+        page, "generation.output.persistence"
+    ).factory(parent)
+    persistence_combo = persistence_row.findChild(ComboBox)
+    assert persistence_combo is not None
+    persistence_combo.setCurrentIndex(1)
+
+    jpeg_row = _appearance_control(page, "generation.output.jpeg_enabled").factory(
+        parent
+    )
+    jpeg_switch = jpeg_row.findChild(SwitchButton)
+    assert jpeg_switch is not None
+    jpeg_switch.setChecked(True)
+
+    sizing_row = _appearance_control(page, "generation.output.jpeg_sizing").factory(
+        parent
+    )
+    sizing_combo = sizing_row.findChild(ComboBox)
+    assert sizing_combo is not None
+    sizing_combo.setCurrentIndex(1)
+
+    assert repository.preferences.persistence_mode is OutputPersistenceMode.FINAL_CUBE
+    assert repository.preferences.jpeg.enabled is True
+    assert repository.preferences.jpeg.sizing_mode is JpegSizingMode.TARGET_SIZE
 
 
 def test_appearance_catalog_routes_restart_required_settings_to_coordinator() -> None:
@@ -1250,7 +1300,7 @@ def test_settings_pages_leave_section_titles_to_workspace_panel(
         preference_service=GenerationPreviewPreferenceService(
             _GenerationPreviewPreferenceRepository()
         ),
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             _OutputOrganizationPreferenceRepository(),
             default_output_root=Path("E:/projects"),
         ),
@@ -1486,14 +1536,14 @@ class _OutputOrganizationPreferenceRepository:
     def __init__(self) -> None:
         """Initialize with default preferences."""
 
-        self.preferences = OutputOrganizationPreferences()
+        self.preferences = OutputPreferences()
 
-    def load(self) -> OutputOrganizationPreferences:
+    def load(self) -> OutputPreferences:
         """Return current preferences."""
 
         return self.preferences
 
-    def save(self, preferences: OutputOrganizationPreferences) -> None:
+    def save(self, preferences: OutputPreferences) -> None:
         """Persist preferences in memory."""
 
         self.preferences = preferences
@@ -1663,7 +1713,7 @@ def _settings_workspace(tmp_path: Path) -> Any:
         generation_preview_preference_service=GenerationPreviewPreferenceService(
             _GenerationPreviewPreferenceRepository()
         ),
-        output_organization_preference_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             _OutputOrganizationPreferenceRepository(),
             default_output_root=Path("E:/projects"),
         ),

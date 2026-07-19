@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -143,6 +144,17 @@ def test_app_orb_menu_routes_file_actions_and_runtime_requests() -> None:
     comfy_settings_calls: list[str] = []
     gui_restart_calls: list[str] = []
     restart_calls: list[str] = []
+
+    def direct_load(_path: Path) -> str:
+        """Return a stable direct-workflow result for signal routing."""
+
+        return "direct"
+
+    def direct_can_load(_path: Path) -> bool:
+        """Report direct-workflow support for signal routing."""
+
+        return True
+
     shell = SimpleNamespace(
         _active_workspace_route=SETTINGS_WORKSPACE_ROUTE,
         shell_chrome_controller=SimpleNamespace(
@@ -158,6 +170,10 @@ def test_app_orb_menu_routes_file_actions_and_runtime_requests() -> None:
             on_export_comfy_workflow_clicked=lambda **kwargs: export_calls.append(
                 kwargs
             ),
+        ),
+        direct_workflow_file_actions=SimpleNamespace(
+            load_document=direct_load,
+            can_load_document=direct_can_load,
         ),
         comfy_runtime_actions=SimpleNamespace(
             open_comfyui_settings_webview=lambda: comfy_settings_calls.append(
@@ -186,6 +202,8 @@ def test_app_orb_menu_routes_file_actions_and_runtime_requests() -> None:
             "cube_loader": load_cube_async,
             "icon_provider": FIF,
             "message_box": QMessageBox,
+            "load_direct_workflow_document": direct_load,
+            "can_load_direct_workflow_document": direct_can_load,
         }
     ]
     assert save_calls == ["save"]
@@ -533,6 +551,7 @@ def test_cube_stack_signals_route_stack_events_and_optional_signals() -> None:
         cubeCloseRequested=_Signal(),
         cubeDuplicateRequested=_Signal(),
         cubeBypassToggleRequested=_Signal(),
+        cubeOutputPersistenceToggleRequested=_Signal(),
         cubeStackWheelRerouteRequested=_Signal(),
     )
     active_panel = SimpleNamespace(
@@ -564,6 +583,9 @@ def test_cube_stack_signals_route_stack_events_and_optional_signals() -> None:
             on_cube_bypass_toggle_requested=lambda route_key: events.append(
                 ("bypass", route_key)
             ),
+            on_cube_output_persistence_toggle_requested=lambda route_key: events.append(
+                ("output_persistence", route_key)
+            ),
         ),
     )
 
@@ -578,6 +600,7 @@ def test_cube_stack_signals_route_stack_events_and_optional_signals() -> None:
     cube_stack.cubeCloseRequested.fire(3)
     cube_stack.cubeDuplicateRequested.fire("OldAlias")
     cube_stack.cubeBypassToggleRequested.fire("OldAlias")
+    cube_stack.cubeOutputPersistenceToggleRequested.fire("OldAlias")
     cube_stack.cubeStackWheelRerouteRequested.fire(wheel_event)
 
     assert events == [
@@ -590,6 +613,7 @@ def test_cube_stack_signals_route_stack_events_and_optional_signals() -> None:
         ("closed", 3),
         ("duplicate", "OldAlias"),
         ("bypass", "OldAlias"),
+        ("output_persistence", "OldAlias"),
     ]
     assert wheel_events == [wheel_event]
 

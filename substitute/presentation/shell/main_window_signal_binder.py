@@ -85,12 +85,17 @@ class MainWindowSignalBinder:
             != SETTINGS_WORKSPACE_ROUTE,
         )
         file_actions = self._shell.workspace_file_actions
+        direct_workflow_actions = self._shell.direct_workflow_file_actions
         app_orb_menu.openRequested.connect(
             lambda: file_actions.on_load_clicked(
                 file_dialog=QFileDialog,
                 cube_loader=load_cube_async,
                 icon_provider=FIF,
                 message_box=QMessageBox,
+                load_direct_workflow_document=direct_workflow_actions.load_document,
+                can_load_direct_workflow_document=(
+                    direct_workflow_actions.can_load_document
+                ),
             )
         )
         app_orb_menu.saveRequested.connect(file_actions.on_save_clicked)
@@ -285,6 +290,18 @@ class MainWindowSignalBinder:
         ):
             bypass_toggle_requested.connect(
                 cube_stack_actions.on_cube_bypass_toggle_requested
+            )
+        output_persistence_requested = getattr(
+            cube_stack,
+            "cubeOutputPersistenceToggleRequested",
+            None,
+        )
+        if output_persistence_requested is not None and hasattr(
+            output_persistence_requested,
+            "connect",
+        ):
+            output_persistence_requested.connect(
+                cube_stack_actions.on_cube_output_persistence_toggle_requested
             )
         reroute_signal = getattr(cube_stack, "cubeStackWheelRerouteRequested", None)
         if reroute_signal is not None and hasattr(reroute_signal, "connect"):

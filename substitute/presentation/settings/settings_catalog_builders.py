@@ -20,8 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
 
 from PySide6.QtCore import QSize, Qt, QUrl
 from PySide6.QtGui import QColor, QDesktopServices
@@ -31,11 +29,8 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     ColorDialog,
     ComboBox,
     FluentIcon as FIF,
-    IconWidget,
-    IndicatorPosition,
     LineEdit,
     PushButton,
-    SwitchButton,
 )
 
 from substitute.application.appearance import (
@@ -59,8 +54,7 @@ from substitute.application.danbooru.preferences_service import (
 )
 from substitute.application.generation import (
     GenerationPreviewPreferenceService,
-    OutputOrganizationPreferences,
-    OutputOrganizationPreferenceService,
+    OutputPreferenceService,
 )
 from substitute.application.onboarding import ComfyConnectionSettingsService
 from substitute.application.ports.civitai_credential_store import (
@@ -86,6 +80,9 @@ from substitute.presentation.semantic_colors import legible_text_color_for_backg
 from substitute.presentation.settings.appearance_runtime_protocol import (
     AppearanceRuntimeProtocol,
 )
+from substitute.presentation.settings.generation_output_settings_rows import (
+    GenerationOutputSettingsRows,
+)
 from substitute.presentation.settings.path_pattern_token_autocomplete import (
     PathPatternTokenAutocomplete,
     PathPatternTokenSuggestion,
@@ -101,11 +98,7 @@ from substitute.presentation.settings.prompt_editor_icons import (
     PROMPT_WILDCARD_RESOLUTION_SETTINGS_ICON,
     prompt_feature_settings_icon,
 )
-from substitute.presentation.settings.settings_card import (
-    SETTINGS_CARD_ICON_MAX_SIZE,
-    InteractiveSettingsCard,
-    SettingsCard,
-)
+from substitute.presentation.settings.settings_card import SettingsCard
 from substitute.presentation.settings.settings_async import (
     SettingsAsyncTaskRunnerFactory,
 )
@@ -121,6 +114,12 @@ from substitute.presentation.settings.comfy_connection_page import (
 from substitute.presentation.settings.settings_control_group import (
     SettingsControlGroup,
     configure_settings_field_width,
+)
+from substitute.presentation.settings.settings_row_factories import (
+    build_combo_settings_row as _combo_row,
+    build_named_settings_icon_widget as _named_icon_widget,
+    build_settings_icon_widget as _icon_widget,
+    build_switch_settings_row as _switch_row,
 )
 from substitute.presentation.settings.settings_segmented_card import (
     SettingsSegmentedCard,
@@ -154,7 +153,7 @@ class GenerationSettingsContext:
     """Hold services needed by the Generation Settings catalog."""
 
     generation_preview_service: GenerationPreviewPreferenceService
-    output_organization_service: OutputOrganizationPreferenceService
+    output_preference_service: OutputPreferenceService
     civitai_preference_service: CivitaiPreferenceService
     task_runner_factory: SettingsAsyncTaskRunnerFactory
 
@@ -170,6 +169,9 @@ class PromptEditingSettingsContext:
     wildcard_file_management_service: PromptWildcardFileManagementService | None
     open_wildcard_management_modal: Callable[[QWidget | None], None] | None
     preferences_changed: Callable[[], None] | None
+    open_autocomplete_list_management_modal: Callable[[QWidget | None], None] | None = (
+        None
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,6 +206,7 @@ def build_generation_settings_page(
 ) -> SettingsPageEntry:
     """Build the Generation catalog page."""
 
+    output_rows = GenerationOutputSettingsRows(context.output_preference_service)
     return SettingsPageEntry(
         page_id="generation",
         title="Generation",
@@ -247,7 +250,7 @@ def build_generation_settings_page(
                         "Choose where generated images are saved.",
                         _COMMON_PATH_KEYWORDS + _IMAGE_KEYWORDS,
                         10,
-                        lambda parent: _output_folder_row(context, parent),
+                        output_rows.folder,
                     ),
                     SettingsControlEntry(
                         "generation.output.pattern",
@@ -255,7 +258,7 @@ def build_generation_settings_page(
                         "Compose relative folders and filename without the .png extension.",
                         _COMMON_PATH_KEYWORDS,
                         20,
-                        lambda parent: _output_pattern_row(context, parent),
+                        output_rows.pattern,
                     ),
                     SettingsControlEntry(
                         "generation.output.preview",
@@ -263,7 +266,47 @@ def build_generation_settings_page(
                         "Shows an example path using the current output settings.",
                         _COMMON_PATH_KEYWORDS + _IMAGE_KEYWORDS,
                         30,
-                        lambda parent: _output_preview_row(context, parent),
+                        output_rows.preview,
+                    ),
+                    SettingsControlEntry(
+                        "generation.output.persistence",
+                        "Saved cube outputs",
+                        "Save every cube output or only the final active cube.",
+                        ("save", "output", "final", "cube", "disk"),
+                        40,
+                        output_rows.persistence_mode,
+                    ),
+                    SettingsControlEntry(
+                        "generation.output.jpeg_enabled",
+                        "JPEG companions",
+                        "Also save a shareable JPEG beside each canonical recipe PNG.",
+                        ("jpeg", "jpg", "quality", "size", "png"),
+                        50,
+                        output_rows.jpeg_enabled,
+                    ),
+                    SettingsControlEntry(
+                        "generation.output.jpeg_sizing",
+                        "JPEG sizing",
+                        "Choose fixed quality or an approximate target file size.",
+                        ("jpeg", "quality", "target", "size"),
+                        60,
+                        output_rows.jpeg_sizing_mode,
+                    ),
+                    SettingsControlEntry(
+                        "generation.output.jpeg_quality",
+                        "JPEG quality",
+                        "Quality used when JPEG sizing is set to fixed quality.",
+                        ("jpeg", "quality"),
+                        70,
+                        output_rows.jpeg_quality,
+                    ),
+                    SettingsControlEntry(
+                        "generation.output.jpeg_target_size",
+                        "JPEG target size",
+                        "Approximate size in KiB used by target-size encoding.",
+                        ("jpeg", "target", "size", "kib"),
+                        80,
+                        output_rows.jpeg_target_size,
                     ),
                 ),
             ),
@@ -370,6 +413,27 @@ def build_prompt_editing_settings_page(
                 "",
                 20,
                 feature_entries,
+            ),
+            SettingsSectionEntry(
+                "prompt_editing.autocomplete",
+                "Autocomplete",
+                "",
+                25,
+                (
+                    SettingsControlEntry(
+                        "prompt_editing.autocomplete.manage_lists",
+                        "Manage autocomplete lists",
+                        "Add custom tags and hide unwanted tag suggestions.",
+                        ("autocomplete", "custom", "censor", "tags", "suggestions"),
+                        10,
+                        lambda parent: _autocomplete_list_management_row(
+                            context, parent
+                        ),
+                        is_visible=lambda: (
+                            context.open_autocomplete_list_management_modal is not None
+                        ),
+                    ),
+                ),
             ),
             SettingsSectionEntry(
                 "prompt_editing.wildcards",
@@ -788,130 +852,6 @@ def _generation_preview_type_row(
     )
 
 
-def _output_folder_row(
-    context: GenerationSettingsContext,
-    parent: QWidget,
-) -> SettingsCard:
-    """Create the generated output folder row."""
-
-    service = context.output_organization_service
-    preferences = service.load_preferences()
-    uses_default = preferences.output_root is None
-    edit = LineEdit(parent)
-    edit.setObjectName("OutputRootEdit")
-    configure_settings_field_width(edit, preferred_width=420)
-    edit.setText(str(preferences.output_root or service.effective_output_root()))
-    browse_button = PushButton("Browse", parent)
-    reset_button = PushButton("Default", parent)
-
-    def current_preferences() -> OutputOrganizationPreferences:
-        root_text = edit.text().strip()
-        return OutputOrganizationPreferences(
-            output_root=None if uses_default or not root_text else Path(root_text),
-            path_pattern=service.load_preferences().path_pattern,
-        )
-
-    def save_preferences() -> None:
-        service.save_preferences(current_preferences())
-
-    reset_button.clicked.connect(
-        lambda: (
-            edit.setText(str(service.effective_output_root())),
-            service.save_preferences(
-                OutputOrganizationPreferences(
-                    output_root=None,
-                    path_pattern=service.load_preferences().path_pattern,
-                )
-            ),
-        )
-    )
-    edit.editingFinished.connect(save_preferences)
-    return SettingsCard(
-        visual_widget=_icon_widget(AppIcon.SAVE_IMAGE_20_REGULAR, parent),
-        title="Output folder",
-        description="Choose where generated images are saved.",
-        trailing_widget=SettingsControlGroup(
-            edit,
-            browse_button,
-            reset_button,
-            spacing=6,
-            parent=parent,
-        ),
-        reserve_visual_space=True,
-        wrap_threshold=720,
-        parent=parent,
-    )
-
-
-def _output_pattern_row(
-    context: GenerationSettingsContext,
-    parent: QWidget,
-) -> SettingsCard:
-    """Create the generated output path pattern row."""
-
-    service = context.output_organization_service
-    preferences = service.load_preferences()
-    edit = LineEdit(parent)
-    edit.setObjectName("OutputPathPatternEdit")
-    configure_settings_field_width(edit, preferred_width=360)
-    edit.setText(preferences.path_pattern)
-    PathPatternTokenAutocomplete(
-        edit,
-        tuple(
-            PathPatternTokenSuggestion(
-                token=token.placeholder, description=token.description
-            )
-            for token in service.supported_token_descriptions()
-        ),
-    )
-
-    def save_preferences() -> None:
-        loaded = service.load_preferences()
-        service.save_preferences(
-            OutputOrganizationPreferences(
-                output_root=loaded.output_root,
-                path_pattern=edit.text(),
-            )
-        )
-
-    edit.editingFinished.connect(save_preferences)
-    return SettingsCard(
-        visual_widget=_icon_widget(AppIcon.DOCUMENT_TEXT_20_REGULAR, parent),
-        title="Output pattern",
-        description="Compose relative folders and filename without the .png extension.",
-        trailing_widget=SettingsControlGroup(edit, parent=parent),
-        reserve_visual_space=True,
-        wrap_threshold=640,
-        parent=parent,
-    )
-
-
-def _output_preview_row(
-    context: GenerationSettingsContext,
-    parent: QWidget,
-) -> SettingsCard:
-    """Create the generated output preview row."""
-
-    service = context.output_organization_service
-    edit = LineEdit(parent)
-    edit.setObjectName("OutputPreviewEdit")
-    edit.setReadOnly(True)
-    configure_settings_field_width(edit, preferred_width=420)
-    try:
-        edit.setText(service.render_preview(service.load_preferences()).display_path)
-    except Exception as error:
-        edit.setText(str(error))
-    return SettingsCard(
-        visual_widget=_icon_widget(AppIcon.SAVE_IMAGE_20_REGULAR, parent),
-        title="Output preview",
-        description="Shows an example path using the current settings.",
-        trailing_widget=SettingsControlGroup(edit, parent=parent),
-        reserve_visual_space=True,
-        wrap_threshold=680,
-        parent=parent,
-    )
-
-
 def _civitai_missing_model_lookup_row(
     service: CivitaiPreferenceService,
     parent: QWidget,
@@ -1059,6 +999,28 @@ def _wildcard_resolution_row(
         description="Expand wildcard prompt text before sending queued workflows to Comfy.",
         checked=service.load_preferences().resolve_on_generation,
         on_changed=service.set_resolve_on_generation,
+    )
+
+
+def _autocomplete_list_management_row(
+    context: PromptEditingSettingsContext,
+    parent: QWidget,
+) -> SettingsCard:
+    """Create the custom and censored autocomplete list action row."""
+
+    manage_button = PushButton("Manage", parent)
+    opener = context.open_autocomplete_list_management_modal
+    if opener is not None:
+        manage_button.clicked.connect(lambda: opener(parent))
+    else:
+        manage_button.setEnabled(False)
+    return SettingsCard(
+        visual_widget=_icon_widget(PROMPT_WILDCARD_MANAGEMENT_SETTINGS_ICON, parent),
+        title="Manage autocomplete lists",
+        description="Add custom tags and hide unwanted tag suggestions.",
+        trailing_widget=SettingsControlGroup(manage_button, parent=parent),
+        reserve_visual_space=True,
+        parent=parent,
     )
 
 
@@ -1964,90 +1926,6 @@ def _show_restart_requirements_if_pending(
 
     if count > 0 and context.show_restart_requirements is not None:
         context.show_restart_requirements()
-
-
-def _switch_row(
-    *,
-    parent: QWidget,
-    icon: Any,
-    title: str,
-    description: str,
-    checked: bool,
-    on_changed: Callable[[bool], object],
-) -> InteractiveSettingsCard:
-    """Create a standard clickable switch Settings row."""
-
-    switch = SwitchButton("Off", parent, indicatorPos=IndicatorPosition.RIGHT)
-    switch.setOnText("On")
-    switch.setOffText("Off")
-    switch.setChecked(checked)
-    switch.checkedChanged.connect(on_changed)
-    row = InteractiveSettingsCard(
-        visual_widget=_icon_widget(icon, parent),
-        title=title,
-        description=description,
-        trailing_widget=switch,
-        reserve_visual_space=True,
-        parent=parent,
-    )
-    row.activated.connect(lambda: switch.setChecked(not switch.isChecked()))
-    return row
-
-
-def _combo_row(
-    *,
-    parent: QWidget,
-    icon: Any,
-    title: str,
-    description: str,
-    options: tuple[tuple[str, object], ...],
-    selected: object,
-    on_changed: Callable[[object], object],
-    enabled: bool = True,
-    extra_button: QWidget | None = None,
-) -> SettingsCard:
-    """Create a standard combo-box Settings row."""
-
-    combo = ComboBox(parent)
-    configure_settings_field_width(combo, preferred_width=180)
-    for label, value in options:
-        combo.addItem(label, userData=value)
-    for index in range(combo.count()):
-        if combo.itemData(index) == selected:
-            combo.setCurrentIndex(index)
-            break
-    combo.setEnabled(enabled)
-    combo.currentIndexChanged.connect(lambda _index: on_changed(combo.currentData()))
-    controls = (
-        SettingsControlGroup(combo, extra_button, parent=parent)
-        if extra_button is not None
-        else combo
-    )
-    return SettingsCard(
-        visual_widget=_icon_widget(icon, parent),
-        title=title,
-        description=description,
-        trailing_widget=controls,
-        reserve_visual_space=True,
-        wrap_threshold=640,
-        parent=parent,
-    )
-
-
-def _icon_widget(icon: Any, parent: QWidget) -> IconWidget:
-    """Create one fixed-size Settings row icon."""
-
-    widget = IconWidget(icon, parent)
-    widget.setFixedSize(SETTINGS_CARD_ICON_MAX_SIZE, SETTINGS_CARD_ICON_MAX_SIZE)
-    return widget
-
-
-def _named_icon_widget(icon: Any, object_name: str, parent: QWidget) -> IconWidget:
-    """Create one named fixed-size Settings row icon."""
-
-    widget = _icon_widget(icon, parent)
-    widget.setObjectName(object_name)
-    return widget
 
 
 def _api_key_status_text(

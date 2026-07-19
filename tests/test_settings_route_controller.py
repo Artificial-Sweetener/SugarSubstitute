@@ -87,11 +87,12 @@ def _shell() -> SimpleNamespace:
         civitai_credential_service=object(),
         civitai_cache_service=object(),
         generation_preview_preference_service=object(),
-        output_organization_preference_service=object(),
+        output_preference_service=object(),
         settings_task_runner_factory=object(),
         prompt_wildcard_preference_service=object(),
         prompt_wildcard_file_management_service=object(),
         open_wildcard_management_modal=object(),
+        open_autocomplete_list_management_modal=object(),
         request_reconfigure=lambda: None,
         shell_frame_integration_controller=SimpleNamespace(
             show_pending_restart_requirements=lambda: None,

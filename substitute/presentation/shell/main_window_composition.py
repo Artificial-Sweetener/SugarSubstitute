@@ -58,8 +58,8 @@ from substitute.presentation.editor.panel.lora_metadata_refresh_controller impor
 from substitute.presentation.errors import ErrorPresenter
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
 from substitute.presentation.restart_requirements import RestartRequirementUiController
-from substitute.infrastructure.comfy.workflow_json_repository import (
-    JsonComfyWorkflowRepository,
+from substitute.infrastructure.comfy.workflow_document_repository import (
+    ComfyWorkflowDocumentRepository,
 )
 
 from .canvas_route_controller import CanvasRouteController
@@ -341,6 +341,9 @@ def capture_dependencies(
         dependencies.prompt_wildcard_file_management_service
     )
     shell.open_wildcard_management_modal = dependencies.open_wildcard_management_modal
+    shell.open_autocomplete_list_management_modal = (
+        dependencies.open_autocomplete_list_management_modal
+    )
     shell.prompt_wildcard_preference_service = (
         dependencies.prompt_wildcard_preference_service
     )
@@ -382,9 +385,7 @@ def capture_dependencies(
     shell.generation_preview_preference_service = (
         dependencies.generation_preview_preference_service
     )
-    shell.output_organization_preference_service = (
-        dependencies.output_organization_preference_service
-    )
+    shell.output_preference_service = dependencies.output_preference_service
     shell.session_snapshot_repository = dependencies.session_snapshot_repository
     shell.session_autosave_service = dependencies.session_autosave_service
     shell.execution_runtime = dependencies.execution_runtime
@@ -440,12 +441,14 @@ def capture_dependencies(
     workspace_cube_picker_actions = workspace_controller.cube_picker_actions
     workspace_cube_stack_actions = workspace_controller.cube_stack_actions
     workspace_canvas_actions = workspace_controller.canvas_actions
+    direct_workflow_repository = ComfyWorkflowDocumentRepository()
+    direct_workflow_load_service = DirectWorkflowLoadService(
+        direct_workflow_repository,
+        node_definition_gateway=shell.node_definition_gateway,
+    )
     direct_workflow_file_actions = DirectWorkflowFileActions(
         view=shell,
-        load_service=DirectWorkflowLoadService(
-            JsonComfyWorkflowRepository(),
-            node_definition_gateway=shell.node_definition_gateway,
-        ),
+        load_service=direct_workflow_load_service,
         add_workflow_tab=workflow_workspace.add_workflow,
         refresh_active_workflow=lambda: workflow_workspace.project_workflow(
             shell.workflow_session_service.active_workflow_id,
@@ -463,7 +466,7 @@ def capture_dependencies(
     workspace_drop_controller = WorkspaceDropController(
         classifier=WorkflowRecipeDropClassifier(
             shell.recipe_io_service,
-            DirectWorkflowDocumentClassifier(),
+            DirectWorkflowDocumentClassifier(direct_workflow_load_service),
         ),
         ignored_drag_source=(
             workspace_canvas_drag_source_classifier.is_workspace_canvas_drag_source

@@ -80,7 +80,7 @@ from substitute.presentation.settings.settings_async import (
 )
 from substitute.application.generation import (
     GenerationPreviewPreferenceService,
-    OutputOrganizationPreferenceService,
+    OutputPreferenceService,
 )
 from substitute.presentation.settings.about_page import AboutSettingsPage
 from substitute.presentation.settings.settings_navigation import (
@@ -127,7 +127,7 @@ def create_settings_workspace(
     civitai_credential_service: CivitaiCredentialService,
     civitai_cache_service: CivitaiCacheService,
     generation_preview_preference_service: GenerationPreviewPreferenceService,
-    output_organization_preference_service: OutputOrganizationPreferenceService,
+    output_preference_service: OutputPreferenceService,
     open_reconfigure_window: Callable[[], object],
     show_restart_requirements: Callable[[], None] | None = None,
     prompt_editor_preferences_changed: Callable[[], None] | None = None,
@@ -136,6 +136,9 @@ def create_settings_workspace(
         PromptWildcardFileManagementService | None
     ) = None,
     open_wildcard_management_modal: Callable[[QWidget | None], None] | None = None,
+    open_autocomplete_list_management_modal: (
+        Callable[[QWidget | None], None] | None
+    ) = None,
     error_presenter: ErrorReportPresenterProtocol | None = None,
     task_runner_factory: SettingsAsyncTaskRunnerFactory,
     parent: QWidget | None = None,
@@ -148,7 +151,7 @@ def create_settings_workspace(
     generation_entry = build_generation_settings_page(
         GenerationSettingsContext(
             generation_preview_service=generation_preview_preference_service,
-            output_organization_service=output_organization_preference_service,
+            output_preference_service=output_preference_service,
             civitai_preference_service=civitai_preference_service,
             task_runner_factory=task_runner_factory,
         )
@@ -161,6 +164,9 @@ def create_settings_workspace(
             wildcard_preference_service=prompt_wildcard_preference_service,
             wildcard_file_management_service=prompt_wildcard_file_management_service,
             open_wildcard_management_modal=open_wildcard_management_modal,
+            open_autocomplete_list_management_modal=(
+                open_autocomplete_list_management_modal
+            ),
             preferences_changed=prompt_editor_preferences_changed,
         )
     )
