@@ -1,3 +1,18 @@
+# [0.14.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.13.0...v0.14.0) (2026-07-19)
+
+
+### Bug Fixes
+
+* **canvas:** preserve exact output source and batch identity ([71a5cc6](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/71a5cc6ffe843a8e86eb8d439281cb4723ece2c2))
+
+
+### Features
+
+* **generation:** add configurable output persistence ([3e6f23a](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/3e6f23a2d451238ab1815c18979668e01166a917))
+* **prompts:** add managed autocomplete lists ([1d09681](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/1d096811b7cd47e59bdaecf5a9637af9d64e0701))
+* **shell:** integrate workflow and preference services ([f4ec2d6](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f4ec2d61fd55082f3efee9b35e55c543473c39b6))
+* **workflows:** load Comfy workflows from PNG metadata ([28e181d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/28e181d71ce366520a04c3b9081a70a69bc5d810))
+
 # [0.13.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.12.4...v0.13.0) (2026-07-18)
 
 
