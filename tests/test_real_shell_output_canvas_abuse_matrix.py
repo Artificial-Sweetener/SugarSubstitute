@@ -91,6 +91,101 @@ def test_unscened_set_picker_projects_all_batches_grid(
     )
 
 
+def test_unscened_source_tabs_display_selected_output_at_every_batch_level(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Each source tab must display its own grid or concrete batch image."""
+
+    source_ids = _seed_unscened_sources(
+        harness,
+        "alpha",
+        {
+            "output1": 3,
+            "output2": 3,
+            "output3": 3,
+            "output4": 3,
+            "output5": 3,
+        },
+    )
+    source_keys = tuple(source_ids)
+
+    harness.click_output_source_tab(source_keys[0])
+    assert harness.output_set_picker_keys() == ("0", "1", "2", "3")
+    for set_index in range(4):
+        harness.select_output_set(set_index)
+        for source_key in source_keys:
+            harness.click_output_source_tab(source_key)
+            expected_ids = source_ids[source_key]
+            if set_index == 0:
+                image_id = None
+                visible_ids = expected_ids
+            else:
+                image_id = expected_ids[set_index - 1]
+                visible_ids = (image_id,)
+            _assert_route(
+                harness,
+                alias="alpha",
+                scene_key="",
+                source_key=source_key,
+                set_index=set_index,
+                image_id=image_id,
+                visible_ids=visible_ids,
+            )
+
+
+def test_unscened_missing_batch_source_tab_cannot_claim_another_batch(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """A CubeOutput without batch two must not select or display batch one."""
+
+    source_ids = _seed_unscened_sources(
+        harness,
+        "alpha",
+        {"text": 2, "upscale": 1},
+    )
+    harness.click_output_source_tab("alpha:text")
+    harness.select_output_set(2)
+
+    harness.click_output_source_tab("alpha:upscale")
+
+    _assert_route(
+        harness,
+        alias="alpha",
+        scene_key="",
+        source_key="alpha:text",
+        set_index=2,
+        image_id=source_ids["alpha:text"][1],
+        visible_ids=(source_ids["alpha:text"][1],),
+    )
+
+
+def test_unscened_missing_batch_picker_cannot_switch_cube_output(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """A missing batch selection must not borrow another CubeOutput's image."""
+
+    source_ids = _seed_unscened_sources(
+        harness,
+        "alpha",
+        {"text": 2, "upscale": 1},
+    )
+    harness.click_output_source_tab("alpha:text")
+    harness.select_output_set(1)
+    harness.click_output_source_tab("alpha:upscale")
+
+    harness.select_output_set(2)
+
+    _assert_route(
+        harness,
+        alias="alpha",
+        scene_key="",
+        source_key="alpha:upscale",
+        set_index=1,
+        image_id=source_ids["alpha:upscale"][0],
+        visible_ids=(source_ids["alpha:upscale"][0],),
+    )
+
+
 def test_single_scene_set_picker_projects_all_batches_grid(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
@@ -240,7 +335,7 @@ def test_source_switch_preserves_exact_concrete_batch_when_available(
 def test_missing_batch_source_switch_keeps_tab_and_route_consistent(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
-    """An unavailable batch should fall back within the selected Cube output."""
+    """An unavailable batch must preserve the exact current tab and route."""
 
     source_ids = _seed_sources(harness, "alpha", {"text": 2, "upscale": 1})
     _enter_source_grid(harness, "alpha:text", source_ids["alpha:text"])
@@ -251,10 +346,10 @@ def test_missing_batch_source_switch_keeps_tab_and_route_consistent(
     _assert_route(
         harness,
         alias="alpha",
-        source_key="alpha:upscale",
-        set_index=1,
-        image_id=source_ids["alpha:upscale"][0],
-        visible_ids=(source_ids["alpha:upscale"][0],),
+        source_key="alpha:text",
+        set_index=2,
+        image_id=source_ids["alpha:text"][1],
+        visible_ids=(source_ids["alpha:text"][1],),
     )
 
 

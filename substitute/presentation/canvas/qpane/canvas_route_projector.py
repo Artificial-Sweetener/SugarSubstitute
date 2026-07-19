@@ -282,7 +282,8 @@ class OutputRouteProjector:
             and self._active_default_image_route_is(image_id)
         ):
             return True
-        return self._activate_default_image_route(image_id)
+        applied = self._activate_default_image_route(image_id)
+        return applied
 
     def apply_source_grid_route(
         self,
@@ -333,7 +334,8 @@ class OutputRouteProjector:
         ):
             return True
         self._adapter.clear_comparison_image()
-        return self._adapter.set_current_image_id(None)
+        applied = self._adapter.set_current_image_id(None)
+        return applied
 
     def current_image_id_for_event(self) -> UUID | None:
         """Return the current image only when the active Output scope authorizes it."""

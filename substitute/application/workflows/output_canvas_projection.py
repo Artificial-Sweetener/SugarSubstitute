@@ -50,21 +50,12 @@ class OutputCanvasSourceGroup:
     label: str
     images_by_set: Mapping[int, OutputCanvasImageItem]
 
-    def nearest_item(self, preferred_set_index: int) -> OutputCanvasImageItem | None:
-        """Return the nearest image item to a requested set index."""
+    def first_item(self) -> OutputCanvasImageItem | None:
+        """Return the first concrete item owned by this CubeOutput source."""
 
         if not self.images_by_set:
             return None
-        if preferred_set_index in self.images_by_set:
-            return self.images_by_set[preferred_set_index]
-        nearest_set = min(
-            self.images_by_set,
-            key=lambda set_index: (
-                abs(set_index - preferred_set_index),
-                set_index,
-            ),
-        )
-        return self.images_by_set[nearest_set]
+        return self.images_by_set[min(self.images_by_set)]
 
 
 @dataclass(frozen=True)
@@ -112,12 +103,12 @@ class OutputCanvasProjection:
         source_key: str,
         set_index: int,
     ) -> OutputCanvasImageItem | None:
-        """Return the best item for a source/set selection."""
+        """Return the exact item for a CubeOutput source/set selection."""
 
         source = self.source_for_key(source_key)
         if source is None:
             return None
-        return source.nearest_item(set_index)
+        return source.images_by_set.get(set_index)
 
     def first_item_for_set(self, set_index: int) -> OutputCanvasImageItem | None:
         """Return the first source item for one set index when available."""
@@ -414,7 +405,7 @@ def _scene_representative_for_sources(
     """Return the terminal scene source, set index, and representative image id."""
 
     for source in reversed(sources):
-        item = source.nearest_item(1)
+        item = source.first_item()
         if item is not None:
             return source.source_key, item.set_index, item.image_id
     return None, None, None
@@ -567,9 +558,9 @@ def _manual_concrete_focus(
     if workflow.active_output_source_key:
         source = _source_for_key(sources, workflow.active_output_source_key)
         if source is not None:
-            nearest_item = source.nearest_item(workflow.active_output_set_index)
-            if nearest_item is not None:
-                return source.source_key, nearest_item.set_index, nearest_item.image_id
+            exact_item = source.images_by_set.get(workflow.active_output_set_index)
+            if exact_item is not None:
+                return source.source_key, exact_item.set_index, exact_item.image_id
     return _first_concrete_focus(sources)
 
 
@@ -587,7 +578,7 @@ def _manual_grid_focus(
     if source is not None:
         if _source_can_render_grid(source):
             return source.source_key, 0, None
-        item = source.nearest_item(1)
+        item = source.first_item()
         if item is not None:
             return source.source_key, item.set_index, item.image_id
     return _first_concrete_focus(sources)
@@ -600,7 +591,7 @@ def _focus_for_source(
 
     if _source_has_grid(source):
         return source.source_key, 0, None
-    item = source.nearest_item(1)
+    item = source.first_item()
     if item is None:
         return source.source_key, 1, None
     return source.source_key, item.set_index, item.image_id
@@ -612,7 +603,7 @@ def _first_concrete_focus(
     """Return the first available concrete output focus."""
 
     for source in sources:
-        item = source.nearest_item(1)
+        item = source.first_item()
         if item is not None:
             return source.source_key, item.set_index, item.image_id
     return None, 1, None

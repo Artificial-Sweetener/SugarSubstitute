@@ -87,13 +87,15 @@ def test_output_canvas_on_tab_changed_resolves_source_set_and_emits_uuid(
     target = uuid4()
     pane_calls: list[object] = []
     control_modes: list[str] = []
+    selected_tabs: list[str] = []
     emit_signal = SignalStub()
     pane = SimpleNamespace(
         setCurrentImageID=lambda image_id: pane_calls.append(image_id),
         setControlMode=lambda mode: control_modes.append(mode),
     )
     tabbar = SimpleNamespace(
-        items={"source-a": object()}, setCurrentItem=lambda _key: None
+        items={"source-a": object(), "source-b": object()},
+        setCurrentItem=selected_tabs.append,
     )
     selector = SimpleNamespace(
         setText=lambda _text: None, setVisible=lambda _visible: None
@@ -118,13 +120,23 @@ def test_output_canvas_on_tab_changed_resolves_source_set_and_emits_uuid(
                         2,
                     )
                 },
-            )
+            ),
+            "source-b": OutputCanvasSourceGroup(
+                source_key="source-b",
+                label="Source B",
+                images_by_set={
+                    1: OutputCanvasImageItem(
+                        uuid4(),
+                        _meta(source_key="source-b", source_label="Source B"),
+                        1,
+                    )
+                },
+            ),
         },
     )
     fake._on_tab_changed = lambda _route: None
-    source = next(iter(fake.source_groups.values()))
     projection = output_mod.OutputCanvasProjection(
-        sources=(source,),
+        sources=tuple(fake.source_groups.values()),
         active_source_key="source-a",
         active_set_index=2,
         active_uuid=target,
@@ -161,7 +173,7 @@ def test_output_canvas_on_tab_changed_resolves_source_set_and_emits_uuid(
     )
     select_output_source(
         fake,
-        "missing-source",
+        "source-b",
         source_groups_by_key=fake.source_groups,
         update_tabbar_container=fake._update_tabbar_container,
     )
@@ -169,6 +181,9 @@ def test_output_canvas_on_tab_changed_resolves_source_set_and_emits_uuid(
     assert pane_calls == []
     assert control_modes == [output_mod.QPane.CONTROL_MODE_PANZOOM]
     assert emit_signal.calls == [(str(target),)]
+    assert fake.active_source_key == "source-a"
+    assert fake.active_set_index == 2
+    assert selected_tabs == ["source-a", "source-a"]
 
 
 def test_output_canvas_activate_output_item_skips_unchanged_qpane_image(

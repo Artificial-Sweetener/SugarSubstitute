@@ -103,11 +103,12 @@ class OutputGridRouteApplicationController:
                 accepted=False,
                 rejection_reason="projector_rejected",
             )
-        return OutputGridApplicationResult(
+        result = OutputGridApplicationResult(
             accepted=True,
             composition_id=self.route_projector.route_composition_id(plan.route),
             layout_signature=plan.layout_signature,
         )
+        return result
 
 
 __all__ = [

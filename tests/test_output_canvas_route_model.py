@@ -247,8 +247,8 @@ def test_route_model_resolves_concrete_set_from_active_source() -> None:
     assert result == ("a", source_a_item)
 
 
-def test_route_model_resolves_concrete_set_from_first_available_source() -> None:
-    """Set selector changes should fall back when the current source is unavailable."""
+def test_route_model_rejects_set_when_active_source_is_unavailable() -> None:
+    """Set selector changes must retain the current CubeOutput identity."""
 
     source_b_item = _item(uuid4(), 2)
     sources = {
@@ -262,11 +262,11 @@ def test_route_model_resolves_concrete_set_from_first_available_source() -> None
         set_index=2,
     )
 
-    assert result == ("b", source_b_item)
+    assert result is None
 
 
 def test_route_model_does_not_approximate_explicit_set_on_active_source() -> None:
-    """Explicit batch selection should cross sources instead of choosing a neighbor."""
+    """Explicit batch selection should not cross sources or choose a neighbor."""
 
     source_a_item = _item(uuid4(), 1)
     source_b_item = _item(uuid4(), 2)
@@ -281,7 +281,7 @@ def test_route_model_does_not_approximate_explicit_set_on_active_source() -> Non
         set_index=2,
     )
 
-    assert result == ("b", source_b_item)
+    assert result is None
 
 
 def test_route_model_returns_none_when_concrete_set_has_no_item() -> None:

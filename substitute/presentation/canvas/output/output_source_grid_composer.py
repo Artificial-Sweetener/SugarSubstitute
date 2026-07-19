@@ -71,13 +71,14 @@ class OutputSourceGridComposer:
         tiles = self._tiles_for_source(source, route.route_key)
         if not tiles:
             return None
-        return self._scene_builder.build(
+        plan = self._scene_builder.build(
             route=route,
             title=f"{source.label} grid",
             tiles=tiles,
             viewport_extent=viewport_extent or self._viewport_extent(),
             previous_dimensions=previous_dimensions,
         )
+        return plan
 
     def _tiles_for_source(
         self, source: OutputCanvasSourceGroup, route_key: str
