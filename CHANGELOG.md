@@ -1,3 +1,10 @@
+# [0.15.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.14.0...v0.15.0) (2026-07-19)
+
+
+### Features
+
+* **settings:** group JPEG and generation preview options ([9623952](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/9623952378da86c459c4856f0f962816c41d2a83))
+
 # [0.14.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.13.0...v0.14.0) (2026-07-19)
 
 
