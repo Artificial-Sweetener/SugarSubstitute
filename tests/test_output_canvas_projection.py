@@ -670,9 +670,10 @@ def test_projection_allows_ragged_source_groups() -> None:
     assert projection.set_count == 2
     group_b = projection.source_for_key("wf:b")
     assert group_b is not None
-    nearest_item = group_b.nearest_item(2)
-    assert nearest_item is not None
-    assert nearest_item.image_id == third_id
+    assert projection.item_for(source_key="wf:b", set_index=2) is None
+    first_item = group_b.first_item()
+    assert first_item is not None
+    assert first_item.image_id == third_id
 
 
 def test_projection_groups_outputs_by_scene_above_sources() -> None:

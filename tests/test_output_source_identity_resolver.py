@@ -67,8 +67,8 @@ def test_resolver_module_keeps_infrastructure_boundary() -> None:
     }
 
 
-def test_build_output_source_graph_prefers_nearest_downstream_output() -> None:
-    """Nodes shared by multiple outputs should map to the nearest cube output."""
+def test_build_output_source_graph_rejects_multiple_downstream_outputs() -> None:
+    """A shared node must not guess among connected downstream CubeOutputs."""
 
     workflow_payload = {
         "sampler": {"class_type": "KSampler"},
@@ -91,12 +91,18 @@ def test_build_output_source_graph_prefers_nearest_downstream_output() -> None:
         collect_cube_output_node_ids(workflow_payload),
     )
 
-    assert graph.node_to_cube_output_node_id["sampler"] == "near-output"
+    assert "sampler" not in graph.node_to_cube_output_node_id
+    assert graph.ambiguous_cube_output_node_ids_by_node["sampler"] == (
+        "far-output",
+        "near-output",
+    )
     assert graph.node_to_cube_output_node_id["upscale"] == "far-output"
+    assert graph.node_to_cube_output_node_id["near-output"] == "near-output"
+    assert graph.node_to_cube_output_node_id["far-output"] == "far-output"
 
 
-def test_build_output_source_graph_records_ambiguous_nearest_outputs() -> None:
-    """Equidistant output mappings should be exposed as ambiguous."""
+def test_build_output_source_graph_records_ambiguous_downstream_outputs() -> None:
+    """Multiple downstream output mappings should be exposed as ambiguous."""
 
     workflow_payload = {
         "shared": {"class_type": "KSampler"},

@@ -169,32 +169,6 @@ class OutputCanvasRouteModel:
         return source.images_by_set.get(set_index)
 
     @staticmethod
-    def first_item_for_set(
-        source_groups: Mapping[str, OutputCanvasSourceGroup],
-        set_index: int,
-    ) -> OutputCanvasImageItem | None:
-        """Return first source item for a set index."""
-
-        for source in source_groups.values():
-            item = source.images_by_set.get(set_index)
-            if item is not None:
-                return item
-        return None
-
-    @staticmethod
-    def source_key_for_item(
-        source_groups: Mapping[str, OutputCanvasSourceGroup],
-        target_item: OutputCanvasImageItem,
-    ) -> str | None:
-        """Return source key containing one image item."""
-
-        for source_key, source in source_groups.items():
-            for item in source.images_by_set.values():
-                if item.image_id == target_item.image_id:
-                    return source_key
-        return None
-
-    @staticmethod
     def output_item_for_image_id(
         source_groups: Mapping[str, OutputCanvasSourceGroup],
         image_id: UUID,
@@ -215,17 +189,18 @@ class OutputCanvasRouteModel:
         active_source_key: str | None,
         set_index: int,
     ) -> tuple[str, OutputCanvasImageItem] | None:
-        """Return the concrete source/item target for a set selector change."""
+        """Return the exact active-source target for a set selector change."""
 
-        source_key = active_source_key
-        item = cls.item_for_source_and_set(source_groups, source_key, set_index)
-        if item is None:
-            item = cls.first_item_for_set(source_groups, set_index)
-            if item is not None:
-                source_key = cls.source_key_for_item(source_groups, item)
-        if item is None or source_key is None:
+        if active_source_key is None:
             return None
-        return source_key, item
+        item = cls.item_for_source_and_set(
+            source_groups,
+            active_source_key,
+            set_index,
+        )
+        if item is None:
+            return None
+        return active_source_key, item
 
     @staticmethod
     def grid_available_for_source(source: OutputCanvasSourceGroup) -> bool:

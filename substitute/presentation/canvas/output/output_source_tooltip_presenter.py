@@ -31,7 +31,11 @@ def source_tab_tooltip_text(
 ) -> str:
     """Return tooltip text for one Output source tab."""
 
-    item = source.nearest_item(max(1, active_set_index))
+    item = (
+        source.first_item()
+        if active_set_index == 0
+        else source.images_by_set.get(active_set_index)
+    )
     if item is None:
         return ""
 

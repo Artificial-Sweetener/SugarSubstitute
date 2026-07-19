@@ -61,14 +61,6 @@ class OutputSourceResolution:
     diagnostic: OutputSourceDiagnostic | None = None
 
 
-@dataclass(frozen=True)
-class _OutputSourceCandidate:
-    """Describe one reachable downstream cube output and its graph distance."""
-
-    cube_output_node_id: str
-    distance: int
-
-
 def prompt_nodes(workflow_payload: dict[str, object]) -> dict[str, object]:
     """Return executable Comfy prompt nodes from raw or wrapped payloads."""
 
@@ -107,39 +99,30 @@ def build_output_source_graph(
     workflow_payload: dict[str, object],
     cube_output_node_ids: set[str],
 ) -> OutputSourceGraph:
-    """Map prompt nodes to their nearest downstream cube output."""
+    """Map prompt nodes to their one unambiguous downstream CubeOutput."""
 
     nodes = typed_prompt_nodes(workflow_payload)
-    candidates_by_node: dict[str, list[_OutputSourceCandidate]] = {}
+    downstream_output_ids_by_node: dict[str, set[str]] = {}
     for cube_output_node_id in cube_output_node_ids:
-        for upstream_node_id, distance in upstream_distances_by_node_id(
+        for upstream_node_id in upstream_node_ids(
             cube_output_node_id,
             nodes,
-        ).items():
-            candidates_by_node.setdefault(upstream_node_id, []).append(
-                _OutputSourceCandidate(
-                    cube_output_node_id=cube_output_node_id,
-                    distance=distance,
-                )
+        ):
+            downstream_output_ids_by_node.setdefault(upstream_node_id, set()).add(
+                cube_output_node_id
             )
+
+    for cube_output_node_id in cube_output_node_ids:
+        downstream_output_ids_by_node[cube_output_node_id] = {cube_output_node_id}
 
     node_to_cube_output_node_id: dict[str, str] = {}
     ambiguous_cube_output_node_ids_by_node: dict[str, tuple[str, ...]] = {}
-    for node_id, candidates in candidates_by_node.items():
-        nearest_distance = min(candidate.distance for candidate in candidates)
-        nearest_cube_output_node_ids = tuple(
-            sorted(
-                candidate.cube_output_node_id
-                for candidate in candidates
-                if candidate.distance == nearest_distance
-            )
-        )
-        if len(nearest_cube_output_node_ids) == 1:
-            node_to_cube_output_node_id[node_id] = nearest_cube_output_node_ids[0]
+    for node_id, downstream_output_ids in downstream_output_ids_by_node.items():
+        ordered_output_ids = tuple(sorted(downstream_output_ids))
+        if len(ordered_output_ids) == 1:
+            node_to_cube_output_node_id[node_id] = ordered_output_ids[0]
         else:
-            ambiguous_cube_output_node_ids_by_node[node_id] = (
-                nearest_cube_output_node_ids
-            )
+            ambiguous_cube_output_node_ids_by_node[node_id] = ordered_output_ids
 
     return OutputSourceGraph(
         node_to_cube_output_node_id=node_to_cube_output_node_id,
@@ -147,28 +130,27 @@ def build_output_source_graph(
     )
 
 
-def upstream_distances_by_node_id(
+def upstream_node_ids(
     root_node_id: str,
     nodes: Mapping[str, Mapping[str, Any]],
-) -> dict[str, int]:
-    """Return one node and every upstream input node with edge distance."""
+) -> set[str]:
+    """Return one CubeOutput and every executable node connected upstream."""
 
-    distances: dict[str, int] = {}
-    pending = [(root_node_id, 0)]
+    visited: set[str] = set()
+    pending = [root_node_id]
     while pending:
-        node_id, distance = pending.pop(0)
-        existing_distance = distances.get(node_id)
-        if existing_distance is not None and existing_distance <= distance:
+        node_id = pending.pop()
+        if node_id in visited:
             continue
-        distances[node_id] = distance
+        visited.add(node_id)
         node_data = nodes.get(node_id)
         if node_data is None:
             continue
         inputs = node_data.get("inputs", {})
         for linked_node_id in linked_input_node_ids(inputs):
             if linked_node_id in nodes:
-                pending.append((linked_node_id, distance + 1))
-    return distances
+                pending.append(linked_node_id)
+    return visited
 
 
 def linked_input_node_ids(value: object) -> tuple[str, ...]:

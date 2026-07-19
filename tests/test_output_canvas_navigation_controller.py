@@ -376,24 +376,24 @@ def test_button_width_uses_current_width_then_size_hint() -> None:
     )
 
 
-def test_source_fallback_item_prefers_nearest_last_real_set() -> None:
-    """Source fallback should preserve the user's last concrete set when possible."""
+def test_source_fallback_item_prefers_exact_last_real_set() -> None:
+    """Source fallback should preserve the user's exact concrete set when present."""
 
     first_item = _output_item(set_index=1)
-    nearest_item = _output_item(set_index=3)
+    exact_item = _output_item(set_index=3)
     source = OutputCanvasSourceGroup(
         source_key="source-a",
         label="Source A",
-        images_by_set={1: first_item, 3: nearest_item},
+        images_by_set={1: first_item, 3: exact_item},
     )
 
     item = OutputCanvasNavigationPolicy.source_fallback_item(
         {"source-a": source},
         "source-a",
-        last_real_set_index=4,
+        last_real_set_index=3,
     )
 
-    assert item is nearest_item
+    assert item is exact_item
 
 
 def test_source_fallback_item_returns_none_for_unknown_source() -> None:
@@ -467,8 +467,8 @@ def test_tab_change_action_returns_concrete_output_item() -> None:
     assert action.item.set_index == 2
 
 
-def test_tab_change_action_uses_nearest_batch_within_selected_source() -> None:
-    """Source tab changes should resolve missing batches within that source."""
+def test_tab_change_action_rejects_missing_batch_within_selected_source() -> None:
+    """Source tab changes must not substitute another batch for a missing one."""
 
     action = OutputCanvasNavigationPolicy.tab_change_action(
         route_key="wf:upscale",
@@ -477,10 +477,9 @@ def test_tab_change_action_uses_nearest_batch_within_selected_source() -> None:
         source_groups_by_key={"wf:upscale": _source("wf:upscale", set_indexes=(1,))},
     )
 
-    assert action.kind == "activate_output_item"
+    assert action.kind == "missing_set"
     assert action.source_key == "wf:upscale"
-    assert action.item is not None
-    assert action.item.set_index == 1
+    assert action.item is None
 
 
 def test_tab_change_action_reports_unknown_source() -> None:
@@ -545,8 +544,8 @@ def test_set_selection_action_returns_active_source_item() -> None:
     assert action.item.set_index == 2
 
 
-def test_set_selection_action_falls_back_to_first_source_for_set() -> None:
-    """Concrete set selection should use the first source containing the set."""
+def test_set_selection_action_rejects_a_set_missing_from_active_source() -> None:
+    """Concrete set selection must not switch CubeOutput sources implicitly."""
 
     action = OutputCanvasNavigationPolicy.set_selection_action(
         set_index=2,
@@ -557,10 +556,9 @@ def test_set_selection_action_falls_back_to_first_source_for_set() -> None:
         },
     )
 
-    assert action.kind == "activate_output_item"
-    assert action.source_key == "wf:upscale"
-    assert action.item is not None
-    assert action.item.set_index == 2
+    assert action.kind == "missing_set"
+    assert action.source_key == "missing"
+    assert action.item is None
 
 
 def test_set_selection_action_returns_none_without_target() -> None:
@@ -572,8 +570,8 @@ def test_set_selection_action_returns_none_without_target() -> None:
         source_groups_by_key={"wf:text": _source("wf:text", set_indexes=())},
     )
 
-    assert action.kind == "none"
-    assert action.source_key is None
+    assert action.kind == "missing_set"
+    assert action.source_key == "wf:text"
     assert action.item is None
 
 

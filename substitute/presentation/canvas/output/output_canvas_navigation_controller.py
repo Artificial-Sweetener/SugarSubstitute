@@ -553,7 +553,7 @@ def select_output_set(
             update_tabbar_container=update_tabbar_container,
         )
         return
-    if action.kind == "none":
+    if action.kind in {"none", "missing_set"}:
         return
     if action.source_key is None or action.item is None:
         return
@@ -574,10 +574,11 @@ def select_output_source(
 ) -> None:
     """Apply a source-tab selection through the Output navigation host."""
 
+    current_set_index = int(getattr(host, "active_set_index", 0))
     action = OutputCanvasNavigationPolicy.tab_change_action(
         route_key=route_key,
         suppress_tab_change=bool(getattr(host, "_suppress_tab_change", False)),
-        active_set_index=int(getattr(host, "active_set_index", 0)),
+        active_set_index=current_set_index,
         source_groups_by_key=source_groups_by_key,
     )
     if action.kind == "none":
@@ -606,7 +607,24 @@ def select_output_source(
                 update_tabbar_container=update_tabbar_container,
             )
         return
+    if action.kind == "missing_set":
+        _restore_active_source_selection(
+            host,
+            update_tabbar_container=update_tabbar_container,
+        )
+        log_warning(
+            _LOGGER,
+            "Ignored output source without exact active batch",
+            requested_source_key=route_key,
+            requested_set_index=current_set_index,
+            available_set_indices=sorted(source_groups_by_key[route_key].images_by_set),
+        )
+        return
     if action.kind == "unknown_source":
+        _restore_active_source_selection(
+            host,
+            update_tabbar_container=update_tabbar_container,
+        )
         log_warning(
             _LOGGER,
             "Ignored unknown output source route key",
@@ -620,6 +638,32 @@ def select_output_source(
             action.item,
             update_tabbar_container=update_tabbar_container,
         )
+
+
+def _restore_active_source_selection(
+    host: object,
+    *,
+    update_tabbar_container: Callable[[], None],
+) -> None:
+    """Restore source chrome after rejecting an inexact source/set route."""
+
+    active_source_key = getattr(host, "active_source_key", None)
+    tabbar = getattr(host, "tabbar", None)
+    tabbar_items = getattr(tabbar, "items", {})
+    if (
+        isinstance(active_source_key, str)
+        and isinstance(tabbar_items, Mapping)
+        and active_source_key in tabbar_items
+    ):
+        set_current_item = getattr(tabbar, "setCurrentItem", None)
+        if callable(set_current_item):
+            setattr(host, "_suppress_tab_change", True)
+            try:
+                set_current_item(active_source_key)
+            finally:
+                setattr(host, "_suppress_tab_change", False)
+    sync_output_source_selector_button(host)
+    update_tabbar_container()
 
 
 def select_output_scene(

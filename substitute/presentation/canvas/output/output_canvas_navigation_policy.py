@@ -37,6 +37,7 @@ OutputTabChangeKind = Literal[
     "activate_grid",
     "activate_source_fallback",
     "activate_output_item",
+    "missing_set",
     "unknown_source",
 ]
 OutputSceneSelectionKind = Literal[
@@ -47,6 +48,7 @@ OutputSetSelectionKind = Literal[
     "none",
     "activate_grid",
     "activate_output_item",
+    "missing_set",
 ]
 OutputSceneActivationFollowup = Literal[
     "none",
@@ -133,10 +135,10 @@ class OutputCanvasNavigationPolicy:
         source = source_groups.get(source_key)
         if source is None:
             return None
-        item = source.nearest_item(last_real_set_index)
+        item = source.images_by_set.get(last_real_set_index)
         if item is not None:
             return item
-        return source.nearest_item(1)
+        return source.first_item()
 
     @staticmethod
     def tab_change_action(
@@ -163,11 +165,11 @@ class OutputCanvasNavigationPolicy:
             active_set_index,
         )
         if item is None:
-            source = source_groups_by_key.get(route_key)
-            if source is not None:
-                item = source.nearest_item(active_set_index)
-        if item is None:
-            return OutputTabChangeAction("unknown_source", route_key)
+            requested_source = source_groups_by_key.get(route_key)
+            action_kind: OutputTabChangeKind = (
+                "missing_set" if requested_source is not None else "unknown_source"
+            )
+            return OutputTabChangeAction(action_kind, route_key)
         return OutputTabChangeAction("activate_output_item", route_key, item)
 
     @staticmethod
@@ -199,7 +201,11 @@ class OutputCanvasNavigationPolicy:
             set_index=set_index,
         )
         if target is None:
-            return OutputSetSelectionAction("none", set_index)
+            return OutputSetSelectionAction(
+                "missing_set",
+                set_index,
+                active_source_key,
+            )
         source_key, item = target
         return OutputSetSelectionAction(
             "activate_output_item",
