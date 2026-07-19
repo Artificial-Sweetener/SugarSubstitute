@@ -34,7 +34,11 @@ from PySide6.QtGui import (
     QTransform,
 )
 from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
-from qfluentwidgets import FluentIcon as FIF  # type: ignore[import-untyped]
+from qfluentwidgets import (  # type: ignore[import-untyped]
+    FluentIcon as FIF,
+    IndicatorPosition,
+    SwitchButton,
+)
 
 from substitute.presentation.settings.settings_card import (
     InteractiveSettingsCard,
@@ -414,6 +418,7 @@ class SettingsExpander(QWidget):
         reserve_visual_space: bool = True,
         content_available: bool = True,
         expanded: bool = False,
+        user_expandable: bool = True,
         parent: QWidget | None = None,
     ) -> None:
         """Create a WinUI-like settings expander."""
@@ -428,9 +433,11 @@ class SettingsExpander(QWidget):
         self._animation_target_expanded = False
         self._animation_active = False
         self._content_available = content_available
+        self._user_expandable = user_expandable
         self._height_refresh_queued = False
         self.chevron = SettingsExpanderChevron(self)
-        self.chevron.clicked.connect(self.toggle)
+        if self._user_expandable:
+            self.chevron.clicked.connect(self.toggle)
         self.header_surface = _SettingsExpanderHeaderSurface(self)
         self.header_surface.setObjectName("SubstituteSettingsExpanderHeaderSurface")
         self.header_card = InteractiveSettingsCard(
@@ -439,11 +446,16 @@ class SettingsExpander(QWidget):
             visual_widget=visual_widget,
             trailing_widget=self._build_trailing_widget(trailing_widget),
             reserve_visual_space=reserve_visual_space,
-            appearance="expander_header",
+            appearance=(
+                "expander_header"
+                if self._user_expandable
+                else "controlled_expander_header"
+            ),
             parent=self.header_surface,
         )
         self.header_surface.set_header_card(self.header_card)
-        self.header_card.activated.connect(self.toggle)
+        if self._user_expandable:
+            self.header_card.activated.connect(self.toggle)
         self._body = _SettingsExpanderContentSurface(self)
         self._body.setObjectName("SubstituteSettingsExpanderContentSurface")
         self._body.setSizePolicy(
@@ -596,6 +608,8 @@ class SettingsExpander(QWidget):
     def _build_trailing_widget(self, trailing_widget: QWidget | None) -> QWidget:
         """Create the header trailing area with optional content and chevron."""
 
+        if not self._user_expandable and trailing_widget is not None:
+            return trailing_widget
         container = QWidget(self)
         container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         container.setStyleSheet("background-color: transparent; border: none;")
@@ -674,7 +688,7 @@ class SettingsExpander(QWidget):
         self._content_clip.setVisible(body_visible)
         self._body.setVisible(body_visible)
         self._header_separator.setVisible(body_visible)
-        self.chevron.setVisible(self._content_available)
+        self.chevron.setVisible(self._content_available and self._user_expandable)
         self.chevron.set_rotation(
             _EXPANDED_CHEVRON_ROTATION if body_visible else _COLLAPSED_CHEVRON_ROTATION
         )
@@ -688,7 +702,7 @@ class SettingsExpander(QWidget):
         self._content_clip.setMaximumHeight(self._expanded_height)
         self._content_clip.setVisible(True)
         self._body.setVisible(True)
-        self.chevron.setVisible(self._content_available)
+        self.chevron.setVisible(self._content_available and self._user_expandable)
         self._content_clip.updateGeometry()
 
     def _finish_motion(self) -> None:
@@ -816,6 +830,63 @@ class SettingsExpanderRow(SettingsCard):
         )
 
 
+class SwitchSettingsExpander(SettingsExpander):
+    """Expand subordinate settings when an owning feature switch is enabled."""
+
+    checkedChanged = Signal(bool)
+
+    def __init__(
+        self,
+        *,
+        title: str,
+        description: str = "",
+        visual_widget: QWidget | None = None,
+        checked: bool = False,
+        reserve_visual_space: bool = True,
+        parent: QWidget | None = None,
+    ) -> None:
+        """Create a switch-controlled settings expander without a chevron."""
+
+        switch = SwitchButton("Off", parent, indicatorPos=IndicatorPosition.RIGHT)
+        switch.setOnText("On")
+        switch.setOffText("Off")
+        switch.setChecked(checked)
+        super().__init__(
+            title=title,
+            description=description,
+            visual_widget=visual_widget,
+            trailing_widget=switch,
+            reserve_visual_space=reserve_visual_space,
+            expanded=checked,
+            user_expandable=False,
+            parent=parent,
+        )
+        self.switch = switch
+        self.switch.checkedChanged.connect(self._apply_checked_state)
+        self.header_card.activated.connect(self._toggle_switch)
+
+    def is_checked(self) -> bool:
+        """Return whether the owning feature switch is enabled."""
+
+        return bool(self.switch.isChecked())
+
+    def set_checked(self, checked: bool) -> None:
+        """Set feature enablement through the authoritative switch."""
+
+        self.switch.setChecked(checked)
+
+    def _toggle_switch(self) -> None:
+        """Treat header activation as feature enablement activation."""
+
+        self.switch.setChecked(not self.switch.isChecked())
+
+    def _apply_checked_state(self, checked: bool) -> None:
+        """Synchronize disclosure before publishing feature enablement."""
+
+        self.set_expanded(checked)
+        self.checkedChanged.emit(checked)
+
+
 def _render_rotated_icon(icon_enum: FIF, angle: float, size: int) -> QPixmap:
     """Return one rotated pixmap for a Fluent icon."""
 
@@ -837,5 +908,6 @@ __all__ = [
     "SettingsExpander",
     "SettingsExpanderChevron",
     "SettingsExpanderRow",
+    "SwitchSettingsExpander",
     "expander_body_geometry",
 ]
