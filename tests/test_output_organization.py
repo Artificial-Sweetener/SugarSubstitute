@@ -342,6 +342,32 @@ def test_file_repository_returns_defaults_for_invalid_json(tmp_path: Path) -> No
     assert loaded == OutputPreferences()
 
 
+def test_jpeg_quality_defaults_to_100_without_overwriting_persisted_values(
+    tmp_path: Path,
+) -> None:
+    """Missing quality should use 100 while an explicit older value remains intact."""
+
+    preferences_path = tmp_path / "output_organization.json"
+    preferences_path.write_text(
+        json.dumps({"schema_version": "2", "jpeg": {"enabled": True}}),
+        encoding="utf-8",
+    )
+
+    assert FileOutputPreferenceRepository(tmp_path).load().jpeg.quality == 100
+
+    preferences_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "2",
+                "jpeg": {"enabled": True, "quality": 90},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert FileOutputPreferenceRepository(tmp_path).load().jpeg.quality == 90
+
+
 def test_file_repository_preserves_null_output_root(tmp_path: Path) -> None:
     """A null output root should preserve default-root semantics."""
 

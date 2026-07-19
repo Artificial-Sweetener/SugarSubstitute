@@ -80,8 +80,11 @@ from substitute.presentation.semantic_colors import legible_text_color_for_backg
 from substitute.presentation.settings.appearance_runtime_protocol import (
     AppearanceRuntimeProtocol,
 )
-from substitute.presentation.settings.generation_output_settings_rows import (
-    GenerationOutputSettingsRows,
+from substitute.presentation.settings.generation_output_settings_catalog import (
+    build_generation_output_settings_section,
+)
+from substitute.presentation.settings.generation_preview_settings_catalog import (
+    build_generation_preview_settings_section,
 )
 from substitute.presentation.settings.path_pattern_token_autocomplete import (
     PathPatternTokenAutocomplete,
@@ -206,7 +209,6 @@ def build_generation_settings_page(
 ) -> SettingsPageEntry:
     """Build the Generation catalog page."""
 
-    output_rows = GenerationOutputSettingsRows(context.output_preference_service)
     return SettingsPageEntry(
         page_id="generation",
         title="Generation",
@@ -214,102 +216,11 @@ def build_generation_settings_page(
         icon=AppIcon.IMAGE_SPARKLE_20_REGULAR,
         order=10,
         sections=(
-            SettingsSectionEntry(
-                "generation.preview",
-                "Preview",
-                "",
-                10,
-                (
-                    SettingsControlEntry(
-                        "generation.preview.enabled",
-                        "Generation previews",
-                        "Show sampler preview frames while ComfyUI is generating.",
-                        _IMAGE_KEYWORDS,
-                        10,
-                        lambda parent: _generation_preview_enabled_row(context, parent),
-                    ),
-                    SettingsControlEntry(
-                        "generation.preview.type",
-                        "Preview type",
-                        "Choose the ComfyUI latent preview method sent with new prompts.",
-                        _IMAGE_KEYWORDS + _COMFY_KEYWORDS,
-                        20,
-                        lambda parent: _generation_preview_type_row(context, parent),
-                    ),
-                ),
+            build_generation_preview_settings_section(
+                context.generation_preview_service,
+                context.task_runner_factory,
             ),
-            SettingsSectionEntry(
-                "generation.output",
-                "Output files",
-                "",
-                20,
-                (
-                    SettingsControlEntry(
-                        "generation.output.folder",
-                        "Output folder",
-                        "Choose where generated images are saved.",
-                        _COMMON_PATH_KEYWORDS + _IMAGE_KEYWORDS,
-                        10,
-                        output_rows.folder,
-                    ),
-                    SettingsControlEntry(
-                        "generation.output.pattern",
-                        "Output pattern",
-                        "Compose relative folders and filename without the .png extension.",
-                        _COMMON_PATH_KEYWORDS,
-                        20,
-                        output_rows.pattern,
-                    ),
-                    SettingsControlEntry(
-                        "generation.output.preview",
-                        "Output preview",
-                        "Shows an example path using the current output settings.",
-                        _COMMON_PATH_KEYWORDS + _IMAGE_KEYWORDS,
-                        30,
-                        output_rows.preview,
-                    ),
-                    SettingsControlEntry(
-                        "generation.output.persistence",
-                        "Saved cube outputs",
-                        "Save every cube output or only the final active cube.",
-                        ("save", "output", "final", "cube", "disk"),
-                        40,
-                        output_rows.persistence_mode,
-                    ),
-                    SettingsControlEntry(
-                        "generation.output.jpeg_enabled",
-                        "JPEG companions",
-                        "Also save a shareable JPEG beside each canonical recipe PNG.",
-                        ("jpeg", "jpg", "quality", "size", "png"),
-                        50,
-                        output_rows.jpeg_enabled,
-                    ),
-                    SettingsControlEntry(
-                        "generation.output.jpeg_sizing",
-                        "JPEG sizing",
-                        "Choose fixed quality or an approximate target file size.",
-                        ("jpeg", "quality", "target", "size"),
-                        60,
-                        output_rows.jpeg_sizing_mode,
-                    ),
-                    SettingsControlEntry(
-                        "generation.output.jpeg_quality",
-                        "JPEG quality",
-                        "Quality used when JPEG sizing is set to fixed quality.",
-                        ("jpeg", "quality"),
-                        70,
-                        output_rows.jpeg_quality,
-                    ),
-                    SettingsControlEntry(
-                        "generation.output.jpeg_target_size",
-                        "JPEG target size",
-                        "Approximate size in KiB used by target-size encoding.",
-                        ("jpeg", "target", "size", "kib"),
-                        80,
-                        output_rows.jpeg_target_size,
-                    ),
-                ),
-            ),
+            build_generation_output_settings_section(context.output_preference_service),
             SettingsSectionEntry(
                 "generation.missing_models",
                 "Missing model handling",
@@ -806,49 +717,6 @@ def _danbooru_prompt_feature_entry(
         keywords=("prompt", "danbooru", "wiki", "url", feature.value),
         order=order,
         factory=lambda parent: _prompt_feature_row(context, definition, parent),
-    )
-
-
-def _generation_preview_enabled_row(
-    context: GenerationSettingsContext,
-    parent: QWidget,
-) -> SettingsCard:
-    """Create the generation preview toggle row."""
-
-    preferences = context.generation_preview_service.load_preferences()
-    return _switch_row(
-        parent=parent,
-        icon=AppIcon.IMAGE_SPARKLE_20_REGULAR,
-        title="Generation previews",
-        description="Show sampler preview frames while ComfyUI is generating.",
-        checked=preferences.enabled,
-        on_changed=lambda enabled: context.generation_preview_service.set_enabled(
-            enabled
-        ),
-    )
-
-
-def _generation_preview_type_row(
-    context: GenerationSettingsContext,
-    parent: QWidget,
-) -> SettingsCard:
-    """Create the generation preview method row."""
-
-    preferences = context.generation_preview_service.load_preferences()
-    return _combo_row(
-        parent=parent,
-        icon=AppIcon.IMAGE_SPARKLE_20_REGULAR,
-        title="Preview type",
-        description="Choose the ComfyUI latent preview method sent with new prompts.",
-        options=(
-            ("Latent RGB", "latent2rgb"),
-            ("TAESD", "taesd"),
-            ("Auto", "auto"),
-        ),
-        selected=preferences.method.value,
-        on_changed=lambda value: context.generation_preview_service.set_method_value(
-            str(value)
-        ),
     )
 
 
