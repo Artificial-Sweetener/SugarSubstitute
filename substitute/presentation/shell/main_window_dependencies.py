@@ -55,7 +55,7 @@ if TYPE_CHECKING:
         GenerationPreviewPreferenceService,
         GenerationResultSnapshotService,
         GenerationService,
-        OutputOrganizationPreferenceService,
+        OutputPreferenceService,
         ProgressService,
         RecipeOutputSiblingDiscoveryService,
     )
@@ -229,6 +229,7 @@ class MainWindowDependencies:
     civitai_cache_service: CivitaiCacheService
     prompt_wildcard_file_management_service: PromptWildcardFileManagementService
     open_wildcard_management_modal: Callable[[QWidget | None], None]
+    open_autocomplete_list_management_modal: Callable[[QWidget | None], None]
     prompt_wildcard_preference_service: PromptWildcardPreferenceService
     prompt_wildcard_preprocessing_service: PromptWildcardPreprocessingService
     prompt_lora_catalog_service: PromptLoraCatalogService
@@ -251,7 +252,7 @@ class MainWindowDependencies:
     comfy_environment_service: ComfyEnvironmentService
     cube_library_management_service: CubeLibraryManagementService
     generation_preview_preference_service: GenerationPreviewPreferenceService
-    output_organization_preference_service: OutputOrganizationPreferenceService
+    output_preference_service: OutputPreferenceService
     prompt_editor_preference_service: PromptEditorPreferenceService
     session_snapshot_repository: SessionSnapshotRepository
     session_autosave_service: SessionAutosaveService

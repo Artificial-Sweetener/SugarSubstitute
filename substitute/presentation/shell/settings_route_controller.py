@@ -79,9 +79,7 @@ class SettingsRouteController:
             generation_preview_preference_service=(
                 shell.generation_preview_preference_service
             ),
-            output_organization_preference_service=(
-                shell.output_organization_preference_service
-            ),
+            output_preference_service=shell.output_preference_service,
             prompt_wildcard_preference_service=(
                 shell.prompt_wildcard_preference_service
             ),
@@ -89,6 +87,9 @@ class SettingsRouteController:
                 shell.prompt_wildcard_file_management_service
             ),
             open_wildcard_management_modal=shell.open_wildcard_management_modal,
+            open_autocomplete_list_management_modal=(
+                shell.open_autocomplete_list_management_modal
+            ),
             prompt_editor_preferences_changed=(
                 self.handle_prompt_editor_preferences_changed
             ),

@@ -1280,8 +1280,8 @@ def _build_main_window_dependencies(
 
     record_dependency_phase("imports.application.generation.service")
 
-    from substitute.application.generation.output_organization_service import (
-        OutputOrganizationPreferenceService,
+    from substitute.application.generation.output_preference_service import (
+        OutputPreferenceService,
     )
 
     record_dependency_phase("imports.application.generation.output_organization")
@@ -1488,6 +1488,15 @@ def _build_main_window_dependencies(
     from substitute.infrastructure.persistence.file_prompt_autocomplete_gateway import (
         FilePromptAutocompleteGateway,
     )
+    from substitute.infrastructure.persistence.configured_prompt_autocomplete_gateway import (
+        ConfiguredPromptAutocompleteGateway,
+    )
+    from substitute.infrastructure.persistence.file_prompt_autocomplete_list_repository import (
+        FilePromptAutocompleteListRepository,
+    )
+    from substitute.application.prompt_autocomplete_lists import (
+        PromptAutocompleteListService,
+    )
 
     record_dependency_phase("imports.infrastructure.persistence.prompt_autocomplete")
 
@@ -1507,8 +1516,8 @@ def _build_main_window_dependencies(
         "imports.infrastructure.persistence.generation_preview_preferences"
     )
 
-    from substitute.infrastructure.persistence.file_output_organization_preference_repository import (
-        FileOutputOrganizationPreferenceRepository,
+    from substitute.infrastructure.persistence.file_output_preference_repository import (
+        FileOutputPreferenceRepository,
     )
 
     record_dependency_phase(
@@ -1603,7 +1612,10 @@ def _build_main_window_dependencies(
     from substitute.presentation.shell.shell_resource_lifecycle import (
         ShellResourceLifecycle,
     )
-    from substitute.presentation.managed_text_assets import WildcardManagementOpener
+    from substitute.presentation.managed_text_assets import (
+        AutocompleteListManagementOpener,
+        WildcardManagementOpener,
+    )
     from substitute.presentation.shell.workspace_generation_controller import (
         GenerationPreparationExecutor,
         WorkspaceGenerationController,
@@ -1793,7 +1805,17 @@ def _build_main_window_dependencies(
         node_definition_step_started_at,
     )
     record_dependency_phase("comfy_node_definition_services")
-    prompt_autocomplete_gateway = FilePromptAutocompleteGateway()
+    bundled_prompt_autocomplete_gateway = FilePromptAutocompleteGateway()
+    prompt_autocomplete_list_service = PromptAutocompleteListService(
+        FilePromptAutocompleteListRepository(context.user_dir)
+    )
+    prompt_autocomplete_gateway = ConfiguredPromptAutocompleteGateway(
+        bundled_prompt_autocomplete_gateway,
+        prompt_autocomplete_list_service,
+    )
+    prompt_autocomplete_list_service.set_change_callback(
+        prompt_autocomplete_gateway.refresh
+    )
     prompt_autocomplete_gateway.load_prompt_tag_snapshot()
     danbooru_client = _LazyDanbooruClient()
     danbooru_cache_repository = SqliteDanbooruCacheStore(context.cache_dir / "danbooru")
@@ -1948,8 +1970,8 @@ def _build_main_window_dependencies(
         FileGenerationPreviewPreferenceRepository(context.user_settings_dir),
         preview_assets_backend,
     )
-    output_organization_preference_service = OutputOrganizationPreferenceService(
-        FileOutputOrganizationPreferenceRepository(context.user_settings_dir),
+    output_preference_service = OutputPreferenceService(
+        FileOutputPreferenceRepository(context.user_settings_dir),
         default_output_root=context.outputs_dir,
     )
     restart_requirement_service = RestartRequirementService()
@@ -2085,6 +2107,17 @@ def _build_main_window_dependencies(
             )
         ),
     )
+    open_autocomplete_list_management_modal = AutocompleteListManagementOpener(
+        list_service=prompt_autocomplete_list_service,
+        prompt_autocomplete_gateway=prompt_autocomplete_gateway,
+        prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+        editor_panel_execution_factories=editor_panel_execution_factories,
+        prompt_wheel_adjustment_mode=(
+            lambda: (
+                prompt_editor_preference_service.load_preferences().wheel_adjustment_mode
+            )
+        ),
+    )
     prompt_spellcheck_language_tag = default_spellcheck_language_tag()
     prompt_spellcheck_gateway = build_spellcheck_gateway(
         enabled=prompt_editor_preference_service.load_preferences().user_allows(
@@ -2126,7 +2159,7 @@ def _build_main_window_dependencies(
         asset_staging_service=comfy_asset_staging_service,
         prompt_wildcard_preprocessing_service=(prompt_wildcard_preprocessing_service),
         preview_method_resolver=generation_preview_preference_service,
-        output_organization_service=output_organization_preference_service,
+        output_preference_service=output_preference_service,
         direct_workflow_graph_service=DirectWorkflowGenerationPlanService(
             node_definition_hydrator=node_definition_gateway,
             node_definition_gateway=node_definition_gateway,
@@ -2144,7 +2177,7 @@ def _build_main_window_dependencies(
         dispatcher=QtOwnerThreadDispatcher(generation_queue_transition_relay),
     )
     recipe_output_sibling_discovery_service = RecipeOutputSiblingDiscoveryService(
-        output_preferences=output_organization_preference_service,
+        output_preferences=output_preference_service,
     )
     generation_job_queue_service = GenerationJobQueueService(
         generation_service,
@@ -2153,13 +2186,11 @@ def _build_main_window_dependencies(
         close_dispatch_submitter=generation_dispatch_submitter.close,
         owner_thread_scheduler=generation_queue_transition_relay.schedule,
         output_run_number_allocator=FileOutputRunNumberAllocator(
-            output_organization_preference_service
+            output_preference_service
         ),
         output_root=context.outputs_dir,
-        output_run_bucket_resolver=output_organization_preference_service,
-        output_run_projection_cache_key_provider=(
-            output_organization_preference_service
-        ),
+        output_run_bucket_resolver=output_preference_service,
+        output_run_projection_cache_key_provider=(output_preference_service),
     )
     generation_result_snapshot_service = GenerationResultSnapshotService(
         live_results=generation_job_queue_service,
@@ -2540,6 +2571,9 @@ def _build_main_window_dependencies(
             prompt_wildcard_file_management_service
         ),
         open_wildcard_management_modal=open_wildcard_management_modal,
+        open_autocomplete_list_management_modal=(
+            open_autocomplete_list_management_modal
+        ),
         prompt_wildcard_preference_service=prompt_wildcard_preference_service,
         prompt_wildcard_preprocessing_service=(prompt_wildcard_preprocessing_service),
         prompt_lora_catalog_service=prompt_lora_catalog_service,
@@ -2569,7 +2603,7 @@ def _build_main_window_dependencies(
         comfy_environment_service=comfy_environment_service,
         cube_library_management_service=cube_library_management_service,
         generation_preview_preference_service=generation_preview_preference_service,
-        output_organization_preference_service=(output_organization_preference_service),
+        output_preference_service=output_preference_service,
         prompt_editor_preference_service=prompt_editor_preference_service,
         session_snapshot_repository=(runtime_services.session_snapshot_repository),
         session_autosave_service=runtime_services.session_autosave_service,
