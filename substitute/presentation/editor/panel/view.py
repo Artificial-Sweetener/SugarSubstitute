@@ -94,6 +94,9 @@ from substitute.presentation.editor.panel.widgets.masonry_grid_layout import (
 )
 from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
 from substitute.presentation.editor.prompt_editor import PromptEditor
+from substitute.presentation.editor.prompt_editor.runtime_services import (
+    PromptEditorRuntimeServices,
+)
 from substitute.presentation.editor.utils.create_vbox import create_vbox
 from substitute.presentation.editor.panel.context.active_model_context import (
     PanelActiveModelContextController,
@@ -636,31 +639,33 @@ class EditorPanel(QWidget):
         self.setMinimumWidth(1)
         self._workflow_id = workflow_id
         prompt_services = EditorPanelPromptServiceBundle(
-            autocomplete_gateway=prompt_autocomplete_gateway,
-            wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
-            danbooru_url_import_service=danbooru_url_import_service,
-            danbooru_wiki_service=danbooru_wiki_service,
-            danbooru_image_preview_service=danbooru_image_preview_service,
-            danbooru_recent_posts_service=danbooru_recent_posts_service,
-            lora_catalog_service=prompt_lora_catalog_service,
+            runtime=PromptEditorRuntimeServices(
+                autocomplete_gateway=prompt_autocomplete_gateway,
+                wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+                danbooru_url_import_service=danbooru_url_import_service,
+                danbooru_wiki_service=danbooru_wiki_service,
+                danbooru_image_preview_service=danbooru_image_preview_service,
+                danbooru_recent_posts_service=danbooru_recent_posts_service,
+                lora_catalog_service=prompt_lora_catalog_service,
+                scheduled_lora_service=(
+                    prompt_scheduled_lora_service or PromptScheduledLoraService()
+                ),
+                spellcheck_service=prompt_spellcheck_service,
+                thumbnail_asset_repository=thumbnail_asset_repository,
+                model_metadata_action_handler=model_metadata_action_handler,
+                prompt_task_executor_factory=(
+                    editor_panel_execution_factories.prompt_task_executor_factory
+                    if editor_panel_execution_factories is not None
+                    else None
+                ),
+                danbooru_lookup_dispatcher_factory=(
+                    editor_panel_execution_factories.danbooru_lookup_dispatcher_factory
+                    if editor_panel_execution_factories is not None
+                    else None
+                ),
+            ),
             scheduled_lora_provider=scheduled_lora_provider,
-            scheduled_lora_service=(
-                prompt_scheduled_lora_service or PromptScheduledLoraService()
-            ),
-            spellcheck_service=prompt_spellcheck_service,
             feature_profile_service=prompt_feature_profile_service,
-            thumbnail_asset_repository=thumbnail_asset_repository,
-            model_metadata_action_handler=model_metadata_action_handler,
-            prompt_task_executor_factory=(
-                editor_panel_execution_factories.prompt_task_executor_factory
-                if editor_panel_execution_factories is not None
-                else None
-            ),
-            danbooru_lookup_dispatcher_factory=(
-                editor_panel_execution_factories.danbooru_lookup_dispatcher_factory
-                if editor_panel_execution_factories is not None
-                else None
-            ),
             model_picker_thumbnail_preload_route_factory=(
                 editor_panel_execution_factories.model_picker_thumbnail_preload_route_factory
                 if editor_panel_execution_factories is not None
@@ -925,7 +930,7 @@ class EditorPanel(QWidget):
     def prompt_scheduled_lora_service(self) -> PromptScheduledLoraService:
         """Return the scheduled-LoRA service used by prompt field owners."""
 
-        return self._services.prompt.scheduled_lora_service_or_default()
+        return self._services.prompt.runtime.scheduled_lora_service_or_default()
 
     @property
     def scheduled_lora_provider(self) -> ScheduledLoraProvider | None:
@@ -937,7 +942,7 @@ class EditorPanel(QWidget):
     def prompt_spellcheck_service(self) -> PromptSpellcheckService | None:
         """Return the optional prompt spellcheck service for host integrations."""
 
-        return self._services.prompt.spellcheck_service
+        return self._services.prompt.runtime.spellcheck_service
 
     @property
     def prompt_feature_profile_service(self) -> PromptFeatureProfileService | None:

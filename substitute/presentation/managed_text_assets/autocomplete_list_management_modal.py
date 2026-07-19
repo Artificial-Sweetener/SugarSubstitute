@@ -24,21 +24,15 @@ from substitute.application.managed_text_assets import (
     AutocompleteListManagedTextAssetService,
     ManagedTextAssetKind,
 )
-from substitute.application.ports import (
-    PromptAutocompleteGateway,
-    PromptWildcardCatalogGateway,
-)
 from substitute.application.prompt_editor import (
     PromptEditorFeatureProfile,
-    PromptSpellcheckService,
     PromptWheelAdjustmentMode,
 )
 from substitute.application.prompt_autocomplete_lists import (
     PromptAutocompleteListKind,
 )
-from substitute.presentation.editor.prompt_editor.composition import (
-    DanbooruWikiLookupDispatcherFactory,
-    PromptEditorTaskExecutorFactory,
+from substitute.presentation.editor.prompt_editor.runtime_services import (
+    PromptEditorRuntimeServices,
 )
 
 from .managed_text_asset_modal import (
@@ -54,14 +48,8 @@ class AutocompleteListManagementModal(ManagedTextAssetModal):
         self,
         *,
         service: AutocompleteListManagedTextAssetService,
-        prompt_autocomplete_gateway: PromptAutocompleteGateway,
-        prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
+        prompt_runtime_services: PromptEditorRuntimeServices,
         prompt_feature_profile: PromptEditorFeatureProfile,
-        prompt_spellcheck_service: PromptSpellcheckService | None = None,
-        prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None,
-        danbooru_lookup_dispatcher_factory: (
-            DanbooruWikiLookupDispatcherFactory | None
-        ) = None,
         wheel_adjustment_mode: PromptWheelAdjustmentMode = (
             PromptWheelAdjustmentMode.HOVER_DWELL
         ),
@@ -86,12 +74,8 @@ class AutocompleteListManagementModal(ManagedTextAssetModal):
                     category=PromptAutocompleteListKind.CENSORED.value,
                 ),
             ),
-            prompt_autocomplete_gateway=prompt_autocomplete_gateway,
-            prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+            prompt_runtime_services=prompt_runtime_services,
             prompt_feature_profile=prompt_feature_profile,
-            prompt_spellcheck_service=prompt_spellcheck_service,
-            prompt_task_executor_factory=prompt_task_executor_factory,
-            danbooru_lookup_dispatcher_factory=danbooru_lookup_dispatcher_factory,
             wheel_adjustment_mode=wheel_adjustment_mode,
             parent=parent,
         )

@@ -18,8 +18,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Generic, TypeVar
+
+from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+    PromptStructuredTextReplacement,
+    PromptStructuredTextMutationService,
+)
+from substitute.domain.prompt import SourceRange
 
 from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptEditingSession,
@@ -65,6 +71,7 @@ class PromptInsertTriggerWordsCommand(Generic[TPayload]):
     normalizer: PromptSourceNormalizer
     exact_source: bool
     undo_snapshot: PromptUndoSnapshot[TPayload]
+    structured_text_mutations: PromptStructuredTextMutationService | None = None
     name: str = "lora_insert_trigger_words"
 
     def execute(
@@ -78,26 +85,77 @@ class PromptInsertTriggerWordsCommand(Generic[TPayload]):
             source_length=len(session.source_text),
         ):
             return PromptCommandResult.rejected(self.name, reason="stale_source")
-        prepared = prepare_trigger_word_insertion(
-            source_text=session.source_text,
-            request=self.request,
-        )
-        if prepared is None:
-            return PromptCommandResult.rejected(
-                self.name, reason="invalid_source_range"
+        cursor_position: int | None = None
+        structured_replacement = self._structured_replacement(session.source_text)
+        if structured_replacement is not None:
+            start = structured_replacement.source_range.start
+            end = structured_replacement.source_range.end
+            replacement_text = structured_replacement.replacement_text
+            exact_source = structured_replacement.exact_source
+            cursor_position = structured_replacement.cursor_position
+        else:
+            if (
+                self.structured_text_mutations is not None
+                and self.structured_text_mutations.uses_structured_prompt_values
+            ):
+                return PromptCommandResult.rejected(
+                    self.name,
+                    reason="prompt_value_unavailable",
+                )
+            prepared = prepare_trigger_word_insertion(
+                source_text=session.source_text,
+                request=self.request,
             )
-        start, end, replacement_text = prepared
+            if prepared is None:
+                return PromptCommandResult.rejected(
+                    self.name, reason="invalid_source_range"
+                )
+            start, end, replacement_text = prepared
+            exact_source = self.exact_source
         source_change = session.replace_source_range(
             start=start,
             end=end,
             replacement_text=replacement_text,
             normalizer=self.normalizer,
             origin=PromptSourceEditOrigin.PROGRAMMATIC,
-            exact_source=self.exact_source,
+            exact_source=exact_source,
             record_undo=True,
             undo_snapshot=self.undo_snapshot,
         )
+        if cursor_position is not None:
+            cursor_state = session.set_cursor_positions(
+                cursor_position=cursor_position,
+                anchor_position=cursor_position,
+            )
+            source_change = replace(source_change, cursor_state=cursor_state)
         return PromptCommandResult.from_source_change(self.name, source_change)
+
+    def _structured_replacement(
+        self,
+        source_text: str,
+    ) -> PromptStructuredTextReplacement | None:
+        """Return one structure-preserving trigger-word replacement when needed."""
+
+        service = self.structured_text_mutations
+        if service is None or not service.uses_structured_prompt_values:
+            return None
+        if self.request.replace_selection:
+            return service.replacement_for_range(
+                source_text,
+                SourceRange(
+                    self.request.selection_start,
+                    self.request.selection_end,
+                ),
+                self.request.trigger_words.strip(),
+            )
+        position = self.request.insert_position
+        if position is None:
+            position = self.request.selection_end
+        return service.delimited_insertion_for_position(
+            source_text,
+            position,
+            self.request.trigger_words,
+        )
 
 
 def build_trigger_word_insertion_command(
@@ -106,6 +164,7 @@ def build_trigger_word_insertion_command(
     normalizer: PromptSourceNormalizer,
     exact_source: bool,
     undo_snapshot: PromptUndoSnapshot[TPayload],
+    structured_text_mutations: PromptStructuredTextMutationService | None = None,
 ) -> PromptInsertTriggerWordsCommand[TPayload]:
     """Return the executable command for one trigger-word request."""
 
@@ -114,6 +173,7 @@ def build_trigger_word_insertion_command(
         normalizer=normalizer,
         exact_source=exact_source,
         undo_snapshot=undo_snapshot,
+        structured_text_mutations=structured_text_mutations,
     )
 
 

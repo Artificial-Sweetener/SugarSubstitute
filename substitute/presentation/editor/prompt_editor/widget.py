@@ -68,6 +68,11 @@ from substitute.application.prompt_editor import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
+from substitute.application.prompt_editor.prompt_document_semantics import (
+    OrdinaryPromptDocumentSemantics,
+    PromptDocumentSemantics,
+    PromptDocumentSemanticsController,
+)
 from substitute.application.ports import (
     PromptAutocompleteGateway,
     PromptWildcardCatalogGateway,
@@ -190,6 +195,7 @@ class PromptEditor(QFluentTextEdit):
         *,
         prompt_autocomplete_gateway: PromptAutocompleteGateway,
         prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
+        prompt_document_semantics: PromptDocumentSemantics | None = None,
         danbooru_url_import_service: DanbooruUrlImportService | None = None,
         danbooru_wiki_service: DanbooruWikiContentService | None = None,
         danbooru_image_preview_service: DanbooruImagePreviewService | None = None,
@@ -213,10 +219,14 @@ class PromptEditor(QFluentTextEdit):
     ) -> None:
         """Create the QFluent host shell and attach the custom projection surface."""
 
+        self._document_semantics = PromptDocumentSemanticsController(
+            prompt_document_semantics or OrdinaryPromptDocumentSemantics()
+        )
         construction_inputs = PromptEditorConstructionInputs(
             parent=parent,
             prompt_autocomplete_gateway=prompt_autocomplete_gateway,
             prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+            prompt_document_semantics=self._document_semantics,
             danbooru_url_import_service=danbooru_url_import_service,
             danbooru_wiki_service=danbooru_wiki_service,
             danbooru_image_preview_service=danbooru_image_preview_service,
@@ -442,6 +452,7 @@ class PromptEditor(QFluentTextEdit):
             surface=self._surface,
             feature_profile=self._feature_profile_controller,
             wildcard_feature=self._wildcard_feature_controller,
+            document_semantics=self._document_semantics,
             spellcheck_service=prompt_spellcheck_service,
             parent=self,
             request_channel=cast(
@@ -794,6 +805,20 @@ class PromptEditor(QFluentTextEdit):
         """Replace restored exact source text and make it the undo baseline."""
 
         self._command_adapter.replace_baseline_text(text, exact_source=True)
+
+    def replaceBaselineSourceDocument(  # noqa: N802
+        self,
+        text: str,
+        document_semantics: PromptDocumentSemantics,
+    ) -> None:
+        """Atomically replace document semantics, exact source, and undo baseline."""
+
+        semantics_changed = self._document_semantics.replace(document_semantics)
+        self._command_adapter.replace_baseline_text(text, exact_source=True)
+        if semantics_changed:
+            self._interaction_controller.handle_document_semantics_changed()
+            self._diagnostics_feature_controller.handle_document_semantics_changed()
+            self._lora_trigger_word_controller.handle_source_changed()
 
     def preloadVisibleLoraBanners(  # noqa: N802
         self,

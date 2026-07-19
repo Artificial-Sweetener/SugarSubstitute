@@ -68,6 +68,9 @@ from substitute.application.prompt_editor import (
     PromptSyntaxRenderPlan,
     PromptSyntaxSpanView,
 )
+from substitute.application.prompt_editor.prompt_document_semantics import (
+    PromptDocumentSemantics,
+)
 from substitute.presentation.widgets.text_caret import (
     paint_text_caret,
 )
@@ -337,6 +340,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         parent: QWidget | None = None,
         *,
         editing_session: PromptEditingSession[PromptProjectionUndoPayload],
+        document_semantics: PromptDocumentSemantics | None = None,
         lora_thumbnail_cache: PromptLoraThumbnailCache | None = None,
         lora_thumbnail_preloader: PromptSurfaceLoraThumbnailPreloader | None = None,
     ) -> None:
@@ -344,7 +348,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         super().__init__(parent)
         self._projection_applicator = PromptProjectionApplicator(
-            PromptProjectionBuilder()
+            PromptProjectionBuilder(document_semantics=document_semantics)
         )
         thumbnail_cache = lora_thumbnail_cache or PromptLoraThumbnailCache()
         self._session = PromptProjectionSession()
@@ -390,6 +394,11 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._render_plan = PromptSyntaxRenderPlan(
             syntax_spans=(),
             renderer_views=(),
+            document_semantics_identity=(
+                document_semantics.identity
+                if document_semantics is not None
+                else "ordinary-prompt-v1"
+            ),
         )
         self._scene_error_keys: frozenset[str] = frozenset()
         self._projection_document = self._projection_applicator.build_projection(
@@ -3413,6 +3422,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 started_at = reorder_drag_started_at()
                 viewport_rect = QRectF(self.viewport().rect())
                 scroll_offset = self._scroll_offset()
+                self._paint_source_line_chrome(painter, layout=preview_layout)
                 preview_layout.draw(
                     painter,
                     selection=None,
@@ -3444,7 +3454,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             viewport_rect = QRectF(self.viewport().rect())
             paint_clip_rect = QRectF(event.rect()).intersected(viewport_rect)
             scroll_offset = self._scroll_offset()
-            self._paint_source_line_chrome(painter)
+            self._paint_source_line_chrome(painter, layout=self._layout)
             self._paint_search_matches(painter)
             deletion_visible_region = self._transient_deletion_visible_region()
             selection = self._selection()
@@ -3544,20 +3554,25 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         return self._layout
 
-    def _paint_source_line_chrome(self, painter: QPainter) -> None:
-        """Paint zebra and current-line backgrounds beneath prompt projection content."""
+    def _paint_source_line_chrome(
+        self,
+        painter: QPainter,
+        *,
+        layout: PromptProjectionLayout,
+    ) -> None:
+        """Paint source-line chrome from the layout owning the visible content."""
 
         if not self._source_line_chrome.enabled:
             return
         self._source_line_chrome.paint_source_lines(
             painter,
             source_lines=self._source_line_chrome.source_line_rects(
-                layout=self._layout,
+                layout=layout,
                 viewport_rect=QRectF(self.viewport().rect()),
                 scroll_offset=self._scroll_offset(),
             ),
             current_line_index=self._source_line_chrome.current_source_line_index(
-                layout=self._layout,
+                layout=layout,
                 cursor_position=self.cursor_position,
             ),
             focus_active=self._focus_owner_has_focus(),
@@ -3968,6 +3983,23 @@ class PromptProjectionSurface(QAbstractScrollArea):
         return any(
             start < token.source_end and token.source_start < end
             for token in self._projection_document.tokens
+        )
+
+    def _source_edit_requires_canonical_rebuild(
+        self,
+        previous_source_text: str,
+        next_source_text: str,
+        *,
+        start: int,
+        end: int,
+    ) -> bool:
+        """Return whether one source-local edit changes canonical scene topology."""
+
+        return self._projection_applicator.source_edit_requires_canonical_rebuild(
+            previous_source_text,
+            next_source_text,
+            start=start,
+            end=end,
         )
 
     def _syntax_sensitive_token_selection_replacement_range(

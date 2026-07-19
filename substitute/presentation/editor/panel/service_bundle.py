@@ -21,29 +21,16 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from substitute.application.danbooru import (
-    DanbooruImagePreviewService,
-    DanbooruRecentPostsService,
-    DanbooruUrlImportService,
-    DanbooruWikiContentService,
-)
 from substitute.application.model_metadata import (
     ModelCatalogLookup,
     RichChoiceResolver,
     ThumbnailAssetRepository,
 )
 from substitute.application.node_behavior import NodeBehaviorService
-from substitute.application.ports import (
-    NodeDefinitionGateway,
-    PromptAutocompleteGateway,
-    PromptWildcardCatalogGateway,
-)
+from substitute.application.ports import NodeDefinitionGateway
 from substitute.application.prompt_editor import (
     PromptFeatureProfileService,
-    PromptLoraCatalogLookup,
     PromptScheduledLora,
-    PromptScheduledLoraService,
-    PromptSpellcheckService,
     ScheduledLoraProvider,
 )
 from substitute.application.user_presets import UserPresetService
@@ -56,39 +43,21 @@ from substitute.presentation.editor.panel.execution_factories import (
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
+from substitute.presentation.editor.prompt_editor.runtime_services import (
+    PromptEditorRuntimeServices,
+)
 
 
 @dataclass(frozen=True, slots=True)
 class EditorPanelPromptServiceBundle:
     """Group prompt-editor services injected into panel prompt field owners."""
 
-    autocomplete_gateway: PromptAutocompleteGateway
-    wildcard_catalog_gateway: PromptWildcardCatalogGateway
-    danbooru_url_import_service: DanbooruUrlImportService | None = None
-    danbooru_wiki_service: DanbooruWikiContentService | None = None
-    danbooru_image_preview_service: DanbooruImagePreviewService | None = None
-    danbooru_recent_posts_service: DanbooruRecentPostsService | None = None
-    lora_catalog_service: PromptLoraCatalogLookup | None = None
+    runtime: PromptEditorRuntimeServices
     scheduled_lora_provider: ScheduledLoraProvider | None = None
-    scheduled_lora_service: PromptScheduledLoraService | None = None
-    spellcheck_service: PromptSpellcheckService | None = None
     feature_profile_service: PromptFeatureProfileService | None = None
-    thumbnail_asset_repository: ThumbnailAssetRepository | None = None
-    model_metadata_action_handler: ModelMetadataContextActionHandler | None = None
-    prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None
-    danbooru_lookup_dispatcher_factory: DanbooruWikiLookupDispatcherFactory | None = (
-        None
-    )
     model_picker_thumbnail_preload_route_factory: (
         ModelPickerThumbnailPreloadRouteFactory | None
     ) = None
-
-    def scheduled_lora_service_or_default(self) -> PromptScheduledLoraService:
-        """Return the configured scheduled-LoRA service or a panel-owned default."""
-
-        if self.scheduled_lora_service is None:
-            return PromptScheduledLoraService()
-        return self.scheduled_lora_service
 
 
 @dataclass(frozen=True, slots=True)

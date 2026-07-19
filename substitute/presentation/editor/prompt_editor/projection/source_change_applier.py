@@ -389,6 +389,16 @@ class PromptProjectionSourceChangeHost(Protocol):
     ) -> bool:
         """Return whether one source range intersects projected token syntax."""
 
+    def _source_edit_requires_canonical_rebuild(
+        self,
+        previous_source_text: str,
+        next_source_text: str,
+        *,
+        start: int,
+        end: int,
+    ) -> bool:
+        """Return whether one source-local edit changes canonical projection topology."""
+
     def _current_caret_document_rect(self) -> QRectF:
         """Return the current document-local caret rectangle."""
 
@@ -697,6 +707,9 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             host._render_plan = PromptSyntaxRenderPlan(
                 syntax_spans=(),
                 renderer_views=(),
+                document_semantics_identity=(
+                    host._render_plan.document_semantics_identity
+                ),
             )
         else:
             host._document_view, host._render_plan = optimistic_prompt_state
@@ -913,12 +926,20 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         replaced_text: str,
         replacement_text: str,
         origin: PromptSourceEditOrigin,
+        previous_source_text: str,
         updated_text: str,
         normalized_text: str,
     ) -> tuple[bool, str]:
         """Return whether one edit can wait for controller-owned prompt state."""
 
         host = self._host
+        if host._source_edit_requires_canonical_rebuild(
+            previous_source_text,
+            normalized_text,
+            start=start,
+            end=end,
+        ):
+            return False, "source_projection_topology_changed"
         return host._projection_freshness_controller.can_defer_source_rebuild_for_edit(
             blockers=host._projection_freshness_blockers(),
             start=start,
@@ -1160,6 +1181,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             replaced_text=previous_text[start:end],
             replacement_text=replacement_text,
             origin=origin,
+            previous_source_text=previous_text,
             updated_text=updated_text,
             normalized_text=result.next_snapshot.source_text,
         )
@@ -1275,6 +1297,9 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             host._render_plan = PromptSyntaxRenderPlan(
                 syntax_spans=(),
                 renderer_views=(),
+                document_semantics_identity=(
+                    host._render_plan.document_semantics_identity
+                ),
             )
         if payload is not None:
             host._cursor_state = payload.cursor_state

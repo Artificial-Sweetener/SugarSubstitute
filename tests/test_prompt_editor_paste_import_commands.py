@@ -20,7 +20,13 @@ from __future__ import annotations
 
 from typing import cast
 
+from substitute.application.managed_text_assets.wildcard_csv_document_semantics import (
+    WildcardCsvDocumentSemantics,
+)
 from substitute.application.prompt_editor import PromptSourceNormalizationService
+from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+    PromptStructuredTextMutationService,
+)
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandDispatcher,
     PromptCommandSourceIdentity,
@@ -172,6 +178,41 @@ def test_prepared_danbooru_import_normalizes_import_text() -> None:
 
     assert result.status == "applied"
     assert session.source_text == "alpha, (smile:1.10)"
+
+
+def test_prepared_danbooru_import_preserves_csv_value_structure() -> None:
+    """Prepared imports should encode comma-delimited tags inside CSV cells."""
+
+    url = "https://danbooru.donmai.us/posts/12345"
+    source = f"Prompt\n{url}"
+    session = _session(source)
+    command = build_prepared_danbooru_import_command(
+        PromptPreparedDanbooruImportRequest(
+            source_range=PromptCommandSourceRange(len("Prompt\n"), len(source)),
+            expected_pasted_text=url,
+            import_text="1girl, smile",
+            pasted_undo_snapshot=_undo_snapshot(session),
+        ),
+        normalizer=PromptSourceNormalizationService(),
+        exact_source=True,
+        record_undo=True,
+        undo_snapshot=_undo_snapshot(session),
+        structured_text_mutations=PromptStructuredTextMutationService(
+            WildcardCsvDocumentSemantics()
+        ),
+    )
+
+    result = cast(
+        PromptPasteImportCommandResult[str],
+        PromptCommandDispatcher(session).execute(command),
+    )
+
+    assert result.status == "applied"
+    assert session.source_text == 'Prompt\n"1girl, smile"'
+    assert result.cursor_state == PromptCursorState(
+        cursor_position=len(session.source_text) - 1,
+        anchor_position=len(session.source_text) - 1,
+    )
 
 
 def test_prepared_danbooru_import_rejects_stale_source_identity() -> None:

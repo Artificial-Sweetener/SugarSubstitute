@@ -25,6 +25,9 @@ from substitute.application.prompt_editor import (
     PromptLoraThumbnailVariant,
     PromptSyntaxService,
 )
+from substitute.application.managed_text_assets.wildcard_text_document_semantics import (
+    WildcardTextDocumentSemantics,
+)
 from substitute.domain.model_metadata import BANNER_THUMBNAIL_ROLE
 from substitute.application.ports import PromptWildcardResolution
 from substitute.presentation.editor.prompt_editor.projection.builder import (
@@ -160,6 +163,62 @@ def test_projection_builder_projects_scene_titles_without_marker_symbol() -> Non
     assert scene_run.text_style_variant == "scene_title"
     assert "**portrait" not in projection.projection_text
     assert "portrait" in projection.projection_text
+
+
+def test_projection_builder_keeps_scene_markers_literal_for_wildcard_documents() -> (
+    None
+):
+    """Wildcard semantics should prevent scene-token projection entirely."""
+
+    text = "**portrait\nstudio portrait"
+    document_view = PromptDocumentService().build_document_view(text)
+    render_plan = PromptSyntaxService(
+        StaticPromptWildcardCatalogGateway({})
+    ).build_render_plan(document_view, prompt_syntax_profile("emphasis", "wildcard"))
+
+    projection = PromptProjectionBuilder(
+        document_semantics=WildcardTextDocumentSemantics()
+    ).build_projection(
+        document_view,
+        render_plan,
+        display_mode=PromptProjectionDisplayMode.PROJECTED,
+        session=PromptProjectionSession(),
+    )
+
+    assert all(
+        token.kind is not PromptProjectionTokenKind.SCENE for token in projection.tokens
+    )
+    assert "**portrait" in projection.projection_text
+
+
+def test_projection_builder_classifies_only_local_scene_topology_changes() -> None:
+    """Scene formation needs canonical projection while title growth does not."""
+
+    builder = PromptProjectionBuilder()
+
+    assert builder.source_edit_requires_canonical_rebuild("**", "**S", start=2, end=2)
+    assert not builder.source_edit_requires_canonical_rebuild(
+        "**S", "**Sc", start=3, end=3
+    )
+    assert not builder.source_edit_requires_canonical_rebuild(
+        "plain\n**Scene", "plainer\n**Scene", start=5, end=5
+    )
+    assert builder.source_edit_requires_canonical_rebuild("**S", "**", start=2, end=3)
+    assert builder.source_edit_requires_canonical_rebuild(
+        "**Scene", "Scene", start=0, end=2
+    )
+
+
+def test_wildcard_projection_topology_ignores_literal_scene_markers() -> None:
+    """Scene-disabled documents should retain literal incremental edit behavior."""
+
+    builder = PromptProjectionBuilder(
+        document_semantics=WildcardTextDocumentSemantics()
+    )
+
+    assert not builder.source_edit_requires_canonical_rebuild(
+        "**", "**S", start=2, end=2
+    )
 
 
 def test_projection_builder_marks_duplicate_and_orphan_scene_titles_as_errors() -> None:

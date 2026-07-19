@@ -39,6 +39,9 @@ from substitute.presentation.managed_text_assets import (
     ManagedTextAssetCreateAction,
     ManagedTextAssetModal,
 )
+from substitute.presentation.editor.prompt_editor.runtime_services import (
+    PromptEditorRuntimeServices,
+)
 from substitute.presentation.managed_text_assets import (
     managed_text_asset_modal as managed_text_asset_modal_module,
 )
@@ -332,10 +335,12 @@ def _modal(
                 kind=ManagedTextAssetKind.PROMPT_TEXT,
             ),
         ),
-        prompt_autocomplete_gateway=EmptyPromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=StaticPromptWildcardCatalogGateway({}),
+        prompt_runtime_services=PromptEditorRuntimeServices(
+            autocomplete_gateway=EmptyPromptAutocompleteGateway(),
+            wildcard_catalog_gateway=StaticPromptWildcardCatalogGateway({}),
+            prompt_task_executor_factory=immediate_prompt_task_executor_factory(),
+        ),
         prompt_feature_profile=wildcard_management_prompt_feature_profile(),
-        prompt_task_executor_factory=immediate_prompt_task_executor_factory(),
         error_presenter=error_presenter,
         parent=parent,
     )

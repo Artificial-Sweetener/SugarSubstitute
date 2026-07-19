@@ -40,6 +40,12 @@ from substitute.application.prompt_editor import (
 from substitute.application.prompt_editor.prompt_document_projector import (
     PromptDocumentProjector,
 )
+from substitute.application.prompt_editor.prompt_autocomplete_query_service import (
+    PromptAutocompleteQueryService,
+)
+from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+    PromptStructuredTextMutationService,
+)
 from substitute.application.ports import (
     PromptTagLexiconSnapshot,
     PromptTagLexiconSnapshotProvider,
@@ -197,6 +203,7 @@ class PromptEditorProjectionCollaborators:
     surface: PromptProjectionSurface
     edit_controller: PromptEditController[PromptProjectionUndoPayload]
     edit_command_router: PromptEditCommandRouter[Any]
+    structured_text_mutations: PromptStructuredTextMutationService
     danbooru_paste_import_controller: PromptDanbooruPasteImportController[Any]
     clipboard_history_controller: PromptClipboardHistoryController[Any]
     shell_padding_fill_plane: QWidget
@@ -464,6 +471,7 @@ class PromptEditorCompositionFactory:
         surface = PromptProjectionSurface(
             context.shell_viewport,
             editing_session=editing_session,
+            document_semantics=inputs.prompt_document_semantics,
             lora_thumbnail_cache=lora_thumbnail_cache,
             lora_thumbnail_preloader=lora_thumbnail_preloader,
         )
@@ -494,6 +502,9 @@ class PromptEditorCompositionFactory:
                 inputs.prompt_autocomplete_gateway.prepared_prompt_tag_snapshot()
             )
         source_normalizer = PromptSourceNormalizationService(tag_snapshot=tag_snapshot)
+        structured_text_mutations = PromptStructuredTextMutationService(
+            inputs.prompt_document_semantics
+        )
         edit_command_router = PromptEditCommandRouter[PromptProjectionUndoPayload](
             edit_controller=edit_controller,
             normalizer=source_normalizer,
@@ -502,6 +513,7 @@ class PromptEditorCompositionFactory:
             cursor_position_provider=lambda: surface.cursor_position,
             anchor_position_provider=lambda: surface.anchor_position,
             exact_source_provider=surface.exact_source_editing_enabled,
+            structured_text_mutations=structured_text_mutations,
         )
         undo_coalescing_controller = _build_undo_coalescing_controller(
             surface=surface,
@@ -556,6 +568,7 @@ class PromptEditorCompositionFactory:
             surface=surface,
             edit_controller=edit_controller,
             edit_command_router=edit_command_router,
+            structured_text_mutations=structured_text_mutations,
             danbooru_paste_import_controller=danbooru_paste_import_controller,
             clipboard_history_controller=clipboard_history_controller,
             shell_padding_fill_plane=shell_padding_fill_plane,
@@ -580,6 +593,10 @@ class PromptEditorCompositionFactory:
             cursor_provider=editor.textCursor,
             context_insert_state_provider=context_insert_state_provider,
             focus_restorer=editor.setFocus,
+            source_text_provider=editor.toPlainText,
+            structured_text_mutations=(
+                projection_collaborators.structured_text_mutations
+            ),
         )
 
     def build_service_collaborators(
@@ -637,6 +654,7 @@ class PromptEditorCompositionFactory:
         scene_feature_controller = PromptSceneFeatureController(
             host=cast(Any, context.editor),
             feature_profile=feature_profile_controller,
+            document_semantics=inputs.prompt_document_semantics,
         )
         search_feature_controller = PromptSearchFeatureController(
             host=cast(Any, context.editor),
@@ -901,14 +919,22 @@ class PromptEditorCompositionFactory:
     ) -> PromptEditorSyntaxCollaborators:
         """Build syntax services, renderers, controls, and interaction controller."""
 
-        document_service = PromptDocumentService()
-        mutation_service = PromptMutationService()
+        document_service = PromptDocumentService(
+            autocomplete_query_service=PromptAutocompleteQueryService(
+                document_semantics=inputs.prompt_document_semantics
+            ),
+            document_semantics=inputs.prompt_document_semantics,
+        )
+        mutation_service = PromptMutationService(
+            document_semantics=inputs.prompt_document_semantics
+        )
         syntax_profile = (
             service_collaborators.feature_profile_controller.syntax_profile()
         )
         syntax_service = PromptSyntaxService(
             inputs.prompt_wildcard_catalog_gateway,
             prompt_lora_catalog_service=inputs.prompt_lora_catalog_service,
+            document_semantics=inputs.prompt_document_semantics,
         )
         reorder_preview_projection_provider = PromptReorderPreviewProjectionProvider(
             document_service=document_service,

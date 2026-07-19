@@ -299,6 +299,11 @@ class PromptProjectionIncrementalApplyController:
     ) -> bool:
         """Return whether semantic apply may reuse trailing insert geometry."""
 
+        if (
+            render_plan.document_semantics_identity
+            != previous_render_plan.document_semantics_identity
+        ):
+            return False
         render_ranges = projection_affecting_render_plan_ranges(render_plan)
         previous_render_ranges = projection_affecting_render_plan_ranges(
             previous_render_plan
@@ -350,6 +355,14 @@ class PromptProjectionIncrementalApplyController:
         """Apply a trailing plain-text insertion without full relayout."""
 
         host = self._host
+        previous_text = host._projection_document.source_text
+        if host._projection_applicator.source_edit_requires_canonical_rebuild(
+            previous_text,
+            document_view.source_text,
+            start=len(previous_text),
+            end=len(previous_text),
+        ):
+            return False
         next_document = self._incremental_editor.fast_trailing_plain_insert_document(
             previous_document=host._projection_document,
             next_text=document_view.source_text,
@@ -396,6 +409,13 @@ class PromptProjectionIncrementalApplyController:
         """Apply a trailing hard-line insertion without full relayout."""
 
         host = self._host
+        if host._projection_applicator.source_edit_requires_canonical_rebuild(
+            previous_text,
+            document_view.source_text,
+            start=start,
+            end=end,
+        ):
+            return False
         next_document = self._incremental_editor.fast_trailing_newline_insert_document(
             previous_document=host._projection_document,
             previous_text=previous_text,
@@ -444,6 +464,13 @@ class PromptProjectionIncrementalApplyController:
         """Apply a trailing plain-text deletion without full relayout."""
 
         host = self._host
+        if host._projection_applicator.source_edit_requires_canonical_rebuild(
+            previous_text,
+            next_text,
+            start=start,
+            end=end,
+        ):
+            return False
         next_document = self._incremental_editor.fast_trailing_plain_delete_document(
             previous_document=host._projection_document,
             previous_text=previous_text,
@@ -488,6 +515,13 @@ class PromptProjectionIncrementalApplyController:
         """Apply a trailing hard-line deletion without full relayout."""
 
         host = self._host
+        if host._projection_applicator.source_edit_requires_canonical_rebuild(
+            previous_text,
+            next_text,
+            start=start,
+            end=end,
+        ):
+            return False
         next_document = self._incremental_editor.fast_trailing_newline_delete_document(
             previous_document=host._projection_document,
             previous_text=previous_text,
@@ -526,6 +560,13 @@ class PromptProjectionIncrementalApplyController:
         """Apply a supported middle plain edit without full relayout."""
 
         host = self._host
+        if host._projection_applicator.source_edit_requires_canonical_rebuild(
+            previous_text,
+            next_text,
+            start=start,
+            end=end,
+        ):
+            return PromptProjectionPlainTextApplyStatus.REJECTED
         edit = PromptProjectionIncrementalEdit(
             start=start,
             end=end,

@@ -251,6 +251,7 @@ def _optimistic_render_plan_for_edit(
             )
             for renderer_view in render_plan.renderer_views
         ),
+        document_semantics_identity=render_plan.document_semantics_identity,
     )
 
 

@@ -42,6 +42,9 @@ from substitute.application.prompt_editor import (
     PromptSyntaxService,
 )
 from substitute.application.prompt_editor import PromptSyntaxProfile
+from substitute.application.prompt_editor.prompt_document_semantics import (
+    PromptDocumentSemantics,
+)
 from substitute.application.model_metadata import ThumbnailAssetRepository
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
@@ -115,6 +118,7 @@ class PromptEditor(QWidget):
         *,
         prompt_autocomplete_gateway: PromptAutocompleteGateway,
         prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
+        prompt_document_semantics: PromptDocumentSemantics | None = ...,
         danbooru_url_import_service: DanbooruUrlImportService | None = ...,
         danbooru_wiki_service: DanbooruWikiContentService | None = ...,
         danbooru_image_preview_service: DanbooruImagePreviewService | None = ...,
@@ -168,6 +172,11 @@ class PromptEditor(QWidget):
     def setSourceText(self, text: str) -> None: ...
     def replaceBaselineText(self, text: str) -> None: ...
     def replaceBaselineSourceText(self, text: str) -> None: ...
+    def replaceBaselineSourceDocument(
+        self,
+        text: str,
+        document_semantics: PromptDocumentSemantics,
+    ) -> None: ...
     def preloadVisibleLoraBanners(
         self,
         *,
