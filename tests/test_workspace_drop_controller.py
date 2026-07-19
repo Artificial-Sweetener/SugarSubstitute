@@ -67,6 +67,18 @@ class _FakeRecipeRepository:
         _ = path, project_name, sugar_script_text
 
 
+class _FakeDirectWorkflowSupport:
+    """Recognize JSON and selected PNG paths as direct Comfy workflows."""
+
+    def can_load(self, path: Path) -> bool:
+        """Return deterministic direct-workflow support for routing tests."""
+
+        return path.suffix.casefold() == ".json" or path.name in {
+            "embedded.png",
+            "workflow.png",
+        }
+
+
 class _Url:
     """URL test double for local and remote drag payloads."""
 
@@ -150,7 +162,7 @@ def _direct_workflow_classifier() -> WorkflowRecipeDropClassifier:
 
     return WorkflowRecipeDropClassifier(
         RecipeIoService(recipe_repository=_FakeRecipeRepository()),
-        DirectWorkflowDocumentClassifier(),
+        DirectWorkflowDocumentClassifier(_FakeDirectWorkflowSupport()),
     )
 
 
@@ -187,12 +199,23 @@ def test_workspace_drop_classifier_accepts_direct_comfy_json() -> None:
 
 
 def test_workflow_recipe_drop_classifier_accepts_recipe_bearing_png() -> None:
-    """PNG files should classify as workflow recipes only when metadata matches."""
+    """SugarScript metadata should win even when Comfy workflow metadata also exists."""
 
     classified = _classifier().classify_path(Path("E:/recipes/embedded.png"))
 
     assert classified.intent is DropIntent.LOAD_WORKFLOW_RECIPE
     assert classified.reason == "png_embedded_recipe"
+
+
+def test_workspace_drop_classifier_accepts_workflow_only_png() -> None:
+    """PNG workflow metadata should use direct loading when no SugarScript exists."""
+
+    classified = _direct_workflow_classifier().classify_path(
+        Path("E:/recipes/workflow.png")
+    )
+
+    assert classified.intent is DropIntent.LOAD_DIRECT_COMFY_WORKFLOW
+    assert classified.reason == "comfy_workflow_png"
 
 
 def test_workflow_recipe_drop_classifier_ignores_plain_png() -> None:

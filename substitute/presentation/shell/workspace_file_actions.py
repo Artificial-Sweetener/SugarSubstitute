@@ -49,6 +49,7 @@ from substitute.application.workflows import (
 )
 from substitute.presentation.shell.workflow_document_target import (
     WorkflowDocumentTargetResolver,
+    WorkflowDocumentTargetView,
 )
 from substitute.application.recipes import (
     RecipeModelLoadResolver,
@@ -171,8 +172,20 @@ class RecipeIoServiceProtocol(Protocol):
     ) -> ParsedRecipeProtocol:
         """Load and parse a recipe document."""
 
+    def classify_recipe_document(
+        self,
+        source_path: Path,
+    ) -> RecipeDocumentClassificationProtocol:
+        """Classify one path for recipe loading without materializing it."""
+
     def parse_recipe_script(self, sugar_script_text: str) -> ParsedRecipeScriptProtocol:
         """Parse Sugar script text into recipe buffers."""
+
+
+class RecipeDocumentClassificationProtocol(Protocol):
+    """Expose the recipe support decision needed by document routing."""
+
+    supported: bool
 
 
 class WorkflowExportServiceProtocol(Protocol):
@@ -831,16 +844,18 @@ class WorkspaceFileActions:
         cube_loader: CubeLoaderProtocol = load_cube_async,
         icon_provider: CubeIconProviderProtocol = FIF,
         message_box: MessageBoxProtocol = _DEFAULT_MESSAGE_BOX,
+        load_direct_workflow_document: Callable[[Path], str | None] | None = None,
+        can_load_direct_workflow_document: Callable[[Path], bool] | None = None,
     ) -> None:
-        """Select a recipe document and delegate path-based loading."""
+        """Select one workflow document and route it through a single loader."""
 
         resolved_projects_dir = self._projects_dir(projects_dir)
         resolved_sugar_scripts_dir = self._sugar_scripts_dir(sugar_scripts_dir)
         selected_path_str, _ = file_dialog.getOpenFileName(
             self._view,
-            "Open Recipe",
+            "Open Workflow",
             str(resolved_sugar_scripts_dir),
-            "Recipes and Images (*.sugar *.png)",
+            "Workflows (*.sugar *.json *.png)",
         )
         log_debug(
             _LOGGER,
@@ -851,8 +866,28 @@ class WorkspaceFileActions:
         if not selected_path_str:
             return
 
+        selected_path = Path(selected_path_str)
+        if (
+            load_direct_workflow_document is not None
+            and can_load_direct_workflow_document is not None
+        ):
+            recipe_classification = (
+                self._view.recipe_io_service.classify_recipe_document(selected_path)
+            )
+            if (
+                not recipe_classification.supported
+                and can_load_direct_workflow_document(selected_path)
+            ):
+                log_info(
+                    _LOGGER,
+                    "Workflow document routed to direct Comfy loader",
+                    source_path=selected_path,
+                )
+                load_direct_workflow_document(selected_path)
+                return
+
         self.load_recipe_document(
-            Path(selected_path_str),
+            selected_path,
             projects_dir=resolved_projects_dir,
             cube_loader=cube_loader,
             icon_provider=icon_provider,
@@ -887,7 +922,7 @@ class WorkspaceFileActions:
         )
 
         target_workflow_id = WorkflowDocumentTargetResolver().resolve(
-            view,
+            cast(WorkflowDocumentTargetView, view),
             add_workflow_tab=self._add_workflow_tab_requested,
         )
         reused_blank_default = target_workflow_id == current_id

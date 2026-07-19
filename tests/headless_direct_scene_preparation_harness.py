@@ -34,8 +34,8 @@ from substitute.application.node_behavior import NodeBehaviorService
 from substitute.application.workflows import DIRECT_WORKFLOW_SECTION_KEY
 from substitute.domain.comfy_workflow import ComfyWorkflowConverter, DirectWorkflowState
 from substitute.domain.workflow import WorkflowState
-from substitute.infrastructure.comfy.workflow_json_repository import (
-    JsonComfyWorkflowRepository,
+from substitute.infrastructure.comfy.workflow_document_repository import (
+    ComfyWorkflowDocumentRepository,
 )
 from tests.prompt_detection_fixture_catalog import PromptDetectionFixture
 from tests.recorded_node_definition_gateway import RecordedNodeDefinitionGateway
@@ -62,7 +62,7 @@ class HeadlessDirectScenePreparationHarness:
     ) -> tuple[GenerationPreparationResult, DirectWorkflowState]:
         """Return production-prepared scenes and the untouched authored document."""
 
-        source_workflow = JsonComfyWorkflowRepository().load(fixture.path)
+        source_workflow = ComfyWorkflowDocumentRepository().load(fixture.path)
         buffer = ComfyWorkflowConverter().convert(
             source_workflow,
             node_definitions=fixture.node_definitions,

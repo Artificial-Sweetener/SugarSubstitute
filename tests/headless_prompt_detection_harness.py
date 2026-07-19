@@ -28,8 +28,8 @@ from substitute.application.node_behavior import NodeBehaviorService
 from substitute.domain.comfy_workflow import ComfyWorkflowConverter, DirectWorkflowState
 from substitute.domain.node_behavior import PromptRole
 from substitute.domain.node_behavior.prompt_graph import PromptEvidence
-from substitute.infrastructure.comfy.workflow_json_repository import (
-    JsonComfyWorkflowRepository,
+from substitute.infrastructure.comfy.workflow_document_repository import (
+    ComfyWorkflowDocumentRepository,
 )
 from tests.prompt_detection_fixture_catalog import (
     ExpectedPromptField,
@@ -121,7 +121,7 @@ class HeadlessPromptDetectionHarness:
         """Run one workflow through the production non-Qt behavior path."""
 
         try:
-            workflow = JsonComfyWorkflowRepository().load(fixture.path)
+            workflow = ComfyWorkflowDocumentRepository().load(fixture.path)
             graph = ComfyWorkflowConverter().convert(
                 workflow,
                 node_definitions=fixture.node_definitions,
