@@ -25,7 +25,7 @@ import re
 from typing import Protocol
 
 from substitute.domain.generation import (
-    OutputOrganizationPreferences,
+    OutputPreferences,
 )
 from substitute.shared.logging.logger import (
     get_logger,
@@ -47,11 +47,11 @@ _SUPPORTED_PATTERN_TOKEN_SETS = frozenset(
 )
 
 
-class OutputOrganizationPreferenceProvider(Protocol):
+class OutputPreferenceProvider(Protocol):
     """Describe output naming preference access used for filename fallback."""
 
-    def load_preferences(self) -> OutputOrganizationPreferences:
-        """Load normalized output organization preferences."""
+    def load_preferences(self) -> OutputPreferences:
+        """Load normalized output preferences."""
 
 
 @dataclass(frozen=True)
@@ -93,7 +93,7 @@ class RecipeOutputSiblingDiscoveryService:
     def __init__(
         self,
         *,
-        output_preferences: OutputOrganizationPreferenceProvider,
+        output_preferences: OutputPreferenceProvider,
     ) -> None:
         """Store output naming collaborators used for sibling discovery."""
 
@@ -132,7 +132,7 @@ class RecipeOutputSiblingDiscoveryService:
         preferences = self._output_preferences.load_preferences()
         workflow_token = _sanitize_filename_component(workflow_name)
         compiled = _compile_filename_pattern(
-            preferences.path_pattern,
+            preferences.organization.path_pattern,
             workflow_token=workflow_token,
         )
         if compiled.reason:
@@ -140,7 +140,7 @@ class RecipeOutputSiblingDiscoveryService:
                 _LOGGER,
                 "Recipe output sibling pattern fallback skipped",
                 selected_path=str(selected_path),
-                output_pattern=preferences.path_pattern,
+                output_pattern=preferences.organization.path_pattern,
                 reason=compiled.reason,
             )
             return RecipeOutputSiblingDiscoveryResult(
@@ -156,7 +156,7 @@ class RecipeOutputSiblingDiscoveryService:
                 _LOGGER,
                 "Recipe output sibling pattern fallback skipped",
                 selected_path=str(selected_path),
-                output_pattern=preferences.path_pattern,
+                output_pattern=preferences.organization.path_pattern,
                 reason=reason,
             )
             return RecipeOutputSiblingDiscoveryResult(
@@ -175,7 +175,7 @@ class RecipeOutputSiblingDiscoveryService:
             _LOGGER,
             "Recipe output sibling pattern fallback completed",
             selected_path=str(selected_path),
-            output_pattern=preferences.path_pattern,
+            output_pattern=preferences.organization.path_pattern,
             candidate_count=len(siblings),
         )
         return RecipeOutputSiblingDiscoveryResult(
@@ -330,7 +330,7 @@ def _normalized_path_key(path: Path) -> str:
 
 
 __all__ = [
-    "OutputOrganizationPreferenceProvider",
+    "OutputPreferenceProvider",
     "RecipeOutputSibling",
     "RecipeOutputSiblingDiscoveryResult",
     "RecipeOutputSiblingDiscoveryService",

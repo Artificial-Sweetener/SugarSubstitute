@@ -42,8 +42,9 @@ from substitute.domain.danbooru.preferences import (
     default_danbooru_preferences,
 )
 from substitute.domain.generation import (
-    OutputOrganizationPreferences,
-    default_output_organization_preferences,
+    OutputOrganizationSettings,
+    OutputPreferences,
+    default_output_preferences,
 )
 from substitute.domain.onboarding import (
     BootstrapRoute,
@@ -414,19 +415,17 @@ class _ModelRootProvider:
 class _OutputPreferenceService:
     """Return deterministic output preferences for flow tests."""
 
-    preferences: OutputOrganizationPreferences = field(
-        default_factory=default_output_organization_preferences
-    )
+    preferences: OutputPreferences = field(default_factory=default_output_preferences)
     effective_root: Path = Path("Substitute/user/outputs")
 
-    def load_preferences(self) -> OutputOrganizationPreferences:
+    def load_preferences(self) -> OutputPreferences:
         """Return default output organization preferences."""
 
         return self.preferences
 
     def effective_output_root(
         self,
-        preferences: OutputOrganizationPreferences | None = None,
+        preferences: OutputPreferences | None = None,
     ) -> Path:
         """Return a deterministic effective output root."""
 
@@ -503,7 +502,7 @@ class _Bundle:
     managed_runtime_service: _StaticManagedRuntimeService
     setup_transaction_service: _FakeSetupTransactionService
     model_root_provider: _ModelRootProvider = field(default_factory=_ModelRootProvider)
-    output_organization_service: _OutputPreferenceService = field(
+    output_preference_service: _OutputPreferenceService = field(
         default_factory=_OutputPreferenceService
     )
     prompt_editor_preference_service: _PromptPreferenceService = field(
@@ -627,8 +626,10 @@ def test_flow_service_load_draft_includes_folder_and_preference_state(
                 restart_required=False,
             )
         ),
-        output_organization_service=_OutputPreferenceService(
-            preferences=OutputOrganizationPreferences(output_root=custom_outputs),
+        output_preference_service=_OutputPreferenceService(
+            preferences=OutputPreferences(
+                organization=OutputOrganizationSettings(output_root=custom_outputs)
+            ),
             effective_root=custom_outputs,
         ),
         civitai_credential_service=_CivitaiCredentialService(configured=True),

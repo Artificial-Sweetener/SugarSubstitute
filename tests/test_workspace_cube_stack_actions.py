@@ -151,3 +151,43 @@ def test_duplicate_command_ignores_stale_source_without_projection() -> None:
 
     assert calls == []
     assert workflow.cubes == {}
+
+
+def test_output_persistence_command_mutes_only_the_workflow_cube_instance() -> None:
+    """The cube-card command should mute saving without bypassing execution."""
+
+    workflow = WorkflowState(cubes={"Cube": _cube("Cube")}, stack_order=["Cube"])
+    invalidation = WorkflowSurfaceInvalidationService()
+    presentation_updates: list[tuple[int, bool]] = []
+    stack = SimpleNamespace(
+        count=lambda: 1,
+        tabItem=lambda _index: SimpleNamespace(routeKey=lambda: "Cube"),
+        setTabOutputPersistenceEnabled=lambda index, enabled: (
+            presentation_updates.append((index, enabled))
+        ),
+    )
+    view = cast(
+        WorkspaceCubeStackActionView,
+        SimpleNamespace(
+            cube_stack_service=CubeStackService(),
+            active_cube_stack=stack,
+            workflow_session_service=SimpleNamespace(active_workflow_id="wf-a"),
+            workflow_surface_invalidation_service=invalidation,
+            get_active_workflow=lambda: workflow,
+        ),
+    )
+    actions = WorkspaceCubeStackActions(
+        view,
+        duplication_service=cast(CubeDuplicationService, object()),
+        stack_presenter=cast(CubeStackPresenter, object()),
+        surface_projector=cast(CubeSurfaceProjectionCoordinator, object()),
+    )
+
+    actions.on_cube_output_persistence_toggle_requested("Cube")
+
+    assert workflow.cubes["Cube"].output_persistence_enabled is False
+    assert workflow.cubes["Cube"].bypassed is False
+    assert presentation_updates == [(0, False)]
+    assert invalidation.dirty_state("wf-a").reasons == (
+        WorkflowInvalidationReason.CUBE_OUTPUT_PERSISTENCE_CHANGED,
+    )

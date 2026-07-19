@@ -40,6 +40,7 @@ class WorkflowInvalidationReason(StrEnum):
     CUBE_REMOVED = "cube_removed"
     CUBE_REORDERED = "cube_reordered"
     CUBE_BYPASS_CHANGED = "cube_bypass_changed"
+    CUBE_OUTPUT_PERSISTENCE_CHANGED = "cube_output_persistence_changed"
     CUBE_LOADED = "cube_loaded"
     RECIPE_LOADED = "recipe_loaded"
     DIRECT_WORKFLOW_LOADED = "direct_workflow_loaded"

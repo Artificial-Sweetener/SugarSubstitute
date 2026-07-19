@@ -30,8 +30,7 @@ from substitute.application.danbooru.preferences_service import (
     DanbooruPreferenceService,
 )
 from substitute.application.generation import (
-    OutputOrganizationPreferences,
-    OutputOrganizationPreferenceService,
+    OutputPreferenceService,
 )
 from substitute.application.onboarding import (
     OnboardingCredentialDraft,
@@ -51,6 +50,7 @@ from substitute.domain.danbooru.preferences import (
     default_danbooru_preferences,
 )
 from substitute.domain.prompt import PromptEditorFeature, PromptEditorPreferences
+from substitute.domain.generation import OutputOrganizationSettings, OutputPreferences
 from substitute.infrastructure.persistence.file_prompt_editor_preference_repository import (
     _default_preferences,
 )
@@ -88,8 +88,11 @@ def test_onboarding_preference_setup_saves_non_secret_choices(
         )
     )
 
-    assert output_repository.preferences.output_root == custom_output_root
-    assert output_repository.preferences.path_pattern == "{workflow}\\{source}"
+    assert output_repository.preferences.organization.output_root == custom_output_root
+    assert (
+        output_repository.preferences.organization.path_pattern
+        == "{workflow}\\{source}"
+    )
     assert (
         prompt_repository.preferences.user_allows(
             PromptEditorFeature.DANBOORU_URL_IMPORT
@@ -211,7 +214,7 @@ def _setup_service(
     """Build a preference setup service from in-memory collaborators."""
 
     return OnboardingPreferenceSetupService(
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             output_repository or _OutputPreferenceRepository(),
             default_output_root=default_output_root,
         ),
@@ -236,16 +239,18 @@ class _OutputPreferenceRepository:
     def __init__(self) -> None:
         """Initialize with a non-default pattern to verify preservation."""
 
-        self.preferences = OutputOrganizationPreferences(
-            path_pattern="{workflow}\\{source}"
+        self.preferences = OutputPreferences(
+            organization=OutputOrganizationSettings(
+                path_pattern="{workflow}\\{source}",
+            )
         )
 
-    def load(self) -> OutputOrganizationPreferences:
+    def load(self) -> OutputPreferences:
         """Return the current output preferences."""
 
         return self.preferences
 
-    def save(self, preferences: OutputOrganizationPreferences) -> None:
+    def save(self, preferences: OutputPreferences) -> None:
         """Persist output preferences in memory."""
 
         self.preferences = preferences

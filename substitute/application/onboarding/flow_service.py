@@ -65,7 +65,7 @@ from substitute.domain.civitai import CivitaiPreferences, CivitaiThumbnailSafety
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.domain.comfy_environment import ComfyModelRootStatus
 from substitute.domain.danbooru.preferences import DanbooruPreferences
-from substitute.domain.generation import OutputOrganizationPreferences
+from substitute.domain.generation import OutputPreferences
 from substitute.domain.prompt import PromptEditorFeature, PromptEditorPreferences
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
@@ -223,15 +223,15 @@ class OnboardingModelRootProviderProtocol(Protocol):
         """Return connected host model-root state when BackEnd is available."""
 
 
-class OutputOrganizationPreferenceServiceProtocol(Protocol):
+class OutputPreferenceServiceProtocol(Protocol):
     """Describe output preference operations used by onboarding."""
 
-    def load_preferences(self) -> OutputOrganizationPreferences:
-        """Load output organization preferences."""
+    def load_preferences(self) -> OutputPreferences:
+        """Load output preferences."""
 
     def effective_output_root(
         self,
-        preferences: OutputOrganizationPreferences | None = None,
+        preferences: OutputPreferences | None = None,
     ) -> Path:
         """Return the concrete output root for the supplied preferences."""
 
@@ -302,10 +302,10 @@ class OnboardingBundleProtocol(Protocol):
         """Return the connected BackEnd model-root provider."""
 
     @property
-    def output_organization_service(
+    def output_preference_service(
         self,
-    ) -> OutputOrganizationPreferenceServiceProtocol:
-        """Return the output organization preference service."""
+    ) -> OutputPreferenceServiceProtocol:
+        """Return the output preference service."""
 
     @property
     def prompt_editor_preference_service(
@@ -487,8 +487,8 @@ class OnboardingFlowService:
             and context.comfy_target.workspace_path is not None
             else None
         )
-        output_preferences = bundle.output_organization_service.load_preferences()
-        output_root = bundle.output_organization_service.effective_output_root(
+        output_preferences = bundle.output_preference_service.load_preferences()
+        output_root = bundle.output_preference_service.effective_output_root(
             output_preferences
         )
         prompt_preferences = bundle.prompt_editor_preference_service.load_preferences()
@@ -509,7 +509,9 @@ class OnboardingFlowService:
                 else True
             ),
             output_root=output_root,
-            output_root_uses_default=output_preferences.output_root is None,
+            output_root_uses_default=(
+                output_preferences.organization.output_root is None
+            ),
             danbooru_tag_help_enabled=(
                 prompt_preferences.user_allows(PromptEditorFeature.DANBOORU_URL_IMPORT)
                 or prompt_preferences.user_allows(

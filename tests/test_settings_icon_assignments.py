@@ -40,7 +40,7 @@ from substitute.application.danbooru.preferences_service import (
 )
 from substitute.application.generation import (
     GenerationPreviewPreferenceService,
-    OutputOrganizationPreferenceService,
+    OutputPreferenceService,
 )
 from substitute.application.onboarding import ComfyConnectionSettingsService
 from substitute.application.ports.danbooru_cache_repository import (
@@ -103,8 +103,8 @@ def test_non_appearance_catalog_pages_use_deliberate_app_icons() -> None:
                 GenerationPreviewPreferenceService,
                 object(),
             ),
-            output_organization_service=cast(
-                OutputOrganizationPreferenceService,
+            output_preference_service=cast(
+                OutputPreferenceService,
                 object(),
             ),
             civitai_preference_service=cast(CivitaiPreferenceService, object()),
@@ -171,8 +171,8 @@ def test_explicit_settings_workspace_pages_use_deliberate_app_icons() -> None:
             GenerationPreviewPreferenceService,
             object(),
         ),
-        output_organization_preference_service=cast(
-            OutputOrganizationPreferenceService,
+        output_preference_service=cast(
+            OutputPreferenceService,
             object(),
         ),
         open_reconfigure_window=lambda: object(),

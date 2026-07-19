@@ -74,7 +74,7 @@ if TYPE_CHECKING:
         CivitaiPreferenceService,
     )
     from substitute.application.danbooru import DanbooruPreferenceService
-    from substitute.application.generation import OutputOrganizationPreferenceService
+    from substitute.application.generation import OutputPreferenceService
     from substitute.application.onboarding.preference_setup_service import (
         OnboardingPreferenceSetupService,
     )
@@ -97,7 +97,7 @@ class OnboardingServiceBundle:
     onboarding_service: OnboardingService
     readiness_service: BootstrapReadinessService
     model_root_provider: BackendModelRootProvider
-    output_organization_service: OutputOrganizationPreferenceService
+    output_preference_service: OutputPreferenceService
     danbooru_preference_service: DanbooruPreferenceService
     prompt_editor_preference_service: PromptEditorPreferenceService
     civitai_preference_service: CivitaiPreferenceService
@@ -145,7 +145,7 @@ def build_onboarding_service_bundle(
 
     core_services = _build_core_onboarding_services(explicit_root)
     (
-        output_organization_service,
+        output_preference_service,
         danbooru_preference_service,
         prompt_editor_preference_service,
         civitai_preference_service,
@@ -162,7 +162,7 @@ def build_onboarding_service_bundle(
         onboarding_service=core_services.onboarding_service,
         readiness_service=readiness_service,
         model_root_provider=BackendModelRootProvider(),
-        output_organization_service=output_organization_service,
+        output_preference_service=output_preference_service,
         danbooru_preference_service=danbooru_preference_service,
         prompt_editor_preference_service=prompt_editor_preference_service,
         civitai_preference_service=civitai_preference_service,
@@ -277,7 +277,7 @@ def _build_readiness_service(
 def _build_preference_setup_services(
     installation_configuration: InstallationConfiguration,
 ) -> tuple[
-    "OutputOrganizationPreferenceService",
+    "OutputPreferenceService",
     "DanbooruPreferenceService",
     "PromptEditorPreferenceService",
     "CivitaiPreferenceService",
@@ -291,7 +291,7 @@ def _build_preference_setup_services(
         CivitaiPreferenceService,
     )
     from substitute.application.danbooru import DanbooruPreferenceService
-    from substitute.application.generation import OutputOrganizationPreferenceService
+    from substitute.application.generation import OutputPreferenceService
     from substitute.application.onboarding.preference_setup_service import (
         OnboardingPreferenceSetupService,
     )
@@ -302,18 +302,16 @@ def _build_preference_setup_services(
     from substitute.infrastructure.persistence.file_danbooru_preference_repository import (
         FileDanbooruPreferenceRepository,
     )
-    from substitute.infrastructure.persistence.file_output_organization_preference_repository import (
-        FileOutputOrganizationPreferenceRepository,
+    from substitute.infrastructure.persistence.file_output_preference_repository import (
+        FileOutputPreferenceRepository,
     )
     from substitute.infrastructure.persistence.file_prompt_editor_preference_repository import (
         FilePromptEditorPreferenceRepository,
     )
     from substitute.infrastructure.security import build_civitai_credential_store
 
-    output_organization_service = OutputOrganizationPreferenceService(
-        FileOutputOrganizationPreferenceRepository(
-            installation_configuration.user_settings_dir
-        ),
+    output_preference_service = OutputPreferenceService(
+        FileOutputPreferenceRepository(installation_configuration.user_settings_dir),
         default_output_root=installation_configuration.outputs_dir,
     )
     danbooru_preference_service = DanbooruPreferenceService(
@@ -331,14 +329,14 @@ def _build_preference_setup_services(
         build_civitai_credential_store(installation_configuration.user_settings_dir)
     )
     preference_setup_service = OnboardingPreferenceSetupService(
-        output_organization_service=output_organization_service,
+        output_preference_service=output_preference_service,
         danbooru_preference_service=danbooru_preference_service,
         prompt_editor_preference_service=prompt_editor_preference_service,
         civitai_preference_service=civitai_preference_service,
         civitai_credential_service=civitai_credential_service,
     )
     return (
-        output_organization_service,
+        output_preference_service,
         danbooru_preference_service,
         prompt_editor_preference_service,
         civitai_preference_service,

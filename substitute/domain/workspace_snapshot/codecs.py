@@ -367,6 +367,7 @@ def _cube_state_to_json(cube: CubeState) -> JsonObject:
         ),
         "update_policy": cube.update_policy.value,
         "bypassed": cube.bypassed,
+        "output_persistence_enabled": cube.output_persistence_enabled,
     }
 
 
@@ -405,6 +406,9 @@ def _cube_state_from_json(payload: Mapping[str, object], *, alias: str) -> CubeS
         ),
         update_policy=_cube_update_policy_from_json(payload.get("update_policy")),
         bypassed=payload.get("bypassed") is True,
+        output_persistence_enabled=(
+            payload.get("output_persistence_enabled") is not False
+        ),
     )
 
 

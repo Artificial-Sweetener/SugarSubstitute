@@ -80,6 +80,7 @@ class CubeState:
     )
     update_policy: CubeUpdatePolicy = CubeUpdatePolicy.PINNED
     bypassed: bool = False
+    output_persistence_enabled: bool = True
 
     def __post_init__(self) -> None:
         """Default display name to the canonical cube id when absent."""

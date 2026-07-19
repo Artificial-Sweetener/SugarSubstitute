@@ -37,8 +37,8 @@ if TYPE_CHECKING:
     from substitute.infrastructure.persistence.file_generation_preview_preference_repository import (
         FileGenerationPreviewPreferenceRepository,
     )
-    from substitute.infrastructure.persistence.file_output_organization_preference_repository import (
-        FileOutputOrganizationPreferenceRepository,
+    from substitute.infrastructure.persistence.file_output_preference_repository import (
+        FileOutputPreferenceRepository,
     )
     from substitute.infrastructure.persistence.file_prompt_autocomplete_gateway import (
         FilePromptAutocompleteGateway,
@@ -123,9 +123,9 @@ _LAZY_EXPORTS = {
         "substitute.infrastructure.persistence.file_generation_preview_preference_repository",
         "FileGenerationPreviewPreferenceRepository",
     ),
-    "FileOutputOrganizationPreferenceRepository": (
-        "substitute.infrastructure.persistence.file_output_organization_preference_repository",
-        "FileOutputOrganizationPreferenceRepository",
+    "FileOutputPreferenceRepository": (
+        "substitute.infrastructure.persistence.file_output_preference_repository",
+        "FileOutputPreferenceRepository",
     ),
     "FilePromptAutocompleteGateway": (
         "substitute.infrastructure.persistence.file_prompt_autocomplete_gateway",
@@ -245,7 +245,7 @@ __all__ = [
     "FileDanbooruPreferenceRepository",
     "FilePromptEditorPreferenceRepository",
     "FileGenerationPreviewPreferenceRepository",
-    "FileOutputOrganizationPreferenceRepository",
+    "FileOutputPreferenceRepository",
     "FilePromptWildcardCatalogGateway",
     "FilePromptWildcardFileRepository",
     "FilePromptWildcardPreferenceRepository",

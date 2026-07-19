@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Coordinate output organization preference and save-plan use cases."""
+"""Coordinate generated-output preferences, validation, and save planning."""
 
 from __future__ import annotations
 
@@ -28,58 +28,65 @@ from substitute.application.generation.output_path_template_renderer import (
     OutputPathTemplateError,
     OutputPathTemplateRenderer,
 )
+from substitute.application.cubes import cube_alias_body
 from substitute.application.ports.comfy_gateway import OutputSavePlan
-from substitute.application.ports.output_organization_preference_repository import (
-    OutputOrganizationPreferenceRepository,
+from substitute.application.ports.output_preference_repository import (
+    OutputPreferenceRepository,
 )
-from substitute.domain.generation import (
+from substitute.domain.generation.output_organization import (
     DEFAULT_OUTPUT_PATH_PATTERN,
-    OUTPUT_ORGANIZATION_PREFERENCES_SCHEMA_VERSION,
-    OutputOrganizationPreferences,
     OutputPathRenderContext,
     OutputPathRenderResult,
     OutputPathToken,
     OutputRunBucket,
     SUPPORTED_OUTPUT_PATH_TOKENS,
-    default_output_organization_preferences,
+)
+from substitute.domain.generation.output_preferences import (
+    default_output_preferences,
+    JpegOutputSettings,
+    JpegSizingMode,
+    OUTPUT_PREFERENCES_SCHEMA_VERSION,
+    OutputOrganizationSettings,
+    OutputPersistenceMode,
+    OutputPreferences,
 )
 
 
-@dataclass(frozen=True)
-class OutputOrganizationSaveResult:
-    """Describe a settings-facing output organization save result."""
+@dataclass(frozen=True, slots=True)
+class OutputPreferenceSaveResult:
+    """Describe one settings-facing output preference save result."""
 
-    preferences: OutputOrganizationPreferences
+    preferences: OutputPreferences
     succeeded: bool
     message: str
     preview: OutputPathRenderResult | None = None
 
 
-class OutputOrganizationPreferenceService:
-    """Own output organization preference validation, persistence, and previews."""
+class OutputPreferenceService:
+    """Own validation, persistence, preview rendering, and immutable run plans."""
 
     def __init__(
         self,
-        repository: OutputOrganizationPreferenceRepository,
+        repository: OutputPreferenceRepository,
         *,
         default_output_root: Path,
         renderer: OutputPathTemplateRenderer | None = None,
     ) -> None:
-        """Initialize repository and default output root dependencies."""
+        """Initialize preference persistence and output-path dependencies."""
 
         self._repository = repository
         self._default_output_root = default_output_root
         self._renderer = renderer or OutputPathTemplateRenderer()
 
-    def load_preferences(self) -> OutputOrganizationPreferences:
-        """Load normalized output organization preferences."""
+    def load_preferences(self) -> OutputPreferences:
+        """Load normalized output preferences."""
 
         return self._normalize(self._repository.load())
 
-    def default_preferences(self) -> OutputOrganizationPreferences:
-        """Return preferences that preserve the current output layout."""
+    def default_preferences(self) -> OutputPreferences:
+        """Return defaults that durably save canonical PNGs for every source."""
 
-        return default_output_organization_preferences()
+        return default_output_preferences()
 
     def supported_tokens(self) -> tuple[str, ...]:
         """Return supported token placeholders in display order."""
@@ -87,59 +94,54 @@ class OutputOrganizationPreferenceService:
         return tuple(token.placeholder for token in SUPPORTED_OUTPUT_PATH_TOKENS)
 
     def supported_token_descriptions(self) -> tuple[OutputPathToken, ...]:
-        """Return supported output tokens with user-facing descriptions."""
+        """Return supported output tokens with descriptions."""
 
         return SUPPORTED_OUTPUT_PATH_TOKENS
 
     def effective_output_root(
-        self,
-        preferences: OutputOrganizationPreferences | None = None,
+        self, preferences: OutputPreferences | None = None
     ) -> Path:
         """Return the concrete output root for preferences or current state."""
 
-        resolved_preferences = preferences or self.load_preferences()
-        return resolved_preferences.output_root or self._default_output_root
+        resolved = preferences or self.load_preferences()
+        return resolved.organization.output_root or self._default_output_root
 
     def save_preferences(
-        self,
-        preferences: OutputOrganizationPreferences,
-    ) -> OutputOrganizationSaveResult:
-        """Persist validated output organization preferences."""
+        self, preferences: OutputPreferences
+    ) -> OutputPreferenceSaveResult:
+        """Persist validated output preferences."""
 
         normalized = self._normalize(preferences)
         try:
             self._validate_preferences(normalized)
-        except OutputPathTemplateError as error:
-            return OutputOrganizationSaveResult(
+        except (OutputPathTemplateError, ValueError) as error:
+            return OutputPreferenceSaveResult(
                 preferences=self.load_preferences(),
                 succeeded=False,
                 message=str(error),
             )
         self._repository.save(normalized)
-        return OutputOrganizationSaveResult(
+        return OutputPreferenceSaveResult(
             preferences=normalized,
             succeeded=True,
-            message="Output organization settings saved.",
+            message="Output settings saved.",
             preview=self.render_preview(normalized),
         )
 
-    def reset_preferences(self) -> OutputOrganizationSaveResult:
-        """Persist default output organization preferences."""
+    def reset_preferences(self) -> OutputPreferenceSaveResult:
+        """Persist default output preferences."""
 
         return self.save_preferences(self.default_preferences())
 
     def render_preview(
-        self,
-        preferences: OutputOrganizationPreferences | None = None,
+        self, preferences: OutputPreferences | None = None
     ) -> OutputPathRenderResult:
         """Render the settings preview path for preferences."""
 
-        resolved_preferences = self._normalize(
-            preferences if preferences is not None else self.load_preferences()
-        )
+        resolved = self._normalize(preferences or self.load_preferences())
         return self._renderer.preview_path(
-            output_root=self.effective_output_root(resolved_preferences),
-            path_pattern=resolved_preferences.path_pattern,
+            output_root=self.effective_output_root(resolved),
+            path_pattern=resolved.organization.path_pattern,
             context=self.example_render_context(),
         )
 
@@ -151,35 +153,48 @@ class OutputOrganizationPreferenceService:
         job_started_at: datetime,
         seed: str = "",
         cube_numbers_by_alias: Mapping[str, int] | None = None,
+        active_cube_aliases: tuple[str, ...] = (),
+        muted_cube_aliases: frozenset[str] = frozenset(),
     ) -> OutputSavePlan:
-        """Create an immutable output save plan for one generation job."""
+        """Create one immutable run policy from current preferences and topology."""
 
         preferences = self.load_preferences()
         self._validate_preferences(preferences)
+        normalized_muted_aliases = _alias_keys(muted_cube_aliases)
+        persisted_aliases: frozenset[str] | None = None
+        if preferences.persistence_mode is OutputPersistenceMode.FINAL_CUBE:
+            final_alias = active_cube_aliases[-1] if active_cube_aliases else None
+            persisted_aliases = (
+                _alias_keys((final_alias,))
+                if final_alias is not None
+                and not _alias_keys((final_alias,)).intersection(
+                    normalized_muted_aliases
+                )
+                else frozenset()
+            )
         return OutputSavePlan(
             output_root=self.effective_output_root(preferences),
-            path_pattern=preferences.path_pattern,
+            path_pattern=preferences.organization.path_pattern,
             workflow_name=workflow_name,
             output_run_number=output_run_number,
             job_started_at=job_started_at,
             seed=seed,
             cube_numbers_by_alias=cube_numbers_by_alias or {},
+            jpeg=preferences.jpeg,
+            persisted_cube_aliases=persisted_aliases,
+            muted_cube_aliases=normalized_muted_aliases,
         )
 
     def resolve_run_bucket(
-        self,
-        *,
-        workflow_name: str,
-        job_started_at: datetime,
-        seed: str = "",
+        self, *, workflow_name: str, job_started_at: datetime, seed: str = ""
     ) -> OutputRunBucket:
-        """Resolve the output bucket used to allocate `{run}` for a job."""
+        """Resolve the namespace used to allocate a run number."""
 
         preferences = self.load_preferences()
         self._validate_preferences(preferences)
         return self._renderer.resolve_run_bucket(
             output_root=self.effective_output_root(preferences),
-            path_pattern=preferences.path_pattern,
+            path_pattern=preferences.organization.path_pattern,
             context=OutputPathRenderContext(
                 workflow_name=workflow_name,
                 source="",
@@ -197,20 +212,19 @@ class OutputOrganizationPreferenceService:
         )
 
     def output_run_projection_cache_key(self, *, now: datetime) -> Hashable:
-        """Return dependencies that can change visible pending run projection."""
+        """Return dependencies that can change pending run projection."""
 
         preferences = self.load_preferences()
         effective_root = self.effective_output_root(preferences)
-        time_tokens = self._renderer.bucket_affecting_time_tokens(
-            preferences.path_pattern
-        )
-        time_key = tuple(
-            (token, _projection_time_token_value(token, now)) for token in time_tokens
-        )
+        pattern = preferences.organization.path_pattern
+        time_tokens = self._renderer.bucket_affecting_time_tokens(pattern)
         return (
             str(Path(effective_root).resolve()).replace("\\", "/").casefold(),
-            preferences.path_pattern,
-            time_key,
+            pattern,
+            tuple(
+                (token, _projection_time_token_value(token, now))
+                for token in time_tokens
+            ),
         )
 
     def example_render_context(self) -> OutputPathRenderContext:
@@ -231,31 +245,39 @@ class OutputOrganizationPreferenceService:
             seed="123456789",
         )
 
-    def _normalize(
-        self,
-        preferences: OutputOrganizationPreferences,
-    ) -> OutputOrganizationPreferences:
-        """Return preferences with current schema and fallback patterns."""
+    def _normalize(self, preferences: OutputPreferences) -> OutputPreferences:
+        """Return current-schema preferences with bounded numeric values."""
 
-        path_pattern = preferences.path_pattern or DEFAULT_OUTPUT_PATH_PATTERN
-        return OutputOrganizationPreferences(
-            schema_version=OUTPUT_ORGANIZATION_PREFERENCES_SCHEMA_VERSION,
-            output_root=preferences.output_root,
-            path_pattern=path_pattern,
+        organization = preferences.organization
+        return OutputPreferences(
+            schema_version=OUTPUT_PREFERENCES_SCHEMA_VERSION,
+            organization=OutputOrganizationSettings(
+                output_root=organization.output_root,
+                path_pattern=organization.path_pattern or DEFAULT_OUTPUT_PATH_PATTERN,
+            ),
+            jpeg=JpegOutputSettings(
+                enabled=preferences.jpeg.enabled,
+                sizing_mode=preferences.jpeg.sizing_mode,
+                quality=max(1, min(preferences.jpeg.quality, 100)),
+                target_size_kib=max(1, preferences.jpeg.target_size_kib),
+            ),
+            persistence_mode=preferences.persistence_mode,
         )
 
-    def _validate_preferences(
-        self,
-        preferences: OutputOrganizationPreferences,
-    ) -> None:
-        """Validate output root and patterns before persistence."""
+    def _validate_preferences(self, preferences: OutputPreferences) -> None:
+        """Validate filesystem, template, and JPEG constraints."""
 
         output_root = self.effective_output_root(preferences)
         if not output_root.is_absolute():
             raise OutputPathTemplateError("Output root must be an absolute path.")
         if output_root.exists() and not output_root.is_dir():
             raise OutputPathTemplateError("Output root must be a folder.")
-        self._renderer.validate_pattern(preferences.path_pattern)
+        self._renderer.validate_pattern(preferences.organization.path_pattern)
+        if preferences.jpeg.sizing_mode is JpegSizingMode.QUALITY:
+            if not 1 <= preferences.jpeg.quality <= 100:
+                raise ValueError("JPEG quality must be between 1 and 100.")
+        elif preferences.jpeg.target_size_kib < 1:
+            raise ValueError("JPEG target size must be positive.")
         self.render_preview(preferences)
 
 
@@ -271,7 +293,16 @@ def _projection_time_token_value(token: str, now: datetime) -> str:
     return ""
 
 
-__all__ = [
-    "OutputOrganizationPreferenceService",
-    "OutputOrganizationSaveResult",
-]
+def _alias_keys(aliases: tuple[str, ...] | frozenset[str]) -> frozenset[str]:
+    """Return raw and display-form aliases used by backend source identities."""
+
+    keys: set[str] = set()
+    for alias in aliases:
+        keys.add(alias)
+        body = cube_alias_body(alias)
+        if body:
+            keys.add(body)
+    return frozenset(keys)
+
+
+__all__ = ["OutputPreferenceSaveResult", "OutputPreferenceService"]

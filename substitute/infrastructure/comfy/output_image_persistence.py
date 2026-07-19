@@ -40,13 +40,19 @@ from substitute.infrastructure.persistence.image_naming import (
     get_next_bucket_run_number,
     get_next_folder_image_number,
 )
+from substitute.infrastructure.comfy.jpeg_companion_encoder import (
+    JpegCompanionEncoder,
+)
+from substitute.shared.logging.logger import get_logger, log_exception
+
+_LOGGER = get_logger("infrastructure.comfy.output_image_persistence")
 
 
 @dataclass(frozen=True)
 class PersistedOutputImage:
-    """Describe a saved final output and the decoded image dimensions."""
+    """Describe materialized output facts and optional durable PNG path."""
 
-    file_path: Path
+    file_path: Path | None
     width: int
     height: int
 
@@ -62,6 +68,7 @@ class OutputImagePersistence:
         sugar_script: str,
         cube_numbers_by_alias: Mapping[str, int],
         output_path_renderer: OutputPathTemplateRenderer | None = None,
+        jpeg_encoder: JpegCompanionEncoder | None = None,
     ) -> None:
         """Initialize one listener-run persistence owner."""
 
@@ -74,6 +81,7 @@ class OutputImagePersistence:
         )
         self._image_run_counter: int | None = output_save_plan.output_run_number
         self._source_output_counts: dict[str, int] = {}
+        self._jpeg_encoder = jpeg_encoder or JpegCompanionEncoder()
 
     def persist_output_image(
         self,
@@ -81,7 +89,7 @@ class OutputImagePersistence:
         image_bytes: bytes,
         source_identity: OutputSourceIdentity,
     ) -> PersistedOutputImage:
-        """Persist cube-output image bytes with deterministic naming and metadata."""
+        """Materialize optional durable files and always return decoded dimensions."""
 
         workflow_name = self._output_save_plan.workflow_name
         source_label = source_identity.source_label
@@ -94,6 +102,14 @@ class OutputImagePersistence:
         with Image.open(io.BytesIO(image_bytes)) as image:
             width = positive_int_or_zero(getattr(image, "width", 0))
             height = positive_int_or_zero(getattr(image, "height", 0))
+            if not self._output_save_plan.persists_cube(
+                source_identity.cube_alias or source_identity.source_label
+            ):
+                return PersistedOutputImage(
+                    file_path=None,
+                    width=width,
+                    height=height,
+                )
             cube_label = source_identity.cube_alias or source_label
             if self._image_run_counter is None:
                 bucket = self._output_path_renderer.resolve_run_bucket(
@@ -141,6 +157,10 @@ class OutputImagePersistence:
                     set_index=source_index,
                 ),
             ).path
+            file_path = _reserve_png_jpeg_pair(
+                file_path,
+                include_jpeg=self._output_save_plan.jpeg.enabled,
+            )
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
             png_metadata = PngImagePlugin.PngInfo()
@@ -150,6 +170,19 @@ class OutputImagePersistence:
             if workflow_metadata is not None:
                 png_metadata.add_text("workflow", workflow_metadata)
             image.save(str(file_path), pnginfo=png_metadata)
+            if self._output_save_plan.jpeg.enabled:
+                try:
+                    jpeg_bytes = self._jpeg_encoder.encode(
+                        image, self._output_save_plan.jpeg
+                    )
+                    file_path.with_suffix(".jpg").write_bytes(jpeg_bytes)
+                except Exception as error:
+                    log_exception(
+                        _LOGGER,
+                        "Failed to write optional JPEG companion",
+                        png_path=file_path,
+                        error=error,
+                    )
         return PersistedOutputImage(file_path=file_path, width=width, height=height)
 
     def _next_folder_image_number(
@@ -236,6 +269,19 @@ def workflow_metadata_json(workflow_payload: Mapping[str, object]) -> str | None
     if not isinstance(workflow, Mapping):
         return None
     return json.dumps(workflow, separators=(",", ":"))
+
+
+def _reserve_png_jpeg_pair(path: Path, *, include_jpeg: bool) -> Path:
+    """Return a collision-free PNG path whose optional JPEG stem is also free."""
+
+    candidate = path.with_suffix(".png")
+    ordinal = 2
+    while candidate.exists() or (
+        include_jpeg and candidate.with_suffix(".jpg").exists()
+    ):
+        candidate = path.with_name(f"{path.stem}_{ordinal}").with_suffix(".png")
+        ordinal += 1
+    return candidate
 
 
 __all__ = [

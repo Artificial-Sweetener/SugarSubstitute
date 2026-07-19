@@ -71,10 +71,19 @@ def strip_recipe_buffers(
             )
         buffer_data["update_policy"] = update_policy.value
         buffer_data["bypassed"] = getattr(cube_state, "bypassed", False) is True
+        buffer_data["save_outputs"] = (
+            getattr(cube_state, "output_persistence_enabled", True) is not False
+        )
         for key, value in cube_state.buffer.items():
             if key == "definitions":
                 continue
-            if key not in {"cube_id", "version", "update_policy", "bypassed"}:
+            if key not in {
+                "cube_id",
+                "version",
+                "update_policy",
+                "bypassed",
+                "save_outputs",
+            }:
                 buffer_data[key] = value
         stripped_buffers[alias] = buffer_data
     return stripped_buffers
@@ -98,6 +107,7 @@ def restore_recipe_cube_state(
         buffer=buffer_data,
         update_policy=recipe_buffer_update_policy(buffer_data),
         bypassed=buffer_data.get("bypassed") is True,
+        output_persistence_enabled=buffer_data.get("save_outputs") is not False,
     )
 
 
@@ -157,6 +167,7 @@ _PERSISTED_METADATA_KEYS = frozenset(
         "scheduler_link",
         "enabled",
         "revealed",
+        "save_outputs",
     }
 )
 

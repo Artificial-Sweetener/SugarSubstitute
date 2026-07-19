@@ -168,6 +168,9 @@ class CubeStackServiceProtocol(Protocol):
     def toggle_cube_bypassed(self, workflow: object, alias_name: str) -> bool:
         """Toggle cube bypass and return its new value."""
 
+    def toggle_cube_output_persistence(self, workflow: object, alias_name: str) -> bool:
+        """Toggle cube output persistence and return its new value."""
+
 
 class CubeStackExpansionLeaseProtocol(Protocol):
     """Describe one cancellable temporary cube-stack expansion."""
@@ -340,6 +343,28 @@ class WorkspaceCubeStackActions:
             reason=WorkflowInvalidationReason.CUBE_BYPASS_CHANGED,
         )
         view.active_workflow_surface_refresher.refresh_active_workflow_surface()
+
+    def on_cube_output_persistence_toggle_requested(self, alias_name: str) -> None:
+        """Toggle whether one workflow cube instance writes output files."""
+
+        view = self._view
+        active_stack = view.active_cube_stack
+        workflow = view.get_active_workflow()
+        if active_stack is None or alias_name not in workflow.cubes:
+            return
+        enabled = view.cube_stack_service.toggle_cube_output_persistence(
+            workflow, alias_name
+        )
+        tab_index = _stack_index_for_route_key(active_stack, alias_name)
+        if tab_index is not None:
+            setter = getattr(active_stack, "setTabOutputPersistenceEnabled", None)
+            if callable(setter):
+                setter(tab_index, enabled)
+        _mark_workflow_surfaces_dirty(
+            view,
+            _active_workflow_id(view),
+            reason=WorkflowInvalidationReason.CUBE_OUTPUT_PERSISTENCE_CHANGED,
+        )
 
     def on_cube_duplicate_requested(self, source_alias: str) -> None:
         """Duplicate one cube and project the appended copy across active surfaces."""

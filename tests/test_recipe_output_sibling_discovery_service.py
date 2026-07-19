@@ -22,7 +22,8 @@ from pathlib import Path
 
 from substitute.application.generation import RecipeOutputSiblingDiscoveryService
 from substitute.domain.generation import (
-    OutputOrganizationPreferences,
+    OutputOrganizationSettings,
+    OutputPreferences,
 )
 
 
@@ -32,9 +33,11 @@ class _OutputPreferences:
     def __init__(self, path_pattern: str) -> None:
         """Store the active output filename pattern."""
 
-        self._preferences = OutputOrganizationPreferences(path_pattern=path_pattern)
+        self._preferences = OutputPreferences(
+            organization=OutputOrganizationSettings(path_pattern=path_pattern)
+        )
 
-    def load_preferences(self) -> OutputOrganizationPreferences:
+    def load_preferences(self) -> OutputPreferences:
         """Return configured output organization preferences."""
 
         return self._preferences

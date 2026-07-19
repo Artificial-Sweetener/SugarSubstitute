@@ -267,7 +267,8 @@ class GenerationFeedbackDispatcher(QObject):
         """Receive output image feedback on the GUI thread without dropping it."""
 
         typed_update = cast(OutputImageUpdate, update)
-        self._handle_intent(self._coalescer.submit_output_image(typed_update))
+        intent = self._coalescer.submit_output_image(typed_update)
+        self._handle_intent(intent)
 
     @Slot(object)
     def _receive_timing(self, update: object) -> None:

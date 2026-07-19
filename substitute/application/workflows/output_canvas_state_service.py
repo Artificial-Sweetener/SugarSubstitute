@@ -712,7 +712,9 @@ def _live_metadata_rejection_reason(
         return "artifact_width_mismatch"
     if image_meta.height != event.artifact_height:
         return "artifact_height_mismatch"
-    if image_meta.path and Path(image_meta.path) != event.file_path:
+    if image_meta.path and (
+        event.file_path is None or Path(image_meta.path) != event.file_path
+    ):
         return "file_path_mismatch"
     scene = event.identity.scene
     if isinstance(scene, OutputSceneIdentity):

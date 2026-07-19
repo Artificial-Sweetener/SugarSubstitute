@@ -19,17 +19,30 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TypeVar
 
+from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtGui import QImage
+from PySide6.QtWidgets import QApplication
 
+from substitute.application.execution import (
+    CancellationToken,
+    ExecutionLaneSaturatedError,
+    TaskHandle,
+    TaskRequest,
+)
 from substitute.presentation.shell.output_image_commit_pipeline import (
     FailedOutputImagePreparation,
     OutputImageCommitRequest,
     PreparedOutputImage,
 )
 from substitute.presentation.shell.output_image_preparation_dispatcher import (
+    OutputImagePreparationDispatcher,
     prepare_output_image,
 )
+from tests.execution_testing import ImmediateTaskSubmitter
+
+TResult = TypeVar("TResult")
 
 
 class _Loader:
@@ -40,6 +53,32 @@ class _Loader:
     def load_output_image(self, path: Path) -> QImage | None:
         self.paths.append(path)
         return self.image
+
+
+class _SaturatingThenImmediateSubmitter:
+    """Reject the first request, then execute every retained request immediately."""
+
+    def __init__(self) -> None:
+        """Initialize one expected saturation and an immediate delegate."""
+
+        self._remaining_saturations = 1
+        self._delegate = ImmediateTaskSubmitter()
+
+    def submit(
+        self,
+        request: TaskRequest[TResult],
+        *,
+        cancellation: CancellationToken,
+    ) -> TaskHandle[TResult]:
+        """Reject once before admitting the same retained request."""
+
+        if self._remaining_saturations:
+            self._remaining_saturations -= 1
+            raise ExecutionLaneSaturatedError(
+                lane_name="image_decode",
+                queue_capacity=1,
+            )
+        return self._delegate.submit(request, cancellation=cancellation)
 
 
 def test_prepare_output_image_returns_detached_image() -> None:
@@ -84,6 +123,51 @@ def test_prepare_output_image_converts_null_load_to_failure() -> None:
 
     assert isinstance(result, FailedOutputImagePreparation)
     assert result.request.file_path == Path("E:/missing.png")
+
+
+def test_dispatcher_retries_saturation_without_dropping_output() -> None:
+    """Temporary lane saturation should retain and eventually prepare the output."""
+
+    app = QApplication.instance() or QApplication([])
+    image = QImage(32, 16, QImage.Format.Format_ARGB32)
+    image.fill(1)
+    dispatcher = OutputImagePreparationDispatcher(
+        loader=_Loader(image),
+        submitter=_SaturatingThenImmediateSubmitter(),
+    )
+    prepared: list[PreparedOutputImage] = []
+    failed: list[FailedOutputImagePreparation] = []
+    loop = QEventLoop()
+    deadline = QTimer()
+    deadline.setSingleShot(True)
+    deadline.timeout.connect(loop.quit)
+
+    def record_prepared(result: PreparedOutputImage) -> None:
+        """Capture successful preparation and stop the bounded event loop."""
+
+        prepared.append(result)
+        loop.quit()
+
+    def record_failed(result: FailedOutputImagePreparation) -> None:
+        """Capture failed preparation and stop the bounded event loop."""
+
+        failed.append(result)
+        loop.quit()
+
+    dispatcher.prepared.connect(record_prepared)
+    dispatcher.failed.connect(record_failed)
+
+    dispatcher.submit(_request(Path("E:/retained.png")))
+    deadline.start(1000)
+    loop.exec()
+
+    assert len(prepared) == 1
+    assert prepared[0].request.file_path == Path("E:/retained.png")
+    assert failed == []
+
+    dispatcher.shutdown()
+    dispatcher.deleteLater()
+    app.processEvents()
 
 
 def _request(path: Path) -> OutputImageCommitRequest:

@@ -431,6 +431,7 @@ def _merge_persistent_cube_state(
 
     hydrated_cube.update_policy = restored_cube.update_policy
     hydrated_cube.bypassed = restored_cube.bypassed
+    hydrated_cube.output_persistence_enabled = restored_cube.output_persistence_enabled
     restored_ui = restored_cube.ui
     if not isinstance(restored_ui, dict):
         return hydrated_cube
