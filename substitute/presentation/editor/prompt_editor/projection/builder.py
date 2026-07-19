@@ -35,7 +35,10 @@ from substitute.application.prompt_editor import (
     PromptSyntaxRenderPlan,
     PromptWildcardRendererView,
 )
-from substitute.application.prompt_editor import parse_prompt_scene_projection_document
+from substitute.application.prompt_editor.prompt_document_semantics import (
+    OrdinaryPromptDocumentSemantics,
+    PromptDocumentSemantics,
+)
 from substitute.shared.logging.logger import get_logger, log_debug
 
 from .caret_map_builder import build_prompt_projection_caret_map
@@ -55,6 +58,7 @@ from .model import (
     PromptProjectionTransientState,
 )
 from .session import PromptProjectionSession
+from .scene_projection import PromptSceneProjectionPlanner
 
 _EMPHASIS_KIND = "emphasis"
 _EMPHASIS_PREFIX_RENDERER_KEY = "emphasis_prefix"
@@ -104,6 +108,35 @@ class _PromptLoraProjectionCollapseSummary:
 
 class PromptProjectionBuilder:
     """Build one run-based prompt projection from source text plus syntax state."""
+
+    def __init__(
+        self,
+        *,
+        document_semantics: PromptDocumentSemantics | None = None,
+    ) -> None:
+        """Store document capability semantics used during every projection build."""
+
+        self._document_semantics = (
+            document_semantics or OrdinaryPromptDocumentSemantics()
+        )
+        self._scene_projection = PromptSceneProjectionPlanner(self._document_semantics)
+
+    def source_edit_requires_canonical_rebuild(
+        self,
+        previous_source_text: str,
+        next_source_text: str,
+        *,
+        start: int,
+        end: int,
+    ) -> bool:
+        """Return whether one source-local edit changes scene topology."""
+
+        return self._scene_projection.edit_requires_canonical_rebuild(
+            previous_source_text,
+            next_source_text,
+            start=start,
+            end=end,
+        )
 
     def build_projection(
         self,
@@ -482,31 +515,15 @@ class PromptProjectionBuilder:
         lora_skipped_nested_count = 0
         candidates: list[_CollapseCandidate] = []
 
-        scene_document = parse_prompt_scene_projection_document(
-            document_view.source_text
-        )
-        for index, scene_block in enumerate(scene_document.scenes):
-            marker = scene_block.marker
-            invalid = marker.duplicate or marker.normalized_key in scene_error_keys
+        for scene_token in self._scene_projection.build_tokens(
+            document_view.source_text,
+            scene_error_keys=scene_error_keys,
+        ):
             candidates.append(
                 _CollapseCandidate(
-                    start=marker.line_range.start,
-                    end=marker.line_range.end,
-                    token=PromptProjectionToken(
-                        token_id=f"scene:{index}:{marker.line_range.start}",
-                        kind=PromptProjectionTokenKind.SCENE,
-                        source_start=marker.line_range.start,
-                        source_end=marker.line_range.end,
-                        display_text=marker.title,
-                        value_text=marker.normalized_key,
-                        style_variant="scene_error" if invalid else "scene_title",
-                        exists=not invalid,
-                        content_start=marker.title_range.start,
-                        content_end=marker.title_range.end,
-                        navigation_mode=(
-                            PromptProjectionTokenNavigationMode.TEXT_CONTENT
-                        ),
-                    ),
+                    start=scene_token.source_start,
+                    end=scene_token.source_end,
+                    token=scene_token,
                 )
             )
 

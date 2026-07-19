@@ -56,6 +56,9 @@ if TYPE_CHECKING:
         PromptSyntaxProfile,
         PromptSyntaxService,
     )
+    from substitute.application.prompt_editor.prompt_document_semantics import (
+        PromptDocumentSemanticsController,
+    )
     from ..async_work import (
         PromptLoraThumbnailPreloader,
         PromptScheduledLoraContextProvider,
@@ -95,6 +98,7 @@ class PromptEditorConstructionInputs:
     parent: QWidget | None
     prompt_autocomplete_gateway: PromptAutocompleteGateway
     prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway
+    prompt_document_semantics: PromptDocumentSemanticsController
     danbooru_url_import_service: DanbooruUrlImportService | None
     danbooru_wiki_service: DanbooruWikiContentService | None
     danbooru_image_preview_service: DanbooruImagePreviewService | None

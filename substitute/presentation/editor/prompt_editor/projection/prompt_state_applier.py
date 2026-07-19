@@ -166,6 +166,10 @@ class PromptProjectionPromptStateApplier:
                 source_revision=host._source_revision,
             )
         source_changed = document_view.source_text != host._document_view.source_text
+        semantics_changed = (
+            render_plan.document_semantics_identity
+            != host._render_plan.document_semantics_identity
+        )
         can_schedule_safe_typing = (
             host._projection_freshness_controller.can_schedule_prompt_state_projection(
                 host._projection_freshness_blockers()
@@ -238,6 +242,7 @@ class PromptProjectionPromptStateApplier:
             )
         if (
             not source_changed
+            and not semantics_changed
             and render_plan.syntax_spans == host._render_plan.syntax_spans
             and host._projection_document.source_text == document_view.source_text
             and host._projection_freshness_controller.has_pending_update()
@@ -261,6 +266,7 @@ class PromptProjectionPromptStateApplier:
             )
         if (
             not source_changed
+            and not semantics_changed
             and render_plan.syntax_spans == host._render_plan.syntax_spans
             and host._projection_freshness_controller.has_pending_update()
             and host._projection_freshness_controller.has_stale_projection_geometry()
@@ -293,6 +299,7 @@ class PromptProjectionPromptStateApplier:
             )
         if (
             not source_changed
+            and not semantics_changed
             and render_plan.syntax_spans == host._render_plan.syntax_spans
             and host._projection_document.source_text == document_view.source_text
         ):
@@ -343,6 +350,11 @@ class PromptProjectionPromptStateApplier:
         """Apply prompt state directly when projection geometry is identical."""
 
         host = self._host
+        if (
+            render_plan.document_semantics_identity
+            != host._render_plan.document_semantics_identity
+        ):
+            return False
         if render_plan.syntax_spans != host._render_plan.syntax_spans:
             return False
         active_span_range = host._active_span_range()

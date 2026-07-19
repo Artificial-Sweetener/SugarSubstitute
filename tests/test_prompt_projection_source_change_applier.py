@@ -396,6 +396,8 @@ class _SourceChangeHost:
         self.caret_visibility_checks = 0
         self.caret_blink_restarts = 0
         self.implicit_parenthesis_depth = 0
+        self.source_edit_requires_canonical_rebuild = False
+        self.source_topology_checks: list[tuple[str, str, int, int]] = []
 
     def emit_undo_available_changed(self, available: bool) -> None:
         """Record undo availability emission."""
@@ -502,6 +504,21 @@ class _SourceChangeHost:
         _ = start
         _ = end
         return False
+
+    def _source_edit_requires_canonical_rebuild(
+        self,
+        previous_source_text: str,
+        next_source_text: str,
+        *,
+        start: int,
+        end: int,
+    ) -> bool:
+        """Return configured source-local projection topology safety."""
+
+        self.source_topology_checks.append(
+            (previous_source_text, next_source_text, start, end)
+        )
+        return self.source_edit_requires_canonical_rebuild
 
     def _current_caret_document_rect(self) -> QRectF:
         """Return stable caret geometry for transient overlay tests."""
@@ -820,6 +837,43 @@ def test_source_change_applier_uses_semantic_remapper_for_optimistic_state() -> 
     assert host._document_view.source_text == "alpha!"
     assert host._render_plan.renderer_views == ()
     assert host._session.expanded_source_range == (0, 6)
+
+
+def test_source_change_applier_rebuilds_source_derived_projection_structure() -> None:
+    """Scene-like structure changes should bypass stale-safe text deferral."""
+
+    session = _projection_session("alpha")
+    source_change = session.replace_source_range(
+        start=5,
+        end=5,
+        replacement_text="x",
+        normalizer=PromptSourceNormalizationService(),
+        origin=PromptSourceEditOrigin.TYPED,
+        exact_source=True,
+        record_undo=True,
+        undo_snapshot=_projection_undo_snapshot("alpha"),
+    )
+    application = PromptProjectionSourceChangeApplication(
+        source_change=source_change,
+        previous_source_text="alpha",
+        origin=PromptSourceEditOrigin.TYPED,
+        signal_intent=PromptMutationSignalIntent(emit_text_changed=True),
+    )
+    host = _SourceChangeHost()
+    host._projection_freshness_controller.can_defer_projection = True
+    host.source_edit_requires_canonical_rebuild = True
+    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+
+    applier.apply_source_change_application(application)
+
+    request = host._incremental_apply_controller.requests[-1]
+    assert request.projection_deferral_reason == "source_projection_topology_changed"
+    assert host.source_topology_checks[-1] == ("alpha", "alphax", 5, 5)
+    assert host.marked_source_changes[-1] == (
+        False,
+        source_change.next_snapshot.source_revision,
+    )
+    assert host._document_view.source_text == "alphax"
 
 
 def test_source_change_applier_preserves_no_op_source_change_as_cursor_update() -> None:

@@ -36,6 +36,9 @@ from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionTokenKind,
 )
 from substitute.presentation.managed_text_assets import NumberedPromptEditorFrame
+from substitute.presentation.editor.prompt_editor.runtime_services import (
+    PromptEditorRuntimeServices,
+)
 from tests.prompt_autocomplete_test_helpers import EmptyPromptAutocompleteGateway
 from tests.prompt_projection_test_helpers import (
     StaticPromptWildcardCatalogGateway,
@@ -61,10 +64,12 @@ def _frame(
     """Create a numbered prompt editor frame with wildcard-management features."""
 
     return NumberedPromptEditorFrame(
-        prompt_autocomplete_gateway=EmptyPromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=StaticPromptWildcardCatalogGateway({}),
+        prompt_runtime_services=PromptEditorRuntimeServices(
+            autocomplete_gateway=EmptyPromptAutocompleteGateway(),
+            wildcard_catalog_gateway=StaticPromptWildcardCatalogGateway({}),
+            prompt_task_executor_factory=immediate_prompt_task_executor_factory(),
+        ),
         prompt_feature_profile=wildcard_management_prompt_feature_profile(),
-        prompt_task_executor_factory=immediate_prompt_task_executor_factory(),
         wheel_adjustment_mode=wheel_adjustment_mode,
     )
 

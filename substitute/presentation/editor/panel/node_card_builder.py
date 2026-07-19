@@ -1131,6 +1131,7 @@ class NodeCardBuilder:
         )
         try:
             prompt_services = self._services.prompt
+            prompt_runtime = prompt_services.runtime
             result = build_widget_for_field_spec(
                 parent=self.panel,
                 field_spec=ResolvedFieldSpec(
@@ -1149,43 +1150,43 @@ class NodeCardBuilder:
                     raw_value=field_spec.raw_value,
                     value_source=field_spec.value_source,
                 ),
-                prompt_autocomplete_gateway=prompt_services.autocomplete_gateway,
+                prompt_autocomplete_gateway=prompt_runtime.autocomplete_gateway,
                 prompt_wildcard_catalog_gateway=(
-                    prompt_services.wildcard_catalog_gateway
+                    prompt_runtime.wildcard_catalog_gateway
                 ),
                 danbooru_url_import_service=(
-                    prompt_services.danbooru_url_import_service
+                    prompt_runtime.danbooru_url_import_service
                 ),
-                danbooru_wiki_service=prompt_services.danbooru_wiki_service,
+                danbooru_wiki_service=prompt_runtime.danbooru_wiki_service,
                 danbooru_image_preview_service=(
-                    prompt_services.danbooru_image_preview_service
+                    prompt_runtime.danbooru_image_preview_service
                 ),
                 danbooru_recent_posts_service=(
-                    prompt_services.danbooru_recent_posts_service
+                    prompt_runtime.danbooru_recent_posts_service
                 ),
-                prompt_lora_catalog_service=prompt_services.lora_catalog_service,
+                prompt_lora_catalog_service=prompt_runtime.lora_catalog_service,
                 prompt_scheduled_lora_service=(
-                    prompt_services.scheduled_lora_service_or_default()
+                    prompt_runtime.scheduled_lora_service_or_default()
                 ),
                 scheduled_lora_resolver=scheduled_lora_resolver,
                 prompt_feature_profile=prompt_feature_profile,
                 prompt_syntax_profile=prompt_syntax_profile,
                 prompt_segment_preset_source=self._prompt_segment_preset_source,
-                prompt_spellcheck_service=prompt_services.spellcheck_service,
+                prompt_spellcheck_service=prompt_runtime.spellcheck_service,
                 model_choice_snapshot_controller=self._model_choice_snapshot_controller,
                 thumbnail_asset_repository=(
                     self._services.model.thumbnail_asset_repository
                 ),
                 model_metadata_action_handler=(
                     self._services.model.model_metadata_action_handler
-                    or prompt_services.model_metadata_action_handler
+                    or prompt_runtime.model_metadata_action_handler
                 ),
                 node_definition_gateway=self._services.node_definition_gateway,
                 prompt_task_executor_factory=(
-                    prompt_services.prompt_task_executor_factory
+                    prompt_runtime.prompt_task_executor_factory
                 ),
                 danbooru_lookup_dispatcher_factory=(
-                    prompt_services.danbooru_lookup_dispatcher_factory
+                    prompt_runtime.danbooru_lookup_dispatcher_factory
                 ),
                 model_picker_thumbnail_preload_route_factory=(
                     prompt_services.model_picker_thumbnail_preload_route_factory

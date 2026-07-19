@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Generic, TypeVar
 
 from substitute.presentation.editor.prompt_editor.editing_session import (
@@ -70,6 +70,16 @@ class PromptReplaceSourceRangeCommand(Generic[TPayload]):
             record_undo=self.replacement.record_undo,
             undo_snapshot=self.undo_snapshot,
         )
+        if self.replacement.cursor_position is not None:
+            cursor_state = session.set_cursor_positions(
+                cursor_position=self.replacement.cursor_position,
+                anchor_position=(
+                    self.replacement.cursor_position
+                    if self.replacement.anchor_position is None
+                    else self.replacement.anchor_position
+                ),
+            )
+            source_change = replace(source_change, cursor_state=cursor_state)
         return PromptCommandResult.from_source_change(self.name, source_change)
 
 
