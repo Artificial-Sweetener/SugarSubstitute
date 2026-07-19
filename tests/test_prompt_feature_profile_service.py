@@ -59,6 +59,27 @@ def test_feature_profile_service_disables_user_disabled_feature() -> None:
     )
 
 
+def test_library_profile_respects_preferences_without_workflow_lora_gating() -> None:
+    """Library editors should enable preferred LoRA features without a workflow."""
+
+    preferences = {feature: True for feature in PromptEditorFeature}
+    preferences[PromptEditorFeature.SPELLCHECK] = False
+    service = _profile_service(
+        preferences=PromptEditorPreferences(
+            schema_version=PROMPT_EDITOR_PREFERENCES_SCHEMA_VERSION,
+            user_allowed_features=preferences,
+        )
+    )
+
+    profile = service.build_library_profile()
+
+    assert profile.supports(PromptEditorFeature.LORA_SYNTAX) is True
+    assert profile.supports(PromptEditorFeature.LORA_AUTOCOMPLETE) is True
+    assert profile.supports(PromptEditorFeature.LORA_PICKER) is True
+    assert profile.supports(PromptEditorFeature.LORA_TRIGGER_WORDS) is True
+    assert profile.supports(PromptEditorFeature.SPELLCHECK) is False
+
+
 def test_feature_profile_service_disables_user_disabled_ghost_text() -> None:
     """User preferences should suppress autocomplete ghost text independently."""
 

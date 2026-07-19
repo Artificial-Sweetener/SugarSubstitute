@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter, OrderedDict
+from collections.abc import Hashable
 from dataclasses import dataclass
 from decimal import Decimal
 import hashlib
@@ -40,6 +41,13 @@ from .prompt_document_views import (
     PromptSyntaxSpanView,
     PromptWildcardView,
 )
+from .prompt_document_semantics import (
+    OrdinaryPromptDocumentSemantics,
+    PromptDocumentSemantics,
+    PromptValueMapping,
+)
+from .prompt_document_projector import PromptDocumentProjector
+from .prompt_structured_syntax_projector import PromptStructuredSyntaxProjector
 from .prompt_lora_catalog_service import (
     PromptLoraCatalogLookup,
     PromptLoraThumbnailVariant,
@@ -84,6 +92,7 @@ class PromptProjectionInputCacheKey:
     wildcard_catalog_revision: str
     lora_model_metadata_revision: str
     scene_parsing_version: str
+    document_semantics_identity: Hashable
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,6 +205,7 @@ class PromptSyntaxRenderPlan:
 
     syntax_spans: tuple[PromptSyntaxSpanView, ...]
     renderer_views: tuple[PromptSyntaxRendererView, ...]
+    document_semantics_identity: Hashable = "ordinary-prompt-v1"
 
     def renderer_view_for_kind(self, kind: str) -> PromptSyntaxRendererView | None:
         """Return the renderer view registered for one syntax kind."""
@@ -213,11 +223,19 @@ class PromptSyntaxService:
         self,
         prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
         prompt_lora_catalog_service: PromptLoraCatalogLookup | None = None,
+        document_semantics: PromptDocumentSemantics | None = None,
     ) -> None:
         """Store syntax metadata collaborators used for renderer resolution state."""
 
         self._prompt_wildcard_catalog_gateway = prompt_wildcard_catalog_gateway
         self._prompt_lora_catalog_service = prompt_lora_catalog_service
+        self._document_semantics = (
+            document_semantics or OrdinaryPromptDocumentSemantics()
+        )
+        self._structured_syntax_projector = PromptStructuredSyntaxProjector(
+            document_projector=PromptDocumentProjector(),
+            document_semantics=self._document_semantics,
+        )
         self._prompt_lora_resolution_service = PromptLoraResolutionService(
             prompt_lora_catalog_service
         )
@@ -234,6 +252,7 @@ class PromptSyntaxService:
             syntax_profile,
             wildcard_catalog=self._prompt_wildcard_catalog_gateway,
             lora_catalog=self._prompt_lora_catalog_service,
+            document_semantics=self._document_semantics,
         )
         with _RENDER_PLAN_CACHE_LOCK:
             cached = _RENDER_PLAN_CACHE.get(cache_key)
@@ -293,10 +312,19 @@ class PromptSyntaxService:
     ) -> PromptSyntaxRenderPlan:
         """Build the syntax render plan without consulting the shared cache."""
 
+        value_mappings = (
+            self._document_semantics.value_mappings_for_text(document_view.source_text)
+            if self._document_semantics.uses_structured_prompt_values
+            else OrdinaryPromptDocumentSemantics().value_mappings_for_text(
+                document_view.source_text
+            )
+        )
+        document_view = self._structured_syntax_projector.project(document_view)
         active_syntax_spans = tuple(
             span
             for span in document_view.syntax_spans
             if syntax_profile.supports(span.kind)
+            and _range_belongs_to_value(span.start, span.end, value_mappings)
         )
         renderer_views: list[PromptSyntaxRendererView] = []
 
@@ -308,7 +336,15 @@ class PromptSyntaxService:
                 PromptEmphasisRendererView(
                     kind=_EMPHASIS_KIND,
                     syntax_spans=emphasis_syntax_spans,
-                    emphasis_spans=document_view.emphasis_spans,
+                    emphasis_spans=tuple(
+                        span
+                        for span in document_view.emphasis_spans
+                        if _range_belongs_to_value(
+                            span.outer_start,
+                            span.outer_end,
+                            value_mappings,
+                        )
+                    ),
                 )
             )
 
@@ -320,7 +356,10 @@ class PromptSyntaxService:
                 PromptWildcardRendererView(
                     kind=_WILDCARD_KIND,
                     syntax_spans=wildcard_syntax_spans,
-                    wildcard_spans=self._wildcard_renderer_spans(document_view),
+                    wildcard_spans=self._wildcard_renderer_spans(
+                        document_view,
+                        value_mappings=value_mappings,
+                    ),
                 )
             )
 
@@ -328,7 +367,10 @@ class PromptSyntaxService:
             lora_syntax_spans = tuple(
                 span for span in active_syntax_spans if span.kind == _LORA_KIND
             )
-            lora_renderer_spans = self._lora_renderer_spans(document_view)
+            lora_renderer_spans = self._lora_renderer_spans(
+                document_view,
+                value_mappings=value_mappings,
+            )
             renderer_views.append(
                 PromptLoraRendererView(
                     kind=_LORA_KIND,
@@ -352,15 +394,27 @@ class PromptSyntaxService:
         render_plan = PromptSyntaxRenderPlan(
             syntax_spans=active_syntax_spans,
             renderer_views=tuple(renderer_views),
+            document_semantics_identity=self._document_semantics.identity,
         )
         return render_plan
 
     def _wildcard_renderer_spans(
         self,
         document_view: PromptDocumentView,
+        *,
+        value_mappings: tuple[PromptValueMapping, ...],
     ) -> tuple[PromptWildcardRendererSpanView, ...]:
         """Return renderer-ready wildcard spans with current catalog resolution state."""
 
+        wildcard_spans = tuple(
+            span
+            for span in document_view.wildcard_spans
+            if _range_belongs_to_value(
+                span.outer_start,
+                span.outer_end,
+                value_mappings,
+            )
+        )
         references = tuple(
             PromptWildcardReference(
                 identifier=span.identifier,
@@ -368,17 +422,17 @@ class PromptSyntaxService:
                 csv_column=span.csv_column,
                 tag=span.tag,
             )
-            for span in document_view.wildcard_spans
+            for span in wildcard_spans
         )
         resolutions = self._prompt_wildcard_catalog_gateway.resolve_references(
             references
         )
         occurrence_counts = Counter(
-            _wildcard_source_key(span) for span in document_view.wildcard_spans
+            _wildcard_source_key(span) for span in wildcard_spans
         )
         renderer_spans: list[PromptWildcardRendererSpanView] = []
         for wildcard_span, resolution in zip(
-            document_view.wildcard_spans,
+            wildcard_spans,
             resolutions,
             strict=True,
         ):
@@ -396,6 +450,8 @@ class PromptSyntaxService:
     def _lora_renderer_spans(
         self,
         document_view: PromptDocumentView,
+        *,
+        value_mappings: tuple[PromptValueMapping, ...],
     ) -> tuple[PromptLoraRendererSpanView, ...]:
         """Return renderer-ready LoRA spans with current catalog metadata."""
 
@@ -405,6 +461,11 @@ class PromptSyntaxService:
                 self._resolve_lora_catalog_item(lora_span.prompt_name),
             )
             for lora_span in document_view.lora_spans
+            if _range_belongs_to_value(
+                lora_span.outer_start,
+                lora_span.outer_end,
+                value_mappings,
+            )
         )
         return spans
 
@@ -687,6 +748,7 @@ def _render_plan_cache_key(
     *,
     wildcard_catalog: PromptWildcardCatalogGateway,
     lora_catalog: PromptLoraCatalogLookup | None,
+    document_semantics: PromptDocumentSemantics,
 ) -> PromptProjectionInputCacheKey:
     """Build the pure projection-input cache key for one syntax render request."""
 
@@ -699,7 +761,31 @@ def _render_plan_cache_key(
         wildcard_catalog_revision=_object_revision(wildcard_catalog),
         lora_model_metadata_revision=_object_revision(lora_catalog),
         scene_parsing_version=_PROMPT_SCENE_PARSING_VERSION,
+        document_semantics_identity=document_semantics.identity,
     )
+
+
+def _range_belongs_to_value(
+    start: int,
+    end: int,
+    value_mappings: tuple[PromptValueMapping, ...],
+) -> bool:
+    """Return whether a complete source range belongs to one prompt value."""
+
+    return _value_id_for_range(start, end, value_mappings) is not None
+
+
+def _value_id_for_range(
+    start: int,
+    end: int,
+    value_mappings: tuple[PromptValueMapping, ...],
+) -> str | None:
+    """Return the mapped value id containing one complete source range."""
+
+    for mapping in value_mappings:
+        if mapping.source_range.start <= start and end <= mapping.source_range.end:
+            return mapping.value_id
+    return None
 
 
 def _object_revision(value: object | None) -> str:
