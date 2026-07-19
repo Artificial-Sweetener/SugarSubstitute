@@ -46,6 +46,7 @@ from .layout_engine import (
     PromptProjectionLayout,
 )
 from .session import PromptProjectionSession
+from .scene_incremental_editor import PromptSceneProjectionIncrementalEditor
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +68,10 @@ class PromptProjectionIncrementalDocumentResult:
     first_dirty_source_position: int
     first_dirty_projection_position: int
     reason: str
+    edited_token_id: str | None = None
+    projection_edit_start: int | None = None
+    projection_edit_end: int | None = None
+    projection_replacement_text: str | None = None
 
 
 class PromptProjectionPlainTextApplyStatus(Enum):
@@ -102,6 +107,7 @@ class PromptProjectionIncrementalEditor:
         """Initialize rejection state for the last attempted edit."""
 
         self.last_rejection_reason = ""
+        self._scene_editor = PromptSceneProjectionIncrementalEditor()
 
     def fast_trailing_plain_insert_document(
         self,
@@ -441,6 +447,12 @@ class PromptProjectionIncrementalEditor:
                 first_dirty_projection_position=(
                     document_result.first_dirty_projection_position
                 ),
+                editable_token_id=document_result.edited_token_id,
+                projection_edit_start=document_result.projection_edit_start,
+                projection_edit_end=document_result.projection_edit_end,
+                projection_replacement_text=(
+                    document_result.projection_replacement_text
+                ),
             )
         if layout_result is None:
             rejection_reason = layout.last_incremental_reflow_rejection_reason
@@ -473,7 +485,7 @@ class PromptProjectionIncrementalEditor:
     ) -> PromptProjectionIncrementalDocumentResult | None:
         """Return an incremental projection document for a safe plain text edit."""
 
-        del active_span_range, decoration_accent_ranges, scene_error_keys
+        del active_span_range, decoration_accent_ranges
         self.last_rejection_reason = ""
         if display_mode is not PromptProjectionDisplayMode.PROJECTED:
             return self._reject("display_mode_not_projected")
@@ -490,14 +502,29 @@ class PromptProjectionIncrementalEditor:
             return self._reject("edit_text_mismatch")
         if not _is_supported_plain_text_incremental_edit(edit):
             return self._reject("unsupported_plain_text_incremental_edit")
-        if _edit_intersects_token(edit, previous_document.tokens):
-            return self._reject("edit_intersects_token")
-        if _edit_intersects_syntax_span(edit, render_plan.syntax_spans):
-            return self._reject("edit_intersects_syntax_span")
         edited_run = _source_backed_plain_text_run_for_edit(
             edit,
             previous_document.runs,
         )
+        edited_scene_run = self._scene_editor.editable_title_run(
+            previous_document=previous_document,
+            start=edit.start,
+            end=edit.end,
+            replacement_text=edit.replacement_text,
+        )
+        if edited_scene_run is not None:
+            edited_run = edited_scene_run
+        editable_token_id = (
+            None if edited_scene_run is None else edited_scene_run.token_id
+        )
+        if _edit_intersects_token(
+            edit,
+            previous_document.tokens,
+            editable_token_id=editable_token_id,
+        ):
+            return self._reject("edit_intersects_token")
+        if _edit_intersects_syntax_span(edit, render_plan.syntax_spans):
+            return self._reject("edit_intersects_syntax_span")
         if edited_run is None:
             return self._reject("no_source_backed_plain_text_run")
         if (
@@ -510,6 +537,12 @@ class PromptProjectionIncrementalEditor:
             edited_run,
             edit.start,
         )
+        if (
+            first_dirty_projection_position is None
+            and edited_scene_run is not None
+            and edit.start >= edited_scene_run.source_end
+        ):
+            first_dirty_projection_position = edited_scene_run.projection_end
         if first_dirty_projection_position is None:
             return self._reject("source_boundary_not_projected")
 
@@ -520,14 +553,39 @@ class PromptProjectionIncrementalEditor:
                 previous_document=previous_document,
                 edited_run=edited_run,
                 first_dirty_projection_position=first_dirty_projection_position,
+                editable_token_id=editable_token_id,
             )
         except ValueError:
             return self._reject("invalid_incremental_projection_document")
+        if editable_token_id is not None:
+            assert edited_scene_run is not None
+            scene_result = self._scene_editor.reconcile_document(
+                projection_document,
+                edited_token_id=editable_token_id,
+                previous_title=edited_scene_run.display_text,
+                scene_error_keys=scene_error_keys,
+            )
+            if scene_result is None:
+                return self._reject("scene_title_edit_requires_canonical_projection")
+            projection_document = scene_result.document
+            projection_edit_start = scene_result.projection_start
+            projection_edit_end = scene_result.projection_end
+            projection_replacement_text = scene_result.projection_replacement_text
+        else:
+            projection_edit_start = first_dirty_projection_position
+            projection_edit_end = first_dirty_projection_position + (
+                edit.end - edit.start
+            )
+            projection_replacement_text = edit.replacement_text
         return PromptProjectionIncrementalDocumentResult(
             projection_document=projection_document,
             first_dirty_source_position=edit.start,
             first_dirty_projection_position=first_dirty_projection_position,
             reason="plain_text_incremental",
+            edited_token_id=editable_token_id,
+            projection_edit_start=projection_edit_start,
+            projection_edit_end=projection_edit_end,
+            projection_replacement_text=projection_replacement_text,
         )
 
     def _reject(
@@ -576,15 +634,21 @@ def _is_supported_plain_text_incremental_edit(
 def _edit_intersects_token(
     edit: PromptProjectionIncrementalEdit,
     tokens: tuple[PromptProjectionToken, ...],
+    *,
+    editable_token_id: str | None = None,
 ) -> bool:
     """Return whether the source edit touches projected token structure."""
 
     if edit.start == edit.end:
         return any(
-            token.source_start < edit.start < token.source_end for token in tokens
+            token.token_id != editable_token_id
+            and token.source_start < edit.start < token.source_end
+            for token in tokens
         )
     return any(
-        edit.start < token.source_end and token.source_start < edit.end
+        token.token_id != editable_token_id
+        and edit.start < token.source_end
+        and token.source_start < edit.end
         for token in tokens
     )
 
@@ -654,6 +718,7 @@ def _apply_plain_text_document_edit(
     previous_document: PromptProjectionDocument,
     edited_run: PromptProjectionRun,
     first_dirty_projection_position: int,
+    editable_token_id: str | None = None,
 ) -> PromptProjectionDocument:
     """Return a projection document with one plain text edit applied."""
 
@@ -677,7 +742,12 @@ def _apply_plain_text_document_edit(
         for run in previous_document.runs
     )
     next_tokens = tuple(
-        _remap_token_after_source_edit(token, edit=edit, delta=source_delta)
+        _remap_token_after_source_edit(
+            token,
+            edit=edit,
+            delta=source_delta,
+            editable_content=token.token_id == editable_token_id,
+        )
         for token in previous_document.tokens
     )
     next_mapping = PromptProjectionMapping(
@@ -810,6 +880,7 @@ def _remap_token_after_source_edit(
     *,
     edit: PromptProjectionIncrementalEdit,
     delta: int,
+    editable_content: bool = False,
 ) -> PromptProjectionToken:
     """Return one token shifted across a non-intersecting source edit."""
 
@@ -820,7 +891,7 @@ def _remap_token_after_source_edit(
             edit_start=edit.start,
             edit_end=edit.end,
             delta=delta,
-            move_insert_boundary=True,
+            move_insert_boundary=not editable_content,
         ),
         source_end=_remap_position_after_source_edit(
             token.source_end,
@@ -833,7 +904,7 @@ def _remap_token_after_source_edit(
             token.content_start,
             edit=edit,
             delta=delta,
-            move_insert_boundary=True,
+            move_insert_boundary=not editable_content,
         ),
         content_end=_remap_optional_position_after_source_edit(
             token.content_end,

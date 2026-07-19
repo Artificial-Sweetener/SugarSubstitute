@@ -28,6 +28,9 @@ from substitute.application.prompt_editor import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.projection import incremental_editor
+from substitute.presentation.editor.prompt_editor.projection.builder import (
+    PromptProjectionBuilder,
+)
 from substitute.presentation.editor.prompt_editor.projection.incremental_editor import (
     PromptProjectionIncrementalEdit,
     PromptProjectionIncrementalEditor,
@@ -802,6 +805,97 @@ def test_incremental_plain_selection_delete_remaps_caret_stops_lazily() -> None:
         delete_start
     )
     assert base_stops.item_access_count == 0
+
+
+def test_incremental_scene_title_insert_updates_token_and_later_source_geometry() -> (
+    None
+):
+    """Scene title growth should update its token and shift later scenes locally."""
+
+    previous_text = "**One\nbody\n**Two\nmore"
+    insert_at = len("**One")
+    next_text = previous_text[:insert_at] + "X" + previous_text[insert_at:]
+    editor = PromptProjectionIncrementalEditor()
+
+    result = editor.try_build_plain_text_edit(
+        PromptProjectionIncrementalEdit(
+            start=insert_at,
+            end=insert_at,
+            replacement_text="X",
+            previous_source_text=previous_text,
+            next_source_text=next_text,
+        ),
+        previous_document=_scene_projection_document(previous_text),
+        document_view=PromptDocumentService().build_document_view(next_text),
+        render_plan=PromptSyntaxRenderPlan(syntax_spans=(), renderer_views=()),
+        display_mode=PromptProjectionDisplayMode.PROJECTED,
+        session=PromptProjectionSession(),
+        active_span_range=None,
+        decoration_accent_ranges=(),
+        scene_error_keys=frozenset(),
+    )
+
+    assert result is not None
+    scene_tokens = result.projection_document.tokens
+    assert tuple(token.display_text for token in scene_tokens) == ("OneX", "Two")
+    assert scene_tokens[0].content_end == len("**OneX")
+    assert scene_tokens[1].source_start == previous_text.index("**Two") + 1
+    assert result.projection_document.projection_text == "OneX\nbody\nTwo\nmore"
+    canonical_document = _scene_projection_document(next_text)
+    assert tuple(
+        (stop.state.source_position, stop.projection_position, stop.state.placement)
+        for stop in result.projection_document.caret_map.stops
+    ) == tuple(
+        (stop.state.source_position, stop.projection_position, stop.state.placement)
+        for stop in canonical_document.caret_map.stops
+    )
+
+
+def test_incremental_scene_title_edit_recomputes_duplicate_style() -> None:
+    """A local title edit should immediately restyle the newly duplicate scene."""
+
+    previous_text = "**One\nbody\n**Owe\nmore"
+    replace_at = previous_text.index("w")
+    next_text = previous_text[:replace_at] + "n" + previous_text[replace_at + 1 :]
+    editor = PromptProjectionIncrementalEditor()
+
+    result = editor.try_build_plain_text_edit(
+        PromptProjectionIncrementalEdit(
+            start=replace_at,
+            end=replace_at + 1,
+            replacement_text="n",
+            previous_source_text=previous_text,
+            next_source_text=next_text,
+        ),
+        previous_document=_scene_projection_document(previous_text),
+        document_view=PromptDocumentService().build_document_view(next_text),
+        render_plan=PromptSyntaxRenderPlan(syntax_spans=(), renderer_views=()),
+        display_mode=PromptProjectionDisplayMode.PROJECTED,
+        session=PromptProjectionSession(),
+        active_span_range=None,
+        decoration_accent_ranges=(),
+        scene_error_keys=frozenset(),
+    )
+
+    assert result is not None
+    scene_tokens = result.projection_document.tokens
+    assert tuple(token.value_text for token in scene_tokens) == ("one", "one")
+    assert tuple(token.style_variant for token in scene_tokens) == (
+        "scene_title",
+        "scene_error",
+    )
+    assert result.projection_document.projection_text == "One\nbody\nOne\nmore"
+
+
+def _scene_projection_document(text: str) -> PromptProjectionDocument:
+    """Build canonical scene projection state for incremental edit tests."""
+
+    return PromptProjectionBuilder().build_projection(
+        PromptDocumentService().build_document_view(text),
+        PromptSyntaxRenderPlan(syntax_spans=(), renderer_views=()),
+        display_mode=PromptProjectionDisplayMode.PROJECTED,
+        session=PromptProjectionSession(),
+    )
 
 
 def _plain_text_projection_document(
