@@ -41,6 +41,7 @@ class ManagedTextAsset:
     editable: bool
     can_rename: bool
     can_delete: bool
+    enabled: bool | None = None
     metadata: tuple[tuple[str, str], ...] = ()
 
 
@@ -51,6 +52,7 @@ class CreateManagedTextAssetRequest:
     label: str
     kind: ManagedTextAssetKind
     content: str = ""
+    category: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

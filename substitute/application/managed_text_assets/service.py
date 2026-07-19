@@ -54,6 +54,9 @@ class ManagedTextAssetService(Protocol):
     def delete_asset(self, asset_id: str) -> None:
         """Delete one asset."""
 
+    def set_asset_enabled(self, asset_id: str, enabled: bool) -> ManagedTextAsset:
+        """Set optional participation state for one asset."""
+
     def refresh(self) -> None:
         """Refresh backend caches used by managed assets."""
 

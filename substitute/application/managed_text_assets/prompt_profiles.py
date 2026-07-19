@@ -14,26 +14,26 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Expose managed text asset application contracts and adapters."""
+"""Provide editor profiles for line-based managed text assets."""
 
 from __future__ import annotations
 
-from .models import (
-    CreateManagedTextAssetRequest,
-    ManagedTextAsset,
-    ManagedTextAssetKind,
-    RenameManagedTextAssetRequest,
+from substitute.domain.prompt import (
+    PromptEditorFeature,
+    PromptEditorFeatureProfile,
+    PromptFeatureDecision,
 )
-from .autocomplete_list_adapter import AutocompleteListManagedTextAssetService
-from .service import ManagedTextAssetService
-from .wildcard_adapter import WildcardManagedTextAssetService
 
-__all__ = [
-    "AutocompleteListManagedTextAssetService",
-    "CreateManagedTextAssetRequest",
-    "ManagedTextAsset",
-    "ManagedTextAssetKind",
-    "ManagedTextAssetService",
-    "RenameManagedTextAssetRequest",
-    "WildcardManagedTextAssetService",
-]
+
+def line_list_prompt_feature_profile() -> PromptEditorFeatureProfile:
+    """Return a plain editor profile that preserves one literal tag per line."""
+
+    return PromptEditorFeatureProfile(
+        decisions=tuple(
+            PromptFeatureDecision(feature=feature, enabled=False)
+            for feature in PromptEditorFeature
+        )
+    )
+
+
+__all__ = ["line_list_prompt_feature_profile"]

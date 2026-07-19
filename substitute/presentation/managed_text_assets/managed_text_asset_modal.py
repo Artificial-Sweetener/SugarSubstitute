@@ -19,10 +19,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import cast
 
 from PySide6.QtCore import QEvent, QObject, Qt, Signal
-from PySide6.QtGui import QColor, QFontMetrics, QPalette, QShowEvent
+from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -31,22 +31,18 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QSizePolicy,
-    QStyleOptionViewItem,
-    QStyledItemDelegate,
     QVBoxLayout,
     QWidget,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
     CaptionLabel,
     FluentIcon,
-    ListItemDelegate,
     ListWidget,
     MessageBoxBase,
     PrimaryPushButton,
     PushButton,
     SimpleCardWidget,
     ToolButton,
-    isDarkTheme,
 )
 from shiboken6 import isValid
 
@@ -80,12 +76,19 @@ from substitute.presentation.editor.prompt_editor.composition import (
 from substitute.presentation.managed_text_assets.numbered_prompt_editor_frame import (
     NumberedPromptEditorFrame,
 )
+from substitute.presentation.managed_text_assets.managed_text_asset_list import (
+    ASSET_ID_ROLE,
+    HEADER_KIND_ROLE,
+    STRIPE_ROLE,
+    AssetEntry,
+    AssetListItemDelegate,
+    AssetRow,
+    group_assets,
+    muted_text_color,
+)
 from substitute.shared.logging.logger import get_logger, log_exception
 
 _LOGGER = get_logger("presentation.managed_text_assets.modal")
-_HEADER_KIND_ROLE = Qt.ItemDataRole.UserRole + 1
-_ASSET_ID_ROLE = Qt.ItemDataRole.UserRole + 2
-_STRIPE_ROLE = Qt.ItemDataRole.UserRole + 3
 _FALLBACK_PARENT: QWidget | None = None
 _MODAL_WIDTH = 980
 _MODAL_MINIMUM_HEIGHT = 360
@@ -101,150 +104,7 @@ class ManagedTextAssetCreateAction:
     label: str
     kind: ManagedTextAssetKind
     default_content: str = ""
-
-
-@dataclass(frozen=True, slots=True)
-class _AssetEntry:
-    """Track the list item and row widget for one asset."""
-
-    asset: ManagedTextAsset
-    item: QListWidgetItem
-    row: "_AssetRow"
-
-
-class _AssetRow(QWidget):
-    """Render one selectable managed text asset row."""
-
-    selected = Signal(str)
-
-    def __init__(
-        self,
-        asset: ManagedTextAsset,
-        *,
-        parent: QWidget | None = None,
-    ) -> None:
-        """Create an asset list row."""
-
-        super().__init__(parent)
-        self._asset = asset
-        self._full_label = asset.label
-        self._full_subtitle = asset.subtitle
-        self.setMinimumHeight(56)
-        self.setToolTip(asset.subtitle)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(10)
-
-        text_container = QWidget(self)
-        text_layout = QVBoxLayout(text_container)
-        text_layout.setContentsMargins(0, 0, 0, 0)
-        text_layout.setSpacing(0)
-        self._label = QLabel(asset.label, text_container)
-        self._label.setMinimumWidth(0)
-        self._label.setSizePolicy(
-            QSizePolicy.Policy.Ignored,
-            QSizePolicy.Policy.Preferred,
-        )
-        self._label.setStyleSheet("font-weight: 600; margin: 0; padding: 0;")
-        text_layout.addWidget(self._label)
-        self._subtitle = CaptionLabel(asset.subtitle, text_container)
-        self._subtitle.setMinimumWidth(0)
-        self._subtitle.setSizePolicy(
-            QSizePolicy.Policy.Ignored,
-            QSizePolicy.Policy.Preferred,
-        )
-        self._subtitle.setStyleSheet(
-            f"QLabel{{color:{_muted_text_color().name()}; margin: -2px 0 0 0;}}"
-        )
-        text_layout.addWidget(self._subtitle)
-        layout.addWidget(text_container, 1)
-
-    def resizeEvent(self, event) -> None:  # type: ignore[no-untyped-def]  # noqa: N802
-        """Refresh elided text after row width changes."""
-
-        super().resizeEvent(event)
-        self._apply_elision()
-
-    def showEvent(self, event) -> None:  # type: ignore[no-untyped-def]  # noqa: N802
-        """Refresh elided text when Qt has real row geometry."""
-
-        super().showEvent(event)
-        self._apply_elision()
-
-    def mousePressEvent(self, event) -> None:  # type: ignore[no-untyped-def]  # noqa: N802
-        """Select this asset when the row body is clicked."""
-
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.selected.emit(self._asset.id)
-        super().mousePressEvent(event)
-
-    def _apply_elision(self) -> None:
-        """Elide long labels and subtitles to keep dense rows stable."""
-
-        width = max(0, self.width() - 20)
-        label_metrics = QFontMetrics(self._label.font())
-        subtitle_metrics = QFontMetrics(self._subtitle.font())
-        self._label.setText(
-            label_metrics.elidedText(
-                self._full_label,
-                Qt.TextElideMode.ElideRight,
-                width,
-            )
-        )
-        self._subtitle.setText(
-            subtitle_metrics.elidedText(
-                self._full_subtitle,
-                Qt.TextElideMode.ElideRight,
-                width,
-            )
-        )
-
-
-class _AssetListItemDelegate(ListItemDelegate):  # type: ignore[misc]
-    """Paint section headers and asset row state like the Hunters reference modal."""
-
-    def paint(self, painter, option, index) -> None:  # type: ignore[no-untyped-def]
-        """Paint header rows without hover and asset rows with subtle state overlays."""
-
-        if index.data(_HEADER_KIND_ROLE) == "header":
-            painter.save()
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(option.palette.brush(QPalette.ColorRole.Base))
-            painter.drawRect(option.rect)
-            painter.restore()
-            return
-
-        painter.save()
-        painter.setPen(Qt.PenStyle.NoPen)
-        patched_option = cast(Any, QStyleOptionViewItem(option))
-        patched_option.rect.adjust(0, self.margin, 0, -self.margin)
-        stripe_index = index.data(_STRIPE_ROLE)
-        is_hover = self.hoverRow == index.row()
-        is_pressed = self.pressedRow == index.row()
-        is_selected = index.row() in self.selectedRows
-        is_alternate = isinstance(stripe_index, int) and stripe_index % 2 == 0
-        grayscale = 255 if isDarkTheme() else 0
-        alpha = 0
-        if is_selected:
-            alpha = 25 if is_hover else 17
-            if is_pressed:
-                alpha = 15 if isDarkTheme() else 9
-        elif is_pressed:
-            alpha = 9 if isDarkTheme() else 6
-        elif is_hover:
-            alpha = 12
-        elif is_alternate:
-            alpha = 5
-        painter.setBrush(QColor(grayscale, grayscale, grayscale, alpha))
-        self._drawBackground(painter, patched_option, index)
-        if (
-            is_selected
-            and index.column() == 0
-            and self.parent().horizontalScrollBar().value() == 0
-        ):
-            self._drawIndicator(painter, patched_option, index)
-        painter.restore()
-        QStyledItemDelegate.paint(self, painter, patched_option, index)
+    category: str | None = None
 
 
 class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
@@ -282,7 +142,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         self._empty_text = empty_text
         self._create_actions = create_actions
         self._assets: dict[str, ManagedTextAsset] = {}
-        self._entries: dict[str, _AssetEntry] = {}
+        self._entries: dict[str, AssetEntry] = {}
         self._original_text: dict[str, str] = {}
         self._edited_text: dict[str, str] = {}
         self._current_asset_id: str | None = None
@@ -404,7 +264,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             "ListWidget:hover { background: transparent; }"
             "ListWidget::item { background: transparent; }"
         )
-        self._asset_list.setItemDelegate(_AssetListItemDelegate(self._asset_list))
+        self._asset_list.setItemDelegate(AssetListItemDelegate(self._asset_list))
         self._asset_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         left_layout.addWidget(self._asset_list, 1)
         body_layout.addWidget(left_card, _LIST_PANE_STRETCH)
@@ -532,28 +392,28 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             self._asset_list.setItemWidget(item, label)
             return
         row_index = 0
-        for group, group_assets in _group_assets(assets):
+        for group, grouped_assets in group_assets(assets):
             header_item = QListWidgetItem(self._asset_list)
-            header_item.setData(_HEADER_KIND_ROLE, "header")
+            header_item.setData(HEADER_KIND_ROLE, "header")
             header_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-            header = CaptionLabel(f"{group} ({len(group_assets)})", self._asset_list)
+            header = CaptionLabel(f"{group} ({len(grouped_assets)})", self._asset_list)
             header.setStyleSheet(
-                f"QLabel{{color:{_muted_text_color().name()}; font-weight: 700;}}"
+                f"QLabel{{color:{muted_text_color().name()}; font-weight: 700;}}"
             )
             header_item.setSizeHint(header.sizeHint())
             self._asset_list.setItemWidget(header_item, header)
-            for asset in group_assets:
+            for asset in grouped_assets:
                 item = QListWidgetItem(self._asset_list)
-                item.setData(_ASSET_ID_ROLE, asset.id)
-                item.setData(_STRIPE_ROLE, row_index)
-                row = _AssetRow(
+                item.setData(ASSET_ID_ROLE, asset.id)
+                item.setData(STRIPE_ROLE, row_index)
+                row = AssetRow(
                     asset,
                     parent=self._asset_list,
                 )
                 row.selected.connect(self._select_asset)
                 item.setSizeHint(row.sizeHint())
                 self._asset_list.setItemWidget(item, row)
-                self._entries[asset.id] = _AssetEntry(asset=asset, item=item, row=row)
+                self._entries[asset.id] = AssetEntry(asset=asset, item=item, row=row)
                 row_index += 1
 
     def _on_current_item_changed(
@@ -565,7 +425,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
 
         if current is None:
             return
-        asset_id = current.data(_ASSET_ID_ROLE)
+        asset_id = current.data(ASSET_ID_ROLE)
         if isinstance(asset_id, str):
             self._select_asset(asset_id)
 
@@ -708,7 +568,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         label, accepted = QInputDialog.getText(
             self,
             action.label,
-            "Wildcard identifier:",
+            "Name:",
         )
         if not accepted or not label.strip():
             return
@@ -718,6 +578,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
                     label=label.strip(),
                     kind=action.kind,
                     content=action.default_content,
+                    category=action.category,
                 )
             )
         except Exception as exc:
@@ -731,18 +592,27 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         self.reload()
 
     def _show_context_menu(self, position) -> None:  # type: ignore[no-untyped-def]
-        """Show asset row context actions for rename and delete."""
+        """Show asset row context actions supported by the selected asset."""
 
         item = self._asset_list.itemAt(position)
         if item is None:
             return
-        asset_id = item.data(_ASSET_ID_ROLE)
+        asset_id = item.data(ASSET_ID_ROLE)
         if not isinstance(asset_id, str):
             return
         asset = self._assets.get(asset_id)
         if asset is None:
             return
         entries: list[MenuItem] = []
+        if asset.enabled is not None:
+            entries.append(
+                MenuItem(
+                    "managed_text_asset.toggle_enabled",
+                    "Disable" if asset.enabled else "Enable",
+                    callback=lambda: self._toggle_asset_enabled(asset),
+                    icon=FluentIcon.PAUSE,
+                )
+            )
         if asset.can_rename:
             entries.append(
                 MenuItem(
@@ -773,7 +643,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         label, accepted = QInputDialog.getText(
             self,
             "Rename wildcard",
-            "Wildcard identifier:",
+            "Name:",
             text=asset.label,
         )
         if not accepted or not label.strip() or label.strip() == asset.label:
@@ -796,6 +666,23 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         if edited_text is not None:
             self._edited_text[renamed.id] = edited_text
         self._pending_selection_id = renamed.id
+        self.reload()
+
+    def _toggle_asset_enabled(self, asset: ManagedTextAsset) -> None:
+        """Toggle optional asset participation through its owning service."""
+
+        if asset.enabled is None:
+            return
+        try:
+            updated = self._service.set_asset_enabled(asset.id, not asset.enabled)
+        except Exception as exc:
+            self._report_error(
+                title="Unable to update asset",
+                operation="managed_text_asset.toggle_enabled",
+                error=exc,
+            )
+            return
+        self._pending_selection_id = updated.id
         self.reload()
 
     def _delete_asset(self, asset: ManagedTextAsset) -> None:
@@ -872,23 +759,6 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         if self._error_presenter is None:
             self._error_presenter = ErrorPresenter(parent=self)
         return self._error_presenter
-
-
-def _group_assets(
-    assets: tuple[ManagedTextAsset, ...],
-) -> tuple[tuple[str, tuple[ManagedTextAsset, ...]], ...]:
-    """Group sorted assets by display group while preserving input order."""
-
-    groups: dict[str, list[ManagedTextAsset]] = {}
-    for asset in assets:
-        groups.setdefault(asset.group, []).append(asset)
-    return tuple((group, tuple(group_assets)) for group, group_assets in groups.items())
-
-
-def _muted_text_color() -> QColor:
-    """Return the muted secondary text color used by asset rows."""
-
-    return QColor(170, 170, 170) if isDarkTheme() else QColor(110, 110, 110)
 
 
 def _fallback_parent() -> QWidget:
