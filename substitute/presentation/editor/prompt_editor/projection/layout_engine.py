@@ -25,8 +25,7 @@ import gc
 from typing import TYPE_CHECKING, cast, overload
 
 from PySide6.QtCore import QPointF, QRectF, QSizeF
-from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPalette, QTextLayout
-from PySide6.QtGui import QTextOption
+from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPalette
 from substitute.application.prompt_editor import (
     PromptDocumentView,
     PromptGapBlankLineDropTarget,
@@ -41,6 +40,11 @@ from .line_layout import (
     PromptProjectionLineLayoutBuilder,
     tag_keep_source_range_at_position,
     tag_keep_source_ranges_in_source_line,
+)
+from .incremental_text_layout import (
+    build_edited_text_fragment,
+    editable_text_fragment,
+    text_boundary_offsets,
 )
 from .metrics import PromptProjectionMetrics, PromptProjectionMetricsFactory
 from .model import (
@@ -951,8 +955,12 @@ class PromptProjectionLayout:
         edit_end: int,
         replacement_text: str,
         first_dirty_projection_position: int,
+        editable_token_id: str | None = None,
+        projection_edit_start: int | None = None,
+        projection_edit_end: int | None = None,
+        projection_replacement_text: str | None = None,
     ) -> PromptProjectionIncrementalLayoutResult | None:
-        """Apply a one-character non-wrapping plain edit without full relayout."""
+        """Apply a one-character non-wrapping source-backed text edit locally."""
 
         line_index: int | None = None
         dirty_line_inline_fragment_count = 0
@@ -970,9 +978,10 @@ class PromptProjectionLayout:
             projection_document.mapping.projection_length
             - previous_document.mapping.projection_length
         )
-        if (source_delta > 1 or projection_delta != source_delta) or (
-            source_delta == 0 and edit_start == edit_end
-        ):
+        if (
+            source_delta > 1
+            or (projection_delta != source_delta and editable_token_id is None)
+        ) or (source_delta == 0 and edit_start == edit_end):
             return reject("unsupported_edit_delta")
         if "\n" in replacement_text or "\r" in replacement_text:
             return reject("newline_edit")
@@ -1001,11 +1010,14 @@ class PromptProjectionLayout:
                 replacement_text=replacement_text,
             )
         )
-        affected_fragment = _plain_text_fragment_for_edit(
-            previous_line,
+        affected_fragment = editable_text_fragment(
+            previous_line.fragments,
             edit_start=edit_start,
             edit_end=edit_end,
             replacement_text=replacement_text,
+            editable_token_id=editable_token_id,
+            projection_edit_start=projection_edit_start,
+            projection_edit_end=projection_edit_end,
         )
         empty_line_insert_fragment: PromptProjectionTextFragment | None = None
         if affected_fragment is None and replacement_text:
@@ -1032,13 +1044,16 @@ class PromptProjectionLayout:
             next_run = projection_document.run_by_id(affected_fragment.run_id)
             if next_run is None:
                 return reject("updated_run_not_found")
-            next_fragment = _edited_text_fragment(
+            next_fragment = build_edited_text_fragment(
                 affected_fragment,
                 next_run=next_run,
                 edit_start=edit_start,
                 edit_end=edit_end,
                 replacement_text=replacement_text,
                 base_font=self._base_font,
+                projection_edit_start=projection_edit_start,
+                projection_edit_end=projection_edit_end,
+                projection_replacement_text=projection_replacement_text,
             )
             if next_fragment is None:
                 return reject("fragment_edit_not_supported")
@@ -1046,15 +1061,30 @@ class PromptProjectionLayout:
             next_fragment = empty_line_insert_fragment
             if next_fragment is None:
                 return reject("empty_line_insert_not_supported")
-        if _plain_edit_touches_visual_word_wrap_boundary(
-            previous_snapshot.lines,
-            dirty_line_index=line_index,
-            line=previous_line,
-            next_source_text=projection_document.source_text,
-            edit_start=edit_start,
-            edit_end=edit_end,
-            replacement_text=replacement_text,
-            source_delta=source_delta,
+        editable_run = (
+            None
+            if affected_fragment is None
+            else previous_document.run_by_id(affected_fragment.run_id)
+        )
+        editable_token_stays_in_one_fragment = bool(
+            editable_token_id is not None
+            and affected_fragment is not None
+            and editable_run is not None
+            and affected_fragment.projection_start == editable_run.projection_start
+            and affected_fragment.projection_end == editable_run.projection_end
+        )
+        if (
+            not editable_token_stays_in_one_fragment
+            and _plain_edit_touches_visual_word_wrap_boundary(
+                previous_snapshot.lines,
+                dirty_line_index=line_index,
+                line=previous_line,
+                next_source_text=projection_document.source_text,
+                edit_start=edit_start,
+                edit_end=edit_end,
+                replacement_text=replacement_text,
+                source_delta=source_delta,
+            )
         ):
             return reject("word_wrap_boundary")
 
@@ -1129,7 +1159,7 @@ class PromptProjectionLayout:
             caret_count=max(
                 0,
                 len(previous_snapshot.caret_rects_by_projection_position)
-                + source_delta,
+                + projection_delta,
             ),
         )
         self._projection_document = projection_document
@@ -1659,7 +1689,7 @@ class PromptProjectionLayout:
         next_fragment_source_positions = tuple(
             previous_fragment.source_positions
         ) + tuple(range(previous_source_length + 1, next_source_length + 1))
-        next_fragment_boundary_offsets = _text_boundary_offsets(
+        next_fragment_boundary_offsets = text_boundary_offsets(
             next_fragment_text,
             self._base_font,
         )
@@ -4649,35 +4679,6 @@ def _edit_touches_source_range(
     return edit_start < range_end and range_start < edit_end
 
 
-def _plain_text_fragment_for_edit(
-    line: PromptProjectionLineSnapshot,
-    *,
-    edit_start: int,
-    edit_end: int,
-    replacement_text: str,
-) -> PromptProjectionTextFragment | None:
-    """Return the source-backed plain text fragment containing one edit."""
-
-    for fragment in line.fragments:
-        if not isinstance(fragment, PromptProjectionTextFragment):
-            continue
-        if fragment.token_id is not None:
-            continue
-        try:
-            start_index = fragment.source_positions.index(edit_start)
-        except ValueError:
-            continue
-        if replacement_text and edit_start == edit_end:
-            return fragment
-        try:
-            end_index = fragment.source_positions.index(edit_end)
-        except ValueError:
-            continue
-        if end_index > start_index:
-            return fragment
-    return None
-
-
 def _plain_text_run_for_empty_line_insert(
     projection_document: PromptProjectionDocument,
     *,
@@ -4736,7 +4737,7 @@ def _text_fragment_for_empty_line_insert(
     ) != tuple(range(edit_start, edit_start + len(replacement_text) + 1)):
         return None
     fragment_font = projection_text_run_font(next_run, base_font)
-    boundary_offsets = _text_boundary_offsets(replacement_text, fragment_font)
+    boundary_offsets = text_boundary_offsets(replacement_text, fragment_font)
     if len(boundary_offsets) != len(replacement_text) + 1:
         return None
     font_metrics = QFontMetricsF(fragment_font)
@@ -4756,78 +4757,6 @@ def _text_fragment_for_empty_line_insert(
             max(1.0, text_height),
         ),
         baseline=text_top + float(font_metrics.ascent()),
-        boundary_offsets=boundary_offsets,
-        active=next_run.active,
-    )
-
-
-def _edited_text_fragment(
-    fragment: PromptProjectionTextFragment,
-    *,
-    next_run: PromptProjectionRun,
-    edit_start: int,
-    edit_end: int,
-    replacement_text: str,
-    base_font: QFont,
-) -> PromptProjectionTextFragment | None:
-    """Return an edited text fragment when the edit remains inside one line."""
-
-    try:
-        local_start = fragment.source_positions.index(edit_start)
-    except ValueError:
-        return None
-    source_delta = len(replacement_text) - (edit_end - edit_start)
-    projection_delta = source_delta
-    try:
-        local_end = fragment.source_positions.index(edit_end)
-    except ValueError:
-        return None
-    if local_end < local_start:
-        return None
-    next_text = (
-        fragment.text[:local_start] + replacement_text + fragment.text[local_end:]
-    )
-    if not next_text:
-        return None
-    next_source_positions = (
-        tuple(fragment.source_positions[: local_start + 1])
-        + tuple(edit_start + index for index in range(1, len(replacement_text) + 1))
-        + tuple(
-            position + source_delta
-            for position in fragment.source_positions[local_end + 1 :]
-        )
-    )
-
-    next_projection_end = fragment.projection_end + projection_delta
-    if (
-        next_projection_end <= fragment.projection_start
-        or next_run.projection_start > fragment.projection_start
-        or next_run.projection_end < next_projection_end
-    ):
-        return None
-    expected_text = next_run.display_text[
-        fragment.projection_start - next_run.projection_start : next_projection_end
-        - next_run.projection_start
-    ]
-    if expected_text != next_text:
-        return None
-    boundary_offsets = _text_boundary_offsets(
-        next_text,
-        projection_text_run_font(next_run, base_font),
-    )
-    if len(boundary_offsets) != len(next_text) + 1:
-        return None
-    next_rect = QRectF(fragment.rect)
-    next_rect.setWidth(max(1.0, boundary_offsets[-1]))
-    return PromptProjectionTextFragment(
-        run_id=fragment.run_id,
-        token_id=fragment.token_id,
-        projection_start=fragment.projection_start,
-        projection_end=next_projection_end,
-        text=next_text,
-        source_positions=next_source_positions,
-        rect=next_rect,
-        baseline=fragment.baseline,
         boundary_offsets=boundary_offsets,
         active=next_run.active,
     )
@@ -5835,30 +5764,6 @@ def _source_line_ranges(source_text: str) -> tuple[tuple[int, int], ...]:
         line_start = index + 1
     ranges.append((line_start, len(source_text)))
     return tuple(ranges)
-
-
-def _text_boundary_offsets(text: str, font: QFont) -> tuple[float, ...]:
-    """Return horizontal offsets for every character boundary in one text fragment."""
-
-    if not text:
-        return (0.0,)
-    text_option = QTextOption()
-    text_option.setWrapMode(QTextOption.WrapMode.NoWrap)
-    text_layout = QTextLayout(text, font)
-    text_layout.setTextOption(text_option)
-    text_layout.beginLayout()
-    text_line = text_layout.createLine()
-    if text_line.isValid():
-        text_line.setLineWidth(
-            max(1.0, QFontMetricsF(font).horizontalAdvance(text) + 1.0)
-        )
-    text_layout.endLayout()
-    if not text_line.isValid():
-        return (0.0,)
-    return tuple(
-        float(cast(tuple[float, int], text_line.cursorToX(index))[0])
-        for index in range(len(text) + 1)
-    )
 
 
 def _source_line_intersects_visual_line(

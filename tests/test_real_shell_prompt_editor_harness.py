@@ -30,6 +30,10 @@ from PySide6.QtWidgets import QWidget
 import pytest
 
 from substitute.application.model_metadata import ModelCatalogItem, ModelCatalogSnapshot
+from substitute.application.managed_text_assets.wildcard_text_document_semantics import (
+    WildcardTextDocumentSemantics,
+)
+from substitute.application.prompt_editor import PromptDiagnosticKind
 from substitute.application.user_presets import UserPresetService
 from substitute.domain.user_presets import UserPreset
 from substitute.presentation.editor.catalog.snapshots import CatalogSnapshotReadiness
@@ -48,6 +52,7 @@ from tests.real_shell_prompt_editor_harness import (
 from tests.prompt_projection_surface_test_helpers import (
     RecordingThumbnailAssetRepository,
     StaticPromptLoraCatalog,
+    delay_projection_update_scheduler,
     lora_catalog_item_with_banner,
 )
 
@@ -108,6 +113,190 @@ def test_real_shell_harness_edits_update_cube_buffer_through_field_wiring(
     assert field.workflow.cube_state.dirty is True
 
 
+def test_real_shell_typed_scene_marker_projects_on_first_title_character(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Scene syntax should project synchronously once a marker has a title."""
+
+    field = harness.add_prompt_workflow(initial_text="")
+
+    timeline = harness.probe_typed_scene_projection(field)
+
+    first_title_sample = next(
+        sample for sample in timeline if sample.label == "character-2:S"
+    )
+    first_asterisk_sample = timeline[0]
+    second_asterisk_sample = timeline[1]
+    settled_sample = timeline[-1]
+    assert first_asterisk_sample.source_text == "*"
+    assert first_asterisk_sample.scene_titles == ()
+    assert second_asterisk_sample.source_text == "**"
+    assert second_asterisk_sample.scene_titles == ()
+    assert first_title_sample.source_text == "**S"
+    assert first_title_sample.scene_titles == ("S",)
+    assert first_title_sample.projection_text == "S"
+    assert all(
+        sample.projection_text != "**Scene"
+        for sample in timeline
+        if sample.source_text == "**Scene"
+    )
+    assert settled_sample.document_view_source_text == "**Scene"
+    assert settled_sample.scene_titles == ("Scene",)
+    assert settled_sample.projection_has_pending_update is False
+    assert settled_sample.semantic_refresh_pending is False
+    assert settled_sample.semantic_refresh_active is False
+    assert settled_sample.cursor_position == len("**Scene")
+    assert settled_sample.focus_active is True
+
+
+def test_real_shell_typed_scene_marker_projects_after_existing_prompt_line(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Rapid scene typing should project at a multiline prompt boundary."""
+
+    initial_text = "quality\n"
+    field = harness.add_prompt_workflow(initial_text=initial_text)
+    harness.set_source_cursor_position(field, len(initial_text))
+
+    timeline = harness.probe_typed_scene_projection(field)
+
+    first_title_sample = next(
+        sample for sample in timeline if sample.label == "character-2:S"
+    )
+    settled_sample = timeline[-1]
+    assert first_title_sample.source_text == "quality\n**S"
+    assert first_title_sample.scene_titles == ("S",)
+    assert "**S" not in first_title_sample.projection_text
+    assert settled_sample.source_text == "quality\n**Scene"
+    assert settled_sample.scene_titles == ("Scene",)
+    assert settled_sample.projection_has_pending_update is False
+    assert settled_sample.semantic_refresh_pending is False
+    assert settled_sample.semantic_refresh_active is False
+    assert settled_sample.cursor_position == len(settled_sample.source_text)
+    assert settled_sample.focus_active is True
+
+
+def test_real_shell_routine_typing_around_scenes_never_rebuilds_projection(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Existing scene geometry should remap locally for ordinary source edits."""
+
+    cases = (
+        ("before-scene", "quality\n**Portrait\nstudio", 0),
+        ("scene-title-end", "**Portrait\nstudio", len("**Portrait")),
+        (
+            "scene-title-next-word",
+            "**Portrait\nstudio",
+            len("**Portrait"),
+        ),
+        (
+            "before-later-scene",
+            "**Portrait\nstudio\n**Landscape\nfield",
+            len("**Portrait\nstudio"),
+        ),
+        (
+            "long-prompt-before-scene",
+            f"{'quality, ' * 400}\n**Portrait\nstudio",
+            0,
+        ),
+    )
+    for label, initial_text, cursor_position in cases:
+        field = harness.add_prompt_workflow(
+            alias=f"scene-path-{label}",
+            initial_text=initial_text,
+        )
+        harness.set_source_cursor_position(field, cursor_position)
+
+        typed_text = " abc" if label == "scene-title-next-word" else "abc"
+        probe = harness.probe_typed_projection_paths(field, typed_text)
+
+        assert probe.canonical_rebuild_count == 0, (
+            label,
+            probe.apply_paths,
+            probe.incremental_rejection_reasons,
+            probe.layout_rejection_reasons,
+        )
+        assert "full_rebuild" not in probe.apply_paths, (label, probe)
+        assert probe.source_text == (
+            initial_text[:cursor_position] + typed_text + initial_text[cursor_position:]
+        )
+        if label == "long-prompt-before-scene":
+            assert probe.elapsed_ms < 750.0
+
+
+def test_real_shell_scene_marker_formation_rebuilds_and_projects_immediately(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """A genuine scene-topology transition should take the canonical path."""
+
+    field = harness.add_prompt_workflow(initial_text="")
+
+    probe = harness.probe_typed_projection_paths(field, "**S")
+
+    assert probe.canonical_rebuild_count >= 1
+    assert "full_rebuild" in probe.apply_paths
+    assert probe.scene_titles == ("S",)
+    assert probe.projection_text == "S"
+
+
+def test_real_shell_scene_typing_coalesces_against_live_previous_source(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Deferred scene-document typing must not compare against stale projection text."""
+
+    initial_text = "quality\n**Portrait\nstudio"
+    field = harness.add_prompt_workflow(initial_text=initial_text)
+    surface = cast(Any, field.editor)._surface
+    delay_projection_update_scheduler(surface)
+    harness.set_source_cursor_position(field, 0)
+
+    probe = harness.probe_typed_projection_paths(field, "abc")
+
+    assert probe.canonical_rebuild_count == 0
+    assert "full_rebuild" not in probe.apply_paths
+    assert probe.source_text == f"abc{initial_text}"
+    assert surface.projection_document().source_text == f"abc{initial_text}"
+
+
+def test_real_shell_scene_deletion_uses_local_path_until_topology_changes(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Scene text deletion should stay local except when it removes the marker."""
+
+    title_field = harness.add_prompt_workflow(
+        alias="scene-title-delete",
+        initial_text="**Scene\nbody",
+    )
+    harness.set_source_cursor_position(title_field, len("**Scene"))
+
+    title_probe = harness.probe_projection_key_path(
+        title_field,
+        key=Qt.Key.Key_Backspace,
+        label="backspace",
+    )
+
+    assert title_probe.canonical_rebuild_count == 0
+    assert title_probe.scene_titles == ("Scen",)
+    assert "full_rebuild" not in title_probe.apply_paths
+
+    topology_field = harness.add_prompt_workflow(
+        alias="scene-topology-delete",
+        initial_text="**S\nbody",
+    )
+    harness.set_source_cursor_position(topology_field, len("**S"))
+
+    topology_probe = harness.probe_projection_key_path(
+        topology_field,
+        key=Qt.Key.Key_Backspace,
+        label="backspace",
+    )
+
+    assert topology_probe.canonical_rebuild_count >= 1
+    assert "full_rebuild" in topology_probe.apply_paths
+    assert topology_probe.scene_titles == ()
+    assert topology_probe.projection_text == "**\nbody"
+
+
 def test_real_shell_harness_uses_real_prompt_editor_composition(
     harness: RealShellPromptEditorHarness,
 ) -> None:
@@ -125,6 +314,48 @@ def test_real_shell_harness_uses_real_prompt_editor_composition(
 
     assert harness.autocomplete_gateway.calls[-1][0] == "re"
     assert getattr(editor, "_autocomplete_panel", None) is not None
+
+
+def test_real_shell_same_source_semantics_switch_rebuilds_scene_state(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """A same-text semantics switch should remove scenes and publish marker errors."""
+
+    source = "**portrait\n{missing}"
+    field = harness.add_prompt_workflow(initial_text=source)
+    editor = cast(Any, field.editor)
+    harness.wait_until(
+        lambda: any(
+            token.kind.value == "scene"
+            for token in editor._surface.projection_document().tokens
+        )
+    )
+
+    editor.replaceBaselineSourceDocument(source, WildcardTextDocumentSemantics())
+    editor._diagnostics_feature_controller.refresh_now()
+    harness.wait_until(
+        lambda: all(
+            token.kind.value != "scene"
+            for token in editor._surface.projection_document().tokens
+        )
+    )
+    harness.wait_until(
+        lambda: any(
+            diagnostic.kind is PromptDiagnosticKind.UNSUPPORTED_SCENE_MARKER
+            for diagnostic in editor._diagnostics_feature_controller.snapshot.diagnostics
+        )
+    )
+
+    assert editor.toPlainText() == source
+    assert editor._scene_feature_controller.scene_key_for_source_position(0) is None
+    assert (
+        editor._document_service.scene_autocomplete_query_at_cursor(
+            text=source,
+            cursor_position=2,
+            has_selection=False,
+        )
+        is None
+    )
 
 
 def test_real_shell_select_all_highlights_blank_rows_between_projected_paragraphs(

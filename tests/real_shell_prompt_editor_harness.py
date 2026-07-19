@@ -26,7 +26,7 @@ import math
 import platform
 import random
 import sys
-from time import thread_time
+from time import perf_counter, thread_time
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -48,6 +48,7 @@ from PySide6.QtGui import (
     QImage,
     QKeySequence,
     QMouseEvent,
+    QPainter,
     QTextCursor,
 )
 from PySide6.QtTest import QTest
@@ -208,6 +209,49 @@ class PromptEditorObservedEvent:
     panel_before: str
     panel_after: str
     result: str
+
+
+@dataclass(frozen=True, slots=True)
+class PromptSceneProjectionTimelineSample:
+    """Record scene projection state after one input or event-loop boundary."""
+
+    label: str
+    elapsed_ms: float
+    source_text: str
+    document_view_source_text: str
+    projection_text: str
+    scene_titles: tuple[str, ...]
+    projection_freshness: str
+    projection_has_pending_update: bool
+    semantic_refresh_pending: bool
+    semantic_refresh_active: bool
+    cursor_position: int
+    focus_active: bool
+
+
+@dataclass(frozen=True, slots=True)
+class PromptProjectionTypingPathProbe:
+    """Record projection apply paths selected during one typed text sequence."""
+
+    typed_text: str
+    elapsed_ms: float
+    canonical_rebuild_count: int
+    apply_paths: tuple[str, ...]
+    incremental_rejection_reasons: tuple[str, ...]
+    layout_rejection_reasons: tuple[str, ...]
+    source_text: str
+    projection_text: str
+    scene_titles: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PromptSourceLineChromeRenderProbe:
+    """Capture rendered source-line colors and the layout that supplied them."""
+
+    label: str
+    reorder_overlay_active: bool
+    projection_preview_active: bool
+    line_colors: tuple[tuple[int, tuple[int, int, int, int]], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -936,6 +980,212 @@ class RealShellPromptEditorHarness:
         QTest.keyClicks(target, text)
         self._trace_actions.append(PromptEditorTraceAction("type_text", text))
         self.process_events(cycles=8)
+
+    def probe_typed_scene_projection(
+        self,
+        field: PromptFieldHandle,
+        *,
+        marker_text: str = "**Scene",
+        settle_ms: int = 300,
+        sample_interval_ms: int = 10,
+    ) -> tuple[PromptSceneProjectionTimelineSample, ...]:
+        """Probe scene projection after each real key and bounded event-loop turn."""
+
+        if settle_ms < 0:
+            raise ValueError("Scene probe settle duration must not be negative.")
+        if sample_interval_ms <= 0:
+            raise ValueError("Scene probe sample interval must be positive.")
+
+        target = self.focus_editor(field)
+        started_at = perf_counter()
+        samples: list[PromptSceneProjectionTimelineSample] = []
+        for character_index, character in enumerate(marker_text):
+            QTest.keyClicks(target, character)
+            samples.append(
+                _scene_projection_timeline_sample(
+                    field.editor,
+                    label=f"character-{character_index}:{character}",
+                    started_at=started_at,
+                )
+            )
+
+        elapsed_ms = 0
+        while elapsed_ms < settle_ms:
+            self.drain_events_for(sample_interval_ms)
+            elapsed_ms += sample_interval_ms
+            samples.append(
+                _scene_projection_timeline_sample(
+                    field.editor,
+                    label=f"settle-{elapsed_ms}ms",
+                    started_at=started_at,
+                )
+            )
+        self._trace_actions.append(PromptEditorTraceAction("type_text", marker_text))
+        return tuple(samples)
+
+    def probe_typed_projection_paths(
+        self,
+        field: PromptFieldHandle,
+        text: str,
+    ) -> PromptProjectionTypingPathProbe:
+        """Type through the real shell and record canonical versus local apply paths."""
+
+        def type_text(target: QWidget) -> None:
+            """Send the requested text through Qt's real key route."""
+
+            QTest.keyClicks(target, text)
+
+        probe = self._probe_projection_paths(
+            field,
+            input_label=text,
+            input_action=type_text,
+        )
+        self._trace_actions.append(PromptEditorTraceAction("type_text", text))
+        return probe
+
+    def probe_projection_key_path(
+        self,
+        field: PromptFieldHandle,
+        *,
+        key: Qt.Key,
+        label: str,
+    ) -> PromptProjectionTypingPathProbe:
+        """Send one editing key and record canonical versus local apply paths."""
+
+        def press_key(target: QWidget) -> None:
+            """Send the requested editing key through Qt's real key route."""
+
+            QTest.keyClick(target, key)
+
+        probe = self._probe_projection_paths(
+            field,
+            input_label=label,
+            input_action=press_key,
+        )
+        self._trace_actions.append(PromptEditorTraceAction("key", label, key=int(key)))
+        return probe
+
+    def _probe_projection_paths(
+        self,
+        field: PromptFieldHandle,
+        *,
+        input_label: str,
+        input_action: Callable[[QWidget], None],
+    ) -> PromptProjectionTypingPathProbe:
+        """Record production projection paths around one headless input action."""
+
+        target = self.focus_editor(field)
+        surface = cast(Any, field.editor)._surface
+        incremental_controller = surface._incremental_apply_controller
+        original_rebuild = surface._rebuild_projection
+        original_apply = incremental_controller.apply_source_change_projection
+        canonical_rebuild_count = 0
+        apply_paths: list[str] = []
+        incremental_rejection_reasons: list[str] = []
+        layout_rejection_reasons: list[str] = []
+
+        def counted_rebuild() -> object:
+            """Count and invoke one production canonical projection rebuild."""
+
+            nonlocal canonical_rebuild_count
+            canonical_rebuild_count += 1
+            return original_rebuild()
+
+        def recorded_apply(request: object) -> object:
+            """Record the production apply path chosen for one source change."""
+
+            outcome = original_apply(request)
+            apply_paths.append(str(outcome.apply_path.value))
+            incremental_rejection_reasons.append(
+                str(incremental_controller._incremental_editor.last_rejection_reason)
+            )
+            layout_rejection_reasons.append(
+                str(surface._layout.last_incremental_reflow_rejection_reason)
+            )
+            return outcome
+
+        surface._rebuild_projection = counted_rebuild
+        incremental_controller.apply_source_change_projection = recorded_apply
+        started_at = perf_counter()
+        try:
+            input_action(target)
+            self.process_events(cycles=8)
+        finally:
+            surface._rebuild_projection = original_rebuild
+            incremental_controller.apply_source_change_projection = original_apply
+
+        sample = _scene_projection_timeline_sample(
+            field.editor,
+            label="typing-path-probe",
+            started_at=started_at,
+        )
+        return PromptProjectionTypingPathProbe(
+            typed_text=input_label,
+            elapsed_ms=sample.elapsed_ms,
+            canonical_rebuild_count=canonical_rebuild_count,
+            apply_paths=tuple(apply_paths),
+            incremental_rejection_reasons=tuple(incremental_rejection_reasons),
+            layout_rejection_reasons=tuple(layout_rejection_reasons),
+            source_text=sample.source_text,
+            projection_text=sample.projection_text,
+            scene_titles=sample.scene_titles,
+        )
+
+    @staticmethod
+    def capture_source_line_chrome_render_probe(
+        editor: PromptEditor,
+        *,
+        label: str,
+    ) -> PromptSourceLineChromeRenderProbe:
+        """Render source-line chrome headlessly using active preview geometry."""
+
+        for _cycle in range(4):
+            QApplication.processEvents()
+        surface = cast(Any, editor)._surface
+        preview_layout = surface._reorder_preview_projection.preview_layout
+        layout = preview_layout if preview_layout is not None else surface._layout
+        viewport = surface.viewport()
+        image = QImage(
+            max(1, editor.width()),
+            max(1, editor.height()),
+            QImage.Format.Format_ARGB32_Premultiplied,
+        )
+        image.fill(0)
+        painter = QPainter(image)
+        try:
+            editor.render(painter, QPoint(0, 0))
+        finally:
+            painter.end()
+
+        source_lines = surface._source_line_chrome.source_line_rects(
+            layout=layout,
+            viewport_rect=QRectF(viewport.rect()),
+            scroll_offset=surface._scroll_offset(),
+        )
+        sample_x = max(0, viewport.width() - 4)
+        line_colors: list[tuple[int, tuple[int, int, int, int]]] = []
+        for source_line in source_lines:
+            viewport_y = max(
+                0,
+                min(viewport.height() - 1, int(source_line.rect.center().y())),
+            )
+            editor_position = viewport.mapTo(editor, QPoint(sample_x, viewport_y))
+            color = image.pixelColor(editor_position)
+            line_colors.append(
+                (
+                    source_line.line_index,
+                    (color.red(), color.green(), color.blue(), color.alpha()),
+                )
+            )
+        segment_overlay = editor._segment_overlay
+        return PromptSourceLineChromeRenderProbe(
+            label=label,
+            reorder_overlay_active=bool(
+                isinstance(segment_overlay, QWidget) and segment_overlay.isVisible()
+            ),
+            projection_preview_active=preview_layout is not None,
+            line_colors=tuple(line_colors),
+        )
 
     def paste_text(self, field: PromptFieldHandle, text: str) -> None:
         """Paste text through the real clipboard and editor key route."""
@@ -3735,6 +3985,41 @@ def _autocomplete_owner_state(editor: PromptEditor) -> dict[str, Any]:
     }
 
 
+def _scene_projection_timeline_sample(
+    editor: PromptEditor,
+    *,
+    label: str,
+    started_at: float,
+) -> PromptSceneProjectionTimelineSample:
+    """Capture the scene-relevant projection owners without draining events."""
+
+    surface = cast(Any, editor)._surface
+    interaction_controller = cast(Any, editor)._interaction_controller
+    semantic_refresh = interaction_controller._semantic_refresh
+    projection_document = surface._projection_document
+    scene_titles = tuple(
+        str(token.display_text)
+        for token in projection_document.tokens
+        if getattr(getattr(token, "kind", None), "value", None) == "scene"
+    )
+    return PromptSceneProjectionTimelineSample(
+        label=label,
+        elapsed_ms=(perf_counter() - started_at) * 1000.0,
+        source_text=editor.toPlainText(),
+        document_view_source_text=str(surface._document_view.source_text),
+        projection_text=str(projection_document.projection_text),
+        scene_titles=scene_titles,
+        projection_freshness=str(surface._projection_freshness_controller.freshness),
+        projection_has_pending_update=bool(
+            surface._projection_freshness_controller.has_pending_update()
+        ),
+        semantic_refresh_pending=semantic_refresh._pending_request is not None,
+        semantic_refresh_active=semantic_refresh._active_task_identity is not None,
+        cursor_position=int(editor.textCursor().position()),
+        focus_active=bool(editor.hasFocus()),
+    )
+
+
 def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     """Return source, caret, and projection state from the real projection owner."""
 
@@ -5820,6 +6105,9 @@ __all__ = [
     "PromptEditorTrace",
     "PromptEditorTraceAction",
     "PromptEditorStateSnapshot",
+    "PromptSceneProjectionTimelineSample",
+    "PromptProjectionTypingPathProbe",
+    "PromptSourceLineChromeRenderProbe",
     "PromptEditorVisibleLayoutRow",
     "PromptEditorVisibleTextFragment",
     "PromptFieldHandle",
