@@ -24,7 +24,7 @@ from typing import Protocol
 
 from substitute.domain.generation import (
     DEFAULT_OUTPUT_PATH_PATTERN,
-    OutputOrganizationPreferences,
+    OutputPreferences,
     OutputRunBucket,
 )
 
@@ -37,8 +37,8 @@ _SUPPORTED_IMAGE_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 class OutputPatternPreferenceProvider(Protocol):
     """Provide the active output organization pattern."""
 
-    def load_preferences(self) -> OutputOrganizationPreferences:
-        """Return normalized output organization preferences."""
+    def load_preferences(self) -> OutputPreferences:
+        """Return normalized output preferences."""
 
 
 class FileOutputRunNumberAllocator:
@@ -70,7 +70,7 @@ class FileOutputRunNumberAllocator:
         """Return the currently configured output path pattern."""
 
         if self._output_preferences is not None:
-            return self._output_preferences.load_preferences().path_pattern
+            return self._output_preferences.load_preferences().organization.path_pattern
         return self._path_pattern or DEFAULT_OUTPUT_PATH_PATTERN
 
     def _max_existing_run_number(

@@ -73,9 +73,9 @@ if TYPE_CHECKING:
         LiveEventSceneFields,
         live_event_scene_fields,
     )
-    from substitute.application.generation.output_organization_service import (
-        OutputOrganizationPreferenceService,
-        OutputOrganizationSaveResult,
+    from substitute.application.generation.output_preference_service import (
+        OutputPreferenceSaveResult,
+        OutputPreferenceService,
     )
     from substitute.application.generation.output_path_template_renderer import (
         OutputPathTemplateError,
@@ -142,7 +142,11 @@ if TYPE_CHECKING:
         GenerationPreviewMethod,
         GenerationPreviewPreferences,
         GenerationQueueJob,
-        OutputOrganizationPreferences,
+        JpegOutputSettings,
+        JpegSizingMode,
+        OutputOrganizationSettings,
+        OutputPersistenceMode,
+        OutputPreferences,
         OutputPathRenderContext,
         OutputPathRenderResult,
         TaesdPreviewAssetStatus,
@@ -227,13 +231,17 @@ _LAZY_EXPORTS = {
     "ModelLoadProgressViewState": (
         "substitute.application.generation.progress_service"
     ),
-    "OutputOrganizationPreferenceService": (
-        "substitute.application.generation.output_organization_service"
+    "OutputPreferenceService": (
+        "substitute.application.generation.output_preference_service"
     ),
-    "OutputOrganizationPreferences": "substitute.domain.generation",
-    "OutputOrganizationSaveResult": (
-        "substitute.application.generation.output_organization_service"
+    "OutputPreferenceSaveResult": (
+        "substitute.application.generation.output_preference_service"
     ),
+    "OutputPreferences": "substitute.domain.generation",
+    "OutputOrganizationSettings": "substitute.domain.generation",
+    "OutputPersistenceMode": "substitute.domain.generation",
+    "JpegOutputSettings": "substitute.domain.generation",
+    "JpegSizingMode": "substitute.domain.generation",
     "OutputRunProjectionCacheKeyProvider": (
         "substitute.application.generation.job_queue_service"
     ),
@@ -401,9 +409,13 @@ __all__ = [
     "WorkflowProgressService",
     "WorkflowProgressState",
     "ModelLoadProgressViewState",
-    "OutputOrganizationPreferenceService",
-    "OutputOrganizationPreferences",
-    "OutputOrganizationSaveResult",
+    "OutputPreferenceService",
+    "OutputPreferenceSaveResult",
+    "OutputPreferences",
+    "OutputOrganizationSettings",
+    "OutputPersistenceMode",
+    "JpegOutputSettings",
+    "JpegSizingMode",
     "OutputRunProjectionCacheKeyProvider",
     "OutputPathRenderContext",
     "OutputPathRenderResult",

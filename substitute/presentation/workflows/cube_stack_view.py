@@ -96,6 +96,7 @@ class CubeStack(ReorderableTabBarBase):
     cubeRenameRequested = Signal(str, str)
     cubeDuplicateRequested = Signal(str)
     cubeBypassToggleRequested = Signal(str)
+    cubeOutputPersistenceToggleRequested = Signal(str)
     aliasEditingFinished = Signal(str)
     cubeMoved = Signal(int, int)
     cubeMoveFinished = Signal()
@@ -231,6 +232,13 @@ class CubeStack(ReorderableTabBarBase):
         if route_key:
             self.cubeBypassToggleRequested.emit(route_key)
 
+    def _onOutputPersistenceToggleRequested(self, tab_item: CubeItem) -> None:
+        """Forward an output-persistence request with the cube route key."""
+
+        route_key = tab_item.routeKey() or ""
+        if route_key:
+            self.cubeOutputPersistenceToggleRequested.emit(route_key)
+
     def _onDuplicateRequested(self, tab_item: CubeItem) -> None:
         """Forward a duplicate request with the current route key."""
 
@@ -271,6 +279,9 @@ class CubeStack(ReorderableTabBarBase):
             item.aliasEditingFinished.connect(self._onAliasEditingFinished)
             item.duplicateRequested.connect(self._onDuplicateRequested)
             item.bypassToggleRequested.connect(self._onBypassToggleRequested)
+            item.outputPersistenceToggleRequested.connect(
+                self._onOutputPersistenceToggleRequested
+            )
         self._presentation_geometry.apply_item(item)
         self._schedule_indicator_realign()
         return item
@@ -333,6 +344,15 @@ class CubeStack(ReorderableTabBarBase):
         item = self.items[index]
         if isinstance(item, CubeItem):
             item.setBypassed(bypassed)
+
+    def setTabOutputPersistenceEnabled(self, index: int, enabled: bool) -> None:
+        """Apply workflow-local output persistence state to one cube tab."""
+
+        if not 0 <= index < len(self.items):
+            return
+        item = self.items[index]
+        if isinstance(item, CubeItem):
+            item.setOutputPersistenceEnabled(enabled)
 
     def setCompact(self, compact: bool) -> None:
         """Toggle icons-only stack presentation."""

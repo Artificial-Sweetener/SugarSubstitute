@@ -41,18 +41,24 @@ from substitute.domain.generation.preview_preferences import (
 )
 from substitute.domain.generation.output_organization import (
     DEFAULT_OUTPUT_PATH_PATTERN,
-    OUTPUT_ORGANIZATION_PREFERENCES_SCHEMA_VERSION,
     SUPPORTED_OUTPUT_PATH_TOKEN_NAMES,
     SUPPORTED_OUTPUT_PATH_TOKENS,
-    OutputOrganizationPreferences,
     OutputPathPattern,
     OutputPathRenderContext,
     OutputPathRenderResult,
     OutputPathToken,
     OutputRunBucket,
-    default_output_organization_preferences,
 )
 from substitute.domain.generation.output_position import OutputResultPosition
+from substitute.domain.generation.output_preferences import (
+    default_output_preferences,
+    JpegOutputSettings,
+    JpegSizingMode,
+    OUTPUT_PREFERENCES_SCHEMA_VERSION,
+    OutputOrganizationSettings,
+    OutputPersistenceMode,
+    OutputPreferences,
+)
 from substitute.domain.generation.result_snapshot import (
     GENERATION_RESULT_SNAPSHOT_SCHEMA_VERSION,
     GenerationResultSnapshot,
@@ -79,8 +85,12 @@ __all__ = [
     "GenerationPreviewMethod",
     "GenerationPreviewPreferences",
     "GenerationQueueJob",
-    "OUTPUT_ORGANIZATION_PREFERENCES_SCHEMA_VERSION",
-    "OutputOrganizationPreferences",
+    "JpegOutputSettings",
+    "JpegSizingMode",
+    "OUTPUT_PREFERENCES_SCHEMA_VERSION",
+    "OutputOrganizationSettings",
+    "OutputPersistenceMode",
+    "OutputPreferences",
     "OutputPathPattern",
     "OutputPathRenderContext",
     "OutputPathRenderResult",
@@ -96,7 +106,7 @@ __all__ = [
     "TaesdPreviewAssetState",
     "TaesdPreviewAssetStatus",
     "default_generation_preview_preferences",
-    "default_output_organization_preferences",
+    "default_output_preferences",
     "seed_control_state_from_json",
     "seed_control_state_to_json",
     "seed_mode_from_value",

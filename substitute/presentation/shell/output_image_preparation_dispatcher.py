@@ -18,17 +18,20 @@
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Callable
+from dataclasses import dataclass
 from itertools import count
 from pathlib import Path
 from time import perf_counter
 from typing import Protocol
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtGui import QImage
 
 from substitute.application.execution import (
     ExecutionContext,
+    ExecutionLaneSaturatedError,
     TaskIdentity,
     TaskOutcome,
     TaskRequest,
@@ -48,6 +51,7 @@ from substitute.shared.logging.logger import (
 )
 
 _LOGGER = get_logger("presentation.shell.output_image_preparation_dispatcher")
+_SATURATION_RETRY_INTERVAL_MS = 25
 
 
 class OutputImageLoader(Protocol):
@@ -75,6 +79,14 @@ class CanvasIoOutputImageLoader:
         return image if isinstance(image, QImage) else None
 
 
+@dataclass(frozen=True, slots=True)
+class _QueuedOutputPreparation:
+    """Retain one output until the shared image-decode lane can admit it."""
+
+    task_request: TaskRequest[PreparedOutputImage | FailedOutputImagePreparation]
+    commit_request: OutputImageCommitRequest
+
+
 class OutputImagePreparationDispatcher(QObject):
     """Dispatch output-image preparation through the shared execution layer."""
 
@@ -95,14 +107,20 @@ class OutputImagePreparationDispatcher(QObject):
         self._loader = loader
         self._request_ids = count(1)
         self._close_submitter = close_submitter
+        self._queued_preparations: deque[_QueuedOutputPreparation] = deque()
+        self._is_shutdown = False
         self._task_scope = TaskScope(
             submitter=submitter,
             scope_id=f"output_image_preparation_{id(self):x}",
         )
+        self._submission_retry_timer = QTimer(self)
+        self._submission_retry_timer.setSingleShot(True)
+        self._submission_retry_timer.setInterval(_SATURATION_RETRY_INTERVAL_MS)
+        self._submission_retry_timer.timeout.connect(self._drain_queued_preparations)
         self.destroyed.connect(lambda: self.shutdown())
 
     def submit(self, request: OutputImageCommitRequest) -> None:
-        """Prepare one saved output image off the GUI thread."""
+        """Retain one generated output until it can be prepared off-thread."""
 
         task_request = TaskRequest(
             identity=TaskIdentity(
@@ -127,39 +145,99 @@ class OutputImagePreparationDispatcher(QObject):
             ),
             work=lambda _token: prepare_output_image(request, loader=self._loader),
         )
-        try:
-            handle = self._task_scope.submit(task_request)
-        except Exception as error:
-            log_exception(
-                _LOGGER,
-                "Output image preparation submission failed",
-                workflow_id=request.workflow_id,
-                node_id=request.node_id,
-                path=request.file_path,
-                source_key=request.source_key,
-                scene_key=request.scene_key,
-                error=error,
+        self._queued_preparations.append(
+            _QueuedOutputPreparation(
+                task_request=task_request,
+                commit_request=request,
             )
-            self.failed.emit(
-                FailedOutputImagePreparation(
-                    request=request,
-                    message="Failed to load generated image.",
-                    detail=str(error),
-                )
-            )
-            return
-        handle.add_done_callback(
-            lambda outcome: self._publish_outcome(outcome, request),
-            reason="output_image_preparation_complete",
         )
+        self._drain_queued_preparations()
 
     def shutdown(self) -> None:
         """Cancel pending preparation work and release dispatcher ownership."""
 
+        if self._is_shutdown:
+            return
+        self._is_shutdown = True
+        self._submission_retry_timer.stop()
+        self._queued_preparations.clear()
         self._task_scope.close(reason="output_image_preparation_shutdown")
         if self._close_submitter is not None:
             self._close_submitter()
             self._close_submitter = None
+
+    def _drain_queued_preparations(self) -> None:
+        """Submit retained outputs until shared decode capacity is exhausted."""
+
+        if self._is_shutdown:
+            return
+        while self._queued_preparations:
+            queued = self._queued_preparations.popleft()
+            try:
+                handle = self._task_scope.submit(queued.task_request)
+            except ExecutionLaneSaturatedError:
+                self._queued_preparations.appendleft(queued)
+                self._schedule_submission_retry()
+                return
+            except Exception as error:
+                self._publish_submission_failure(queued.commit_request, error)
+                continue
+
+            def publish_outcome(
+                outcome: TaskOutcome[
+                    PreparedOutputImage | FailedOutputImagePreparation
+                ],
+                request: OutputImageCommitRequest = queued.commit_request,
+            ) -> None:
+                """Publish one completion against its retained commit request."""
+
+                self._publish_outcome_and_continue(outcome, request)
+
+            handle.add_done_callback(
+                publish_outcome,
+                reason="output_image_preparation_complete",
+            )
+
+    def _schedule_submission_retry(self) -> None:
+        """Coalesce one retry after shared image-decode capacity can change."""
+
+        if not self._submission_retry_timer.isActive():
+            self._submission_retry_timer.start()
+
+    def _publish_submission_failure(
+        self,
+        request: OutputImageCommitRequest,
+        error: Exception,
+    ) -> None:
+        """Publish one unexpected submission failure with output identity."""
+
+        log_exception(
+            _LOGGER,
+            "Output image preparation submission failed",
+            workflow_id=request.workflow_id,
+            node_id=request.node_id,
+            path=request.file_path,
+            source_key=request.source_key,
+            scene_key=request.scene_key,
+            error=error,
+        )
+        self.failed.emit(
+            FailedOutputImagePreparation(
+                request=request,
+                message="Failed to load generated image.",
+                detail=str(error),
+            )
+        )
+
+    def _publish_outcome_and_continue(
+        self,
+        outcome: TaskOutcome[PreparedOutputImage | FailedOutputImagePreparation],
+        request: OutputImageCommitRequest,
+    ) -> None:
+        """Publish one settled output and admit retained work immediately."""
+
+        self._publish_outcome(outcome, request)
+        self._drain_queued_preparations()
 
     def _publish_outcome(
         self,
@@ -196,7 +274,12 @@ def prepare_output_image(
 
     started_at = perf_counter()
     try:
-        image = loader.load_output_image(request.file_path)
+        image = (
+            QImage.fromData(request.image_bytes) if request.image_bytes else QImage()
+        )
+        if image.isNull() and request.file_path is not None:
+            loaded = loader.load_output_image(request.file_path)
+            image = loaded if loaded is not None else QImage()
         if image is None or image.isNull():
             log_warning(
                 _LOGGER,

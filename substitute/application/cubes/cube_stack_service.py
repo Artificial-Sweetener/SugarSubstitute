@@ -147,6 +147,21 @@ class CubeStackService:
         setattr(cube_state, "bypassed", next_value)
         return next_value
 
+    def toggle_cube_output_persistence(
+        self,
+        workflow: WorkflowStateProtocol,
+        alias_name: str,
+    ) -> bool:
+        """Toggle durable output persistence and return the new enabled value."""
+
+        cube_state = workflow.cubes.get(alias_name)
+        if cube_state is None:
+            return False
+        enabled = getattr(cube_state, "output_persistence_enabled", True) is not False
+        next_value = not enabled
+        setattr(cube_state, "output_persistence_enabled", next_value)
+        return next_value
+
     def apply_cube_rename(
         self,
         workflow: WorkflowStateProtocol,

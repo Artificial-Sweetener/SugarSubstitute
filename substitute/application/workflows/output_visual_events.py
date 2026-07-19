@@ -142,10 +142,11 @@ class LiveFinalOutputEvent:
     identity: OutputVisualIdentity
     node_id: str
     workflow_payload: Mapping[str, object]
-    file_path: Path
+    file_path: Path | None
     position: OutputResultPosition
     artifact_width: int
     artifact_height: int
+    image_bytes: bytes = b""
 
     @classmethod
     def from_update(
@@ -168,6 +169,7 @@ class LiveFinalOutputEvent:
             identity=identity,
             node_id=update.node_id,
             workflow_payload=update.workflow_payload,
+            image_bytes=update.image_bytes,
             file_path=update.file_path,
             position=OutputResultPosition(
                 list_index=update.list_index,

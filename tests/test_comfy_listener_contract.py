@@ -135,10 +135,6 @@ def _import_listener_module(monkeypatch):
         "substitute.infrastructure.comfy.websocket_transport"
     )
     transport = importlib.reload(transport)
-    persistence = importlib.import_module(
-        "substitute.infrastructure.comfy.output_image_persistence"
-    )
-    importlib.reload(persistence)
     module = importlib.import_module(
         "substitute.infrastructure.comfy.websocket_listener"
     )

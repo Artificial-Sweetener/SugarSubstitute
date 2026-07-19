@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -40,8 +41,8 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
 from substitute.application.generation import (
     GenerationPreviewPreferenceService,
     GenerationPreviewSaveResult,
-    OutputOrganizationPreferences,
-    OutputOrganizationPreferenceService,
+    OutputPreferenceService,
+    OutputPreferences,
 )
 from substitute.presentation.settings.settings_card import (
     SETTINGS_CARD_ICON_MAX_SIZE,
@@ -88,7 +89,7 @@ class GenerationSettingsPage(QWidget):
         self,
         *,
         preference_service: GenerationPreviewPreferenceService,
-        output_organization_service: OutputOrganizationPreferenceService | None = None,
+        output_preference_service: OutputPreferenceService | None = None,
         parent: QWidget | None = None,
         task_runner_factory: SettingsAsyncTaskRunnerFactory,
     ) -> None:
@@ -96,7 +97,7 @@ class GenerationSettingsPage(QWidget):
 
         super().__init__(parent)
         self._preference_service = preference_service
-        self._output_organization_service = output_organization_service
+        self._output_preference_service = output_preference_service
         self._is_loading = False
         self._output_root_uses_default = True
         self._save_generation = 0
@@ -202,7 +203,7 @@ class GenerationSettingsPage(QWidget):
         content_layout.addWidget(
             SettingsCardGroup("Preview", cards=tuple(preview_cards), parent=self)
         )
-        if self._output_organization_service is not None:
+        if self._output_preference_service is not None:
             content_layout.addWidget(
                 SettingsCardGroup(
                     "Output",
@@ -349,7 +350,7 @@ class GenerationSettingsPage(QWidget):
     def _install_output_token_autocomplete(self) -> None:
         """Attach token autocomplete to the output pattern field when available."""
 
-        service = self._output_organization_service
+        service = self._output_preference_service
         if service is None:
             return
         suggestions = tuple(
@@ -404,28 +405,29 @@ class GenerationSettingsPage(QWidget):
     def _reload_output_organization_controls(self) -> None:
         """Load output organization controls from persisted preferences."""
 
-        service = self._output_organization_service
+        service = self._output_preference_service
         if service is None:
             return
         preferences = service.load_preferences()
-        self._output_root_uses_default = preferences.output_root is None
+        self._output_root_uses_default = preferences.organization.output_root is None
         self.output_root_edit.setText(
             self._display_output_root_for_preferences(preferences)
         )
-        self.output_path_pattern_edit.setText(preferences.path_pattern)
+        self.output_path_pattern_edit.setText(preferences.organization.path_pattern)
         self._refresh_output_preview()
 
     def _display_output_root_for_preferences(
         self,
-        preferences: OutputOrganizationPreferences,
+        preferences: OutputPreferences,
     ) -> str:
         """Return the root path text shown for saved output preferences."""
 
-        service = self._output_organization_service
+        service = self._output_preference_service
         if service is None:
             return ""
-        output_root = preferences.output_root or service.effective_output_root(
-            preferences
+        output_root = (
+            preferences.organization.output_root
+            or service.effective_output_root(preferences)
         )
         return str(output_root)
 
@@ -451,7 +453,7 @@ class GenerationSettingsPage(QWidget):
     def _clear_output_root(self) -> None:
         """Use the default output root for future saves."""
 
-        service = self._output_organization_service
+        service = self._output_preference_service
         if service is None:
             return
         self._output_root_uses_default = True
@@ -463,17 +465,25 @@ class GenerationSettingsPage(QWidget):
         self._refresh_output_preview()
         self._save_output_organization_preferences()
 
-    def _current_output_preferences(self) -> OutputOrganizationPreferences:
+    def _current_output_preferences(self) -> OutputPreferences:
         """Build output organization preferences from visible controls."""
 
         root_text = self.output_root_edit.text().strip()
-        return OutputOrganizationPreferences(
-            output_root=(
-                None
-                if self._output_root_uses_default or not root_text
-                else Path(root_text)
+        service = self._output_preference_service
+        if service is None:
+            raise RuntimeError("Output preferences are unavailable.")
+        current = service.load_preferences()
+        return replace(
+            current,
+            organization=replace(
+                current.organization,
+                output_root=(
+                    None
+                    if self._output_root_uses_default or not root_text
+                    else Path(root_text)
+                ),
+                path_pattern=self.output_path_pattern_edit.text(),
             ),
-            path_pattern=self.output_path_pattern_edit.text(),
         )
 
     def _refresh_output_preview(self) -> None:
@@ -481,7 +491,7 @@ class GenerationSettingsPage(QWidget):
 
         if self._is_loading:
             return
-        service = self._output_organization_service
+        service = self._output_preference_service
         if service is None:
             return
         try:
@@ -494,7 +504,7 @@ class GenerationSettingsPage(QWidget):
     def _save_output_organization_preferences(self) -> None:
         """Persist output organization settings and show non-blocking feedback."""
 
-        service = self._output_organization_service
+        service = self._output_preference_service
         if service is None:
             return
         result = service.save_preferences(self._current_output_preferences())
@@ -502,11 +512,15 @@ class GenerationSettingsPage(QWidget):
         if result.succeeded:
             self._is_loading = True
             try:
-                self._output_root_uses_default = result.preferences.output_root is None
+                self._output_root_uses_default = (
+                    result.preferences.organization.output_root is None
+                )
                 self.output_root_edit.setText(
                     self._display_output_root_for_preferences(result.preferences)
                 )
-                self.output_path_pattern_edit.setText(result.preferences.path_pattern)
+                self.output_path_pattern_edit.setText(
+                    result.preferences.organization.path_pattern
+                )
             finally:
                 self._is_loading = False
             if result.preview is not None:

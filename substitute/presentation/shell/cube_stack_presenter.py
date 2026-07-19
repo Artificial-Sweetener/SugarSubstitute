@@ -610,6 +610,14 @@ class CubeStackPresenter:
         set_bypassed = getattr(cube_stack, "setTabBypassed", None)
         if callable(set_bypassed):
             set_bypassed(tab_index, getattr(cube_state, "bypassed", False) is True)
+        set_output_persistence = getattr(
+            cube_stack, "setTabOutputPersistenceEnabled", None
+        )
+        if callable(set_output_persistence):
+            set_output_persistence(
+                tab_index,
+                getattr(cube_state, "output_persistence_enabled", True) is not False,
+            )
 
 
 def _cube_ui_value(cube_state: object, key: str) -> object | None:

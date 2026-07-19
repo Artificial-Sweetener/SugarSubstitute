@@ -256,7 +256,10 @@ class ManagedComfyDirectOutputHarness:
             raise AssertionError(
                 f"{name}: authored SaveImage output was not suppressed"
             )
-        if not all(update.file_path.is_file() for update in updates):
+        if not all(
+            update.file_path is not None and update.file_path.is_file()
+            for update in updates
+        ):
             raise AssertionError(f"{name}: Substitute persistence missed an image")
         image_ids = tuple(UUID(int=index + 1) for index in range(len(updates)))
         image_metadata = {

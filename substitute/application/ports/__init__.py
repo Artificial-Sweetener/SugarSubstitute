@@ -113,8 +113,8 @@ if TYPE_CHECKING:
         NodeDefinitionRefreshObserver,
         ObservableNodeDefinitionGateway,
     )
-    from substitute.application.ports.output_organization_preference_repository import (
-        OutputOrganizationPreferenceRepository,
+    from substitute.application.ports.output_preference_repository import (
+        OutputPreferenceRepository,
     )
     from substitute.application.ports.output_run_number_allocator import (
         OutputRunNumberAllocator,
@@ -240,8 +240,8 @@ _LAZY_EXPORTS = {
         "substitute.application.ports.node_definition_gateway"
     ),
     "OutputImageUpdate": "substitute.application.ports.comfy_gateway",
-    "OutputOrganizationPreferenceRepository": (
-        "substitute.application.ports.output_organization_preference_repository"
+    "OutputPreferenceRepository": (
+        "substitute.application.ports.output_preference_repository"
     ),
     "OutputRunNumberAllocator": (
         "substitute.application.ports.output_run_number_allocator"
@@ -352,7 +352,7 @@ __all__ = [
     "ListenerStartRequest",
     "ListenerStartResult",
     "OutputImageUpdate",
-    "OutputOrganizationPreferenceRepository",
+    "OutputPreferenceRepository",
     "OutputRunNumberAllocator",
     "OutputSavePlan",
     "AppearancePreferenceRepository",

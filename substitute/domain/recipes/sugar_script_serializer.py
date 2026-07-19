@@ -114,6 +114,7 @@ class _SerializationState:
     global_override_seed_control_lines: list[str] = field(default_factory=list)
     reveal_metadata_lines: list[str] = field(default_factory=list)
     enabled_metadata_lines: list[str] = field(default_factory=list)
+    output_persistence_lines: list[str] = field(default_factory=list)
     enable_lines: list[str] = field(default_factory=list)
     disable_lines: list[str] = field(default_factory=list)
     set_blocks: list[str] = field(default_factory=list)
@@ -135,6 +136,7 @@ class SugarScriptSerializer:
         self._validate_request(request)
         state = _SerializationState()
         self._write_use_statements(request, state)
+        self._write_output_persistence_metadata(request, state)
         self._write_override_statements(request, state)
         self._write_control_metadata(request, state)
         self._write_activation_statements(request, state)
@@ -183,6 +185,23 @@ class SugarScriptSerializer:
             )
             state.alias_tokens[alias] = alias_token
             state.alias_bypassed[alias] = bypassed
+
+    def _write_output_persistence_metadata(
+        self,
+        request: SugarScriptSerializationRequest,
+        state: _SerializationState,
+    ) -> None:
+        """Persist workflow-local memory-only cube output policy as metadata."""
+
+        for alias in request.ordered_aliases:
+            if request.buffers[alias].get("save_outputs") is not False:
+                continue
+            payload = json.dumps(
+                {"alias": alias, "saved": False}, separators=(",", ":")
+            )
+            state.output_persistence_lines.append(
+                f"# cube_output_persistence {payload}"
+            )
 
     def _write_override_statements(
         self,
@@ -624,6 +643,7 @@ class SugarScriptSerializer:
 
         sections = [
             "\n".join(state.use_lines),
+            "\n".join(state.output_persistence_lines),
             "\n".join(state.global_override_lines),
             "\n".join(state.global_override_value_lines),
             "\n".join(state.global_override_selection_lines),

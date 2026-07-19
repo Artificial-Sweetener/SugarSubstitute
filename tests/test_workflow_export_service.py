@@ -432,6 +432,51 @@ def test_compile_workflow_payload_rejects_blank_picker_without_models() -> None:
         raise AssertionError("Expected blank picker hydration to fail")
 
 
+def test_compile_workflow_payload_rejects_blank_upscaler_without_models() -> None:
+    """Required empty upscaler choices must remain blocked at execution time."""
+
+    workflow_payload: dict[str, object] = {
+        "1": {
+            "class_type": "UpscaleModelLoader",
+            "inputs": {"model_name": ""},
+            "_meta": {
+                "substitute": {
+                    "cube_alias": "upscale",
+                    "node_name": "upscale_model",
+                }
+            },
+        }
+    }
+    service, _repository, _compiler = _service(
+        workflow_payload,
+        node_definition_gateway=_FakeNodeDefinitionGateway(
+            {
+                "UpscaleModelLoader": {
+                    "input": {
+                        "required": {
+                            "model_name": ["COMBO", {"options": []}],
+                        }
+                    }
+                }
+            }
+        ),
+    )
+
+    try:
+        service.compile_workflow_payload(
+            sugar_script_text="use Upscale as upscale",
+            output_dir=Path("E:/projects"),
+        )
+    except RuntimeError as error:
+        message = str(error)
+        assert "No local Comfy picker default is available" in message
+        assert "cube_alias=upscale" in message
+        assert "node_name=upscale_model" in message
+        assert "input=model_name" in message
+    else:  # pragma: no cover - assertion path only
+        raise AssertionError("Expected blank upscaler hydration to fail")
+
+
 def test_compile_workflow_payload_replaces_unavailable_combo_picker_default(
     caplog: Any,
 ) -> None:

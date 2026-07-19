@@ -64,11 +64,11 @@ class FinalImagePersistence(Protocol):
 
 
 class PersistedFinalImage(Protocol):
-    """Describe persisted image facts required by output callbacks."""
+    """Describe decoded image facts and an optional durable path."""
 
     @property
-    def file_path(self) -> Path:
-        """Return the saved image path."""
+    def file_path(self) -> Path | None:
+        """Return the canonical PNG path when this source is persisted."""
 
     @property
     def width(self) -> int:
@@ -96,7 +96,7 @@ class FinalImageEventHandler:
             source_label=event.source.source_label,
             cube_alias=event.source.cube_alias,
         )
-        image_artifacts = (
+        image_artifacts = tuple(
             artifact for artifact in event.artifacts if artifact.media_kind == "image"
         )
         for batch_index, artifact in enumerate(image_artifacts):
@@ -111,6 +111,7 @@ class FinalImageEventHandler:
                     workflow_payload=event.workflow_payload,
                     file_path=persisted.file_path,
                     node_id=event.source.node_id,
+                    image_bytes=image_bytes,
                     generation_run_id=event.generation_run_id,
                     prompt_id=event.prompt_id,
                     client_id=event.client_id,

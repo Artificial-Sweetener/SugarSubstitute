@@ -32,12 +32,13 @@ class OutputImageCommitRequest:
     """Capture narrow final-output metadata before preparation starts."""
 
     workflow_id: str
-    file_path: Path
+    file_path: Path | None
     node_id: str
     node_meta_title: str
     workflow_name: str
     source_key: str
     source_label: str
+    image_bytes: bytes = b""
     generation_run_id: str | None = None
     prompt_id: str | None = None
     client_id: str | None = None

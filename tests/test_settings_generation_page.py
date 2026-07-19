@@ -28,12 +28,12 @@ from PySide6.QtWidgets import QAbstractButton, QApplication, QLabel, QWidget
 
 from substitute.application.generation import (
     GenerationPreviewPreferenceService,
-    OutputOrganizationPreferenceService,
+    OutputPreferenceService,
 )
 from substitute.domain.generation import GenerationPreviewPreferences
 from substitute.domain.generation import (
     GenerationPreviewMethod,
-    OutputOrganizationPreferences,
+    OutputPreferences,
     TaesdPreviewAssetStatus,
     default_generation_preview_preferences,
 )
@@ -101,14 +101,14 @@ class _OutputRepository:
     def __init__(self) -> None:
         """Initialize with default preferences."""
 
-        self.preferences = OutputOrganizationPreferences()
+        self.preferences = OutputPreferences()
 
-    def load(self) -> OutputOrganizationPreferences:
+    def load(self) -> OutputPreferences:
         """Return current preferences."""
 
         return self.preferences
 
-    def save(self, preferences: OutputOrganizationPreferences) -> None:
+    def save(self, preferences: OutputPreferences) -> None:
         """Persist preferences in memory."""
 
         self.preferences = preferences
@@ -195,7 +195,7 @@ def test_generation_page_output_settings_preview_and_save() -> None:
     output_repository = _OutputRepository()
     page = GenerationSettingsPage(
         preference_service=GenerationPreviewPreferenceService(preview_repository),
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             output_repository,
             default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
@@ -216,9 +216,9 @@ def test_generation_page_output_settings_preview_and_save() -> None:
     page.output_path_pattern_edit.editingFinished.emit()
     app.processEvents()
 
-    assert output_repository.preferences.output_root == _CUSTOM_OUTPUT_ROOT
+    assert output_repository.preferences.organization.output_root == _CUSTOM_OUTPUT_ROOT
     assert (
-        output_repository.preferences.path_pattern
+        output_repository.preferences.organization.path_pattern
         == "{workflow}\\{date}\\{run}_{source}_{width}x{height}"
     )
 
@@ -230,7 +230,7 @@ def test_generation_page_output_root_shows_default_path_without_persisting_it() 
     output_repository = _OutputRepository()
     page = GenerationSettingsPage(
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             output_repository,
             default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
@@ -243,7 +243,7 @@ def test_generation_page_output_root_shows_default_path_without_persisting_it() 
     page.output_root_edit.editingFinished.emit()
     app.processEvents()
 
-    assert output_repository.preferences.output_root is None
+    assert output_repository.preferences.organization.output_root is None
     assert Path(page.output_root_edit.text()) == _DEFAULT_OUTPUT_ROOT
 
 
@@ -253,7 +253,7 @@ def test_generation_page_output_settings_preview_renders_seed_token() -> None:
     app = _app()
     page = GenerationSettingsPage(
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             _OutputRepository(),
             default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
@@ -275,7 +275,7 @@ def test_generation_page_output_settings_reject_invalid_token() -> None:
     output_repository = _OutputRepository()
     page = GenerationSettingsPage(
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             output_repository,
             default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
@@ -288,7 +288,7 @@ def test_generation_page_output_settings_reject_invalid_token() -> None:
 
     assert "Unknown output path token" in page.output_preview_text()
     assert (
-        output_repository.preferences.path_pattern
+        output_repository.preferences.organization.path_pattern
         == "{date}\\{run}_{cube#}_{workflow}_{source}"
     )
 
@@ -299,7 +299,7 @@ def test_generation_page_output_settings_are_minimal() -> None:
     app = _app()
     page = GenerationSettingsPage(
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             _OutputRepository(),
             default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
@@ -325,7 +325,7 @@ def test_generation_page_output_rows_do_not_clip_at_narrow_width() -> None:
     app = _app()
     page = GenerationSettingsPage(
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             _OutputRepository(),
             default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
@@ -366,7 +366,7 @@ def test_generation_page_output_fields_keep_preferred_width_when_wide() -> None:
     app = _app()
     page = GenerationSettingsPage(
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             _OutputRepository(),
             default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
@@ -402,7 +402,7 @@ def test_generation_page_output_root_autosaves_and_default_clears_root() -> None
     output_repository = _OutputRepository()
     page = GenerationSettingsPage(
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             output_repository,
             default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
@@ -413,13 +413,13 @@ def test_generation_page_output_root_autosaves_and_default_clears_root() -> None
     page.output_root_edit.editingFinished.emit()
     app.processEvents()
 
-    assert output_repository.preferences.output_root == _CUSTOM_OUTPUT_ROOT
+    assert output_repository.preferences.organization.output_root == _CUSTOM_OUTPUT_ROOT
     assert Path(page.output_root_edit.text()) == _CUSTOM_OUTPUT_ROOT
 
     page._clear_output_root()
     app.processEvents()
 
-    assert output_repository.preferences.output_root is None
+    assert output_repository.preferences.organization.output_root is None
     assert Path(page.output_root_edit.text()) == _DEFAULT_OUTPUT_ROOT
 
 
@@ -431,7 +431,7 @@ def test_generation_page_output_pattern_token_autocomplete_filters_and_inserts()
     app = _app()
     page = GenerationSettingsPage(
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             _OutputRepository(),
             default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),
@@ -464,7 +464,7 @@ def test_generation_page_output_pattern_token_autocomplete_inserts_seed() -> Non
     app = _app()
     page = GenerationSettingsPage(
         preference_service=GenerationPreviewPreferenceService(_MemoryRepository()),
-        output_organization_service=OutputOrganizationPreferenceService(
+        output_preference_service=OutputPreferenceService(
             _OutputRepository(),
             default_output_root=_DEFAULT_OUTPUT_ROOT,
         ),

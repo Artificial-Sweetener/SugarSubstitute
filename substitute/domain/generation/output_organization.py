@@ -22,17 +22,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-OUTPUT_ORGANIZATION_PREFERENCES_SCHEMA_VERSION = "1"
 DEFAULT_OUTPUT_PATH_PATTERN = "{date}\\{run}_{cube#}_{workflow}_{source}"
-
-
-@dataclass(frozen=True)
-class OutputOrganizationPreferences:
-    """Capture user-configurable output root and path templates."""
-
-    schema_version: str = OUTPUT_ORGANIZATION_PREFERENCES_SCHEMA_VERSION
-    output_root: Path | None = None
-    path_pattern: str = DEFAULT_OUTPUT_PATH_PATTERN
 
 
 @dataclass(frozen=True)
@@ -91,12 +81,6 @@ class OutputRunBucket:
     display_label: str
 
 
-def default_output_organization_preferences() -> OutputOrganizationPreferences:
-    """Return the default generated-output organization preferences."""
-
-    return OutputOrganizationPreferences()
-
-
 SUPPORTED_OUTPUT_PATH_TOKENS: tuple[OutputPathToken, ...] = (
     OutputPathToken("run", "Committed generation run number"),
     OutputPathToken("cube#", "Cube order in workflow"),
@@ -121,8 +105,6 @@ SUPPORTED_OUTPUT_PATH_TOKEN_NAMES = frozenset(
 
 __all__ = [
     "DEFAULT_OUTPUT_PATH_PATTERN",
-    "OUTPUT_ORGANIZATION_PREFERENCES_SCHEMA_VERSION",
-    "OutputOrganizationPreferences",
     "OutputPathPattern",
     "OutputPathRenderContext",
     "OutputPathRenderResult",
@@ -130,5 +112,4 @@ __all__ = [
     "OutputRunBucket",
     "SUPPORTED_OUTPUT_PATH_TOKEN_NAMES",
     "SUPPORTED_OUTPUT_PATH_TOKENS",
-    "default_output_organization_preferences",
 ]

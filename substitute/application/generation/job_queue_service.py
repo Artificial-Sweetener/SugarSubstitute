@@ -1269,6 +1269,8 @@ class GenerationJobQueueService:
     ) -> None:
         """Retain one output record for current-session queue replay."""
 
+        if event.file_path is None:
+            return
         records = self._outputs_by_job_id.setdefault(job_id, [])
         records.append(
             GenerationJobOutputRecord(

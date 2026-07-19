@@ -19,23 +19,17 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from pathlib import Path
 from typing import Protocol
 from uuid import UUID
 
 from PySide6.QtCore import QObject
 
-from substitute.application.cubes import cube_alias_body
 from substitute.application.ports import OutputImageUpdate
-from substitute.application.workflows.output_visual_events import (
-    LiveFinalOutputEvent,
-    OutputSceneIdentity,
-)
+from substitute.application.workflows.output_visual_events import LiveFinalOutputEvent
 from substitute.application.workflows.output_canvas_state_service import (
     OutputImageRegistrationResult,
     OutputProjectionSchedulingIntent,
 )
-from substitute.domain.generation import OutputResultPosition
 from substitute.presentation.shell.canvas_projection_scheduler import (
     CanvasProjectionScheduler,
     ProjectionReason,
@@ -45,51 +39,25 @@ from substitute.presentation.shell.output_image_commit_pipeline import (
     OutputImageCommitRequest,
     PreparedOutputImage,
 )
+from substitute.presentation.shell.output_image_commit_request_builder import (
+    CanvasIoMetadataProtocol,
+    GenerationTimingLookupProtocol,
+    OutputImageCommitRequestBuilder,
+    WorkflowSessionProtocol as CommitWorkflowSessionProtocol,
+)
 from substitute.presentation.shell.output_image_commit_queue import (
     PreparedOutputCommitQueue,
 )
 from substitute.presentation.shell.output_image_preparation_dispatcher import (
     OutputImagePreparationDispatcher,
 )
-from substitute.shared.logging.logger import get_logger, log_warning
-
-_LOGGER = get_logger("presentation.shell.output_image_pipeline")
 
 
-class WorkflowSessionProtocol(Protocol):
+class WorkflowSessionProtocol(CommitWorkflowSessionProtocol, Protocol):
     """Describe workflow session access needed for output request construction."""
 
     active_workflow_id: str
     workflows: Mapping[str, object]
-
-    def get_workflow(self, workflow_id: str) -> object | None:
-        """Return workflow state for one workflow id."""
-
-
-class CanvasIoMetadataProtocol(Protocol):
-    """Describe metadata helpers needed by the output pipeline."""
-
-    def load_output_image(self, path: Path) -> object | None:
-        """Load one output image from disk."""
-
-    def resolve_node_meta_title(self, node_data: object) -> str:
-        """Resolve one workflow node title."""
-
-    def resolve_workflow_label(self, workflow_metadata: object) -> str:
-        """Resolve one workflow label."""
-
-
-class GenerationTimingLookupProtocol(Protocol):
-    """Describe read-only generation timing lookup used for output metadata."""
-
-    def cube_execution_duration_ms(
-        self,
-        *,
-        workflow_id: str,
-        source_key: str = "",
-        cube_alias: str = "",
-    ) -> float | None:
-        """Return the latest known cube duration for one output source."""
 
 
 class OutputCommitHandlerProtocol(Protocol):
@@ -151,13 +119,16 @@ class OutputImagePipeline(QObject):
 
         super().__init__(parent)
         self._workflow_session_service = workflow_session_service
-        self._canvas_io_service = canvas_io_service
         self._output_commit_handler = output_commit_handler
         self._output_canvas_projection_coordinator = (
             output_canvas_projection_coordinator
         )
         self._canvas_tabs = canvas_tabs
-        self._generation_timing_lookup = generation_timing_lookup
+        self._commit_request_builder = OutputImageCommitRequestBuilder(
+            workflow_session_service=workflow_session_service,
+            canvas_io_service=canvas_io_service,
+            generation_timing_lookup=generation_timing_lookup,
+        )
         self._output_canvas_visible = (
             output_canvas_visible or self._output_canvas_is_visible
         )
@@ -226,21 +197,7 @@ class OutputImagePipeline(QObject):
     ) -> OutputImageCommitRequest | None:
         """Build a strict immutable live commit request on the GUI thread."""
 
-        live_event = LiveFinalOutputEvent.from_update(output_update)
-        if live_event is None:
-            log_warning(
-                _LOGGER,
-                "Rejected live final output before commit request construction",
-                workflow_id=output_update.workflow_id,
-                generation_run_id=output_update.generation_run_id,
-                prompt_id=output_update.prompt_id,
-                client_id=output_update.client_id,
-                node_id=output_update.node_id,
-                source_key=output_update.source_key,
-                reason=_live_final_rejection_reason(output_update),
-            )
-            return None
-        return self.build_live_commit_request(live_event)
+        return self._commit_request_builder.build_strict_update(output_update)
 
     def build_live_commit_request(
         self,
@@ -248,23 +205,7 @@ class OutputImagePipeline(QObject):
     ) -> OutputImageCommitRequest:
         """Build a strict immutable live commit request on the GUI thread."""
 
-        return self._build_commit_request(
-            workflow_id=live_event.identity.workflow_id,
-            workflow_payload=live_event.workflow_payload,
-            file_path=live_event.file_path,
-            node_id=live_event.node_id,
-            source_key=live_event.identity.source_key,
-            source_label=live_event.identity.source_label,
-            generation_run_id=live_event.identity.generation_run_id,
-            prompt_id=live_event.identity.prompt_id,
-            client_id=live_event.identity.client_id,
-            position=live_event.position,
-            artifact_width=live_event.artifact_width,
-            artifact_height=live_event.artifact_height,
-            scene_fields=_scene_fields(live_event),
-            live_event=live_event,
-            allow_source_fallback=False,
-        )
+        return self._commit_request_builder.build_live_event(live_event)
 
     def build_legacy_commit_request(
         self,
@@ -272,115 +213,7 @@ class OutputImagePipeline(QObject):
     ) -> OutputImageCommitRequest:
         """Build a non-live commit request that preserves legacy fallback routing."""
 
-        return self._build_commit_request(
-            workflow_id=output_update.workflow_id,
-            workflow_payload=output_update.workflow_payload,
-            file_path=output_update.file_path,
-            node_id=output_update.node_id,
-            source_key=output_update.source_key,
-            source_label=output_update.source_label,
-            generation_run_id=output_update.generation_run_id,
-            prompt_id=output_update.prompt_id,
-            client_id=output_update.client_id,
-            position=_position_from_update(output_update),
-            artifact_width=output_update.artifact_width,
-            artifact_height=output_update.artifact_height,
-            scene_fields=(
-                output_update.scene_run_id,
-                output_update.scene_key,
-                output_update.scene_title,
-                output_update.scene_order,
-                output_update.scene_count,
-            ),
-            live_event=None,
-            allow_source_fallback=True,
-        )
-
-    def _build_commit_request(
-        self,
-        *,
-        workflow_id: str,
-        workflow_payload: object,
-        file_path: Path,
-        node_id: str,
-        source_key: str,
-        source_label: str,
-        generation_run_id: str | None,
-        prompt_id: str | None,
-        client_id: str | None,
-        position: OutputResultPosition | None,
-        artifact_width: int | None,
-        artifact_height: int | None,
-        scene_fields: tuple[str | None, str | None, str | None, int | None, int | None],
-        live_event: LiveFinalOutputEvent | None,
-        allow_source_fallback: bool,
-    ) -> OutputImageCommitRequest:
-        """Build a narrow immutable commit request on the GUI thread."""
-
-        if not isinstance(workflow_payload, dict):
-            workflow_payload = {}
-        node_data = workflow_payload.get(node_id, {})
-        if not isinstance(node_data, dict):
-            node_data = {}
-        node_meta_title = self._canvas_io_service.resolve_node_meta_title(node_data)
-        workflow_state = self._workflow_session_service.get_workflow(workflow_id)
-        workflow_metadata = getattr(workflow_state, "metadata", {})
-        if not isinstance(workflow_metadata, dict):
-            workflow_metadata = {}
-        workflow_name = self._canvas_io_service.resolve_workflow_label(
-            workflow_metadata
-        )
-        fallback_source_label = cube_alias_body(
-            node_meta_title.split(".", 1)[0] if node_meta_title else node_id
-        )
-        if allow_source_fallback:
-            source_label = source_label or fallback_source_label
-            source_key = source_key or f"{workflow_id}:{node_id}"
-        cube_duration_ms = self._cube_execution_duration_ms(
-            workflow_id=workflow_id,
-            source_key=source_key,
-            cube_alias=source_label,
-        )
-        scene_run_id, scene_key, scene_title, scene_order, scene_count = scene_fields
-        return OutputImageCommitRequest(
-            workflow_id=workflow_id,
-            file_path=file_path,
-            node_id=node_id,
-            node_meta_title=node_meta_title,
-            workflow_name=workflow_name,
-            source_key=source_key,
-            source_label=source_label,
-            generation_run_id=generation_run_id,
-            prompt_id=prompt_id,
-            client_id=client_id,
-            position=position,
-            artifact_width=artifact_width,
-            artifact_height=artifact_height,
-            live_event=live_event,
-            scene_run_id=scene_run_id,
-            scene_key=scene_key,
-            scene_title=scene_title,
-            scene_order=scene_order,
-            scene_count=scene_count,
-            cube_execution_duration_ms=cube_duration_ms,
-        )
-
-    def _cube_execution_duration_ms(
-        self,
-        *,
-        workflow_id: str,
-        source_key: str,
-        cube_alias: str,
-    ) -> float | None:
-        """Return known cube timing for one output commit request."""
-
-        if self._generation_timing_lookup is None:
-            return None
-        return self._generation_timing_lookup.cube_execution_duration_ms(
-            workflow_id=workflow_id,
-            source_key=source_key,
-            cube_alias=cube_alias,
-        )
+        return self._commit_request_builder.build_legacy_update(output_update)
 
     def flush_visible_output_projection(self) -> None:
         """Flush pending generated projection for the active workflow."""
@@ -455,72 +288,3 @@ class OutputImagePipeline(QObject):
 __all__ = [
     "OutputImagePipeline",
 ]
-
-
-def _live_final_rejection_reason(output_update: OutputImageUpdate) -> str:
-    """Return a compact reason for strict live final update rejection."""
-
-    if not output_update.generation_run_id:
-        return "missing_generation_run_id"
-    if not output_update.prompt_id:
-        return "missing_prompt_id"
-    if not output_update.client_id:
-        return "missing_client_id"
-    if not output_update.source_key:
-        return "missing_source_key"
-    if not output_update.source_label:
-        return "missing_source_label"
-    if not output_update.node_id:
-        return "missing_node_id"
-    if output_update.list_index is None:
-        return "missing_list_index"
-    if type(output_update.list_index) is not int:
-        return "non_integer_list_index"
-    if output_update.list_index < 0:
-        return "negative_list_index"
-    if output_update.batch_index is None:
-        return "missing_batch_index"
-    if type(output_update.batch_index) is not int:
-        return "non_integer_batch_index"
-    if output_update.batch_index < 0:
-        return "negative_batch_index"
-    if (
-        type(output_update.artifact_width) is not int
-        or output_update.artifact_width <= 0
-    ):
-        return "missing_artifact_width"
-    if (
-        type(output_update.artifact_height) is not int
-        or output_update.artifact_height <= 0
-    ):
-        return "missing_artifact_height"
-    return "partial_scene_identity"
-
-
-def _position_from_update(
-    output_update: OutputImageUpdate,
-) -> OutputResultPosition | None:
-    """Return a typed result position when both transport coordinates exist."""
-
-    if (
-        type(output_update.list_index) is not int
-        or output_update.list_index < 0
-        or type(output_update.batch_index) is not int
-        or output_update.batch_index < 0
-    ):
-        return None
-    return OutputResultPosition(
-        list_index=output_update.list_index,
-        batch_index=output_update.batch_index,
-    )
-
-
-def _scene_fields(
-    event: LiveFinalOutputEvent,
-) -> tuple[str | None, str | None, str | None, int | None, int | None]:
-    """Return request scene fields from a strict live final event."""
-
-    scene = event.identity.scene
-    if isinstance(scene, OutputSceneIdentity):
-        return scene.run_id, scene.key, scene.title, scene.order, scene.count
-    return None, None, None, None, None

@@ -220,6 +220,7 @@ def test_handler_fetches_persists_and_emits_output_image_update() -> None:
             workflow_payload={"output-node": {"class_type": "SugarCubes.CubeOutput"}},
             file_path=Path("out.png"),
             node_id="output-node",
+            image_bytes=b"image-bytes",
             generation_run_id="run-1",
             prompt_id="pid-1",
             client_id="client-1",

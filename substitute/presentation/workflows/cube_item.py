@@ -68,6 +68,7 @@ class CubeItem(ReorderableTabItemBase):
     aliasEditingFinished = Signal(str)
     duplicateRequested = Signal(object)
     bypassToggleRequested = Signal(object)
+    outputPersistenceToggleRequested = Signal(object)
 
     tab_font_size = 14
     fixed_width = CUBE_ITEM_EXPANDED_WIDTH
@@ -87,6 +88,7 @@ class CubeItem(ReorderableTabItemBase):
         self._compact_transition_active = False
         self._issue_severity: CubeCardIssueSeverity | None = None
         self._bypassed = False
+        self._output_persistence_enabled = True
         self._alias_editing_route_key: str | None = None
         self.alias_editor = CubeAliasEditor(self)
         self.alias_editor.accepted.connect(self._commitAliasRename)
@@ -136,6 +138,11 @@ class CubeItem(ReorderableTabItemBase):
             return
         self._bypassed = bypassed
         self.update()
+
+    def setOutputPersistenceEnabled(self, enabled: bool) -> None:
+        """Set whether the workflow cube instance saves generated outputs."""
+
+        self._output_persistence_enabled = enabled
 
     def isBypassed(self) -> bool:
         """Return whether this cube item is visually bypassed."""
@@ -257,6 +264,16 @@ class CubeItem(ReorderableTabItemBase):
             MenuModel(
                 entries=(
                     MenuItem(
+                        "cube_stack.output_persistence",
+                        (
+                            "Don't save outputs"
+                            if self._output_persistence_enabled
+                            else "Save outputs"
+                        ),
+                        callback=self._request_output_persistence_toggle,
+                        icon=FluentIcon.SAVE,
+                    ),
+                    MenuItem(
                         "cube_stack.rename",
                         "Rename",
                         callback=self._request_alias_editing,
@@ -294,6 +311,11 @@ class CubeItem(ReorderableTabItemBase):
         """Request cube-level bypass toggling for this cube item."""
 
         self.bypassToggleRequested.emit(self)
+
+    def _request_output_persistence_toggle(self) -> None:
+        """Request workflow-local output persistence toggling."""
+
+        self.outputPersistenceToggleRequested.emit(self)
 
     def _request_duplication(self) -> None:
         """Request duplication for this cube item."""

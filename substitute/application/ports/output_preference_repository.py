@@ -14,23 +14,23 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Define persistence port for output organization preferences."""
+"""Define persistence for the complete generated-output preference aggregate."""
 
 from __future__ import annotations
 
 from typing import Protocol
 
-from substitute.domain.generation import OutputOrganizationPreferences
+from substitute.domain.generation.output_preferences import OutputPreferences
 
 
-class OutputOrganizationPreferenceRepository(Protocol):
-    """Persist and load output organization preferences."""
+class OutputPreferenceRepository(Protocol):
+    """Load and save generated-output preferences."""
 
-    def load(self) -> OutputOrganizationPreferences:
-        """Load persisted output organization preferences."""
+    def load(self) -> OutputPreferences:
+        """Load current output preferences."""
 
-    def save(self, preferences: OutputOrganizationPreferences) -> None:
-        """Persist output organization preferences."""
+    def save(self, preferences: OutputPreferences) -> None:
+        """Persist validated output preferences."""
 
 
-__all__ = ["OutputOrganizationPreferenceRepository"]
+__all__ = ["OutputPreferenceRepository"]

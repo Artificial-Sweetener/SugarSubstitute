@@ -802,7 +802,7 @@ def test_cubeitem_compact_progress_clamps_and_drives_geometry_helpers() -> None:
 def test_cube_item_context_menu_exposes_duplicate_and_remove_actions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Cube item context menu should expose duplicate and X-independent removal."""
+    """Cube context menu should expose persistence, duplicate, and removal actions."""
     _ensure_qapp()
     _clear_gui_stubs()
     item_mod = importlib.import_module("substitute.presentation.workflows.cube_item")
@@ -869,22 +869,29 @@ def test_cube_item_context_menu_exposes_duplicate_and_remove_actions(
     item = item_mod.CubeItem("A", None, None)
     closed_calls: list[bool] = []
     duplicate_calls: list[bool] = []
+    persistence_calls: list[bool] = []
     item.closed.connect(lambda: closed_calls.append(True))
     item.duplicateRequested.connect(lambda _item: duplicate_calls.append(True))
+    item.outputPersistenceToggleRequested.connect(
+        lambda _item: persistence_calls.append(True)
+    )
 
     item._showContextMenu(QPoint(0, 0))
 
     menu = FakeRoundMenu.instances[0]
     assert [action.text() for action in menu.actions] == [
+        "Don't save outputs",
         "Rename",
         "Duplicate",
         "Bypass",
         "Remove",
     ]
 
-    menu.actions[1].trigger()
-    menu.actions[3].trigger()
+    menu.actions[0].trigger()
+    menu.actions[2].trigger()
+    menu.actions[4].trigger()
 
+    assert persistence_calls == [True]
     assert duplicate_calls == [True]
     assert closed_calls == [True]
 

@@ -25,8 +25,13 @@ from typing import Protocol
 class WorkflowExecutionState(Protocol):
     """Describe workflow state required for cube execution projection."""
 
-    stack_order: list[str]
-    cubes: Mapping[str, object]
+    @property
+    def stack_order(self) -> list[str]:
+        """Return cube aliases in workflow stack order."""
+
+    @property
+    def cubes(self) -> Mapping[str, object]:
+        """Return cube state keyed by alias."""
 
 
 def is_cube_bypassed(cube_state: object) -> bool:
@@ -55,6 +60,13 @@ def bypassed_cube_aliases(workflow: WorkflowExecutionState) -> tuple[str, ...]:
     )
 
 
+def final_active_cube_alias(workflow: WorkflowExecutionState) -> str | None:
+    """Return the last topology-active cube alias, independent of event order."""
+
+    aliases = active_cube_aliases(workflow)
+    return aliases[-1] if aliases else None
+
+
 def active_adjacent_alias_pairs(
     workflow: WorkflowExecutionState,
 ) -> tuple[tuple[str, str], ...]:
@@ -69,5 +81,6 @@ __all__ = [
     "active_adjacent_alias_pairs",
     "active_cube_aliases",
     "bypassed_cube_aliases",
+    "final_active_cube_alias",
     "is_cube_bypassed",
 ]

@@ -255,7 +255,7 @@ class CanvasIoService:
         *,
         workflow_name: str,
         node_meta_title: str,
-        file_path: Path,
+        file_path: Path | None,
         source_key: str = "",
         source_label: str = "",
         node_id: str = "",
@@ -273,14 +273,14 @@ class CanvasIoService:
         batch_index: int | None = None,
         cube_execution_duration_ms: float | None = None,
     ) -> ImageMeta:
-        """Build output metadata payload from workflow label, node title, and file path."""
+        """Build output metadata for either durable or memory-only generated output."""
 
         cube_name = (
             node_meta_title.split(".", 1)[0]
             if "." in node_meta_title
             else node_meta_title
         )
-        stem = file_path.stem
+        stem = file_path.stem if file_path is not None else ""
         number_match = _OUTPUT_IMAGE_NUMBER_RE.match(stem)
         image_number = int(number_match.group(1)) if number_match else -1
         suffix = "_".join(stem.split("_")[1:]) if "_" in stem else ""
@@ -289,7 +289,7 @@ class CanvasIoService:
             cube_name=cube_name,
             image_number=image_number,
             suffix=suffix,
-            path=file_path.as_posix(),
+            path=file_path.as_posix() if file_path is not None else "",
             source_key=source_key,
             source_label=source_label or cube_alias_body(cube_name),
             node_id=node_id,

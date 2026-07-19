@@ -78,6 +78,7 @@ from substitute.domain.workflow.execution_projection import (
     active_adjacent_alias_pairs,
     active_cube_aliases,
     bypassed_cube_aliases,
+    final_active_cube_alias,
     is_cube_bypassed,
 )
 from substitute.domain.workflow.document_kind import WorkflowDocumentKind
@@ -87,6 +88,7 @@ __all__ = [
     "active_adjacent_alias_pairs",
     "active_cube_aliases",
     "bypassed_cube_aliases",
+    "final_active_cube_alias",
     "CanvasGenerationIdentity",
     "CanvasBoundSession",
     "CanvasKind",

@@ -25,16 +25,17 @@ from pathlib import Path
 import pytest
 
 from substitute.application.generation import (
-    OutputOrganizationPreferenceService,
+    OutputPreferenceService,
     OutputPathTemplateError,
     OutputPathTemplateRenderer,
 )
 from substitute.domain.generation import (
-    OutputOrganizationPreferences,
+    OutputOrganizationSettings,
+    OutputPreferences,
     OutputPathRenderContext,
 )
 from substitute.infrastructure.persistence import (
-    FileOutputOrganizationPreferenceRepository,
+    FileOutputPreferenceRepository,
 )
 
 
@@ -44,14 +45,14 @@ class _MemoryOutputRepository:
     def __init__(self) -> None:
         """Create repository with default preferences."""
 
-        self.preferences = OutputOrganizationPreferences()
+        self.preferences = OutputPreferences()
 
-    def load(self) -> OutputOrganizationPreferences:
+    def load(self) -> OutputPreferences:
         """Return stored preferences."""
 
         return self.preferences
 
-    def save(self, preferences: OutputOrganizationPreferences) -> None:
+    def save(self, preferences: OutputPreferences) -> None:
         """Store preferences in memory."""
 
         self.preferences = preferences
@@ -64,7 +65,7 @@ def test_renderer_defaults_match_current_output_shape(tmp_path: Path) -> None:
 
     result = renderer.render_path(
         output_root=tmp_path,
-        path_pattern=OutputOrganizationPreferences().path_pattern,
+        path_pattern=OutputPreferences().organization.path_pattern,
         context=_context(),
     )
 
@@ -78,7 +79,7 @@ def test_renderer_resolves_default_run_bucket(tmp_path: Path) -> None:
 
     bucket = renderer.resolve_run_bucket(
         output_root=tmp_path,
-        path_pattern=OutputOrganizationPreferences().path_pattern,
+        path_pattern=OutputPreferences().organization.path_pattern,
         context=_context(),
     )
 
@@ -131,12 +132,14 @@ def test_service_projection_cache_key_tracks_bucket_affecting_time(
     """Output projection keys should change only for bucket-shaping time tokens."""
 
     repository = _MemoryOutputRepository()
-    service = OutputOrganizationPreferenceService(
+    service = OutputPreferenceService(
         repository,
         default_output_root=tmp_path,
     )
-    repository.preferences = OutputOrganizationPreferences(
-        path_pattern="{date}\\{run}_{time}_{source}",
+    repository.preferences = OutputPreferences(
+        organization=OutputOrganizationSettings(
+            path_pattern="{date}\\{run}_{time}_{source}"
+        ),
     )
 
     first = service.output_run_projection_cache_key(now=datetime(2026, 5, 1, 14, 32, 9))
@@ -148,8 +151,10 @@ def test_service_projection_cache_key_tracks_bucket_affecting_time(
     assert first == second
     assert first != third
 
-    repository.preferences = OutputOrganizationPreferences(
-        path_pattern="{workflow}\\{run}_{time}_{source}",
+    repository.preferences = OutputPreferences(
+        organization=OutputOrganizationSettings(
+            path_pattern="{workflow}\\{run}_{time}_{source}"
+        ),
     )
     filename_time_first = service.output_run_projection_cache_key(
         now=datetime(2026, 5, 1, 14, 32, 9)
@@ -209,13 +214,17 @@ def test_service_preview_renders_example_seed(tmp_path: Path) -> None:
     """Settings previews should show a deterministic example seed token."""
 
     repository = _MemoryOutputRepository()
-    service = OutputOrganizationPreferenceService(
+    service = OutputPreferenceService(
         repository,
         default_output_root=tmp_path,
     )
 
     preview = service.render_preview(
-        OutputOrganizationPreferences(path_pattern="{workflow}\\{seed}_{source}")
+        OutputPreferences(
+            organization=OutputOrganizationSettings(
+                path_pattern="{workflow}\\{seed}_{source}"
+            )
+        )
     )
 
     assert preview.path == tmp_path / "My Workflow" / "123456789_main_output.png"
@@ -287,18 +296,20 @@ def test_service_save_rejects_invalid_pattern_without_persisting(
     """Preference service should not save invalid token patterns."""
 
     repository = _MemoryOutputRepository()
-    service = OutputOrganizationPreferenceService(
+    service = OutputPreferenceService(
         repository,
         default_output_root=tmp_path,
     )
 
     result = service.save_preferences(
-        OutputOrganizationPreferences(path_pattern="{node_id}")
+        OutputPreferences(
+            organization=OutputOrganizationSettings(path_pattern="{node_id}")
+        )
     )
 
     assert result.succeeded is False
     assert (
-        repository.preferences.path_pattern
+        repository.preferences.organization.path_pattern
         == "{date}\\{run}_{cube#}_{workflow}_{source}"
     )
 
@@ -306,17 +317,19 @@ def test_service_save_rejects_invalid_pattern_without_persisting(
 def test_file_repository_round_trips_output_preferences(tmp_path: Path) -> None:
     """JSON repository should persist output organization preferences."""
 
-    repository = FileOutputOrganizationPreferenceRepository(tmp_path)
-    preferences = OutputOrganizationPreferences(
-        output_root=Path("D:/Images"),
-        path_pattern="{workflow}\\{date}\\{run}_{source}",
+    repository = FileOutputPreferenceRepository(tmp_path)
+    preferences = OutputPreferences(
+        organization=OutputOrganizationSettings(
+            output_root=Path("D:/Images"),
+            path_pattern="{workflow}\\{date}\\{run}_{source}",
+        ),
     )
 
     repository.save(preferences)
     loaded = repository.load()
 
-    assert loaded.output_root == Path("D:/Images")
-    assert loaded.path_pattern == "{workflow}\\{date}\\{run}_{source}"
+    assert loaded.organization.output_root == Path("D:/Images")
+    assert loaded.organization.path_pattern == "{workflow}\\{date}\\{run}_{source}"
 
 
 def test_file_repository_returns_defaults_for_invalid_json(tmp_path: Path) -> None:
@@ -324,9 +337,9 @@ def test_file_repository_returns_defaults_for_invalid_json(tmp_path: Path) -> No
 
     (tmp_path / "output_organization.json").write_text("{", encoding="utf-8")
 
-    loaded = FileOutputOrganizationPreferenceRepository(tmp_path).load()
+    loaded = FileOutputPreferenceRepository(tmp_path).load()
 
-    assert loaded == OutputOrganizationPreferences()
+    assert loaded == OutputPreferences()
 
 
 def test_file_repository_preserves_null_output_root(tmp_path: Path) -> None:
@@ -342,10 +355,10 @@ def test_file_repository_preserves_null_output_root(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    loaded = FileOutputOrganizationPreferenceRepository(tmp_path).load()
+    loaded = FileOutputPreferenceRepository(tmp_path).load()
 
-    assert loaded.output_root is None
-    assert loaded.path_pattern == "{workflow}\\{run}_{source}"
+    assert loaded.organization.output_root is None
+    assert loaded.organization.path_pattern == "{workflow}\\{run}_{source}"
 
 
 def _context(

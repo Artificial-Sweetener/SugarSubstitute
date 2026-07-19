@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from substitute.application.civitai import (
@@ -29,8 +29,7 @@ from substitute.application.danbooru.preferences_service import (
     DanbooruPreferenceService,
 )
 from substitute.application.generation import (
-    OutputOrganizationPreferences,
-    OutputOrganizationPreferenceService,
+    OutputPreferenceService,
 )
 from substitute.application.prompt_editor import PromptEditorPreferenceService
 from substitute.domain.civitai import CivitaiPreferences, CivitaiThumbnailSafetyPolicy
@@ -70,7 +69,7 @@ class OnboardingPreferenceSetupFailure(RuntimeError):
 class OnboardingPreferenceSetupService:
     """Save onboarding choices through the existing preference owners."""
 
-    output_organization_service: OutputOrganizationPreferenceService
+    output_preference_service: OutputPreferenceService
     danbooru_preference_service: DanbooruPreferenceService
     prompt_editor_preference_service: PromptEditorPreferenceService
     civitai_preference_service: CivitaiPreferenceService
@@ -103,11 +102,14 @@ class OnboardingPreferenceSetupService:
     def _save_output_preferences(self, output_root: Path | None) -> None:
         """Persist output root while preserving the user's path pattern."""
 
-        current = self.output_organization_service.load_preferences()
-        result = self.output_organization_service.save_preferences(
-            OutputOrganizationPreferences(
-                output_root=output_root,
-                path_pattern=current.path_pattern,
+        current = self.output_preference_service.load_preferences()
+        result = self.output_preference_service.save_preferences(
+            replace(
+                current,
+                organization=replace(
+                    current.organization,
+                    output_root=output_root,
+                ),
             )
         )
         if not result.succeeded:

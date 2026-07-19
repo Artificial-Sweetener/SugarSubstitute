@@ -225,6 +225,25 @@ def _parse_global_override_seed_control_comment(
     )
 
 
+def _parse_cube_output_persistence_comment(
+    stripped_line: str,
+) -> tuple[str, bool] | None:
+    """Parse one workflow-local cube output persistence metadata comment."""
+
+    prefix = "# cube_output_persistence "
+    try:
+        payload = json.loads(stripped_line[len(prefix) :])
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    alias = payload.get("alias")
+    saved = payload.get("saved")
+    if not isinstance(alias, str) or not alias or type(saved) is not bool:
+        return None
+    return alias, saved
+
+
 def parse_sugar_script_document(sugar_script_str: str) -> ParsedSugarScript:
     """Parse Sugar DSL text into ordered buffers, global overrides, and project name."""
 
@@ -243,6 +262,7 @@ def parse_sugar_script_document(sugar_script_str: str) -> ParsedSugarScript:
     alias_to_version: dict[str, str] = {}
     alias_to_update_policy: dict[str, str] = {}
     alias_to_bypassed: dict[str, bool] = {}
+    alias_to_save_outputs: dict[str, bool] = {}
     use_re = re.compile(
         r'^use\s+(?:"([^"]+)"|([\w\-\\/. ]+))'
         r'(?:@(?:"([^"]*)"|([\w.]+)))?'
@@ -321,6 +341,12 @@ def parse_sugar_script_document(sugar_script_str: str) -> ParsedSugarScript:
             global_override_selections[key] = selected
             parsed_global_override_selection_count += 1
             continue
+        if stripped_line.startswith("# cube_output_persistence "):
+            output_policy = _parse_cube_output_persistence_comment(stripped_line)
+            if output_policy is not None:
+                alias, saved = output_policy
+                alias_to_save_outputs[alias] = saved
+            continue
         if stripped_line.startswith("# global_override_value "):
             global_override_value_line_count += 1
             override_value = _parse_global_override_value_comment(stripped_line)
@@ -369,6 +395,7 @@ def parse_sugar_script_document(sugar_script_str: str) -> ParsedSugarScript:
                     ),
                 ),
                 bypassed=alias_to_bypassed.get(alias, False),
+                save_outputs=alias_to_save_outputs.get(alias, True),
                 nodes=OrderedDict(),
             ),
         )

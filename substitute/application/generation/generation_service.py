@@ -74,8 +74,8 @@ from substitute.application.generation.generation_models import (
 from substitute.application.generation.preview_preference_service import (
     GenerationPreviewMethodResolver,
 )
-from substitute.application.generation.output_organization_service import (
-    OutputOrganizationPreferenceService,
+from substitute.application.generation.output_preference_service import (
+    OutputPreferenceService,
 )
 from substitute.application.generation.output_seed_resolver import resolve_output_seed
 from substitute.application.generation.visual_run_context_builder import (
@@ -160,7 +160,7 @@ class GenerationService:
             PromptWildcardPreprocessingService | None
         ) = None,
         preview_method_resolver: GenerationPreviewMethodResolver | None = None,
-        output_organization_service: OutputOrganizationPreferenceService | None = None,
+        output_preference_service: OutputPreferenceService | None = None,
         direct_workflow_graph_service: DirectWorkflowGenerationPlanService
         | None = None,
         direct_workflow_execution_projector: DirectWorkflowExecutionProjector
@@ -180,7 +180,7 @@ class GenerationService:
         self._preview_method_resolver = (
             preview_method_resolver or _DefaultGenerationPreviewMethodResolver()
         )
-        self._output_organization_service = output_organization_service
+        self._output_preference_service = output_preference_service
         self._direct_workflow_graph_service = (
             direct_workflow_graph_service or DirectWorkflowGenerationPlanService()
         )
@@ -445,6 +445,9 @@ class GenerationService:
             output_save_plan = self._create_output_save_plan(
                 request,
                 seed=output_seed,
+                explicit_output_aliases=tuple(
+                    source.source_label for source in standard_output_sources
+                ),
             )
         except Exception as error:
             log_exception(
@@ -498,24 +501,25 @@ class GenerationService:
             )
         listener_session = listener_session_result.handle
 
+        visual_context = self._visual_run_context_builder.build(
+            workflow_payload=workflow_payload,
+            workflow_id=request.workflow_id,
+            generation_run_id=generation_run_id,
+            client_id=run_client_id,
+            scene_run_id=request.scene_run_id,
+            scene_key=request.scene_key,
+            scene_title=request.scene_title,
+            scene_order=request.scene_order,
+            scene_count=request.scene_count,
+            explicit_sources=standard_output_sources,
+        )
         queue_result = self._comfy_gateway.queue_prompt(
             workflow_payload,
             client_id=run_client_id,
             execution_targets=execution_targets,
             preview_method=self._preview_method_resolver.resolved_comfy_preview_method(),
             sugar_script=sugar_script,
-            visual_context=self._visual_run_context_builder.build(
-                workflow_payload=workflow_payload,
-                workflow_id=request.workflow_id,
-                generation_run_id=generation_run_id,
-                client_id=run_client_id,
-                scene_run_id=request.scene_run_id,
-                scene_key=request.scene_key,
-                scene_title=request.scene_title,
-                scene_order=request.scene_order,
-                scene_count=request.scene_count,
-                explicit_sources=standard_output_sources,
-            ),
+            visual_context=visual_context,
         )
         prompt_id = queue_result.prompt_id
         if prompt_id is None:
@@ -650,17 +654,22 @@ class GenerationService:
         request: PreparedGenerationRequest,
         *,
         seed: str,
+        explicit_output_aliases: tuple[str, ...] = (),
     ) -> OutputSavePlan:
         """Create immutable output organization settings for one queued prompt."""
 
         job_started_at = request.output_job_started_at or datetime.now().astimezone()
-        if self._output_organization_service is not None:
-            return self._output_organization_service.create_save_plan(
+        if self._output_preference_service is not None:
+            return self._output_preference_service.create_save_plan(
                 workflow_name=request.workflow_name,
                 output_run_number=request.output_run_number,
                 job_started_at=job_started_at,
                 seed=seed,
                 cube_numbers_by_alias=_cube_numbers_by_alias(request),
+                active_cube_aliases=(
+                    explicit_output_aliases or _active_cube_aliases_for_request(request)
+                ),
+                muted_cube_aliases=_muted_cube_aliases_for_request(request),
             )
         return OutputSavePlan(
             output_root=self._output_dir,
@@ -794,6 +803,42 @@ def _cube_numbers_by_alias(request: PreparedGenerationRequest) -> dict[str, int]
     for index, alias in enumerate(aliases, start=1):
         _add_cube_number_aliases(numbers, alias, index)
     return numbers
+
+
+def _active_cube_aliases_for_request(
+    request: PreparedGenerationRequest,
+) -> tuple[str, ...]:
+    """Return topology-ordered active cube aliases for persistence policy."""
+
+    aliases = _ordered_cube_aliases_from_workflow(request.workflow)
+    if aliases is not None:
+        return aliases
+    return _ordered_cube_aliases_from_script(request.sugar_script_text)
+
+
+def _muted_cube_aliases_for_request(
+    request: PreparedGenerationRequest,
+) -> frozenset[str]:
+    """Return workflow-local cube aliases whose outputs are memory-only."""
+
+    workflow = request.workflow
+    cubes = getattr(workflow, "cubes", None)
+    if isinstance(cubes, Mapping):
+        return frozenset(
+            alias
+            for alias, cube in cubes.items()
+            if isinstance(alias, str)
+            and getattr(cube, "output_persistence_enabled", True) is False
+        )
+    try:
+        parsed_script = parse_sugar_script_document(request.sugar_script_text)
+    except Exception:
+        return frozenset()
+    return frozenset(
+        alias
+        for alias, buffer in parsed_script.buffers.items()
+        if buffer.get("save_outputs") is False
+    )
 
 
 def _ordered_cube_aliases_from_workflow(

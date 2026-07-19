@@ -26,6 +26,7 @@ from typing import Callable, Literal, Protocol, runtime_checkable
 
 from substitute.application.errors import ErrorReport
 from substitute.domain.common import JsonObject, WorkflowId
+from substitute.domain.generation.output_preferences import JpegOutputSettings
 
 QueuePromptStatus = Literal["queued", "missing_prompt_id", "error"]
 InterruptStatus = Literal["sent", "failed"]
@@ -167,12 +168,13 @@ class PreviewImageUpdate:
 
 @dataclass(frozen=True)
 class OutputImageUpdate:
-    """Represent a saved output image path tied to workflow and node context."""
+    """Represent final image bytes and optional durable path with routing context."""
 
     workflow_id: WorkflowId
     workflow_payload: JsonObject
-    file_path: Path
+    file_path: Path | None
     node_id: str
+    image_bytes: bytes = b""
     generation_run_id: str | None = None
     prompt_id: str | None = None
     client_id: str | None = None
@@ -201,6 +203,19 @@ class OutputSavePlan:
     job_started_at: datetime
     seed: str = ""
     cube_numbers_by_alias: Mapping[str, int] = field(default_factory=dict)
+    jpeg: JpegOutputSettings = JpegOutputSettings()
+    persisted_cube_aliases: frozenset[str] | None = None
+    muted_cube_aliases: frozenset[str] = frozenset()
+
+    def persists_cube(self, cube_alias: str) -> bool:
+        """Return whether one cube source receives durable files in this run."""
+
+        if cube_alias in self.muted_cube_aliases:
+            return False
+        return (
+            self.persisted_cube_aliases is None
+            or cube_alias in self.persisted_cube_aliases
+        )
 
 
 @dataclass(frozen=True)
