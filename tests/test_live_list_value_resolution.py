@@ -19,14 +19,67 @@
 from __future__ import annotations
 
 from substitute.application.node_behavior import (
+    ChoiceAvailability,
     FieldValueSource,
+    choice_inventory,
     extract_live_list_default,
     extract_live_list_options,
     has_authoritative_picker_options,
     is_blank_picker_value,
     resolve_picker_fallback,
+    resolve_choice_inventory_for_field,
     resolve_live_list_value,
 )
+
+
+def test_choice_inventory_distinguishes_missing_empty_and_populated_metadata() -> None:
+    """Finite-choice availability must not infer empty state from missing metadata."""
+
+    missing = choice_inventory(["COMBO", {}])
+    empty = choice_inventory(["COMBO", {"options": []}])
+    populated = choice_inventory(["COMBO", {"options": ["auto"]}])
+
+    assert missing.availability is ChoiceAvailability.UNAVAILABLE
+    assert missing.authoritative is False
+    assert empty.availability is ChoiceAvailability.EMPTY
+    assert empty.authoritative is True
+    assert populated.availability is ChoiceAvailability.POPULATED
+    assert populated.string_options == ("auto",)
+
+
+def test_live_empty_choice_inventory_overrides_stale_prepared_options() -> None:
+    """An authoritative live empty list must not fall back to stale cube metadata."""
+
+    class Gateway:
+        """Return one live empty Comfy field definition."""
+
+        def get_node_definition(self, node_class: str) -> dict[str, object]:
+            """Return cached object-info for the requested node class."""
+
+            return {
+                node_class: {
+                    "input": {
+                        "required": {
+                            "model_name": ["COMBO", {"options": []}],
+                        }
+                    }
+                }
+            }
+
+        def get_required_node_definition(self, node_class: str) -> dict[str, object]:
+            """Return the same object-info through the required gateway method."""
+
+            return self.get_node_definition(node_class)
+
+    inventory = resolve_choice_inventory_for_field(
+        key="model_name",
+        node_type="UpscaleModelLoader",
+        node_definition_gateway=Gateway(),
+        field_info=["COMBO", {"options": ["stale.pth"]}],
+    )
+
+    assert inventory.availability is ChoiceAvailability.EMPTY
+    assert inventory.options == ()
 
 
 def test_resolve_live_list_value_keeps_explicit_valid_literal() -> None:

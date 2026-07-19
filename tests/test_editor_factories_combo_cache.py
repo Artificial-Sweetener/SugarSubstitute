@@ -18,36 +18,36 @@
 
 from __future__ import annotations
 
-import substitute.presentation.editor.panel.factories.choice_factory as choice_factory
+from substitute.presentation.editor.panel import choice_items
 
 
 def test_prepared_combo_items_reuses_immutable_literal_items() -> None:
     """Repeated literal combo preparation should return the same values."""
 
-    choice_factory._clear_combo_item_cache_for_tests()
+    choice_items.clear_choice_item_cache_for_tests()
 
-    first = choice_factory._prepared_combo_items(
+    first = choice_items.prepare_choice_items(
         key="ckpt_name",
         node_data={},
         options=("a.safetensors", "b.safetensors"),
     )
-    second = choice_factory._prepared_combo_items(
+    second = choice_items.prepare_choice_items(
         key="ckpt_name",
         node_data={},
         options=("a.safetensors", "b.safetensors"),
     )
 
     assert first == second
-    assert first == [
+    assert first == (
         ("a.safetensors", "a.safetensors"),
         ("b.safetensors", "b.safetensors"),
-    ]
+    )
 
 
 def test_prepared_combo_items_returns_independent_link_values() -> None:
     """Linked combo preparation should not share mutable backend dicts."""
 
-    choice_factory._clear_combo_item_cache_for_tests()
+    choice_items.clear_choice_item_cache_for_tests()
     node_data = {
         "sampler_links": [
             {
@@ -58,12 +58,12 @@ def test_prepared_combo_items_returns_independent_link_values() -> None:
         ]
     }
 
-    first = choice_factory._prepared_combo_items(
+    first = choice_items.prepare_choice_items(
         key="sampler_name",
         node_data=node_data,
         options=("euler",),
     )
-    second = choice_factory._prepared_combo_items(
+    second = choice_items.prepare_choice_items(
         key="sampler_name",
         node_data=node_data,
         options=("euler",),

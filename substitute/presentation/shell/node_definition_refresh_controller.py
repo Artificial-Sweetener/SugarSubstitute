@@ -136,7 +136,7 @@ class NodeDefinitionRefreshController:
                 )
             reconcile_fields = getattr(
                 editor_panel,
-                "reconcile_model_fields_after_node_definition_update",
+                "reconcile_choice_fields_after_node_definition_update",
                 None,
             )
             fallback_node_classes = refreshed_node_classes

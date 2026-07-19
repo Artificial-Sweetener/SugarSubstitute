@@ -93,6 +93,18 @@ class _FakeComboBox:
 
         self.current_text = text
 
+    def reconcile_choice_items(
+        self,
+        items: object,
+        selected_label: str,
+    ) -> None:
+        """Record one prepared editor-choice replacement."""
+
+        prepared = list(cast(list[tuple[str, object]], items))
+        self.items = [label for label, _value in prepared]
+        self.current_text = selected_label
+        self._editor_choice_values_by_label = dict(prepared)
+
 
 class _FakeModelPickerField:
     """Record model-picker construction inputs."""
@@ -388,45 +400,43 @@ def test_choice_factory_explicit_model_picker_requires_prepared_snapshot() -> No
 def test_model_choice_snapshot_uses_local_metadata_bootstrap_for_thumbnails() -> None:
     """Cold model pickers should enrich first render from local thumbnail metadata."""
 
-    value = "models/base.safetensors"
+    values = ("models/base.safetensors", "models/refiner.safetensors")
     catalog = _MetadataBootstrapCatalog(
-        (_thumbnail_model_item("checkpoints", value, "Base"),)
+        (
+            _thumbnail_model_item("checkpoints", values[0], "Base"),
+            _thumbnail_model_item("checkpoints", values[1], "Refiner"),
+        )
     )
 
     snapshot = _model_choice_snapshot(
         field_behavior=FieldBehavior(field_key="ckpt_name"),
         key="ckpt_name",
-        value=value,
+        value=values[0],
         node_type="CheckpointLoaderSimple",
         field_type="LIST",
-        field_info=((value,),),
+        field_info=(values,),
         catalog=catalog,
         resolver=_rich_choice_resolver(catalog),
     )
 
     assert snapshot.choice_source is not None
     resolution = snapshot.choice_source.current_resolution()
-    assert resolution.enriched_count == 1
+    assert resolution.enriched_count == 2
     assert resolution.items[0].thumbnail_variants
     assert resolution.items[0].thumbnail_variants[0].role == BANNER_THUMBNAIL_ROLE
 
 
-def test_choice_factory_keeps_cold_model_list_as_model_picker(
+def test_choice_factory_keeps_unverified_model_list_as_combo(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Known model LIST fields should not fall back to plain combos while metadata is cold."""
+    """A model-like field name should remain a combo without catalog evidence."""
 
-    monkeypatch.setattr(choice_factory, "ModelPickerField", _FakeModelPickerField)
-    monkeypatch.setattr(
-        choice_factory,
-        "ComboBox",
-        lambda *_args, **_kwargs: pytest.fail("model field fell back to ComboBox"),
-    )
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     field_behavior = FieldBehavior(field_key="ckpt_name")
 
     widget = ChoiceFieldFactory().build_field_widget(
         ChoiceFieldBuildRequest(
-            parent="parent",
+            parent=SimpleNamespace(sampler_link_widgets={}, scheduler_link_widgets={}),
             field_behavior=field_behavior,
             node_name="checkpoint",
             key="ckpt_name",
@@ -449,27 +459,24 @@ def test_choice_factory_keeps_cold_model_list_as_model_picker(
         )
     )
 
-    assert isinstance(widget, _FakeModelPickerField)
-    assert widget.resolution.should_use_rich_picker is True
-    assert widget.resolution.matched_kinds == ("checkpoints",)
-    assert [item.value for item in widget.resolution.items] == [
+    assert isinstance(widget, _FakeComboBox)
+    assert widget.items == [
         "base-a.safetensors",
         "base-b.safetensors",
     ]
 
 
-def test_choice_factory_builds_blank_picker_for_empty_known_model_list(
+def test_choice_factory_builds_blank_picker_for_explicit_model_picker(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Known model fields remain renderable when Comfy reports zero models."""
+    """Explicit model-picker behavior should remain renderable with zero models."""
 
     monkeypatch.setattr(choice_factory, "ModelPickerField", _FakeModelPickerField)
-    monkeypatch.setattr(
-        choice_factory,
-        "ComboBox",
-        lambda *_args, **_kwargs: pytest.fail("model field fell back to ComboBox"),
+    field_behavior = FieldBehavior(
+        field_key="ckpt_name",
+        presentation=FieldPresentation.MODEL_PICKER,
+        style={"model_kind": "checkpoints"},
     )
-    field_behavior = FieldBehavior(field_key="ckpt_name")
     snapshot = _model_choice_snapshot(
         field_behavior=field_behavior,
         node_name="checkpoint",
@@ -508,7 +515,7 @@ def test_choice_factory_builds_linked_sampler_combo(
 ) -> None:
     """Sampler combos should prepare link choices and parent registration."""
 
-    monkeypatch.setattr(choice_factory, "ComboBox", _FakeComboBox)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     parent = SimpleNamespace(sampler_link_widgets={}, scheduler_link_widgets={})
     node_data: dict[str, object] = {
         "inputs": {},

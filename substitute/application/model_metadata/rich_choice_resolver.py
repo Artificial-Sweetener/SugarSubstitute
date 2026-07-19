@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import PurePosixPath, PureWindowsPath
@@ -179,6 +179,29 @@ class RichChoiceResolver:
         self._log_resolution(resolution, context or RichChoiceContext())
         return resolution
 
+    def resolve_prepared(
+        self,
+        options: Iterable[str],
+        *,
+        catalog_items: Iterable[ModelCatalogItem],
+        context: RichChoiceContext | None = None,
+    ) -> RichChoiceResolution:
+        """Resolve exact Comfy options against an already-prepared catalog snapshot."""
+
+        exact_options = tuple(str(option) for option in options)
+        items_by_value: defaultdict[str, list[ModelCatalogItem]] = defaultdict(list)
+        for item in catalog_items:
+            items_by_value[item.backend_value].append(item)
+        candidate_groups = tuple(
+            tuple(items_by_value.get(option, ())) for option in exact_options
+        )
+        resolution = _resolution_for_candidate_groups(
+            exact_options,
+            candidate_groups,
+        )
+        self._log_resolution(resolution, context or RichChoiceContext())
+        return resolution
+
     def prewarm(self, option_lists: Iterable[Iterable[str]] = ()) -> int:
         """Warm model choice indexes and optional exact rich-choice resolutions."""
 
@@ -265,36 +288,7 @@ class RichChoiceResolver:
         candidate_groups = tuple(
             self._catalog_index.candidates_for_value(option) for option in options
         )
-        dominant_kind = _dominant_kind(candidate_groups, option_count=len(options))
-        items = tuple(
-            _choice_item_for_option(
-                value=option,
-                candidates=candidates,
-                dominant_kind=dominant_kind,
-            )
-            for option, candidates in zip(options, candidate_groups, strict=True)
-        )
-        enriched_count = sum(1 for item in items if item.is_enriched)
-        ambiguous_count = sum(1 for item in items if item.is_ambiguous)
-        unmatched_count = len(items) - enriched_count - ambiguous_count
-        matched_kinds = tuple(
-            sorted({item.model_kind for item in items if item.model_kind is not None})
-        )
-        should_use, reason = _render_decision(
-            option_count=len(items),
-            enriched_count=enriched_count,
-            ambiguous_count=ambiguous_count,
-        )
-        return RichChoiceResolution(
-            items=items,
-            should_use_rich_picker=should_use,
-            matched_kinds=matched_kinds,
-            option_count=len(items),
-            enriched_count=enriched_count,
-            ambiguous_count=ambiguous_count,
-            unmatched_count=unmatched_count,
-            reason=reason,
-        )
+        return _resolution_for_candidate_groups(options, candidate_groups)
 
     def _log_resolution(
         self,
@@ -343,6 +337,47 @@ def _choice_item_for_option(
         thumbnail_variants=(),
         is_enriched=False,
         is_ambiguous=is_ambiguous,
+    )
+
+
+def _resolution_for_candidate_groups(
+    options: tuple[str, ...],
+    candidate_groups: tuple[tuple[ModelCatalogItem, ...], ...],
+) -> RichChoiceResolution:
+    """Return a picker decision from exact option-to-catalog candidate groups."""
+
+    dominant_kind = _dominant_kind(candidate_groups, option_count=len(options))
+    items = tuple(
+        _choice_item_for_option(
+            value=option,
+            candidates=candidates,
+            dominant_kind=dominant_kind,
+        )
+        for option, candidates in zip(options, candidate_groups, strict=True)
+    )
+    enriched_count = sum(1 for item in items if item.is_enriched)
+    ambiguous_count = sum(1 for item in items if item.is_ambiguous)
+    unmatched_count = len(items) - enriched_count - ambiguous_count
+    matched_kinds = tuple(
+        sorted({item.model_kind for item in items if item.model_kind is not None})
+    )
+    should_use, reason = _render_decision(
+        option_count=len(items),
+        enriched_count=enriched_count,
+        ambiguous_count=ambiguous_count,
+    )
+    if should_use and len(matched_kinds) != 1:
+        should_use = False
+        reason = "model choices do not resolve to one catalog kind"
+    return RichChoiceResolution(
+        items=items,
+        should_use_rich_picker=should_use,
+        matched_kinds=matched_kinds,
+        option_count=len(items),
+        enriched_count=enriched_count,
+        ambiguous_count=ambiguous_count,
+        unmatched_count=unmatched_count,
+        reason=reason,
     )
 
 

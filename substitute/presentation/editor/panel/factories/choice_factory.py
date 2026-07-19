@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -31,34 +31,30 @@ from substitute.presentation.widgets.model_metadata_context_menu import (
 from substitute.application.node_behavior import (
     FieldBehavior,
     FieldPresentation,
-    extract_live_list_options,
     is_choice_field_type,
-)
-from substitute.application.overrides.link_policy import (
-    build_sampler_choice_items,
-    build_scheduler_choice_items,
-    resolve_linked_choice_label,
+    resolve_choice_inventory_for_field,
 )
 from substitute.application.ports import NodeDefinitionGateway
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
     PanelModelChoiceSnapshot,
 )
+from substitute.presentation.editor.panel.choice_items import (
+    prepare_choice_items,
+    selected_choice_label,
+)
 from substitute.presentation.editor.panel.projection_observability import (
     log_panel_projection_timing,
     panel_projection_observability_started_at,
 )
-from substitute.presentation.widgets import ComboBox
+from substitute.presentation.editor.panel.widgets.fields.choice_combo import (
+    EditorChoiceComboBox,
+)
 from substitute.presentation.widgets.model_picker import (
     ModelPickerField,
     ModelPickerThumbnailPreloadRoute,
 )
 
 _EDITOR_COMBO_MAX_HINT_WIDTH = 360
-_COMBO_ITEM_CACHE_MAX_SIZE = 256
-_COMBO_ITEM_CACHE: dict[
-    tuple[str, tuple[str, ...], tuple[tuple[str, str, str], ...]],
-    tuple[tuple[str, object], ...],
-] = {}
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,145 +134,6 @@ class ChoiceFieldFactory:
         )
 
 
-def _resolve_live_choice_options(
-    *,
-    node_definition_gateway: NodeDefinitionGateway,
-    node_type: str,
-    key: str,
-) -> list[str]:
-    """Return normalized live choice options for one node input when available."""
-
-    live_def = node_definition_gateway.get_node_definition(node_type)
-    node_def = live_def.get(node_type, {})
-    if not isinstance(node_def, dict):
-        return []
-    input_section = node_def.get("input", {})
-    if not isinstance(input_section, dict):
-        return []
-    required = input_section.get("required", {})
-    optional = input_section.get("optional", {})
-    live_info = (required.get(key) if isinstance(required, dict) else None) or (
-        optional.get(key) if isinstance(optional, dict) else None
-    )
-    return list(extract_live_list_options(live_info))
-
-
-def _resolve_list_choice_options(
-    *,
-    key: str,
-    node_type: object,
-    node_definition_gateway: object,
-    field_info: object,
-) -> list[str]:
-    """Return exact Comfy choice options from live definitions or field info."""
-
-    options: list[str] | None = None
-    if (
-        node_type
-        and isinstance(node_type, str)
-        and isinstance(node_definition_gateway, NodeDefinitionGateway)
-    ):
-        options = _resolve_live_choice_options(
-            node_definition_gateway=node_definition_gateway,
-            node_type=node_type,
-            key=key,
-        )
-    if options:
-        return options
-    return list(extract_live_list_options(field_info))
-
-
-def _prepared_combo_items(
-    *,
-    key: str,
-    node_data: object,
-    options: Sequence[str],
-) -> list[tuple[str, object]]:
-    """Return combo display/value items from an immutable preparation cache."""
-
-    option_tuple = tuple(options)
-    link_signature = _combo_link_signature(key=key, node_data=node_data)
-    cache_key = (key, option_tuple, link_signature)
-    prepared = _COMBO_ITEM_CACHE.get(cache_key)
-    if prepared is None:
-        if key == "sampler_name" and isinstance(node_data, dict):
-            raw_items = build_sampler_choice_items(node_data, option_tuple)
-        elif key == "scheduler" and isinstance(node_data, dict):
-            raw_items = build_scheduler_choice_items(node_data, option_tuple)
-        else:
-            raw_items = [(option, option) for option in option_tuple]
-        prepared = tuple(
-            (label, _freeze_combo_item_value(value)) for label, value in raw_items
-        )
-        if len(_COMBO_ITEM_CACHE) >= _COMBO_ITEM_CACHE_MAX_SIZE:
-            _COMBO_ITEM_CACHE.clear()
-        _COMBO_ITEM_CACHE[cache_key] = prepared
-    return [(label, _thaw_combo_item_value(value)) for label, value in prepared]
-
-
-def _combo_link_signature(
-    *,
-    key: str,
-    node_data: object,
-) -> tuple[tuple[str, str, str], ...]:
-    """Return immutable link-choice inputs for combo item cache keys."""
-
-    if not isinstance(node_data, dict):
-        return ()
-    link_key = (
-        "sampler_links"
-        if key == "sampler_name"
-        else "scheduler_links"
-        if key == "scheduler"
-        else ""
-    )
-    if not link_key:
-        return ()
-    link_items = node_data.get(link_key)
-    if not isinstance(link_items, list):
-        return ()
-    signature: list[tuple[str, str, str]] = []
-    for item in link_items:
-        if isinstance(item, str):
-            signature.append(("literal", item, ""))
-            continue
-        if isinstance(item, dict):
-            signature.append(
-                (
-                    str(item.get("label", "")),
-                    str(item.get("from_cube", "")),
-                    str(item.get("from_node", "")),
-                )
-            )
-    return tuple(signature)
-
-
-def _freeze_combo_item_value(value: object) -> object:
-    """Return an immutable representation of one combo item backend value."""
-
-    if isinstance(value, Mapping):
-        return (
-            "__linked_choice__",
-            str(value.get("from_cube", "")),
-            str(value.get("from_node", "")),
-        )
-    return value
-
-
-def _thaw_combo_item_value(value: object) -> object:
-    """Return an independent mutable combo backend value when needed."""
-
-    if isinstance(value, tuple) and len(value) == 3 and value[0] == "__linked_choice__":
-        return {"from_cube": value[1], "from_node": value[2]}
-    return value
-
-
-def _clear_combo_item_cache_for_tests() -> None:
-    """Clear combo item preparation cache for focused tests."""
-
-    _COMBO_ITEM_CACHE.clear()
-
-
 def resolve_choice_options_for_field(
     *,
     key: str,
@@ -288,13 +145,13 @@ def resolve_choice_options_for_field(
     """Return renderable choice options from live Comfy definitions only."""
 
     _ = value
-    options = _resolve_list_choice_options(
+    inventory = resolve_choice_inventory_for_field(
         key=key,
         node_type=node_type,
         node_definition_gateway=node_definition_gateway,
         field_info=field_info,
     )
-    return tuple(options)
+    return inventory.string_options
 
 
 def _build_prepared_model_picker(
@@ -359,27 +216,26 @@ def widget_factory_list_str(
         "projection_mode": "live",
     }
     resolve_started_at = panel_projection_observability_started_at()
-    live_or_field_options = resolve_choice_options_for_field(
+    inventory = resolve_choice_inventory_for_field(
         key=key,
         node_type=node_type,
         node_definition_gateway=kwargs.get("node_definition_gateway"),
         field_info=kwargs.get("field_info"),
-        value=value,
     )
     log_panel_projection_timing(
         "choice_factory.combo_resolve_options",
         started_at=resolve_started_at,
-        option_count=len(live_or_field_options),
+        option_count=len(inventory.options),
         **trace_context,
     )
-    options = list(live_or_field_options)
-    if not options:
+    if not inventory.authoritative:
         raise RuntimeError(
             f"Failed to resolve live Comfy options for {node_type}.{key}."
         )
+    options = list(inventory.string_options)
     node_data = field_meta.get("node_data") if isinstance(field_meta, dict) else None
     prepare_started_at = panel_projection_observability_started_at()
-    combo_items = _prepared_combo_items(
+    combo_items = prepare_choice_items(
         key=key,
         node_data=node_data,
         options=options,
@@ -390,42 +246,15 @@ def widget_factory_list_str(
         option_count=len(options),
         **trace_context,
     )
-    label_to_value = {label: choice_value for label, choice_value in combo_items}
-    combo = ComboBox(parent)
+    combo = EditorChoiceComboBox(parent)
     combo.setMaxHintWidth(_EDITOR_COMBO_MAX_HINT_WIDTH)
-    combo.addItems([label for label, _ in combo_items])
-    setattr(combo, "_editor_choice_values_by_label", label_to_value)
-
-    selected_label = None
-    if key == "sampler_name" and isinstance(node_data, dict):
-        sampler_link = node_data.get("sampler_link")
-        if sampler_link and isinstance(sampler_link, dict):
-            selected_label = resolve_linked_choice_label(combo_items, sampler_link)
-        else:
-            for label, val in combo_items:
-                if val == value:
-                    selected_label = label
-                    break
-        if not selected_label and combo_items:
-            selected_label = combo_items[0][0]
-        combo.setCurrentText(selected_label or "")
-
-    elif key == "scheduler" and isinstance(node_data, dict):
-        scheduler_link = node_data.get("scheduler_link")
-        if scheduler_link and isinstance(scheduler_link, dict):
-            selected_label = resolve_linked_choice_label(combo_items, scheduler_link)
-        else:
-            for label, val in combo_items:
-                if val == value:
-                    selected_label = label
-                    break
-        if not selected_label and combo_items:
-            selected_label = combo_items[0][0]
-
-        combo.setCurrentText(selected_label or "")
-
-    else:
-        combo.setCurrentText(str(value) if value is not None else "")
+    selected_label = selected_choice_label(
+        key=key,
+        node_data=node_data,
+        items=combo_items,
+        value=value,
+    )
+    combo.reconcile_choice_items(combo_items, selected_label)
 
     parent_with_registries = cast(Any, parent)
 

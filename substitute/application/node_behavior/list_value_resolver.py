@@ -20,6 +20,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
+
+from substitute.application.ports import NodeDefinitionGateway
 
 from .models import FieldValueSource
 
@@ -42,6 +45,34 @@ class PickerFallback:
     source: str
 
 
+class ChoiceAvailability(StrEnum):
+    """Describe whether Comfy supplied a finite choice collection."""
+
+    UNAVAILABLE = "unavailable"
+    EMPTY = "empty"
+    POPULATED = "populated"
+
+
+@dataclass(frozen=True, slots=True)
+class ChoiceInventory:
+    """Publish one authoritative interpretation of Comfy choice metadata."""
+
+    availability: ChoiceAvailability
+    options: tuple[object, ...] = ()
+
+    @property
+    def string_options(self) -> tuple[str, ...]:
+        """Return string literals suitable for editor choice controls."""
+
+        return tuple(option for option in self.options if isinstance(option, str))
+
+    @property
+    def authoritative(self) -> bool:
+        """Return whether Comfy explicitly supplied the option collection."""
+
+        return self.availability is not ChoiceAvailability.UNAVAILABLE
+
+
 def is_choice_field_type(field_type: object) -> bool:
     """Return whether a resolved field type represents a finite choice input."""
 
@@ -56,49 +87,75 @@ def _extract_string_options(value: object) -> tuple[str, ...]:
     return tuple(option for option in value if isinstance(option, str))
 
 
-def extract_picker_options(field_info: object) -> tuple[object, ...]:
-    """Return all literal picker options from classic or COMBO metadata."""
+def choice_inventory(field_info: object) -> ChoiceInventory:
+    """Interpret classic and typed Comfy finite-choice definitions once."""
 
     if (
         not isinstance(field_info, Sequence)
         or isinstance(field_info, (str, bytes))
         or not field_info
     ):
-        return ()
+        return ChoiceInventory(ChoiceAvailability.UNAVAILABLE)
     first_item = field_info[0]
-    if first_item == "COMBO":
+    if isinstance(first_item, str) and first_item.upper() in {"COMBO", "LIST"}:
         if len(field_info) < 2 or not isinstance(field_info[1], Mapping):
-            return ()
+            return ChoiceInventory(ChoiceAvailability.UNAVAILABLE)
         options = field_info[1].get("options")
         if not isinstance(options, Sequence) or isinstance(options, (str, bytes)):
-            return ()
-        return tuple(options)
+            return ChoiceInventory(ChoiceAvailability.UNAVAILABLE)
+        option_tuple = tuple(options)
+        return ChoiceInventory(
+            ChoiceAvailability.POPULATED if option_tuple else ChoiceAvailability.EMPTY,
+            option_tuple,
+        )
     if isinstance(first_item, Sequence) and not isinstance(first_item, (str, bytes)):
-        return tuple(first_item)
-    return ()
+        option_tuple = tuple(first_item)
+        return ChoiceInventory(
+            ChoiceAvailability.POPULATED if option_tuple else ChoiceAvailability.EMPTY,
+            option_tuple,
+        )
+    return ChoiceInventory(ChoiceAvailability.UNAVAILABLE)
+
+
+def resolve_choice_inventory_for_field(
+    *,
+    key: str,
+    node_type: object,
+    node_definition_gateway: object,
+    field_info: object,
+) -> ChoiceInventory:
+    """Resolve one field from live object-info before its prepared fallback."""
+
+    if isinstance(node_type, str) and isinstance(
+        node_definition_gateway, NodeDefinitionGateway
+    ):
+        payload = node_definition_gateway.get_node_definition(node_type)
+        node_definition = payload.get(node_type)
+        if isinstance(node_definition, Mapping):
+            input_section = node_definition.get("input")
+            if isinstance(input_section, Mapping):
+                live_info: object = None
+                for section_name in ("required", "optional"):
+                    section = input_section.get(section_name)
+                    if isinstance(section, Mapping) and key in section:
+                        live_info = section[key]
+                        break
+                live_inventory = choice_inventory(live_info)
+                if live_inventory.authoritative:
+                    return live_inventory
+    return choice_inventory(field_info)
+
+
+def extract_picker_options(field_info: object) -> tuple[object, ...]:
+    """Return all literal picker options from authoritative Comfy metadata."""
+
+    return choice_inventory(field_info).options
 
 
 def has_authoritative_picker_options(field_info: object) -> bool:
     """Return whether Comfy explicitly supplied a picker option collection."""
 
-    if (
-        not isinstance(field_info, Sequence)
-        or isinstance(field_info, (str, bytes))
-        or not field_info
-    ):
-        return False
-    first_item = field_info[0]
-    if isinstance(first_item, Sequence) and not isinstance(first_item, (str, bytes)):
-        return True
-    if (
-        isinstance(first_item, str)
-        and first_item.upper() in {"COMBO", "LIST"}
-        and len(field_info) > 1
-        and isinstance(field_info[1], Mapping)
-    ):
-        options = field_info[1].get("options")
-        return isinstance(options, Sequence) and not isinstance(options, (str, bytes))
-    return False
+    return choice_inventory(field_info).authoritative
 
 
 def extract_live_list_options(field_info: object) -> tuple[str, ...]:
@@ -111,7 +168,7 @@ def extract_live_list_options(field_info: object) -> tuple[str, ...]:
     ):
         return ()
 
-    return _extract_string_options(extract_picker_options(field_info))
+    return choice_inventory(field_info).string_options
 
 
 def extract_picker_default(field_info: object) -> object | None:
@@ -174,8 +231,11 @@ def resolve_picker_fallback(
 def unresolved_choice_options_reason(field_info: object) -> str | None:
     """Return why a finite choice field lacks concrete live options."""
 
-    if extract_live_list_options(field_info):
+    inventory = choice_inventory(field_info)
+    if inventory.availability is ChoiceAvailability.POPULATED:
         return None
+    if inventory.availability is ChoiceAvailability.EMPTY:
+        return "empty_choice_options"
     if (
         not isinstance(field_info, Sequence)
         or isinstance(field_info, (str, bytes))
@@ -184,12 +244,10 @@ def unresolved_choice_options_reason(field_info: object) -> str | None:
         return "missing_field_definition"
 
     first_item = field_info[0]
-    if first_item == "COMBO":
+    if isinstance(first_item, str) and first_item.upper() == "COMBO":
         return "missing_combo_options"
-    if first_item == "LIST":
+    if isinstance(first_item, str) and first_item.upper() == "LIST":
         return "missing_list_options"
-    if isinstance(first_item, Sequence) and not isinstance(first_item, (str, bytes)):
-        return "empty_list_options"
     return None
 
 
@@ -207,9 +265,10 @@ def resolve_live_list_value(
     mutate any workflow state itself.
     """
 
-    options = extract_live_list_options(field_info)
+    inventory = choice_inventory(field_info)
+    options = inventory.string_options
     if not options:
-        if clear_when_options_empty and has_authoritative_picker_options(field_info):
+        if clear_when_options_empty and inventory.authoritative:
             return ListValueResolution(
                 effective_value="",
                 value_source=FieldValueSource.NO_OPTIONS,
@@ -253,6 +312,9 @@ def resolve_live_list_value(
 
 
 __all__ = [
+    "ChoiceAvailability",
+    "ChoiceInventory",
+    "choice_inventory",
     "ListValueResolution",
     "PickerFallback",
     "extract_picker_default",
@@ -264,6 +326,7 @@ __all__ = [
     "is_choice_field_type",
     "is_picker_field_spec",
     "resolve_picker_fallback",
+    "resolve_choice_inventory_for_field",
     "resolve_live_list_value",
     "unresolved_choice_options_reason",
 ]
