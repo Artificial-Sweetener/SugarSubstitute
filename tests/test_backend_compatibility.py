@@ -62,7 +62,7 @@ def test_compatibility_blocks_too_old_backend() -> None:
 
     assert result.status is RuntimeCompatibilityStatus.BACKEND_TOO_OLD
     assert result.repairable is True
-    assert result.required_backend_version == ">=1.7.0,<2.0.0"
+    assert result.required_backend_version == ">=1.7.1,<2.0.0"
 
 
 def test_compatibility_blocks_sugarcubes_before_required_release() -> None:
@@ -117,7 +117,7 @@ def _service(
 
 def _capabilities(
     *,
-    extension_version: str = "1.7.0",
+    extension_version: str = "1.7.1",
     sugar_cubes_version: str = "0.10.0",
     sugarcubes_available: bool = True,
 ) -> BackendCapabilities:

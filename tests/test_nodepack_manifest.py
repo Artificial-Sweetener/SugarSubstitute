@@ -82,11 +82,11 @@ def test_core_nodepack_manifest_contains_expected_install_identities() -> None:
         "https://github.com/Artificial-Sweetener/Substitute-BackEnd.git"
     )
     assert by_project["substitute-backend"].minimum_python_distribution_version == (
-        "1.7.0"
+        "1.7.1"
     )
     assert by_project["substitute-backend"].pinned_source_archive_url == (
         "https://github.com/Artificial-Sweetener/Substitute-BackEnd/archive/refs/tags/"
-        "v1.7.0.zip"
+        "v1.7.1.zip"
     )
     assert by_project["substitute-backend"].expected_folder == (
         Path("custom_nodes") / "Substitute-BackEnd"
