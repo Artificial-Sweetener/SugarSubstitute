@@ -25,7 +25,6 @@ from substitute.application.display_labels import beautify_label
 from substitute.application.model_metadata import (
     ModelCatalogItem,
     ModelCatalogLookup,
-    model_kind_for_field,
     RichChoiceContext,
     RichChoiceItem,
     RichChoiceResolution,
@@ -35,10 +34,9 @@ from substitute.application.model_metadata import (
 from substitute.application.node_behavior import (
     FieldBehavior,
     FieldPresentation,
-    extract_live_list_options,
     is_choice_field_type,
+    resolve_choice_inventory_for_field,
 )
-from substitute.application.ports import NodeDefinitionGateway
 from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
@@ -53,7 +51,6 @@ from substitute.presentation.widgets.media_wall import (
     unavailable_thumbnail_readiness,
 )
 from substitute.presentation.editor.panel.projection_observability import (
-    log_panel_projection_event,
     log_panel_projection_timing,
     panel_projection_observability_started_at,
 )
@@ -72,7 +69,6 @@ class PanelModelChoiceSnapshotKind(StrEnum):
     NONE = "none"
     EXPLICIT_MODEL_PICKER = "explicit_model_picker"
     RICH_MODEL_PICKER = "rich_model_picker"
-    LITERAL_MODEL_PICKER = "literal_model_picker"
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,13 +195,7 @@ class PanelModelChoiceSnapshotController:
             return self._none_snapshot(request)
         if not is_choice_field_type(request.field_type):
             return self._none_snapshot(request)
-        model_kind = model_kind_for_field(
-            class_type=request.node_type if isinstance(request.node_type, str) else "",
-            input_key=request.key,
-        )
-        if model_kind is None:
-            return self._none_snapshot(request)
-        return self._rich_list_choice_snapshot(request, model_kind=model_kind)
+        return self._catalog_backed_list_choice_snapshot(request)
 
     def _explicit_model_picker_snapshot(
         self,
@@ -281,21 +271,19 @@ class PanelModelChoiceSnapshotController:
         self._snapshots[identity.query_identity or id(snapshot)] = snapshot
         return snapshot
 
-    def _rich_list_choice_snapshot(
+    def _catalog_backed_list_choice_snapshot(
         self,
         request: PanelModelChoiceSnapshotRequest,
-        *,
-        model_kind: str,
     ) -> PanelModelChoiceSnapshot:
-        """Prepare a rich picker snapshot for a model-backed LIST field."""
+        """Prepare a picker only when exact options identify one allowed catalog."""
 
         snapshot_started_at = panel_projection_observability_started_at()
-        options = _resolve_list_choice_options(
+        options = resolve_choice_inventory_for_field(
             key=request.key,
             node_type=request.node_type,
             node_definition_gateway=request.node_definition_gateway,
             field_info=request.field_info,
-        )
+        ).string_options
         log_panel_projection_timing(
             "model_choice.snapshot_options",
             started_at=snapshot_started_at,
@@ -306,52 +294,40 @@ class PanelModelChoiceSnapshotController:
             projection_mode="snapshot",
             option_count=len(options),
         )
-        identity = self._identity_for_request(
-            request,
-            model_kind=model_kind,
-            query_mode=PanelModelChoiceSnapshotKind.RICH_MODEL_PICKER,
-            options=options,
-        )
+        prepared_catalog = self._prepared_eligible_catalog()
+        if prepared_catalog is None or self._model_choice_resolver is None:
+            return self._none_snapshot(request, options=options)
+        catalog_items, catalog_revision = prepared_catalog
         context = RichChoiceContext(
             node_class=request.node_type
             if isinstance(request.node_type, str)
             else None,
             node_name=request.node_name,
             field_key=request.key,
+        )
+        resolution = self._model_choice_resolver.resolve_prepared(
+            options,
+            catalog_items=catalog_items,
+            context=context,
+        )
+        if not resolution.should_use_rich_picker or len(resolution.matched_kinds) != 1:
+            return self._none_snapshot(request, options=options)
+        model_kind = resolution.matched_kinds[0]
+        context = RichChoiceContext(
+            node_class=context.node_class,
+            node_name=context.node_name,
+            field_key=context.field_key,
             model_kind=model_kind,
         )
-        catalog_items, revision = self._cached_catalog_items(model_kind)
         identity = self._identity_for_request(
             request,
             model_kind=model_kind,
             query_mode=PanelModelChoiceSnapshotKind.RICH_MODEL_PICKER,
             options=options,
-            catalog_revision=revision,
+            catalog_revision=catalog_revision,
         )
-        if catalog_items is None:
-            return self._literal_snapshot(
-                request,
-                identity=identity,
-                options=options,
-                context=context,
-                status=CatalogSnapshotStatus(CatalogSnapshotReadiness.COLD),
-            )
-        resolution = catalog_resolution(
-            options=options,
-            catalog_items=catalog_items,
-            matched_kind=model_kind,
-            reason="model-backed field consumed prepared catalog snapshot",
-        )
-        if not resolution.should_use_rich_picker:
-            return self._literal_snapshot(
-                request,
-                identity=identity,
-                options=options,
-                context=context,
-                status=CatalogSnapshotStatus(CatalogSnapshotReadiness.WARM),
-            )
         source = PanelPreparedModelChoiceSource(
-            resolver=self._compatible_resolver(model_kind),
+            resolver=self._model_choice_resolver,
             options=options,
             context=context,
             initial_resolution=resolution,
@@ -373,55 +349,6 @@ class PanelModelChoiceSnapshotController:
             ),
         )
         self._snapshots[identity.query_identity or id(snapshot)] = snapshot
-        return snapshot
-
-    def _literal_snapshot(
-        self,
-        request: PanelModelChoiceSnapshotRequest,
-        *,
-        identity: CatalogSnapshotIdentity,
-        options: Sequence[str],
-        context: RichChoiceContext,
-        status: CatalogSnapshotStatus,
-    ) -> PanelModelChoiceSnapshot:
-        """Return a literal model-picker snapshot for cold or unenriched metadata."""
-
-        resolution = literal_model_choice_resolution(
-            options=options,
-            matched_kind=context.model_kind,
-        )
-        source = PanelPreparedModelChoiceSource(
-            resolver=self._compatible_resolver(context.model_kind),
-            options=options,
-            context=context,
-            initial_resolution=resolution,
-        )
-        snapshot = PanelModelChoiceSnapshot(
-            identity=identity,
-            status=status,
-            kind=PanelModelChoiceSnapshotKind.LITERAL_MODEL_PICKER,
-            options=tuple(options),
-            model_kind=context.model_kind,
-            resolution=resolution,
-            choice_source=source,
-            search_placeholder=_rich_choice_search_placeholder(
-                resolution.matched_kinds
-            ),
-            thumbnail_readiness=_thumbnail_readiness_for_resolution(
-                resolution,
-                repository_available=request.thumbnail_repository_available,
-            ),
-        )
-        self._snapshots[identity.query_identity or id(snapshot)] = snapshot
-        log_panel_projection_event(
-            "model_choice.literal_snapshot",
-            node_name=context.node_name or request.node_name,
-            field_key=request.key,
-            node_class=context.node_class or "",
-            model_kind=context.model_kind or "",
-            option_count=len(options),
-            readiness=status.readiness.value,
-        )
         return snapshot
 
     def _none_snapshot(
@@ -550,6 +477,31 @@ class PanelModelChoiceSnapshotController:
         prepared = prepared_model_catalog_rows(catalog, model_kind)
         return prepared.items, prepared.revision
 
+    def _prepared_eligible_catalog(
+        self,
+    ) -> tuple[tuple[ModelCatalogItem, ...], Hashable] | None:
+        """Return complete prepared rows for every picker-eligible model catalog."""
+
+        catalog = self._model_catalog_service
+        resolver = self._model_choice_resolver
+        if catalog is None or resolver is None:
+            return None
+        items: list[ModelCatalogItem] = []
+        revisions: list[tuple[str, Hashable]] = []
+        for model_kind in resolver.enabled_kinds:
+            prepared = prepared_model_catalog_rows(catalog, model_kind)
+            if prepared.items is None:
+                return None
+            items.extend(prepared.items)
+            revision = prepared.revision
+            revisions.append(
+                (
+                    model_kind,
+                    revision if isinstance(revision, Hashable) else repr(revision),
+                )
+            )
+        return tuple(items), tuple(revisions)
+
     def _compatible_resolver(
         self,
         model_kind: str | None,
@@ -595,54 +547,6 @@ class PanelModelChoiceSnapshotController:
                 repr(request.value),
             ),
         )
-
-
-def _resolve_live_choice_options(
-    *,
-    node_definition_gateway: NodeDefinitionGateway,
-    node_type: str,
-    key: str,
-) -> list[str]:
-    """Return normalized live choice options for one node input when available."""
-
-    live_def = node_definition_gateway.get_node_definition(node_type)
-    node_def = live_def.get(node_type, {})
-    if not isinstance(node_def, dict):
-        return []
-    input_section = node_def.get("input", {})
-    if not isinstance(input_section, dict):
-        return []
-    required = input_section.get("required", {})
-    optional = input_section.get("optional", {})
-    live_info = (required.get(key) if isinstance(required, dict) else None) or (
-        optional.get(key) if isinstance(optional, dict) else None
-    )
-    return list(extract_live_list_options(live_info))
-
-
-def _resolve_list_choice_options(
-    *,
-    key: str,
-    node_type: object,
-    node_definition_gateway: object,
-    field_info: object,
-) -> list[str]:
-    """Return exact Comfy choice options from live definitions or field info."""
-
-    options: list[str] | None = None
-    if (
-        node_type
-        and isinstance(node_type, str)
-        and isinstance(node_definition_gateway, NodeDefinitionGateway)
-    ):
-        options = _resolve_live_choice_options(
-            node_definition_gateway=node_definition_gateway,
-            node_type=node_type,
-            key=key,
-        )
-    if options:
-        return options
-    return list(extract_live_list_options(field_info))
 
 
 def _thumbnail_readiness_for_resolution(

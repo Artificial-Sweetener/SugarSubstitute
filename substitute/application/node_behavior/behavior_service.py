@@ -864,13 +864,7 @@ class NodeBehaviorService:
             raw_value=raw_value,
             field_info=field_info,
             remembered_value=None,
-            clear_when_options_empty=(
-                model_kind_for_field(
-                    class_type=class_type,
-                    input_key=field_key,
-                )
-                is not None
-            ),
+            clear_when_options_empty=True,
         )
         if resolution is None:
             return raw_value, FieldValueSource.EXPLICIT

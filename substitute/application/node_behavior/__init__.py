@@ -24,14 +24,18 @@ from .behavior_service import (
 )
 from .field_classification import NodeFieldKind, classify_node_field
 from .list_value_resolver import (
+    ChoiceAvailability,
+    ChoiceInventory,
     ListValueResolution,
     PickerFallback,
+    choice_inventory,
     extract_live_list_default,
     extract_live_list_options,
     has_authoritative_picker_options,
     is_blank_picker_value,
     is_choice_field_type,
     resolve_picker_fallback,
+    resolve_choice_inventory_for_field,
     resolve_live_list_value,
     unresolved_choice_options_reason,
 )
@@ -111,6 +115,9 @@ __all__ = [
     "CardBehaviorPatch",
     "CardDecision",
     "CardMode",
+    "ChoiceAvailability",
+    "ChoiceInventory",
+    "choice_inventory",
     "CollapseMode",
     "DimensionFieldPair",
     "EnabledSwitchPolicy",
@@ -161,6 +168,7 @@ __all__ = [
     "ResolvedFieldSpec",
     "RowMode",
     "resolve_live_list_value",
+    "resolve_choice_inventory_for_field",
     "resolve_picker_fallback",
     "required_node_definition_classes_for_editor_projection",
     "required_node_definition_requirements_for_editor_projection",

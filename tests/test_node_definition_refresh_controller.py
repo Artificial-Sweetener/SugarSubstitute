@@ -181,11 +181,11 @@ def test_refresh_surfaces_reconciles_every_loaded_panel_before_toolbar() -> None
         def refresh_node_behavior_state(self, **kwargs: object) -> None:
             calls.append(("refresh_node_behavior_state", kwargs))
 
-        def reconcile_model_fields_after_node_definition_update(
+        def reconcile_choice_fields_after_node_definition_update(
             self,
             **kwargs: object,
         ) -> object:
-            calls.append(("reconcile_model_fields", kwargs))
+            calls.append(("reconcile_choice_fields", kwargs))
             return SimpleNamespace(fallback_node_classes=())
 
     class _Manager:
@@ -224,7 +224,7 @@ def test_refresh_surfaces_reconciles_every_loaded_panel_before_toolbar() -> None
                 "use_cached_snapshot": False,
             },
         ),
-        ("reconcile_model_fields", {"refreshed_node_classes": ("KSampler",)}),
+        ("reconcile_choice_fields", {"refreshed_node_classes": ("KSampler",)}),
         (
             "refresh_node_behavior_state",
             {
@@ -232,7 +232,7 @@ def test_refresh_surfaces_reconciles_every_loaded_panel_before_toolbar() -> None
                 "use_cached_snapshot": False,
             },
         ),
-        ("reconcile_model_fields", {"refreshed_node_classes": ("KSampler",)}),
+        ("reconcile_choice_fields", {"refreshed_node_classes": ("KSampler",)}),
         ("refresh_input_canvas_availability", None),
         ("rebuild_override_menu", None),
         ("rebuild_active_override_controls", None),
@@ -257,11 +257,11 @@ def test_refresh_surfaces_uses_projection_only_for_reported_structural_fallback(
         def refresh_node_behavior_state(self, **kwargs: object) -> None:
             calls.append(("refresh_node_behavior_state", kwargs))
 
-        def reconcile_model_fields_after_node_definition_update(
+        def reconcile_choice_fields_after_node_definition_update(
             self,
             **kwargs: object,
         ) -> object:
-            calls.append(("reconcile_model_fields", kwargs))
+            calls.append(("reconcile_choice_fields", kwargs))
             return SimpleNamespace(
                 fallback_node_classes=("SimpleSyrup.ResizeImageToTarget",)
             )
@@ -298,7 +298,7 @@ def test_refresh_surfaces_uses_projection_only_for_reported_structural_fallback(
             },
         ),
         (
-            "reconcile_model_fields",
+            "reconcile_choice_fields",
             {"refreshed_node_classes": ("SimpleSyrup.ResizeImageToTarget",)},
         ),
         (

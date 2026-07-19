@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Reconcile live model field choices without rebuilding editor projections."""
+"""Reconcile all live finite-choice field surfaces after Comfy refreshes."""
 
 from __future__ import annotations
 
@@ -22,14 +22,16 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol, cast
 
-from substitute.application.model_metadata import model_kind_for_field
 from substitute.application.node_behavior import (
     EditorBehaviorSnapshot,
     ResolvedFieldSpec,
+    choice_inventory,
+    is_choice_field_type,
 )
 from substitute.presentation.editor.utils import sanitation
 from substitute.shared.logging.logger import get_logger, log_debug, log_warning
 
+from .choice_items import prepare_choice_items, selected_choice_label
 from .field_registry import EditorFieldIdentity, EditorFieldRegistry
 from .field_state_controller import EditorFieldBinding
 from .model_choice_snapshot_controller import (
@@ -37,41 +39,49 @@ from .model_choice_snapshot_controller import (
     PanelModelChoiceSnapshotRequest,
 )
 
-_LOGGER = get_logger("presentation.editor.panel.model_field_surface_reconciler")
+_LOGGER = get_logger("presentation.editor.panel.choice_field_surface_reconciler")
 
 
-class _ModelFieldSurfaceHost(Protocol):
-    """Describe panel state needed for targeted model field reconciliation."""
+class _ChoiceFieldSurfaceHost(Protocol):
+    """Describe panel state needed for targeted choice reconciliation."""
 
     _cube_states: Mapping[str, object] | None
     _stack_order: Sequence[str] | None
     node_definition_gateway: object
 
     def current_behavior_snapshot(self) -> EditorBehaviorSnapshot | None:
-        """Return the behavior snapshot refreshed from current node definitions."""
+        """Return behavior refreshed from current node definitions."""
 
 
 class _ModelChoiceSnapshotProvider(Protocol):
-    """Describe prepared model picker choice construction."""
+    """Describe prepared graphical-picker choice construction."""
 
     def snapshot_for_field(
         self,
         request: PanelModelChoiceSnapshotRequest,
     ) -> PanelModelChoiceSnapshot:
-        """Return one prepared model choice snapshot."""
+        """Return one prepared model-choice snapshot."""
 
 
 @dataclass(frozen=True, slots=True)
-class ModelFieldSurfaceReconciliationResult:
-    """Report classes handled in place and classes requiring structural refresh."""
+class ChoiceFieldSurfaceReconciliationResult:
+    """Report classes handled in place and classes requiring projection."""
 
     handled_node_classes: tuple[str, ...]
     fallback_node_classes: tuple[str, ...]
     reconciled_field_count: int
 
 
-class ModelFieldSurfaceReconciler:
-    """Apply refreshed model options to existing picker widgets in place."""
+@dataclass(frozen=True, slots=True)
+class _PreparedChoiceSurface:
+    """Carry the refreshed field contract and its graphical-picker decision."""
+
+    field_spec: ResolvedFieldSpec
+    model_choice_snapshot: PanelModelChoiceSnapshot
+
+
+class ChoiceFieldSurfaceReconciler:
+    """Apply refreshed finite choices to existing editor controls in place."""
 
     def __init__(
         self,
@@ -81,21 +91,20 @@ class ModelFieldSurfaceReconciler:
         snapshot_controller: object,
         thumbnail_repository_available: bool,
     ) -> None:
-        """Store the panel state and prepared-choice collaborators."""
+        """Store panel state and prepared graphical-picker collaborators."""
 
-        self._host = cast(_ModelFieldSurfaceHost, host)
+        self._host = cast(_ChoiceFieldSurfaceHost, host)
         self._field_registry = field_registry
         self._snapshot_controller = cast(
-            _ModelChoiceSnapshotProvider,
-            snapshot_controller,
+            _ModelChoiceSnapshotProvider, snapshot_controller
         )
         self._thumbnail_repository_available = thumbnail_repository_available
 
     def reconcile(
         self,
         refreshed_node_classes: Sequence[str],
-    ) -> ModelFieldSurfaceReconciliationResult:
-        """Refresh option-only model fields and identify structural fallbacks."""
+    ) -> ChoiceFieldSurfaceReconciliationResult:
+        """Refresh choice controls and report only structural presentation changes."""
 
         normalized_classes = tuple(
             sorted(
@@ -108,16 +117,15 @@ class ModelFieldSurfaceReconciler:
         )
         snapshot = self._host.current_behavior_snapshot()
         if not normalized_classes or snapshot is None:
-            return ModelFieldSurfaceReconciliationResult((), normalized_classes, 0)
+            return ChoiceFieldSurfaceReconciliationResult((), normalized_classes, 0)
 
         used_classes = self._used_node_classes(normalized_classes)
-        expected = self._prepared_picker_snapshots(snapshot, used_classes)
+        expected = self._prepared_choice_surfaces(snapshot, used_classes)
         registered = {
             entry.identity: entry
             for entry in self._field_registry.entries_for_node_classes(used_classes)
-            if callable(getattr(entry.widget, "reconcile_choice_source", None))
+            if entry.identity in expected
         }
-
         handled_classes: set[str] = set()
         fallback_classes: set[str] = set()
         reconciled_count = 0
@@ -125,26 +133,21 @@ class ModelFieldSurfaceReconciler:
             expected_for_class = {
                 identity: prepared
                 for identity, prepared in expected.items()
-                if prepared[0].class_type == node_class
+                if prepared.field_spec.class_type == node_class
             }
             registered_for_class = {
                 identity: entry
                 for identity, entry in registered.items()
                 if entry.binding.node_type == node_class
             }
-            if not expected_for_class and not registered_for_class:
-                fallback_classes.add(node_class)
-                continue
             if set(expected_for_class) != set(registered_for_class):
                 fallback_classes.add(node_class)
                 continue
-            for identity, (field_spec, choice_snapshot) in expected_for_class.items():
-                entry = registered_for_class[identity]
-                if not self._apply_picker_snapshot(
+            for identity, prepared in expected_for_class.items():
+                if not self._apply_surface(
                     identity=identity,
-                    widget=entry.widget,
-                    field_spec=field_spec,
-                    choice_snapshot=choice_snapshot,
+                    widget=registered_for_class[identity].widget,
+                    prepared=prepared,
                 ):
                     fallback_classes.add(node_class)
                     break
@@ -152,47 +155,40 @@ class ModelFieldSurfaceReconciler:
             else:
                 handled_classes.add(node_class)
 
+        result = ChoiceFieldSurfaceReconciliationResult(
+            handled_node_classes=tuple(sorted(handled_classes)),
+            fallback_node_classes=tuple(sorted(fallback_classes)),
+            reconciled_field_count=reconciled_count,
+        )
         log_debug(
             _LOGGER,
-            "Reconciled model field surfaces after node definition refresh",
+            "Reconciled finite-choice surfaces after node definition refresh",
             refreshed_node_classes=normalized_classes,
             used_node_classes=used_classes,
-            handled_node_classes=tuple(sorted(handled_classes)),
-            fallback_node_classes=tuple(sorted(fallback_classes)),
-            reconciled_field_count=reconciled_count,
+            handled_node_classes=result.handled_node_classes,
+            fallback_node_classes=result.fallback_node_classes,
+            reconciled_field_count=result.reconciled_field_count,
         )
-        return ModelFieldSurfaceReconciliationResult(
-            handled_node_classes=tuple(sorted(handled_classes)),
-            fallback_node_classes=tuple(sorted(fallback_classes)),
-            reconciled_field_count=reconciled_count,
-        )
+        return result
 
-    def _prepared_picker_snapshots(
+    def _prepared_choice_surfaces(
         self,
         snapshot: EditorBehaviorSnapshot,
         node_classes: Sequence[str],
-    ) -> dict[EditorFieldIdentity, tuple[ResolvedFieldSpec, PanelModelChoiceSnapshot]]:
-        """Return expected picker contracts for affected model-backed fields."""
+    ) -> dict[EditorFieldIdentity, _PreparedChoiceSurface]:
+        """Return refreshed finite-choice contracts for affected classes."""
 
         target_classes = set(node_classes)
-        prepared: dict[
-            EditorFieldIdentity,
-            tuple[ResolvedFieldSpec, PanelModelChoiceSnapshot],
-        ] = {}
+        prepared: dict[EditorFieldIdentity, _PreparedChoiceSurface] = {}
         for cube_alias, node_specs in snapshot.field_specs_by_alias.items():
             for node_name, field_specs in node_specs.items():
                 for field_key, field_spec in field_specs.items():
-                    if field_spec.class_type not in target_classes:
-                        continue
                     if (
-                        model_kind_for_field(
-                            class_type=field_spec.class_type,
-                            input_key=field_key,
-                        )
-                        is None
+                        field_spec.class_type not in target_classes
+                        or not is_choice_field_type(field_spec.field_type)
                     ):
                         continue
-                    choice_snapshot = self._snapshot_controller.snapshot_for_field(
+                    model_snapshot = self._snapshot_controller.snapshot_for_field(
                         PanelModelChoiceSnapshotRequest(
                             field_behavior=field_spec.field_behavior,
                             node_name=node_name,
@@ -201,67 +197,61 @@ class ModelFieldSurfaceReconciler:
                             node_type=field_spec.class_type,
                             field_type=field_spec.field_type,
                             field_info=field_spec.field_info,
-                            node_definition_gateway=(
-                                self._host.node_definition_gateway
-                            ),
+                            node_definition_gateway=self._host.node_definition_gateway,
                             cube_alias=cube_alias,
-                            thumbnail_repository_available=(
-                                self._thumbnail_repository_available
-                            ),
+                            thumbnail_repository_available=self._thumbnail_repository_available,
                         )
                     )
-                    if not choice_snapshot.should_build_picker:
-                        continue
                     prepared[(cube_alias, node_name, field_key)] = (
-                        field_spec,
-                        choice_snapshot,
+                        _PreparedChoiceSurface(
+                            field_spec=field_spec,
+                            model_choice_snapshot=model_snapshot,
+                        )
                     )
         return prepared
 
-    def _used_node_classes(
-        self,
-        refreshed_node_classes: Sequence[str],
-    ) -> tuple[str, ...]:
-        """Return refreshed classes used by this panel's current cube buffers."""
-
-        target_classes = set(refreshed_node_classes)
-        used: set[str] = set()
-        cube_states = self._host._cube_states or {}
-        for cube_alias in self._host._stack_order or ():
-            cube_state = cube_states.get(cube_alias)
-            buffer = getattr(cube_state, "buffer", None)
-            nodes = buffer.get("nodes", {}) if isinstance(buffer, Mapping) else {}
-            if not isinstance(nodes, Mapping):
-                continue
-            for node_data in nodes.values():
-                if not isinstance(node_data, Mapping):
-                    continue
-                node_class = node_data.get("class_type")
-                if isinstance(node_class, str) and node_class in target_classes:
-                    used.add(node_class)
-        return tuple(sorted(used))
-
-    def _apply_picker_snapshot(
+    def _apply_surface(
         self,
         *,
         identity: EditorFieldIdentity,
         widget: object,
-        field_spec: ResolvedFieldSpec,
-        choice_snapshot: PanelModelChoiceSnapshot,
+        prepared: _PreparedChoiceSurface,
     ) -> bool:
-        """Replace picker choices and binding metadata without emitting user edits."""
+        """Apply one refreshed picker or combo contract without user-edit signals."""
 
-        choice_source = choice_snapshot.choice_source
-        reconcile = getattr(widget, "reconcile_choice_source", None)
-        if choice_source is None or not callable(reconcile):
-            return False
+        snapshot = prepared.model_choice_snapshot
+        field_spec = prepared.field_spec
         try:
-            reconcile(choice_source, str(field_spec.value or ""))
+            if snapshot.should_build_picker:
+                reconcile_picker = getattr(widget, "reconcile_choice_source", None)
+                if snapshot.choice_source is None or not callable(reconcile_picker):
+                    return False
+                reconcile_picker(snapshot.choice_source, str(field_spec.value or ""))
+            else:
+                inventory = choice_inventory(field_spec.field_info)
+                if not inventory.authoritative:
+                    return True
+                reconcile_combo = getattr(widget, "reconcile_choice_items", None)
+                if not callable(reconcile_combo):
+                    return False
+                node_data = self._node_data(identity)
+                items = prepare_choice_items(
+                    key=field_spec.field_key,
+                    node_data=node_data,
+                    options=inventory.string_options,
+                )
+                selected_label = selected_choice_label(
+                    key=field_spec.field_key,
+                    node_data=node_data,
+                    items=items,
+                    value=field_spec.value,
+                )
+                reconcile_combo(items, selected_label)
             self._update_widget_metadata(widget, field_spec)
         except (RuntimeError, TypeError, ValueError) as error:
             log_warning(
                 _LOGGER,
-                "Failed to reconcile model picker choices in place",
+                "Failed to reconcile finite-choice field in place",
                 cube_alias=identity[0],
                 node_name=identity[1],
                 field_key=identity[2],
@@ -273,9 +263,39 @@ class ModelFieldSurfaceReconciler:
             self._field_registry.update_binding(identity, binding)
         return True
 
+    def _node_data(self, identity: EditorFieldIdentity) -> object:
+        """Return current node state used to prepare linked choice labels."""
+
+        cube_state = (self._host._cube_states or {}).get(identity[0])
+        buffer = getattr(cube_state, "buffer", None)
+        nodes = buffer.get("nodes", {}) if isinstance(buffer, Mapping) else {}
+        return nodes.get(identity[1]) if isinstance(nodes, Mapping) else None
+
+    def _used_node_classes(
+        self,
+        refreshed_node_classes: Sequence[str],
+    ) -> tuple[str, ...]:
+        """Return refreshed classes used by the panel's current cube buffers."""
+
+        target_classes = set(refreshed_node_classes)
+        used: set[str] = set()
+        cube_states = self._host._cube_states or {}
+        for cube_alias in self._host._stack_order or ():
+            cube_state = cube_states.get(cube_alias)
+            buffer = getattr(cube_state, "buffer", None)
+            nodes = buffer.get("nodes", {}) if isinstance(buffer, Mapping) else {}
+            if not isinstance(nodes, Mapping):
+                continue
+            for node_data in nodes.values():
+                if isinstance(node_data, Mapping):
+                    node_class = node_data.get("class_type")
+                    if isinstance(node_class, str) and node_class in target_classes:
+                        used.add(node_class)
+        return tuple(sorted(used))
+
     @staticmethod
     def _update_widget_metadata(widget: object, field_spec: ResolvedFieldSpec) -> None:
-        """Publish the refreshed resolved field contract on the existing widget."""
+        """Publish the refreshed resolved field contract on an existing widget."""
 
         property_getter = getattr(widget, "property", None)
         set_property = getattr(widget, "setProperty", None)
@@ -301,6 +321,6 @@ class ModelFieldSurfaceReconciler:
 
 
 __all__ = [
-    "ModelFieldSurfaceReconciler",
-    "ModelFieldSurfaceReconciliationResult",
+    "ChoiceFieldSurfaceReconciler",
+    "ChoiceFieldSurfaceReconciliationResult",
 ]

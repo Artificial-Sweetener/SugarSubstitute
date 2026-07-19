@@ -133,9 +133,9 @@ from .lora_metadata_refresh_controller import (
     EditorPanelLoraMetadataRefreshHost,
 )
 from .model_choice_snapshot_controller import PanelModelChoiceSnapshotController
-from .model_field_surface_reconciler import (
-    ModelFieldSurfaceReconciler,
-    ModelFieldSurfaceReconciliationResult,
+from .choice_field_surface_reconciler import (
+    ChoiceFieldSurfaceReconciler,
+    ChoiceFieldSurfaceReconciliationResult,
 )
 from .preset_context_refresh import PanelPresetContextRefreshCoordinator
 from .presenter import EditorPanelPresenter
@@ -860,7 +860,7 @@ class EditorPanel(QWidget):
                 )
             ),
         )
-        self._model_field_surface_reconciler = ModelFieldSurfaceReconciler(
+        self._choice_field_surface_reconciler = ChoiceFieldSurfaceReconciler(
             host=self,
             field_registry=self._field_registry,
             snapshot_controller=self.model_choice_snapshot_controller,
@@ -1294,14 +1294,14 @@ class EditorPanel(QWidget):
         )
         return True
 
-    def reconcile_model_fields_after_node_definition_update(
+    def reconcile_choice_fields_after_node_definition_update(
         self,
         *,
         refreshed_node_classes: Sequence[str],
-    ) -> ModelFieldSurfaceReconciliationResult:
-        """Apply refreshed model options to existing controls without projection."""
+    ) -> ChoiceFieldSurfaceReconciliationResult:
+        """Apply refreshed finite choices to controls without projection."""
 
-        result = self._model_field_surface_reconciler.reconcile(refreshed_node_classes)
+        result = self._choice_field_surface_reconciler.reconcile(refreshed_node_classes)
         if result.reconciled_field_count:
             self._preset_context_refresh.refresh(reason="model_options_changed")
         return result

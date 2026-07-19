@@ -19,8 +19,10 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any, Callable, cast
 
 import pytest
+from PySide6.QtWidgets import QWidget
 
 from substitute.application.model_metadata import (
     ModelCatalogItem,
@@ -28,9 +30,14 @@ from substitute.application.model_metadata import (
     ModelChoiceCatalogIndex,
     ModelThumbnailVariant,
     RichChoiceResolver,
+    ThumbnailAssetRepository,
 )
 from substitute.application.node_behavior import FieldBehavior, FieldPresentation
-from substitute.application.ports import PromptAutocompleteSuggestion
+from substitute.application.ports import (
+    PromptAutocompleteSuggestion,
+    PromptWildcardCatalogGateway,
+)
+from substitute.application.prompt_editor import PromptSyntaxProfile
 from substitute.domain.prompt import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
@@ -43,6 +50,9 @@ import substitute.presentation.editor.panel.factories.numeric_factory as numeric
 import substitute.presentation.editor.panel.factories.prompt_factory as prompt_factory
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
     PanelModelChoiceSnapshotController,
+)
+from substitute.presentation.widgets.model_picker import (
+    ModelPickerThumbnailPreloadRoute,
 )
 
 
@@ -71,13 +81,13 @@ class _Signal:
     """Small Qt-like signal helper for factory tests."""
 
     def __init__(self) -> None:
-        self._slots = []
+        self._slots: list[Callable[..., None]] = []
 
-    def connect(self, slot) -> None:
+    def connect(self, slot: Callable[..., None]) -> None:
         """Register a callback."""
         self._slots.append(slot)
 
-    def emit(self, *args) -> None:
+    def emit(self, *args: object) -> None:
         """Emit to all callbacks."""
         for slot in list(self._slots):
             slot(*args)
@@ -86,7 +96,7 @@ class _Signal:
 class _FakeLineEdit:
     """LineEdit test double that records assigned text."""
 
-    def __init__(self, _parent=None) -> None:
+    def __init__(self, _parent: object | None = None) -> None:
         self.text = ""
 
     def setText(self, text: str) -> None:
@@ -100,9 +110,9 @@ class _FakeMaskPicker:
     def __init__(
         self,
         *,
-        parent=None,
-        cube_alias=None,
-        node_name=None,
+        parent: object | None = None,
+        cube_alias: str | None = None,
+        node_name: str | None = None,
     ) -> None:
         """Record constructor arguments supplied by the factory."""
 
@@ -131,12 +141,12 @@ class _FakeMaskPicker:
 class _FakeSpinBox:
     """SpinBox test double for integer factory assertions."""
 
-    def __init__(self, _parent=None) -> None:
-        self.symbol_visible = None
-        self.minimum = None
-        self.maximum = None
-        self.step = None
-        self.value = None
+    def __init__(self, _parent: object | None = None) -> None:
+        self.symbol_visible: bool | None = None
+        self.minimum: int | None = None
+        self.maximum: int | None = None
+        self.step: int | None = None
+        self.value: int | None = None
 
     def setSymbolVisible(self, visible: bool) -> None:
         """Record symbol visibility."""
@@ -162,13 +172,13 @@ class _FakeSpinBox:
 class _FakeDoubleSpinBox:
     """DoubleSpinBox test double for float factory assertions."""
 
-    def __init__(self, _parent=None) -> None:
-        self.symbol_visible = None
-        self.minimum = None
-        self.maximum = None
-        self.step = None
-        self.decimals = None
-        self.value = None
+    def __init__(self, _parent: object | None = None) -> None:
+        self.symbol_visible: bool | None = None
+        self.minimum: float | None = None
+        self.maximum: float | None = None
+        self.step: float | None = None
+        self.decimals: int | None = None
+        self.value: float | None = None
 
     def setSymbolVisible(self, visible: bool) -> None:
         """Record symbol visibility."""
@@ -198,7 +208,7 @@ class _FakeDoubleSpinBox:
 class _FakeComboBox:
     """ComboBox test double for list widget factories."""
 
-    def __init__(self, _parent=None) -> None:
+    def __init__(self, _parent: object | None = None) -> None:
         self.items: list[str] = []
         self.current_text = ""
         self.max_hint_width: int | None = None
@@ -238,31 +248,43 @@ class _FakeComboBox:
         """Record the preferred width cap."""
         self.max_hint_width = width
 
+    def reconcile_choice_items(
+        self,
+        items: object,
+        selected_label: str,
+    ) -> None:
+        """Record one prepared editor-choice replacement."""
+
+        prepared = list(cast(list[tuple[str, object]], items))
+        self.addItems([label for label, _value in prepared])
+        self.current_text = selected_label
+        self._editor_choice_values_by_label = dict(prepared)
+
 
 class _FakePromptEditor:
     """PromptEditor test double that records assigned text."""
 
     def __init__(
         self,
-        _parent=None,
+        _parent: object | None = None,
         *,
-        prompt_autocomplete_gateway=None,
-        prompt_wildcard_catalog_gateway=None,
-        prompt_syntax_profile=None,
-        danbooru_url_import_service=None,
-        danbooru_wiki_service=None,
-        danbooru_image_preview_service=None,
-        danbooru_recent_posts_service=None,
-        prompt_lora_catalog_service=None,
-        prompt_scheduled_lora_service=None,
-        scheduled_lora_resolver=None,
-        prompt_feature_profile=None,
-        prompt_segment_preset_source=None,
-        prompt_spellcheck_service=None,
-        thumbnail_asset_repository=None,
-        model_metadata_action_handler=None,
-        prompt_task_executor_factory=None,
-        danbooru_lookup_dispatcher_factory=None,
+        prompt_autocomplete_gateway: object | None = None,
+        prompt_wildcard_catalog_gateway: object | None = None,
+        prompt_syntax_profile: PromptSyntaxProfile | None = None,
+        danbooru_url_import_service: object | None = None,
+        danbooru_wiki_service: object | None = None,
+        danbooru_image_preview_service: object | None = None,
+        danbooru_recent_posts_service: object | None = None,
+        prompt_lora_catalog_service: object | None = None,
+        prompt_scheduled_lora_service: object | None = None,
+        scheduled_lora_resolver: object | None = None,
+        prompt_feature_profile: object | None = None,
+        prompt_segment_preset_source: object | None = None,
+        prompt_spellcheck_service: object | None = None,
+        thumbnail_asset_repository: object | None = None,
+        model_metadata_action_handler: object | None = None,
+        prompt_task_executor_factory: object | None = None,
+        danbooru_lookup_dispatcher_factory: object | None = None,
     ) -> None:
         self.text = ""
         self.prompt_autocomplete_gateway = prompt_autocomplete_gateway
@@ -294,14 +316,14 @@ class _FakeModelPickerField:
 
     def __init__(
         self,
-        parent=None,
+        parent: object | None = None,
         *,
-        choice_source,
-        thumbnail_asset_repository=None,
+        choice_source: Any,
+        thumbnail_asset_repository: object | None = None,
         current_value: str = "",
         search_placeholder: str = "Search models",
-        metadata_action_handler=None,
-        thumbnail_preload_route_factory=None,
+        metadata_action_handler: object | None = None,
+        thumbnail_preload_route_factory: object | None = None,
     ) -> None:
         self.parent = parent
         self.choice_source = choice_source
@@ -375,42 +397,6 @@ class _FakeModelCatalog:
         _ = kind
 
 
-class _RefreshOnlyModelCatalog(_FakeModelCatalog):
-    """Expose model rows only when the factory forces a refresh."""
-
-    def __init__(self, refresh_items: tuple[ModelCatalogItem, ...]) -> None:
-        """Store rows that represent backend-ready refreshed metadata."""
-
-        super().__init__(())
-        self._refresh_items = refresh_items
-        self.refresh_calls: list[str] = []
-
-    def refresh_models(self, kind: str) -> tuple[ModelCatalogItem, ...]:
-        """Publish rows for the requested kind during forced refresh."""
-
-        self.refresh_calls.append(kind)
-        self.replace_items(self._refresh_items)
-        return self.list_models(kind)
-
-    def cached_models(self, kind: str) -> tuple[ModelCatalogItem, ...] | None:
-        """Return no cached rows until an explicit refresh publishes them."""
-
-        return tuple(item for item in self._items if item.kind == kind)
-
-    def cached_snapshot(self, kind: str) -> ModelCatalogSnapshot | None:
-        """Return no canonical cached snapshot until refresh publishes rows."""
-
-        rows = self.cached_models(kind)
-        if not rows:
-            return None
-        return ModelCatalogSnapshot(kind=kind, items=rows, generation=1)
-
-    def cached_snapshot_nowait(self, kind: str) -> ModelCatalogSnapshot | None:
-        """Return a nonblocking cached snapshot only after refresh."""
-
-        return self.cached_snapshot(kind)
-
-
 def _rich_choice_resolver(catalog: _FakeModelCatalog) -> RichChoiceResolver:
     """Return a rich choice resolver backed by the fake model catalog."""
 
@@ -477,7 +463,9 @@ def _thumbnail_variant(storage_key: str) -> ModelThumbnailVariant:
     )
 
 
-def test_widget_factory_int_uses_lineedit_for_overflow(monkeypatch) -> None:
+def test_widget_factory_int_uses_lineedit_for_overflow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """INT values outside 32-bit range should use LineEdit fallback."""
     monkeypatch.setattr(numeric_factory, "LineEdit", _FakeLineEdit)
     monkeypatch.setattr(numeric_factory, "SpinBox", _FakeSpinBox)
@@ -496,7 +484,9 @@ def test_widget_factory_int_uses_lineedit_for_overflow(monkeypatch) -> None:
     assert widget.text == "3000000000"
 
 
-def test_widget_factory_int_configures_spinbox_when_in_range(monkeypatch) -> None:
+def test_widget_factory_int_configures_spinbox_when_in_range(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """In-range INT values should produce a configured SpinBox."""
     monkeypatch.setattr(numeric_factory, "LineEdit", _FakeLineEdit)
     monkeypatch.setattr(numeric_factory, "SpinBox", _FakeSpinBox)
@@ -519,7 +509,9 @@ def test_widget_factory_int_configures_spinbox_when_in_range(monkeypatch) -> Non
     assert widget.value == 42
 
 
-def test_widget_factory_float_uses_decimal_policy_from_step(monkeypatch) -> None:
+def test_widget_factory_float_uses_decimal_policy_from_step(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Float factory should use 0 decimals for integer step and 2 otherwise."""
     monkeypatch.setattr(numeric_factory, "DoubleSpinBox", _FakeDoubleSpinBox)
 
@@ -549,13 +541,19 @@ def test_widget_factory_float_uses_decimal_policy_from_step(monkeypatch) -> None
 
 
 def test_widget_factory_spinner_slider_treats_none_constraints_as_missing(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Spinner/slider fields should tolerate explicit None constraint values."""
 
     captured: dict[str, object] = {}
 
-    def _fake_spinner_slider(parent, value, min_val, max_val, step_val):
+    def _fake_spinner_slider(
+        parent: object,
+        value: float,
+        min_val: float,
+        max_val: float,
+        step_val: float,
+    ) -> object:
         """Record spinner/slider numeric arguments."""
 
         captured["parent"] = parent
@@ -585,12 +583,20 @@ def test_widget_factory_spinner_slider_treats_none_constraints_as_missing(
     assert captured["step"] == 0.01
 
 
-def test_widget_factory_spinner_slider_matches_scale_factor_label(monkeypatch) -> None:
+def test_widget_factory_spinner_slider_matches_scale_factor_label(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Spinner/slider selection should use the visible label when keys are generic."""
 
     captured: dict[str, object] = {}
 
-    def _fake_spinner_slider(parent, value, min_val, max_val, step_val):
+    def _fake_spinner_slider(
+        parent: object,
+        value: float,
+        min_val: float,
+        max_val: float,
+        step_val: float,
+    ) -> object:
         """Record spinner/slider numeric arguments for label-based matching."""
 
         captured["parent"] = parent
@@ -624,10 +630,18 @@ def test_widget_factory_spinner_slider_matches_scale_factor_label(monkeypatch) -
     }
 
 
-def test_widget_factory_spinner_slider_declines_qt_unsafe_range(monkeypatch) -> None:
+def test_widget_factory_spinner_slider_declines_qt_unsafe_range(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Spinner/slider rendering should not build ranges Qt cannot represent."""
 
-    def _fake_spinner_slider(parent, value, min_val, max_val, step_val):
+    def _fake_spinner_slider(
+        parent: object,
+        value: float,
+        min_val: float,
+        max_val: float,
+        step_val: float,
+    ) -> None:
         """Fail if the factory attempts construction with unsafe slider bounds."""
 
         _ = (parent, value, min_val, max_val, step_val)
@@ -666,13 +680,21 @@ class _FakePromptAutocompleteGateway:
         return ()
 
 
-def test_build_prompt_editor_widget_sets_assigned_text_and_gateway(monkeypatch) -> None:
+def _wildcard_gateway() -> PromptWildcardCatalogGateway:
+    """Return an opaque wildcard gateway at the external protocol boundary."""
+
+    return cast(PromptWildcardCatalogGateway, object())
+
+
+def test_build_prompt_editor_widget_sets_assigned_text_and_gateway(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Prompt-editor factory should initialize the widget text and inject the gateway."""
 
     monkeypatch.setattr(prompt_factory, "PromptEditor", _FakePromptEditor)
     gateway = _FakePromptAutocompleteGateway()
-    wildcard_gateway = object()
-    syntax_profile = object()
+    wildcard_gateway = _wildcard_gateway()
+    syntax_profile = PromptSyntaxProfile(enabled_syntaxes=())
     feature_profile = PromptEditorFeatureProfile.enabled_profile(())
 
     widget = prompt_factory.build_prompt_editor_widget(
@@ -693,7 +715,7 @@ def test_build_prompt_editor_widget_sets_assigned_text_and_gateway(monkeypatch) 
 
 
 def test_build_widget_for_field_behavior_resolves_prompt_syntax_profile_from_style(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Prompt-box fields should derive the editor syntax profile from field behavior style."""
 
@@ -710,15 +732,16 @@ def test_build_widget_for_field_behavior_resolves_prompt_syntax_profile_from_sty
         value="hello world",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
     )
 
     assert isinstance(widget, _FakePromptEditor)
+    assert widget.prompt_syntax_profile is not None
     assert widget.prompt_syntax_profile.enabled_syntaxes == ("emphasis", "wildcard")
 
 
 def test_build_widget_for_field_behavior_passes_prompt_feature_profile(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Prompt-box fields should receive the resolved prompt feature profile."""
 
@@ -744,7 +767,7 @@ def test_build_widget_for_field_behavior_passes_prompt_feature_profile(
         value="hello world",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
         prompt_feature_profile=feature_profile,
     )
 
@@ -753,7 +776,7 @@ def test_build_widget_for_field_behavior_passes_prompt_feature_profile(
 
 
 def test_build_widget_for_field_behavior_builds_model_picker_from_presentation(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """MODEL_PICKER presentation should build the explicit model picker field."""
 
@@ -761,8 +784,10 @@ def test_build_widget_for_field_behavior_builds_model_picker_from_presentation(
     model_catalog = _FakeModelCatalog(
         (_model_item("checkpoints", "models/base.safetensors", "Civit Base"),)
     )
-    thumbnail_repository = object()
-    thumbnail_route_factory = object()
+    thumbnail_repository = cast(ThumbnailAssetRepository, object())
+    thumbnail_route_factory = cast(
+        Callable[[QWidget], ModelPickerThumbnailPreloadRoute], object()
+    )
 
     widget = factories.build_widget_for_field_behavior(
         parent="parent",
@@ -776,7 +801,7 @@ def test_build_widget_for_field_behavior_builds_model_picker_from_presentation(
         value="models/base.safetensors",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
         model_choice_snapshot_controller=_model_choice_controller(model_catalog),
         thumbnail_asset_repository=thumbnail_repository,
         model_picker_thumbnail_preload_route_factory=thumbnail_route_factory,
@@ -792,7 +817,7 @@ def test_build_widget_for_field_behavior_builds_model_picker_from_presentation(
 
 
 def test_explicit_model_picker_reuses_shared_rich_choice_resolution(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """MODEL_PICKER fields should consume prepared snapshots without catalog loading."""
 
@@ -819,7 +844,7 @@ def test_explicit_model_picker_reuses_shared_rich_choice_resolution(
         value="models/base.safetensors",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
         model_choice_snapshot_controller=controller,
     )
     second_widget = factories.build_widget_for_field_behavior(
@@ -830,7 +855,7 @@ def test_explicit_model_picker_reuses_shared_rich_choice_resolution(
         value="models/refiner.safetensors",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
         model_choice_snapshot_controller=controller,
     )
 
@@ -848,7 +873,7 @@ def test_explicit_model_picker_reuses_shared_rich_choice_resolution(
 
 
 def test_build_widget_for_field_behavior_builds_rich_picker_for_lora_list(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Model-backed LIST values should build the rich picker without node patches."""
 
@@ -869,7 +894,7 @@ def test_build_widget_for_field_behavior_builds_rich_picker_for_lora_list(
         value="animeLineart.safetensors",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
         model_choice_snapshot_controller=_model_choice_controller(catalog, resolver),
         field_type="LIST",
         node_type="SomeLoraLoader",
@@ -888,29 +913,24 @@ def test_build_widget_for_field_behavior_builds_rich_picker_for_lora_list(
     ]
 
 
-def test_build_widget_for_field_behavior_keeps_cold_model_list_as_model_picker(
-    monkeypatch,
+def test_build_widget_for_field_behavior_keeps_unverified_model_list_as_combo(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Model-backed LIST fields should not become plain combos while metadata is cold."""
+    """A model-like field name should not create a picker without catalog evidence."""
 
-    monkeypatch.setattr(choice_factory, "ModelPickerField", _FakeModelPickerField)
-    monkeypatch.setattr(
-        choice_factory,
-        "ComboBox",
-        lambda *_args, **_kwargs: pytest.fail("model field fell back to ComboBox"),
-    )
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     catalog = _FakeModelCatalog(())
     resolver = _rich_choice_resolver(catalog)
 
     widget = factories.build_widget_for_field_behavior(
-        parent="parent",
+        parent=SimpleNamespace(sampler_link_widgets={}, scheduler_link_widgets={}),
         field_behavior=FieldBehavior(field_key="ckpt_name"),
         node_name="checkpoint",
         key="ckpt_name",
         value="base-a.safetensors",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
         model_choice_snapshot_controller=_model_choice_controller(catalog, resolver),
         field_type="LIST",
         node_type="CheckpointLoaderSimple",
@@ -920,88 +940,35 @@ def test_build_widget_for_field_behavior_keeps_cold_model_list_as_model_picker(
         ],
     )
 
-    assert isinstance(widget, _FakeModelPickerField)
-    assert widget.resolution.should_use_rich_picker is True
-    assert widget.resolution.matched_kinds == ("checkpoints",)
-    assert widget.resolution.enriched_count == 0
-    assert [item.value for item in widget.resolution.items] == [
+    assert isinstance(widget, _FakeComboBox)
+    assert widget.items == [
         "base-a.safetensors",
         "base-b.safetensors",
     ]
 
 
-def test_model_list_picker_loads_refreshed_thumbnails_before_first_render(
-    monkeypatch,
+def test_model_list_becomes_picker_after_catalog_evidence_is_prepared(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Known model LIST fields should defer thumbnail enrichment to source refresh."""
+    """A later projection should use a picker once exact catalog evidence exists."""
 
     monkeypatch.setattr(choice_factory, "ModelPickerField", _FakeModelPickerField)
-    monkeypatch.setattr(
-        choice_factory,
-        "ComboBox",
-        lambda *_args, **_kwargs: pytest.fail("model field fell back to ComboBox"),
-    )
-    thumbnail = _thumbnail_variant("checkpoints/base-a/banner")
-    catalog = _RefreshOnlyModelCatalog(
-        (
-            _model_item(
-                "checkpoints",
-                "base-a.safetensors",
-                "Base A",
-                thumbnail_variants=(thumbnail,),
-            ),
-        )
-    )
-    resolver = _rich_choice_resolver(catalog)
-
-    widget = factories.build_widget_for_field_behavior(
-        parent="parent",
-        field_behavior=FieldBehavior(field_key="ckpt_name"),
-        node_name="checkpoint",
-        key="ckpt_name",
-        value="base-a.safetensors",
-        field_meta={},
-        prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
-        model_choice_snapshot_controller=_model_choice_controller(catalog, resolver),
-        field_type="LIST",
-        node_type="CheckpointLoaderSimple",
-        field_info=[
-            ["base-a.safetensors"],
-            {},
-        ],
-    )
-
-    assert isinstance(widget, _FakeModelPickerField)
-    assert catalog.refresh_calls == []
-    assert widget.resolution.should_use_rich_picker is True
-    assert widget.resolution.enriched_count == 0
-    assert widget.resolution.items[0].thumbnail_variants == ()
-
-    refreshed = widget.choice_source.refresh()
-
-    assert catalog.refresh_calls == ["checkpoints"]
-    assert refreshed.enriched_count == 1
-    assert refreshed.items[0].thumbnail_variants == (thumbnail,)
-
-
-def test_cold_model_list_picker_source_upgrades_on_refresh(monkeypatch) -> None:
-    """Cold first-render model pickers should enrich through normal refresh."""
-
-    monkeypatch.setattr(choice_factory, "ModelPickerField", _FakeModelPickerField)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     catalog = _FakeModelCatalog(())
     resolver = _rich_choice_resolver(catalog)
+    controller = _model_choice_controller(catalog, resolver)
+    parent = SimpleNamespace(sampler_link_widgets={}, scheduler_link_widgets={})
 
-    widget = factories.build_widget_for_field_behavior(
-        parent="parent",
+    first_widget = factories.build_widget_for_field_behavior(
+        parent=parent,
         field_behavior=FieldBehavior(field_key="ckpt_name"),
         node_name="checkpoint",
         key="ckpt_name",
         value="base-a.safetensors",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
-        model_choice_snapshot_controller=_model_choice_controller(catalog, resolver),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
+        model_choice_snapshot_controller=controller,
         field_type="LIST",
         node_type="CheckpointLoaderSimple",
         field_info=[
@@ -1016,16 +983,32 @@ def test_cold_model_list_picker_source_upgrades_on_refresh(monkeypatch) -> None:
         )
     )
 
-    refreshed = widget.choice_source.refresh()
+    second_widget = factories.build_widget_for_field_behavior(
+        parent=parent,
+        field_behavior=FieldBehavior(field_key="ckpt_name"),
+        node_name="checkpoint",
+        key="ckpt_name",
+        value="base-a.safetensors",
+        field_meta={},
+        prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
+        model_choice_snapshot_controller=controller,
+        field_type="LIST",
+        node_type="CheckpointLoaderSimple",
+        field_info=[
+            ["base-a.safetensors", "base-b.safetensors"],
+            {},
+        ],
+    )
 
-    assert isinstance(widget, _FakeModelPickerField)
-    assert refreshed.should_use_rich_picker is True
-    assert refreshed.matched_kinds == ("checkpoints",)
-    assert refreshed.enriched_count == 2
+    assert isinstance(first_widget, _FakeComboBox)
+    assert isinstance(second_widget, _FakeModelPickerField)
+    assert second_widget.resolution.matched_kinds == ("checkpoints",)
+    assert second_widget.resolution.enriched_count == 2
 
 
 def test_build_widget_for_field_behavior_recovers_from_stale_empty_rich_cache(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Model LIST rendering should recover when the resolver was loaded empty early."""
 
@@ -1048,7 +1031,7 @@ def test_build_widget_for_field_behavior_recovers_from_stale_empty_rich_cache(
         value="base-a.safetensors",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
         model_choice_snapshot_controller=_model_choice_controller(catalog, resolver),
         field_type="LIST",
         node_type="CheckpointLoaderSimple",
@@ -1064,7 +1047,7 @@ def test_build_widget_for_field_behavior_recovers_from_stale_empty_rich_cache(
 
 
 def test_build_widget_for_field_behavior_builds_rich_picker_for_anima_diffusion_model_list(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Anima diffusion model LIST values should build the shared rich picker."""
 
@@ -1093,7 +1076,7 @@ def test_build_widget_for_field_behavior_builds_rich_picker_for_anima_diffusion_
         value="Anima\\anima_base_V10.safetensors",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
         model_choice_snapshot_controller=_model_choice_controller(catalog, resolver),
         field_type="LIST",
         node_type="SimpleSyrup.SimpleLoadAnima",
@@ -1117,7 +1100,7 @@ def test_build_widget_for_field_behavior_builds_rich_picker_for_anima_diffusion_
 
 
 def test_build_widget_for_field_behavior_attempts_rich_picker_for_generic_diffusion_model_key(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Generic diffusion model key fragments should attempt rich picker enrichment."""
 
@@ -1146,7 +1129,7 @@ def test_build_widget_for_field_behavior_attempts_rich_picker_for_generic_diffus
         value="models\\diffusion-a.safetensors",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
         model_choice_snapshot_controller=_model_choice_controller(catalog, resolver),
         field_type="LIST",
         node_type="SomeDiffusionLoader",
@@ -1166,7 +1149,7 @@ def test_build_widget_for_field_behavior_attempts_rich_picker_for_generic_diffus
 
 
 def test_build_widget_for_field_behavior_keeps_vae_literals_in_rich_picker(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """VAE LIST values should qualify while special literals remain choices."""
 
@@ -1187,7 +1170,7 @@ def test_build_widget_for_field_behavior_keeps_vae_literals_in_rich_picker(
         value="pixel_space",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
         model_choice_snapshot_controller=_model_choice_controller(catalog, resolver),
         field_type="LIST",
         node_type="VAELoader",
@@ -1207,12 +1190,141 @@ def test_build_widget_for_field_behavior_keeps_vae_literals_in_rich_picker(
     assert widget.resolution.items[2].is_enriched is False
 
 
+def test_model_picker_eligibility_follows_supported_comfy_catalog_membership(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only choices belonging to supported Comfy model catalogs should use pickers."""
+
+    monkeypatch.setattr(choice_factory, "ModelPickerField", _FakeModelPickerField)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
+    catalog = _FakeModelCatalog(
+        (
+            _model_item(
+                "diffusion_models",
+                "Anima\\anima-a.safetensors",
+                "Anima A",
+            ),
+            _model_item(
+                "diffusion_models",
+                "Anima\\anima-b.safetensors",
+                "Anima B",
+            ),
+            _model_item("vae", "ClearVAE.safetensors", "Clear VAE"),
+            _model_item("vae", "qwen\\qwen-image-vae.safetensors", "Qwen VAE"),
+            _model_item("text_encoders", "qwen\\encoder-a.safetensors", "Encoder A"),
+            _model_item("text_encoders", "qwen\\encoder-b.safetensors", "Encoder B"),
+            _model_item("controlnet", "control-a.safetensors", "ControlNet A"),
+            _model_item("controlnet", "control-b.safetensors", "ControlNet B"),
+            _model_item("upscale_models", "upscale-a.pth", "Upscaler A"),
+            _model_item("upscale_models", "upscale-b.pth", "Upscaler B"),
+        )
+    )
+    controller = _model_choice_controller(catalog)
+    parent = SimpleNamespace(sampler_link_widgets={}, scheduler_link_widgets={})
+
+    def build_choice(
+        *,
+        node_type: str,
+        key: str,
+        options: list[str],
+    ) -> object:
+        """Build one standard Comfy combo from its reported option inventory."""
+
+        return factories.build_widget_for_field_behavior(
+            parent=parent,
+            field_behavior=FieldBehavior(field_key=key),
+            node_name="models",
+            key=key,
+            value=options[0],
+            field_meta={},
+            prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
+            prompt_wildcard_catalog_gateway=_wildcard_gateway(),
+            model_choice_snapshot_controller=controller,
+            field_type="LIST",
+            node_type=node_type,
+            field_info=[options, {}],
+        )
+
+    fields = {
+        "diffusion_model": build_choice(
+            node_type="SimpleSyrup.SimpleLoadAnima",
+            key="diffusion_model",
+            options=[
+                "Anima\\anima-a.safetensors",
+                "Anima\\anima-b.safetensors",
+            ],
+        ),
+        "diffusion_weight_dtype": build_choice(
+            node_type="SimpleSyrup.SimpleLoadAnima",
+            key="diffusion_weight_dtype",
+            options=["default", "fp8_e4m3fn", "fp8_e5m2"],
+        ),
+        "text_encoder": build_choice(
+            node_type="SimpleSyrup.SimpleLoadAnima",
+            key="text_encoder",
+            options=[
+                "auto",
+                "qwen\\encoder-a.safetensors",
+                "qwen\\encoder-b.safetensors",
+            ],
+        ),
+        "text_encoder_device": build_choice(
+            node_type="SimpleSyrup.SimpleLoadAnima",
+            key="text_encoder_device",
+            options=["default", "cpu"],
+        ),
+        "vae": build_choice(
+            node_type="SimpleSyrup.SimpleLoadAnima",
+            key="vae",
+            options=[
+                "auto",
+                "ClearVAE.safetensors",
+                "qwen\\qwen-image-vae.safetensors",
+            ],
+        ),
+        "control_net_name": build_choice(
+            node_type="ControlNetLoader",
+            key="control_net_name",
+            options=["control-a.safetensors", "control-b.safetensors"],
+        ),
+        "upscale_model_name": build_choice(
+            node_type="UpscaleModelLoader",
+            key="model_name",
+            options=["upscale-a.pth", "upscale-b.pth"],
+        ),
+        "mixed_allowed_models": build_choice(
+            node_type="CustomSelector",
+            key="asset",
+            options=[
+                "Anima\\anima-a.safetensors",
+                "Anima\\anima-b.safetensors",
+                "ClearVAE.safetensors",
+                "qwen\\qwen-image-vae.safetensors",
+            ],
+        ),
+    }
+
+    assert isinstance(fields["diffusion_model"], _FakeModelPickerField)
+    assert fields["diffusion_model"].resolution.matched_kinds == ("diffusion_models",)
+    assert isinstance(fields["vae"], _FakeModelPickerField)
+    assert fields["vae"].resolution.matched_kinds == ("vae",)
+    for field_key in (
+        "diffusion_weight_dtype",
+        "text_encoder",
+        "text_encoder_device",
+        "control_net_name",
+        "upscale_model_name",
+        "mixed_allowed_models",
+    ):
+        assert isinstance(fields[field_key], _FakeComboBox), field_key
+
+
 def test_build_widget_for_field_behavior_keeps_non_model_lists_as_combo(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Non-model LIST values should still fall back to the plain combo factory."""
 
-    monkeypatch.setattr(choice_factory, "ComboBox", _FakeComboBox)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     catalog = _FakeModelCatalog(
         (_model_item("checkpoints", "model-a.safetensors", "Model A"),)
     )
@@ -1226,7 +1338,7 @@ def test_build_widget_for_field_behavior_keeps_non_model_lists_as_combo(
         value="Straight",
         field_meta={},
         prompt_autocomplete_gateway=_FakePromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=object(),
+        prompt_wildcard_catalog_gateway=_wildcard_gateway(),
         model_choice_snapshot_controller=_model_choice_controller(catalog, resolver),
         field_type="LIST",
         node_type="VectorscopeCC",
@@ -1238,10 +1350,12 @@ def test_build_widget_for_field_behavior_keeps_non_model_lists_as_combo(
     assert widget.max_hint_width == choice_factory._EDITOR_COMBO_MAX_HINT_WIDTH
 
 
-def test_widget_factory_list_str_caps_generic_editor_combo_width(monkeypatch) -> None:
+def test_widget_factory_list_str_caps_generic_editor_combo_width(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Generic editor combo boxes should receive the standard max hint width."""
 
-    monkeypatch.setattr(choice_factory, "ComboBox", _FakeComboBox)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
 
     combo = factories.widget_factory_list_str(
         parent=SimpleNamespace(sampler_link_widgets={}, scheduler_link_widgets={}),
@@ -1266,10 +1380,10 @@ def test_widget_factory_list_str_caps_generic_editor_combo_width(monkeypatch) ->
 
 
 def test_widget_factory_list_str_sampler_switches_between_link_and_literal(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Sampler list combobox should prepare link data without mutating node data."""
-    monkeypatch.setattr(choice_factory, "ComboBox", _FakeComboBox)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     node_definition_gateway = _FakeNodeDefinitionGateway(
         {
             "KSampler": {
@@ -1320,9 +1434,11 @@ def test_widget_factory_list_str_sampler_switches_between_link_and_literal(
     assert node_data["inputs"] == {}
 
 
-def test_widget_factory_list_str_falls_back_to_cube_field_info(monkeypatch) -> None:
+def test_widget_factory_list_str_falls_back_to_cube_field_info(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """LIST factories should use cube field info when live options are unavailable."""
-    monkeypatch.setattr(choice_factory, "ComboBox", _FakeComboBox)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     node_definition_gateway = _FakeNodeDefinitionGateway({})
 
     combo = factories.widget_factory_list_str(
@@ -1347,10 +1463,12 @@ def test_widget_factory_list_str_falls_back_to_cube_field_info(monkeypatch) -> N
     assert combo.add_items_calls == 1
 
 
-def test_widget_factory_list_str_renders_combo_field_info(monkeypatch) -> None:
+def test_widget_factory_list_str_renders_combo_field_info(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """COMBO fields should render as the same generic dropdown control as LIST fields."""
 
-    monkeypatch.setattr(choice_factory, "ComboBox", _FakeComboBox)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     node_definition_gateway = _FakeNodeDefinitionGateway({})
 
     combo = factories.widget_factory_list_str(
@@ -1379,10 +1497,10 @@ def test_widget_factory_list_str_renders_combo_field_info(monkeypatch) -> None:
 
 
 def test_widget_factory_list_str_rejects_current_value_when_no_option_source_exists(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """LIST factories should not turn the current value into a choice option."""
-    monkeypatch.setattr(choice_factory, "ComboBox", _FakeComboBox)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     node_definition_gateway = _FakeNodeDefinitionGateway({})
 
     with pytest.raises(RuntimeError, match="Failed to resolve live Comfy options"):
@@ -1400,10 +1518,10 @@ def test_widget_factory_list_str_rejects_current_value_when_no_option_source_exi
 
 
 def test_widget_factory_list_str_raises_for_empty_value_without_options(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """LIST factories should still fail when no choices or current value exist."""
-    monkeypatch.setattr(choice_factory, "ComboBox", _FakeComboBox)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
 
     with pytest.raises(RuntimeError):
         factories.widget_factory_list_str(
@@ -1420,10 +1538,10 @@ def test_widget_factory_list_str_raises_for_empty_value_without_options(
 
 
 def test_widget_factory_list_str_non_link_fields_use_application_resolved_value(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Non-link list widgets should render the effective value chosen upstream."""
-    monkeypatch.setattr(choice_factory, "ComboBox", _FakeComboBox)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     node_definition_gateway = _FakeNodeDefinitionGateway(
         {
             "CheckpointLoaderSimple": {
@@ -1459,11 +1577,11 @@ def test_widget_factory_list_str_non_link_fields_use_application_resolved_value(
 
 
 def test_widget_factory_list_str_ultralytics_like_fields_remain_plain_combo(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Model-like LIST fields must not receive the picker upgrade by type alone."""
 
-    monkeypatch.setattr(choice_factory, "ComboBox", _FakeComboBox)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     node_definition_gateway = _FakeNodeDefinitionGateway(
         {
             "UltralyticsDetectorProvider": {
@@ -1496,11 +1614,11 @@ def test_widget_factory_list_str_ultralytics_like_fields_remain_plain_combo(
 
 
 def test_widget_factory_list_str_uses_live_options_for_compact_dynamic_marker(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Compact dynamic LIST fields should get their choices from live definitions."""
 
-    monkeypatch.setattr(choice_factory, "ComboBox", _FakeComboBox)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     node_definition_gateway = _FakeNodeDefinitionGateway(
         {
             "KSampler": {
@@ -1536,11 +1654,11 @@ def test_widget_factory_list_str_uses_live_options_for_compact_dynamic_marker(
 
 
 def test_widget_factory_list_str_rejects_dynamic_marker_without_live_options(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Compact dynamic LIST fields must not render current values as options."""
 
-    monkeypatch.setattr(choice_factory, "ComboBox", _FakeComboBox)
+    monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
 
     with pytest.raises(RuntimeError, match="Failed to resolve live Comfy options"):
         factories.widget_factory_list_str(
@@ -1559,17 +1677,22 @@ def test_widget_factory_list_str_rejects_dynamic_marker_without_live_options(
         )
 
 
-def test_build_mask_picker_widget_sets_refresh_matching_metadata(monkeypatch) -> None:
+def test_build_mask_picker_widget_sets_refresh_matching_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Factory-created mask pickers should expose cube/node metadata for refresh."""
 
     monkeypatch.setattr(image_factory, "MaskPicker", _FakeMaskPicker)
 
-    picker = image_factory.build_mask_picker_widget(
-        parent="parent",
-        node_name="load_image_as_mask",
-        key="image",
-        value="E:/masks/current.png",
-        field_meta={"cube_alias": "Inpaint"},
+    picker = cast(
+        _FakeMaskPicker,
+        image_factory.build_mask_picker_widget(
+            parent="parent",
+            node_name="load_image_as_mask",
+            key="image",
+            value="E:/masks/current.png",
+            field_meta={"cube_alias": "Inpaint"},
+        ),
     )
 
     assert picker.cube_alias == "Inpaint"
