@@ -111,6 +111,12 @@ class WildcardManagedTextAssetService:
 
         self._wildcards.delete_file(asset_id)
 
+    def set_asset_enabled(self, asset_id: str, enabled: bool) -> ManagedTextAsset:
+        """Reject enablement because wildcard files do not expose this state."""
+
+        del asset_id, enabled
+        raise ValueError("Wildcard files cannot be enabled or disabled individually.")
+
     def refresh(self) -> None:
         """Refresh wildcard catalog caches."""
 

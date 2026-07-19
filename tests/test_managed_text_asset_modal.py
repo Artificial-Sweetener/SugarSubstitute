@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from typing import Any
 
 import pytest
@@ -123,6 +124,17 @@ class _FakeManagedTextAssetService:
 
         self.assets.pop(asset_id)
         self.text.pop(asset_id)
+
+    def set_asset_enabled(
+        self,
+        asset_id: str,
+        enabled: bool,
+    ) -> ManagedTextAsset:
+        """Set and return one fake asset's participation state."""
+
+        asset = replace(self.assets[asset_id], enabled=enabled)
+        self.assets[asset_id] = asset
+        return asset
 
     def refresh(self) -> None:
         """Record cache refresh."""

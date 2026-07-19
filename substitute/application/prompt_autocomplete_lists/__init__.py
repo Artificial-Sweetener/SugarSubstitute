@@ -14,26 +14,26 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Expose managed text asset application contracts and adapters."""
-
-from __future__ import annotations
+"""Expose user-managed prompt autocomplete list use cases."""
 
 from .models import (
-    CreateManagedTextAssetRequest,
-    ManagedTextAsset,
-    ManagedTextAssetKind,
-    RenameManagedTextAssetRequest,
+    PromptAutocompleteList,
+    PromptAutocompleteListKind,
+    PromptAutocompleteListSnapshot,
 )
-from .autocomplete_list_adapter import AutocompleteListManagedTextAssetService
-from .service import ManagedTextAssetService
-from .wildcard_adapter import WildcardManagedTextAssetService
+from .repository import PromptAutocompleteListRepository
+from .service import (
+    PromptAutocompleteListService,
+    display_prompt_tag,
+    normalize_prompt_tag,
+)
 
 __all__ = [
-    "AutocompleteListManagedTextAssetService",
-    "CreateManagedTextAssetRequest",
-    "ManagedTextAsset",
-    "ManagedTextAssetKind",
-    "ManagedTextAssetService",
-    "RenameManagedTextAssetRequest",
-    "WildcardManagedTextAssetService",
+    "display_prompt_tag",
+    "normalize_prompt_tag",
+    "PromptAutocompleteList",
+    "PromptAutocompleteListKind",
+    "PromptAutocompleteListRepository",
+    "PromptAutocompleteListService",
+    "PromptAutocompleteListSnapshot",
 ]

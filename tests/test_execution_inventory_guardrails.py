@@ -100,6 +100,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     "substitute/infrastructure/persistence/file_prompt_autocomplete_gateway.py": (
         frozenset({"threading.RLock"})
     ),
+    "substitute/infrastructure/persistence/configured_prompt_autocomplete_gateway.py": (
+        frozenset({"threading.RLock"})
+    ),
     "substitute/infrastructure/persistence/image_naming.py": frozenset(
         {"threading.Lock"}
     ),

@@ -21,6 +21,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from .autocomplete_list_management_modal import AutocompleteListManagementModal
+    from .autocomplete_list_management_opener import AutocompleteListManagementOpener
     from .managed_text_asset_modal import (
         ManagedTextAssetCreateAction,
         ManagedTextAssetModal,
@@ -30,6 +32,12 @@ if TYPE_CHECKING:
     from .wildcard_management_opener import WildcardManagementOpener
 
 _EXPORTS = {
+    "AutocompleteListManagementModal": (
+        "substitute.presentation.managed_text_assets.autocomplete_list_management_modal"
+    ),
+    "AutocompleteListManagementOpener": (
+        "substitute.presentation.managed_text_assets.autocomplete_list_management_opener"
+    ),
     "ManagedTextAssetCreateAction": (
         "substitute.presentation.managed_text_assets.managed_text_asset_modal"
     ),
@@ -63,6 +71,8 @@ def __getattr__(name: str) -> Any:
 
 
 __all__ = [
+    "AutocompleteListManagementModal",
+    "AutocompleteListManagementOpener",
     "ManagedTextAssetCreateAction",
     "ManagedTextAssetModal",
     "NumberedPromptEditorFrame",
