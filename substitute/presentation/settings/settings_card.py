@@ -72,6 +72,7 @@ SettingsCardContentAlignment = Literal["right", "left", "vertical"]
 SettingsCardAppearance = Literal[
     "normal",
     "expander_header",
+    "controlled_expander_header",
     "expander_item",
     "clickable_expander_item",
     "segmented_item",
@@ -173,7 +174,7 @@ class SettingsCard(QFrame):
         """Paint the card fill and border before child widgets draw."""
 
         _ = event
-        if self._appearance == "expander_header":
+        if self._appearance in {"expander_header", "controlled_expander_header"}:
             return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -407,6 +408,8 @@ class SettingsCard(QFrame):
 
         if self._appearance == "expander_header":
             return SETTINGS_EXPANDER_HEADER_PADDING
+        if self._appearance == "controlled_expander_header":
+            return SETTINGS_CARD_PADDING
         if self._appearance == "segmented_item":
             return SETTINGS_CARD_PADDING
         if self._appearance == "expander_item":
@@ -570,7 +573,7 @@ class InteractiveSettingsCard(SettingsCard):
         return _settings_card_overlay_path(
             rect,
             bottom_corners_attached=(
-                self.appearance() == "expander_header"
+                self.appearance() in {"expander_header", "controlled_expander_header"}
                 and self.expander_header_attached()
             ),
         )

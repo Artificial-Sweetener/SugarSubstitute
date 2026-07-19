@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-import math
 from typing import Any, cast
 
 from PySide6.QtCore import Qt
@@ -43,16 +42,18 @@ from substitute.presentation.editor.panel.widgets.field_row import (
     apply_editor_control_height,
 )
 from substitute.presentation.widgets import (
+    DecimalSpinnerSlider,
     DoubleSpinBox,
     DragOnlySlider,
+    IntegerSpinnerSlider,
     SeedBox,
     SpinBox,
 )
+from substitute.presentation.widgets.spinner_slider import spinner_slider_step_count
 from substitute.shared.logging.logger import get_logger, log_warning
 
 _LOGGER = get_logger("presentation.editor.panel.factories.numeric")
 _SPINNER_SLIDER_VISUAL_HEIGHT = 22
-_QT_SLIDER_MAXIMUM = 2_147_483_647
 SPINNER_SLIDER_INPUTS = {
     "denoise",
 }
@@ -129,54 +130,20 @@ def _build_spinner_slider_widget(
 ) -> QWidget:
     """Build a float spinner/slider pair that stays synchronized both ways."""
 
-    container = QWidget(parent)
-    apply_editor_control_height(container)
-    layout = QHBoxLayout(container)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(6)
-
-    step_count = _spinner_slider_step_count(min_val, max_val, step_val)
-    if step_count is None:
-        raise ValueError("Spinner/slider range cannot fit Qt slider bounds.")
-
-    slider = DragOnlySlider(Qt.Orientation.Horizontal, container)
-    slider.setRange(0, step_count)
-    slider.setFixedWidth(120)
-    _apply_spinner_slider_visual_height(slider)
-
     minimum = _to_float(min_val)
+    maximum = _to_float(max_val)
     step = _to_float(step_val)
     current_value = _to_float(value)
-    spinbox = DoubleSpinBox(container)
-    spinbox.setRange(minimum, _to_float(max_val))
-    spinbox.setSingleStep(step)
-    spinbox.setDecimals(2)
-    spinbox.setValue(current_value)
-    spinbox.setFixedWidth(80)
-    spinbox.setSymbolVisible(False)
-    apply_editor_control_height(spinbox)
-
-    def slider_to_value(slider_val: int) -> float:
-        """Return the floating-point value represented by one slider position."""
-
-        return round(minimum + slider_val * step, 10)
-
-    def value_to_slider(val: float) -> int:
-        """Return the slider position represented by one floating-point value."""
-
-        return int(round((val - minimum) / step))
-
-    slider.blockSignals(True)
-    slider.setValue(value_to_slider(current_value))
-    slider.blockSignals(False)
-
-    slider.valueChanged.connect(lambda v: spinbox.setValue(slider_to_value(v)))
-    spinbox.valueChanged.connect(lambda v: slider.setValue(value_to_slider(v)))
-
-    layout.addWidget(spinbox, 0, Qt.AlignmentFlag.AlignVCenter)
-    layout.addWidget(slider, 0, Qt.AlignmentFlag.AlignVCenter)
-
-    setattr(container, "spinbox", spinbox)
+    container = DecimalSpinnerSlider(
+        minimum=minimum,
+        maximum=maximum,
+        step=step,
+        value=current_value,
+        parent=parent,
+    )
+    apply_editor_control_height(container)
+    _apply_spinner_slider_visual_height(container.slider)
+    apply_editor_control_height(container.spinbox)
     return container
 
 
@@ -188,19 +155,13 @@ def _spinner_slider_step_count(
     """Return a Qt-safe slider step count for one float spinner/slider range."""
 
     try:
-        minimum = _to_float(min_val)
-        maximum = _to_float(max_val)
-        step = _to_float(step_val)
+        return spinner_slider_step_count(
+            _to_float(min_val),
+            _to_float(max_val),
+            _to_float(step_val),
+        )
     except (TypeError, ValueError, OverflowError):
         return None
-    if not all(math.isfinite(item) for item in (minimum, maximum, step)):
-        return None
-    if step <= 0 or maximum < minimum:
-        return None
-    step_count = (maximum - minimum) / step
-    if step_count > _QT_SLIDER_MAXIMUM:
-        return None
-    return max(1, int(round(step_count)))
 
 
 def _build_int_spinner_slider_widget(
@@ -212,12 +173,6 @@ def _build_int_spinner_slider_widget(
 ) -> QWidget:
     """Build an integer spinner/slider pair that stays synchronized both ways."""
 
-    container = QWidget(parent)
-    apply_editor_control_height(container)
-    layout = QHBoxLayout(container)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(6)
-
     try:
         current_value = _to_int(value)
     except (TypeError, ValueError, OverflowError):
@@ -226,42 +181,16 @@ def _build_int_spinner_slider_widget(
     minimum = _to_int(min_val)
     maximum = _to_int(max_val)
     step = max(1, _to_int(step_val or 1))
-    step_count = max(1, int(round((maximum - minimum) / step)))
-
-    slider = DragOnlySlider(Qt.Orientation.Horizontal, container)
-    slider.setRange(0, step_count)
-    slider.setFixedWidth(120)
-    _apply_spinner_slider_visual_height(slider)
-
-    spinbox = SpinBox(container)
-    spinbox.setRange(minimum, maximum)
-    spinbox.setSingleStep(step)
-    spinbox.setValue(current_value)
-    spinbox.setFixedWidth(80)
-    spinbox.setSymbolVisible(False)
-    apply_editor_control_height(spinbox)
-
-    def slider_to_value(slider_val: int) -> int:
-        """Return the integer value represented by one slider position."""
-
-        return int(minimum + slider_val * step)
-
-    def value_to_slider(val: int) -> int:
-        """Return the slider position represented by one integer value."""
-
-        return int(round((val - minimum) / step))
-
-    slider.blockSignals(True)
-    slider.setValue(value_to_slider(current_value))
-    slider.blockSignals(False)
-
-    slider.valueChanged.connect(lambda v: spinbox.setValue(slider_to_value(v)))
-    spinbox.valueChanged.connect(lambda v: slider.setValue(value_to_slider(v)))
-
-    layout.addWidget(spinbox, 0, Qt.AlignmentFlag.AlignVCenter)
-    layout.addWidget(slider, 0, Qt.AlignmentFlag.AlignVCenter)
-
-    setattr(container, "spinbox", spinbox)
+    container = IntegerSpinnerSlider(
+        minimum=minimum,
+        maximum=maximum,
+        step=step,
+        value=current_value,
+        parent=parent,
+    )
+    apply_editor_control_height(container)
+    _apply_spinner_slider_visual_height(container.slider)
+    apply_editor_control_height(container.spinbox)
     return container
 
 

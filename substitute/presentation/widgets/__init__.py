@@ -46,6 +46,14 @@ def __getattr__(name: str) -> object:
         from .slider import DragOnlySlider
 
         return DragOnlySlider
+    if name == "IntegerSpinnerSlider":
+        from .spinner_slider import IntegerSpinnerSlider
+
+        return IntegerSpinnerSlider
+    if name == "DecimalSpinnerSlider":
+        from .spinner_slider import DecimalSpinnerSlider
+
+        return DecimalSpinnerSlider
     if name == "AnchoredRowPicker":
         from .anchored_row_picker import AnchoredRowPicker
 
@@ -92,8 +100,10 @@ __all__ = [
     "AnchoredRowPickerTextMode",
     "AnchoredRowPickerView",
     "ComboBox",
+    "DecimalSpinnerSlider",
     "DoubleSpinBox",
     "DragOnlySlider",
+    "IntegerSpinnerSlider",
     "LinkSelectorComboBox",
     "SeedBox",
     "SpinBox",

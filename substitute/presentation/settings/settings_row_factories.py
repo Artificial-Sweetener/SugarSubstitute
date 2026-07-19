@@ -108,7 +108,7 @@ def build_combo_settings_row(
     )
 
 
-def build_settings_icon_widget(icon: Any, parent: QWidget) -> IconWidget:
+def build_settings_icon_widget(icon: Any, parent: QWidget | None) -> IconWidget:
     """Create one fixed-size Settings row icon."""
 
     widget = IconWidget(icon, parent)
@@ -119,7 +119,7 @@ def build_settings_icon_widget(icon: Any, parent: QWidget) -> IconWidget:
 def build_named_settings_icon_widget(
     icon: Any,
     object_name: str,
-    parent: QWidget,
+    parent: QWidget | None,
 ) -> IconWidget:
     """Create one named fixed-size Settings row icon."""
 

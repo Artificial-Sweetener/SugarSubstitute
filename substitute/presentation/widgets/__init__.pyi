@@ -33,6 +33,8 @@ from .menu_buttons import (
 )
 from .seed_box import SeedBox as SeedBox
 from .slider import DragOnlySlider as DragOnlySlider
+from .spinner_slider import DecimalSpinnerSlider as DecimalSpinnerSlider
+from .spinner_slider import IntegerSpinnerSlider as IntegerSpinnerSlider
 from .spin_box import DoubleSpinBox as DoubleSpinBox
 from .spin_box import SpinBox as SpinBox
 
@@ -43,8 +45,10 @@ __all__ = [
     "AnchoredRowPickerTextMode",
     "AnchoredRowPickerView",
     "ComboBox",
+    "DecimalSpinnerSlider",
     "DoubleSpinBox",
     "DragOnlySlider",
+    "IntegerSpinnerSlider",
     "LinkSelectorComboBox",
     "SeedBox",
     "SpinBox",

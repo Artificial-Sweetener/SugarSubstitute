@@ -21,13 +21,20 @@ from __future__ import annotations
 import os
 
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QLabel, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+from qfluentwidgets import SwitchButton  # type: ignore[import-untyped]
 
+from substitute.presentation.resources.app_icon import AppIcon
 from substitute.presentation.settings.settings_expander import (
     SettingsExpander,
     SettingsExpanderRow,
+    SwitchSettingsExpander,
+)
+from substitute.presentation.settings.settings_row_factories import (
+    build_settings_icon_widget,
+    build_switch_settings_row,
 )
 from substitute.presentation.motion import (
     ACCORDION_COLLAPSE_DURATION_MS,
@@ -185,6 +192,87 @@ def test_settings_expander_expanded_constructor_shows_body() -> None:
     assert expander.content_widget().isHidden() is False
     assert expander.chevron.rotation_value() == 180.0
     expander.close()
+
+
+def test_switch_settings_expander_owns_feature_disclosure_without_chevron() -> None:
+    """Feature enablement should be the sole owner of subordinate disclosure."""
+
+    app = _app()
+    expander = SwitchSettingsExpander(title="JPEG companions")
+    expander.add_widget(QLabel("JPEG sizing", expander.content_widget()))
+    observed: list[bool] = []
+    expander.checkedChanged.connect(observed.append)
+    expander.show()
+    app.processEvents()
+
+    assert expander.is_checked() is False
+    assert expander.is_expanded() is False
+    assert expander.chevron.isHidden() is True
+    assert expander.header_card.appearance() == "controlled_expander_header"
+    assert expander.header_card.trailing_widget is expander.switch
+
+    expander.header_card.activated.emit()
+    app.processEvents()
+
+    assert expander.is_checked() is True
+    assert expander.is_expanded() is True
+    assert expander.chevron.isHidden() is True
+    assert observed == [True]
+
+    expander.set_checked(False)
+    app.processEvents()
+
+    assert expander.is_checked() is False
+    assert expander.is_expanded() is False
+    assert observed == [True, False]
+    expander.close()
+
+
+def test_switch_settings_expander_aligns_toggle_with_standard_settings_rows() -> None:
+    """Controlled expander switches should use the standard trailing-card inset."""
+
+    app = _app()
+    host = QWidget()
+    layout = QVBoxLayout(host)
+    expander = SwitchSettingsExpander(
+        title="JPEG companions",
+        visual_widget=build_settings_icon_widget(
+            AppIcon.SAVE_IMAGE_20_REGULAR,
+            host,
+        ),
+        parent=host,
+    )
+    standard_row = build_switch_settings_row(
+        parent=host,
+        icon=AppIcon.SAVE_IMAGE_20_REGULAR,
+        title="Look up missing recipe models",
+        description="Use CivitAI only after local recipe model matching fails.",
+        checked=True,
+        on_changed=lambda _checked: None,
+    )
+    standard_switch = standard_row.findChild(SwitchButton)
+    assert isinstance(standard_switch, QWidget)
+    assert isinstance(expander.switch, QWidget)
+    assert expander.header_card.trailing_widget is expander.switch
+    layout.addWidget(expander)
+    layout.addWidget(standard_row)
+    host.resize(900, 220)
+    host.show()
+    app.processEvents()
+
+    expander_right = (
+        expander.width()
+        - expander.switch.mapTo(expander, QPoint()).x()
+        - expander.switch.width()
+    )
+    standard_right = (
+        standard_row.width()
+        - standard_switch.mapTo(standard_row, QPoint()).x()
+        - standard_switch.width()
+    )
+
+    assert expander_right == standard_right == 16
+    host.close()
 
 
 def test_settings_expander_uses_node_card_style_motion() -> None:
