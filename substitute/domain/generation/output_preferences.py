@@ -55,7 +55,7 @@ class JpegOutputSettings:
 
     enabled: bool = False
     sizing_mode: JpegSizingMode = JpegSizingMode.QUALITY
-    quality: int = 90
+    quality: int = 100
     target_size_kib: int = 1024
 
 

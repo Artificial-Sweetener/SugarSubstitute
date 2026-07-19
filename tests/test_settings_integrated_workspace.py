@@ -31,7 +31,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     ComboBox,
     PushButton,
     SearchLineEdit,
-    SwitchButton,
     TitleLabel,
 )
 
@@ -87,10 +86,13 @@ from substitute.domain.onboarding import (
     ComfyTargetMode,
 )
 from substitute.domain.generation import (
+    GenerationPreviewMethod,
     GenerationPreviewPreferences,
+    JpegOutputSettings,
     JpegSizingMode,
     OutputPersistenceMode,
     OutputPreferences,
+    TaesdPreviewAssetStatus,
     default_generation_preview_preferences,
 )
 from substitute.domain.civitai import CivitaiThumbnailSafetyPolicy
@@ -108,6 +110,12 @@ from substitute.presentation.settings.comfy_connection_page import (
 from substitute.presentation.settings.comfy_environment_page import ComfyEnvironmentPage
 from substitute.presentation.settings.cube_library_page import CubeLibrarySettingsPage
 from substitute.presentation.settings.generation_page import GenerationSettingsPage
+from substitute.presentation.settings.jpeg_companion_settings import (
+    JpegCompanionSettingsControl,
+)
+from substitute.presentation.settings.generation_preview_settings import (
+    GenerationPreviewSettingsControl,
+)
 from substitute.presentation.settings.civitai_page import CivitaiSettingsPage
 from substitute.presentation.settings.settings_workspace import (
     ABOUT_SECTION_ID,
@@ -122,6 +130,7 @@ from substitute.presentation.settings.settings_catalog import (
     SettingsControlEntry,
     SettingsPageEntry,
 )
+from substitute.presentation.settings.settings_control_group import SettingsControlGroup
 from substitute.presentation.shell.settings_toolbar_search import (
     SETTINGS_SEARCH_DEBOUNCE_MS,
     SettingsToolbarSearchBox,
@@ -646,6 +655,19 @@ def test_generation_output_catalog_controls_persist_unified_output_policy(
         )
     )
     parent = QWidget()
+    output_section = next(
+        section
+        for section in page.sections
+        if section.section_id == "generation.output"
+    )
+
+    assert tuple(control.setting_id for control in output_section.controls) == (
+        "generation.output.folder",
+        "generation.output.pattern",
+        "generation.output.preview",
+        "generation.output.persistence",
+        "generation.output.jpeg",
+    )
 
     persistence_row = _appearance_control(
         page, "generation.output.persistence"
@@ -654,23 +676,168 @@ def test_generation_output_catalog_controls_persist_unified_output_policy(
     assert persistence_combo is not None
     persistence_combo.setCurrentIndex(1)
 
-    jpeg_row = _appearance_control(page, "generation.output.jpeg_enabled").factory(
-        parent
-    )
-    jpeg_switch = jpeg_row.findChild(SwitchButton)
-    assert jpeg_switch is not None
-    jpeg_switch.setChecked(True)
+    jpeg_control = _appearance_control(page, "generation.output.jpeg").factory(parent)
+    assert isinstance(jpeg_control, JpegCompanionSettingsControl)
+    assert jpeg_control.is_expanded() is False
+    assert jpeg_control.quality_control.value() == 100
 
-    sizing_row = _appearance_control(page, "generation.output.jpeg_sizing").factory(
-        parent
-    )
-    sizing_combo = sizing_row.findChild(ComboBox)
-    assert sizing_combo is not None
-    sizing_combo.setCurrentIndex(1)
+    jpeg_control.set_checked(True)
+    jpeg_control.mode_combo.setCurrentIndex(1)
+    jpeg_control.target_size_control.spinbox.setValue(1.25)
 
     assert repository.preferences.persistence_mode is OutputPersistenceMode.FINAL_CUBE
     assert repository.preferences.jpeg.enabled is True
     assert repository.preferences.jpeg.sizing_mode is JpegSizingMode.TARGET_SIZE
+    assert repository.preferences.jpeg.target_size_kib == 1280
+    assert jpeg_control.value_stack.currentWidget() is jpeg_control.target_size_control
+
+
+def test_generation_preview_catalog_uses_one_switch_control_and_persists_state() -> (
+    None
+):
+    """Generation preview settings should disclose and persist one cohesive group."""
+
+    _app()
+    repository = _GenerationPreviewPreferenceRepository()
+    page = settings_catalog_builders.build_generation_settings_page(
+        settings_catalog_builders.GenerationSettingsContext(
+            generation_preview_service=GenerationPreviewPreferenceService(repository),
+            output_preference_service=cast(OutputPreferenceService, object()),
+            civitai_preference_service=cast(CivitaiPreferenceService, object()),
+            task_runner_factory=_task_runner_factory,
+        )
+    )
+    preview_section = next(
+        section
+        for section in page.sections
+        if section.section_id == "generation.preview"
+    )
+
+    assert tuple(control.setting_id for control in preview_section.controls) == (
+        "generation.preview.configuration",
+    )
+
+    parent = QWidget()
+    control = preview_section.controls[0].factory(parent)
+    assert isinstance(control, GenerationPreviewSettingsControl)
+    assert control.is_checked() is True
+    assert control.is_expanded() is True
+    assert control.selected_method() is GenerationPreviewMethod.LATENT2RGB
+
+    control.set_method(GenerationPreviewMethod.AUTO)
+    control.set_checked(False)
+
+    assert control.has_pending_work() is False
+    assert control.is_expanded() is False
+    assert repository.preferences.enabled is False
+    assert repository.preferences.method is GenerationPreviewMethod.AUTO
+
+    control.set_checked(True)
+
+    assert control.is_expanded() is True
+    assert repository.preferences.enabled is True
+    assert repository.preferences.method is GenerationPreviewMethod.AUTO
+
+
+def test_generation_preview_control_prepares_taesd_through_async_save_route() -> None:
+    """Selecting TAESD should preserve backend preparation and result feedback."""
+
+    _app()
+    repository = _GenerationPreviewPreferenceRepository()
+    backend = _GenerationPreviewAssetBackend()
+    control = GenerationPreviewSettingsControl(
+        service=GenerationPreviewPreferenceService(repository, backend),
+        task_runner_factory=_task_runner_factory,
+    )
+
+    control.set_method(GenerationPreviewMethod.TAESD)
+
+    assert control.has_pending_work() is False
+    assert repository.preferences.method is GenerationPreviewMethod.TAESD
+    assert backend.ensure_calls == 1
+    assert control.status_text() == "TAESD preview files are installed."
+
+
+def test_jpeg_companion_control_restores_enabled_values_and_preserves_both_modes(
+    tmp_path: Path,
+) -> None:
+    """Persisted JPEG settings should restore disclosure and retain inactive values."""
+
+    _app()
+    repository = _OutputOrganizationPreferenceRepository()
+    repository.preferences = OutputPreferences(
+        jpeg=JpegOutputSettings(
+            enabled=True,
+            sizing_mode=JpegSizingMode.TARGET_SIZE,
+            quality=83,
+            target_size_kib=1536,
+        )
+    )
+    service = OutputPreferenceService(repository, default_output_root=tmp_path)
+    control = JpegCompanionSettingsControl(service)
+
+    assert control.is_checked() is True
+    assert control.is_expanded() is True
+    assert control.quality_control.value() == 83
+    assert control.target_size_control.value() == 1.5
+    assert control.value_stack.currentWidget() is control.target_size_control
+
+    control.mode_combo.setCurrentIndex(0)
+    control.quality_control.spinbox.setValue(91)
+    control.mode_combo.setCurrentIndex(1)
+
+    assert repository.preferences.jpeg.quality == 91
+    assert repository.preferences.jpeg.target_size_kib == 1536
+    assert control.value_stack.currentWidget() is control.target_size_control
+    control.close()
+
+
+def test_jpeg_companion_controls_wrap_without_hiding_the_active_editor(
+    tmp_path: Path,
+) -> None:
+    """The compound sizing controls should remain usable on narrow Settings pages."""
+
+    app = _app()
+    repository = _OutputOrganizationPreferenceRepository()
+    repository.preferences = OutputPreferences(
+        jpeg=JpegOutputSettings(
+            enabled=True,
+            sizing_mode=JpegSizingMode.TARGET_SIZE,
+        )
+    )
+    host = QWidget()
+    layout = QVBoxLayout(host)
+    control = JpegCompanionSettingsControl(
+        OutputPreferenceService(repository, default_output_root=tmp_path),
+        host,
+    )
+    layout.addWidget(control)
+    control_group = control.findChild(SettingsControlGroup)
+    assert control_group is not None
+
+    host.resize(900, 320)
+    host.show()
+    _process_events(app)
+
+    assert control_group.layout_mode() == "horizontal"
+    assert control.target_size_control.isVisible() is True
+    assert (
+        control.value_stack.mapTo(control_group, QPoint()).x()
+        < control.mode_combo.mapTo(control_group, QPoint()).x()
+    )
+    assert control.target_size_control.spinbox.maximum() == 20.0
+    assert control.target_size_control.spinbox.singleStep() == 0.1
+
+    host.resize(480, 420)
+    _process_events(app)
+
+    assert control_group.layout_mode() == "vertical"
+    assert control.target_size_control.isVisible() is True
+    assert (
+        control.target_size_control.width()
+        >= control.target_size_control.sizeHint().width()
+    )
+    host.close()
 
 
 def test_appearance_catalog_routes_restart_required_settings_to_coordinator() -> None:
@@ -1528,6 +1695,40 @@ class _GenerationPreviewPreferenceRepository:
         """Persist preferences in memory."""
 
         self.preferences = preferences
+
+
+class _GenerationPreviewAssetBackend:
+    """Return ready TAESD assets while recording preparation calls."""
+
+    def __init__(self) -> None:
+        """Initialize without preparation calls."""
+
+        self.ensure_calls = 0
+
+    def get_taesd_status(self) -> TaesdPreviewAssetStatus:
+        """Return the ready test asset status."""
+
+        return self._ready_status()
+
+    def ensure_taesd_assets(self) -> TaesdPreviewAssetStatus:
+        """Record preparation and return the ready test asset status."""
+
+        self.ensure_calls += 1
+        return self._ready_status()
+
+    @staticmethod
+    def _ready_status() -> TaesdPreviewAssetStatus:
+        """Build one deterministic ready TAESD asset status."""
+
+        return TaesdPreviewAssetStatus(
+            schema_version=1,
+            ready=True,
+            installed_count=4,
+            missing_count=0,
+            downloads_attempted=True,
+            assets=(),
+            destination_root="E:\\ComfyUI\\models\\vae_approx",
+        )
 
 
 class _OutputOrganizationPreferenceRepository:

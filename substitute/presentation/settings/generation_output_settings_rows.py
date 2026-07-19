@@ -25,7 +25,6 @@ from PySide6.QtWidgets import QFileDialog, QWidget
 from qfluentwidgets import LineEdit, PushButton  # type: ignore[import-untyped]
 
 from substitute.application.generation import (
-    JpegSizingMode,
     OutputPersistenceMode,
     OutputPreferenceService,
     OutputPreferences,
@@ -35,6 +34,9 @@ from substitute.presentation.settings.path_pattern_token_autocomplete import (
     PathPatternTokenAutocomplete,
     PathPatternTokenSuggestion,
 )
+from substitute.presentation.settings.jpeg_companion_settings import (
+    JpegCompanionSettingsControl,
+)
 from substitute.presentation.settings.settings_card import SettingsCard
 from substitute.presentation.settings.settings_control_group import (
     SettingsControlGroup,
@@ -43,7 +45,6 @@ from substitute.presentation.settings.settings_control_group import (
 from substitute.presentation.settings.settings_row_factories import (
     build_combo_settings_row,
     build_settings_icon_widget,
-    build_switch_settings_row,
 )
 
 
@@ -230,109 +231,10 @@ class GenerationOutputSettingsRows:
             ),
         )
 
-    def jpeg_enabled(self, parent: QWidget) -> SettingsCard:
-        """Create the optional JPEG companion switch."""
+    def jpeg_companions(self, parent: QWidget) -> JpegCompanionSettingsControl:
+        """Create the cohesive JPEG companion settings group."""
 
-        service = self._service
-        return build_switch_settings_row(
-            parent=parent,
-            icon=AppIcon.SAVE_IMAGE_20_REGULAR,
-            title="JPEG companions",
-            description="Also save a JPEG beside each canonical recipe PNG.",
-            checked=service.load_preferences().jpeg.enabled,
-            on_changed=lambda enabled: service.save_preferences(
-                replace(
-                    service.load_preferences(),
-                    jpeg=replace(
-                        service.load_preferences().jpeg,
-                        enabled=enabled,
-                    ),
-                )
-            ),
-        )
-
-    def jpeg_sizing_mode(self, parent: QWidget) -> SettingsCard:
-        """Create the JPEG quality-versus-target-size selector."""
-
-        service = self._service
-        return build_combo_settings_row(
-            parent=parent,
-            icon=AppIcon.IMAGE_SPARKLE_20_REGULAR,
-            title="JPEG sizing",
-            description="Choose fixed quality or an approximate target file size.",
-            options=(
-                ("Fixed quality", JpegSizingMode.QUALITY.value),
-                ("Target size", JpegSizingMode.TARGET_SIZE.value),
-            ),
-            selected=service.load_preferences().jpeg.sizing_mode.value,
-            on_changed=lambda value: service.save_preferences(
-                replace(
-                    service.load_preferences(),
-                    jpeg=replace(
-                        service.load_preferences().jpeg,
-                        sizing_mode=JpegSizingMode(str(value)),
-                    ),
-                )
-            ),
-        )
-
-    def jpeg_quality(self, parent: QWidget) -> SettingsCard:
-        """Create the fixed-quality number field."""
-
-        return self._jpeg_number(parent, target_size=False)
-
-    def jpeg_target_size(self, parent: QWidget) -> SettingsCard:
-        """Create the target-size number field."""
-
-        return self._jpeg_number(parent, target_size=True)
-
-    def _jpeg_number(self, parent: QWidget, *, target_size: bool) -> SettingsCard:
-        """Create one validated JPEG quality or target-size number field."""
-
-        service = self._service
-        settings = service.load_preferences().jpeg
-        edit = LineEdit(parent)
-        edit.setObjectName("JpegTargetSizeEdit" if target_size else "JpegQualityEdit")
-        configure_settings_field_width(edit, preferred_width=180)
-        edit.setText(str(settings.target_size_kib if target_size else settings.quality))
-
-        def save_value() -> None:
-            """Parse and persist the edited numeric setting."""
-
-            try:
-                value = int(edit.text().strip())
-            except ValueError:
-                return
-            loaded = service.load_preferences()
-            jpeg = (
-                replace(loaded.jpeg, target_size_kib=value)
-                if target_size
-                else replace(loaded.jpeg, quality=value)
-            )
-            result = service.save_preferences(replace(loaded, jpeg=jpeg))
-            if result.succeeded:
-                normalized = (
-                    result.preferences.jpeg.target_size_kib
-                    if target_size
-                    else result.preferences.jpeg.quality
-                )
-                edit.setText(str(normalized))
-
-        edit.editingFinished.connect(save_value)
-        return SettingsCard(
-            visual_widget=build_settings_icon_widget(
-                AppIcon.SAVE_IMAGE_20_REGULAR, parent
-            ),
-            title="JPEG target size" if target_size else "JPEG quality",
-            description=(
-                "Approximate target size in KiB."
-                if target_size
-                else "Fixed JPEG quality from 1 to 100."
-            ),
-            trailing_widget=SettingsControlGroup(edit, parent=parent),
-            reserve_visual_space=True,
-            parent=parent,
-        )
+        return JpegCompanionSettingsControl(self._service, parent)
 
 
 __all__ = ["GenerationOutputSettingsRows"]
