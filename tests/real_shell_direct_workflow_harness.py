@@ -30,8 +30,8 @@ from PySide6.QtWidgets import QApplication, QWidget
 from substitute.application.direct_workflows import DirectWorkflowLoadService
 from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.workflow import WorkflowDocumentKind, WorkflowState
-from substitute.infrastructure.comfy.workflow_json_repository import (
-    JsonComfyWorkflowRepository,
+from substitute.infrastructure.comfy.workflow_document_repository import (
+    ComfyWorkflowDocumentRepository,
 )
 from substitute.presentation.editor.panel.overrides_controller import (
     GlobalOverridesManager,
@@ -198,7 +198,7 @@ class RealShellDirectWorkflowHarness:
             node_definitions
         )
         service = DirectWorkflowLoadService(
-            JsonComfyWorkflowRepository(),
+            ComfyWorkflowDocumentRepository(),
             node_definition_gateway=self.shell.node_definition_gateway,
         )
         workflow = self.shell.workflow_session_service.get_workflow(

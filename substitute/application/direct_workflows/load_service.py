@@ -34,10 +34,13 @@ _LOGGER = get_logger("application.direct_workflows.load_service")
 
 
 class DirectWorkflowRepository(Protocol):
-    """Read a JSON object from a direct workflow source path."""
+    """Read and classify direct Comfy workflow source documents."""
+
+    def can_load(self, path: Path) -> bool:
+        """Return whether a path identifies an available direct Comfy workflow."""
 
     def load(self, path: Path) -> JsonObject:
-        """Return one decoded workflow JSON object."""
+        """Return one decoded workflow object."""
 
 
 class DirectWorkflowLoadService:
@@ -56,7 +59,7 @@ class DirectWorkflowLoadService:
         self._node_definition_gateway = node_definition_gateway
 
     def load(self, path: Path) -> DirectWorkflowState:
-        """Load, validate, normalize, and detach one Comfy workflow JSON file."""
+        """Load, validate, normalize, and detach one Comfy workflow document."""
 
         source_path = path.resolve()
         workflow = self._repository.load(source_path)
@@ -81,6 +84,11 @@ class DirectWorkflowLoadService:
             source_workflow=workflow,
             buffer=buffer,
         )
+
+    def can_load(self, path: Path) -> bool:
+        """Return whether the repository exposes a direct workflow at the path."""
+
+        return self._repository.can_load(path)
 
     def _load_node_definitions(
         self,

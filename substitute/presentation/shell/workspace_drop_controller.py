@@ -94,12 +94,24 @@ class RecipeDocumentClassifierProtocol(Protocol):
 
 
 class DirectWorkflowDocumentClassifier:
-    """Recognize the explicit file boundary for Comfy UI workflow documents."""
+    """Recognize direct Comfy workflows through the composed source owner."""
+
+    def __init__(self, source_support: DirectWorkflowSourceSupportProtocol) -> None:
+        """Store the source capability used for document classification."""
+
+        self._source_support = source_support
 
     def supports(self, path: Path) -> bool:
         """Return whether the path can contain a direct Comfy workflow."""
 
-        return path.suffix.casefold() == ".json"
+        return self._source_support.can_load(path)
+
+
+class DirectWorkflowSourceSupportProtocol(Protocol):
+    """Describe direct Comfy workflow source capability."""
+
+    def can_load(self, path: Path) -> bool:
+        """Return whether a direct Comfy workflow is available at the path."""
 
 
 class WorkflowRecipeDropClassifier:
@@ -134,6 +146,13 @@ class WorkflowRecipeDropClassifier:
     def classify_path(self, path: Path) -> DropClassification:
         """Classify one local path for workspace fallback drag/drop handling."""
 
+        recipe_classification = self._recipe_classifier.classify_recipe_document(path)
+        if recipe_classification.supported:
+            return DropClassification(
+                DropIntent.LOAD_WORKFLOW_RECIPE,
+                path=path,
+                reason=recipe_classification.reason,
+            )
         if (
             self._direct_workflow_classifier is not None
             and self._direct_workflow_classifier.supports(path)
@@ -141,18 +160,15 @@ class WorkflowRecipeDropClassifier:
             return DropClassification(
                 DropIntent.LOAD_DIRECT_COMFY_WORKFLOW,
                 path=path,
-                reason="comfy_workflow_json",
+                reason=(
+                    "comfy_workflow_png"
+                    if path.suffix.casefold() == ".png"
+                    else "comfy_workflow_json"
+                ),
             )
 
-        recipe_classification = self._recipe_classifier.classify_recipe_document(path)
-        if not recipe_classification.supported:
-            return DropClassification(
-                DropIntent.NONE,
-                path=path,
-                reason=recipe_classification.reason,
-            )
         return DropClassification(
-            DropIntent.LOAD_WORKFLOW_RECIPE,
+            DropIntent.NONE,
             path=path,
             reason=recipe_classification.reason,
         )
@@ -321,6 +337,7 @@ __all__ = [
     "DropClassification",
     "DropIntent",
     "DirectWorkflowDocumentClassifier",
+    "DirectWorkflowSourceSupportProtocol",
     "WorkspaceDropController",
     "WorkflowRecipeDropClassifier",
 ]

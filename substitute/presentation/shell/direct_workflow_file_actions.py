@@ -84,7 +84,7 @@ class DirectWorkflowFileActions:
         self._target_resolver = target_resolver or WorkflowDocumentTargetResolver()
 
     def load_document(self, source_path: Path) -> str | None:
-        """Load a JSON workflow into a blank or newly created workflow tab."""
+        """Load a direct Comfy workflow into a blank or newly created tab."""
 
         path = source_path.resolve()
         target_workflow_id = self._view.workflow_session_service.active_workflow_id
@@ -130,6 +130,11 @@ class DirectWorkflowFileActions:
             )
             self._present_failure(error, path=path, workflow_id=target_workflow_id)
             return None
+
+    def can_load_document(self, source_path: Path) -> bool:
+        """Return whether the source exposes an available direct Comfy workflow."""
+
+        return self._load_service.can_load(source_path)
 
     def _rename_target_tab(self, base_name: str, workflow_id: str) -> None:
         """Apply a unique visible document label without changing the session key."""
@@ -181,7 +186,7 @@ class DirectWorkflowFileActions:
             return
         self._error_presenter.show_exception_report(
             title="Workflow could not be loaded",
-            message="Substitute could not read this ComfyUI workflow JSON.",
+            message="Substitute could not read this ComfyUI workflow document.",
             stage="load",
             error=error,
             context=SubstituteOperationContext(

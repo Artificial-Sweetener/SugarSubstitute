@@ -39,8 +39,8 @@ from substitute.application.workflows.input_canvas_plan_service import (
 from substitute.application.workflows.workflow_node_definition_service import (
     WorkflowNodeDefinitionService,
 )
-from substitute.infrastructure.comfy.workflow_json_repository import (
-    JsonComfyWorkflowRepository,
+from substitute.infrastructure.comfy.workflow_document_repository import (
+    ComfyWorkflowDocumentRepository,
 )
 
 _API_FORBIDDEN_CLASSES = frozenset({"MarkdownNote", "Note", "PrimitiveNode", "Reroute"})
@@ -91,7 +91,7 @@ class HeadlessComfyWorkflowCorpusHarness:
 
         self._template_root = template_root.resolve()
         self._node_definitions = node_definitions
-        self._repository = JsonComfyWorkflowRepository()
+        self._repository = ComfyWorkflowDocumentRepository()
 
     def run(self, paths: Sequence[Path] | None = None) -> WorkflowCorpusReport:
         """Import and lower each selected workflow while collecting all failures."""

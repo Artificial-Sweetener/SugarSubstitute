@@ -25,8 +25,8 @@ from types import SimpleNamespace
 from substitute.application.direct_workflows import DirectWorkflowLoadService
 from substitute.application.workflows import WorkflowTabService
 from substitute.domain.workflow import WorkflowState
-from substitute.infrastructure.comfy.workflow_json_repository import (
-    JsonComfyWorkflowRepository,
+from substitute.infrastructure.comfy.workflow_document_repository import (
+    ComfyWorkflowDocumentRepository,
 )
 from substitute.presentation.shell.direct_workflow_file_actions import (
     DirectWorkflowFileActions,
@@ -132,7 +132,7 @@ def test_direct_workflow_file_action_loads_blank_tab_and_refreshes(
     refreshes: list[str] = []
     actions = DirectWorkflowFileActions(
         view=view,
-        load_service=DirectWorkflowLoadService(JsonComfyWorkflowRepository()),
+        load_service=DirectWorkflowLoadService(ComfyWorkflowDocumentRepository()),
         add_workflow_tab=lambda: None,
         refresh_active_workflow=lambda: refreshes.append("refresh"),
     )
@@ -173,7 +173,7 @@ def test_direct_workflow_file_action_rejects_non_workflow_json(
     )
     actions = DirectWorkflowFileActions(
         view=view,
-        load_service=DirectWorkflowLoadService(JsonComfyWorkflowRepository()),
+        load_service=DirectWorkflowLoadService(ComfyWorkflowDocumentRepository()),
         add_workflow_tab=lambda: None,
         refresh_active_workflow=lambda: None,
     )
@@ -208,7 +208,7 @@ def test_invalid_direct_workflow_does_not_create_a_target_tab(
     added_tabs: list[str] = []
     actions = DirectWorkflowFileActions(
         view=view,
-        load_service=DirectWorkflowLoadService(JsonComfyWorkflowRepository()),
+        load_service=DirectWorkflowLoadService(ComfyWorkflowDocumentRepository()),
         add_workflow_tab=lambda: added_tabs.append("added"),
         refresh_active_workflow=lambda: None,
     )
