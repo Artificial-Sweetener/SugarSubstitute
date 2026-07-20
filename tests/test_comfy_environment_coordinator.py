@@ -23,7 +23,7 @@ from threading import Event
 import time
 from typing import cast
 
-from PySide6.QtCore import QCoreApplication
+from PySide6.QtWidgets import QApplication
 
 from substitute.application.onboarding.comfy_environment_service import (
     ComfyEnvironmentService,
@@ -41,6 +41,21 @@ from substitute.presentation.onboarding.comfy_environment_coordinator import (
     ComfyEnvironmentCoordinator,
 )
 from tests.execution_test_helpers import ExecutionRuntimeStub
+
+
+_APPLICATION: QApplication | None = None
+
+
+def _application() -> QApplication:
+    """Keep one GUI application alive for this worker's remaining Qt tests."""
+
+    global _APPLICATION
+    instance = QApplication.instance()
+    if isinstance(instance, QApplication):
+        _APPLICATION = instance
+    elif _APPLICATION is None:
+        _APPLICATION = QApplication([])
+    return _APPLICATION
 
 
 class _BlockingEnvironmentService:
@@ -87,7 +102,7 @@ class _BlockingEnvironmentService:
 def test_preflight_scan_does_not_block_qt_owner_thread() -> None:
     """A slow process scan should leave the onboarding owner thread responsive."""
 
-    app = QCoreApplication.instance() or QCoreApplication([])
+    app = _application()
     service = _BlockingEnvironmentService()
     execution_runtime = ExecutionRuntimeStub()
     submitter = create_onboarding_environment_submitter(execution_runtime, app)
@@ -121,7 +136,7 @@ def test_preflight_scan_does_not_block_qt_owner_thread() -> None:
 def test_leaving_page_suppresses_in_flight_monitor_result() -> None:
     """A completed scan should not update UI after its owning page is left."""
 
-    app = QCoreApplication.instance() or QCoreApplication([])
+    app = _application()
     service = _BlockingEnvironmentService()
     execution_runtime = ExecutionRuntimeStub()
     submitter = create_onboarding_environment_submitter(execution_runtime, app)
