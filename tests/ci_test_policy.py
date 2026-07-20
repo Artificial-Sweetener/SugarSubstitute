@@ -130,6 +130,8 @@ SERIAL_TEST_MODULES = frozenset(
         # Real Output QPane interaction owns native scene and popup state.
         "tests/test_real_shell_output_canvas_abuse_matrix.py",
         "tests/test_real_shell_output_canvas_scenarios.py",
+        # Real workflow-route transitions exercise native Qt animation timing.
+        "tests/test_real_shell_direct_workflow_scenarios.py",
         "tests/test_real_shell_prompt_editor_autocomplete_scenarios.py",
         "tests/test_real_shell_prompt_editor_harness.py",
         "tests/test_reorderable_tabs_base_contract.py",
