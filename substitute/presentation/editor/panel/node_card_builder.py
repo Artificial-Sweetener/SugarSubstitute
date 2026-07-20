@@ -29,7 +29,6 @@ from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 from qfluentwidgets import CaptionLabel
 from qfluentwidgets import FluentIcon as FIF
 from qfluentwidgets import IconWidget
-from shiboken6 import delete
 
 try:
     from qfluentwidgets.common.font import setFont  # type: ignore[import-untyped]
@@ -86,12 +85,20 @@ from substitute.presentation.editor.panel.factories.field_pipeline import (
     LAYOUT_HANDLED,
     build_widget_for_field_spec,
 )
+from substitute.presentation.editor.panel.factories.field_build_outcome import (
+    EditorFieldBuildKind,
+)
+from substitute.presentation.editor.panel.factories.field_build_resolver import (
+    resolve_editor_field_build,
+)
 from substitute.presentation.editor.panel.field_state_controller import (
-    EditorFieldBinding,
     EditorPanelFieldStateController,
 )
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
     PanelModelChoiceSnapshotController,
+)
+from substitute.presentation.editor.panel.node_card_build_transaction import (
+    NodeCardBuildTransaction,
 )
 from substitute.presentation.editor.panel.prompt_profile_policy import (
     PanelPromptFieldProfileDecision,
@@ -138,6 +145,7 @@ from substitute.shared.logging.logger import (
     get_logger,
     log_debug,
     log_warning,
+    log_warning_exception,
 )
 
 _LOGGER = get_logger("presentation.editor.panel.node_card_builder")
@@ -509,10 +517,22 @@ class NodeCardBuilder:
             node_class=node_type,
             field_spec_count=len(field_specs),
         )
-        self._clear_field_widget_registrations_for_node(
-            alias=alias,
+        build_transaction = NodeCardBuildTransaction(
+            panel=self.panel,
+            cube_alias=alias,
             node_name=node_name,
         )
+        cleanup = build_transaction.replace_existing()
+        if cleanup.removed_any:
+            log_debug(
+                _LOGGER,
+                "Cleared stale node-card field widget registrations",
+                cube_alias=alias or "",
+                node_name=node_name,
+                removed_row_count=cleanup.row_count,
+                removed_column_count=cleanup.column_count,
+                removed_input_count=cleanup.input_count,
+            )
         if (
             resolved_behavior.card.hidden
             and display_decision is not None
@@ -627,6 +647,7 @@ class NodeCardBuilder:
                             ),
                             cube_state=cube_state,
                             alias=alias,
+                            build_transaction=build_transaction,
                             prompt_field_inputs=prompt_field_inputs,
                             field_presentation=node_presentation.fields[key],
                         )
@@ -706,6 +727,7 @@ class NodeCardBuilder:
                     allow_unbounded_content_height=allow_unbounded_content_height,
                     cube_state=cube_state,
                     alias=alias,
+                    build_transaction=build_transaction,
                     prompt_field_inputs=prompt_field_inputs,
                     field_presentation=node_presentation.fields[key],
                 )
@@ -752,7 +774,7 @@ class NodeCardBuilder:
                 node_class_type=node_type,
                 error_type=type(error).__name__,
             )
-            self._delete_unbuilt_node_card(wrapper)
+            build_transaction.discard(wrapper)
             raise
         has_rows = content_layout.count() > 0
         has_title_controls = bool(resolved_behavior.card.title_controls) or bool(
@@ -771,7 +793,7 @@ class NodeCardBuilder:
                     field_spec_count=len(field_specs),
                     visible_group_count=len(visible_keys),
                 )
-            self._delete_unbuilt_node_card(wrapper)
+            build_transaction.discard(wrapper)
             return None
 
         title_started_at = panel_projection_observability_started_at()
@@ -882,91 +904,8 @@ class NodeCardBuilder:
             has_rows=has_rows,
             has_title_controls=has_title_controls,
         )
+        build_transaction.commit()
         return wrapper
-
-    def _clear_field_widget_registrations_for_node(
-        self,
-        *,
-        alias: str | None,
-        node_name: str,
-    ) -> None:
-        """Remove stale field widget registrations owned by one node card render."""
-
-        if alias is None:
-            return
-
-        removed_row_count = self._remove_node_field_keys(
-            getattr(self.panel, "row_widgets", None),
-            alias=alias,
-            node_name=node_name,
-        )
-        removed_column_count = self._remove_node_field_keys(
-            getattr(self.panel, "col_widgets", None),
-            alias=alias,
-            node_name=node_name,
-        )
-        field_registry = getattr(self.panel, "_field_registry", None)
-        remove_registered_node = getattr(field_registry, "remove_node", None)
-        removed_input_count = (
-            int(remove_registered_node(alias, node_name))
-            if callable(remove_registered_node)
-            else self._remove_node_field_keys(
-                getattr(self.panel, "input_widgets_by_field_key", None),
-                alias=alias,
-                node_name=node_name,
-            )
-        )
-        if removed_row_count or removed_column_count or removed_input_count:
-            log_debug(
-                _LOGGER,
-                "Cleared stale node-card field widget registrations",
-                cube_alias=alias,
-                node_name=node_name,
-                removed_row_count=removed_row_count,
-                removed_column_count=removed_column_count,
-                removed_input_count=removed_input_count,
-            )
-
-    @classmethod
-    def _remove_node_field_keys(
-        cls,
-        registry: object,
-        *,
-        alias: str,
-        node_name: str,
-    ) -> int:
-        """Remove registry keys shaped as fields owned by one node card."""
-
-        if not isinstance(registry, dict):
-            return 0
-        field_keys = [
-            field_key
-            for field_key in registry
-            if cls._is_node_field_key(
-                field_key,
-                alias=alias,
-                node_name=node_name,
-            )
-        ]
-        for field_key in field_keys:
-            registry.pop(field_key, None)
-        return len(field_keys)
-
-    @staticmethod
-    def _is_node_field_key(
-        field_key: object,
-        *,
-        alias: str,
-        node_name: str,
-    ) -> bool:
-        """Return whether one registry key belongs to one node card."""
-
-        return bool(
-            isinstance(field_key, tuple)
-            and len(field_key) >= 3
-            and field_key[0] == alias
-            and field_key[1] == node_name
-        )
 
     def _register_card_mode_binding(
         self,
@@ -1117,6 +1056,7 @@ class NodeCardBuilder:
         cube_state: Any,
         alias: str | None,
         field_presentation: LocalizedFieldPresentation,
+        build_transaction: NodeCardBuildTransaction,
         prompt_field_inputs: Mapping[str, NodeCardPromptFieldInputs] | None = None,
     ) -> Any:
         """Build one field widget from resolved field behavior and live definitions."""
@@ -1164,9 +1104,12 @@ class NodeCardBuilder:
             and prepared_prompt_inputs.prompt_field_profile is not None
             else None
         )
-        try:
-            prompt_services = self._services.prompt
-            result = build_widget_for_field_spec(
+        prompt_services = self._services.prompt
+
+        def build_field_surface() -> object | None:
+            """Invoke the raw factory pipeline inside the typed outcome boundary."""
+
+            return build_widget_for_field_spec(
                 parent=self.panel,
                 field_spec=ResolvedFieldSpec(
                     cube_alias=field_spec.cube_alias,
@@ -1227,27 +1170,51 @@ class NodeCardBuilder:
                     prompt_services.model_picker_thumbnail_preload_route_factory
                 ),
             )
-        except (RuntimeError, TypeError, ValueError) as error:
-            if field_spec.meta_info.get("subgraph_wrapper") is True:
-                log_warning(
-                    _LOGGER,
-                    "Subgraph wrapper field widget build failed",
-                    cube_alias=alias or "",
-                    node_name=node_name,
-                    field_key=key,
-                    field_type=field_spec.field_type or "",
-                    value_source=field_spec.value_source.value,
-                    error_type=type(error).__name__,
-                )
-            raise
+
+        outcome = resolve_editor_field_build(
+            field_spec=field_spec,
+            build=build_field_surface,
+            layout_handled_sentinel=LAYOUT_HANDLED,
+        )
         _log_node_card_field_timing(
             "node_card.field_factory",
             started_at=factory_started_at,
             context=log_context,
-            result_type=type(result).__name__ if result is not None else "None",
+            result_type=outcome.kind.value,
         )
-        if result is None or result is LAYOUT_HANDLED:
-            return result
+        if outcome.kind is EditorFieldBuildKind.ERROR:
+            error = outcome.error
+            if error is not None:
+                log_warning_exception(
+                    _LOGGER,
+                    "Skipped editor field after factory failure",
+                    error=error,
+                    cube_alias=alias or "",
+                    node_name=node_name,
+                    node_class=field_spec.class_type,
+                    field_key=key,
+                    field_type=field_spec.field_type or "",
+                    value_source=field_spec.value_source.value,
+                )
+            return None
+        if outcome.kind is EditorFieldBuildKind.LAYOUT_HANDLED:
+            return LAYOUT_HANDLED
+        if not outcome.rendered:
+            if outcome.kind is EditorFieldBuildKind.UNSUPPORTED:
+                log_warning(
+                    _LOGGER,
+                    "Skipped unsupported editor field",
+                    cube_alias=alias or "",
+                    node_name=node_name,
+                    node_class=field_spec.class_type,
+                    field_key=key,
+                    field_type=field_spec.field_type or "",
+                    reason=outcome.reason,
+                )
+            return None
+        result = outcome.surface
+        if result is None:
+            return None
         widget = result[0] if isinstance(result, tuple) else result
         field_tooltip = field_presentation.tooltip
         metadata = {
@@ -1291,16 +1258,7 @@ class NodeCardBuilder:
             widget_type=widget.__class__.__name__,
         )
         if alias is not None:
-            binding = EditorFieldBinding.from_widget(widget)
-            register_field = getattr(
-                getattr(self.panel, "_field_registry", None),
-                "register",
-                None,
-            )
-            if binding is not None and callable(register_field):
-                register_field(binding, widget)
-            elif hasattr(self.panel, "input_widgets_by_field_key"):
-                self.panel.input_widgets_by_field_key[(alias, node_name, key)] = widget
+            build_transaction.stage(field_key=key, widget=widget)
         widget_wiring.bind_picker_signals(
             widget,
             self.panel,
@@ -1346,17 +1304,6 @@ class NodeCardBuilder:
             spacing=NODE_CARD_BODY_ROW_SPACING,
         )
         return node_card, node_card_layout, content_body, content_layout
-
-    def _delete_unbuilt_node_card(self, wrapper: QWidget | None) -> None:
-        """Synchronously remove a card root that will not be returned to a layout."""
-
-        if wrapper is None:
-            return
-        try:
-            wrapper.hide()
-            delete(wrapper)
-        except RuntimeError:
-            return
 
     def build_icon_widget(
         self,

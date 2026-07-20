@@ -369,6 +369,19 @@ def test_linux_workflows_retry_appimagetool_transport_failures() -> None:
         assert "--retry 5 --retry-all-errors --connect-timeout 30" in workflow_text
 
 
+def test_linux_qt_workflows_install_multimedia_runtime() -> None:
+    """Provide PulseAudio wherever Linux imports Qt Multimedia widgets."""
+
+    workflow_paths = (
+        PROJECT_ROOT / ".github" / "workflows" / "tests.yml",
+        PROJECT_ROOT / ".github" / "workflows" / "cross-platform-validation.yml",
+        PROJECT_ROOT / ".github" / "workflows" / "native-appearance-screenshots.yml",
+    )
+    for workflow_path in workflow_paths:
+        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+        assert "libpulse0" in workflow["env"]["LINUX_QT_PACKAGES"].split()
+
+
 def test_large_workflow_artifacts_expire_after_handoff() -> None:
     """Large native build handoffs should not consume long-term Actions storage."""
 

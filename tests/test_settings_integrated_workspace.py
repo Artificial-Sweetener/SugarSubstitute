@@ -952,7 +952,7 @@ def test_appearance_system_colors_open_color_pickers(
     selected_colors = iter(("#224466", "#FFAA00", "#CC1122"))
     monkeypatch.setattr(
         settings_catalog_builders,
-        "ColorDialog",
+        "LocalizedColorDialog",
         lambda color, title, parent: _FakeColorDialog(
             color=next(selected_colors),
             title=title,

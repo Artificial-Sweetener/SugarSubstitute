@@ -23,6 +23,7 @@ from pathlib import Path
 from tools.check_localization import (
     find_ascii_input_restrictions,
     find_non_fluent_tooltip_usage,
+    find_unowned_qt_translation_usage,
 )
 from tools.localization_catalog import (
     find_unbound_dynamic_messages,
@@ -50,6 +51,12 @@ def test_all_tooltips_use_the_shared_qfluent_owner() -> None:
     """Native and competing tooltip paths must fail source policy."""
 
     assert find_non_fluent_tooltip_usage(_PROJECT_ROOT) == ()
+
+
+def test_application_copy_uses_the_explicit_apptext_catalog_owner() -> None:
+    """Qt context translation must not create a second application catalog path."""
+
+    assert find_unowned_qt_translation_usage(_PROJECT_ROOT) == ()
 
 
 def test_tooltip_policy_rejects_indirect_native_property_writes(
@@ -81,6 +88,27 @@ def test_visible_application_copy_has_an_explicit_locale_owner() -> None:
     assert find_unclassified_presentation_returns(_PROJECT_ROOT) == ()
 
 
+def test_qt_translation_calls_cannot_bypass_application_catalog_ownership(
+    tmp_path: Path,
+) -> None:
+    """Reject self.tr and QObject.tr even when nested in an unknown helper call."""
+
+    source_root = tmp_path / "substitute" / "presentation"
+    source_root.mkdir(parents=True)
+    (source_root / "unowned_translation.py").write_text(
+        "bind_helper(widget, self.tr('Nested tooltip'))\n"
+        "label.setText(QObject.tr('Nested label'))\n",
+        encoding="utf-8",
+    )
+
+    violations = find_unowned_qt_translation_usage(tmp_path)
+
+    assert tuple(item.reason for item in violations) == (
+        "self.tr() bypasses the AppText localization owner",
+        "QObject.tr() bypasses the AppText localization owner",
+    )
+
+
 def test_visible_badge_and_teaching_tip_copy_cannot_bypass_policy(
     tmp_path: Path,
 ) -> None:
@@ -98,6 +126,22 @@ def test_visible_badge_and_teaching_tip_copy_cannot_bypass_policy(
     violations = find_unmarked_application_messages(tmp_path)
 
     assert tuple(item.source for item in violations) == ("Raw badge", "Raw tip")
+
+
+def test_nested_localized_dialog_copy_cannot_bypass_policy(tmp_path: Path) -> None:
+    """Inspect nested expressions in app-owned adapters with non-text first args."""
+
+    source_root = tmp_path / "substitute" / "presentation"
+    source_root.mkdir(parents=True)
+    (source_root / "dialog_copy.py").write_text(
+        "LocalizedColorDialog(color, decorate('Raw color dialog'), parent)\n"
+        "LocalizedColorPickerButton(color, app_text('Owned color dialog'), parent)\n",
+        encoding="utf-8",
+    )
+
+    violations = find_unmarked_application_messages(tmp_path)
+
+    assert tuple(item.source for item in violations) == ("Raw color dialog",)
 
 
 def test_presentation_return_policy_requires_explicit_classification(

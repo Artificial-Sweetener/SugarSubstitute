@@ -450,6 +450,10 @@ Prömpt prëvïëw:
       <translation>⟦Åttàchëd wörkspàcë: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Audio files (*.wav *.mp3 *.flac *.m4a *.ogg);;All files (*)</source>
+      <translation>⟦Åüdïö fïlës (*.wàv *.mp3 *.flàc *.m4à *.ögg);;Åll fïlës (*) ···⟧</translation>
+    </message>
+    <message>
       <source>Auto</source>
       <translation>⟦Åütö ···⟧</translation>
     </message>
@@ -468,6 +472,10 @@ Prömpt prëvïëw:
     <message>
       <source>Automatic managed core update was attempted, but the runtime is still incompatible. Repair the managed Comfy installation or update Substitute.</source>
       <translation>⟦Åütömàtïc mànàgëd cörë üpdàtë wàs àttëmptëd, büt thë rüntïmë ïs stïll ïncömpàtïblë. Rëpàïr thë mànàgëd Cömfy ïnstàllàtïön ör üpdàtë Sübstïtütë. ···⟧</translation>
+    </message>
+    <message>
+      <source>Automatically detect</source>
+      <translation>⟦Åütömàtïcàlly dëtëct ···⟧</translation>
     </message>
     <message>
       <source>Available</source>
@@ -528,6 +536,10 @@ Prömpt prëvïëw:
     <message>
       <source>Blue</source>
       <translation>⟦Blüë ···⟧</translation>
+    </message>
+    <message>
+      <source>Bounding box</source>
+      <translation>⟦Böündïng böx ···⟧</translation>
     </message>
     <message>
       <source>Browse</source>
@@ -750,6 +762,18 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë à wörkïng Pythön för thïs CömfyÜÏ sëtüp ···⟧</translation>
     </message>
     <message>
+      <source>Choose an existing audio file</source>
+      <translation>⟦Chöösë àn ëxïstïng àüdïö fïlë ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose audio</source>
+      <translation>⟦Chöösë àüdïö ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose color</source>
+      <translation>⟦Chöösë cölör ···⟧</translation>
+    </message>
+    <message>
       <source>Choose fixed quality or an approximate target file size.</source>
       <translation>⟦Chöösë fïxëd qüàlïty ör àn àppröxïmàtë tàrgët fïlë sïzë. ···⟧</translation>
     </message>
@@ -882,6 +906,10 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë yöür sëtüp ···⟧</translation>
     </message>
     <message>
+      <source>CivitAI API key</source>
+      <translation>⟦CïvïtÅÏ ÅPÏ këy ···⟧</translation>
+    </message>
+    <message>
       <source>CivitAI API key (optional)</source>
       <translation>⟦CïvïtÅÏ ÅPÏ këy (öptïönàl) ···⟧</translation>
     </message>
@@ -996,6 +1024,10 @@ Prömpt prëvïëw:
     <message>
       <source>Clearing planned changes.</source>
       <translation>⟦Clëàrïng plànnëd chàngës. ···⟧</translation>
+    </message>
+    <message>
+      <source>Click to add, drag to move, and right-click to remove a point.</source>
+      <translation>⟦Clïck tö àdd, dràg tö mövë, ànd rïght-clïck tö rëmövë à pöïnt. ···⟧</translation>
     </message>
     <message>
       <source>Close</source>
@@ -1598,6 +1630,10 @@ Install these nodes now?</source>
       <translation>⟦Cürrënt öütpüts ···⟧</translation>
     </message>
     <message>
+      <source>Curve</source>
+      <translation>⟦Cürvë ···⟧</translation>
+    </message>
+    <message>
       <source>Cut</source>
       <translation>⟦Cüt ···⟧</translation>
     </message>
@@ -1714,6 +1750,10 @@ Install these nodes now?</source>
       <translation>⟦Dïffüsïön mödël ···⟧</translation>
     </message>
     <message>
+      <source>Direct Comfy workflows contain no cube stack.</source>
+      <translation>⟦Dïrëct Cömfy wörkflöws cöntàïn nö cübë stàck. ···⟧</translation>
+    </message>
+    <message>
       <source>Disable</source>
       <translation>⟦Dïsàblë ···⟧</translation>
     </message>
@@ -1784,6 +1824,14 @@ Install these nodes now?</source>
     <message>
       <source>Duplicate segment warnings</source>
       <translation>⟦Düplïcàtë sëgmënt wàrnïngs ···⟧</translation>
+    </message>
+    <message>
+      <source>Edit Color</source>
+      <translation>⟦Ëdït Cölör ···⟧</translation>
+    </message>
+    <message>
+      <source>Edit curve (%1 points)</source>
+      <translation>⟦Ëdït cürvë (%1 pöïnts) ···⟧</translation>
     </message>
     <message>
       <source>Edit user wildcard files and refresh prompt metadata.</source>
@@ -1978,6 +2026,10 @@ Install these nodes now?</source>
       <translation>⟦Fëtchïng Dànböörü wïkï cöntënt... ···⟧</translation>
     </message>
     <message>
+      <source>Filter packages, claimants, or tags</source>
+      <translation>⟦Fïltër pàckàgës, clàïmànts, ör tàgs ···⟧</translation>
+    </message>
+    <message>
       <source>Find ComfyUI's Python environment</source>
       <translation>⟦Fïnd CömfyÜÏ's Pythön ënvïrönmënt ···⟧</translation>
     </message>
@@ -2160,6 +2212,10 @@ Install these nodes now?</source>
     <message>
       <source>HTTP status: %1</source>
       <translation>⟦HTTP stàtüs: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Height</source>
+      <translation>⟦Hëïght ···⟧</translation>
     </message>
     <message>
       <source>Help find model info</source>
@@ -2838,6 +2894,10 @@ Install these nodes now?</source>
       <translation>⟦Nö Dànböörü wïkï pàgë wàs föünd för "%1". ···⟧</translation>
     </message>
     <message>
+      <source>No audio</source>
+      <translation>⟦Nö àüdïö ···⟧</translation>
+    </message>
+    <message>
       <source>No changes planned.</source>
       <translation>⟦Nö chàngës plànnëd. ···⟧</translation>
     </message>
@@ -2884,6 +2944,10 @@ Install these nodes now?</source>
     <message>
       <source>No matching cubes</source>
       <translation>⟦Nö màtchïng cübës ···⟧</translation>
+    </message>
+    <message>
+      <source>No microphone</source>
+      <translation>⟦Nö mïcröphönë ···⟧</translation>
     </message>
     <message>
       <source>No node-specific validation errors were reported.</source>
@@ -2970,6 +3034,14 @@ Install these nodes now?</source>
       <translation>⟦Nöt löàdëd ···⟧</translation>
     </message>
     <message>
+      <source>Number of queued generations to create</source>
+      <translation>⟦Nümbër öf qüëüëd gënëràtïöns tö crëàtë ···⟧</translation>
+    </message>
+    <message>
+      <source>OK</source>
+      <translation>⟦ÖK ···⟧</translation>
+    </message>
+    <message>
       <source>OS: %1</source>
       <translation>⟦ÖS: %1 ···⟧</translation>
     </message>
@@ -2984,6 +3056,10 @@ Install these nodes now?</source>
     <message>
       <source>On Pixiv:</source>
       <translation>⟦Ön Pïxïv: ···⟧</translation>
+    </message>
+    <message>
+      <source>Opacity</source>
+      <translation>⟦Öpàcïty ···⟧</translation>
     </message>
     <message>
       <source>Open %1 project website</source>
@@ -3130,6 +3206,10 @@ Install these nodes now?</source>
       <translation>⟦Pàstë ···⟧</translation>
     </message>
     <message>
+      <source>Paste CivitAI API key</source>
+      <translation>⟦Pàstë CïvïtÅÏ ÅPÏ këy ···⟧</translation>
+    </message>
+    <message>
       <source>Paste a GitHub URL. Substitute validates and syncs the pack.</source>
       <translation>⟦Pàstë à GïtHüb ÜRL. Sübstïtütë vàlïdàtës ànd syncs thë pàck. ···⟧</translation>
     </message>
@@ -3148,6 +3228,10 @@ Install these nodes now?</source>
     <message>
       <source>Path</source>
       <translation>⟦Pàth ···⟧</translation>
+    </message>
+    <message>
+      <source>Path on the ComfyUI host</source>
+      <translation>⟦Pàth ön thë CömfyÜÏ höst ···⟧</translation>
     </message>
     <message>
       <source>Path stability: %1</source>
@@ -3428,6 +3512,18 @@ Install these nodes now?</source>
     <message>
       <source>Reconfigure</source>
       <translation>⟦Rëcönfïgürë ···⟧</translation>
+    </message>
+    <message>
+      <source>Record audio from the default microphone</source>
+      <translation>⟦Rëcörd àüdïö fröm thë dëfàült mïcröphönë ···⟧</translation>
+    </message>
+    <message>
+      <source>Recording failed</source>
+      <translation>⟦Rëcördïng fàïlëd ···⟧</translation>
+    </message>
+    <message>
+      <source>Recording…</source>
+      <translation>⟦Rëcördïng… ···⟧</translation>
     </message>
     <message>
       <source>Red</source>
@@ -3938,6 +4034,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sëàrch sëttïngs ···⟧</translation>
     </message>
     <message>
+      <source>Search…</source>
+      <translation>⟦Sëàrch… ···⟧</translation>
+    </message>
+    <message>
       <source>Secure credential storage is unavailable.</source>
       <translation>⟦Sëcürë crëdëntïàl störàgë ïs ünàvàïlàblë. ···⟧</translation>
     </message>
@@ -3980,6 +4080,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Select all</source>
       <translation>⟦Sëlëct àll ···⟧</translation>
+    </message>
+    <message>
+      <source>Select model</source>
+      <translation>⟦Sëlëct mödël ···⟧</translation>
     </message>
     <message>
       <source>Select the executable used by the custom shortcut, script, launcher, or environment manager that starts ComfyUI.</source>
@@ -5128,6 +5232,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Tïtlë: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Toggle between expanded and compact cube cards.</source>
+      <translation>⟦Tögglë bëtwëën ëxpàndëd ànd cömpàct cübë càrds. ···⟧</translation>
+    </message>
+    <message>
       <source>Top-level error:</source>
       <translation>⟦Töp-lëvël ërrör: ···⟧</translation>
     </message>
@@ -5500,6 +5608,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Why sëtüp pàüsës hërë ···⟧</translation>
     </message>
     <message>
+      <source>Width</source>
+      <translation>⟦Wïdth ···⟧</translation>
+    </message>
+    <message>
       <source>Wildcard autocomplete</source>
       <translation>⟦Wïldcàrd àütöcömplëtë ···⟧</translation>
     </message>
@@ -5554,6 +5666,14 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Working...</source>
       <translation>⟦Wörkïng... ···⟧</translation>
+    </message>
+    <message>
+      <source>X coordinate</source>
+      <translation>⟦X cöördïnàtë ···⟧</translation>
+    </message>
+    <message>
+      <source>Y coordinate</source>
+      <translation>⟦Y cöördïnàtë ···⟧</translation>
     </message>
     <message>
       <source>Yes</source>
@@ -5644,6 +5764,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦ëxïstïng löcàl CömfyÜÏ ···⟧</translation>
     </message>
     <message>
+      <source>https://github.com/owner/repository</source>
+      <translation>⟦https://gïthüb.cöm/öwnër/rëpösïtöry ···⟧</translation>
+    </message>
+    <message>
       <source>legacy projects root</source>
       <translation>⟦lëgàcy pröjëcts rööt ···⟧</translation>
     </message>
@@ -5694,6 +5818,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>v%1  Newest</source>
       <translation>⟦v%1  Nëwëst ···⟧</translation>
+    </message>
+    <message>
+      <source>x %1 · y %2 · %3×%4</source>
+      <translation>⟦x %1 · y %2 · %3×%4 ···⟧</translation>
     </message>
   </context>
 </TS>
