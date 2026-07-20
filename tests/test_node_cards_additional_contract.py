@@ -30,7 +30,7 @@ from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
 from PySide6.QtGui import QColor, QImage, QMouseEvent, QPainter
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
-from qfluentwidgets import CaptionLabel, IconWidget
+from qfluentwidgets import CaptionLabel, IconWidget, LineEdit
 
 import substitute.presentation.editor.panel.widgets.node_card as node_card_view
 import substitute.presentation.shell.chrome_style as chrome_style
@@ -65,6 +65,9 @@ from substitute.presentation.editor.panel.prompt_profile_policy import (
 from substitute.presentation.editor.panel.node_card_builder import (
     NodeCardBuilder,
     NodeCardPromptFieldInputs,
+)
+from substitute.presentation.editor.panel.node_card_build_transaction import (
+    NodeCardBuildTransaction,
 )
 from substitute.presentation.widgets.cursor_tooltip_filter import CursorToolTipFilter
 from tests.node_card_builder_test_helpers import build_node_card_builder
@@ -708,6 +711,11 @@ def test_non_prompt_field_skips_prompt_only_dependency_requests(monkeypatch) -> 
         fake_factory,
     )
     monkeypatch.setattr(builder, "_wire_widget", lambda *_args: None)
+    build_transaction = NodeCardBuildTransaction(
+        panel=panel,
+        cube_alias="A",
+        node_name="node",
+    )
 
     result: QWidget | None = None
     try:
@@ -719,6 +727,7 @@ def test_non_prompt_field_skips_prompt_only_dependency_requests(monkeypatch) -> 
             allow_unbounded_content_height=False,
             cube_state=SimpleNamespace(buffer={"nodes": {"node": {"inputs": {}}}}),
             alias="A",
+            build_transaction=build_transaction,
         )
 
         assert isinstance(result, QWidget)
@@ -728,6 +737,7 @@ def test_non_prompt_field_skips_prompt_only_dependency_requests(monkeypatch) -> 
         assert captured["prompt_feature_profile"] is None
         assert captured["prompt_syntax_profile"] is None
     finally:
+        build_transaction.rollback()
         if result is not None:
             result.deleteLater()
         panel.deleteLater()
@@ -762,6 +772,11 @@ def test_prompt_field_receives_prompt_only_dependencies(monkeypatch) -> None:
         feature_profile=prompt_feature_profile,
         syntax_profile=prompt_syntax_profile,
     )
+    build_transaction = NodeCardBuildTransaction(
+        panel=panel,
+        cube_alias="A",
+        node_name="node",
+    )
 
     def scheduled_lora_resolver(_text: str) -> tuple[object, ...]:
         """Return no scheduled LoRAs for the prepared resolver sentinel."""
@@ -781,6 +796,7 @@ def test_prompt_field_receives_prompt_only_dependencies(monkeypatch) -> None:
             allow_unbounded_content_height=False,
             cube_state=SimpleNamespace(buffer={"nodes": {"node": {"inputs": {}}}}),
             alias="A",
+            build_transaction=build_transaction,
             prompt_field_inputs={
                 "text": NodeCardPromptFieldInputs(
                     scheduled_lora_resolver=scheduled_lora_resolver,
@@ -796,6 +812,7 @@ def test_prompt_field_receives_prompt_only_dependencies(monkeypatch) -> None:
         assert captured["prompt_feature_profile"] is prompt_feature_profile
         assert captured["prompt_syntax_profile"] is prompt_syntax_profile
     finally:
+        build_transaction.rollback()
         if result is not None:
             result.deleteLater()
         panel.deleteLater()
@@ -1174,10 +1191,10 @@ def test_checkpoint_behavior_switch_policy_uses_authored_bypass() -> None:
     assert snapshot.card_decisions_by_alias["B"]["ckpt"].show_enabled_switch is True
 
 
-def test_node_card_build_failure_does_not_leave_panel_child_surfaces(
+def test_node_card_field_failure_preserves_other_fields_without_stale_registration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Failed card builds should not leave partial surfaces at panel origin."""
+    """One failed field should not discard useful fields or publish stale state."""
 
     _ensure_qapp()
     node_name = "loader"
@@ -1185,7 +1202,7 @@ def test_node_card_build_failure_does_not_leave_panel_child_surfaces(
     nodes = {
         node_name: {
             "class_type": node_type,
-            "inputs": {"steps": 12},
+            "inputs": {"first": "kept until rollback", "second": "fails"},
         }
     }
     cube_state = SimpleNamespace(
@@ -1202,7 +1219,8 @@ def test_node_card_build_failure_does_not_leave_panel_child_surfaces(
             node_type: {
                 "input": {
                     "required": {
-                        "steps": ["INT", {"default": 20}],
+                        "first": ["STRING", {"default": ""}],
+                        "second": ["STRING", {"default": ""}],
                     }
                 }
             }
@@ -1213,32 +1231,37 @@ def test_node_card_build_failure_does_not_leave_panel_child_surfaces(
         _Gateway(),
     )
 
-    def fail_widget_build(**_kwargs: object) -> QWidget:
-        """Raise after node-card surfaces have been allocated."""
+    build_count = 0
 
-        raise RuntimeError("forced field build failure")
+    def fail_second_widget_build(**_kwargs: object) -> QWidget:
+        """Build one registered field before the second field raises."""
+
+        nonlocal build_count
+        build_count += 1
+        if build_count == 2:
+            raise RuntimeError("forced field build failure")
+        return LineEdit(panel)
 
     monkeypatch.setattr(
         "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
-        fail_widget_build,
+        fail_second_widget_build,
     )
 
-    with pytest.raises(RuntimeError, match="forced field build failure"):
-        builder.build_node_card(
-            node_name=node_name,
-            inputs=nodes[node_name]["inputs"],
-            node_type=node_type,
-            field_specs=snapshot.field_specs_by_alias["A"][node_name],
-            cube_state=cube_state,
-            resolved_behavior=snapshot.resolved_nodes_by_alias["A"][node_name],
-            display_decision=snapshot.card_decisions_by_alias["A"][node_name],
-            alias="A",
-        )
+    wrapper = builder.build_node_card(
+        node_name=node_name,
+        inputs=nodes[node_name]["inputs"],
+        node_type=node_type,
+        field_specs=snapshot.field_specs_by_alias["A"][node_name],
+        cube_state=cube_state,
+        resolved_behavior=snapshot.resolved_nodes_by_alias["A"][node_name],
+        display_decision=snapshot.card_decisions_by_alias["A"][node_name],
+        alias="A",
+    )
 
-    direct_children = [
-        child for child in panel.findChildren(QWidget) if child.parentWidget() is panel
-    ]
-    assert direct_children == []
+    assert wrapper is not None
+    assert set(panel.input_widgets_by_field_key) == {("A", node_name, "first")}
+    assert ("A", node_name, "second") not in panel.input_widgets_by_field_key
+    wrapper.deleteLater()
     panel.deleteLater()
     _ensure_qapp().processEvents()
 

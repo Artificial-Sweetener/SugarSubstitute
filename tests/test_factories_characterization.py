@@ -1496,45 +1496,51 @@ def test_widget_factory_list_str_renders_combo_field_info(
     assert combo.current_text == "R-ESRGAN 4x+ Anime6B.pth"
 
 
-def test_widget_factory_list_str_rejects_current_value_when_no_option_source_exists(
+def test_widget_factory_list_str_renders_empty_when_no_option_source_exists(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """LIST factories should not turn the current value into a choice option."""
+    """Unavailable LIST metadata should render empty without fabricating a choice."""
     monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     node_definition_gateway = _FakeNodeDefinitionGateway({})
 
-    with pytest.raises(RuntimeError, match="Failed to resolve live Comfy options"):
-        factories.widget_factory_list_str(
-            parent=SimpleNamespace(),
-            node_name="ksampler",
-            key="sampler_name",
-            value="euler",
-            field_meta={},
-            field_type="LIST",
-            node_type="KSampler",
-            node_definition_gateway=node_definition_gateway,
-            field_info=None,
-        )
+    combo = factories.widget_factory_list_str(
+        parent=SimpleNamespace(),
+        node_name="ksampler",
+        key="sampler_name",
+        value="euler",
+        field_meta={},
+        field_type="LIST",
+        node_type="KSampler",
+        node_definition_gateway=node_definition_gateway,
+        field_info=None,
+    )
+
+    assert isinstance(combo, _FakeComboBox)
+    assert combo.items == []
+    assert combo.current_text == ""
 
 
-def test_widget_factory_list_str_raises_for_empty_value_without_options(
+def test_widget_factory_list_str_renders_empty_value_without_options(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """LIST factories should still fail when no choices or current value exist."""
+    """LIST factories should admit an empty control when metadata is unavailable."""
     monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
 
-    with pytest.raises(RuntimeError):
-        factories.widget_factory_list_str(
-            parent=SimpleNamespace(),
-            node_name="ksampler",
-            key="sampler_name",
-            value="",
-            field_meta={},
-            field_type="LIST",
-            node_type="KSampler",
-            node_definition_gateway=_FakeNodeDefinitionGateway({}),
-            field_info=None,
-        )
+    combo = factories.widget_factory_list_str(
+        parent=SimpleNamespace(),
+        node_name="ksampler",
+        key="sampler_name",
+        value="",
+        field_meta={},
+        field_type="LIST",
+        node_type="KSampler",
+        node_definition_gateway=_FakeNodeDefinitionGateway({}),
+        field_info=None,
+    )
+
+    assert isinstance(combo, _FakeComboBox)
+    assert combo.items == []
+    assert combo.current_text == ""
 
 
 def test_widget_factory_list_str_non_link_fields_use_application_resolved_value(
@@ -1653,28 +1659,31 @@ def test_widget_factory_list_str_uses_live_options_for_compact_dynamic_marker(
     assert combo.current_text == "heun"
 
 
-def test_widget_factory_list_str_rejects_dynamic_marker_without_live_options(
+def test_widget_factory_list_str_renders_empty_dynamic_marker_without_live_options(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Compact dynamic LIST fields must not render current values as options."""
+    """Unavailable dynamic LIST fields must render empty without fake options."""
 
     monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
 
-    with pytest.raises(RuntimeError, match="Failed to resolve live Comfy options"):
-        factories.widget_factory_list_str(
-            parent=SimpleNamespace(sampler_link_widgets={}, scheduler_link_widgets={}),
-            node_name="ksampler",
-            key="sampler_name",
-            value="heun",
-            field_meta={
-                "options_resolved": False,
-                "options_unavailable_reason": "missing_list_options",
-            },
-            field_type="LIST",
-            field_info=["LIST", {"dynamic": True}],
-            node_type="KSampler",
-            node_definition_gateway=_FakeNodeDefinitionGateway({}),
-        )
+    combo = factories.widget_factory_list_str(
+        parent=SimpleNamespace(sampler_link_widgets={}, scheduler_link_widgets={}),
+        node_name="ksampler",
+        key="sampler_name",
+        value="heun",
+        field_meta={
+            "options_resolved": False,
+            "options_unavailable_reason": "missing_list_options",
+        },
+        field_type="LIST",
+        field_info=["LIST", {"dynamic": True}],
+        node_type="KSampler",
+        node_definition_gateway=_FakeNodeDefinitionGateway({}),
+    )
+
+    assert isinstance(combo, _FakeComboBox)
+    assert combo.items == []
+    assert combo.current_text == ""
 
 
 def test_build_mask_picker_widget_sets_refresh_matching_metadata(

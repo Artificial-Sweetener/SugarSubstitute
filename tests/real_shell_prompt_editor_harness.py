@@ -3271,9 +3271,9 @@ class _PromptNodeDefinitionGateway:
                 "output_name": ["MODEL"],
             },
         }
-        definition = definitions.get(node_class)
+        definition = self._recorded_definitions.get(node_class)
         if definition is None:
-            definition = self._recorded_definitions.get(node_class)
+            definition = definitions.get(node_class)
         return {} if definition is None else {node_class: definition}
 
 

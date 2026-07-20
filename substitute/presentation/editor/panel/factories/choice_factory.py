@@ -228,10 +228,6 @@ def widget_factory_list_str(
         option_count=len(inventory.options),
         **trace_context,
     )
-    if not inventory.authoritative:
-        raise RuntimeError(
-            f"Failed to resolve live Comfy options for {node_type}.{key}."
-        )
     options = list(inventory.string_options)
     node_data = field_meta.get("node_data") if isinstance(field_meta, dict) else None
     prepare_started_at = panel_projection_observability_started_at()
@@ -248,6 +244,12 @@ def widget_factory_list_str(
     )
     combo = EditorChoiceComboBox(parent)
     combo.setMaxHintWidth(_EDITOR_COMBO_MAX_HINT_WIDTH)
+    set_property = getattr(combo, "setProperty", None)
+    if callable(set_property):
+        set_property("choice_availability", inventory.availability.value)
+    set_enabled = getattr(combo, "setEnabled", None)
+    if callable(set_enabled):
+        set_enabled(bool(options))
     selected_label = selected_choice_label(
         key=key,
         node_data=node_data,
