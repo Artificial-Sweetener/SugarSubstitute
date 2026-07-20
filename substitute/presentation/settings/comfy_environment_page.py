@@ -18,6 +18,27 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import app_text
+
+from sugarsubstitute_shared.presentation.localization import (
+    apply_application_text,
+    render_application_text,
+    set_localized_placeholder,
+    set_localized_text,
+    set_localized_tooltip,
+)
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedCaptionLabel,
+    LocalizedPrimaryPushButton,
+    LocalizedPushButton,
+)
+
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from html import escape
@@ -38,10 +59,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    BodyLabel,
     CaptionLabel,
-    PrimaryPushButton,
-    PushButton,
     ScrollArea,
     SearchLineEdit,
     StrongBodyLabel,
@@ -103,8 +121,8 @@ class ComfyEnvironmentOperationFailure:
     """Describe one exception-backed Comfy environment operation failure."""
 
     operation: str
-    title: str
-    message: str
+    title: ApplicationText
+    message: ApplicationText
     error: BaseException
     package_name: str | None = None
     values: Mapping[str, object] = field(default_factory=dict)
@@ -181,7 +199,7 @@ class ElidedCaptionLabel(CaptionLabel):  # type: ignore[misc]
         """Set the complete text used for elision and tooltip content."""
 
         self._plain_text = text
-        self.setToolTip(text)
+        set_fluent_tooltip_text(self, text)
         self.setMinimumWidth(0)
         self._sync_elided_text()
 
@@ -254,7 +272,7 @@ class ClaimantsDetailWidget(QWidget):
         """Create an empty claimant detail widget."""
 
         super().__init__(parent)
-        self._plain_text = ""
+        self._package: ComfyEnvironmentPackage | None = None
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(2)
@@ -263,12 +281,12 @@ class ClaimantsDetailWidget(QWidget):
     def set_package(self, package: ComfyEnvironmentPackage) -> None:
         """Render claimants for one installed package."""
 
-        self._plain_text = _claimant_detail(package)
+        self._package = package
         _clear_layout(self._layout)
-        self._layout.addWidget(_claimant_heading_label("Required by:", self))
+        self._layout.addWidget(_claimant_heading_label(app_text("Required by:"), self))
         if not package.claimants:
             self._layout.addWidget(
-                _claimant_message_label("No known extension claimant.", self)
+                _claimant_message_label(app_text("No known extension claimant."), self)
             )
             self._sync_height()
             return
@@ -290,14 +308,15 @@ class ClaimantsDetailWidget(QWidget):
     def clear(self) -> None:
         """Clear rendered claimant rows."""
 
-        self._plain_text = ""
+        self._package = None
         _clear_layout(self._layout)
         self.setFixedHeight(0)
 
     def text(self) -> str:
         """Return the plain claimant detail text."""
 
-        return self._plain_text
+        package = self._package
+        return "" if package is None else _claimant_detail(package)
 
     def _add_transitive_group(
         self,
@@ -420,7 +439,7 @@ class ComfyEnvironmentPage(QWidget):
         self._refresh_generation += 1
         generation = self._refresh_generation
         self._refresh_in_flight = True
-        self.status_label.setText("Checking the selected Comfy server.")
+        set_localized_text(self.status_label, "Checking the selected Comfy server.")
         self.refresh_button.setEnabled(False)
         self._run_background(
             task_id="comfy_environment_refresh",
@@ -504,8 +523,8 @@ class ComfyEnvironmentPage(QWidget):
         status_layout = QVBoxLayout(status_panel)
         status_layout.setContentsMargins(18, 16, 18, 16)
         status_layout.setSpacing(8)
-        self.status_label = BodyLabel(
-            "Checking the selected Comfy server.", status_panel
+        self.status_label = LocalizedBodyLabel(
+            app_text("Checking the selected Comfy server."), status_panel
         )
         self.python_label = CaptionLabel("", status_panel)
         self.comfy_label = CaptionLabel("", status_panel)
@@ -520,12 +539,16 @@ class ComfyEnvironmentPage(QWidget):
         status_layout.addWidget(self.comfy_label)
         self.action_row = QHBoxLayout()
         self.action_row.setSpacing(10)
-        self.restart_button = PrimaryPushButton("Restart Comfy", status_panel)
+        self.restart_button = LocalizedPrimaryPushButton(
+            app_text("Restart Comfy"), status_panel
+        )
         self.restart_button.setEnabled(False)
         self.restart_button.clicked.connect(self._request_restart)
-        self.refresh_button = PushButton("Refresh", status_panel)
+        self.refresh_button = LocalizedPushButton(app_text("Refresh"), status_panel)
         self.refresh_button.clicked.connect(self.refresh)
-        self.reconfigure_button = PushButton("Open setup wizard", status_panel)
+        self.reconfigure_button = LocalizedPushButton(
+            app_text("Open setup wizard"), status_panel
+        )
         self.reconfigure_button.clicked.connect(self._open_reconfigure_window)
         self.action_row.addWidget(self.restart_button)
         self.action_row.addWidget(self.refresh_button)
@@ -558,9 +581,11 @@ class ComfyEnvironmentPage(QWidget):
         inventory_layout = QVBoxLayout(self.inventory_panel)
         inventory_layout.setContentsMargins(0, 0, 0, 0)
         inventory_layout.setSpacing(0)
-        self.inventory_label = BodyLabel("Packages not loaded", self.inventory_panel)
-        self.inventory_count_label = CaptionLabel(
-            "Not loaded",
+        self.inventory_label = LocalizedBodyLabel(
+            app_text("Packages not loaded"), self.inventory_panel
+        )
+        self.inventory_count_label = LocalizedCaptionLabel(
+            app_text("Not loaded"),
             self.inventory_panel,
         )
         self.package_selector = QFrame(self.inventory_panel)
@@ -576,7 +601,9 @@ class ComfyEnvironmentPage(QWidget):
         package_selector_layout.setSpacing(8)
 
         self.inventory_filter = SearchLineEdit(self.package_selector)
-        self.inventory_filter.setPlaceholderText("Filter packages, claimants, or tags")
+        set_localized_placeholder(
+            self.inventory_filter, "Filter packages, claimants, or tags"
+        )
         self.inventory_filter.setClearButtonEnabled(True)
         self.inventory_filter.textChanged.connect(self._apply_inventory_filter)
 
@@ -640,11 +667,13 @@ class ComfyEnvironmentPage(QWidget):
         self.detail_actions_layout = QHBoxLayout(self.detail_action_bar)
         self.detail_actions_layout.setContentsMargins(0, 0, 0, 0)
         self.detail_actions_layout.setSpacing(8)
-        self.update_package_button = PushButton("Plan update", self.detail_action_bar)
+        self.update_package_button = LocalizedPushButton(
+            app_text("Plan update"), self.detail_action_bar
+        )
         self.update_package_button.setEnabled(False)
         self.update_package_button.clicked.connect(self._request_update_plan)
-        self.uninstall_package_button = PushButton(
-            "Plan uninstall",
+        self.uninstall_package_button = LocalizedPushButton(
+            app_text("Plan uninstall"),
             self.detail_action_bar,
         )
         self.uninstall_package_button.setEnabled(False)
@@ -863,26 +892,40 @@ class ComfyEnvironmentPage(QWidget):
             return
         self.refresh_button.setEnabled(True)
         if not isinstance(snapshot, ComfyEnvironmentSnapshot):
-            self._render_unavailable("Comfy environment status is unavailable.")
+            self._render_unavailable(
+                app_text("Comfy environment status is unavailable.")
+            )
             return
         if snapshot.capabilities is None:
             self._render_unavailable(
-                "The selected Comfy server does not expose environment management."
+                app_text(
+                    "The selected Comfy server does not expose environment management."
+                )
             )
             return
         status = snapshot.status
         if status is None:
-            self._render_unavailable("Comfy environment status is unavailable.")
+            self._render_unavailable(
+                app_text("Comfy environment status is unavailable.")
+            )
             return
         self._operation_planning_supported = (
             snapshot.capabilities.operation_planning_supported
         )
-        self.status_label.setText("Comfy environment management is available.")
-        self.python_label.setText(
-            f"Python {status.python.version} at {status.python.prefix}"
+        set_localized_text(
+            self.status_label, "Comfy environment management is available."
         )
-        self.comfy_label.setText(
-            f"Comfy root: {status.comfy.root} | process {status.comfy.process_id}"
+        set_localized_text(
+            self.python_label,
+            "Python %1 at %2",
+            status.python.version,
+            status.python.prefix,
+        )
+        set_localized_text(
+            self.comfy_label,
+            "Comfy root: %1 | process %2",
+            status.comfy.root,
+            status.comfy.process_id,
         )
         self._render_inventory(snapshot)
         self._apply_maintenance_plan(snapshot.maintenance_plan)
@@ -891,35 +934,42 @@ class ComfyEnvironmentPage(QWidget):
         )
         self.restart_button.setEnabled(restart_supported)
         if restart_supported:
-            self.job_label.setText("Restart is available for this Comfy server.")
+            set_localized_text(
+                self.job_label, "Restart is available for this Comfy server."
+            )
         else:
             reason = snapshot.capabilities.restart_unavailable_reason
-            self.job_label.setText(
-                reason or "Restart is not available for this server."
-            )
+            if reason:
+                self.job_label.setText(reason)
+            else:
+                set_localized_text(
+                    self.job_label,
+                    "Restart is not available for this server.",
+                )
 
-    def _render_unavailable(self, message: str) -> None:
+    def _render_unavailable(self, message: ApplicationText) -> None:
         """Render unavailable backend state."""
 
-        self.status_label.setText(message)
+        apply_application_text(self.status_label, message)
         self._operation_planning_supported = False
         self.python_label.setText("")
         self.comfy_label.setText("")
         self.restart_button.setEnabled(False)
-        self.job_label.setText(
-            "Use Comfy Connection settings to change the selected server."
+        set_localized_text(
+            self.job_label,
+            "Use Comfy Connection settings to change the selected server.",
         )
         self._render_packages(())
         self._apply_maintenance_plan(None)
-        self.inventory_label.setText("Inventory unavailable")
-        self.inventory_count_label.setText("Inventory unavailable")
-        self._render_empty_detail("No installed package data is available.")
+        set_localized_text(self.inventory_label, "Inventory unavailable")
+        set_localized_text(self.inventory_count_label, "Inventory unavailable")
+        self._render_empty_detail(app_text("No installed package data is available."))
 
     def _request_restart(self) -> None:
         """Request a restart job without blocking the UI thread."""
 
         self.restart_button.setEnabled(False)
-        self.job_label.setText("Restart requested.")
+        set_localized_text(self.job_label, "Restart requested.")
         self._run_background(
             task_id="comfy_environment_restart",
             operation=self._restart_comfy,
@@ -935,8 +985,8 @@ class ComfyEnvironmentPage(QWidget):
             self.operation_failed.emit(
                 ComfyEnvironmentOperationFailure(
                     operation="comfy_environment.restart",
-                    title="Comfy restart failed",
-                    message="Comfy restart could not be started.",
+                    title=app_text("Comfy restart failed"),
+                    message=app_text("Comfy restart could not be started."),
                     error=error,
                 )
             )
@@ -946,7 +996,7 @@ class ComfyEnvironmentPage(QWidget):
         """Render restart request result and start polling."""
 
         if not isinstance(job, ComfyEnvironmentJob):
-            self.job_label.setText("Comfy restart could not be started.")
+            set_localized_text(self.job_label, "Comfy restart could not be started.")
             self.restart_button.setEnabled(True)
             return
         self._active_job_id = job.job_id
@@ -978,10 +1028,10 @@ class ComfyEnvironmentPage(QWidget):
         """Render one polled job update."""
 
         if job is None:
-            self.job_label.setText("Waiting for Comfy to come back.")
+            set_localized_text(self.job_label, "Waiting for Comfy to come back.")
             return
         if not isinstance(job, ComfyEnvironmentJob):
-            self.job_label.setText("Comfy restart status is unavailable.")
+            set_localized_text(self.job_label, "Comfy restart status is unavailable.")
             return
         self._render_job(job)
         if job.status in {
@@ -1002,9 +1052,13 @@ class ComfyEnvironmentPage(QWidget):
         """Render installed Python package inventory."""
 
         self._render_packages(snapshot.packages)
-        self.inventory_label.setText(_installed_packages_title(len(snapshot.packages)))
-        self.inventory_count_label.setText(
-            _installed_packages_title(len(snapshot.packages))
+        apply_application_text(
+            self.inventory_label,
+            _installed_packages_title(len(snapshot.packages)),
+        )
+        apply_application_text(
+            self.inventory_count_label,
+            _installed_packages_title(len(snapshot.packages)),
         )
 
     def _render_packages(self, packages: tuple[ComfyEnvironmentPackage, ...]) -> None:
@@ -1035,7 +1089,7 @@ class ComfyEnvironmentPage(QWidget):
             else:
                 self.select_inventory_item(package_item_id(self._packages[0]))
         else:
-            self._render_empty_detail("No installed packages were returned.")
+            self._render_empty_detail(app_text("No installed packages were returned."))
 
     def _apply_inventory_filter(self, text: str) -> None:
         """Filter installed package rows by user-entered text."""
@@ -1045,7 +1099,9 @@ class ComfyEnvironmentPage(QWidget):
             return
         self._render_filtered_packages(select_first=True)
         if not self._packages:
-            self._render_empty_detail("No installed packages match the filter.")
+            self._render_empty_detail(
+                app_text("No installed packages match the filter.")
+            )
 
     def _change_inventory_sort(self, column: int) -> None:
         """Sort package rows by package name or dependency claimant count."""
@@ -1090,29 +1146,36 @@ class ComfyEnvironmentPage(QWidget):
         """Render details for one selected installed package."""
 
         self.detail_title_label.set_package_heading(package.name, package.version)
-        self.detail_meta_label.setText(_package_metadata_line(package))
-        self.detail_summary_label.setText(f'"{_summary_text(package)}"')
+        apply_application_text(self.detail_meta_label, _package_metadata_line(package))
+        apply_application_text(
+            self.detail_summary_label,
+            app_text('"%1"', _summary_text(package)),
+        )
         self.detail_claimants_label.set_package(package)
-        self.detail_tags_label.setText(_management_tag_detail(package))
+        apply_application_text(
+            self.detail_tags_label,
+            _management_tag_detail(package),
+        )
         self.update_package_button.setEnabled(self._operation_planning_supported)
         self.uninstall_package_button.setEnabled(self._operation_planning_supported)
         self.update_package_button.setProperty("packageId", package_item_id(package))
         self.uninstall_package_button.setProperty("packageId", package_item_id(package))
         has_actions = any(tag.supported_actions for tag in package.management_tags)
         if not self._operation_planning_supported:
-            self.detail_actions_label.setText(
-                "Operation planning is not available for this Comfy server."
+            set_localized_text(
+                self.detail_actions_label,
+                "Operation planning is not available for this Comfy server.",
             )
         elif has_actions:
             self.detail_actions_label.setText("")
         else:
             self.detail_actions_label.setText("")
 
-    def _render_empty_detail(self, message: str) -> None:
+    def _render_empty_detail(self, message: ApplicationText) -> None:
         """Render an empty package detail state."""
 
-        self.detail_title_label.setText("Installed packages")
-        self.detail_meta_label.setText(message)
+        set_localized_text(self.detail_title_label, "Installed packages")
+        apply_application_text(self.detail_meta_label, message)
         self.detail_summary_label.setText("")
         self.detail_claimants_label.clear()
         self.detail_tags_label.setText("")
@@ -1127,7 +1190,9 @@ class ComfyEnvironmentPage(QWidget):
         if package is None:
             return
         self._set_plan_buttons_enabled(False)
-        self.detail_actions_label.setText("Adding update to planned changes.")
+        set_localized_text(
+            self.detail_actions_label, "Adding update to planned changes."
+        )
         self._run_background(
             task_id="comfy_environment_plan_update",
             operation=lambda: self._add_to_maintenance_plan("update", package),
@@ -1140,7 +1205,9 @@ class ComfyEnvironmentPage(QWidget):
         if package is None:
             return
         self._set_plan_buttons_enabled(False)
-        self.detail_actions_label.setText("Adding uninstall to planned changes.")
+        set_localized_text(
+            self.detail_actions_label, "Adding uninstall to planned changes."
+        )
         self._run_background(
             task_id="comfy_environment_plan_uninstall",
             operation=lambda: self._add_to_maintenance_plan("uninstall", package),
@@ -1167,8 +1234,8 @@ class ComfyEnvironmentPage(QWidget):
             self.operation_failed.emit(
                 ComfyEnvironmentOperationFailure(
                     operation=f"comfy_environment.plan.{action}",
-                    title="Planned change failed",
-                    message="Planned changes are unavailable.",
+                    title=app_text("Planned change failed"),
+                    message=app_text("Planned changes are unavailable."),
                     error=error,
                     package_name=package.name,
                     values={
@@ -1186,19 +1253,21 @@ class ComfyEnvironmentPage(QWidget):
         if not isinstance(plan, ComfyMaintenancePlan):
             self._maintenance_plan = None
             self.planned_changes_panel.render_plan(None)
-            self.detail_actions_label.setText("Planned changes are unavailable.")
+            set_localized_text(
+                self.detail_actions_label, "Planned changes are unavailable."
+            )
             return
         self._maintenance_plan = plan
         self.planned_changes_panel.render_plan(plan)
         if plan.last_validation_message:
             self.detail_actions_label.setText(plan.last_validation_message)
         elif plan.items:
-            self.detail_actions_label.setText("Planned changes updated.")
+            set_localized_text(self.detail_actions_label, "Planned changes updated.")
 
     def _request_remove_plan_item(self, item_id: str) -> None:
         """Remove one item from the maintenance plan."""
 
-        self.detail_actions_label.setText("Removing planned change.")
+        set_localized_text(self.detail_actions_label, "Removing planned change.")
         self._run_background(
             task_id="comfy_environment_plan_remove_item",
             operation=lambda: self._remove_plan_item(item_id),
@@ -1214,8 +1283,8 @@ class ComfyEnvironmentPage(QWidget):
             self.operation_failed.emit(
                 ComfyEnvironmentOperationFailure(
                     operation="comfy_environment.plan.remove_item",
-                    title="Remove planned change failed",
-                    message="Planned changes are unavailable.",
+                    title=app_text("Remove planned change failed"),
+                    message=app_text("Planned changes are unavailable."),
                     error=error,
                     values={"item_id": item_id},
                 )
@@ -1229,7 +1298,7 @@ class ComfyEnvironmentPage(QWidget):
             return
         if not all(isinstance(item_id, str) for item_id in item_ids):
             return
-        self.detail_actions_label.setText("Updating planned change order.")
+        set_localized_text(self.detail_actions_label, "Updating planned change order.")
         revision = self._maintenance_plan.revision
         self._run_background(
             task_id="comfy_environment_plan_reorder",
@@ -1255,8 +1324,8 @@ class ComfyEnvironmentPage(QWidget):
             self.operation_failed.emit(
                 ComfyEnvironmentOperationFailure(
                     operation="comfy_environment.plan.reorder",
-                    title="Reorder planned changes failed",
-                    message="Planned changes are unavailable.",
+                    title=app_text("Reorder planned changes failed"),
+                    message=app_text("Planned changes are unavailable."),
                     error=error,
                     values={"revision": revision, "item_ids": item_ids},
                 )
@@ -1266,7 +1335,7 @@ class ComfyEnvironmentPage(QWidget):
     def _request_clear_plan(self) -> None:
         """Clear all planned changes."""
 
-        self.detail_actions_label.setText("Clearing planned changes.")
+        set_localized_text(self.detail_actions_label, "Clearing planned changes.")
         self._run_background(
             task_id="comfy_environment_plan_clear",
             operation=self._clear_plan,
@@ -1282,8 +1351,8 @@ class ComfyEnvironmentPage(QWidget):
             self.operation_failed.emit(
                 ComfyEnvironmentOperationFailure(
                     operation="comfy_environment.plan.clear",
-                    title="Clear planned changes failed",
-                    message="Planned changes are unavailable.",
+                    title=app_text("Clear planned changes failed"),
+                    message=app_text("Planned changes are unavailable."),
                     error=error,
                 )
             )
@@ -1293,7 +1362,7 @@ class ComfyEnvironmentPage(QWidget):
         """Apply the current maintenance plan."""
 
         self.planned_changes_panel.apply_button.setEnabled(False)
-        self.job_label.setText("Applying planned changes.")
+        set_localized_text(self.job_label, "Applying planned changes.")
         self._run_background(
             task_id="comfy_environment_plan_apply",
             operation=lambda: self._apply_plan(revision),
@@ -1309,8 +1378,8 @@ class ComfyEnvironmentPage(QWidget):
             self.operation_failed.emit(
                 ComfyEnvironmentOperationFailure(
                     operation="comfy_environment.plan.apply",
-                    title="Apply planned changes failed",
-                    message="Planned changes could not be applied.",
+                    title=app_text("Apply planned changes failed"),
+                    message=app_text("Planned changes could not be applied."),
                     error=error,
                     values={"revision": revision},
                 )
@@ -1321,7 +1390,7 @@ class ComfyEnvironmentPage(QWidget):
         """Render apply request result and start polling."""
 
         if not isinstance(job, ComfyEnvironmentJob):
-            self.job_label.setText("Planned changes could not be applied.")
+            set_localized_text(self.job_label, "Planned changes could not be applied.")
             if self._maintenance_plan is not None:
                 self.planned_changes_panel.render_plan(self._maintenance_plan)
             return
@@ -1387,12 +1456,12 @@ def _environment_layout_mode(width: int) -> ComfyEnvironmentLayoutMode:
     return "compact"
 
 
-def _installed_packages_title(package_count: int) -> str:
+def _installed_packages_title(package_count: int) -> ApplicationText:
     """Return the package browser title with the installed package count."""
 
     if package_count == 1:
-        return "1 installed package"
-    return f"{package_count} installed packages"
+        return app_text("1 installed package")
+    return app_text("%1 installed packages", package_count)
 
 
 def _environment_panel_stylesheet(widget: QWidget) -> str:
@@ -1446,7 +1515,7 @@ def _claimant_toggle_button(parent: QWidget) -> QToolButton:
     button.setText("+")
     button.setAutoRaise(True)
     button.setCursor(Qt.CursorShape.PointingHandCursor)
-    button.setToolTip("Show dependent extensions")
+    set_localized_tooltip(button, "Show dependent extensions")
     size = _font_square_size(button)
     button.setFixedSize(size, size)
     button.setStyleSheet(
@@ -1462,18 +1531,24 @@ def _claimant_toggle_button(parent: QWidget) -> QToolButton:
     return button
 
 
-def _claimant_heading_label(text: str, parent: QWidget) -> WrapAnywhereCaptionLabel:
+def _claimant_heading_label(
+    text: ApplicationText, parent: QWidget
+) -> WrapAnywhereCaptionLabel:
     """Create one wrapping claimant section heading label."""
 
-    label = WrapAnywhereCaptionLabel(text, parent)
+    label = WrapAnywhereCaptionLabel("", parent)
+    apply_application_text(label, text)
     _configure_detail_text_label(label)
     return label
 
 
-def _claimant_message_label(text: str, parent: QWidget) -> WrapAnywhereCaptionLabel:
+def _claimant_message_label(
+    text: ApplicationText, parent: QWidget
+) -> WrapAnywhereCaptionLabel:
     """Create one wrapping claimant status message label."""
 
-    label = WrapAnywhereCaptionLabel(text, parent)
+    label = WrapAnywhereCaptionLabel("", parent)
+    apply_application_text(label, text)
     _configure_detail_text_label(label)
     return label
 
@@ -1579,31 +1654,39 @@ def _with_soft_wrap_breaks(text: str) -> str:
     return "".join(pieces)
 
 
-def _summary_text(package: ComfyEnvironmentPackage) -> str:
+def _summary_text(package: ComfyEnvironmentPackage) -> ApplicationText:
     """Return package summary text without inventing package-specific facts."""
 
-    return package.summary or "Summary unavailable"
+    return package.summary or app_text("Summary unavailable")
 
 
-def _package_metadata_line(package: ComfyEnvironmentPackage) -> str:
+def _package_metadata_line(package: ComfyEnvironmentPackage) -> ApplicationText:
     """Return compact metadata facts for one selected package."""
 
     claimant_total = claimant_count(package)
-    claimant_text = (
-        "1 extension claimant"
-        if claimant_total == 1
-        else f"{claimant_total} extension claimants"
-    )
     attribution = package.attribution.replace("-", " ").title()
     summary_source = package.summary_source.replace("-", " ")
-    return f"{claimant_text} | {attribution} | summary: {summary_source}"
+    if claimant_total == 1:
+        return app_text(
+            "1 extension claimant | %1 | summary: %2",
+            attribution,
+            summary_source,
+        )
+    return app_text(
+        "%1 extension claimants | %2 | summary: %3",
+        claimant_total,
+        attribution,
+        summary_source,
+    )
 
 
 def _claimant_detail(package: ComfyEnvironmentPackage) -> str:
     """Return all claimant details for one package."""
 
     if not package.claimants:
-        return "Required by:\nNo known extension claimant."
+        return render_application_text(
+            app_text("Required by:\nNo known extension claimant.")
+        )
     lines: list[str] = []
     for group_name, claimants in _group_claimants_by_required_via(package.claimants):
         if group_name is None:
@@ -1617,7 +1700,7 @@ def _claimant_detail(package: ComfyEnvironmentPackage) -> str:
             f"    {claimant.display_name}"
             for claimant in sorted(claimants, key=_claimant_sort_key)
         )
-    return "Required by:\n" + "\n".join(lines)
+    return render_application_text(app_text("Required by:\n%1", "\n".join(lines)))
 
 
 def _group_claimants_by_required_via(
@@ -1665,7 +1748,7 @@ def _claimant_sort_key(claimant: ComfyPackageClaimant) -> tuple[int, str]:
     return (3, normalized)
 
 
-def _management_tag_detail(package: ComfyEnvironmentPackage) -> str:
+def _management_tag_detail(package: ComfyEnvironmentPackage) -> ApplicationText:
     """Return management tag details for one package."""
 
     lines = [
@@ -1675,4 +1758,4 @@ def _management_tag_detail(package: ComfyEnvironmentPackage) -> str:
     ]
     if not lines:
         return ""
-    return "Supported actions:\n" + "\n".join(lines)
+    return app_text("Supported actions:\n%1", "\n".join(lines))

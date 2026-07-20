@@ -25,9 +25,13 @@ from PySide6.QtCore import QPoint, QPointF, QRectF, QSize
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QScrollBar, QWidget
 
-from substitute.presentation.widgets.cursor_tooltip_filter import (
-    CursorToolTipFilter,
-    install_cursor_tooltip_filter,
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    FluentToolTipFilter,
+    ensure_fluent_tooltip_filter,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    translate_application_message,
+    translate_application_text,
 )
 
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
@@ -115,7 +119,7 @@ class PromptSurfaceLoraFeatureDelegate:
         self._host = host
         self._thumbnail_cache = thumbnail_cache
         self._thumbnail_preloader = thumbnail_preloader
-        self._tooltip_filter: CursorToolTipFilter | None = None
+        self._tooltip_filter: FluentToolTipFilter | None = None
 
     @property
     def thumbnail_cache(self) -> PromptLoraThumbnailCache:
@@ -126,10 +130,11 @@ class PromptSurfaceLoraFeatureDelegate:
     def install_tooltip_filter(self) -> None:
         """Install delayed QFluent tooltips for inline LoRA chip labels."""
 
-        self._tooltip_filter = install_cursor_tooltip_filter(
+        self._tooltip_filter = ensure_fluent_tooltip_filter(
             cast(QWidget, self._host),
             self._host.viewport(),
             show_delay_ms=600,
+            cursor_anchor=True,
             tooltip_provider=self.tooltip_for_hover_event,
         )
 
@@ -272,33 +277,37 @@ def lora_token_tooltip_text(token: PromptProjectionToken) -> str | None:
         return None
     if token.lora_status is not None and token.lora_status.value == "ambiguous":
         prompt_name = (token.detail_text or token.display_text).strip()
-        return (
-            "LoRA name is ambiguous"
-            if not prompt_name
-            else f"LoRA name is ambiguous: {prompt_name}"
+        if not prompt_name:
+            return translate_application_text("LoRA name is ambiguous")
+        return translate_application_message(
+            "LoRA name is ambiguous: %1",
+            prompt_name,
         )
     if token.lora_status is not None and token.lora_status.value in {
         "pending_no_authority",
         "catalog_unavailable",
     }:
         prompt_name = (token.detail_text or token.display_text).strip()
-        return (
-            "LoRA catalog is still resolving"
-            if not prompt_name
-            else f"LoRA catalog is still resolving: {prompt_name}"
+        if not prompt_name:
+            return translate_application_text("LoRA catalog is still resolving")
+        return translate_application_message(
+            "LoRA catalog is still resolving: %1",
+            prompt_name,
         )
     if not token.exists:
         prompt_name = (token.detail_text or token.display_text).strip()
-        return "LoRA not found" if not prompt_name else f"LoRA not found: {prompt_name}"
+        if not prompt_name:
+            return translate_application_text("LoRA not found")
+        return translate_application_message("LoRA not found: %1", prompt_name)
     page_name = token.display_text.strip()
     version_name = (
         "" if token.lora_version_text is None else token.lora_version_text.strip()
     )
     lines: list[str] = []
     if page_name:
-        lines.append(f"Model: {page_name}")
+        lines.append(translate_application_message("Model: %1", page_name))
     if version_name:
-        lines.append(f"Version: {version_name}")
+        lines.append(translate_application_message("Version: %1", version_name))
     if not lines:
         return None
     return "\n".join(lines)

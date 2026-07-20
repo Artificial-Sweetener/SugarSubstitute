@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text, opaque_text
+
 from collections import deque
 import re
 from typing import Final
@@ -123,7 +125,7 @@ class ComfyStartupDiagnosticsCollector:
     ) -> ComfyStartupIncident:
         """Create and store the fatal incident for a pre-ready process exit."""
 
-        message = "ComfyUI exited before it became ready."
+        message = app_text("ComfyUI exited before it became ready.")
         values: dict[str, object] = {
             "host": host,
             "port": port,
@@ -136,7 +138,7 @@ class ComfyStartupDiagnosticsCollector:
         return self._add_incident(
             kind=ComfyStartupIncidentKind.PROCESS_EXITED_BEFORE_READY,
             severity=ComfyStartupIncidentSeverity.FATAL,
-            title="ComfyUI failed to start",
+            title=app_text("ComfyUI failed to start"),
             message=message,
             source=workspace,
             exception_type=None,
@@ -170,7 +172,7 @@ class ComfyStartupDiagnosticsCollector:
         self._add_incident(
             kind=ComfyStartupIncidentKind.CUSTOM_NODE_IMPORT_FAILED,
             severity=ComfyStartupIncidentSeverity.ERROR,
-            title="Extension failed to load",
+            title=app_text("Extension failed to load"),
             message=reason,
             source=source,
             exception_type=exception_type,
@@ -195,8 +197,8 @@ class ComfyStartupDiagnosticsCollector:
         self._add_incident(
             kind=ComfyStartupIncidentKind.CUSTOM_NODE_IMPORT_FAILED,
             severity=ComfyStartupIncidentSeverity.ERROR,
-            title="Extension failed to load",
-            message="ComfyUI reported this extension as an import failure.",
+            title=app_text("Extension failed to load"),
+            message=app_text("ComfyUI reported this extension as an import failure."),
             source=source,
             exception_type=None,
             traceback=(),
@@ -217,7 +219,7 @@ class ComfyStartupDiagnosticsCollector:
         self._add_incident(
             kind=ComfyStartupIncidentKind.CUSTOM_NODE_PRESTARTUP_FAILED,
             severity=ComfyStartupIncidentSeverity.ERROR,
-            title="Extension startup script failed",
+            title=app_text("Extension startup script failed"),
             message=reason,
             source=source,
             exception_type=_exception_type_from_traceback(traceback)
@@ -243,8 +245,10 @@ class ComfyStartupDiagnosticsCollector:
         self._add_incident(
             kind=ComfyStartupIncidentKind.CUSTOM_NODE_PRESTARTUP_FAILED,
             severity=ComfyStartupIncidentSeverity.ERROR,
-            title="Extension startup script failed",
-            message="ComfyUI reported this extension prestartup script as failed.",
+            title=app_text("Extension startup script failed"),
+            message=app_text(
+                "ComfyUI reported this extension prestartup script as failed."
+            ),
             source=source,
             exception_type=None,
             traceback=(),
@@ -263,7 +267,7 @@ class ComfyStartupDiagnosticsCollector:
         self._add_incident(
             kind=ComfyStartupIncidentKind.BUILTIN_NODE_IMPORT_FAILED,
             severity=ComfyStartupIncidentSeverity.WARNING,
-            title="ComfyUI builtin nodes did not all load",
+            title=app_text("ComfyUI builtin nodes did not all load"),
             message=line,
             source=self._active_builtin_import_source,
             exception_type=None,
@@ -283,7 +287,7 @@ class ComfyStartupDiagnosticsCollector:
         self._add_incident(
             kind=ComfyStartupIncidentKind.BUILTIN_NODE_IMPORT_FAILED,
             severity=ComfyStartupIncidentSeverity.WARNING,
-            title="ComfyUI builtin node failed to load",
+            title=app_text("ComfyUI builtin node failed to load"),
             message=line,
             source=source,
             exception_type=None,
@@ -302,7 +306,7 @@ class ComfyStartupDiagnosticsCollector:
         self._add_incident(
             kind=ComfyStartupIncidentKind.STARTUP_WARNING,
             severity=ComfyStartupIncidentSeverity.WARNING,
-            title="ComfyUI reported a startup warning",
+            title=app_text("ComfyUI reported a startup warning"),
             message=warning_message,
             source=None,
             exception_type=None,
@@ -351,8 +355,8 @@ class ComfyStartupDiagnosticsCollector:
         *,
         kind: ComfyStartupIncidentKind,
         severity: ComfyStartupIncidentSeverity,
-        title: str,
-        message: str,
+        title: ApplicationText,
+        message: ApplicationText,
         source: str | None,
         exception_type: str | None,
         traceback: tuple[str, ...],
@@ -453,26 +457,33 @@ def _classification_line(line: str) -> str:
     return match.group("message")
 
 
-def _generic_warning_message(line: str, *, display_line: str) -> str | None:
+def _generic_warning_message(line: str, *, display_line: str) -> ApplicationText | None:
     """Return a user-facing warning message for unmatched warning records."""
 
     if line.startswith("WARNING:"):
-        return line
+        return opaque_text(line)
     match = _COMFY_LOG_PREFIX_PATTERN.match(display_line)
     if match is None or match.group("level") != "WARNING":
         return None
     message = match.group("message").strip()
-    return f"WARNING: {message}" if message else "WARNING:"
+    return opaque_text(f"WARNING: {message}" if message else "WARNING:")
 
 
-def _split_sugarcubes_message(raw_message: str) -> tuple[str, str]:
+def _split_sugarcubes_message(
+    raw_message: str,
+) -> tuple[ApplicationText, ApplicationText]:
     """Split a SugarCubes startup line into title and body text."""
 
     title, separator, message = raw_message.partition(": ")
     if not separator:
         stripped = raw_message.strip()
-        return "SugarCubes startup issue", stripped
-    return title.strip() or "SugarCubes startup issue", message.strip()
+        return app_text("SugarCubes startup issue"), opaque_text(stripped)
+    return (
+        opaque_text(title.strip())
+        if title.strip()
+        else app_text("SugarCubes startup issue"),
+        opaque_text(message.strip()),
+    )
 
 
 def _exception_type_from_reason(reason: str) -> str | None:

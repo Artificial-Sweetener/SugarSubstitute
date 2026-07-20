@@ -20,6 +20,12 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from dataclasses import dataclass
+from typing import cast
+
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    ToolTipTarget,
+    set_fluent_tooltip_text,
+)
 
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSourceGroup,
@@ -112,6 +118,12 @@ class OutputCanvasSourceTabsController:
                 refresh_item.tab_item,
             )
 
+    def retranslate_source_tabs(self, *, active_source_key: str | None) -> None:
+        """Rebuild locale-sensitive tab labels while preserving stable selection."""
+
+        self.set_cached_signature(())
+        self.rebuild_source_tabs(active_source_key=active_source_key)
+
     def _configure_source_tab_tooltip(
         self,
         source: OutputCanvasSourceGroup,
@@ -123,10 +135,9 @@ class OutputCanvasSourceTabsController:
             source,
             active_set_index=self.active_set_index(),
         )
-        set_tooltip = getattr(tab_item, "setToolTip", None)
-        if not callable(set_tooltip):
+        if not hasattr(tab_item, "setToolTip"):
             return
-        set_tooltip(tooltip.text)
+        set_fluent_tooltip_text(cast(ToolTipTarget, tab_item), tooltip.text)
         if not tooltip.installs_hover_filter:
             return
         self.tooltip_filters()[tooltip.source_key] = self.install_tooltip_filter(

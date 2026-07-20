@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from dataclasses import dataclass
 from pathlib import Path
 from collections.abc import Callable
@@ -102,7 +104,7 @@ class ComfyConnectionSettingsSnapshot:
 
     target: ComfyTargetConfiguration
     persisted_exists: bool
-    status_message: str
+    status_message: ApplicationText
     can_test_endpoint: bool
     managed_model_root: str | None = None
     managed_model_root_uses_default: bool = True
@@ -131,7 +133,7 @@ class ComfyConnectionSaveResult:
 
     target: ComfyTargetConfiguration | None
     succeeded: bool
-    message: str
+    message: ApplicationText
     restart_required: bool
     restart_snapshot: RestartRequirementSnapshot | None = None
 
@@ -261,9 +263,11 @@ class ComfyConnectionSettingsService:
         return ComfyConnectionSaveResult(
             target=saved,
             succeeded=True,
-            message="Saved. Restart Substitute to use the new ComfyUI connection."
+            message=app_text(
+                "Saved. Restart Substitute to use the new ComfyUI connection."
+            )
             if restart_required
-            else "Connection settings are already saved.",
+            else app_text("Connection settings are already saved."),
             restart_required=restart_required,
             restart_snapshot=restart_snapshot,
         )
@@ -291,13 +295,21 @@ class ComfyConnectionSettingsService:
             return ComfyConnectionSaveResult(
                 target=target,
                 succeeded=True,
-                message=f"ComfyUI responded at {normalized_host}:{port}.",
+                message=app_text(
+                    "ComfyUI responded at %1:%2.",
+                    normalized_host,
+                    port,
+                ),
                 restart_required=False,
             )
         return ComfyConnectionSaveResult(
             target=target,
             succeeded=False,
-            message=f"ComfyUI did not respond at {normalized_host}:{port}.",
+            message=app_text(
+                "ComfyUI did not respond at %1:%2.",
+                normalized_host,
+                port,
+            ),
             restart_required=False,
         )
 
@@ -366,8 +378,10 @@ class ComfyConnectionSettingsService:
             return None
         if self.checks.is_target_endpoint_reachable(target):
             return None
-        message = (
-            f"ComfyUI did not respond at {target.endpoint.host}:{target.endpoint.port}."
+        message = app_text(
+            "ComfyUI did not respond at %1:%2.",
+            target.endpoint.host,
+            target.endpoint.port,
         )
         log_warning(
             _LOGGER,
@@ -458,7 +472,7 @@ class ComfyConnectionSettingsService:
             return None
         snapshot = self.restart_requirements.register_delta(
             key=_CONNECTION_RESTART_KEY,
-            label="ComfyUI connection",
+            label=app_text("ComfyUI connection"),
             active_value=_target_restart_value(active_target),
             saved_value=_target_restart_value(saved_target),
             scope=RestartScope.FULL_APP,
@@ -469,7 +483,7 @@ class ComfyConnectionSettingsService:
             return snapshot
         return self.restart_requirements.register_delta(
             key=_MODEL_ROOT_RESTART_KEY,
-            label="Model folder",
+            label=app_text("Model folder"),
             active_value=_path_restart_value(model_root_status.active_model_root),
             saved_value=_path_restart_value(
                 model_root_status.configured_model_root
@@ -480,13 +494,13 @@ class ComfyConnectionSettingsService:
         )
 
 
-def _endpoint_validation_message(host: str, port: int) -> str | None:
+def _endpoint_validation_message(host: str, port: int) -> ApplicationText | None:
     """Return a user-facing endpoint validation error when input is invalid."""
 
     if not host:
-        return "Host cannot be blank."
+        return app_text("Host cannot be blank.")
     if port < _MIN_PORT or port > _MAX_PORT:
-        return "Port must be between 1 and 65535."
+        return app_text("Port must be between 1 and 65535.")
     return None
 
 
@@ -494,28 +508,30 @@ def _status_message(
     target: ComfyTargetConfiguration,
     *,
     persisted_exists: bool,
-) -> str:
+) -> ApplicationText:
     """Return the summary shown before the user tests the endpoint."""
 
     if not persisted_exists:
-        return (
+        return app_text(
             "Substitute is showing the default managed ComfyUI connection because "
             "no saved connection exists yet."
         )
-    return (
-        f"Substitute is configured to use {_target_mode_label(target.mode)} at "
-        f"{target.endpoint.host}:{target.endpoint.port}."
+    return app_text(
+        "Substitute is configured to use %1 at %2:%3.",
+        _target_mode_label(target.mode),
+        target.endpoint.host,
+        target.endpoint.port,
     )
 
 
-def _target_mode_label(mode: ComfyTargetMode) -> str:
+def _target_mode_label(mode: ComfyTargetMode) -> ApplicationText:
     """Return a compact user-facing label for one target mode."""
 
     if mode is ComfyTargetMode.MANAGED_LOCAL:
-        return "managed ComfyUI"
+        return app_text("managed ComfyUI")
     if mode is ComfyTargetMode.ATTACHED_LOCAL:
-        return "existing local ComfyUI"
-    return "remote ComfyUI"
+        return app_text("existing local ComfyUI")
+    return app_text("remote ComfyUI")
 
 
 def _target_restart_value(target: ComfyTargetConfiguration) -> str:

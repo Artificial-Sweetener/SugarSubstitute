@@ -24,6 +24,8 @@ from ctypes import wintypes
 from pathlib import Path
 import sys
 
+from sugarsubstitute_shared.localization import app_text
+
 from substitute.application.ports.civitai_credential_store import (
     CivitaiCredentialStore,
     CredentialStoreStatus,
@@ -63,8 +65,10 @@ class WindowsCivitaiCredentialStore(CivitaiCredentialStore):
         return CredentialStoreStatus(
             available=False,
             backend_name="Windows DPAPI",
-            reason="Windows DPAPI is unavailable on this platform.",
-            remediation="Use a supported operating-system credential store, then restart Substitute.",
+            reason=app_text("Windows DPAPI is unavailable on this platform."),
+            remediation=app_text(
+                "Use a supported operating-system credential store, then restart Substitute."
+            ),
         )
 
     def has_api_key(self) -> bool:

@@ -20,6 +20,10 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.overrides import ChoiceLinkFieldState, ChoiceLinkTarget
 from substitute.domain.links import (
     NodeLinkEndpoint,
@@ -30,6 +34,16 @@ import substitute.presentation.editor.panel.factories.meta_factories as meta_fac
 from substitute.presentation.editor.panel.node_card_builder import (
     _switch_override_for_next_state,
 )
+
+
+@pytest.fixture(autouse=True)
+def _render_localized_combo_items(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Render localized labels directly for non-Qt combo test doubles."""
+
+    def set_item(combo: _FakeComboBox, index: int, text: str) -> None:
+        combo.items[index] = render_source_application_text(text)
+
+    monkeypatch.setattr(meta_factories, "set_localized_combo_item", set_item)
 
 
 class _FakeNodeDefinitionGateway:

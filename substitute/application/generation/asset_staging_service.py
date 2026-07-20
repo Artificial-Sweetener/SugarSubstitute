@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 import copy
 import hashlib
 import re
@@ -159,7 +161,7 @@ class ComfyAssetStagingService:
                         source_value=image_value
                         if isinstance(image_value, str)
                         else "",
-                        message="Required image input has no selected image.",
+                        message=app_text("Required image input has no selected image."),
                     )
                 )
                 continue
@@ -187,7 +189,7 @@ class ComfyAssetStagingService:
                         node_class=str(node_class),
                         input_name=target.field_key,
                         source_value=image_value,
-                        message="Referenced local image file does not exist.",
+                        message=app_text("Referenced local image file does not exist."),
                     )
                 )
                 continue

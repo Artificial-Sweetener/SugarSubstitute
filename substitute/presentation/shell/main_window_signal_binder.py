@@ -23,6 +23,8 @@ from typing import Any
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 from qfluentwidgets import FluentIcon as FIF  # type: ignore[import-untyped]
+from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.localization import render_application_text
 
 from substitute.presentation.shell.comfy_runtime_actions import (
     comfy_runtime_actions_for,
@@ -432,8 +434,10 @@ class MainWindowSignalBinder:
             return
         QMessageBox.warning(
             self._shell,
-            "Restart the GUI",
-            "GUI restart is not available in this session.",
+            render_application_text(app_text("Restart the GUI")),
+            render_application_text(
+                app_text("GUI restart is not available in this session.")
+            ),
         )
 
     def _open_comfyui_settings_webview(self) -> None:

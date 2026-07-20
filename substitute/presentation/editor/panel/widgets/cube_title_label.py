@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+
 from typing import cast
 
 from PySide6.QtCore import QSize, Qt
@@ -50,7 +54,7 @@ class CubeTitleLabel(SubtitleLabel):  # type: ignore[misc]
 
         self._full_text = text
         super().setText(text)
-        self.setToolTip(text)
+        set_fluent_tooltip_text(self, text)
         self.updateGeometry()
         self.update()
 

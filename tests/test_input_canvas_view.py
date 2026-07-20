@@ -160,7 +160,7 @@ def test_context_menu_adds_separator_and_dock_action(
             brush_enabled=True,
             smart_select_enabled=False,
         ),
-        _dock_action_text="Redock canvas",
+        _canvas_detached=True,
         dockActionRequested=dock_signal,
     )
 
@@ -211,14 +211,14 @@ def test_set_mask_tool_menu_state_updates_visual_state() -> None:
     assert fake._mask_tool_menu_state == state
 
 
-def test_set_dock_action_text_updates_menu_label() -> None:
-    """Input dock action label should be stored for the next context menu."""
+def test_set_canvas_detached_updates_attachment_state() -> None:
+    """Input canvas should store locale-neutral attachment state."""
 
-    fake = SimpleNamespace(_dock_action_text="Undock canvas")
+    fake = SimpleNamespace(_canvas_detached=False)
 
-    cast(Any, input_mod.InputCanvas).set_dock_action_text(fake, "Redock canvas")
+    cast(Any, input_mod.InputCanvas).set_canvas_detached(fake, True)
 
-    assert fake._dock_action_text == "Redock canvas"
+    assert fake._canvas_detached is True
 
 
 class _Signal:

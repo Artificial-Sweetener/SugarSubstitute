@@ -21,6 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 GenerationSelectedMode = Literal["generate", "continuous"]
 GenerationPlayPresentationMode = Literal["generate", "continuous", "end_continuous"]
 
@@ -54,7 +56,7 @@ class GenerationActionPresentation:
 
     play_mode: GenerationPlayPresentationMode
     play_enabled: bool
-    play_tooltip: str
+    play_tooltip: ApplicationText
     stop_enabled: bool
     skip_enabled: bool
     queue_primary_enabled: bool

@@ -33,6 +33,7 @@ from substitute.application.model_metadata import (
     ThumbnailAssetRepository,
 )
 from substitute.application.node_behavior import NodeBehaviorService
+from substitute.application.localization import NodePresentationService
 from substitute.application.ports import (
     NodeDefinitionGateway,
     PromptAutocompleteGateway,
@@ -114,6 +115,7 @@ class EditorPanelServiceBundle:
 
     node_definition_gateway: NodeDefinitionGateway
     node_behavior_service: NodeBehaviorService
+    node_presentation_service: NodePresentationService
     prompt: EditorPanelPromptServiceBundle
     model: EditorPanelModelServiceBundle
     presets: EditorPanelPresetServiceBundle

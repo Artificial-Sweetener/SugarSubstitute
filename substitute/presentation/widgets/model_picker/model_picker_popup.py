@@ -26,6 +26,16 @@ from PySide6.QtGui import QHideEvent, QKeyEvent, QMouseEvent
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 from qfluentwidgets import SearchLineEdit  # type: ignore[import-untyped]
 
+from sugarsubstitute_shared.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    app_text,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    clear_localized_property,
+    set_localized_placeholder,
+)
+
 from substitute.application.model_metadata import ThumbnailAssetRepository
 from substitute.presentation.widgets.civitai_page_action import UrlOpener
 from substitute.presentation.widgets.fluent_popup_frame import AttachedFluentPopupFrame
@@ -78,7 +88,7 @@ class ModelPickerPopup(QWidget):
         asset_repository: ThumbnailAssetRepository | None = None,
         thumbnail_cache: MediaWallThumbnailCache | None = None,
         thumbnail_preloader: MediaWallThumbnailPreloader | None = None,
-        search_placeholder: str = "Search models",
+        search_placeholder: ApplicationText = app_text("Search models"),
         show_search_field: bool = True,
         dismissal_guard_widgets: Iterable[QWidget] = (),
         open_url: UrlOpener | None = None,
@@ -103,7 +113,15 @@ class ModelPickerPopup(QWidget):
 
         self._frame = AttachedFluentPopupFrame(self)
         self._search = SearchLineEdit(self._frame)
-        self._search.setPlaceholderText(search_placeholder)
+        if isinstance(search_placeholder, ApplicationMessage):
+            set_localized_placeholder(
+                self._search,
+                search_placeholder.source_text,
+                *search_placeholder.arguments,
+            )
+        else:
+            clear_localized_property(self._search, "placeholder")
+            self._search.setPlaceholderText(search_placeholder)
         self._search.setClearButtonEnabled(True)
         self._show_search_field = show_search_field
         self._dismissal_guard_widgets = tuple(dismissal_guard_widgets)

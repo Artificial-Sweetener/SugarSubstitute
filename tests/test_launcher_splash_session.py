@@ -52,6 +52,7 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
 
     session = start_launcher_splash_session(
         layout=layout,
+        locale_identifier="ja",
         popen=cast(Any, _fake_popen),
     )
 
@@ -66,6 +67,7 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
         str(layout.runtime_python),
         "-m",
         "substitute.app.bootstrap.shared_splash_host",
+        "--locale=ja",
     ]
     assert calls[0]["cwd"] == str(layout.root)
     assert calls[0]["env"]["PYTHONPATH"] == str(layout.app_dir)
@@ -86,7 +88,11 @@ def test_launcher_splash_session_returns_none_for_invalid_ready_payload(
         return _FakeProcess(stdout='{"type":"not-ready"}\n')
 
     assert (
-        start_launcher_splash_session(layout=layout, popen=cast(Any, _fake_popen))
+        start_launcher_splash_session(
+            layout=layout,
+            locale_identifier="en",
+            popen=cast(Any, _fake_popen),
+        )
         is None
     )
 

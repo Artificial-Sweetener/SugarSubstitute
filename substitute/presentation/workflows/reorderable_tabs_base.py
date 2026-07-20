@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from copy import deepcopy
 from enum import Enum
 from typing import Callable, TypeVar, cast
@@ -78,9 +80,10 @@ from qfluentwidgets.components.widgets.scroll_area import (  # type: ignore[impo
 from substitute.presentation.shell.chrome_style import (
     WORKFLOW_TAB_TOP_ACCENT_HEIGHT,
 )
-from substitute.presentation.widgets.cursor_tooltip_filter import (
-    CursorToolTipFilter,
-    install_cursor_tooltip_filter,
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    FluentToolTipFilter,
+    ensure_fluent_tooltip_filter,
+    set_fluent_tooltip_text,
 )
 from substitute.presentation.widgets.menu_model import MenuItem, MenuModel
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
@@ -209,7 +212,7 @@ class ReorderableTabItemBase(PushButton):  # type: ignore[misc]
         self._forward_parent_mouse_events = True
         self._routeKey: str | None = None
         self.textColor: QColor | None = None
-        self._tooltip_filter: CursorToolTipFilter | None = None
+        self._tooltip_filter: FluentToolTipFilter | None = None
         self.lightSelectedBackgroundColor = QColor(249, 249, 249)
         self.darkSelectedBackgroundColor = QColor(40, 40, 40)
 
@@ -228,10 +231,11 @@ class ReorderableTabItemBase(PushButton):  # type: ignore[misc]
         self.setFixedHeight(self.fixed_height)
         self.setMaximumWidth(self.default_maximum_width)
         self.setMinimumWidth(self.default_minimum_width)
-        self._tooltip_filter = install_cursor_tooltip_filter(
+        self._tooltip_filter = ensure_fluent_tooltip_filter(
             self,
             self,
             show_delay_ms=1000,
+            cursor_anchor=True,
         )
         self.setAttribute(Qt.WidgetAttribute.WA_LayoutUsesWidgetRect)
 
@@ -293,7 +297,7 @@ class ReorderableTabItemBase(PushButton):  # type: ignore[misc]
                 entries=(
                     MenuItem(
                         "workflow_tab.rename",
-                        "Rename",
+                        app_text("Rename"),
                         callback=self._startRename,
                         icon=FIF.EDIT,
                     ),
@@ -1123,7 +1127,7 @@ class ReorderableTabBarBase(SingleDirectionScrollArea):  # type: ignore[misc]
         """Set tab tooltip text."""
         item = self.tabItem(index)
         if item is not None:
-            item.setToolTip(toolTip)
+            set_fluent_tooltip_text(item, toolTip)
 
     def setTabSelectedBackgroundColor(self, light: QColor, dark: QColor) -> None:
         """Set selected background colors for all tabs."""

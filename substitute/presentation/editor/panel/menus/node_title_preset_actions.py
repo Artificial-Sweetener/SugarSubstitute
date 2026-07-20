@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import TypeAlias
@@ -53,8 +57,12 @@ from substitute.presentation.widgets.menu_model import (
 )
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
 from substitute.shared.logging.logger import get_logger, log_warning
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    translate_application_message,
+)
 
-APPLY_NODE_PRESET_MENU_TEXT = "Apply preset"
+APPLY_NODE_PRESET_MENU_TEXT = app_text("Apply preset")
 _LOGGER = get_logger("presentation.editor.panel.menus.node_title_preset_actions")
 JsonObject: TypeAlias = dict[str, object]
 
@@ -247,13 +255,19 @@ def _apply_preset_item(
 def _save_node_preset_action_text(node_name: str) -> str:
     """Return title-row copy for saving the current node as a preset."""
 
-    return f"Save current {beautify_label(node_name)} as preset..."
+    return translate_application_message(
+        "Save current %1 as preset...",
+        beautify_label(node_name),
+    )
 
 
 def _save_node_preset_dialog_title(node_name: str) -> str:
     """Return modal title copy for naming a node preset."""
 
-    return f"Save {beautify_label(node_name)} preset"
+    return translate_application_message(
+        "Save %1 preset",
+        beautify_label(node_name),
+    )
 
 
 def _save_current_node_inputs(
@@ -295,7 +309,7 @@ def _save_current_node_inputs(
             error_type=type(error).__name__,
         )
         return
-    title_row.setToolTip(title_row.toolTip())
+    set_fluent_tooltip_text(title_row, title_row.toolTip())
 
 
 __all__ = [

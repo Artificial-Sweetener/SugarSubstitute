@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from sugarsubstitute_shared.localization import app_text
+
 from substitute.application.backend_compatibility import BackendCompatibilityResult
 from substitute.application.onboarding.comfy_target_service import ComfyTargetService
 from substitute.application.onboarding.installation_service import InstallationService
@@ -258,7 +260,9 @@ class BootstrapReadinessService:
             detail = (
                 transaction.failure.message
                 if transaction.failure is not None
-                else "The previous setup attempt failed before it could be committed."
+                else app_text(
+                    "The previous setup attempt failed before it could be committed."
+                )
             )
             return ReadinessIssue(
                 code=ReadinessIssueCode.SETUP_TRANSACTION_FAILED,
@@ -411,9 +415,12 @@ class BootstrapReadinessService:
             or not self.checks.attached_workspace_exists(target.workspace_path)
         ):
             detail = (
-                "Existing local ComfyUI setup requires a folder path."
+                app_text("Existing local ComfyUI setup requires a folder path.")
                 if target.workspace_path is None
-                else f"Attached ComfyUI folder does not exist: {target.workspace_path}"
+                else app_text(
+                    "Attached ComfyUI folder does not exist: %1",
+                    target.workspace_path,
+                )
             )
             issues.append(
                 ReadinessIssue(

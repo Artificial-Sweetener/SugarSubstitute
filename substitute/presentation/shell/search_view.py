@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import set_localized_tooltip
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QHideEvent, QResizeEvent
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
@@ -61,20 +63,20 @@ class FloatingSearchBox(QWidget):
 
         # --- Next/Prev buttons (FIF.DOWN / FIF.UP, TransparentToolButton) ---
         self.nextButton = TransparentToolButton(FIF.DOWN, self)
-        self.nextButton.setToolTip("Next match (Enter)")
+        set_localized_tooltip(self.nextButton, "Next match (Enter)")
         self.nextButton.setCursor(Qt.PointingHandCursor)
         self.nextButton.setFixedSize(28, 28)
         layout.addWidget(self.nextButton)
 
         self.prevButton = TransparentToolButton(FIF.UP, self)
-        self.prevButton.setToolTip("Previous match (Shift+Enter)")
+        set_localized_tooltip(self.prevButton, "Previous match (Shift+Enter)")
         self.prevButton.setCursor(Qt.PointingHandCursor)
         self.prevButton.setFixedSize(28, 28)
         layout.addWidget(self.prevButton)
 
         # --- Close button (FIF.CLOSE, TransparentToolButton) ---
         self.closeButton = TransparentToolButton(FIF.CLOSE, self)
-        self.closeButton.setToolTip("Close search (Esc)")
+        set_localized_tooltip(self.closeButton, "Close search (Esc)")
         self.closeButton.setCursor(Qt.PointingHandCursor)
         self.closeButton.setFixedSize(28, 28)
         layout.addWidget(self.closeButton)

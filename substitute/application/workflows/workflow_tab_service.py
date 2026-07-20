@@ -23,6 +23,8 @@ import re
 from dataclasses import dataclass
 from typing import Collection, Iterable, MutableMapping, TypeVar
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text, opaque_text
+
 MapValueT = TypeVar("MapValueT")
 
 _SAFE_WORKFLOW_NAME_PATTERN = re.compile(r"^[\w \-]+$")
@@ -30,8 +32,8 @@ _INVALID_NAME_MESSAGE = (
     "Invalid characters in name.\n\n"
     "Use only letters, numbers, spaces, underscores (_), or hyphens (-)."
 )
-DEFAULT_WORKFLOW_TAB_LABEL = "Untitled Workflow"
-_LEGACY_DEFAULT_WORKFLOW_TAB_LABEL = "Untitled Recipe"
+DEFAULT_WORKFLOW_TAB_LABEL = opaque_text("Untitled Workflow")
+_LEGACY_DEFAULT_WORKFLOW_TAB_LABEL = opaque_text("Untitled Recipe")
 _DEFAULT_WORKFLOW_TAB_LABEL_PATTERN = re.compile(
     rf"^{re.escape(DEFAULT_WORKFLOW_TAB_LABEL)}(?: \((\d+)\))?$"
 )
@@ -66,6 +68,21 @@ def is_default_workflow_tab_label(tab_label: str) -> bool:
         or _LEGACY_DEFAULT_WORKFLOW_TAB_LABEL_PATTERN.match(normalized_label)
         is not None
     )
+
+
+def workflow_tab_display_text(tab_label: str) -> ApplicationText:
+    """Project generated default labels while preserving authored workflow names."""
+
+    normalized_label = tab_label.strip()
+    match = _DEFAULT_WORKFLOW_TAB_LABEL_PATTERN.match(normalized_label)
+    if match is None:
+        match = _LEGACY_DEFAULT_WORKFLOW_TAB_LABEL_PATTERN.match(normalized_label)
+    if match is None:
+        return tab_label
+    suffix = match.group(1)
+    if suffix is None:
+        return app_text("Untitled Workflow")
+    return app_text("Untitled Workflow (%1)", suffix)
 
 
 @dataclass(frozen=True)
@@ -218,4 +235,5 @@ __all__ = [
     "WorkflowTabService",
     "is_default_workflow_tab_label",
     "normalize_default_workflow_tab_label",
+    "workflow_tab_display_text",
 ]

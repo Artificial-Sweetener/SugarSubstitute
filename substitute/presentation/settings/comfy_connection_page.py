@@ -18,6 +18,21 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationText,
+    apply_application_text,
+    app_text,
+    set_localized_placeholder,
+    set_localized_text,
+    translate_application_text,
+)
+from substitute.presentation.localization import (
+    LocalizedCaptionLabel,
+    LocalizedPrimaryPushButton,
+    LocalizedPushButton,
+    LocalizedRadioButton,
+)
+
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -32,12 +47,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    CaptionLabel,
     IconWidget,
     LineEdit,
-    PrimaryPushButton,
-    PushButton,
-    RadioButton,
     SpinBox,
 )
 
@@ -71,21 +82,23 @@ from substitute.presentation.platform_path_guidance import existing_comfy_exampl
 _LOAD_SNAPSHOT_TASK_ID = "comfy_connection.load_snapshot"
 _SAVE_DRAFT_TASK_ID = "comfy_connection.save_draft"
 _TEST_ENDPOINT_TASK_ID = "comfy_connection.test_endpoint"
-_MODE_OPTIONS: tuple[tuple[str, ComfyTargetMode, str], ...] = (
+_MODE_OPTIONS: tuple[tuple[ApplicationText, ComfyTargetMode, ApplicationText], ...] = (
     (
-        "Managed local",
+        app_text("Managed local"),
         ComfyTargetMode.MANAGED_LOCAL,
-        "Substitute stores, prepares, and launches this local ComfyUI installation.",
+        app_text(
+            "Substitute stores, prepares, and launches this local ComfyUI installation."
+        ),
     ),
     (
-        "Existing local",
+        app_text("Existing local"),
         ComfyTargetMode.ATTACHED_LOCAL,
-        "Substitute launches and prepares a ComfyUI folder you already have.",
+        app_text("Substitute launches and prepares a ComfyUI folder you already have."),
     ),
     (
-        "Remote",
+        app_text("Remote"),
         ComfyTargetMode.REMOTE,
-        "Substitute connects to a ComfyUI server you run separately.",
+        app_text("Substitute connects to a ComfyUI server you run separately."),
     ),
 )
 _HOST_FIELD_WIDTH = 180
@@ -100,14 +113,14 @@ class _ComfySourceSelector(QWidget):
 
     def __init__(
         self,
-        options: tuple[tuple[str, ComfyTargetMode, str], ...],
+        options: tuple[tuple[ApplicationText, ComfyTargetMode, ApplicationText], ...],
         parent: QWidget | None = None,
     ) -> None:
         """Create the visible source selector for one Settings page."""
 
         super().__init__(parent)
         self._options = options
-        self._buttons: dict[ComfyTargetMode, RadioButton] = {}
+        self._buttons: dict[ComfyTargetMode, LocalizedRadioButton] = {}
         self._button_group = QButtonGroup(self)
         self._button_group.setExclusive(True)
         self.setObjectName("ComfyConnectionSourceSelector")
@@ -119,7 +132,7 @@ class _ComfySourceSelector(QWidget):
     def option_labels(self) -> tuple[str, ...]:
         """Return the visible source option labels."""
 
-        return tuple(label for label, _mode, _description in self._options)
+        return tuple(button.text() for button in self._buttons.values())
 
     def selected_mode(self) -> ComfyTargetMode:
         """Return the currently selected source mode."""
@@ -148,9 +161,9 @@ class _ComfySourceSelector(QWidget):
 
     def _build_option_row(
         self,
-        label: str,
+        label: ApplicationText,
         mode: ComfyTargetMode,
-        description: str,
+        description: ApplicationText,
     ) -> QWidget:
         """Create one radio option row."""
 
@@ -161,7 +174,7 @@ class _ComfySourceSelector(QWidget):
         row_layout.setContentsMargins(0, 0, 0, 0)
         row_layout.setSpacing(2)
 
-        button = RadioButton(label, row)
+        button = LocalizedRadioButton(label, row)
         button.setObjectName(f"ComfyConnectionSource{mode.value.title()}Radio")
         button.toggled.connect(
             lambda checked, selected_mode=mode: self._emit_mode_if_checked(
@@ -173,7 +186,7 @@ class _ComfySourceSelector(QWidget):
         self._button_group.addButton(button)
         row_layout.addWidget(button)
 
-        description_label = CaptionLabel(description, row)
+        description_label = LocalizedCaptionLabel(description, row)
         description_label.setWordWrap(True)
         description_label.setContentsMargins(24, 0, 0, 0)
         row_layout.addWidget(description_label)
@@ -307,12 +320,12 @@ class ComfyConnectionSettingsPage(QWidget):
         self.actions_widget = self._build_actions_widget()
 
         self.source_group = SettingsCardGroup(
-            "ComfyUI source",
+            app_text("ComfyUI source"),
             cards=(self.source_row,),
             parent=self,
         )
         self.configuration_group = SettingsCardGroup(
-            "Managed local setup",
+            app_text("Managed local setup"),
             cards=(
                 self.managed_folder_row,
                 self.model_folder_row,
@@ -324,7 +337,7 @@ class ComfyConnectionSettingsPage(QWidget):
             parent=self,
         )
         self.connection_check_group = SettingsCardGroup(
-            "Connection check",
+            app_text("Connection check"),
             cards=(self.connection_feedback_bar, self.connection_check_row),
             parent=self,
         )
@@ -342,8 +355,10 @@ class ComfyConnectionSettingsPage(QWidget):
         self.source_selector.modeChanged.connect(self._on_source_mode_changed)
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.PLUG_CONNECTED_SETTINGS_20_REGULAR),
-            title="ComfyUI source",
-            description="Choose the ComfyUI instance Substitute uses for image generation.",
+            title=app_text("ComfyUI source"),
+            description=app_text(
+                "Choose the ComfyUI instance Substitute uses for image generation."
+            ),
             trailing_widget=self.source_selector,
             reserve_visual_space=True,
             content_alignment="vertical",
@@ -353,10 +368,10 @@ class ComfyConnectionSettingsPage(QWidget):
     def _build_connection_check_row(self) -> SettingsCard:
         """Create the connection-test and saved-settings refresh row."""
 
-        refresh_button = PushButton("Refresh", self)
+        refresh_button = LocalizedPushButton(app_text("Refresh"), self)
         refresh_button.clicked.connect(self.reload)
         self.refresh_button = refresh_button
-        test_button = PushButton("Test connection", self)
+        test_button = LocalizedPushButton(app_text("Test connection"), self)
         test_button.clicked.connect(self._test_connection)
         self.test_button = test_button
         controls = self._control_row(refresh_button, test_button)
@@ -364,8 +379,8 @@ class ComfyConnectionSettingsPage(QWidget):
             visual_widget=self._icon_widget(
                 AppIcon.PLUG_CONNECTED_CHECKMARK_20_REGULAR
             ),
-            title="Connection check",
-            description="Loading ComfyUI connection settings.",
+            title=app_text("Connection check"),
+            description=app_text("Loading ComfyUI connection settings."),
             trailing_widget=controls,
             reserve_visual_space=True,
             parent=self,
@@ -392,8 +407,10 @@ class ComfyConnectionSettingsPage(QWidget):
         controls = self._control_row(self.host_edit, self.port_spinbox)
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.GLOBE_DESKTOP_20_REGULAR),
-            title="Local endpoint",
-            description="Substitute connects to the local ComfyUI process at this address.",
+            title=app_text("Local endpoint"),
+            description=app_text(
+                "Substitute connects to the local ComfyUI process at this address."
+            ),
             trailing_widget=controls,
             reserve_visual_space=True,
             parent=self,
@@ -406,13 +423,15 @@ class ComfyConnectionSettingsPage(QWidget):
         self.managed_folder_edit.textChanged.connect(
             self._on_managed_folder_text_changed
         )
-        browse_button = PushButton("Browse", self)
+        browse_button = LocalizedPushButton(app_text("Browse"), self)
         browse_button.clicked.connect(self._browse_managed_folder)
         controls = self._control_row(self.managed_folder_edit, browse_button)
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.SERVER_20_REGULAR),
-            title="ComfyUI folder",
-            description="Substitute stores the managed ComfyUI installation in this folder.",
+            title=app_text("ComfyUI folder"),
+            description=app_text(
+                "Substitute stores the managed ComfyUI installation in this folder."
+            ),
             trailing_widget=controls,
             reserve_visual_space=True,
             parent=self,
@@ -422,12 +441,12 @@ class ComfyConnectionSettingsPage(QWidget):
         """Create the managed-local model root path row."""
 
         self.model_folder_edit = self._path_edit("ComfyConnectionModelFolderEdit")
-        self.model_folder_edit.setPlaceholderText("Path on the ComfyUI host")
+        set_localized_placeholder(self.model_folder_edit, "Path on the ComfyUI host")
         self.model_folder_edit.textChanged.connect(self._on_model_root_text_changed)
-        browse_button = PushButton("Browse", self)
+        browse_button = LocalizedPushButton(app_text("Browse"), self)
         browse_button.clicked.connect(self._browse_model_folder)
         self.model_folder_browse_button = browse_button
-        default_button = PushButton("Use default", self)
+        default_button = LocalizedPushButton(app_text("Use default"), self)
         default_button.clicked.connect(self._use_default_model_folder)
         self.model_folder_default_button = default_button
         controls = self._control_row(
@@ -437,10 +456,12 @@ class ComfyConnectionSettingsPage(QWidget):
         )
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.CUBE_MULTIPLE_20_REGULAR),
-            title="Model folder",
+            title=app_text("Model folder"),
             description=(
-                "Changes this ComfyUI installation's model folder, including when "
-                "ComfyUI starts on its own."
+                app_text(
+                    "Changes this ComfyUI installation's model folder, including when "
+                    "ComfyUI starts on its own."
+                )
             ),
             trailing_widget=controls,
             reserve_visual_space=True,
@@ -453,9 +474,9 @@ class ComfyConnectionSettingsPage(QWidget):
         self.existing_folder_edit = self._path_edit("ComfyConnectionExistingFolderEdit")
         self.existing_folder_edit.setPlaceholderText(existing_comfy_example())
         self.existing_folder_edit.textChanged.connect(self._on_draft_changed)
-        browse_button = PushButton("Browse", self)
+        browse_button = LocalizedPushButton(app_text("Browse"), self)
         browse_button.clicked.connect(self._browse_existing_folder)
-        clear_button = PushButton("Clear", self)
+        clear_button = LocalizedPushButton(app_text("Clear"), self)
         clear_button.clicked.connect(self.existing_folder_edit.clear)
         controls = self._control_row(
             self.existing_folder_edit,
@@ -464,10 +485,12 @@ class ComfyConnectionSettingsPage(QWidget):
         )
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.FOLDER_OPEN_20_REGULAR),
-            title="ComfyUI folder",
+            title=app_text("ComfyUI folder"),
             description=(
-                "Choose the folder that contains the ComfyUI installation "
-                "Substitute should launch."
+                app_text(
+                    "Choose the folder that contains the ComfyUI installation "
+                    "Substitute should launch."
+                )
             ),
             trailing_widget=controls,
             reserve_visual_space=True,
@@ -478,16 +501,18 @@ class ComfyConnectionSettingsPage(QWidget):
         """Create the attached-local Python executable row."""
 
         self.existing_python_edit = self._path_edit("ComfyConnectionExistingPythonEdit")
-        self.existing_python_edit.setPlaceholderText("Automatically detect")
+        set_localized_placeholder(self.existing_python_edit, "Automatically detect")
         self.existing_python_edit.textChanged.connect(self._on_draft_changed)
-        browse_button = PushButton("Browse", self)
+        browse_button = LocalizedPushButton(app_text("Browse"), self)
         browse_button.clicked.connect(self._browse_existing_python)
-        clear_button = PushButton("Auto-detect", self)
+        clear_button = LocalizedPushButton(app_text("Auto-detect"), self)
         clear_button.clicked.connect(self.existing_python_edit.clear)
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.SERVER_20_REGULAR),
-            title="Python executable",
-            description="The Python environment this ComfyUI installation uses.",
+            title=app_text("Python executable"),
+            description=app_text(
+                "The Python environment this ComfyUI installation uses."
+            ),
             trailing_widget=self._control_row(
                 self.existing_python_edit,
                 browse_button,
@@ -500,13 +525,13 @@ class ComfyConnectionSettingsPage(QWidget):
     def _build_setup_action_row(self) -> SettingsCard:
         """Create the local setup wizard action row."""
 
-        wizard_button = PushButton("Open setup wizard", self)
+        wizard_button = LocalizedPushButton(app_text("Open setup wizard"), self)
         wizard_button.clicked.connect(self._open_reconfigure_window)
         self.wizard_button = wizard_button
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.TOOLBOX_20_REGULAR),
-            title="Setup wizard",
-            description="Open guided setup for this local ComfyUI source.",
+            title=app_text("Setup wizard"),
+            description=app_text("Open guided setup for this local ComfyUI source."),
             trailing_widget=wizard_button,
             reserve_visual_space=True,
             parent=self,
@@ -523,9 +548,9 @@ class ComfyConnectionSettingsPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addStretch(1)
-        self.save_button = PrimaryPushButton("Save changes", widget)
+        self.save_button = LocalizedPrimaryPushButton(app_text("Save changes"), widget)
         self.save_button.clicked.connect(self._save_changes)
-        self.discard_button = PushButton("Discard changes", widget)
+        self.discard_button = LocalizedPushButton(app_text("Discard changes"), widget)
         self.discard_button.clicked.connect(self._discard_changes)
         layout.addWidget(
             SettingsControlGroup(
@@ -564,7 +589,10 @@ class ComfyConnectionSettingsPage(QWidget):
         self._default_managed_model_root = snapshot.default_managed_model_root
         self._apply_draft(self._loaded_draft)
         self.connection_feedback_bar.clear()
-        self.connection_check_row.description_label.setText(snapshot.status_message)
+        apply_application_text(
+            self.connection_check_row.description_label,
+            snapshot.status_message,
+        )
         self._sync_mode_rows()
         self._sync_dirty_state()
 
@@ -666,19 +694,21 @@ class ComfyConnectionSettingsPage(QWidget):
         self.existing_python_row.setVisible(is_existing)
         self.setup_action_row.setVisible(not is_remote)
         if is_remote:
-            self.configuration_group.set_heading("Remote server")
-            self.endpoint_row.title_label.setText("Server endpoint")
-            self.endpoint_row.description_label.setText(
-                "Substitute connects to this ComfyUI server."
+            self.configuration_group.set_heading(app_text("Remote server"))
+            set_localized_text(self.endpoint_row.title_label, "Server endpoint")
+            set_localized_text(
+                self.endpoint_row.description_label,
+                "Substitute connects to this ComfyUI server.",
             )
             return
         if is_existing:
-            self.configuration_group.set_heading("Existing local setup")
+            self.configuration_group.set_heading(app_text("Existing local setup"))
         else:
-            self.configuration_group.set_heading("Managed local setup")
-        self.endpoint_row.title_label.setText("Local endpoint")
-        self.endpoint_row.description_label.setText(
-            "Substitute connects to the local ComfyUI process at this address."
+            self.configuration_group.set_heading(app_text("Managed local setup"))
+        set_localized_text(self.endpoint_row.title_label, "Local endpoint")
+        set_localized_text(
+            self.endpoint_row.description_label,
+            "Substitute connects to the local ComfyUI process at this address.",
         )
 
     def _sync_dirty_state(self) -> None:
@@ -718,13 +748,16 @@ class ComfyConnectionSettingsPage(QWidget):
     def _render_test_result(self, result: ComfyConnectionSaveResult) -> None:
         """Render one endpoint-test result in the status row."""
 
-        self.connection_check_row.description_label.setText(result.message)
+        apply_application_text(
+            self.connection_check_row.description_label,
+            result.message,
+        )
         self.connection_feedback_bar.show_message(
             severity="success" if result.succeeded else "error",
             title=(
-                "Connection check succeeded"
+                app_text("Connection check succeeded")
                 if result.succeeded
-                else "Connection check failed"
+                else app_text("Connection check failed")
             ),
             message=result.message,
         )
@@ -825,7 +858,7 @@ class ComfyConnectionSettingsPage(QWidget):
 
         selected = QFileDialog.getExistingDirectory(
             self,
-            "Choose Managed ComfyUI Folder",
+            translate_application_text("Choose Managed ComfyUI Folder"),
             self.managed_folder_edit.text(),
         )
         if selected:
@@ -836,7 +869,7 @@ class ComfyConnectionSettingsPage(QWidget):
 
         selected = QFileDialog.getExistingDirectory(
             self,
-            "Choose Existing ComfyUI Folder",
+            translate_application_text("Choose Existing ComfyUI Folder"),
             self.existing_folder_edit.text(),
         )
         if selected:
@@ -847,9 +880,11 @@ class ComfyConnectionSettingsPage(QWidget):
 
         selected, _selected_filter = QFileDialog.getOpenFileName(
             self,
-            "Choose ComfyUI Python Executable",
+            translate_application_text("Choose ComfyUI Python Executable"),
             self.existing_python_edit.text(),
-            "Python executable (python.exe python);;All files (*)",
+            translate_application_text(
+                "Python executable (python.exe python);;All files (*)"
+            ),
         )
         if selected:
             self.existing_python_edit.setText(selected)
@@ -859,7 +894,7 @@ class ComfyConnectionSettingsPage(QWidget):
 
         selected = QFileDialog.getExistingDirectory(
             self,
-            "Choose Model Folder",
+            translate_application_text("Choose Model Folder"),
             self.model_folder_edit.text(),
         )
         if selected:

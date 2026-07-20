@@ -18,6 +18,13 @@
 
 from __future__ import annotations
 
+from substitute.presentation.workflows.workflow_tabs_view import (
+    set_workflow_tab_source_text,
+    workflow_tab_source_text,
+)
+
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Protocol
@@ -148,7 +155,7 @@ class DirectWorkflowFileActions:
         if not callable(resolve_unique_label):
             raise RuntimeError("Workflow tab service cannot resolve document labels.")
         existing_labels = {
-            item.text()
+            workflow_tab_source_text(item)
             for key, item in item_map.items()
             if key != workflow_id and hasattr(item, "text")
         }
@@ -156,7 +163,7 @@ class DirectWorkflowFileActions:
         target_item = item_map.get(workflow_id)
         if target_item is None or not hasattr(target_item, "setText"):
             raise RuntimeError("Target workflow tab item is unavailable.")
-        target_item.setText(label)
+        set_workflow_tab_source_text(target_item, label)
 
     def _mark_surfaces_dirty(self, workflow_id: str) -> None:
         """Request shared workflow surfaces after document state changes."""
@@ -185,8 +192,10 @@ class DirectWorkflowFileActions:
         if self._error_presenter is None:
             return
         self._error_presenter.show_exception_report(
-            title="Workflow could not be loaded",
-            message="Substitute could not read this ComfyUI workflow document.",
+            title=app_text("Workflow could not be loaded"),
+            message=app_text(
+                "Substitute could not read this ComfyUI workflow document."
+            ),
             stage="load",
             error=error,
             context=SubstituteOperationContext(

@@ -30,8 +30,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import SubtitleLabel  # type: ignore[import-untyped]
-
 from substitute.application.danbooru.content_models import (
     DanbooruWikiImagePreview,
 )
@@ -50,17 +48,18 @@ from substitute.presentation.danbooru.wiki_inline_flow import DanbooruWikiInline
 from substitute.presentation.danbooru.wiki_inline_html_renderer import (
     render_inline_nodes_to_html,
 )
+from substitute.presentation.localization import LocalizedSubtitleLabel
 
 _WIKI_SCHEME_PREFIX = "danbooru-wiki:"
 _FRAGMENT_SCHEME_PREFIX = "danbooru-fragment:"
 _TEXT_BLOCK_HTML_PREFIX = (
     "<html><head><style>"
-    "body { font-family: 'Segoe UI'; font-size: 10pt; line-height: 1.45; color: palette(text); }"
+    "body { font-family: sans-serif; font-size: 10pt; line-height: 1.45; color: palette(text); }"
     "p { margin: 0 0 10px 0; }"
     "ul,ol { margin: 0 0 10px 0; padding-left: 14px; }"
     "li { margin: 0 0 4px 0; }"
     "blockquote { margin: 0 0 10px 12px; padding-left: 10px; border-left: 3px solid rgba(127,127,127,0.35); }"
-    "code { font-family: 'Cascadia Mono'; background: rgba(127,127,127,0.12); padding: 1px 3px; border-radius: 3px; }"
+    "code { font-family: monospace; background: rgba(127,127,127,0.12); padding: 1px 3px; border-radius: 3px; }"
     "a { text-decoration: none; }"
     "</style></head><body>"
 )
@@ -167,7 +166,7 @@ class DanbooruWikiSectionWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
         if section.heading:
-            heading_label = SubtitleLabel(section.heading, self)
+            heading_label = LocalizedSubtitleLabel(section.heading, self)
             layout.addWidget(heading_label)
         for block in section.blocks:
             if isinstance(block, DanbooruWikiParagraphBlock):

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 import os
 from dataclasses import dataclass
 from typing import Any, cast
@@ -555,7 +557,7 @@ def _snapshot(
                     payload=PromptLoraTriggerWordsPayload(
                         insertion_text="friendly words",
                         display_name="Friendly",
-                        full_label="Trigger words: Friendly",
+                        full_label=app_text("Trigger words: %1", "Friendly"),
                     ),
                 ),
             ),

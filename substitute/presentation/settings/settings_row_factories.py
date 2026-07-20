@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.presentation.localization import LocalizedSwitchButton
+
 from collections.abc import Callable
 from typing import Any
 
@@ -26,7 +28,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     ComboBox,
     IconWidget,
     IndicatorPosition,
-    SwitchButton,
 )
 
 from substitute.presentation.settings.settings_card import (
@@ -51,9 +52,7 @@ def build_switch_settings_row(
 ) -> InteractiveSettingsCard:
     """Create a standard clickable switch Settings row."""
 
-    switch = SwitchButton("Off", parent, indicatorPos=IndicatorPosition.RIGHT)
-    switch.setOnText("On")
-    switch.setOffText("Off")
+    switch = LocalizedSwitchButton("Off", parent, indicatorPos=IndicatorPosition.RIGHT)
     switch.setChecked(checked)
     switch.checkedChanged.connect(on_changed)
     row = InteractiveSettingsCard(

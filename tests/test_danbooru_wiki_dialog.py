@@ -26,7 +26,7 @@ from typing import cast
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtCore import QPoint, Qt, QUrl
+from PySide6.QtCore import QEvent, QPoint, QTranslator, Qt, QUrl
 from PySide6.QtGui import QColor, QGuiApplication, QImage
 from PySide6.QtWidgets import QApplication, QFrame, QLabel, QWidget
 from qfluentwidgets import TitleLabel, ToolButton  # type: ignore[import-untyped]
@@ -234,6 +234,69 @@ def test_danbooru_wiki_dialog_renders_metadata_and_body() -> None:
     assert _dialog_contains_text(dialog, "Hair that extends below the shoulders.")
     assert dialog._open_button.isEnabled() is True
     assert dialog._copy_button.isEnabled() is True
+
+
+def test_danbooru_header_actions_retranslate_without_recreating_dialog() -> None:
+    """Keep persistent header tooltips and accessibility in the active locale."""
+
+    app = _app()
+    resource_root = (
+        Path(__file__).resolve().parents[1]
+        / "substitute"
+        / "presentation"
+        / "resources"
+        / "i18n"
+    )
+    chinese = QTranslator()
+    japanese = QTranslator()
+    assert chinese.load(str(resource_root / "sugarsubstitute_zh_CN.qm"))
+    assert japanese.load(str(resource_root / "sugarsubstitute_ja_JP.qm"))
+    assert app.installTranslator(chinese)
+    dialog = DanbooruWikiDialog(
+        wiki_service=_StubDanbooruWikiService(
+            selection_results={"long hair": _success_result(_page_view())}
+        ),
+        selection_text="long hair",
+        lookup_dispatcher=_ImmediateDispatcher(),
+    )
+    buttons = (
+        dialog._back_button,
+        dialog._forward_button,
+        dialog._copy_button,
+        dialog._open_button,
+        dialog._close_button,
+    )
+    try:
+        assert [button.toolTip() for button in buttons] == [
+            "返回",
+            "前进",
+            "复制标签标题",
+            "在浏览器中打开标签百科文章",
+            "关闭",
+        ]
+        assert [button.accessibleName() for button in buttons] == [
+            button.toolTip() for button in buttons
+        ]
+
+        assert app.removeTranslator(chinese)
+        assert app.installTranslator(japanese)
+        for button in buttons:
+            app.sendEvent(button, QEvent(QEvent.Type.LanguageChange))
+
+        assert [button.toolTip() for button in buttons] == [
+            "戻る",
+            "進む",
+            "タグのタイトルをコピー",
+            "タグの Wiki 記事をブラウザーで開く",
+            "閉じる",
+        ]
+        assert [button.accessibleName() for button in buttons] == [
+            button.toolTip() for button in buttons
+        ]
+    finally:
+        app.removeTranslator(japanese)
+        app.removeTranslator(chinese)
+        dialog.close()
 
 
 def test_danbooru_wiki_dialog_routes_internal_links_inside_modal() -> None:

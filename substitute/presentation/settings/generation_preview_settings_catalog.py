@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+
 from substitute.application.generation import GenerationPreviewPreferenceService
 from substitute.presentation.settings.generation_preview_settings import (
     GenerationPreviewSettingsControl,

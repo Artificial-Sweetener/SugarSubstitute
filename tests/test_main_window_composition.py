@@ -567,6 +567,8 @@ def _dependencies() -> SimpleNamespace:
         "cube_library_client",
         "generation_result_snapshot_service",
         "recipe_output_sibling_discovery_service",
+        "localization_manager",
+        "node_presentation_service",
     ]
     return SimpleNamespace(**{name: object() for name in dependency_names})
 

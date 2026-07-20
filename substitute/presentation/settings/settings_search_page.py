@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable
 
 from PySide6.QtWidgets import QVBoxLayout, QWidget
@@ -59,8 +61,8 @@ class SettingsSearchPage(QWidget):
         if not self._results:
             layout.addWidget(
                 SettingsCard(
-                    title="No settings found",
-                    description="Try a different search term.",
+                    title=app_text("No settings found"),
+                    description=app_text("Try a different search term."),
                     reserve_visual_space=False,
                     parent=self,
                 )

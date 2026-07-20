@@ -18,16 +18,27 @@
 
 from __future__ import annotations
 
-from substitute.application.errors import ErrorReport, render_error_report
+from dataclasses import dataclass
+
+from substitute.application.errors import (
+    ErrorReport,
+    ReportTextRenderer,
+    render_error_report,
+)
 
 
+@dataclass(frozen=True, slots=True)
 class ErrorReportBuilder:
     """Build copyable plain-text reports from structured error facts."""
+
+    text_renderer: ReportTextRenderer | None = None
 
     def render(self, report: ErrorReport) -> str:
         """Return a deterministic plain-text report for one error."""
 
-        return render_error_report(report)
+        if self.text_renderer is None:
+            return render_error_report(report)
+        return render_error_report(report, self.text_renderer)
 
 
 __all__ = ["ErrorReportBuilder", "render_error_report"]

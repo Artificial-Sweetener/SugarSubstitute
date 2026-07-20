@@ -40,6 +40,11 @@ from substitute.presentation.shell.window_frame import (
     ShellBackdropMode,
     apply_acrylic_effect,
 )
+from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.localization import (
+    LocalizationBindings,
+    render_application_text,
+)
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
@@ -98,6 +103,7 @@ class SplashWindow(AcrylicWindow):
         """Build the splash window with one shared terminal output surface."""
 
         super().__init__(parent)
+        self._localization = LocalizationBindings(self)
         window_icon = icon or application_icon()
         self.setWindowIcon(window_icon)
         self._backdrop_mode = backdrop_mode
@@ -148,7 +154,10 @@ class SplashWindow(AcrylicWindow):
 
         self.setFixedSize(_SPLASH_WINDOW_RECT.size())
         self._apply_content_geometry()
-        self.setWindowTitle("Loading...")
+        self._localization.bind_window_title(
+            self,
+            lambda: render_application_text(app_text("Loading...")),
+        )
 
         self.logRequested.connect(self._do_append_log)
 
@@ -213,7 +222,10 @@ class SplashWindow(AcrylicWindow):
             titlebar.minBtn.hide()
             titlebar.maxBtn.hide()
             titlebar.closeBtn.show()
-            titlebar.closeBtn.setToolTip("Cancel loading")
+            self._localization.bind_tooltip(
+                titlebar.closeBtn,
+                lambda: render_application_text(app_text("Cancel loading")),
+            )
             titlebar.setDoubleClickEnabled(False)
             try:
                 titlebar.closeBtn.clicked.disconnect()

@@ -35,6 +35,7 @@ from sugarsubstitute_shared.launch_splash import (
     splash_session_args,
 )
 from sugarsubstitute_shared.launch_splash.session import validate_splash_session_spec
+from sugarsubstitute_shared.localization import format_locale_argument
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,12 +55,17 @@ class LauncherSplashSession:
 def start_launcher_splash_session(
     *,
     layout: InstallLayout,
+    locale_identifier: str,
     popen: Callable[..., subprocess.Popen[str]] = subprocess.Popen,
 ) -> LauncherSplashSession | None:
     """Start the shared splash host process for production app handoff."""
 
     try:
-        process = _start_splash_host_process(layout=layout, popen=popen)
+        process = _start_splash_host_process(
+            layout=layout,
+            locale_identifier=locale_identifier,
+            popen=popen,
+        )
         spec = _read_ready_spec(process=process, timeout_seconds=_READY_TIMEOUT_SECONDS)
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
         _LOGGER.warning("Shared launcher splash session unavailable: %r", error)
@@ -85,6 +91,7 @@ def start_launcher_splash_session(
 def _start_splash_host_process(
     *,
     layout: InstallLayout,
+    locale_identifier: str,
     popen: Callable[..., subprocess.Popen[str]],
 ) -> subprocess.Popen[str]:
     """Launch the app-payload splash host without importing app code."""
@@ -93,6 +100,7 @@ def _start_splash_host_process(
         str(layout.runtime_python),
         "-m",
         _HOST_MODULE,
+        format_locale_argument(locale_identifier),
     ]
     return popen(
         command,

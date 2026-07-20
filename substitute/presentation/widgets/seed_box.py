@@ -18,6 +18,12 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    set_localized_tooltip,
+    translate_application_text,
+)
+
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
 from PySide6.QtCore import QSize, Qt, Signal
@@ -294,13 +300,13 @@ def _seed_mode_menu(
                 entries=(
                     MenuItem(
                         "seed.randomize",
-                        "Randomize",
+                        app_text("Randomize"),
                         callback=cast(Any, random_callback),
                         icon=_RANDOM_SEED_ICON,
                     ),
                     MenuItem(
                         "seed.use_current",
-                        "Use Current",
+                        app_text("Use Current"),
                         callback=cast(Any, fixed_callback),
                         icon=_FIXED_SEED_ICON,
                     ),
@@ -319,13 +325,13 @@ def _seed_mode_menu(
     menu = cast(Any, RoundMenu(parent=parent))
     random_action = Action(
         _RANDOM_SEED_ICON,
-        "Randomize",
+        translate_application_text("Randomize"),
         parent,
         triggered=random_callback,
     )
     fixed_action = Action(
         _FIXED_SEED_ICON,
-        "Use Current",
+        translate_application_text("Use Current"),
         parent,
         triggered=fixed_callback,
     )
@@ -391,7 +397,7 @@ class SeedBox(QWidget):
         self.split_button = cast(Any, SplitToolButton(_RANDOM_SEED_ICON, self))
         if hasattr(self.split_button, "setFlyout"):
             self.split_button.setFlyout(self.menu)
-        self.split_button.setToolTip("Seed options")
+        set_localized_tooltip(self.split_button, "Seed options")
         self.split_button.setEnabled(True)
         self._connect_primary_button()
 

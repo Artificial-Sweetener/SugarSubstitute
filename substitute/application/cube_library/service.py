@@ -21,6 +21,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.application.ports import CubeLibraryClient
 from substitute.domain.cube_library import (
     CubeDependencyInstallPlanItem,
@@ -238,7 +240,7 @@ class CubeLibraryManagementService:
     def recipe_drift_messages(
         self,
         buffers: Mapping[str, Mapping[str, object]],
-    ) -> tuple[str, ...]:
+    ) -> tuple[ApplicationText, ...]:
         """Return recipe cube availability notices for a recipe load."""
 
         catalog = self.client.get_catalog()
@@ -246,7 +248,7 @@ class CubeLibraryManagementService:
             return ()
 
         catalog_by_cube_id = {entry.cube_id: entry for entry in catalog.cubes}
-        messages: list[str] = []
+        messages: list[ApplicationText] = []
         for alias, buffer_data in buffers.items():
             cube_id = _string_value(buffer_data.get("cube_id"))
             if not cube_id:
@@ -255,12 +257,16 @@ class CubeLibraryManagementService:
             entry = catalog_by_cube_id.get(cube_id)
             label = _recipe_cube_label(alias, cube_id)
             if entry is None:
-                messages.append(f"{label} is not available in the active Cube Library.")
+                messages.append(
+                    app_text("%1 is not available in the active Cube Library.", label)
+                )
                 continue
 
             if entry.source.dirty:
                 messages.append(
-                    f"{label} currently has uncommitted Cube Library changes."
+                    app_text(
+                        "%1 currently has uncommitted Cube Library changes.", label
+                    )
                 )
 
         return tuple(messages)
@@ -274,10 +280,10 @@ def _string_value(value: object) -> str:
     return value.strip()
 
 
-def _recipe_cube_label(alias: str, cube_id: str) -> str:
+def _recipe_cube_label(alias: str, cube_id: str) -> ApplicationText:
     """Return a concise recipe cube label for user-facing notices."""
 
-    return f"Cube '{alias}' ({cube_id})"
+    return app_text("Cube '%1' (%2)", alias, cube_id)
 
 
 def _cube_paths_by_pack(catalog: object) -> dict[str, tuple[str, ...]]:

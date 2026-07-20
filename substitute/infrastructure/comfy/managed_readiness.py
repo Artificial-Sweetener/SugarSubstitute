@@ -23,6 +23,8 @@ import http.client
 import socket
 import time
 
+from sugarsubstitute_shared.localization import app_text
+
 from substitute.application.execution import CancellationToken
 
 StatusCallback = Callable[[str], None]
@@ -50,7 +52,7 @@ def wait_for_ready(
             return True
         time.sleep(_RETRY_DELAY_SECONDS)
         if on_status is not None:
-            on_status("Waiting for ComfyUI to become ready…")
+            on_status(app_text("Waiting for ComfyUI to become ready…"))
     return False
 
 

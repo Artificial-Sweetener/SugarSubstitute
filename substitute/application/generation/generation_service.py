@@ -27,6 +27,8 @@ from pathlib import Path
 from typing import Any, Callable, Protocol, cast
 from uuid import uuid4
 
+from sugarsubstitute_shared.localization import app_text
+
 from substitute.application.cubes import cube_alias_body
 from substitute.application.direct_workflows import (
     DirectWorkflowExecutionProjector,
@@ -422,10 +424,11 @@ class GenerationService:
                     failure=GenerationFailure(
                         stage="stage",
                         workflow_id=request.workflow_id,
-                        message=(
-                            "Failed to stage workflow asset "
-                            f"{failure.node_id}.{failure.input_name}: "
-                            f"{failure.message}"
+                        message=app_text(
+                            "Failed to stage workflow asset %1.%2: %3",
+                            failure.node_id,
+                            failure.input_name,
+                            failure.message,
                         ),
                     ),
                 )
@@ -496,7 +499,7 @@ class GenerationService:
                     generation_run_id=generation_run_id,
                     client_id=run_client_id,
                     message=listener_session_result.error
-                    or "Failed to connect generation listener session",
+                    or app_text("Failed to connect generation listener session"),
                 ),
             )
         listener_session = listener_session_result.handle
@@ -542,7 +545,7 @@ class GenerationService:
                     generation_run_id=generation_run_id,
                     client_id=run_client_id,
                     message=queue_result.error
-                    or "queue_prompt did not return prompt_id",
+                    or app_text("queue_prompt did not return prompt_id"),
                     error_report=queue_result.error_report,
                 ),
             )
@@ -635,7 +638,7 @@ class GenerationService:
                     prompt_id=prompt_id,
                     client_id=run_client_id,
                     message=listener_result.error
-                    or "Failed to start generation listener",
+                    or app_text("Failed to start generation listener"),
                 ),
             )
 

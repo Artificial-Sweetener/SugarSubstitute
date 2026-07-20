@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.cube_library import CubeLibrarySnapshot
 from substitute.domain.cube_library import (
     CubeDependencyVersionPlanItem,
@@ -50,7 +52,10 @@ def test_project_pack_builds_summary_badges_and_detail_rows() -> None:
     )
 
     assert view.title == "Owner/Repo"
-    assert view.subtitle == "2 cubes · Sync failed · Disabled · Update available"
+    assert (
+        render_source_application_text(view.subtitle)
+        == "2 cubes · Sync failed · Disabled · Update available"
+    )
     assert [(badge.text, badge.severity) for badge in view.badges] == [
         ("Base", "neutral"),
         ("Disabled", "warning"),
@@ -83,8 +88,13 @@ def test_project_pack_hides_empty_error_rows_and_uses_placeholders() -> None:
         )
     )
 
-    assert view.subtitle == "2 cubes · Never synced"
-    labels = {detail.label: detail.value for detail in view.details}
+    assert render_source_application_text(view.subtitle) == "2 cubes · Never synced"
+    labels = {
+        render_source_application_text(detail.label): render_source_application_text(
+            detail.value
+        )
+        for detail in view.details
+    }
     assert labels["Cubes"] == "2 cubes"
     assert labels["Last synced"] == "Never"
     assert "Last sync error" not in labels
@@ -115,7 +125,7 @@ def test_project_readiness_lists_missing_nodes() -> None:
     )
 
     assert view.ready is False
-    assert view.summary == "Missing custom nodes: 1"
+    assert render_source_application_text(view.summary) == "Missing custom nodes: 1"
     assert [
         (detail.label, detail.value, detail.severity) for detail in view.details
     ] == [
@@ -184,14 +194,28 @@ def test_project_readiness_lists_version_and_runtime_issues() -> None:
     )
 
     assert view.ready is False
-    assert view.summary == "Dependency version issues: 2"
+    assert (
+        render_source_application_text(view.summary) == "Dependency version issues: 2"
+    )
     assert (
         "Dependency versions",
         "SimpleSyrup: installed_commit_not_descendant",
         "error",
-    ) in [(detail.label, detail.value, detail.severity) for detail in view.details]
+    ) in [
+        (
+            render_source_application_text(detail.label),
+            render_source_application_text(detail.value),
+            detail.severity,
+        )
+        for detail in view.details
+    ]
     assert ("Comfy runtime", "Comfy 0.3.66: installed_version_unknown", "error") in [
-        (detail.label, detail.value, detail.severity) for detail in view.details
+        (
+            render_source_application_text(detail.label),
+            render_source_application_text(detail.value),
+            detail.severity,
+        )
+        for detail in view.details
     ]
 
 
@@ -219,7 +243,10 @@ def test_project_library_status_reports_target_and_sync_all_availability() -> No
     unavailable = project_library_status(None)
 
     assert available.available is True
-    assert available.description == "Connected to 127.0.0.1:8188."
+    assert (
+        render_source_application_text(available.description)
+        == "Connected to 127.0.0.1:8188."
+    )
     assert available.can_sync_all is True
     assert unavailable.available is False
     assert unavailable.can_sync_all is False

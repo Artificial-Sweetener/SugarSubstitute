@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol, cast
@@ -464,7 +468,7 @@ class WorkspaceCubeStackActions:
         if tab_item is None:
             return
         tab_item.setText(resolved_alias)
-        tab_item.setToolTip(resolved_alias)
+        set_fluent_tooltip_text(tab_item, resolved_alias)
         tab_item.setRouteKey(resolved_alias)
         active_stack.itemMap.pop(old_alias, None)
         active_stack.itemMap[resolved_alias] = tab_item

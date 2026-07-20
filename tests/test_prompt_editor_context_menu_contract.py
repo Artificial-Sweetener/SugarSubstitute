@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 import os
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -763,7 +765,7 @@ def _adapt_trigger_words_action_for_lora(
             payload=PromptLoraTriggerWordsPayload(
                 insertion_text=insertion_text,
                 display_name=scheduled_lora.display_name,
-                full_label=full_label,
+                full_label=app_text("Trigger words: %1", scheduled_lora.display_name),
             ),
         ),
     )

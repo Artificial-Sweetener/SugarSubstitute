@@ -18,6 +18,16 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    app_text,
+    clear_localized_property,
+    set_localized_accessible_description,
+    set_localized_accessible_name,
+    set_localized_tooltip,
+)
+
 from typing import Literal, cast
 
 from PySide6.QtCore import (
@@ -115,9 +125,10 @@ from substitute.presentation.motion import (
     is_reduced_motion_enabled,
     restart_property_animation,
 )
-from substitute.presentation.widgets.cursor_tooltip_filter import (
-    CursorToolTipFilter,
-    install_cursor_tooltip_filter,
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    FluentToolTipFilter,
+    ensure_fluent_tooltip_filter,
+    set_fluent_tooltip_text,
 )
 
 GenerationSegmentRole = Literal["play", "skip", "queue", "stop"]
@@ -152,6 +163,8 @@ _GENERATION_REVEAL_BUTTON_WIDTH = 46
 _GENERATION_REVEAL_CHEVRON_HALF_WIDTH = 2.75
 _GENERATION_REVEAL_CHEVRON_HALF_HEIGHT = 4.25
 _GENERATION_REVEAL_CHEVRON_STROKE = 1.15
+_HIDE_GENERATION_CONTROLS_TEXT = app_text("Hide generation controls")
+_SHOW_GENERATION_CONTROLS_TEXT = app_text("Show generation controls")
 
 
 class ComfyOutputToggleButton(TitleBarButton):  # type: ignore[misc]
@@ -236,7 +249,10 @@ class ComfyOutputToggleButton(TitleBarButton):  # type: ignore[misc]
     def _update_tooltip(self, checked: bool) -> None:
         """Set tooltip text that matches the current toggle state."""
 
-        self.setToolTip("Hide Comfy output" if checked else "Show Comfy output")
+        set_localized_tooltip(
+            self,
+            "Hide Comfy output" if checked else "Show Comfy output",
+        )
 
     def _apply_theme_palette(self) -> None:
         """Reapply icon and checked-background colors after theme changes."""
@@ -271,13 +287,14 @@ class StartupDiagnosticsTitleBarButton(TitleBarButton):  # type: ignore[misc]
         self._collapse_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._collapse_animation.finished.connect(self._finish_collapse_animation)
         self.setFixedHeight(_TITLEBAR_BUTTON_HEIGHT)
-        self.setToolTip("View ComfyUI startup diagnostics")
-        self.setAccessibleName("ComfyUI startup diagnostics")
+        set_localized_tooltip(self, "View ComfyUI startup diagnostics")
+        set_localized_accessible_name(self, "ComfyUI startup diagnostics")
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._tooltip_filter: CursorToolTipFilter = install_cursor_tooltip_filter(
+        self._tooltip_filter: FluentToolTipFilter = ensure_fluent_tooltip_filter(
             self,
             self,
             show_delay_ms=600,
+            cursor_anchor=True,
             show_when_disabled=True,
         )
         self.clicked.connect(self.activated.emit)
@@ -453,7 +470,7 @@ class GenerationTitleBarSegmentButton(TitleBarButton):  # type: ignore[misc]
         self,
         role: GenerationSegmentRole,
         icon: object,
-        tooltip: str,
+        tooltip: ApplicationMessage,
         parent: QWidget | None = None,
     ) -> None:
         """Create one icon-only segment with titlebar button state handling."""
@@ -465,12 +482,13 @@ class GenerationTitleBarSegmentButton(TitleBarButton):  # type: ignore[misc]
         self._primary_action_enabled = True
         self._badge_count = 0
         self.setFixedSize(_SEGMENT_WIDTH, _CLUSTER_HEIGHT)
-        self.setToolTip(tooltip)
-        self.setAccessibleName(tooltip)
-        self._tooltip_filter: CursorToolTipFilter = install_cursor_tooltip_filter(
+        set_localized_tooltip(self, tooltip.source_text, *tooltip.arguments)
+        set_localized_accessible_name(self, tooltip.source_text, *tooltip.arguments)
+        self._tooltip_filter: FluentToolTipFilter = ensure_fluent_tooltip_filter(
             self,
             self,
             show_delay_ms=600,
+            cursor_anchor=True,
             show_when_disabled=True,
         )
         self._apply_theme_palette()
@@ -732,8 +750,10 @@ class GenerationBatchCountAccessory(QWidget):
         self.setFixedSize(_BATCH_ACCESSORY_WIDTH, _CLUSTER_HEIGHT)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setAccessibleName("Batch count")
-        self.setAccessibleDescription("Number of queued generations to create")
+        set_localized_accessible_name(self, "Batch count")
+        set_localized_accessible_description(
+            self, "Number of queued generations to create"
+        )
         connect_theme_refresh(self, self._refresh_palette)
         self._refresh_editor_palette()
 
@@ -1251,13 +1271,13 @@ class GenerationTitleBarActionCluster(QWidget):
                 entries=(
                     MenuItem(
                         "generation_mode.generate",
-                        "Generate",
+                        app_text("Generate"),
                         callback=lambda: self.generateModeSelected.emit("generate"),
                         icon=FIF.PLAY_SOLID,
                     ),
                     MenuItem(
                         "generation_mode.continuous",
-                        "Continuous",
+                        app_text("Continuous"),
                         callback=lambda: self.generateModeSelected.emit("continuous"),
                         icon=_CONTINUOUS_GENERATION_ICON,
                     ),
@@ -1272,25 +1292,25 @@ class GenerationTitleBarActionCluster(QWidget):
         self.playButton = GenerationTitleBarSegmentButton(
             "play",
             FIF.PLAY_SOLID,
-            "Generate",
+            app_text("Generate"),
             self,
         )
         self.skipButton = GenerationTitleBarSegmentButton(
             "skip",
             AppIcon.NEXT_24_FILLED,
-            "Skip generation",
+            app_text("Skip generation"),
             self,
         )
         self.queueButton = GenerationTitleBarSegmentButton(
             "queue",
             FIF.HISTORY,
-            "Generation queue",
+            app_text("Generation queue"),
             self,
         )
         self.stopButton = GenerationTitleBarSegmentButton(
             "stop",
             AppIcon.STOP_SOLID,
-            "Stop generation",
+            app_text("Stop generation"),
             self,
         )
         self._segments = (
@@ -1354,7 +1374,7 @@ class GenerationTitleBarActionCluster(QWidget):
     def _apply_play_presentation(
         self,
         play_mode: GenerationPlayPresentationMode,
-        tooltip: str,
+        tooltip: ApplicationText,
     ) -> None:
         """Apply the play segment icon, tooltip, and accessible name."""
 
@@ -1365,8 +1385,18 @@ class GenerationTitleBarActionCluster(QWidget):
         else:
             icon = FIF.PAUSE_BOLD
         self.playButton.set_segment_icon(icon)
-        self.playButton.setToolTip(tooltip)
-        self.playButton.setAccessibleName(tooltip)
+        if isinstance(tooltip, ApplicationMessage):
+            set_localized_tooltip(
+                self.playButton, tooltip.source_text, *tooltip.arguments
+            )
+            set_localized_accessible_name(
+                self.playButton, tooltip.source_text, *tooltip.arguments
+            )
+        else:
+            clear_localized_property(self.playButton, "tooltip")
+            clear_localized_property(self.playButton, "accessible_name")
+            set_fluent_tooltip_text(self.playButton, tooltip)
+            self.playButton.setAccessibleName(tooltip)
 
     def _set_queue_badge_count(self, count: int) -> None:
         """Apply the visible generation queue count badge."""
@@ -1713,10 +1743,12 @@ class GenerationClusterRevealButton(TitleBarButton):  # type: ignore[misc]
         """Match tooltip and accessible text to the reveal state."""
 
         text = (
-            "Hide generation controls" if self._expanded else "Show generation controls"
+            _HIDE_GENERATION_CONTROLS_TEXT
+            if self._expanded
+            else _SHOW_GENERATION_CONTROLS_TEXT
         )
-        self.setToolTip(text)
-        self.setAccessibleName(text)
+        set_localized_tooltip(self, text.source_text, *text.arguments)
+        set_localized_accessible_name(self, text.source_text, *text.arguments)
 
 
 class GenerationClusterRevealHost(QWidget):

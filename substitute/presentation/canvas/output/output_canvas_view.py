@@ -22,7 +22,7 @@ from collections.abc import Callable
 from uuid import UUID, uuid4
 
 from qpane import QPane
-from PySide6.QtCore import QPoint, Qt, Signal
+from PySide6.QtCore import QEvent, QPoint, Qt, Signal
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from substitute.application.workflows.output_canvas_projection import (
@@ -81,6 +81,9 @@ from substitute.presentation.canvas.output.output_canvas_route_state import (
 from substitute.presentation.canvas.output.output_canvas_navigation_chrome import (
     update_output_tabbar_container,
 )
+from substitute.presentation.canvas.output.output_canvas_localization import (
+    retranslate_output_canvas,
+)
 from substitute.presentation.canvas.output.output_navigation_widgets import (
     create_output_navigation_widgets,
 )
@@ -132,7 +135,7 @@ class OutputCanvas(QWidget):
         self._open_single_external_editor = open_single_external_editor
         self._open_all_external_editor = open_all_external_editor
         self._reveal_output_asset = reveal_output_asset
-        self._dock_action_text = "Undock canvas"
+        self._canvas_detached = False
 
         self.active_source_key: str | None = None
         self.active_scene_key: str | None = None
@@ -256,10 +259,10 @@ class OutputCanvas(QWidget):
 
         self._runtime.preview.controller.clear_previews(source_key)
 
-    def set_dock_action_text(self, text: str) -> None:
-        """Set the context-menu label for the manager-owned dock action."""
+    def set_canvas_detached(self, detached: bool) -> None:
+        """Store the manager-owned attachment state for context-menu rendering."""
 
-        self._dock_action_text = text
+        self._canvas_detached = detached
 
     def bind_projection_session(
         self,
@@ -293,6 +296,13 @@ class OutputCanvas(QWidget):
 
         update_output_tabbar_container(self)
         super().resizeEvent(event)
+
+    def changeEvent(self, event: QEvent) -> None:  # noqa: N802
+        """Refresh app-owned Output chrome without disturbing canvas content."""
+
+        if event.type() == QEvent.Type.LanguageChange:
+            retranslate_output_canvas(self)
+        super().changeEvent(event)
 
 
 __all__ = [

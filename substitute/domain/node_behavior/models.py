@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Mapping
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 
 class CardMode(StrEnum):
     """Enumerate supported node-card presentation modes."""
@@ -106,6 +108,15 @@ class LabelMode(StrEnum):
     HIDDEN = "hidden"
 
 
+class FieldLabelSource(StrEnum):
+    """Identify the owner of a field's preferred visible label."""
+
+    APPLICATION = "application"
+    AUTHORED = "authored"
+    WRAPPER_AUTHORED = "wrapper_authored"
+    COMFY_DEFINITION = "comfy_definition"
+
+
 class OverridePinPolicy(StrEnum):
     """Enumerate workflow-toolbar pinning policies for one field."""
 
@@ -164,7 +175,8 @@ class FieldBehavior:
     control_name: str | None = None
     row_mode: RowMode = RowMode.INLINE
     label_mode: LabelMode = LabelMode.STANDARD
-    label_override: str | None = None
+    label_override: ApplicationText | None = None
+    label_override_source: FieldLabelSource | None = None
     column_span: int | None = None
     style: Mapping[str, object] = field(default_factory=dict)
     hidden: bool = False
@@ -212,7 +224,8 @@ class FieldBehaviorPatch:
     control_name: str | None = None
     row_mode: RowMode | None = None
     label_mode: LabelMode | None = None
-    label_override: str | None = None
+    label_override: ApplicationText | None = None
+    label_override_source: FieldLabelSource | None = None
     column_span: int | None = None
     style: Mapping[str, object] | None = None
     hidden: bool | None = None

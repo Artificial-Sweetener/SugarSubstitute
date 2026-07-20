@@ -73,6 +73,10 @@ def test_build_startup_runtime_bootstrap_creates_runtime_objects(
     trace_spans: list[str] = []
     output_stream = cast(TerminalOutputStream, object())
     app = object()
+    localization_runtime = SimpleNamespace(
+        manager=object(),
+        initial_snapshot=SimpleNamespace(effective_language_identifier="zh-Hans"),
+    )
     appearance_runtime = object()
     resolved_appearance = SimpleNamespace(
         effective_theme_mode=SimpleNamespace(value="dark"),
@@ -106,6 +110,23 @@ def test_build_startup_runtime_bootstrap_creates_runtime_objects(
         events.append(("build_appearance_runtime", installation_context))
         return appearance_runtime
 
+    def build_localization_runtime(
+        created_app: object,
+        installation_context: InstallationContext,
+        locale_override: str | None,
+    ) -> object:
+        """Record localization construction immediately after QApplication."""
+
+        events.append(
+            (
+                "build_localization_runtime",
+                created_app,
+                installation_context,
+                locale_override,
+            )
+        )
+        return localization_runtime
+
     def configure_theme(runtime: object) -> object:
         """Record theme configuration."""
 
@@ -128,9 +149,11 @@ def test_build_startup_runtime_bootstrap_creates_runtime_objects(
 
     result = build_startup_runtime_bootstrap(
         cli_args=("main.py", "--no-comfy"),
+        locale_override="zh-Hans",
         installation_context=context,
         startup_timer=timer,
         create_application=create_application,
+        build_localization_runtime=build_localization_runtime,
         build_appearance_runtime=build_appearance_runtime,
         configure_theme=configure_theme,
         build_application_runtime_services=build_runtime_services,
@@ -138,17 +161,23 @@ def test_build_startup_runtime_bootstrap_creates_runtime_objects(
     )
 
     assert result.app is app
+    assert result.localization_runtime is localization_runtime
     assert result.appearance_runtime is appearance_runtime
     assert result.resolved_appearance is resolved_appearance
     assert result.comfy_output_stream is output_stream
     assert result.runtime_services is runtime_services
     assert timer.phases == [
         "startup.create_application",
+        "startup.build_localization_runtime",
         "startup.build_appearance_runtime",
         "startup.configure_theme",
     ]
     assert trace_events == [
         ("startup.application.created", {"app_type": "object"}),
+        (
+            "startup.localization.configured",
+            {"effective_language": "zh-Hans"},
+        ),
         (
             "startup.theme.configured",
             {"theme_mode": "dark", "backdrop_mode": "mica"},
@@ -157,12 +186,19 @@ def test_build_startup_runtime_bootstrap_creates_runtime_objects(
     ]
     assert trace_spans == [
         "startup.create_application",
+        "startup.build_localization_runtime",
         "startup.build_appearance_runtime",
         "startup.configure_theme",
         "startup.runtime_services.build",
     ]
     assert events == [
         ("create_application", ("main.py", "--no-comfy")),
+        (
+            "build_localization_runtime",
+            app,
+            context,
+            "zh-Hans",
+        ),
         ("build_appearance_runtime", context),
         ("configure_theme", appearance_runtime),
         (
@@ -170,6 +206,7 @@ def test_build_startup_runtime_bootstrap_creates_runtime_objects(
             {
                 "context": context,
                 "comfy_output_stream": output_stream,
+                "localization_manager": localization_runtime.manager,
                 "appearance_runtime": appearance_runtime,
             },
         ),
@@ -188,6 +225,10 @@ def test_runtime_bootstrap_can_defer_theme_configuration(
     trace_events: list[tuple[str, dict[str, object]]] = []
     trace_spans: list[str] = []
     appearance_runtime = object()
+    localization_runtime = SimpleNamespace(
+        manager=object(),
+        initial_snapshot=SimpleNamespace(effective_language_identifier="en"),
+    )
     output_stream = cast(TerminalOutputStream, object())
     resolved_appearance = SimpleNamespace(
         effective_theme_mode=SimpleNamespace(value="dark"),
@@ -225,6 +266,16 @@ def test_runtime_bootstrap_can_defer_theme_configuration(
         events.append("appearance")
         return appearance_runtime
 
+    def build_localization_runtime(
+        _app: object,
+        _context: InstallationContext,
+        _locale_override: str | None,
+    ) -> object:
+        """Record localization before deferred appearance composition."""
+
+        events.append("localization")
+        return localization_runtime
+
     def configure_theme(_runtime: object) -> object:
         """Record deferred theme configuration."""
 
@@ -239,9 +290,11 @@ def test_runtime_bootstrap_can_defer_theme_configuration(
 
     result = build_startup_runtime_bootstrap(
         cli_args=("main.py",),
+        locale_override=None,
         installation_context=context,
         startup_timer=timer,
         create_application=create_application,
+        build_localization_runtime=build_localization_runtime,
         build_appearance_runtime=build_appearance_runtime,
         configure_theme=configure_theme,
         build_application_runtime_services=build_runtime_services,
@@ -250,12 +303,13 @@ def test_runtime_bootstrap_can_defer_theme_configuration(
     )
 
     assert result.resolved_appearance is None
-    assert events == ["app", "appearance", "runtime"]
+    assert events == ["app", "localization", "appearance", "runtime"]
     assert result.configure_theme() is resolved_appearance
     assert result.configure_theme() is resolved_appearance
-    assert events == ["app", "appearance", "runtime", "theme"]
+    assert events == ["app", "localization", "appearance", "runtime", "theme"]
     assert timer.phases == [
         "startup.create_application",
+        "startup.build_localization_runtime",
         "startup.build_appearance_runtime",
         "startup.configure_theme",
     ]
@@ -265,6 +319,7 @@ def test_runtime_bootstrap_can_defer_theme_configuration(
     )
     assert trace_spans == [
         "startup.create_application",
+        "startup.build_localization_runtime",
         "startup.build_appearance_runtime",
         "startup.runtime_services.build",
         "startup.configure_theme",

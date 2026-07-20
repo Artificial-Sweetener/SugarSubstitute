@@ -23,6 +23,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import time
 
+from sugarsubstitute_shared.localization import app_text
+
 from substitute.application.execution import CancellationToken
 from substitute.application.comfy_startup_diagnostics import (
     ComfyStartupDiagnosticsCollector,
@@ -94,7 +96,7 @@ def wait_for_managed_startup_ready(
         sleep(_POLL_DELAY_SECONDS)
         current_time = monotonic()
         if on_status is not None and current_time >= next_status_at:
-            on_status("Waiting for ComfyUI to become ready...")
+            on_status(app_text("Waiting for ComfyUI to become ready..."))
             while next_status_at <= current_time:
                 next_status_at += _STATUS_INTERVAL_SECONDS
     return ManagedStartupReadinessResult(
@@ -129,11 +131,11 @@ def _process_exit_incident(
             port=port,
             workspace=str(workspace),
         )
-    message = "ComfyUI exited before it became ready."
+    message = app_text("ComfyUI exited before it became ready.")
     return ComfyStartupIncident(
         kind=ComfyStartupIncidentKind.PROCESS_EXITED_BEFORE_READY,
         severity=ComfyStartupIncidentSeverity.FATAL,
-        title="ComfyUI failed to start",
+        title=app_text("ComfyUI failed to start"),
         message=message,
         source=str(workspace),
         fingerprint=build_startup_incident_fingerprint(
@@ -142,7 +144,9 @@ def _process_exit_incident(
             exception_type=None,
             message=message,
         ),
-        remediation="Review the startup log and fix the last reported ComfyUI error.",
+        remediation=app_text(
+            "Review the startup log and fix the last reported ComfyUI error."
+        ),
         values={
             "pid": process.pid,
             "exit_code": exit_code,
@@ -164,11 +168,11 @@ def _timeout_incident(
     """Return a fatal incident for managed startup readiness timeout."""
 
     transcript = diagnostics.transcript() if diagnostics is not None else ()
-    message = "ComfyUI did not become ready before the startup timeout."
+    message = app_text("ComfyUI did not become ready before the startup timeout.")
     return ComfyStartupIncident(
         kind=ComfyStartupIncidentKind.READINESS_TIMEOUT,
         severity=ComfyStartupIncidentSeverity.FATAL,
-        title="ComfyUI failed to start",
+        title=app_text("ComfyUI failed to start"),
         message=message,
         source=str(workspace),
         fingerprint=build_startup_incident_fingerprint(
@@ -178,7 +182,7 @@ def _timeout_incident(
             message=message,
         ),
         log_excerpt=transcript,
-        remediation=(
+        remediation=app_text(
             "Review the startup log, then update or disable the last component "
             "that was loading before the timeout."
         ),

@@ -22,6 +22,11 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ContextManager, Protocol
 
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    render_application_text,
+)
+
 from substitute.app.bootstrap.gui_startup_queue import GuiStartupTaskQueue
 from substitute.app.bootstrap.no_comfy_ready_shell import (
     launch_no_comfy_ready_shell,
@@ -1014,7 +1019,9 @@ def build_ready_shell_skeleton(
         trace_mark("build_shell_task.skip", reason="startup_cancelled")
         return None
     assert splash is not None
-    splash.append_log("Preparing the application interface.")
+    splash.append_log(
+        render_application_text(app_text("Preparing the application interface."))
+    )
     with startup_timer.phase("startup.build_main_window"):
         with trace_span("build_shell_task.build_main_window"):
             shell_frame = build_main_window(

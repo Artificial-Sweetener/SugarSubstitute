@@ -23,6 +23,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.localization import render_application_text
+
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
 )
@@ -246,7 +249,7 @@ def sync_output_compare_source_button(
     text = (
         str(compare_source_label(selection))
         if callable(compare_source_label)
-        else "Output"
+        else render_application_text(app_text("Output"))
     )
     font_metrics = selector_font_metrics_for_widget(button)
     display_text = selector_display_text_for_metrics(

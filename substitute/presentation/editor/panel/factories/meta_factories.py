@@ -18,12 +18,18 @@
 
 from __future__ import annotations
 
+from substitute.presentation.localization import LocalizedSwitchButton
+
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    set_localized_combo_item,
+)
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Mapping, MutableMapping, Sequence
 
 from PySide6.QtWidgets import QHBoxLayout, QWidget
-from qfluentwidgets import SwitchButton  # type: ignore[import-untyped]
 from shiboken6 import isValid
 
 from substitute.application.node_behavior import NodeDisplayDecision
@@ -131,7 +137,7 @@ def setup_node_link_combobox(
         current_endpoint = endpoint_index.endpoint_for(ca, endpoint.identity)
         if current_endpoint is None:
             return
-        if text == "Independent":
+        if text not in label_map:
             if link_context is None:
                 return
             link_context.apply_manual_node_link_selection(
@@ -140,7 +146,7 @@ def setup_node_link_combobox(
                 None,
                 None,
             )
-        elif text in label_map:
+        else:
             target = label_map[text]
             if link_context is None:
                 return
@@ -150,7 +156,10 @@ def setup_node_link_combobox(
                 target.cube_alias,
                 target.node_name,
             )
-        if link_context.notify_node_link_changed is not None:
+        if (
+            link_context is not None
+            and link_context.notify_node_link_changed is not None
+        ):
             link_context.notify_node_link_changed()
 
     combo_created = False
@@ -185,7 +194,8 @@ def setup_node_link_combobox(
 
     combo.blockSignals(True)
     combo.clear()
-    combo.addItem("Independent")
+    combo.addItem("")
+    set_localized_combo_item(combo, 0, app_text("Independent"))
     valid_options = endpoint_index.valid_link_targets(
         ordered_aliases,
         endpoint.cube_alias,
@@ -382,7 +392,7 @@ def build_enabled_switch(
     """Construct an activation switch from prepared node display state."""
 
     _ = cube_state
-    switch = SwitchButton(parent, indicatorPos=1)
+    switch = LocalizedSwitchButton(parent, indicatorPos=1)
     switch.setChecked(bool(display_decision.enabled))
     switch.setProperty(
         "input_metadata",

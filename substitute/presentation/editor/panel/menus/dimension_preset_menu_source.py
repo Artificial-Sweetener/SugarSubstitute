@@ -18,12 +18,17 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from substitute.application.user_presets import (
     DimensionPresetPayload,
     GLOBAL_PRESET_ASSOCIATION,
     UserPreset,
     UserPresetAssociation,
     UserPresetService,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    translate_application_message,
 )
 from substitute.presentation.editor.panel.context.active_model_snapshot import (
     PanelActiveModelSnapshotController,
@@ -87,7 +92,10 @@ class EditorDimensionPresetMenuSource(DimensionPresetMenuSource):
         )
         sections = [
             DimensionPresetMenuSection(
-                title=f"For {section.association.label}",
+                title=translate_application_message(
+                    "For %1",
+                    section.association.label,
+                ),
                 presets=_menu_items_for_presets(section.presets),
             )
             for section in listing.association_sections
@@ -95,7 +103,7 @@ class EditorDimensionPresetMenuSource(DimensionPresetMenuSource):
         if listing.global_presets:
             sections.append(
                 DimensionPresetMenuSection(
-                    title="Global",
+                    title=app_text("Global"),
                     presets=_menu_items_for_presets(listing.global_presets),
                 )
             )

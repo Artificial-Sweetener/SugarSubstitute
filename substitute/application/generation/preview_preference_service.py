@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -56,7 +58,7 @@ class GenerationPreviewSaveResult:
 
     preferences: GenerationPreviewPreferences
     succeeded: bool
-    message: str
+    message: ApplicationText
     taesd_ready: bool | None = None
     taesd_status: TaesdPreviewAssetStatus | None = None
 
@@ -97,7 +99,7 @@ class GenerationPreviewPreferenceService(GenerationPreviewMethodResolver):
         return GenerationPreviewSaveResult(
             preferences=normalized,
             succeeded=True,
-            message="Generation preview settings saved.",
+            message=app_text("Generation preview settings saved."),
         )
 
     def set_enabled(self, enabled: bool) -> GenerationPreviewSaveResult:
@@ -122,7 +124,7 @@ class GenerationPreviewPreferenceService(GenerationPreviewMethodResolver):
             return GenerationPreviewSaveResult(
                 preferences=self.load_preferences(),
                 succeeded=False,
-                message="Generation preview type is not recognized.",
+                message=app_text("Generation preview type is not recognized."),
             )
         return self.set_method(method)
 
@@ -141,7 +143,9 @@ class GenerationPreviewPreferenceService(GenerationPreviewMethodResolver):
             return GenerationPreviewSaveResult(
                 preferences=preferences,
                 succeeded=True,
-                message="TAESD selected, but Substitute BackEnd is not available.",
+                message=app_text(
+                    "TAESD selected, but Substitute BackEnd is not available."
+                ),
                 taesd_ready=False,
             )
         status = self._preview_asset_backend.ensure_taesd_assets()
@@ -149,23 +153,25 @@ class GenerationPreviewPreferenceService(GenerationPreviewMethodResolver):
             return GenerationPreviewSaveResult(
                 preferences=preferences,
                 succeeded=True,
-                message="TAESD selected, but preview files could not be checked.",
+                message=app_text(
+                    "TAESD selected, but preview files could not be checked."
+                ),
                 taesd_ready=False,
             )
         if status.ready:
             return GenerationPreviewSaveResult(
                 preferences=preferences,
                 succeeded=True,
-                message="TAESD preview files are installed.",
+                message=app_text("TAESD preview files are installed."),
                 taesd_ready=True,
                 taesd_status=status,
             )
         return GenerationPreviewSaveResult(
             preferences=preferences,
             succeeded=True,
-            message=(
-                "TAESD selected, but "
-                f"{status.missing_count} preview file(s) are not installed."
+            message=app_text(
+                "TAESD selected, but %1 preview file(s) are not installed.",
+                status.missing_count,
             ),
             taesd_ready=False,
             taesd_status=status,

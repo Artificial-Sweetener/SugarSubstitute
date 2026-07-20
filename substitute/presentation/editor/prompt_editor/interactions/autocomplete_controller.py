@@ -799,7 +799,10 @@ class PromptAutocompleteCoordinator:
         """Return whether focus loss still belongs to autocomplete interaction."""
 
         focus_widget = QApplication.focusWidget()
-        if focus_widget is cast(QWidget, self._editor):
+        editor = cast(QWidget, self._editor)
+        if focus_widget is editor or (
+            focus_widget is not None and editor.isAncestorOf(focus_widget)
+        ):
             return True
 
         if self._presenter is not None and self._presenter.panel_under_mouse():

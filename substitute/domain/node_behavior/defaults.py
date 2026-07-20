@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import Final
 
+from sugarsubstitute_shared.localization import app_text
+
 from .models import (
     ActivationDefault,
     ActivationSwitchSource,
@@ -137,19 +139,19 @@ _CLASS_DEFAULTS: Final[dict[str, NodeBehaviorPatch]] = {
             "r": FieldBehaviorPatch(
                 presentation=FieldPresentation.CUSTOM,
                 control_name="color_slider",
-                label_override="Red",
+                label_override=app_text("Red"),
                 style={"start": "#00ffff", "end": "#ff0000"},
             ),
             "g": FieldBehaviorPatch(
                 presentation=FieldPresentation.CUSTOM,
                 control_name="color_slider",
-                label_override="Green",
+                label_override=app_text("Green"),
                 style={"start": "#ff00ff", "end": "#00ff00"},
             ),
             "b": FieldBehaviorPatch(
                 presentation=FieldPresentation.CUSTOM,
                 control_name="color_slider",
-                label_override="Blue",
+                label_override=app_text("Blue"),
                 style={"start": "#ffff00", "end": "#0000ff"},
             ),
         },

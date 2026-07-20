@@ -22,6 +22,8 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFileDialog, QWidget
 
+from sugarsubstitute_shared.presentation.localization import translate_application_text
+
 from .thumbnail_picker_base import ThumbnailPickerBase
 
 
@@ -49,7 +51,6 @@ class ImagePicker(ThumbnailPickerBase):
             default_folder=default_folder,
             placeholder_image=placeholder_image,
             button_padding=button_padding,
-            browse_button_text="Browse Files",
         )
         self.button.clicked.connect(self.pick_image)
 
@@ -64,9 +65,9 @@ class ImagePicker(ThumbnailPickerBase):
 
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Choose Image",
+            translate_application_text("Choose Image"),
             self.default_folder,
-            "Images (*.png *.jpg *.jpeg *.bmp *.gif)",
+            translate_application_text("Images (*.png *.jpg *.jpeg *.bmp *.gif)"),
         )
         if file_path:
             self.set_thumbnail(file_path)

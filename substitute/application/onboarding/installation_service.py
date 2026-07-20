@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 from dataclasses import dataclass
 from pathlib import Path
 import shutil
@@ -120,13 +122,13 @@ class InstallationService:
             InstallationService._move_legacy_directory(
                 source=legacy_projects_dir,
                 destination=projects_dir,
-                description="legacy projects root",
+                description=app_text("legacy projects root"),
             )
 
         InstallationService._move_legacy_directory(
             source=configuration.installation_root / "saved_masks",
             destination=default_configuration.user_dir / "legacy" / "saved_masks",
-            description="legacy saved masks root",
+            description=app_text("legacy saved masks root"),
         )
 
         return InstallationConfiguration(

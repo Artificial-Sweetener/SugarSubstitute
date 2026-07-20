@@ -24,6 +24,8 @@ from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import MenuAnimationType  # type: ignore[import-untyped]
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from substitute.presentation.generation.queue_dropdown import GenerationQueueDropdown
 from substitute.presentation.generation.queue_panel import GenerationQueuePanel
 from substitute.presentation.shell.generation_result_workspace_opener import (
@@ -88,7 +90,9 @@ class GenerationQueueController:
 
         panel_visible = self.panel_visible
         action_label = (
-            "Hide Full Queue Panel" if panel_visible else "Show Full Queue Panel"
+            app_text("Hide Full Queue Panel")
+            if panel_visible
+            else app_text("Show Full Queue Panel")
         )
         action_icon = (
             AppIcon.PANEL_RIGHT_20_FILLED

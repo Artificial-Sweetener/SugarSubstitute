@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import set_localized_placeholder
+
 from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtCore import QEvent, Qt, Signal
@@ -166,7 +168,7 @@ class ContextSearchBox(QWidget):
         self.comboBox.setCurrentIndex(0)
 
         self.searchLineEdit = _RuntimeSearchLineEdit(self)
-        self.searchLineEdit.setPlaceholderText("Search…")
+        set_localized_placeholder(self.searchLineEdit, "Search…")
         self.searchLineEdit.setFixedHeight(32)
         self.searchLineEdit.setFixedWidth(296)
         self.searchLineEdit.setSizePolicy(fixed_policy, fixed_policy)

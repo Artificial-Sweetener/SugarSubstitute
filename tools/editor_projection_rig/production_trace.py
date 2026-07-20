@@ -30,10 +30,15 @@ from typing import Any, Callable, cast
 
 from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
+from sugarsubstitute_shared.localization import render_source_application_text
 
 from substitute.application.node_behavior.behavior_service import (
     NodeBehaviorRuntimeState,
     NodeBehaviorService,
+)
+from substitute.application.localization import (
+    ActiveComfyNodeCatalogStore,
+    NodePresentationService,
 )
 from substitute.domain.common import GlobalOverrideMap
 from substitute.domain.cubes import (
@@ -552,11 +557,16 @@ def _build_editor_panel(
 
     _configure_editor_control_registry()
     gateway = FixtureNodeDefinitionGateway(definitions)
+    node_catalog_store = ActiveComfyNodeCatalogStore()
     panel = EditorPanel(
         node_definition_gateway=gateway,
         prompt_autocomplete_gateway=EmptyPromptAutocompleteGateway(),
         prompt_wildcard_catalog_gateway=EmptyPromptWildcardCatalogGateway(),
         node_behavior_service=NodeBehaviorService(node_definition_gateway=gateway),
+        node_presentation_service=NodePresentationService(
+            lambda: node_catalog_store.snapshot("en"),
+            application_text_renderer=render_source_application_text,
+        ),
         workflow_id=workflow_id,
     )
     layout = QVBoxLayout(host)

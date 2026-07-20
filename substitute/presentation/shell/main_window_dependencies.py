@@ -34,6 +34,8 @@ from substitute.application.ports import (
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget
 
+    from sugarsubstitute_shared.presentation.localization import TranslationManager
+
     from substitute.application.about import AboutInfoService
     from substitute.application.appearance import AppearanceRestartCoordinator
     from substitute.application.civitai import (
@@ -76,6 +78,7 @@ if TYPE_CHECKING:
         ScopedMetadataRefreshService,
         ThumbnailAssetRepository,
     )
+    from substitute.application.localization import NodePresentationService
     from substitute.application.node_behavior import NodeBehaviorService
     from substitute.application.onboarding import ComfyConnectionSettingsService
     from substitute.application.overrides import PinnedOverrideService
@@ -215,6 +218,8 @@ class MainWindowDependencies:
     workspace_generation_controller: WorkspaceGenerationController
     shell_resource_lifecycle: ShellResourceLifecycle
     comfy_output_stream: TerminalOutputStream
+    localization_manager: TranslationManager
+    node_presentation_service: NodePresentationService
     node_definition_gateway: NodeDefinitionGateway
     prompt_autocomplete_gateway: PromptAutocompleteGateway
     prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway

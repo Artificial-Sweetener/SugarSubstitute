@@ -82,6 +82,30 @@ def test_projection_groups_one_source_single_image() -> None:
     assert projection.scene_count == 1
     assert projection.scene_groups[0].scene_key == ""
     assert projection.scene_groups[0].title == "Scene"
+    assert projection.scene_groups[0].title_is_default is True
+    assert projection.sources[0].label_is_default is False
+
+
+def test_projection_marks_only_app_owned_source_fallback_as_default() -> None:
+    """Authored text equal to a fallback must remain distinguishable and exact."""
+
+    workflow = WorkflowState()
+    fallback_id = uuid4()
+    authored_id = uuid4()
+    workflow.output_image_uuids = [fallback_id, authored_id]
+
+    projection = build_output_canvas_projection(
+        workflow,
+        {
+            fallback_id: _meta("", source_key="fallback"),
+            authored_id: _meta("Output", source_key="authored"),
+        },
+    )
+
+    assert projection.sources[0].label == "Output"
+    assert projection.sources[0].label_is_default is True
+    assert projection.sources[1].label == "Output"
+    assert projection.sources[1].label_is_default is False
 
 
 def test_projection_keeps_sources_separate_with_one_set_each() -> None:

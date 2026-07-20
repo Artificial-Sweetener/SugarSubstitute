@@ -18,6 +18,21 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    app_text,
+    set_localized_placeholder,
+    set_localized_text,
+)
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedLabel,
+    LocalizedPrimaryPushButton,
+    LocalizedPushButton,
+    LocalizedSubtitleLabel,
+)
+
 from typing import cast
 
 from PySide6.QtCore import QSize, Qt, QUrl
@@ -26,7 +41,6 @@ from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequ
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
@@ -36,13 +50,9 @@ from PySide6.QtWidgets import (
     QLayout,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    BodyLabel,
     FluentIcon,
     LineEdit,
     MessageBoxBase,
-    PrimaryPushButton,
-    PushButton,
-    SubtitleLabel,
 )
 from shiboken6 import isValid
 
@@ -96,7 +106,7 @@ class RecipeModelResolutionDialog(MessageBoxBase):  # type: ignore[misc]
         self._thumbnail_network = QNetworkAccessManager(self.widget)
         self._api_key_edit = LineEdit(self.widget)
         self._api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self._api_key_edit.setPlaceholderText("CivitAI API key")
+        set_localized_placeholder(self._api_key_edit, "CivitAI API key")
         self._build_header(downloads_enabled=downloads_enabled)
         self._build_list()
         if not has_api_key:
@@ -122,8 +132,10 @@ class RecipeModelResolutionDialog(MessageBoxBase):  # type: ignore[misc]
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
         can_download = _all_references_have_downloads(self._required)
-        title = SubtitleLabel("Missing model", header)
-        message = BodyLabel(_header_message(downloads_enabled, can_download), header)
+        title = LocalizedSubtitleLabel(app_text("Missing model"), header)
+        message = LocalizedBodyLabel(
+            _header_message(downloads_enabled, can_download), header
+        )
         message.setWordWrap(True)
         layout.addWidget(title)
         layout.addWidget(message)
@@ -151,9 +163,11 @@ class RecipeModelResolutionDialog(MessageBoxBase):  # type: ignore[misc]
     def _build_api_key_shortcut(self) -> None:
         """Create a one-time API key shortcut for CivitAI downloads."""
 
-        label = BodyLabel(
-            "Some CivitAI downloads require an API key. Paste it here to use it for "
-            "this download and save it for next time.",
+        label = LocalizedBodyLabel(
+            app_text(
+                "Some CivitAI downloads require an API key. Paste it here to use it for "
+                "this download and save it for next time."
+            ),
             self.widget,
         )
         label.setWordWrap(True)
@@ -174,13 +188,15 @@ class RecipeModelResolutionDialog(MessageBoxBase):  # type: ignore[misc]
         can_download = downloads_enabled and all(
             reference.candidate is not None for reference in self._required.references
         )
-        close_button = PushButton("Cancel", self.buttonGroup)
+        close_button = LocalizedPushButton(app_text("Cancel"), self.buttonGroup)
         close_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
         close_button.setMinimumWidth(_CANCEL_BUTTON_MINIMUM_WIDTH)
         close_button.clicked.connect(self.reject)
         self.buttonLayout.addWidget(close_button, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        settings_button = PushButton("Open CivitAI Settings", self.buttonGroup)
+        settings_button = LocalizedPushButton(
+            app_text("Open CivitAI Settings"), self.buttonGroup
+        )
         settings_button.setIcon(FluentIcon.SETTING)
         settings_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
         settings_button.setMinimumWidth(_SETTINGS_BUTTON_MINIMUM_WIDTH)
@@ -191,8 +207,8 @@ class RecipeModelResolutionDialog(MessageBoxBase):  # type: ignore[misc]
             Qt.AlignmentFlag.AlignVCenter,
         )
 
-        download_button = PrimaryPushButton(
-            "Download and open recipe", self.buttonGroup
+        download_button = LocalizedPrimaryPushButton(
+            app_text("Download and open recipe"), self.buttonGroup
         )
         download_button.setIcon(FluentIcon.DOWNLOAD)
         download_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
@@ -236,7 +252,7 @@ class _RecipeModelReferenceRow(QWidget):
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(12)
 
-        self._thumbnail = QLabel("No thumbnail", self)
+        self._thumbnail = LocalizedLabel(app_text("No thumbnail"), self)
         self._thumbnail.setObjectName("RecipeModelResolutionThumbnail")
         self._thumbnail.setFixedSize(_THUMBNAIL_WIDTH, _THUMBNAIL_HEIGHT)
         self._thumbnail.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -252,14 +268,14 @@ class _RecipeModelReferenceRow(QWidget):
         )
         layout.addWidget(self._thumbnail, 0, Qt.AlignmentFlag.AlignTop)
 
-        text = BodyLabel(_reference_label(reference), self)
+        text = LocalizedBodyLabel(_reference_label(reference), self)
         text.setWordWrap(True)
         text.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         layout.addWidget(text, 1, Qt.AlignmentFlag.AlignVCenter)
 
         thumbnail_url = _thumbnail_url(reference)
         if thumbnail_url:
-            self._thumbnail.setText("Loading...")
+            set_localized_text(self._thumbnail, "Loading...")
             request = QNetworkRequest(QUrl(thumbnail_url))
             self._reply = network.get(request)
             self._reply.finished.connect(self._finish_thumbnail_load)
@@ -272,12 +288,12 @@ class _RecipeModelReferenceRow(QWidget):
             return
         try:
             if reply.error() != QNetworkReply.NetworkError.NoError:
-                self._thumbnail.setText("No thumbnail")
+                set_localized_text(self._thumbnail, "No thumbnail")
                 return
             pixmap = QPixmap()
             payload = cast(bytes, reply.readAll().data())
             if not pixmap.loadFromData(payload):
-                self._thumbnail.setText("No thumbnail")
+                set_localized_text(self._thumbnail, "No thumbnail")
                 return
             self._thumbnail.setPixmap(
                 pixmap.scaled(
@@ -291,7 +307,7 @@ class _RecipeModelReferenceRow(QWidget):
             self._reply = None
 
 
-def _reference_label(reference: object) -> str:
+def _reference_label(reference: object) -> ApplicationMessage:
     """Return a compact user-facing label for one unresolved reference."""
 
     cube_name = _cube_name(reference)
@@ -301,42 +317,56 @@ def _reference_label(reference: object) -> str:
         model_name = getattr(candidate, "model_name", "")
         file_name = getattr(candidate, "name", "")
         model_label = _model_file_label(model_name=model_name, file_name=file_name)
-        return f"{cube_name} uses {model_label}, which is missing."
+        return app_text(
+            "%1 uses %2, which is missing.",
+            cube_name,
+            model_label,
+        )
     value = str(getattr(reference, "value", "")).replace("\\", "/")
     model_label = _missing_value_label(value)
     if state is RecipeModelCivitaiState.NOT_FOUND:
-        return (
-            f"{cube_name} uses {model_label}, but CivitAI did not find a matching "
-            "download."
+        return app_text(
+            "%1 uses %2, but CivitAI did not find a matching download.",
+            cube_name,
+            model_label,
         )
     if state is RecipeModelCivitaiState.NO_SAFE_FILE:
-        return (
-            f"{cube_name} uses {model_label}, but CivitAI did not offer a safe "
-            "download."
+        return app_text(
+            "%1 uses %2, but CivitAI did not offer a safe download.",
+            cube_name,
+            model_label,
         )
     if state is RecipeModelCivitaiState.DISABLED:
-        return (
-            f"{cube_name} uses {model_label}. Turn on CivitAI model lookup in "
-            "Settings to search for it."
+        return app_text(
+            "%1 uses %2. Turn on CivitAI model lookup in Settings to search for it.",
+            cube_name,
+            model_label,
         )
-    return f"{cube_name} uses {model_label}. Download information is unavailable."
+    return app_text(
+        "%1 uses %2. Download information is unavailable.",
+        cube_name,
+        model_label,
+    )
 
 
-def _header_message(downloads_enabled: bool, can_download: bool) -> str:
+def _header_message(
+    downloads_enabled: bool,
+    can_download: bool,
+) -> ApplicationMessage:
     """Return friendly explanatory copy for the current resolver state."""
 
     if not downloads_enabled:
-        return (
+        return app_text(
             "This recipe uses a model that is not available in your current ComfyUI "
             "model folders. Turn on CivitAI model lookup in Settings to search for it."
         )
     if can_download:
-        return (
+        return app_text(
             "This recipe uses a model that is not in your current ComfyUI model "
             "folders. We found a matching file on CivitAI and can download it for "
             "you, then open the recipe."
         )
-    return (
+    return app_text(
         "This recipe uses a model that is not available in your current ComfyUI "
         "model folders. We could not find an automatic download that is safe to offer."
     )
@@ -348,7 +378,11 @@ def _all_references_have_downloads(required: RecipeModelResolutionRequired) -> b
     return all(reference.candidate is not None for reference in required.references)
 
 
-def _model_file_label(*, model_name: object, file_name: object) -> str:
+def _model_file_label(
+    *,
+    model_name: object,
+    file_name: object,
+) -> ApplicationText:
     """Return a friendly model/file label without implementation details."""
 
     model_text = str(model_name).strip()
@@ -357,7 +391,7 @@ def _model_file_label(*, model_name: object, file_name: object) -> str:
         return f"{model_text} ({file_text})"
     if model_text:
         return model_text
-    return file_text or "Model file"
+    return file_text or app_text("Model file")
 
 
 def _thumbnail_url(reference: object) -> str | None:
@@ -373,19 +407,19 @@ def _thumbnail_url(reference: object) -> str | None:
     return stripped or None
 
 
-def _cube_name(reference: object) -> str:
+def _cube_name(reference: object) -> ApplicationText:
     """Return a user-facing cube name for one missing model reference."""
 
     alias = str(getattr(reference, "alias", "")).strip()
-    return alias or "This cube"
+    return alias or app_text("This cube")
 
 
-def _missing_value_label(value: str) -> str:
+def _missing_value_label(value: str) -> ApplicationText:
     """Return the most readable name for a missing local model value."""
 
     normalized_value = value.strip().replace("\\", "/")
     if not normalized_value:
-        return "a model"
+        return app_text("a model")
     return normalized_value.rsplit("/", maxsplit=1)[-1] or normalized_value
 
 

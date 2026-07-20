@@ -30,6 +30,8 @@ from typing import Callable
 
 from PySide6.QtWidgets import QApplication
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.infrastructure.comfy.managed_shutdown import (
     ManagedProcessTerminationStatus,
 )
@@ -78,8 +80,8 @@ class ManagedComfyCleanupResult:
     elapsed_ms: int
     taskkill_timeout: bool
     verification_timeout: bool
-    user_detail: str
-    technical_detail: str
+    user_detail: ApplicationText
+    technical_detail: ApplicationText
     diagnostic_detail: str
 
 
@@ -143,8 +145,12 @@ class ManagedComfyCleanupHandler:
                 elapsed_ms=0,
                 taskkill_timeout=False,
                 verification_timeout=False,
-                user_detail="Cleanup was skipped because force-close was selected.",
-                technical_detail="Cleanup skipped after force-close selection.",
+                user_detail=app_text(
+                    "Cleanup was skipped because force-close was selected."
+                ),
+                technical_detail=app_text(
+                    "Cleanup skipped after force-close selection."
+                ),
                 diagnostic_detail="Coordinator bypassed cleanup after force-close selection.",
             )
         log_info(_LOGGER, "Future cleanup skipped after force-close selection")
@@ -171,8 +177,8 @@ class ManagedComfyCleanupHandler:
                 elapsed_ms=_elapsed_ms_since(started_at),
                 taskkill_timeout=False,
                 verification_timeout=False,
-                user_detail="No managed ComfyUI cleanup was required.",
-                technical_detail="No managed ComfyUI cleanup was required.",
+                user_detail=app_text("No managed ComfyUI cleanup was required."),
+                technical_detail=app_text("No managed ComfyUI cleanup was required."),
                 diagnostic_detail="Managed ComfyUI state was unavailable during cleanup.",
             )
         metadata = comfy_state.metadata
@@ -230,8 +236,10 @@ class ManagedComfyCleanupHandler:
                 elapsed_ms=_elapsed_ms_since(started_at),
                 taskkill_timeout=False,
                 verification_timeout=False,
-                user_detail="Substitute could not finish closing completely.",
-                technical_detail="Shutdown encountered an unexpected error before cleanup could finish.",
+                user_detail=app_text("Substitute could not finish closing completely."),
+                technical_detail=app_text(
+                    "Shutdown encountered an unexpected error before cleanup could finish."
+                ),
                 diagnostic_detail=(
                     "Cleanup encountered an unexpected error before termination could be verified."
                 ),
@@ -357,22 +365,22 @@ def _map_cleanup_outcome(
     return ManagedComfyCleanupOutcome.FAILURE
 
 
-def _build_user_detail(outcome: ManagedComfyCleanupOutcome) -> str:
+def _build_user_detail(outcome: ManagedComfyCleanupOutcome) -> ApplicationText:
     """Build the primary user-facing summary for one cleanup outcome."""
 
     if outcome is ManagedComfyCleanupOutcome.NO_ACTION_REQUIRED:
-        return "No managed ComfyUI cleanup was required."
+        return app_text("No managed ComfyUI cleanup was required.")
     if outcome is ManagedComfyCleanupOutcome.CONFIRMED_SUCCESS:
-        return "Substitute finished closing cleanly."
+        return app_text("Substitute finished closing cleanly.")
     if outcome is ManagedComfyCleanupOutcome.UNCERTAIN_SUCCESS:
-        return "Substitute could not confirm that shutdown finished."
-    return "Substitute could not finish closing completely."
+        return app_text("Substitute could not confirm that shutdown finished.")
+    return app_text("Substitute could not finish closing completely.")
 
 
 def _build_technical_detail(
     state_cleanup: ManagedComfyStateCleanupResult,
     outcome: ManagedComfyCleanupOutcome,
-) -> str:
+) -> ApplicationText:
     """Build one sanitized technical detail string for optional user display."""
 
     if outcome in {
@@ -382,7 +390,7 @@ def _build_technical_detail(
         return state_cleanup.user_safe_detail
     termination = state_cleanup.termination
     if termination is None:
-        return "Shutdown could not finish."
+        return app_text("Shutdown could not finish.")
     return termination.user_safe_detail
 
 

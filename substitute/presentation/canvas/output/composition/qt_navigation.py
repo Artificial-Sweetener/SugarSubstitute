@@ -46,8 +46,8 @@ from substitute.presentation.canvas.output.output_compare_controller import (
     OutputCompareController,
     visible_output_compare_state,
 )
-from substitute.presentation.widgets.cursor_tooltip_filter import (
-    install_cursor_tooltip_filter,
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    ensure_fluent_tooltip_filter,
 )
 
 if TYPE_CHECKING:
@@ -85,10 +85,11 @@ def compose_output_navigation_runtime(
         ),
         sync_source_selector=lambda: sync_output_source_selector_button(host),
         install_tooltip_filter=lambda tab_item, parent, delay: (
-            install_cursor_tooltip_filter(
+            ensure_fluent_tooltip_filter(
                 cast(QWidget, tab_item),
                 cast(QWidget, parent),
                 show_delay_ms=delay,
+                cursor_anchor=True,
             )
         ),
     )

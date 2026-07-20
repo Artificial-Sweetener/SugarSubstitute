@@ -18,6 +18,19 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import (
+    LocalizationBindings,
+    apply_application_text,
+    app_text,
+    render_application_text,
+)
+from substitute.presentation.localization import (
+    LocalizedCaptionLabel,
+    LocalizedPushButton,
+    LocalizedStrongBodyLabel,
+)
+
 from collections.abc import Callable
 from typing import Literal
 
@@ -49,7 +62,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon as FIF,
     IconWidget,
     PushButton,
-    StrongBodyLabel,
 )
 
 from substitute.application.about import (
@@ -58,6 +70,10 @@ from substitute.application.about import (
     AboutInfoService,
     AboutInfoSnapshot,
     AboutVersionRow,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_accessible_name,
+    set_localized_tooltip,
 )
 from substitute.presentation.dialogs import LicenseDialog
 from substitute.presentation.resources import app_icons_rc
@@ -81,11 +97,13 @@ from substitute.presentation.settings.settings_style import (
     settings_card_overlay_color,
 )
 
-_PRODUCT_DESCRIPTION = (
+_PRODUCT_DESCRIPTION = app_text(
     "A desktop frontend for building and running ComfyUI workflows with SugarCubes."
 )
-_EMPTY_SUPPORTERS_TEXT = "Supporter acknowledgements will appear here."
-_EMPTY_SPECIAL_THANKS_TEXT = "Special thanks acknowledgements will appear here."
+_EMPTY_SUPPORTERS_TEXT = app_text("Supporter acknowledgements will appear here.")
+_EMPTY_SPECIAL_THANKS_TEXT = app_text(
+    "Special thanks acknowledgements will appear here."
+)
 _VERSION_GRID_TWO_COLUMN_WIDTH = 920
 _VERSION_COMPACT_CARD_WIDTH = 420
 _VERSION_MINIMUM_CARD_WIDTH = 360
@@ -166,12 +184,15 @@ class AboutSettingsPage(QWidget):
         previous_special_thanks = self._snapshot.special_thanks
         self._snapshot = snapshot
         self._version_group.set_rows(snapshot.versions)
-        self._project_card.description_label.setText(snapshot.project_summary)
+        apply_application_text(
+            self._project_card.description_label,
+            snapshot.project_summary,
+        )
         if snapshot.supporters != previous_supporters:
             self._supporters_group = self._replace_group(
                 self._supporters_group,
                 self._acknowledgement_group(
-                    "Supporters",
+                    app_text("Supporters"),
                     snapshot.supporters,
                     empty_text=_EMPTY_SUPPORTERS_TEXT,
                     icon=AppIcon.HEART_20_REGULAR,
@@ -181,7 +202,7 @@ class AboutSettingsPage(QWidget):
             self._special_thanks_group = self._replace_group(
                 self._special_thanks_group,
                 self._acknowledgement_group(
-                    "Special thanks",
+                    app_text("Special thanks"),
                     snapshot.special_thanks,
                     empty_text=_EMPTY_SPECIAL_THANKS_TEXT,
                     icon=AppIcon.STAR_20_REGULAR,
@@ -197,22 +218,22 @@ class AboutSettingsPage(QWidget):
         self._identity_header = _IdentityHeader(self)
         self._version_group = _VersionCardGroup(self._snapshot.versions, parent=self)
         self._project_card = SettingsCard(
-            title="SugarSubstitute",
+            title=app_text("SugarSubstitute"),
             description=self._snapshot.project_summary,
             visual_widget=_settings_icon_widget(self, AppIcon.CUBE_20_FILLED),
             content_alignment="vertical",
             parent=self,
         )
         self._project_group = SettingsCardGroup(
-            "Project",
+            app_text("Project"),
             cards=(self._project_card,),
             parent=self,
         )
         self._license_group = SettingsCardGroup(
-            "License",
+            app_text("License"),
             cards=(
                 SettingsCard(
-                    title="GNU General Public License v3",
+                    title=app_text("GNU General Public License v3"),
                     description=ABOUT_LICENSE_PREAMBLE,
                     visual_widget=_settings_icon_widget(
                         self,
@@ -226,13 +247,13 @@ class AboutSettingsPage(QWidget):
             parent=self,
         )
         self._supporters_group = self._acknowledgement_group(
-            "Supporters",
+            app_text("Supporters"),
             self._snapshot.supporters,
             empty_text=_EMPTY_SUPPORTERS_TEXT,
             icon=AppIcon.HEART_20_REGULAR,
         )
         self._special_thanks_group = self._acknowledgement_group(
-            "Special thanks",
+            app_text("Special thanks"),
             self._snapshot.special_thanks,
             empty_text=_EMPTY_SPECIAL_THANKS_TEXT,
             icon=AppIcon.STAR_20_REGULAR,
@@ -263,7 +284,7 @@ class AboutSettingsPage(QWidget):
     def _license_button(self, parent: QWidget) -> PushButton:
         """Create the GPLv3 modal action button."""
 
-        button = PushButton("Read GPLv3", parent)
+        button = LocalizedPushButton(app_text("Read GPLv3"), parent)
         button.setObjectName("AboutReadLicenseButton")
         button.setIcon(FIF.DOCUMENT)
         button.clicked.connect(self._show_license_dialog)
@@ -282,10 +303,10 @@ class AboutSettingsPage(QWidget):
 
     def _acknowledgement_group(
         self,
-        title: str,
+        title: ApplicationText,
         entries: tuple[str, ...],
         *,
-        empty_text: str,
+        empty_text: ApplicationText,
         icon: AppIcon,
     ) -> SettingsCardGroup:
         """Create one acknowledgement Settings card group."""
@@ -363,11 +384,11 @@ class _IdentityHeader(QWidget):
         logo.setScaledContents(True)
         logo.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
-        title = StrongBodyLabel("SugarSubstitute", self)
+        title = LocalizedStrongBodyLabel(app_text("SugarSubstitute"), self)
         title.setObjectName("AboutSettingsProductName")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
-        description = CaptionLabel(_PRODUCT_DESCRIPTION, self)
+        description = LocalizedCaptionLabel(_PRODUCT_DESCRIPTION, self)
         description.setObjectName("AboutSettingsProductDescription")
         description.setWordWrap(True)
         description.setAlignment(Qt.AlignmentFlag.AlignHCenter)
@@ -406,7 +427,7 @@ class _VersionCardGroup(QWidget):
         next_order: list[str] = []
         live_keys: set[str] = set()
         for row in rows:
-            key = _version_object_key(row.label)
+            key = _version_object_key(row.component_key)
             next_order.append(key)
             live_keys.add(key)
             card = self._cards_by_key.get(key)
@@ -440,7 +461,9 @@ class _VersionCardGroup(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(SETTINGS_CARD_GROUP_TITLE_BOTTOM_MARGIN)
 
-        self.title_label = StrongBodyLabel("Version information", self)
+        self.title_label = LocalizedStrongBodyLabel(
+            app_text("Version information"), self
+        )
         layout.addWidget(self.title_label)
 
         self._card_container = QWidget(self)
@@ -527,11 +550,13 @@ class _AboutVersionCard(QFrame):
 
         super().__init__(parent)
         self._row = row
-        self._object_key = _version_object_key(row.label)
+        self._object_key = _version_object_key(row.component_key)
         self._title_text = row.label
         self._subtitle_text = row.subtitle
         self._value_text = row.value
-        self._author_text = f"by {row.authors}" if row.authors else ""
+        self._author_text: ApplicationText = (
+            app_text("by %1", row.authors) if row.authors else ""
+        )
         self._activation_handler = (
             _open_url_handler(row.external_url) if row.external_url else None
         )
@@ -549,15 +574,38 @@ class _AboutVersionCard(QFrame):
         self.setProperty("aboutVersionLayoutMode", self._layout_mode)
         self.setProperty("aboutVersionHovered", False)
         self.setProperty("aboutVersionPressed", False)
-        if row.external_url:
-            self.setToolTip(f"Open {row.label} project website")
-        else:
-            self.setToolTip("")
-
+        self.setMouseTracking(True)
         self.title_label = self._create_title_label()
         self.subtitle_label = self._create_subtitle_label()
         self.value_label = self._create_value_label()
         self.author_label = self._create_author_label()
+        self._localization_bindings = LocalizationBindings(self)
+        self._localization_bindings.bind_tooltip(
+            self,
+            lambda: (
+                render_application_text(
+                    app_text("Open %1 project website", self._row.label)
+                )
+                if self._row.external_url
+                else ""
+            ),
+        )
+        self._localization_bindings.bind_tooltip(
+            self.title_label,
+            lambda: render_application_text(self._title_text),
+        )
+        self._localization_bindings.bind_tooltip(
+            self.subtitle_label,
+            lambda: render_application_text(self._subtitle_text),
+        )
+        self._localization_bindings.bind_tooltip(
+            self.value_label,
+            self._value_tooltip,
+        )
+        self._localization_bindings.bind_tooltip(
+            self.author_label,
+            lambda: render_application_text(self._author_text),
+        )
         self.trailing_widget = self._create_transparent_slot(
             f"AboutVersionTrailing-{self._object_key}"
         )
@@ -586,7 +634,7 @@ class _AboutVersionCard(QFrame):
     def set_row(self, row: AboutVersionRow) -> None:
         """Bind updated version metadata while preserving card identity."""
 
-        object_key = _version_object_key(row.label)
+        object_key = _version_object_key(row.component_key)
         if object_key != self._object_key:
             raise ValueError("Cannot bind About version row with a different identity.")
         previous_icon_kind = _version_repository_icon_kind(self._row)
@@ -595,19 +643,14 @@ class _AboutVersionCard(QFrame):
         self._title_text = row.label
         self._subtitle_text = row.subtitle
         self._value_text = row.value
-        self._author_text = f"by {row.authors}" if row.authors else ""
+        self._author_text = app_text("by %1", row.authors) if row.authors else ""
         self._activation_handler = (
             _open_url_handler(row.external_url) if row.external_url else None
         )
         self.setProperty("externalUrl", row.external_url)
-        self.setToolTip(f"Open {row.label} project website" if row.external_url else "")
-        self.title_label.setToolTip(self._title_text)
-        self.subtitle_label.setToolTip(self._subtitle_text)
         self.value_label.setProperty("aboutVersionStatus", row.status.value)
-        tooltip_parts = tuple(part for part in (row.value, row.detail) if part)
-        self.value_label.setToolTip("\n\n".join(tooltip_parts))
-        self.author_label.setToolTip(self._author_text if self._author_text else "")
         self.author_label.setVisible(bool(self._author_text))
+        self._localization_bindings.retranslate()
         self._sync_repository_icon(
             row,
             previous_kind=previous_icon_kind,
@@ -622,6 +665,13 @@ class _AboutVersionCard(QFrame):
         """Return the preferred size for a normal full-width Settings card."""
 
         return QSize(SETTINGS_CARD_MIN_WIDTH, self._mode_height())
+
+    def changeEvent(self, event: QEvent) -> None:
+        """Re-elide translated metadata when the application language changes."""
+
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.LanguageChange:
+            self._sync_elided_text()
 
     def minimumSizeHint(self) -> QSize:
         """Return the minimum viable size for the responsive metadata tile."""
@@ -674,6 +724,12 @@ class _AboutVersionCard(QFrame):
             return
         super().mousePressEvent(event)
 
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        """Keep hover feedback current for synthesized and native pointer moves."""
+
+        self._set_hovered(True)
+        super().mouseMoveEvent(event)
+
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Open the project link when a linked card body is clicked."""
 
@@ -719,25 +775,23 @@ class _AboutVersionCard(QFrame):
     def _create_title_label(self) -> BodyLabel:
         """Create the component title label."""
 
-        label = BodyLabel(self._title_text, self)
+        label = BodyLabel(render_application_text(self._title_text), self)
         label.setObjectName(f"AboutVersionTitle-{self._object_key}")
         font = label.font()
         font.setWeight(QFont.Weight.DemiBold)
         label.setFont(font)
         label.setWordWrap(False)
-        label.setToolTip(self._title_text)
         return label
 
     def _create_subtitle_label(self) -> CaptionLabel:
         """Create the compact component description label."""
 
-        label = CaptionLabel(self._subtitle_text, self)
+        label = CaptionLabel(render_application_text(self._subtitle_text), self)
         label.setObjectName(f"AboutVersionSubtitle-{self._object_key}")
         font = label.font()
         font.setPixelSize(_VERSION_SUBTITLE_FONT_SIZE)
         label.setFont(font)
         label.setWordWrap(False)
-        label.setToolTip(self._subtitle_text)
         return label
 
     def _create_value_label(self) -> BodyLabel:
@@ -748,10 +802,6 @@ class _AboutVersionCard(QFrame):
         label.setProperty("aboutVersionStatus", self._row.status.value)
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        tooltip_parts = tuple(
-            part for part in (self._row.value, self._row.detail) if part
-        )
-        label.setToolTip("\n\n".join(tooltip_parts))
         return label
 
     def _create_author_label(self) -> CaptionLabel:
@@ -762,9 +812,16 @@ class _AboutVersionCard(QFrame):
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         label.setVisible(bool(self._author_text))
-        if self._author_text:
-            label.setToolTip(self._author_text)
         return label
+
+    def _value_tooltip(self) -> str:
+        """Return localized status copy plus opaque runtime detail."""
+
+        return "\n\n".join(
+            render_application_text(part)
+            for part in (self._row.value, self._row.detail)
+            if part
+        )
 
     def _create_transparent_slot(self, object_name: str) -> QWidget:
         """Create one transparent geometry slot for compatibility and testing."""
@@ -798,11 +855,9 @@ class _AboutVersionCard(QFrame):
             return
         if self.icon_slot is None:
             return
-        self.icon_slot.setToolTip(_version_repository_tooltip(row))
-        self.icon_slot.setAccessibleName(_version_repository_accessible_name(row))
+        _bind_version_repository_text(self.icon_slot, row)
         for child in self.icon_slot.findChildren(QWidget):
-            child.setToolTip(self.icon_slot.toolTip())
-            child.setAccessibleName(self.icon_slot.accessibleName())
+            _bind_version_repository_text(child, row)
 
     def _sync_layout_mode(self) -> None:
         """Select the internal layout that fits the current card width."""
@@ -1035,7 +1090,7 @@ class _AboutVersionCard(QFrame):
         self.title_label.setText(
             _elided_label_text(
                 self.title_label,
-                self._title_text,
+                render_application_text(self._title_text),
                 self.title_label.width(),
                 Qt.TextElideMode.ElideRight,
             )
@@ -1044,7 +1099,7 @@ class _AboutVersionCard(QFrame):
             self.subtitle_label.setText(
                 _elided_wrapped_label_text(
                     self.subtitle_label,
-                    self._subtitle_text,
+                    render_application_text(self._subtitle_text),
                     self.subtitle_label.width(),
                     _VERSION_WIDE_SUBTITLE_MAX_LINES,
                 )
@@ -1053,7 +1108,7 @@ class _AboutVersionCard(QFrame):
             self.subtitle_label.setText(
                 _elided_label_text(
                     self.subtitle_label,
-                    self._subtitle_text,
+                    render_application_text(self._subtitle_text),
                     self.subtitle_label.width(),
                     Qt.TextElideMode.ElideRight,
                 )
@@ -1061,7 +1116,7 @@ class _AboutVersionCard(QFrame):
         self.value_label.setText(
             _elided_label_text(
                 self.value_label,
-                self._value_text,
+                render_application_text(self._value_text),
                 self.value_label.width(),
                 Qt.TextElideMode.ElideMiddle,
             )
@@ -1069,7 +1124,7 @@ class _AboutVersionCard(QFrame):
         self.author_label.setText(
             _elided_label_text(
                 self.author_label,
-                self._author_text,
+                render_application_text(self._author_text),
                 self.author_label.width(),
                 Qt.TextElideMode.ElideRight,
             )
@@ -1155,7 +1210,7 @@ class _AboutVersionCard(QFrame):
             return line_height + 2
         subtitle = _elided_wrapped_label_text(
             self.subtitle_label,
-            self._subtitle_text,
+            render_application_text(self._subtitle_text),
             width,
             _VERSION_WIDE_SUBTITLE_MAX_LINES,
         )
@@ -1256,23 +1311,27 @@ def _version_repository_icon(
         pressed_changed,
         parent=parent,
     )
-    slot.setObjectName(f"AboutVersionLinkIconSlot-{_version_object_key(row.label)}")
-    slot.setToolTip(_version_repository_tooltip(row))
-    slot.setAccessibleName(_version_repository_accessible_name(row))
+    slot.setObjectName(
+        f"AboutVersionLinkIconSlot-{_version_object_key(row.component_key)}"
+    )
+    _bind_version_repository_text(slot, row)
 
     layout = QHBoxLayout(slot)
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(0)
     if _is_pyside_project_url(row.external_url):
         icon = IconWidget(QIcon(str(qt_logo_icon_path())), slot)
-        icon.setObjectName(f"AboutVersionQtIcon-{_version_object_key(row.label)}")
+        icon.setObjectName(
+            f"AboutVersionQtIcon-{_version_object_key(row.component_key)}"
+        )
     else:
         icon = IconWidget(FIF.GITHUB, slot)
-        icon.setObjectName(f"AboutVersionGitHubIcon-{_version_object_key(row.label)}")
+        icon.setObjectName(
+            f"AboutVersionGitHubIcon-{_version_object_key(row.component_key)}"
+        )
     icon.setFixedSize(_VERSION_LINK_ICON_SIZE, _VERSION_LINK_ICON_SIZE)
     icon.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-    icon.setToolTip(slot.toolTip())
-    icon.setAccessibleName(slot.accessibleName())
+    _bind_version_repository_text(icon, row)
     layout.addWidget(icon, 0, Qt.AlignmentFlag.AlignCenter)
     return slot
 
@@ -1287,20 +1346,15 @@ def _version_repository_icon_kind(
     return "qt" if _is_pyside_project_url(row.external_url) else "github"
 
 
-def _version_repository_tooltip(row: AboutVersionRow) -> str:
-    """Return the passive project icon tooltip for one version row."""
+def _bind_version_repository_text(target: QWidget, row: AboutVersionRow) -> None:
+    """Bind project-link affordances while preserving their dynamic row label."""
 
     if _is_pyside_project_url(row.external_url):
-        return "Open the PySide6 project website"
-    return f"Open {row.label} repository on GitHub"
-
-
-def _version_repository_accessible_name(row: AboutVersionRow) -> str:
-    """Return the passive project icon accessible name for one version row."""
-
-    if _is_pyside_project_url(row.external_url):
-        return "PySide6 project website"
-    return f"{row.label} GitHub repository"
+        set_localized_tooltip(target, "Open the PySide6 project website")
+        set_localized_accessible_name(target, "PySide6 project website")
+        return
+    set_localized_tooltip(target, "Open %1 repository on GitHub", row.label)
+    set_localized_accessible_name(target, "%1 GitHub repository", row.label)
 
 
 def _elided_label_text(
@@ -1401,7 +1455,7 @@ def _version_object_key(label: str) -> str:
 def _acknowledgement_cards(
     entries: tuple[str, ...],
     *,
-    empty_text: str,
+    empty_text: ApplicationText,
     icon: AppIcon,
     parent: QWidget,
 ) -> tuple[SettingsCard, ...]:

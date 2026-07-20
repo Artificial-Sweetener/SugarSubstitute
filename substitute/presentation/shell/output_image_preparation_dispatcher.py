@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -224,7 +226,7 @@ class OutputImagePreparationDispatcher(QObject):
         self.failed.emit(
             FailedOutputImagePreparation(
                 request=request,
-                message="Failed to load generated image.",
+                message=app_text("Failed to load generated image."),
                 detail=str(error),
             )
         )
@@ -252,7 +254,7 @@ class OutputImagePreparationDispatcher(QObject):
             self.failed.emit(
                 FailedOutputImagePreparation(
                     request=request,
-                    message="Failed to load generated image.",
+                    message=app_text("Failed to load generated image."),
                     detail=str(outcome.error),
                 )
             )
@@ -292,7 +294,7 @@ def prepare_output_image(
             )
             return FailedOutputImagePreparation(
                 request=request,
-                message="Failed to load generated image.",
+                message=app_text("Failed to load generated image."),
                 detail="Image decoder returned no image data.",
             )
 
@@ -324,7 +326,7 @@ def prepare_output_image(
         )
         return FailedOutputImagePreparation(
             request=request,
-            message="Failed to load generated image.",
+            message=app_text("Failed to load generated image."),
             detail=str(error),
         )
 

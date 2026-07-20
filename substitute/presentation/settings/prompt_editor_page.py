@@ -18,6 +18,11 @@
 
 from __future__ import annotations
 
+from substitute.presentation.localization import LocalizedSwitchButton
+
+from sugarsubstitute_shared.presentation.localization import app_text
+from substitute.presentation.localization import LocalizedPushButton
+
 from collections.abc import Callable
 from typing import Any
 
@@ -30,7 +35,6 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (  # type: ignore[import-untyped]
     IconWidget,
     IndicatorPosition,
-    PushButton,
     SwitchButton,
 )
 
@@ -193,7 +197,7 @@ class PromptEditorSettingsPage(QWidget):
         content_layout.setSpacing(SETTINGS_CARD_GROUP_TOP_MARGIN)
         content_layout.addWidget(
             SettingsCardGroup(
-                "Interaction",
+                app_text("Interaction"),
                 cards=(self._wheel_hover_adjustment_row(),),
                 parent=self,
             )
@@ -205,7 +209,7 @@ class PromptEditorSettingsPage(QWidget):
             feature_cards.append(self._feature_row(definition))
         content_layout.addWidget(
             SettingsCardGroup(
-                "Editor features",
+                app_text("Editor features"),
                 cards=tuple(feature_cards),
                 parent=self,
             )
@@ -221,7 +225,7 @@ class PromptEditorSettingsPage(QWidget):
         if wildcard_cards:
             content_layout.addWidget(
                 SettingsCardGroup(
-                    "Wildcards",
+                    app_text("Wildcards"),
                     cards=tuple(wildcard_cards),
                     parent=self,
                 )
@@ -235,9 +239,9 @@ class PromptEditorSettingsPage(QWidget):
         """Create one feature preference row."""
 
         feature = definition.feature
-        switch = SwitchButton("Off", self, indicatorPos=IndicatorPosition.RIGHT)
-        switch.setOnText("On")
-        switch.setOffText("Off")
+        switch = LocalizedSwitchButton(
+            "Off", self, indicatorPos=IndicatorPosition.RIGHT
+        )
         switch.checkedChanged.connect(
             lambda checked, item=feature: self._set_feature_allowed(item, checked)
         )
@@ -257,16 +261,18 @@ class PromptEditorSettingsPage(QWidget):
     def _wheel_hover_adjustment_row(self) -> InteractiveSettingsCard:
         """Create the mouse-wheel hover adjustment policy row."""
 
-        switch = SwitchButton("Off", self, indicatorPos=IndicatorPosition.RIGHT)
-        switch.setOnText("On")
-        switch.setOffText("Off")
+        switch = LocalizedSwitchButton(
+            "Off", self, indicatorPos=IndicatorPosition.RIGHT
+        )
         switch.checkedChanged.connect(self._set_wheel_hover_adjustment_enabled)
         row = InteractiveSettingsCard(
             visual_widget=self._icon_widget(PROMPT_WHEEL_ADJUSTMENT_SETTINGS_ICON),
-            title="Wheel adjust after hover",
+            title=app_text("Wheel adjust after hover"),
             description=(
-                "When off, click or focus a control before the mouse wheel can "
-                "change it."
+                app_text(
+                    "When off, click or focus a control before the mouse wheel can "
+                    "change it."
+                )
             ),
             trailing_widget=switch,
             reserve_visual_space=True,
@@ -280,16 +286,18 @@ class PromptEditorSettingsPage(QWidget):
     def _wildcard_resolution_row(self) -> InteractiveSettingsCard:
         """Create the wildcard generation preprocessing toggle row."""
 
-        switch = SwitchButton("Off", self, indicatorPos=IndicatorPosition.RIGHT)
-        switch.setOnText("On")
-        switch.setOffText("Off")
+        switch = LocalizedSwitchButton(
+            "Off", self, indicatorPos=IndicatorPosition.RIGHT
+        )
         switch.checkedChanged.connect(self._set_wildcard_resolution_enabled)
         self._wildcard_resolve_switch = switch
         row = InteractiveSettingsCard(
             visual_widget=self._icon_widget(PROMPT_WILDCARD_RESOLUTION_SETTINGS_ICON),
-            title="Resolve wildcards on generation",
+            title=app_text("Resolve wildcards on generation"),
             description=(
-                "Expand wildcard prompt text before sending queued workflows to Comfy."
+                app_text(
+                    "Expand wildcard prompt text before sending queued workflows to Comfy."
+                )
             ),
             trailing_widget=switch,
             reserve_visual_space=True,
@@ -301,11 +309,11 @@ class PromptEditorSettingsPage(QWidget):
     def _wildcard_management_row(self) -> SettingsCard:
         """Create the user wildcard folder management action row."""
 
-        manage_button = PushButton("Manage", self)
+        manage_button = LocalizedPushButton(app_text("Manage"), self)
         manage_button.clicked.connect(self._open_wildcard_management)
-        open_button = PushButton("Open folder", self)
+        open_button = LocalizedPushButton(app_text("Open folder"), self)
         open_button.clicked.connect(self._open_wildcard_folder)
-        refresh_button = PushButton("Refresh", self)
+        refresh_button = LocalizedPushButton(app_text("Refresh"), self)
         refresh_button.clicked.connect(self._refresh_wildcard_catalog)
         controls = self._control_row(
             manage_button,
@@ -314,8 +322,10 @@ class PromptEditorSettingsPage(QWidget):
         )
         row = SettingsCard(
             visual_widget=self._icon_widget(PROMPT_WILDCARD_MANAGEMENT_SETTINGS_ICON),
-            title="Manage wildcards",
-            description="Edit user wildcard files and refresh prompt metadata.",
+            title=app_text("Manage wildcards"),
+            description=app_text(
+                "Edit user wildcard files and refresh prompt metadata."
+            ),
             trailing_widget=controls,
             reserve_visual_space=True,
             parent=self,

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 from dataclasses import dataclass
 from pathlib import Path
 from collections.abc import Callable
@@ -170,7 +172,7 @@ class CivitaiPreferenceService:
         return CivitaiPreferenceSaveResult(
             preferences=normalized,
             succeeded=True,
-            message="CivitAI download organization settings saved.",
+            message=app_text("CivitAI download organization settings saved."),
             preview=preview,
         )
 

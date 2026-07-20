@@ -18,14 +18,23 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import (
+    apply_application_text,
+    app_text,
+)
+
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_text,
+)
+from substitute.presentation.localization import LocalizedBodyLabel, LocalizedPushButton
+
 from pathlib import Path
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    BodyLabel,
     FluentIcon as FIF,
-    PushButton,
 )
 
 from substitute.application.onboarding.comfy_environment_service import (
@@ -50,35 +59,46 @@ class ComfyPreflightPage(OnboardingPageFrame):
         """Build the responsive running-Comfy preflight page."""
 
         super().__init__(
-            title="Close ComfyUI before setup continues",
+            title=app_text("Close ComfyUI before setup continues"),
             description=(
-                "Substitute checks for running ComfyUI processes before changing "
-                "local environments."
+                app_text(
+                    "Substitute checks for running ComfyUI processes before changing "
+                    "local environments."
+                )
             ),
             icon=FIF.SYNC,
-            eyebrow="Environment safety check",
+            eyebrow=app_text("Environment safety check"),
             parent=parent,
         )
         self.setObjectName("OnboardingComfyPreflightPage")
         self.section = OnboardingSectionPanel(self)
-        self.status_label = BodyLabel("Checking for running ComfyUI…", self)
+        self.status_label = LocalizedBodyLabel(
+            app_text("Checking for running ComfyUI…"), self
+        )
         self.status_label.setObjectName("OnboardingComfyPreflightStatus")
         self.status_label.setWordWrap(True)
         self.section.content_layout.addWidget(self.status_label)
-        self.close_button = PushButton("Close ComfyUI for me", self)
+        self.close_button = LocalizedPushButton(app_text("Close ComfyUI for me"), self)
         self.close_button.setObjectName("OnboardingComfyPreflightCloseButton")
         self.close_button.clicked.connect(self.close_requested.emit)
         self.close_button.hide()
         self.section.content_layout.addWidget(self.close_button)
         self.explanation_panel = OnboardingInfoPanel(
-            title="Why setup pauses here",
+            title=app_text("Why setup pauses here"),
             description=(
-                "Installing packages or changing model paths while ComfyUI is "
-                "running can leave its environment in an inconsistent state."
+                app_text(
+                    "Installing packages or changing model paths while ComfyUI is "
+                    "running can leave its environment in an inconsistent state."
+                )
             ),
             detail_lines=(
-                "Continue becomes available automatically when ComfyUI stops.",
-                "You can close it yourself or ask Substitute to close a verified process.",
+                app_text(
+                    "Continue becomes available automatically when ComfyUI stops."
+                ),
+                app_text(
+                    "You can close it yourself or ask Substitute to close a verified "
+                    "process."
+                ),
             ),
             parent=self,
         )
@@ -88,7 +108,7 @@ class ComfyPreflightPage(OnboardingPageFrame):
     def show_checking(self) -> None:
         """Render the nonblocking initial observation state."""
 
-        self.status_label.setText("Checking for running ComfyUI…")
+        set_localized_text(self.status_label, "Checking for running ComfyUI…")
         self.close_button.hide()
         self.content_height_changed.emit()
 
@@ -96,15 +116,24 @@ class ComfyPreflightPage(OnboardingPageFrame):
         """Render one live process preflight observation."""
 
         if snapshot.can_continue:
-            self.status_label.setText("ComfyUI is closed. Setup can continue.")
+            set_localized_text(
+                self.status_label, "ComfyUI is closed. Setup can continue."
+            )
             self.close_button.hide()
             self.content_height_changed.emit()
             return
         count = len(snapshot.processes)
-        noun = "process is" if count == 1 else "processes are"
-        self.status_label.setText(
-            f"{count} ComfyUI {noun} still running. Close ComfyUI to continue."
-        )
+        if count == 1:
+            set_localized_text(
+                self.status_label,
+                "1 ComfyUI process is still running. Close ComfyUI to continue.",
+            )
+        else:
+            set_localized_text(
+                self.status_label,
+                "%1 ComfyUI processes are still running. Close ComfyUI to continue.",
+                count,
+            )
         self.close_button.setVisible(snapshot.can_close)
         self.content_height_changed.emit()
 
@@ -119,33 +148,41 @@ class AttachedPythonChoicePage(OnboardingPageFrame):
         """Build the attached-Python recovery decision page."""
 
         super().__init__(
-            title="We couldn't find ComfyUI's Python environment",
+            title=app_text("We couldn't find ComfyUI's Python environment"),
             description=(
-                "Substitute could not identify the Python environment from the "
-                "ComfyUI folder alone."
+                app_text(
+                    "Substitute could not identify the Python environment from the "
+                    "ComfyUI folder alone."
+                )
             ),
             icon=FIF.HELP,
-            eyebrow="Find ComfyUI's Python environment",
+            eyebrow=app_text("Find ComfyUI's Python environment"),
             parent=parent,
         )
         self.setObjectName("OnboardingAttachedPythonChoicePage")
         section = OnboardingSectionPanel(self)
         self.choice_panel = OnboardingInfoPanel(
-            title="Choose how to find it",
+            title=app_text("Choose how to find it"),
             description=(
-                "Substitute can detect the environment from a running ComfyUI, or "
-                "you can select the Python executable manually."
+                app_text(
+                    "Substitute can detect the environment from a running ComfyUI, or "
+                    "you can select the Python executable manually."
+                )
             ),
             detail_lines=(),
             parent=self,
         )
         section.content_layout.addWidget(self.choice_panel)
         choices = QHBoxLayout()
-        self.process_button = PushButton("Detect from running ComfyUI", self)
+        self.process_button = LocalizedPushButton(
+            app_text("Detect from running ComfyUI"), self
+        )
         self.process_button.setObjectName("OnboardingAttachedPythonProcessChoice")
         self.process_button.clicked.connect(self.process_detection_requested.emit)
         choices.addWidget(self.process_button, 1)
-        self.manual_button = PushButton("Select Python executable manually", self)
+        self.manual_button = LocalizedPushButton(
+            app_text("Select Python executable manually"), self
+        )
         self.manual_button.setObjectName("OnboardingAttachedPythonManualChoice")
         self.manual_button.clicked.connect(self.manual_selection_requested.emit)
         choices.addWidget(self.manual_button, 1)
@@ -163,32 +200,40 @@ class AttachedPythonProcessPage(OnboardingPageFrame):
         """Build the responsive running-Comfy detection page."""
 
         super().__init__(
-            title="Start ComfyUI",
+            title=app_text("Start ComfyUI"),
             description=(
-                "Substitute will identify the Python environment from the running "
-                "ComfyUI process."
+                app_text(
+                    "Substitute will identify the Python environment from the running "
+                    "ComfyUI process."
+                )
             ),
             icon=FIF.HELP,
-            eyebrow="Detect ComfyUI's Python environment",
+            eyebrow=app_text("Detect ComfyUI's Python environment"),
             parent=parent,
         )
         self.setObjectName("OnboardingAttachedPythonProcessPage")
         section = OnboardingSectionPanel(self)
         self.status_panel = OnboardingInfoPanel(
-            title="Open ComfyUI yourself",
+            title=app_text("Open ComfyUI yourself"),
             description=(
-                "Start this ComfyUI installation using your usual shortcut, script, "
-                "or launcher. Keep this installer open; Substitute will detect it "
-                "automatically."
+                app_text(
+                    "Start this ComfyUI installation using your usual shortcut, script, "
+                    "or launcher. Keep this installer open; Substitute will detect it "
+                    "automatically."
+                )
             ),
             detail_lines=(
-                "This screen updates as soon as the matching ComfyUI process appears.",
+                app_text(
+                    "This screen updates as soon as the matching ComfyUI process appears."
+                ),
             ),
             parent=self,
         )
         self.status_panel.setObjectName("OnboardingAttachedPythonProcessStatus")
         section.content_layout.addWidget(self.status_panel)
-        self.close_button = PushButton("Close ComfyUI and continue", self)
+        self.close_button = LocalizedPushButton(
+            app_text("Close ComfyUI and continue"), self
+        )
         self.close_button.setObjectName("OnboardingAttachedPythonProcessCloseButton")
         self.close_button.clicked.connect(self.close_requested.emit)
         self.close_button.hide()
@@ -198,11 +243,12 @@ class AttachedPythonProcessPage(OnboardingPageFrame):
     def reset(self) -> None:
         """Restore the initial live-detection guidance."""
 
-        self.status_panel.title_label.setText("Open ComfyUI yourself")
-        self.status_panel.description_label.setText(
+        set_localized_text(self.status_panel.title_label, "Open ComfyUI yourself")
+        set_localized_text(
+            self.status_panel.description_label,
             "Start this ComfyUI installation using your usual shortcut, script, "
             "or launcher. Keep this installer open; Substitute will detect it "
-            "automatically."
+            "automatically.",
         )
         self.close_button.hide()
         self.content_height_changed.emit()
@@ -211,23 +257,37 @@ class AttachedPythonProcessPage(OnboardingPageFrame):
         """Render one current process-detection observation."""
 
         title_by_state = {
-            AttachedPythonRecoveryState.WAITING_FOR_LAUNCH: "Open ComfyUI yourself",
-            AttachedPythonRecoveryState.OTHER_COMFY_RUNNING: "A different ComfyUI is running",
-            AttachedPythonRecoveryState.MULTIPLE_MATCHING: "More than one ComfyUI process was found",
-            AttachedPythonRecoveryState.PYTHON_VALIDATION_FAILED: "That environment could not be verified",
-            AttachedPythonRecoveryState.WAITING_FOR_SHUTDOWN: "Python environment found",
-            AttachedPythonRecoveryState.READY: "Python environment ready",
+            AttachedPythonRecoveryState.WAITING_FOR_LAUNCH: app_text(
+                "Open ComfyUI yourself"
+            ),
+            AttachedPythonRecoveryState.OTHER_COMFY_RUNNING: app_text(
+                "A different ComfyUI is running"
+            ),
+            AttachedPythonRecoveryState.MULTIPLE_MATCHING: app_text(
+                "More than one ComfyUI process was found"
+            ),
+            AttachedPythonRecoveryState.PYTHON_VALIDATION_FAILED: app_text(
+                "That environment could not be verified"
+            ),
+            AttachedPythonRecoveryState.WAITING_FOR_SHUTDOWN: app_text(
+                "Python environment found"
+            ),
+            AttachedPythonRecoveryState.READY: app_text("Python environment ready"),
         }
-        self.status_panel.title_label.setText(title_by_state[snapshot.state])
-        self.status_panel.description_label.setText(snapshot.detail)
+        apply_application_text(
+            self.status_panel.title_label, title_by_state[snapshot.state]
+        )
+        apply_application_text(self.status_panel.description_label, snapshot.detail)
         self.close_button.setVisible(snapshot.can_close)
         self.content_height_changed.emit()
 
-    def show_failure(self, detail: str) -> None:
+    def show_failure(self, detail: ApplicationText) -> None:
         """Render a process-observation failure without hiding route switching."""
 
-        self.status_panel.title_label.setText("ComfyUI could not be checked yet")
-        self.status_panel.description_label.setText(detail)
+        set_localized_text(
+            self.status_panel.title_label, "ComfyUI could not be checked yet"
+        )
+        apply_application_text(self.status_panel.description_label, detail)
         self.close_button.hide()
         self.content_height_changed.emit()
 
@@ -243,44 +303,58 @@ class AttachedPythonManualPage(OnboardingPageFrame):
         """Build the manual attached-Python selection page."""
 
         super().__init__(
-            title="Select ComfyUI's Python executable",
+            title=app_text("Select ComfyUI's Python executable"),
             description=(
-                "Choose the Python executable used by this ComfyUI installation."
+                app_text(
+                    "Choose the Python executable used by this ComfyUI installation."
+                )
             ),
             icon=FIF.HELP,
-            eyebrow="Select ComfyUI's Python environment",
+            eyebrow=app_text("Select ComfyUI's Python environment"),
             parent=parent,
         )
         self.setObjectName("OnboardingAttachedPythonManualPage")
         section = OnboardingSectionPanel(self)
         self.guidance_panel = OnboardingInfoPanel(
-            title="Choose the Python your setup actually uses",
+            title=app_text("Choose the Python your setup actually uses"),
             description=(
-                "Substitute already checked the usual environment locations in this "
-                "ComfyUI folder."
+                app_text(
+                    "Substitute already checked the usual environment locations in this "
+                    "ComfyUI folder."
+                )
             ),
             detail_lines=(
-                "Select the executable used by the custom shortcut, script, launcher, "
-                "or environment manager that starts ComfyUI.",
-                "If you are not sure, use Detect from running ComfyUI instead.",
+                app_text(
+                    "Select the executable used by the custom shortcut, script, "
+                    "launcher, or environment manager that starts ComfyUI."
+                ),
+                app_text(
+                    "If you are not sure, use Detect from running ComfyUI instead."
+                ),
             ),
             parent=self,
         )
         section.content_layout.addWidget(self.guidance_panel)
-        self.browse_button = PushButton("Browse for Python executable…", self)
+        self.browse_button = LocalizedPushButton(
+            app_text("Browse for Python executable…"), self
+        )
         self.browse_button.setObjectName("OnboardingAttachedPythonManualBrowseButton")
         self.browse_button.clicked.connect(self.browse_requested.emit)
         section.content_layout.addWidget(self.browse_button)
         self.status_panel = OnboardingInfoPanel(
-            title="Checking the selected Python executable…",
-            description="Substitute is verifying that this Python belongs to ComfyUI.",
+            title=app_text("Checking the selected Python executable…"),
+            description=app_text(
+                "Substitute is verifying that this Python belongs to ComfyUI."
+            ),
             detail_lines=(),
             parent=self,
         )
         self.status_panel.setObjectName("OnboardingAttachedPythonManualStatus")
         self.status_panel.hide()
         section.content_layout.addWidget(self.status_panel)
-        self.close_button = PushButton("Close ComfyUI and continue", self)
+        self.close_button = LocalizedPushButton(
+            app_text("Close ComfyUI and continue"), self
+        )
         self.close_button.setObjectName("OnboardingAttachedPythonManualCloseButton")
         self.close_button.clicked.connect(self.close_requested.emit)
         self.close_button.hide()
@@ -299,8 +373,8 @@ class AttachedPythonManualPage(OnboardingPageFrame):
     def show_validation_started(self, executable: Path) -> None:
         """Show which selected executable is being verified."""
 
-        self.status_panel.title_label.setText(
-            "Checking the selected Python executable…"
+        set_localized_text(
+            self.status_panel.title_label, "Checking the selected Python executable…"
         )
         self.status_panel.description_label.setText(str(executable))
         self.status_panel.show()
@@ -311,22 +385,30 @@ class AttachedPythonManualPage(OnboardingPageFrame):
         """Render shutdown or readiness after successful manual validation."""
 
         title_by_state = {
-            AttachedPythonRecoveryState.WAITING_FOR_SHUTDOWN: "Python environment found",
-            AttachedPythonRecoveryState.READY: "Python environment ready",
+            AttachedPythonRecoveryState.WAITING_FOR_SHUTDOWN: app_text(
+                "Python environment found"
+            ),
+            AttachedPythonRecoveryState.READY: app_text("Python environment ready"),
         }
-        self.status_panel.title_label.setText(
-            title_by_state.get(snapshot.state, "Checking the Python environment")
+        apply_application_text(
+            self.status_panel.title_label,
+            title_by_state.get(
+                snapshot.state,
+                app_text("Checking the Python environment"),
+            ),
         )
-        self.status_panel.description_label.setText(snapshot.detail)
+        apply_application_text(self.status_panel.description_label, snapshot.detail)
         self.status_panel.show()
         self.close_button.setVisible(snapshot.can_close)
         self.content_height_changed.emit()
 
-    def show_validation_failure(self, detail: str) -> None:
+    def show_validation_failure(self, detail: ApplicationText) -> None:
         """Render a failed selection while leaving Browse available."""
 
-        self.status_panel.title_label.setText("That Python executable did not work")
-        self.status_panel.description_label.setText(detail)
+        set_localized_text(
+            self.status_panel.title_label, "That Python executable did not work"
+        )
+        apply_application_text(self.status_panel.description_label, detail)
         self.status_panel.show()
         self.close_button.hide()
         self.content_height_changed.emit()

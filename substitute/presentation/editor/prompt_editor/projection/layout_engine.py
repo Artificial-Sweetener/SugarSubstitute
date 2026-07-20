@@ -36,6 +36,7 @@ from substitute.application.prompt_editor import (
     blank_line_drop_offsets,
 )
 from substitute.application.appearance import SemanticPalette
+from substitute.presentation.text_coordinates import TextCoordinateMap
 
 from .line_layout import (
     PromptProjectionLineLayoutBuilder,
@@ -5855,8 +5856,14 @@ def _text_boundary_offsets(text: str, font: QFont) -> tuple[float, ...]:
     text_layout.endLayout()
     if not text_line.isValid():
         return (0.0,)
+    coordinates = TextCoordinateMap(text)
     return tuple(
-        float(cast(tuple[float, int], text_line.cursorToX(index))[0])
+        float(
+            cast(
+                tuple[float, int],
+                text_line.cursorToX(coordinates.python_to_utf16(index)),
+            )[0]
+        )
         for index in range(len(text) + 1)
     )
 

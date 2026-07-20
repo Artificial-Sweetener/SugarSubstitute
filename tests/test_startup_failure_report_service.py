@@ -21,6 +21,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.comfy_startup_diagnostics.startup_failure_report_service import (
     build_startup_failure_report,
     build_startup_readiness_timeout_incident,
@@ -164,10 +166,11 @@ def test_runtime_compatibility_incident_records_versions(tmp_path: Path) -> None
     assert incident.kind is ComfyStartupIncidentKind.RUNTIME_COMPATIBILITY_FAILED
     assert incident.severity is ComfyStartupIncidentSeverity.FATAL
     assert incident.title == "Comfy runtime is incompatible"
-    assert "SugarCubes version is incompatible." in incident.message
-    assert "Required BackEnd: >=1.6.2,<2.0.0." in incident.message
-    assert "Required SugarCubes: >=0.10.0,<2.0.0." in incident.message
-    assert "still incompatible" in incident.message
+    rendered_message = render_source_application_text(incident.message)
+    assert "SugarCubes version is incompatible." in rendered_message
+    assert "Required BackEnd: >=1.6.2,<2.0.0." in rendered_message
+    assert "Required SugarCubes: >=0.10.0,<2.0.0." in rendered_message
+    assert "still incompatible" in rendered_message
     assert incident.exception_type == "RuntimeError"
     assert incident.log_excerpt == ("startup log",)
     assert incident.values["compatibility_status"] == "sugarcubes_too_old"

@@ -18,6 +18,14 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_placeholder,
+    set_localized_text,
+)
+from substitute.presentation.localization import LocalizedBodyLabel, LocalizedPushButton
+
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -30,7 +38,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     ComboBox,
     FluentIcon as FIF,
     LineEdit,
-    PushButton,
 )
 
 from substitute.application.appearance import (
@@ -59,7 +66,6 @@ from substitute.application.generation import (
 from substitute.application.onboarding import ComfyConnectionSettingsService
 from substitute.application.ports.civitai_credential_store import (
     CredentialStorageUnavailableError,
-    CredentialStoreStatus,
 )
 from substitute.application.ports.danbooru_cache_repository import (
     DanbooruCacheRepository,
@@ -77,6 +83,9 @@ from substitute.application.prompt_wildcards import (
     PromptWildcardPreferenceService,
 )
 from substitute.presentation.semantic_colors import legible_text_color_for_background
+from substitute.presentation.settings.civitai_credential_status import (
+    api_key_status_text,
+)
 from substitute.presentation.settings.appearance_runtime_protocol import (
     AppearanceRuntimeProtocol,
 )
@@ -211,8 +220,8 @@ def build_generation_settings_page(
 
     return SettingsPageEntry(
         page_id="generation",
-        title="Generation",
-        subtitle="Generation behavior and generated files.",
+        title=app_text("Generation"),
+        subtitle=app_text("Generation behavior and generated files."),
         icon=AppIcon.IMAGE_SPARKLE_20_REGULAR,
         order=10,
         sections=(
@@ -297,8 +306,8 @@ def build_prompt_editing_settings_page(
     )
     return SettingsPageEntry(
         page_id="prompt_editing",
-        title="Prompt Editing",
-        subtitle="Prompt editor behavior and authoring support.",
+        title=app_text("Prompt Editing"),
+        subtitle=app_text("Prompt editor behavior and authoring support."),
         icon=AppIcon.TEXT_EFFECTS_SPARKLE_20_REGULAR,
         order=20,
         sections=(
@@ -451,8 +460,8 @@ def build_model_sources_settings_page(
 
     return SettingsPageEntry(
         page_id="model_sources",
-        title="Model Sources",
-        subtitle="External providers, credentials, safety, and caches.",
+        title=app_text("Model Sources"),
+        subtitle=app_text("External providers, credentials, safety, and caches."),
         icon=AppIcon.GLOBE_DESKTOP_20_REGULAR,
         order=30,
         sections=(
@@ -564,8 +573,8 @@ def build_appearance_settings_page(
 
     return SettingsPageEntry(
         page_id="appearance",
-        title="Appearance",
-        subtitle="Visual customization.",
+        title=app_text("Appearance"),
+        subtitle=app_text("Visual customization."),
         icon=FIF.BRUSH,
         order=60,
         sections=(
@@ -628,8 +637,8 @@ def build_comfyui_search_catalog_page(
 
     return SettingsPageEntry(
         page_id="comfyui",
-        title="ComfyUI",
-        subtitle="ComfyUI connection, installation, and Python environment.",
+        title=app_text("ComfyUI"),
+        subtitle=app_text("ComfyUI connection, installation, and Python environment."),
         icon=AppIcon.PLUG_CONNECTED_SETTINGS_20_REGULAR,
         order=50,
         sections=(
@@ -670,10 +679,12 @@ def build_comfyui_search_catalog_page(
                         10,
                         lambda parent: SettingsCard(
                             visual_widget=_icon_widget(FIF.DEVELOPER_TOOLS, parent),
-                            title="Installed Python packages",
+                            title=app_text("Installed Python packages"),
                             description=(
-                                "Use the ComfyUI page package filter to inspect "
-                                "installed packages and maintenance actions."
+                                app_text(
+                                    "Use the ComfyUI page package filter to inspect "
+                                    "installed packages and maintenance actions."
+                                )
                             ),
                             reserve_visual_space=True,
                             parent=parent,
@@ -729,8 +740,10 @@ def _civitai_missing_model_lookup_row(
     return _switch_row(
         parent=parent,
         icon=AppIcon.BOX_SEARCH_20_REGULAR,
-        title="Look up missing recipe models",
-        description="Use CivitAI only after local recipe model matching fails.",
+        title=app_text("Look up missing recipe models"),
+        description=app_text(
+            "Use CivitAI only after local recipe model matching fails."
+        ),
         checked=service.load_preferences().missing_model_lookup_enabled,
         on_changed=service.set_missing_model_lookup_enabled,
     )
@@ -745,8 +758,10 @@ def _civitai_downloads_row(
     return _switch_row(
         parent=parent,
         icon=AppIcon.ARROW_DOWNLOAD_20_REGULAR,
-        title="Offer verified model downloads",
-        description="Allow missing-model resolution to offer CivitAI downloads.",
+        title=app_text("Offer verified model downloads"),
+        description=app_text(
+            "Allow missing-model resolution to offer CivitAI downloads."
+        ),
         checked=service.load_preferences().downloads_enabled,
         on_changed=service.set_downloads_enabled,
     )
@@ -774,8 +789,10 @@ def _civitai_download_path_pattern_row(
     edit.editingFinished.connect(lambda: service.set_download_path_pattern(edit.text()))
     return SettingsCard(
         visual_widget=_icon_widget(AppIcon.FOLDER_OPEN_20_REGULAR, parent),
-        title="Model folder pattern",
-        description="Organize downloaded models inside the matching Comfy model folder.",
+        title=app_text("Model folder pattern"),
+        description=app_text(
+            "Organize downloaded models inside the matching Comfy model folder."
+        ),
         trailing_widget=SettingsControlGroup(edit, parent=parent),
         reserve_visual_space=True,
         wrap_threshold=640,
@@ -803,8 +820,8 @@ def _civitai_download_path_preview_row(
         edit.setText(str(error))
     return SettingsCard(
         visual_widget=_icon_widget(AppIcon.DOCUMENT_TEXT_20_REGULAR, parent),
-        title="Download path preview",
-        description="Shows an example path using the current pattern.",
+        title=app_text("Download path preview"),
+        description=app_text("Shows an example path using the current pattern."),
         trailing_widget=SettingsControlGroup(edit, parent=parent),
         reserve_visual_space=True,
         wrap_threshold=680,
@@ -822,8 +839,10 @@ def _wheel_hover_adjustment_row(
     return _switch_row(
         parent=parent,
         icon=PROMPT_WHEEL_ADJUSTMENT_SETTINGS_ICON,
-        title="Wheel adjust after hover",
-        description="When off, click or focus a control before the mouse wheel can change it.",
+        title=app_text("Wheel adjust after hover"),
+        description=app_text(
+            "When off, click or focus a control before the mouse wheel can change it."
+        ),
         checked=preferences.wheel_adjustment_mode
         is PromptWheelAdjustmentMode.HOVER_DWELL,
         on_changed=lambda enabled: _set_wheel_adjustment(context, enabled),
@@ -863,8 +882,10 @@ def _wildcard_resolution_row(
     return _switch_row(
         parent=parent,
         icon=PROMPT_WILDCARD_RESOLUTION_SETTINGS_ICON,
-        title="Resolve wildcards on generation",
-        description="Expand wildcard prompt text before sending queued workflows to Comfy.",
+        title=app_text("Resolve wildcards on generation"),
+        description=app_text(
+            "Expand wildcard prompt text before sending queued workflows to Comfy."
+        ),
         checked=service.load_preferences().resolve_on_generation,
         on_changed=service.set_resolve_on_generation,
     )
@@ -876,7 +897,7 @@ def _autocomplete_list_management_row(
 ) -> SettingsCard:
     """Create the custom and censored autocomplete list action row."""
 
-    manage_button = PushButton("Manage", parent)
+    manage_button = LocalizedPushButton(app_text("Manage"), parent)
     opener = context.open_autocomplete_list_management_modal
     if opener is not None:
         manage_button.clicked.connect(lambda: opener(parent))
@@ -884,8 +905,8 @@ def _autocomplete_list_management_row(
         manage_button.setEnabled(False)
     return SettingsCard(
         visual_widget=_icon_widget(PROMPT_WILDCARD_MANAGEMENT_SETTINGS_ICON, parent),
-        title="Manage autocomplete lists",
-        description="Add custom tags and hide unwanted tag suggestions.",
+        title=app_text("Manage autocomplete lists"),
+        description=app_text("Add custom tags and hide unwanted tag suggestions."),
         trailing_widget=SettingsControlGroup(manage_button, parent=parent),
         reserve_visual_space=True,
         parent=parent,
@@ -898,9 +919,9 @@ def _wildcard_management_row(
 ) -> SettingsCard:
     """Create the wildcard management action row."""
 
-    manage_button = PushButton("Manage", parent)
-    open_button = PushButton("Open folder", parent)
-    refresh_button = PushButton("Refresh", parent)
+    manage_button = LocalizedPushButton(app_text("Manage"), parent)
+    open_button = LocalizedPushButton(app_text("Open folder"), parent)
+    refresh_button = LocalizedPushButton(app_text("Refresh"), parent)
     if context.open_wildcard_management_modal is not None:
         manage_button.clicked.connect(
             lambda: context.open_wildcard_management_modal(parent)
@@ -923,8 +944,8 @@ def _wildcard_management_row(
         refresh_button.setEnabled(False)
     return SettingsCard(
         visual_widget=_icon_widget(PROMPT_WILDCARD_MANAGEMENT_SETTINGS_ICON, parent),
-        title="Manage wildcards",
-        description="Edit user wildcard files and refresh prompt metadata.",
+        title=app_text("Manage wildcards"),
+        description=app_text("Edit user wildcard files and refresh prompt metadata."),
         trailing_widget=SettingsControlGroup(
             manage_button,
             open_button,
@@ -972,8 +993,10 @@ def _civitai_metadata_lookup_row(
     return _switch_row(
         parent=parent,
         icon=AppIcon.DATABASE_SEARCH_20_REGULAR,
-        title="Look up local model metadata",
-        description="Query CivitAI for hashes already known in the local model cache.",
+        title=app_text("Look up local model metadata"),
+        description=app_text(
+            "Query CivitAI for hashes already known in the local model cache."
+        ),
         checked=service.load_preferences().metadata_lookup_enabled,
         on_changed=service.set_metadata_lookup_enabled,
     )
@@ -988,8 +1011,8 @@ def _civitai_thumbnail_downloads_row(
     return _switch_row(
         parent=parent,
         icon=AppIcon.IMAGE_MULTIPLE_20_REGULAR,
-        title="Download CivitAI thumbnails",
-        description="Download provider images for model picker thumbnails.",
+        title=app_text("Download CivitAI thumbnails"),
+        description=app_text("Download provider images for model picker thumbnails."),
         checked=service.load_preferences().thumbnail_downloads_enabled,
         on_changed=service.set_thumbnail_downloads_enabled,
     )
@@ -1005,8 +1028,8 @@ def _civitai_thumbnail_policy_row(
     return _combo_row(
         parent=parent,
         icon=AppIcon.SHIELD_CHECKMARK_20_REGULAR,
-        title="Thumbnail safety",
-        description="Control which CivitAI images may be used as thumbnails.",
+        title=app_text("Thumbnail safety"),
+        description=app_text("Control which CivitAI images may be used as thumbnails."),
         options=(
             ("Disabled", "disabled"),
             ("SFW only", "sfw_only"),
@@ -1034,10 +1057,12 @@ def _civitai_api_key_status_row(
             AppIcon.PLUG_CONNECTED_CHECKMARK_20_REGULAR,
             parent,
         ),
-        title="API key status",
-        description="Used for authenticated CivitAI lookups and downloads.",
+        title=app_text("API key status"),
+        description=app_text("Used for authenticated CivitAI lookups and downloads."),
         trailing_widget=SettingsControlGroup(
-            BodyLabel(_api_key_status_text(status=status, has_key=has_key), parent),
+            LocalizedBodyLabel(
+                api_key_status_text(status=status, has_key=has_key), parent
+            ),
             parent=parent,
         ),
         reserve_visual_space=True,
@@ -1053,12 +1078,12 @@ def _civitai_api_key_actions_row(
     """Create the CivitAI API key action row."""
 
     edit = LineEdit(parent)
-    edit.setPlaceholderText("Paste CivitAI API key")
+    set_localized_placeholder(edit, "Paste CivitAI API key")
     edit.setEchoMode(QLineEdit.EchoMode.Password)
     configure_settings_field_width(edit, preferred_width=320)
-    set_button = PushButton("Set/update", parent)
-    test_button = PushButton("Test", parent)
-    clear_button = PushButton("Clear", parent)
+    set_button = LocalizedPushButton(app_text("Set/update"), parent)
+    test_button = LocalizedPushButton(app_text("Test"), parent)
+    clear_button = LocalizedPushButton(app_text("Clear"), parent)
     status_label = BodyLabel("", parent)
     storage_status = context.civitai_credential_service.storage_status()
     set_button.setEnabled(storage_status.available)
@@ -1067,14 +1092,14 @@ def _civitai_api_key_actions_row(
     def set_api_key() -> None:
         key = edit.text().strip()
         if not key:
-            status_label.setText("Enter an API key first")
+            set_localized_text(status_label, "Enter an API key first")
             return
         try:
             context.civitai_credential_service.save_api_key(key)
         except CredentialStorageUnavailableError as error:
             status_label.setText(str(error))
             return
-        status_label.setText("Configured")
+        set_localized_text(status_label, "Configured")
         edit.clear()
 
     set_button.clicked.connect(set_api_key)
@@ -1090,13 +1115,15 @@ def _civitai_api_key_actions_row(
         """Clear the stored API key and update inline status."""
 
         context.civitai_credential_service.clear_api_key()
-        status_label.setText("No API key configured")
+        set_localized_text(status_label, "No API key configured")
 
     clear_button.clicked.connect(clear_api_key)
     return SettingsCard(
         visual_widget=_icon_widget(AppIcon.KEY_20_REGULAR, parent),
-        title="API key",
-        description="The key is stored in your operating system's secure credential store.",
+        title=app_text("API key"),
+        description=app_text(
+            "The key is stored in your operating system's secure credential store."
+        ),
         trailing_widget=SettingsControlGroup(
             edit,
             set_button,
@@ -1119,17 +1146,21 @@ def _civitai_cache_summary_row(
     """Create the CivitAI cache summary row."""
 
     summary = context.civitai_cache_service.cache_summary()
-    label = BodyLabel(
-        f"{summary.provider_record_count} provider records, "
-        f"{summary.thumbnail_source_count} thumbnail sources, "
-        f"{summary.thumbnail_variant_count} variants, "
-        f"{format_cache_size(summary.thumbnail_bytes)}",
-        parent,
+    label = BodyLabel("", parent)
+    set_localized_text(
+        label,
+        "%1 provider records, %2 thumbnail sources, %3 variants, %4",
+        summary.provider_record_count,
+        summary.thumbnail_source_count,
+        summary.thumbnail_variant_count,
+        format_cache_size(summary.thumbnail_bytes),
     )
     return SettingsCard(
         visual_widget=_icon_widget(AppIcon.DATABASE_SEARCH_20_REGULAR, parent),
-        title="CivitAI cache usage",
-        description="Summarizes cached CivitAI provider metadata and thumbnails.",
+        title=app_text("CivitAI cache usage"),
+        description=app_text(
+            "Summarizes cached CivitAI provider metadata and thumbnails."
+        ),
         trailing_widget=SettingsControlGroup(label, parent=parent),
         reserve_visual_space=True,
         wrap_threshold=680,
@@ -1143,9 +1174,9 @@ def _civitai_cache_actions_row(
 ) -> SettingsCard:
     """Create the CivitAI cache action row."""
 
-    clear_thumbnails_button = PushButton("Clear thumbnails", parent)
-    clear_metadata_button = PushButton("Clear metadata", parent)
-    refresh_button = PushButton("Refresh", parent)
+    clear_thumbnails_button = LocalizedPushButton(app_text("Clear thumbnails"), parent)
+    clear_metadata_button = LocalizedPushButton(app_text("Clear metadata"), parent)
+    refresh_button = LocalizedPushButton(app_text("Refresh"), parent)
     clear_thumbnails_button.clicked.connect(
         context.civitai_cache_service.clear_civitai_thumbnails
     )
@@ -1157,8 +1188,8 @@ def _civitai_cache_actions_row(
     )
     return SettingsCard(
         visual_widget=_icon_widget(AppIcon.BROOM_20_REGULAR, parent),
-        title="CivitAI cache maintenance",
-        description="Clear or refresh CivitAI-facing cached model metadata.",
+        title=app_text("CivitAI cache maintenance"),
+        description=app_text("Clear or refresh CivitAI-facing cached model metadata."),
         trailing_widget=SettingsControlGroup(
             clear_thumbnails_button,
             clear_metadata_button,
@@ -1181,8 +1212,10 @@ def _danbooru_show_images_row(
     return _switch_row(
         parent=parent,
         icon=PROMPT_DANBOORU_IMAGES_SETTINGS_ICON,
-        title="Show images in wiki viewer",
-        description="Render cached Danbooru preview images inside the native wiki viewer.",
+        title=app_text("Show images in wiki viewer"),
+        description=app_text(
+            "Render cached Danbooru preview images inside the native wiki viewer."
+        ),
         checked=context.danbooru_preference_service.load_preferences().show_wiki_images,
         on_changed=context.danbooru_preference_service.set_show_wiki_images,
     )
@@ -1198,8 +1231,10 @@ def _danbooru_rating_policy_row(
     return _combo_row(
         parent=parent,
         icon=PROMPT_DANBOORU_RATINGS_SETTINGS_ICON,
-        title="Allowed image ratings",
-        description="Control which Danbooru ratings may render as image previews.",
+        title=app_text("Allowed image ratings"),
+        description=app_text(
+            "Control which Danbooru ratings may render as image previews."
+        ),
         options=(
             ("Safe only", DanbooruImageRatingPolicy.SAFE_ONLY.value),
             (
@@ -1227,8 +1262,10 @@ def _danbooru_background_refresh_row(
     return _switch_row(
         parent=parent,
         icon=PROMPT_DANBOORU_BACKGROUND_REFRESH_SETTINGS_ICON,
-        title="Refresh cached content in background",
-        description="Refresh stale cached wiki pages and preview images lazily while browsing.",
+        title=app_text("Refresh cached content in background"),
+        description=app_text(
+            "Refresh stale cached wiki pages and preview images lazily while browsing."
+        ),
         checked=context.danbooru_preference_service.load_preferences().background_refresh_enabled,
         on_changed=context.danbooru_preference_service.set_background_refresh_enabled,
     )
@@ -1241,17 +1278,22 @@ def _danbooru_cache_summary_row(
     """Create the Danbooru cache summary row."""
 
     summary = context.danbooru_cache_repository.cache_summary()
+    summary_label = BodyLabel("", parent)
+    set_localized_text(
+        summary_label,
+        "%1 metadata entries, %2 image previews, %3",
+        summary.metadata_entry_count,
+        summary.image_entry_count,
+        format_cache_size(summary.image_bytes),
+    )
     return SettingsCard(
         visual_widget=_icon_widget(PROMPT_DANBOORU_CACHE_USAGE_SETTINGS_ICON, parent),
-        title="Danbooru cache usage",
-        description="Summarizes locally cached Danbooru metadata and preview assets.",
+        title=app_text("Danbooru cache usage"),
+        description=app_text(
+            "Summarizes locally cached Danbooru metadata and preview assets."
+        ),
         trailing_widget=SettingsControlGroup(
-            BodyLabel(
-                f"{summary.metadata_entry_count} metadata entries, "
-                f"{summary.image_entry_count} image previews, "
-                f"{format_cache_size(summary.image_bytes)}",
-                parent,
-            ),
+            summary_label,
             parent=parent,
         ),
         reserve_visual_space=True,
@@ -1266,9 +1308,9 @@ def _danbooru_cache_actions_row(
 ) -> SettingsCard:
     """Create the Danbooru cache action row."""
 
-    clear_text_button = PushButton("Clear text cache", parent)
-    clear_image_button = PushButton("Clear image cache", parent)
-    clear_all_button = PushButton("Clear all", parent)
+    clear_text_button = LocalizedPushButton(app_text("Clear text cache"), parent)
+    clear_image_button = LocalizedPushButton(app_text("Clear image cache"), parent)
+    clear_all_button = LocalizedPushButton(app_text("Clear all"), parent)
     clear_text_button.clicked.connect(
         context.danbooru_cache_repository.clear_text_cache
     )
@@ -1281,8 +1323,10 @@ def _danbooru_cache_actions_row(
             PROMPT_DANBOORU_CACHE_MAINTENANCE_SETTINGS_ICON,
             parent,
         ),
-        title="Danbooru cache maintenance",
-        description="Clear cached Danbooru entries if you want a fresh local state.",
+        title=app_text("Danbooru cache maintenance"),
+        description=app_text(
+            "Clear cached Danbooru entries if you want a fresh local state."
+        ),
         trailing_widget=SettingsControlGroup(
             clear_text_button,
             clear_image_button,
@@ -1306,8 +1350,8 @@ def _appearance_theme_row(
     return _combo_row(
         parent=parent,
         icon=FIF.BRUSH,
-        title="Choose your mode",
-        description="Change the colors that appear in Substitute.",
+        title=app_text("Choose your mode"),
+        description=app_text("Change the colors that appear in Substitute."),
         options=(
             ("Light", AppearanceThemeMode.LIGHT),
             ("Dark", AppearanceThemeMode.DARK),
@@ -1397,7 +1441,7 @@ class _ColorPreviewControls(QWidget):
             self.mode_combo,
             preferred_width=_COLOR_COMBO_WIDTH,
         )
-        self.choose_button = PushButton("Choose", self)
+        self.choose_button = LocalizedPushButton(app_text("Choose"), self)
         self.choose_button.setObjectName(choose_button_name)
         self.choose_button.setFixedWidth(_COLOR_BUTTON_WIDTH)
         widgets: list[QWidget] = [
@@ -1453,7 +1497,7 @@ class _SystemColorSettingsControl:
         self._accent_swatch = _ColorSwatch("#000000", parent)
         self._accent_hex_label = BodyLabel("#000000", parent)
         self._accent_hex_label.setFixedWidth(_COLOR_HEX_LABEL_WIDTH)
-        self._choose_accent_button = PushButton("Choose", parent)
+        self._choose_accent_button = LocalizedPushButton(app_text("Choose"), parent)
         self._choose_accent_button.setObjectName("AppearanceAccentChooseButton")
         self._choose_accent_button.setFixedWidth(_COLOR_BUTTON_WIDTH)
         accent_trailing = SettingsControlGroup(
@@ -1467,8 +1511,10 @@ class _SystemColorSettingsControl:
         setattr(self._card, "_system_color_settings_control", self)
         self._card.add_row(
             SettingsSegmentedCardRow(
-                title="Accent color",
-                description="Choose the color used for highlights and selected controls.",
+                title=app_text("Accent color"),
+                description=app_text(
+                    "Choose the color used for highlights and selected controls."
+                ),
                 visual_widget=_icon_widget(FIF.PALETTE, self._card),
                 trailing_widget=accent_trailing,
                 parent=self._card,
@@ -1498,8 +1544,8 @@ class _SystemColorSettingsControl:
         )
         self._card.add_row(
             SettingsSegmentedCardRow(
-                title="Warning color",
-                description="Used for caution states and warning highlights.",
+                title=app_text("Warning color"),
+                description=app_text("Used for caution states and warning highlights."),
                 visual_widget=_named_icon_widget(
                     FIF.INFO,
                     "AppearanceWarningColorIcon",
@@ -1511,8 +1557,10 @@ class _SystemColorSettingsControl:
         )
         self._card.add_row(
             SettingsSegmentedCardRow(
-                title="Error color",
-                description="Used for validation failures and error highlights.",
+                title=app_text("Error color"),
+                description=app_text(
+                    "Used for validation failures and error highlights."
+                ),
                 visual_widget=_named_icon_widget(
                     FIF.CLOSE,
                     "AppearanceErrorColorIcon",
@@ -1763,8 +1811,8 @@ def _appearance_material_row(
     return _combo_row(
         parent=parent,
         icon=FIF.BACKGROUND_FILL,
-        title="Window material",
-        description="Change the main window backdrop material.",
+        title=app_text("Window material"),
+        description=app_text("Change the main window backdrop material."),
         options=(
             ("Mica", AppearanceBackdropMode.MICA_ALT),
             ("Acrylic", AppearanceBackdropMode.ACRYLIC),
@@ -1794,23 +1842,6 @@ def _show_restart_requirements_if_pending(
 
     if count > 0 and context.show_restart_requirements is not None:
         context.show_restart_requirements()
-
-
-def _api_key_status_text(
-    *,
-    status: CredentialStoreStatus,
-    has_key: bool,
-) -> str:
-    """Return concise API key status and storage availability copy."""
-
-    if not status.available:
-        parts = ["Secure credential storage is unavailable."]
-        if status.reason:
-            parts.append(status.reason)
-        if status.remediation:
-            parts.append(status.remediation)
-        return " ".join(parts)
-    return "Configured" if has_key else "No API key configured"
 
 
 def _control_row(parent: QWidget, *widgets: QWidget) -> QWidget:

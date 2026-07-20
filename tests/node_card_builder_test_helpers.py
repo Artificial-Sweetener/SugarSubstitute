@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from substitute.application.localization import NodePresentationService
 from substitute.application.node_behavior import NodeBehaviorService
 from substitute.presentation.editor.panel.node_card_builder import NodeCardBuilder
 from substitute.presentation.editor.panel.service_bundle import (
@@ -33,6 +34,7 @@ from tests.prompt_autocomplete_test_helpers import (
     EmptyPromptAutocompleteGateway,
     EmptyPromptWildcardCatalogGateway,
 )
+from tests.localization_testing import empty_node_presentation_service
 
 
 class NoopNodeBehaviorService:
@@ -56,6 +58,7 @@ def node_card_service_bundle(
     danbooru_wiki_service: Any | None = None,
     danbooru_image_preview_service: Any | None = None,
     danbooru_recent_posts_service: Any | None = None,
+    node_presentation_service: NodePresentationService | None = None,
 ) -> EditorPanelServiceBundle:
     """Build a production-shaped service bundle for node-card tests."""
 
@@ -66,6 +69,9 @@ def node_card_service_bundle(
     return EditorPanelServiceBundle(
         node_definition_gateway=node_definition_gateway,
         node_behavior_service=node_behavior_service,
+        node_presentation_service=(
+            node_presentation_service or empty_node_presentation_service()
+        ),
         prompt=EditorPanelPromptServiceBundle(
             autocomplete_gateway=(
                 prompt_autocomplete_gateway or EmptyPromptAutocompleteGateway()
@@ -118,6 +124,7 @@ def build_node_card_builder(
 
     thumbnail_asset_repository = kwargs.pop("thumbnail_asset_repository", None)
     prompt_lora_catalog_service = kwargs.pop("prompt_lora_catalog_service", None)
+    node_presentation_service = kwargs.pop("node_presentation_service", None)
     return NodeCardBuilder(
         panel=panel,
         services=node_card_service_bundle(
@@ -127,6 +134,7 @@ def build_node_card_builder(
             prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
             thumbnail_asset_repository=thumbnail_asset_repository,
             prompt_lora_catalog_service=prompt_lora_catalog_service,
+            node_presentation_service=node_presentation_service,
             danbooru_url_import_service=kwargs.pop("danbooru_url_import_service", None),
             danbooru_wiki_service=kwargs.pop("danbooru_wiki_service", None),
             danbooru_image_preview_service=kwargs.pop(

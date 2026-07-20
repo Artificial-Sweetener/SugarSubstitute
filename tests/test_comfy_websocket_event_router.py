@@ -26,6 +26,8 @@ from pathlib import Path
 
 import pytest
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.errors import RuntimeReportContext
 from substitute.application.generation.progress_estimation import (
     ComfyWorkflowProgressTracker,
@@ -209,7 +211,9 @@ def test_route_execution_error_returns_failure_report() -> None:
     assert result.failure.message == "RuntimeError: sampler failed"
     assert result.failure.detail is not None
     assert result.failure.error_report is not None
-    assert result.failure.error_report.title == "KSampler failed"
+    assert render_source_application_text(result.failure.error_report.title) == (
+        "KSampler failed"
+    )
     assert result.failure.error_report.runtime.comfy_version == "0.3.1"
 
 

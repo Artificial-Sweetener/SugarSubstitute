@@ -18,6 +18,20 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    render_application_text,
+    set_localized_text,
+)
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedCaptionLabel,
+    LocalizedPrimaryPushButton,
+    LocalizedPushButton,
+    LocalizedSubtitleLabel,
+)
+from sugarsubstitute_shared.localization import ApplicationText
+
 from collections.abc import Callable
 from typing import cast
 
@@ -35,15 +49,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    BodyLabel,
-    CaptionLabel,
     InfoBarIcon,
     MessageBoxBase,
     PlainTextEdit,
-    PrimaryPushButton,
-    PushButton,
     StrongBodyLabel,
-    SubtitleLabel,
     Theme,
     drawIcon,
 )
@@ -180,8 +189,8 @@ class ErrorReportDialog(MessageBoxBase):  # type: ignore[misc]
         layout.setHorizontalSpacing(_HEADER_ICON_TEXT_SPACING)
         layout.setVerticalSpacing(_HEADER_TEXT_SPACING)
 
-        self._title_label = SubtitleLabel(self._report.title, header)
-        self._message_label = BodyLabel(self._report.message, header)
+        self._title_label = LocalizedSubtitleLabel(self._report.title, header)
+        self._message_label = LocalizedBodyLabel(self._report.message, header)
         self._title_label.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Preferred,
@@ -233,7 +242,7 @@ class ErrorReportDialog(MessageBoxBase):  # type: ignore[misc]
 
         rows = self._summary_rows()
         for row_index, (label, value) in enumerate(rows):
-            label_widget = CaptionLabel(label, self._summary_frame)
+            label_widget = LocalizedCaptionLabel(label, self._summary_frame)
             value_widget = StrongBodyLabel(value, self._summary_frame)
             value_widget.setWordWrap(True)
             layout.addWidget(label_widget, row_index, 0, Qt.AlignmentFlag.AlignTop)
@@ -244,7 +253,7 @@ class ErrorReportDialog(MessageBoxBase):  # type: ignore[misc]
     def _build_details(self) -> None:
         """Create the collapsed report body and reveal button."""
 
-        self._details_button = PushButton("Show report", self.widget)
+        self._details_button = LocalizedPushButton(app_text("Show report"), self.widget)
         self._details_button.clicked.connect(self._toggle_details)
         self._body_layout.addWidget(self._details_button)
 
@@ -278,13 +287,17 @@ class ErrorReportDialog(MessageBoxBase):  # type: ignore[misc]
         self.buttonLayout.setSpacing(12)
         self.buttonLayout.addStretch(1)
 
-        self._copy_button = PushButton("Copy report", self.buttonGroup)
+        self._copy_button = LocalizedPushButton(
+            app_text("Copy report"), self.buttonGroup
+        )
         self._copy_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
         self._copy_button.setMinimumWidth(_ACTION_BUTTON_MINIMUM_WIDTH)
         self._copy_button.clicked.connect(self._copy_report)
         self.buttonLayout.addWidget(self._copy_button, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self._close_button = PrimaryPushButton("Close", self.buttonGroup)
+        self._close_button = LocalizedPrimaryPushButton(
+            app_text("Close"), self.buttonGroup
+        )
         self._close_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
         self._close_button.setMinimumWidth(_CLOSE_BUTTON_MINIMUM_WIDTH)
         self._close_button.clicked.connect(self.accept)
@@ -304,37 +317,47 @@ class ErrorReportDialog(MessageBoxBase):  # type: ignore[misc]
             if nested_layout is not None:
                 _clear_layout(nested_layout)
 
-    def _summary_rows(self) -> tuple[tuple[str, str], ...]:
+    def _summary_rows(self) -> tuple[tuple[ApplicationText, str], ...]:
         """Return compact metadata rows for the error summary."""
 
         node = self._report.node
-        rows: list[tuple[str, str]] = [
-            ("Stage", self._report.stage),
-            ("Workflow", self._report.workflow_id or "unknown"),
+        rows: list[tuple[ApplicationText, str]] = [
+            (app_text("Stage"), self._report.stage),
+            (
+                app_text("Workflow"),
+                self._report.workflow_id
+                or render_application_text(app_text("unknown")),
+            ),
         ]
         if self._report.prompt_id:
-            rows.append(("Prompt", self._report.prompt_id))
+            rows.append((app_text("Prompt"), self._report.prompt_id))
         if node is not None:
-            rows.append(("Node", _node_label(node.node_id, node.node_type)))
+            rows.append((app_text("Node"), _node_label(node.node_id, node.node_type)))
         if self._report.exception_type:
-            rows.append(("Exception", self._report.exception_type))
+            rows.append((app_text("Exception"), self._report.exception_type))
         if self._report.kind == ErrorReportKind.PROMPT_VALIDATION:
             count = (
                 len(self._report.prompt_validation.node_errors)
                 if self._report.prompt_validation
                 else 0
             )
-            rows.append(("Node errors", str(count)))
+            rows.append((app_text("Node errors"), str(count)))
         if self._report.kind == ErrorReportKind.CUBE_LIBRARY_DRIFT:
-            rows.append(("Affected cubes", str(_affected_cube_count(self._report))))
+            rows.append(
+                (
+                    app_text("Affected cubes"),
+                    str(_affected_cube_count(self._report)),
+                )
+            )
         return tuple(rows)
 
     def _toggle_details(self) -> None:
         """Show or hide the complete report body."""
 
         self._details_visible = not self._details_visible
-        self._details_button.setText(
-            "Hide report" if self._details_visible else "Show report"
+        set_localized_text(
+            self._details_button,
+            "Hide report" if self._details_visible else "Show report",
         )
         self._animate_report_visibility(self._details_visible)
 

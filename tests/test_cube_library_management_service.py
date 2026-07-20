@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import cast
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.cube_library import CubeLibraryManagementService
 from substitute.application.ports import CubeLibraryClient
 from substitute.domain.cube_library import (
@@ -87,7 +89,7 @@ def test_recipe_drift_messages_report_missing_and_current_dirty_cubes() -> None:
         }
     )
 
-    assert messages == (
+    assert tuple(render_source_application_text(message) for message in messages) == (
         "Cube 'Changed' (Owner/Repo/changed.cube) currently has uncommitted Cube Library changes.",
         "Cube 'Missing' (Owner/Repo/missing.cube) is not available in the active Cube Library.",
     )

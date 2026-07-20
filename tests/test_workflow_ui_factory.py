@@ -56,6 +56,10 @@ def test_create_editor_panel_passes_shell_dependencies_and_wires_panel(
     assert fake_panel is created_panels[0]
     assert fake_panel.kwargs["workflow_id"] == "wf-1"
     assert fake_panel.kwargs["node_definition_gateway"] is shell.node_definition_gateway
+    assert (
+        fake_panel.kwargs["node_presentation_service"]
+        is shell.node_presentation_service
+    )
     assert fake_panel.kwargs["wheel_adjustment_mode"] == "precise"
     assert fake_panel.kwargs["error_presenter"] is shell._error_presenter
     assert (
@@ -325,6 +329,7 @@ def _workflow_shell() -> SimpleNamespace:
     layout_applied_stacks: list[object] = []
     values: dict[str, Any] = {
         "node_definition_gateway": object(),
+        "node_presentation_service": object(),
         "prompt_autocomplete_gateway": object(),
         "prompt_wildcard_catalog_gateway": object(),
         "danbooru_url_import_service": object(),

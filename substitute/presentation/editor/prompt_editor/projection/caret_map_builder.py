@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.presentation.text_coordinates import TextCoordinateMap
+
 from .model import (
     PromptProjectionCaretMap,
     PromptProjectionCaretPlacement,
@@ -276,7 +278,9 @@ def _plain_text_caret_stops_for_run(
             ),
         )
         for visual_offset, boundary_index in enumerate(
-            range(boundary_start_index, len(run.source_positions))
+            boundary
+            for boundary in TextCoordinateMap(run.display_text).grapheme_boundaries()
+            if boundary >= boundary_start_index
         )
     )
 
@@ -301,7 +305,8 @@ def _token_text_caret_stops_for_run(
                 token_slot=token_slot,
             ),
         )
-        for token_slot, source_position in enumerate(run.source_positions)
+        for token_slot in TextCoordinateMap(run.display_text).grapheme_boundaries()
+        for source_position in (run.source_positions[token_slot],)
     )
 
 

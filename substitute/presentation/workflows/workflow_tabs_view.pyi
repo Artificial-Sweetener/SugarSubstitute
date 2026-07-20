@@ -18,9 +18,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from sugarsubstitute_shared.localization import ApplicationMessage
+
 TabCloseButtonDisplayMode: Any
 SETTINGS_WORKSPACE_ROUTE: str
-REOPEN_CLOSED_WORKFLOW_MENU_TEXT: str
+REOPEN_CLOSED_WORKFLOW_MENU_TEXT: ApplicationMessage
+
+def workflow_tab_source_text(item: object) -> str: ...
+def set_workflow_tab_source_text(item: object, text: str) -> None: ...
 
 class TabItem:
     def __init__(self, *args: Any, **kwargs: Any) -> None: ...

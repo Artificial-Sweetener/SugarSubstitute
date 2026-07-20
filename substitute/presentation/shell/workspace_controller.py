@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
@@ -141,19 +143,23 @@ class WorkspaceController:
             ),
             dirty_mask_error=lambda: GenerationPreflightError(
                 workflow_id=workflow_id,
-                message="Failed to save dirty input mask before generation.",
+                message=app_text("Failed to save dirty input mask before generation."),
             ),
             live_node_preflight_error=lambda _error: GenerationPreflightError(
                 workflow_id=workflow_id,
                 message=(
-                    "Substitute could not load required live Comfy node definitions."
+                    app_text(
+                        "Substitute could not load required live Comfy node definitions."
+                    )
                 ),
                 report_error=False,
             ),
             empty_workflow_error=lambda: GenerationPreflightError(
                 workflow_id=workflow_id,
                 message=(
-                    "Generation cannot run because every cube has a runtime error."
+                    app_text(
+                        "Generation cannot run because every cube has a runtime error."
+                    )
                 ),
                 report_error=False,
             ),

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.model_metadata import ModelCatalogItem, ModelCatalogSnapshot
 from substitute.application.user_presets import UserPresetService
 from substitute.domain.user_presets import (
@@ -189,8 +191,12 @@ def test_source_save_scopes_include_global_family_and_exact_checkpoint() -> None
         "Illustrious",
         "Checkpoint",
     ]
-    assert scopes[1].full_label == "Base model: Illustrious"
-    assert scopes[2].full_label == "Checkpoint: Wrong Long Name - Version Alpha"
+    assert render_source_application_text(scopes[1].full_label) == (
+        "Base model: Illustrious"
+    )
+    assert render_source_application_text(scopes[2].full_label) == (
+        "Checkpoint: Wrong Long Name - Version Alpha"
+    )
 
 
 def test_source_save_scopes_include_exact_diffusion_model() -> None:
@@ -216,7 +222,9 @@ def test_source_save_scopes_include_exact_diffusion_model() -> None:
         "Illustrious",
         "Diffusion model",
     ]
-    assert scopes[-1].full_label == "Diffusion model: Hassaku Anima V11"
+    assert render_source_application_text(scopes[-1].full_label) == (
+        "Diffusion model: Hassaku Anima V11"
+    )
 
 
 def test_source_saves_prompt_segment_for_selected_scope() -> None:

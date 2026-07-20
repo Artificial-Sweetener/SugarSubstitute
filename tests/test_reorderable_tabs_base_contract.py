@@ -48,7 +48,7 @@ def _clear_gui_stubs() -> None:
         for name in list(sys.modules):
             if name == "qframelesswindow" or name.startswith("qframelesswindow."):
                 sys.modules.pop(name, None)
-    sys.modules.pop("substitute.presentation.widgets.cursor_tooltip_filter", None)
+    sys.modules.pop("sugarsubstitute_shared.presentation.fluent_tooltips", None)
     sys.modules.pop("substitute.presentation.workflows.reorderable_tabs_base", None)
 
 
@@ -182,10 +182,11 @@ def test_tab_item_paint_event_does_not_call_super_paint_event() -> None:
 
 
 def test_tab_item_installs_cursor_anchored_tooltip_filter() -> None:
-    """Tab items should install the shared cursor tooltip filter."""
+    """Tab items should install the shared QFluent tooltip filter."""
 
     mod = _import_base_module()
     source = inspect.getsource(mod.ReorderableTabItemBase._initWidget)
 
-    assert "install_cursor_tooltip_filter" in source
+    assert "ensure_fluent_tooltip_filter" in source
+    assert "cursor_anchor=True" in source
     assert "show_delay_ms=1000" in source

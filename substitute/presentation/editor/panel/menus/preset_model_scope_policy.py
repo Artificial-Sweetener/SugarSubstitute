@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from dataclasses import dataclass
 
 from substitute.application.model_metadata import (
@@ -110,14 +112,14 @@ def node_input_preset_model_scopes(
         ),
         save_scopes=(
             PresetSaveScope(
-                title="Global",
-                full_label="Global",
+                title=app_text("Global"),
+                full_label=app_text("Global"),
                 association=GLOBAL_PRESET_ASSOCIATION,
             ),
             *tuple(
                 PresetSaveScope(
                     title=association.label,
-                    full_label=f"Base model: {association.label}",
+                    full_label=app_text("Base model: %1", association.label),
                     association=association,
                 )
                 for association in snapshot.family_associations

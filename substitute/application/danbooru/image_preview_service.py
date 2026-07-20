@@ -24,6 +24,8 @@ from itertools import count
 from pathlib import Path
 from typing import Protocol
 
+from sugarsubstitute_shared.localization import ApplicationMessage, app_text
+
 from substitute.application.execution import (
     ExecutionContext,
     ScopedKeyedSingleFlight,
@@ -65,8 +67,12 @@ from substitute.shared.logging.logger import get_logger, log_warning
 _LOGGER = get_logger("application.danbooru.image_preview_service")
 _POST_BASE_URL = "https://danbooru.donmai.us/posts"
 _MEDIA_ASSET_BASE_URL = "https://danbooru.donmai.us/media_assets"
-_HIDDEN_BY_SETTINGS_MESSAGE = "Hidden by Danbooru content settings."
-_UNAVAILABLE_MESSAGE = "Preview image is not available for this wiki embed."
+_HIDDEN_BY_SETTINGS_MESSAGE: ApplicationMessage = app_text(
+    "Hidden by Danbooru content settings."
+)
+_UNAVAILABLE_MESSAGE: ApplicationMessage = app_text(
+    "Preview image is not available for this wiki embed."
+)
 _THUMBNAIL_TARGET_HEIGHT_PX = 156
 _ASSET_PREVIEW_CACHE_KEY_VERSION = "best-fit-v1"
 

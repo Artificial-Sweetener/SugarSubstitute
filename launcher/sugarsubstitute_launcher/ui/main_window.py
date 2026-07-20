@@ -71,6 +71,7 @@ from launcher.sugarsubstitute_launcher.release_sources import (
     default_production_release_source,
 )
 from launcher.sugarsubstitute_launcher.resources import launcher_icon
+from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from launcher.sugarsubstitute_launcher.runtime_resources import launcher_uv_path
 from launcher.sugarsubstitute_launcher.platforms import (
     LauncherOperatingSystem,
@@ -80,6 +81,7 @@ from launcher.sugarsubstitute_launcher.runtime import (
     SubprocessRuntimeCommandRunner,
     UvManagedRuntimeInstaller,
 )
+
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
 
 
@@ -170,8 +172,8 @@ class _SetupWorker(QObject):
             self.finished.emit()
             return
 
-        self.log.emit(f"Runtime ready: {self._layout.runtime_python}")
-        self.log.emit("Starting SugarSubstitute setup.")
+        self.log.emit(launcher_text("Runtime ready: %1", self._layout.runtime_python))
+        self.log.emit(launcher_text("Starting SugarSubstitute setup."))
         try:
             self._process_starter(self._setup_command)
         except Exception as error:
@@ -179,8 +181,8 @@ class _SetupWorker(QObject):
             self.finished.emit()
             return
 
-        self.log.emit("Started SugarSubstitute setup.")
-        self.log.emit("Waiting for the setup window to open.")
+        self.log.emit(launcher_text("Started SugarSubstitute setup."))
+        self.log.emit(launcher_text("Waiting for the setup window to open."))
         self.succeeded.emit()
         self.finished.emit()
 
@@ -229,16 +231,22 @@ class _InitialInstallWorker(QObject):
                     )
                 )
                 layout = downloaded_result.layout
-                self.log.emit(f"Installed launcher: {layout.executable_path}")
+                self.log.emit(
+                    launcher_text("Installed launcher: %1", layout.executable_path)
+                )
             else:
                 prepared_result = self._layout_installer.prepare(self._install_root)
                 layout = prepared_result.layout
                 self.log.emit(
-                    "Source-run launcher detected; skipped executable self-copy."
+                    launcher_text(
+                        "Source-run launcher detected; skipped executable self-copy."
+                    )
                 )
 
-            self.log.emit(f"Created install root: {layout.root}")
-            self.log.emit(f"Wrote launcher config: {layout.config_path}")
+            self.log.emit(launcher_text("Created install root: %1", layout.root))
+            self.log.emit(
+                launcher_text("Wrote launcher config: %1", layout.config_path)
+            )
             continued_result = self._first_run_installer.continue_install(
                 layout=layout,
                 release_source=release_source,
@@ -376,7 +384,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
     def _build_ui(self) -> None:
         """Compose the frameless launcher window widgets and connect actions."""
 
-        self.setWindowTitle("SugarSubstitute Setup")
+        self.setWindowTitle(launcher_text("SugarSubstitute Setup"))
         self.setWindowIcon(launcher_icon())
         self.resize(_WINDOW_WIDTH, _WINDOW_HEIGHT)
         self.setFixedSize(_WINDOW_WIDTH, _WINDOW_HEIGHT)
@@ -425,13 +433,13 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         brand_text.setContentsMargins(0, 0, 0, 0)
         brand_text.setSpacing(4)
 
-        title = BodyLabel("Setup", identity_rail)
+        title = BodyLabel(launcher_text("Setup"), identity_rail)
         title.setObjectName("OnboardingRailTitle")
         title.setWordWrap(True)
         brand_text.addWidget(title)
 
         subtitle = CaptionLabel(
-            "Choose a folder and connect Substitute to ComfyUI.",
+            launcher_text("Choose a folder and connect Substitute to ComfyUI."),
             identity_rail,
         )
         subtitle.setObjectName("OnboardingRailSummary")
@@ -440,17 +448,21 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         brand_row.addLayout(brand_text, 1)
         rail_layout.addLayout(brand_row)
 
-        self.progress_count_label = CaptionLabel("Step 1 of 4", identity_rail)
+        self.progress_count_label = CaptionLabel(
+            launcher_text("Step 1 of 4"), identity_rail
+        )
         self.progress_count_label.setObjectName("OnboardingProgressCount")
         rail_layout.addWidget(self.progress_count_label)
 
-        self.progress_title_label = BodyLabel("Choose a folder", identity_rail)
+        self.progress_title_label = BodyLabel(
+            launcher_text("Choose a folder"), identity_rail
+        )
         self.progress_title_label.setObjectName("OnboardingProgressTitle")
         self.progress_title_label.setWordWrap(True)
         rail_layout.addWidget(self.progress_title_label)
 
         self.progress_helper_label = CaptionLabel(
-            "You can change the ComfyUI connection later.",
+            launcher_text("You can change the ComfyUI connection later."),
             identity_rail,
         )
         self.progress_helper_label.setObjectName("OnboardingProgressHelper")
@@ -461,7 +473,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         for index, step_title in enumerate(_STEP_TITLES, start=1):
             step_item = LauncherStepItem(
                 index=index,
-                title=step_title,
+                title=launcher_text(step_title),
                 parent=identity_rail,
             )
             step_item.set_state(active=index == 1, complete=False)
@@ -523,18 +535,20 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         hero_text = QVBoxLayout()
         hero_text.setContentsMargins(0, 0, 0, 0)
         hero_text.setSpacing(5)
-        eyebrow = CaptionLabel("Start here", hero_panel)
+        eyebrow = CaptionLabel(launcher_text("Start here"), hero_panel)
         eyebrow.setObjectName("OnboardingHeroEyebrow")
         hero_text.addWidget(eyebrow)
         page_title = BodyLabel(
-            "Choose where Substitute should keep its setup",
+            launcher_text("Choose where Substitute should keep its setup"),
             hero_panel,
         )
         page_title.setObjectName("OnboardingPageTitle")
         page_title.setWordWrap(True)
         hero_text.addWidget(page_title)
         page_description = CaptionLabel(
-            "Pick the main folder for Substitute's files. If you let Substitute install ComfyUI for you, it will place that there too by default.",
+            launcher_text(
+                "Pick the main folder for Substitute's files. If you let Substitute install ComfyUI for you, it will place that there too by default."
+            ),
             hero_panel,
         )
         page_description.setObjectName("OnboardingPageDescription")
@@ -554,7 +568,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         path_block_layout = QVBoxLayout(path_block)
         path_block_layout.setContentsMargins(0, 0, 0, 0)
         path_block_layout.setSpacing(7)
-        path_label = CaptionLabel("Folder", path_block)
+        path_label = CaptionLabel(launcher_text("Folder"), path_block)
         path_label.setObjectName("OnboardingFieldLabel")
         path_block_layout.addWidget(path_label)
 
@@ -562,14 +576,16 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         path_row.setContentsMargins(0, 0, 0, 0)
         path_row.setSpacing(10)
         self._path_edit.setMinimumHeight(36)
-        self._browse_button = PushButton("Browse...", path_block)
+        self._browse_button = PushButton(launcher_text("Browse..."), path_block)
         self._browse_button.clicked.connect(self._choose_install_directory)
         path_row.addWidget(self._path_edit, 1)
         path_row.addWidget(self._browse_button)
         path_block_layout.addLayout(path_row)
 
         helper_label = CaptionLabel(
-            "Substitute will place the desktop launcher, source app payload, local runtime, settings, and user data under this folder.",
+            launcher_text(
+                "Substitute will place the desktop launcher, source app payload, local runtime, settings, and user data under this folder."
+            ),
             path_block,
         )
         helper_label.setObjectName("OnboardingFieldHelper")
@@ -592,7 +608,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         status_layout = QVBoxLayout(status_panel)
         status_layout.setContentsMargins(18, 16, 18, 16)
         status_layout.setSpacing(10)
-        status_title = BodyLabel("Live Output", status_panel)
+        status_title = BodyLabel(launcher_text("Live Output"), status_panel)
         status_title.setObjectName("OnboardingOutputTitle")
         status_layout.addWidget(status_title)
         status_layout.addWidget(self._progress_log)
@@ -637,20 +653,22 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         body_layout.addWidget(root)
         self.titleBar.raise_()
         self._refresh_primary_button()
-        self._append_log("Ready.")
+        self._append_log(launcher_text("Ready."))
         if self._continue_install:
-            self._append_log("Continuing install from installed launcher.")
+            self._append_log(
+                launcher_text("Continuing install from installed launcher.")
+            )
         if self._repair:
-            self._append_log("Repair mode requested.")
+            self._append_log(launcher_text("Repair mode requested."))
         if not self._update_check_enabled:
-            self._append_log("Update check disabled for this launch.")
+            self._append_log(launcher_text("Update check disabled for this launch."))
 
     def _choose_install_directory(self) -> None:
         """Prompt the user for a writable install directory."""
 
         selected_dir = QFileDialog.getExistingDirectory(
             self,
-            "Choose SugarSubstitute install directory",
+            launcher_text("Choose SugarSubstitute install directory"),
             self._path_edit.text(),
         )
         if selected_dir:
@@ -682,7 +700,9 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
                 prepared_result = self._layout_installer.prepare(install_root)
                 prepared_layout = prepared_result.layout
                 self._append_log(
-                    "Source-run launcher detected; skipped executable self-copy."
+                    launcher_text(
+                        "Source-run launcher detected; skipped executable self-copy."
+                    )
                 )
             else:
                 downloaded_result = (
@@ -695,10 +715,15 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
                 )
                 prepared_layout = downloaded_result.layout
                 self._append_log(
-                    f"Installed launcher: {prepared_layout.executable_path}"
+                    launcher_text(
+                        "Installed launcher: %1",
+                        prepared_layout.executable_path,
+                    )
                 )
-                self._append_log("Starting installed launcher.")
-                self._append_log("Setup will continue from the install directory.")
+                self._append_log(launcher_text("Starting installed launcher."))
+                self._append_log(
+                    launcher_text("Setup will continue from the install directory.")
+                )
                 self._ui_state = LauncherUiState.COMPLETE
                 self._refresh_primary_button()
                 QTimer.singleShot(250, self.close)
@@ -714,8 +739,15 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             self._report_install_failure(error)
             return
 
-        self._append_log(f"Created install root: {self._prepared_layout.root}")
-        self._append_log(f"Wrote launcher config: {self._prepared_layout.config_path}")
+        self._append_log(
+            launcher_text("Created install root: %1", self._prepared_layout.root)
+        )
+        self._append_log(
+            launcher_text(
+                "Wrote launcher config: %1",
+                self._prepared_layout.config_path,
+            )
+        )
         self._ui_state = LauncherUiState.INSTALL_APP
         self._refresh_primary_button()
 
@@ -728,9 +760,9 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
         install_root = Path(self._path_edit.text()).expanduser()
         self._primary_button.setEnabled(False)
-        self._primary_button.setText("Working...")
+        self._primary_button.setText(launcher_text("Working..."))
         self._set_install_path_controls_enabled(False)
-        self._append_log("Preparing SugarSubstitute install.")
+        self._append_log(launcher_text("Preparing SugarSubstitute install."))
 
         thread = QThread(self)
         worker = _InitialInstallWorker(
@@ -758,7 +790,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
         self._show_status_output()
         if self._prepared_layout is None:
-            self._append_log("Install root is not prepared yet.")
+            self._append_log(launcher_text("Install root is not prepared yet."))
             self._ui_state = LauncherUiState.PREPARE_INSTALL
             self._refresh_primary_button()
             return
@@ -772,8 +804,12 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             self._report_install_failure(error)
             return
 
-        self._append_log(f"Installed app payload version: {result.app_version}")
-        self._append_log(f"App entrypoint: {self._prepared_layout.app_entrypoint}")
+        self._append_log(
+            launcher_text("Installed app payload version: %1", result.app_version)
+        )
+        self._append_log(
+            launcher_text("App entrypoint: %1", self._prepared_layout.app_entrypoint)
+        )
         self._setup_command = self._with_handoff_geometry(result.app_command)
         self._ui_state = LauncherUiState.INSTALL_RUNTIME
         self._refresh_primary_button()
@@ -784,13 +820,13 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
         self._show_status_output()
         if self._prepared_layout is None:
-            self._append_log("Install root is not prepared yet.")
+            self._append_log(launcher_text("Install root is not prepared yet."))
             self._ui_state = LauncherUiState.PREPARE_INSTALL
             self._refresh_primary_button()
             return
 
         if self._setup_command is None:
-            self._append_log("Setup command is not available yet.")
+            self._append_log(launcher_text("Setup command is not available yet."))
             self._ui_state = LauncherUiState.INSTALL_APP
             self._refresh_primary_button()
             return
@@ -799,9 +835,11 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             return
 
         self._primary_button.setEnabled(False)
-        self._primary_button.setText("Working...")
-        self._append_log("Installing Python runtime and app dependencies.")
-        self._append_log("This can take a while the first time.")
+        self._primary_button.setText(launcher_text("Working..."))
+        self._append_log(
+            launcher_text("Installing Python runtime and app dependencies.")
+        )
+        self._append_log(launcher_text("This can take a while the first time."))
 
         thread = QThread(self)
         worker = _SetupWorker(
@@ -828,33 +866,35 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
         self._show_status_output()
         if self._setup_command is None:
-            self._append_log("Setup command is not available yet.")
+            self._append_log(launcher_text("Setup command is not available yet."))
             self._ui_state = LauncherUiState.INSTALL_APP
             self._refresh_primary_button()
             return
 
-        self._append_log("Starting SugarSubstitute setup.")
+        self._append_log(launcher_text("Starting SugarSubstitute setup."))
         try:
             self._process_starter(self._setup_command)
         except Exception as error:
-            self._append_log("Could not start SugarSubstitute setup.")
-            self._append_log(f"Details: {error}")
+            self._append_log(launcher_text("Could not start SugarSubstitute setup."))
+            self._append_log(launcher_text("Details: %1", error))
             self._ui_state = LauncherUiState.START_SETUP
             self._refresh_primary_button()
             return
 
-        self._append_log("Started SugarSubstitute setup.")
+        self._append_log(launcher_text("Started SugarSubstitute setup."))
         self._ui_state = LauncherUiState.COMPLETE
         self._refresh_primary_button()
-        self._append_log("Waiting for the setup window to open.")
+        self._append_log(launcher_text("Waiting for the setup window to open."))
         self._close_after_successful_handoff()
 
     @Slot(str)
     def _handle_initial_install_failed(self, details: str) -> None:
         """Render initial install failure and restore the install action."""
 
-        self._append_log("Setup failed. Check the details below and try again.")
-        self._append_log(f"Details: {details}")
+        self._append_log(
+            launcher_text("Setup failed. Check the details below and try again.")
+        )
+        self._append_log(launcher_text("Details: %1", details))
         self._ui_state = LauncherUiState.PREPARE_INSTALL
         self._refresh_primary_button()
 
@@ -868,19 +908,23 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         """Continue setup after the launcher and app payload are installed."""
 
         if not isinstance(layout, InstallLayout):
-            self._handle_initial_install_failed("Installer returned an invalid layout.")
+            self._handle_initial_install_failed(
+                launcher_text("Installer returned an invalid layout.")
+            )
             return
         if not isinstance(app_command, list) or not all(
             isinstance(part, str) for part in app_command
         ):
             self._handle_initial_install_failed(
-                "Installer returned an invalid app command."
+                launcher_text("Installer returned an invalid app command.")
             )
             return
 
         self._prepared_layout = layout
-        self._append_log(f"Installed app payload version: {app_version}")
-        self._append_log(f"App entrypoint: {layout.app_entrypoint}")
+        self._append_log(
+            launcher_text("Installed app payload version: %1", app_version)
+        )
+        self._append_log(launcher_text("App entrypoint: %1", layout.app_entrypoint))
         self._setup_command = self._with_handoff_geometry(app_command)
         self._ui_state = LauncherUiState.INSTALL_RUNTIME
         self._refresh_primary_button()
@@ -891,12 +935,12 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         """Render worker failure and restore the matching retry action."""
 
         if phase == "runtime":
-            self._append_log("Could not install the Python runtime.")
+            self._append_log(launcher_text("Could not install the Python runtime."))
             self._ui_state = LauncherUiState.INSTALL_RUNTIME
         else:
-            self._append_log("Could not start SugarSubstitute setup.")
+            self._append_log(launcher_text("Could not start SugarSubstitute setup."))
             self._ui_state = LauncherUiState.START_SETUP
-        self._append_log(f"Details: {details}")
+        self._append_log(launcher_text("Details: %1", details))
         self._refresh_primary_button()
 
     @Slot()
@@ -946,22 +990,22 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self._set_install_path_controls_enabled(path_controls_enabled)
 
         if self._ui_state is LauncherUiState.PREPARE_INSTALL:
-            self._primary_button.setText("Install")
+            self._primary_button.setText(launcher_text("Install"))
             self._primary_button.setEnabled(True)
             return
         if self._ui_state is LauncherUiState.INSTALL_APP:
-            self._primary_button.setText("Continue")
+            self._primary_button.setText(launcher_text("Continue"))
             self._primary_button.setEnabled(True)
             return
         if self._ui_state is LauncherUiState.INSTALL_RUNTIME:
-            self._primary_button.setText("Install runtime")
+            self._primary_button.setText(launcher_text("Install runtime"))
             self._primary_button.setEnabled(True)
             return
         if self._ui_state is LauncherUiState.START_SETUP:
-            self._primary_button.setText("Open setup")
+            self._primary_button.setText(launcher_text("Open setup"))
             self._primary_button.setEnabled(True)
             return
-        self._primary_button.setText("Setup started")
+        self._primary_button.setText(launcher_text("Setup started"))
         self._primary_button.setEnabled(False)
 
     def _set_install_path_controls_enabled(self, enabled: bool) -> None:
@@ -975,8 +1019,10 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         """Log one setup failure and show an actionable progress message."""
 
         _LOGGER.exception("Launcher setup failed.")
-        self._append_log("Setup failed. Check the details below and try again.")
-        self._append_log(f"Details: {error}")
+        self._append_log(
+            launcher_text("Setup failed. Check the details below and try again.")
+        )
+        self._append_log(launcher_text("Details: %1", error))
 
     @Slot(str)
     def _append_log(self, message: str) -> None:
@@ -1192,21 +1238,15 @@ def _install_location_guidance() -> str:
 
     operating_system = detect_launcher_target().operating_system
     if operating_system is LauncherOperatingSystem.MACOS:
-        return (
-            "Use a writable folder in your home directory, such as "
-            "~/Applications/SugarSubstitute. System Applications folders can require "
-            "administrator access for updates and runtime setup."
+        return launcher_text(
+            "Use a writable folder in your home directory, such as ~/Applications/SugarSubstitute. System Applications folders can require administrator access for updates and runtime setup."
         )
     if operating_system is LauncherOperatingSystem.LINUX:
-        return (
-            "Use a writable folder in your home directory, such as "
-            "~/.local/share/SugarSubstitute. System application folders can require "
-            "administrator access for updates and runtime setup."
+        return launcher_text(
+            "Use a writable folder in your home directory, such as ~/.local/share/SugarSubstitute. System application folders can require administrator access for updates and runtime setup."
         )
-    return (
-        "Use a normal writable folder such as %USERPROFILE%\\SugarSubstitute. Avoid Program "
-        "Files because Windows can block app updates, runtime setup, and local "
-        "ComfyUI files there."
+    return launcher_text(
+        "Use a normal writable folder such as %USERPROFILE%\\SugarSubstitute. Avoid Program Files because Windows can block app updates, runtime setup, and local ComfyUI files there."
     )
 
 

@@ -27,6 +27,8 @@ import pytest
 from PySide6.QtCore import QEvent, QObject, QPoint, Qt
 from PySide6.QtWidgets import QApplication, QLineEdit, QSpinBox, QVBoxLayout, QWidget
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.domain.node_behavior import FieldBehavior
 from substitute.application.node_behavior import DimensionFieldPair
 import substitute.presentation.editor.panel.menus.dimension_row_actions as dimension_row_actions
@@ -133,7 +135,7 @@ class _FakeAction:
     def text(self) -> str:
         """Return the rendered action text."""
 
-        return self._item.label
+        return render_source_application_text(self._item.label)
 
     def trigger(self) -> None:
         """Invoke the rendered callback."""
@@ -171,10 +173,15 @@ class _FakeQFluentMenuRenderer:
                 menu.addSeparator()
             elif isinstance(entry, MenuSection):
                 if entry.title is not None:
-                    menu.entries.append(("header", entry.title))
+                    menu.entries.append(
+                        ("header", render_source_application_text(entry.title))
+                    )
                 self.populate_menu(menu, entry.entries)
             elif isinstance(entry, MenuSubmenu):
-                submenu = _FakeRoundMenu(entry.label, parent=self._parent)
+                submenu = _FakeRoundMenu(
+                    render_source_application_text(entry.label),
+                    parent=self._parent,
+                )
                 self.populate_menu(submenu, entry.entries)
                 menu.addMenu(submenu)
 

@@ -59,6 +59,7 @@ from substitute.presentation.editor.panel.model_choice_resolution_adapter import
     literal_model_choice_resolution,
 )
 from substitute.shared.logging.logger import get_logger
+from sugarsubstitute_shared.localization import ApplicationText, app_text
 
 _LOGGER = get_logger("presentation.editor.panel.model_choice_snapshot_controller")
 
@@ -98,7 +99,7 @@ class PanelModelChoiceSnapshot:
     model_kind: str | None = None
     resolution: RichChoiceResolution | None = None
     choice_source: RichChoiceSource | None = None
-    search_placeholder: str = "Search models"
+    search_placeholder: ApplicationText = app_text("Search models")
     thumbnail_readiness: MediaThumbnailReadiness = field(
         default_factory=lambda: unavailable_thumbnail_readiness(
             "not_model_choice_field"
@@ -262,7 +263,10 @@ class PanelModelChoiceSnapshotController:
             model_kind=normalized_kind,
             resolution=resolution,
             choice_source=source,
-            search_placeholder=f"Search {beautify_label(normalized_kind)}",
+            search_placeholder=app_text(
+                "Search %1",
+                beautify_label(normalized_kind),
+            ),
             thumbnail_readiness=_thumbnail_readiness_for_resolution(
                 resolution,
                 repository_available=request.thumbnail_repository_available,
@@ -408,7 +412,10 @@ class PanelModelChoiceSnapshotController:
                 ),
                 initial_resolution=resolution,
             ),
-            search_placeholder=f"Search {beautify_label(model_kind)}",
+            search_placeholder=app_text(
+                "Search %1",
+                beautify_label(model_kind),
+            ),
             thumbnail_readiness=unavailable_thumbnail_readiness(
                 "thumbnail_variant_unavailable"
             ),
@@ -459,7 +466,10 @@ class PanelModelChoiceSnapshotController:
                 ),
                 initial_resolution=resolution,
             ),
-            search_placeholder=f"Search {beautify_label(model_kind)}",
+            search_placeholder=app_text(
+                "Search %1",
+                beautify_label(model_kind),
+            ),
             thumbnail_readiness=unavailable_thumbnail_readiness(
                 "thumbnail_repository_unavailable"
             ),
@@ -579,12 +589,15 @@ def _first_resolution_thumbnail_storage_key(
     return None
 
 
-def _rich_choice_search_placeholder(matched_kinds: tuple[str, ...]) -> str:
+def _rich_choice_search_placeholder(matched_kinds: tuple[str, ...]) -> ApplicationText:
     """Return a concise search placeholder for one rich choice resolution."""
 
     if len(matched_kinds) == 1:
-        return f"Search {beautify_label(matched_kinds[0])}"
-    return "Search models"
+        return app_text(
+            "Search %1",
+            beautify_label(matched_kinds[0]),
+        )
+    return app_text("Search models")
 
 
 __all__ = [

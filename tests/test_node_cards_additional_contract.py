@@ -20,17 +20,19 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
+from PySide6.QtCore import QCoreApplication, QEvent, QPoint, QPointF, Qt
 from PySide6.QtGui import QColor, QImage, QMouseEvent, QPainter
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QLineEdit, QVBoxLayout, QWidget
 from qfluentwidgets import CaptionLabel, IconWidget
+from sugarsubstitute_shared.localization import render_source_application_text
 
 import substitute.presentation.editor.panel.widgets.node_card as node_card_view
 import substitute.presentation.shell.chrome_style as chrome_style
@@ -42,6 +44,16 @@ from substitute.application.node_behavior import (
     ResolvedFieldSpec,
     TitleControl,
 )
+from substitute.application.localization import NodePresentationService
+from substitute.domain.comfy_workflow.models import DirectWorkflowState
+from substitute.domain.localization import (
+    NodeCatalogText,
+    NodeFieldCatalogText,
+    NodeTextCatalog,
+    NodeTextCatalogSnapshot,
+    NodeTextSource,
+)
+from substitute.domain.workflow import CubeState
 from substitute.application.prompt_editor import (
     PromptEditorFeatureProfile,
     PromptSyntaxProfile,
@@ -63,12 +75,12 @@ from substitute.presentation.editor.panel.prompt_profile_policy import (
     PanelPromptFieldProfileDecision,
 )
 from substitute.presentation.editor.panel.node_card_builder import (
-    NodeCardBuilder,
     NodeCardPromptFieldInputs,
 )
-from substitute.presentation.widgets.cursor_tooltip_filter import CursorToolTipFilter
+from sugarsubstitute_shared.presentation.fluent_tooltips import FluentToolTipFilter
 from tests.node_card_builder_test_helpers import build_node_card_builder
 from tests.node_behavior_test_helpers import build_behavior_snapshot
+from tests.localization_testing import technical_node_presentation
 
 
 class _ActivationService:
@@ -104,6 +116,26 @@ class _Gateway:
         """Return no required live definition payload."""
 
         return {}
+
+
+class _DefinitionGateway:
+    """Return configured live node definitions without external I/O."""
+
+    def __init__(self, definitions: Mapping[str, object]) -> None:
+        """Retain the definitions used by behavior and presentation tests."""
+
+        self._definitions = dict(definitions)
+
+    def get_node_definition(self, node_class: str) -> dict[str, object]:
+        """Return a Comfy-shaped cached payload for one class type."""
+
+        definition = self._definitions.get(node_class)
+        return {node_class: definition} if isinstance(definition, dict) else {}
+
+    def get_required_node_definition(self, node_class: str) -> dict[str, object]:
+        """Return the same deterministic payload for required lookup paths."""
+
+        return self.get_node_definition(node_class)
 
 
 class _Panel:
@@ -242,6 +274,14 @@ def _title_row_for(wrapper: QWidget) -> QWidget:
     return title_row
 
 
+def _card_title_text(wrapper: QWidget) -> str:
+    """Return the sole visible node-card title."""
+
+    title_labels = _title_row_for(wrapper).findChildren(CaptionLabel)
+    assert len(title_labels) == 1
+    return title_labels[0].text()
+
+
 def _title_body_divider_for(wrapper: QWidget) -> QWidget:
     """Return the divider between the title row and first body row."""
 
@@ -303,13 +343,13 @@ def _title_switch(title_row: QWidget) -> QWidget:
     return switch
 
 
-def _editor_tooltip_filter(widget: QWidget) -> CursorToolTipFilter | None:
+def _editor_tooltip_filter(widget: QWidget) -> FluentToolTipFilter | None:
     """Return the editor-owned QFluent tooltip filter attached to a widget."""
 
     tooltip_filter = getattr(widget, "_editor_tooltip_filter", None)
     if tooltip_filter is None:
         return None
-    assert isinstance(tooltip_filter, CursorToolTipFilter)
+    assert isinstance(tooltip_filter, FluentToolTipFilter)
     return tooltip_filter
 
 
@@ -340,25 +380,6 @@ def _resolved_field_spec(
             else {},
         ),
     )
-
-
-def test_node_card_field_display_label_uses_public_interface_label() -> None:
-    """Node rows should prefer public interface labels over raw wrapper keys."""
-
-    spec = ResolvedFieldSpec(
-        cube_alias="A",
-        node_name="detailer",
-        class_type="Wrapper",
-        field_key="c",
-        field_type="FLOAT",
-        constraints={},
-        meta_info={"label": "Scale Factor"},
-        field_info=None,
-        value=1.5,
-        field_behavior=FieldBehavior(field_key="c"),
-    )
-
-    assert NodeCardBuilder._display_label_for_field(spec) == "Scale Factor"
 
 
 def test_normal_node_title_rules_preserve_capitalization_without_display_name() -> None:
@@ -433,6 +454,382 @@ def test_node_card_applies_comfy_description_tooltip(monkeypatch) -> None:
             title_labels[0],
             QEvent(QEvent.Type.ToolTip),
         )
+    finally:
+        if wrapper is not None:
+            wrapper.deleteLater()
+        panel.deleteLater()
+        _ensure_qapp().processEvents()
+
+
+def test_cube_authored_card_titles_survive_all_live_locale_switches(
+    monkeypatch,
+) -> None:
+    """Keep SugarCube node identities ahead of localized Comfy control types."""
+
+    _ensure_qapp()
+    node_type = "PrimitiveStringMultiline"
+    nodes = {
+        "positive_prompt": {
+            "class_type": node_type,
+            "inputs": {"value": "初期の正のプロンプト"},
+        },
+        "negative_prompt": {
+            "class_type": node_type,
+            "inputs": {"value": "初始负面提示词"},
+        },
+    }
+    buffer = {
+        "nodes": nodes,
+        "definitions": {},
+        "layout": {
+            "nodes": {
+                "positive_prompt": {"title": "positive prompt"},
+                "negative_prompt": {"title": "negative prompt"},
+            }
+        },
+    }
+    definitions = {
+        node_type: {
+            "display_name": "Input Text",
+            "description": "Enter text on multiple lines.",
+            "input": {
+                "required": {
+                    "value": [
+                        "STRING",
+                        {
+                            "multiline": True,
+                            "tooltip": "Text passed to the workflow.",
+                        },
+                    ]
+                }
+            },
+        }
+    }
+    cube_state = CubeState(
+        cube_id="SDXL/Text to Image",
+        version="1.1.0",
+        alias="A",
+        original_cube=buffer,
+        buffer=buffer,
+        ui={},
+    )
+    panel = _WidgetPanel()
+    panel._stack_order = ["A"]
+    panel._cube_states = {"A": cube_state}
+    behavior_snapshot = build_behavior_snapshot(
+        cube_states={"A": cube_state},
+        stack_order=["A"],
+        definitions_by_class=definitions,
+    )
+    english_catalog = NodeTextCatalog.create(
+        language_identifier="en",
+        source=NodeTextSource.ENGLISH_COMFY,
+        node_definitions={
+            node_type: NodeCatalogText(
+                display_name="Input Text",
+                description="Enter text on multiple lines.",
+                inputs={
+                    "value": NodeFieldCatalogText(
+                        name="Text",
+                        tooltip="Text passed to the workflow.",
+                    )
+                },
+                outputs={},
+            )
+        },
+    )
+    chinese_catalog = NodeTextCatalog.create(
+        language_identifier="zh-Hans",
+        source=NodeTextSource.ACTIVE_COMFY,
+        node_definitions={
+            node_type: NodeCatalogText(
+                display_name="字符串（多行）",
+                description="输入多行文本。",
+                inputs={
+                    "value": NodeFieldCatalogText(
+                        name="文本",
+                        tooltip="传递给工作流的文本。",
+                    )
+                },
+                outputs={},
+            )
+        },
+    )
+    japanese_catalog = NodeTextCatalog.create(
+        language_identifier="ja",
+        source=NodeTextSource.ACTIVE_COMFY,
+        node_definitions={
+            node_type: NodeCatalogText(
+                display_name="文字列（複数行）",
+                description="複数行のテキストを入力します。",
+                inputs={
+                    "value": NodeFieldCatalogText(
+                        name="テキスト",
+                        tooltip="ワークフローに渡すテキストです。",
+                    )
+                },
+                outputs={},
+            )
+        },
+    )
+    active_snapshot = {
+        "value": NodeTextCatalogSnapshot(
+            effective_language_identifier="en",
+            revision=1,
+            active_layers=(),
+            english_layers=(english_catalog,),
+        )
+    }
+    builder = build_node_card_builder(
+        panel,
+        _DefinitionGateway(definitions),
+        node_presentation_service=NodePresentationService(
+            lambda: active_snapshot["value"],
+            application_text_renderer=render_source_application_text,
+        ),
+    )
+    monkeypatch.setattr(
+        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        lambda **_kwargs: QLineEdit(panel),
+    )
+    wrappers: dict[str, QWidget] = {}
+
+    try:
+        for node_name, node_data in nodes.items():
+            wrapper = builder.build_node_card(
+                node_name=node_name,
+                inputs=node_data["inputs"],
+                node_type=node_type,
+                field_specs=behavior_snapshot.field_specs_by_alias["A"][node_name],
+                cube_state=cube_state,
+                resolved_behavior=behavior_snapshot.resolved_nodes_by_alias["A"][
+                    node_name
+                ],
+                display_decision=behavior_snapshot.card_decisions_by_alias["A"][
+                    node_name
+                ],
+                alias="A",
+            )
+            assert wrapper is not None
+            wrappers[node_name] = wrapper
+
+        expected_titles = {
+            "positive_prompt": "Positive Prompt",
+            "negative_prompt": "Negative Prompt",
+        }
+        input_widgets = {
+            node_name: panel.input_widgets_by_field_key[("A", node_name, "value")]
+            for node_name in nodes
+        }
+        for node_name, wrapper in wrappers.items():
+            assert _card_title_text(wrapper) == expected_titles[node_name]
+            assert wrapper.property("node_title_source") == "authored"
+            assert expected_titles[node_name] in wrapper.property("node_search_aliases")
+
+        positive_input = input_widgets["positive_prompt"]
+        negative_input = input_widgets["negative_prompt"]
+        assert isinstance(positive_input, QLineEdit)
+        assert isinstance(negative_input, QLineEdit)
+        positive_input.setText("正面提示词とpositive prompt")
+        negative_input.setText("負のプロンプト与negative prompt")
+
+        for revision, language, catalog in (
+            (2, "zh-Hans", chinese_catalog),
+            (3, "ja", japanese_catalog),
+            (4, "en", None),
+        ):
+            active_snapshot["value"] = NodeTextCatalogSnapshot(
+                effective_language_identifier=language,
+                revision=revision,
+                active_layers=() if catalog is None else (catalog,),
+                english_layers=(english_catalog,),
+            )
+            for node_name, wrapper in wrappers.items():
+                QCoreApplication.sendEvent(
+                    wrapper,
+                    QEvent(QEvent.Type.LanguageChange),
+                )
+                assert _card_title_text(wrapper) == expected_titles[node_name]
+                assert wrapper.property("node_title_source") == "authored"
+                assert (
+                    input_widgets[node_name]
+                    is panel.input_widgets_by_field_key[("A", node_name, "value")]
+                )
+            assert positive_input.text() == "正面提示词とpositive prompt"
+            assert negative_input.text() == "負のプロンプト与negative prompt"
+    finally:
+        for wrapper in wrappers.values():
+            wrapper.deleteLater()
+        panel.deleteLater()
+        _ensure_qapp().processEvents()
+
+
+def test_node_card_live_locale_switch_rebinds_text_without_rebuilding_inputs(
+    monkeypatch,
+) -> None:
+    """Localize an untitled direct-workflow node without rebuilding its inputs."""
+
+    _ensure_qapp()
+    node_name = "ksampler"
+    node_type = "KSampler"
+    definitions = {
+        node_type: {
+            "display_name": "KSampler",
+            "description": "English raw definition",
+            "input": {
+                "required": {
+                    "seed": ["INT", {"tooltip": "English seed tooltip"}],
+                    "steps": ["INT", {"tooltip": "English steps tooltip"}],
+                }
+            },
+        }
+    }
+    nodes = {
+        node_name: {
+            "class_type": node_type,
+            "inputs": {"seed": 1, "steps": 20},
+        }
+    }
+    cube_state = DirectWorkflowState(
+        source_path=Path("untitled-workflow.json"),
+        source_workflow={"nodes": nodes},
+        buffer={"nodes": nodes, "definitions": {}},
+    )
+    panel = _WidgetPanel()
+    panel._stack_order = ["A"]
+    panel._cube_states = {"A": cube_state}
+    behavior_snapshot = build_behavior_snapshot(
+        cube_states={"A": cube_state},
+        stack_order=["A"],
+        definitions_by_class=definitions,
+    )
+    english_catalog = NodeTextCatalog.create(
+        language_identifier="en",
+        source=NodeTextSource.ENGLISH_COMFY,
+        node_definitions={
+            "KSampler": NodeCatalogText(
+                display_name="KSampler",
+                description="English description",
+                inputs={
+                    "seed": NodeFieldCatalogText(
+                        name="seed",
+                        tooltip="English seed tooltip",
+                    ),
+                    "steps": NodeFieldCatalogText(name="steps"),
+                },
+                outputs={},
+            )
+        },
+    )
+    japanese_catalog = NodeTextCatalog.create(
+        language_identifier="ja",
+        source=NodeTextSource.ACTIVE_COMFY,
+        node_definitions={
+            "KSampler": NodeCatalogText(
+                display_name="Kサンプラー",
+                description="提供されたモデルで潜在画像のノイズを除去します。",
+                inputs={
+                    "seed": NodeFieldCatalogText(
+                        name="シード",
+                        tooltip="ノイズ生成に使用するランダムシードです。",
+                    ),
+                    "steps": NodeFieldCatalogText(name="ステップ"),
+                },
+                outputs={},
+            )
+        },
+    )
+    catalog_snapshot = NodeTextCatalogSnapshot(
+        effective_language_identifier="ja",
+        revision=1,
+        active_layers=(japanese_catalog,),
+        english_layers=(english_catalog,),
+    )
+    active_snapshot = {"value": catalog_snapshot}
+    builder = build_node_card_builder(
+        panel,
+        _DefinitionGateway(definitions),
+        node_presentation_service=NodePresentationService(
+            lambda: active_snapshot["value"],
+            application_text_renderer=render_source_application_text,
+        ),
+    )
+    monkeypatch.setattr(
+        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        lambda **_kwargs: QLineEdit(panel),
+    )
+
+    wrapper = builder.build_node_card(
+        node_name=node_name,
+        inputs=nodes[node_name]["inputs"],
+        node_type=node_type,
+        field_specs=behavior_snapshot.field_specs_by_alias["A"][node_name],
+        cube_state=cube_state,
+        resolved_behavior=behavior_snapshot.resolved_nodes_by_alias["A"][node_name],
+        display_decision=behavior_snapshot.card_decisions_by_alias["A"][node_name],
+        alias="A",
+    )
+
+    try:
+        assert wrapper is not None
+        labels = {label.text() for label in wrapper.findChildren(CaptionLabel)}
+        assert {"Kサンプラー", "シード", "ステップ"} <= labels
+        title_row = _title_row_for(wrapper)
+        assert title_row.toolTip().startswith("提供されたモデル")
+        seed_row = panel.row_widgets[("A", node_name, "seed")][1]
+        assert seed_row.toolTip() == "ノイズ生成に使用するランダムシードです。"
+        assert wrapper.property("node_title_source") == "active_comfy"
+        assert "KSampler" in wrapper.property("node_search_aliases")
+
+        seed_widget = panel.input_widgets_by_field_key[("A", node_name, "seed")]
+        assert isinstance(seed_widget, QLineEdit)
+        seed_widget.setText("用户入力と日本語")
+        chinese_catalog = NodeTextCatalog.create(
+            language_identifier="zh-Hans",
+            source=NodeTextSource.ACTIVE_COMFY,
+            node_definitions={
+                "KSampler": NodeCatalogText(
+                    display_name="K采样器",
+                    description="使用所提供的模型对潜空间图像进行去噪。",
+                    inputs={
+                        "seed": NodeFieldCatalogText(
+                            name="种子",
+                            tooltip="用于生成噪声的随机种子。",
+                        ),
+                        "steps": NodeFieldCatalogText(name="步数"),
+                    },
+                    outputs={},
+                )
+            },
+        )
+        active_snapshot["value"] = NodeTextCatalogSnapshot(
+            effective_language_identifier="zh-Hans",
+            revision=2,
+            active_layers=(chinese_catalog,),
+            english_layers=catalog_snapshot.english_layers,
+        )
+
+        QCoreApplication.sendEvent(wrapper, QEvent(QEvent.Type.LanguageChange))
+
+        switched_labels = {label.text() for label in wrapper.findChildren(CaptionLabel)}
+        assert {"K采样器", "种子", "步数"} <= switched_labels
+        assert seed_widget is panel.input_widgets_by_field_key[("A", node_name, "seed")]
+        assert seed_widget.text() == "用户入力と日本語"
+        assert seed_row.toolTip() == "用于生成噪声的随机种子。"
+
+        active_snapshot["value"] = NodeTextCatalogSnapshot(
+            effective_language_identifier="ko",
+            revision=3,
+            active_layers=(),
+            english_layers=catalog_snapshot.english_layers,
+        )
+        QCoreApplication.sendEvent(wrapper, QEvent(QEvent.Type.LanguageChange))
+
+        fallback_labels = {label.text() for label in wrapper.findChildren(CaptionLabel)}
+        assert {"KSampler", "seed", "steps"} <= fallback_labels
+        assert wrapper.property("node_title_source") == "english_comfy"
+        assert seed_widget is panel.input_widgets_by_field_key[("A", node_name, "seed")]
+        assert seed_widget.text() == "用户入力と日本語"
     finally:
         if wrapper is not None:
             wrapper.deleteLater()
@@ -719,6 +1116,11 @@ def test_non_prompt_field_skips_prompt_only_dependency_requests(monkeypatch) -> 
             allow_unbounded_content_height=False,
             cube_state=SimpleNamespace(buffer={"nodes": {"node": {"inputs": {}}}}),
             alias="A",
+            field_presentation=technical_node_presentation(
+                node_name="node",
+                class_type="TestNode",
+                field_keys=("steps",),
+            ).fields["steps"],
         )
 
         assert isinstance(result, QWidget)
@@ -781,6 +1183,11 @@ def test_prompt_field_receives_prompt_only_dependencies(monkeypatch) -> None:
             allow_unbounded_content_height=False,
             cube_state=SimpleNamespace(buffer={"nodes": {"node": {"inputs": {}}}}),
             alias="A",
+            field_presentation=technical_node_presentation(
+                node_name="node",
+                class_type="TestNode",
+                field_keys=("text",),
+            ).fields["text"],
             prompt_field_inputs={
                 "text": NodeCardPromptFieldInputs(
                     scheduled_lora_resolver=scheduled_lora_resolver,

@@ -86,6 +86,7 @@ class WorkflowUiFactory:
                     self._shell.model_metadata_context_action_handler
                 ),
                 node_behavior_service=self._shell.node_behavior_service,
+                node_presentation_service=self._shell.node_presentation_service,
                 user_preset_service=self._shell.user_preset_service,
                 error_presenter=self._shell._error_presenter,
                 workflow_issue_state=self._shell.workflow_issue_state,

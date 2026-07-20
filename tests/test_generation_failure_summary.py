@@ -22,6 +22,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.generation.failure_summary import (
     format_generation_failure_line,
     summarize_generation_failure,
@@ -51,16 +53,21 @@ def test_summarize_generation_failure_known_patterns(
 ) -> None:
     """Known raw failures should map to compact queue-safe summaries."""
 
-    assert summarize_generation_failure(message) == expected
+    assert (
+        render_source_application_text(summarize_generation_failure(message))
+        == expected
+    )
 
 
 def test_summarize_generation_failure_uses_detail_for_classification() -> None:
     """Traceback detail should classify the summary without replacing raw fallback."""
 
     assert (
-        summarize_generation_failure(
-            "Execution failed",
-            detail="ModuleNotFoundError: No module named 'xformers'",
+        render_source_application_text(
+            summarize_generation_failure(
+                "Execution failed",
+                detail="ModuleNotFoundError: No module named 'xformers'",
+            )
         )
         == "Missing xformers"
     )
@@ -80,8 +87,12 @@ def test_summarize_generation_failure_clips_unknown_text() -> None:
 def test_summarize_generation_failure_handles_empty_input() -> None:
     """Empty failure text should return a generic fallback."""
 
-    assert summarize_generation_failure(None) == "Generation failed"
-    assert summarize_generation_failure("   ") == "Generation failed"
+    assert render_source_application_text(summarize_generation_failure(None)) == (
+        "Generation failed"
+    )
+    assert render_source_application_text(summarize_generation_failure("   ")) == (
+        "Generation failed"
+    )
 
 
 def test_format_generation_failure_line_includes_stage_message_and_prompt() -> None:
@@ -94,7 +105,7 @@ def test_format_generation_failure_line_includes_stage_message_and_prompt() -> N
     )
 
     assert (
-        format_generation_failure_line(failure)
+        render_source_application_text(format_generation_failure_line(failure))
         == "Generation failed during listener setup: boom prompt_id=pid-1"
     )
 
@@ -105,6 +116,6 @@ def test_format_generation_failure_line_uses_generation_fallback() -> None:
     failure = SimpleNamespace(stage="", message="", prompt_id=None)
 
     assert (
-        format_generation_failure_line(failure)
+        render_source_application_text(format_generation_failure_line(failure))
         == "Generation failed during generation."
     )

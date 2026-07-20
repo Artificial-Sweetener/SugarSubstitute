@@ -22,6 +22,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from sugarsubstitute_shared.localization import app_text
+
 from substitute.infrastructure.comfy.hardware_models import HardwareDetectionResult
 from substitute.infrastructure.comfy.managed_acceleration_environment import (
     ManagedAccelerationEnvironment,
@@ -204,7 +206,7 @@ def reconcile_managed_acceleration_stack(
             diagnostics=(),
         )
     if on_status is not None:
-        on_status("Preparing managed acceleration support.")
+        on_status(app_text("Preparing managed acceleration support."))
     if python_executable is None:
         python_executable = resolve_workspace_python(workspace)
     environment = ManagedAccelerationWorkspace(

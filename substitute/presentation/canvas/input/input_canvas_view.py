@@ -18,12 +18,20 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    apply_application_text,
+    render_application_text,
+)
+from substitute.presentation.localization import LocalizedLabel
+
 from os import environ
 from uuid import UUID
 
 from qpane import QPane
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QVBoxLayout, QWidget
 from qfluentwidgets import MenuAnimationType
 
 from substitute.application.workflows.canvas_route_projector_port import (
@@ -107,7 +115,7 @@ class InputCanvas(QWidget):
             InputQPaneRouteAdapter(self.pane),
             session_boundary=self._route_session_boundary,
         )
-        self._dock_action_text = "Undock canvas"
+        self._canvas_detached = False
         self._mask_tool_menu_state = InputMaskToolMenuState()
 
         self.pane.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -119,7 +127,9 @@ class InputCanvas(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.pane)
-        self._availability_overlay = QLabel("No input canvas nodes", self)
+        self._availability_overlay = LocalizedLabel(
+            app_text("No input canvas nodes"), self
+        )
         self._availability_overlay.setObjectName("InputCanvasAvailabilityOverlay")
         self._availability_overlay.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._apply_theme_styles()
@@ -148,7 +158,11 @@ class InputCanvas(QWidget):
         self._resize_availability_overlay()
         super().resizeEvent(event)
 
-    def set_available(self, available: bool, reason: str = "") -> None:
+    def set_available(
+        self,
+        available: bool,
+        reason: ApplicationText = "",
+    ) -> None:
         """Enable or disable input-canvas interaction and empty-state presentation."""
 
         self.pane.setEnabled(available)
@@ -156,15 +170,18 @@ class InputCanvas(QWidget):
         if available:
             overlay.hide()
             return
-        overlay.setText(reason or "No input canvas nodes")
+        if reason:
+            apply_application_text(overlay, reason)
+        else:
+            apply_application_text(overlay, app_text("No input canvas nodes"))
         InputCanvas._resize_availability_overlay(self)
         overlay.raise_()
         overlay.show()
 
-    def set_dock_action_text(self, text: str) -> None:
-        """Set the context-menu label for the manager-owned dock action."""
+    def set_canvas_detached(self, detached: bool) -> None:
+        """Store the manager-owned attachment state for context-menu rendering."""
 
-        self._dock_action_text = text
+        self._canvas_detached = detached
 
     def keyPressEvent(self, event: object) -> None:
         """Forward key presses to the underlying pane control."""
@@ -222,14 +239,14 @@ class InputCanvas(QWidget):
                 entries=(
                     MenuItem(
                         "input_canvas.tool.pan_zoom",
-                        "Pan & Zoom",
+                        app_text("Pan & Zoom"),
                         callback=lambda: self.maskToolModeRequested.emit(
                             InputMaskToolMode.PAN_ZOOM
                         ),
                     ),
                     MenuItem(
                         "input_canvas.tool.brush",
-                        "Brush",
+                        app_text("Brush"),
                         callback=lambda: self.maskToolModeRequested.emit(
                             InputMaskToolMode.BRUSH
                         ),
@@ -237,7 +254,7 @@ class InputCanvas(QWidget):
                     ),
                     MenuItem(
                         "input_canvas.tool.smart_select",
-                        "Smart Select",
+                        app_text("Smart Select"),
                         callback=lambda: self.maskToolModeRequested.emit(
                             InputMaskToolMode.SMART_SELECT
                         ),
@@ -246,7 +263,13 @@ class InputCanvas(QWidget):
                     MenuSeparator(),
                     MenuItem(
                         "input_canvas.dock_action",
-                        self._dock_action_text,
+                        render_application_text(
+                            app_text(
+                                "Redock canvas"
+                                if self._canvas_detached
+                                else "Undock canvas"
+                            )
+                        ),
                         callback=self.dockActionRequested.emit,
                     ),
                 )

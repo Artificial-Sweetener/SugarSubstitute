@@ -31,6 +31,7 @@ from substitute.application.node_behavior import (
     CollapseMode,
     EnabledSwitchPolicy,
     FieldBehaviorPatch,
+    FieldLabelSource,
     FieldPresentation,
     FieldValueSource,
     LiveNodeDefinitionError,
@@ -350,6 +351,7 @@ def test_behavior_snapshot_uses_subgraph_wrapper_virtual_definition() -> None:
     assert "tooltip" not in detailer_specs["denoise"].meta_info
     assert detailer_specs["steps"].meta_info["subgraph_wrapper"] is True
     assert detailer_specs["steps"].meta_info["subgraph_id"] == UUID_WRAPPER
+    assert detailer_specs["steps"].label_source is FieldLabelSource.WRAPPER_AUTHORED
 
 
 def test_behavior_snapshot_does_not_project_subgraph_body_nodes() -> None:
@@ -485,12 +487,12 @@ def test_wrapper_display_name_is_available_for_card_behavior() -> None:
     assert snapshot.resolved_nodes_by_alias["A"]["detailer"].display_name == "Detailer"
 
 
-def test_normal_node_raw_title_does_not_override_card_display_label() -> None:
-    """Raw Comfy titles should not bypass normal node-card title formatting."""
+def test_normal_cube_node_key_owns_formatted_card_display_label() -> None:
+    """SugarCube node keys should outrank raw Comfy titles as card identities."""
 
     cube = cube_state(
         nodes={
-            "mahiro CFG": {
+            "mahiro_cfg": {
                 "class_type": "MahiroCFG",
                 "inputs": {},
                 "_meta": {"title": "mahiro CFG"},
@@ -499,6 +501,10 @@ def test_normal_node_raw_title_does_not_override_card_display_label() -> None:
                 "class_type": "VectorscopeCC",
                 "inputs": {},
                 "_meta": {"title": "vectorscopeCC"},
+            },
+            "positive_prompt": {
+                "class_type": "UnavailableStringNode",
+                "inputs": {"value": "a red fox"},
             },
         },
         definitions={
@@ -513,8 +519,17 @@ def test_normal_node_raw_title_does_not_override_card_display_label() -> None:
         definitions_by_class=_wrapper_live_definitions(),
     )
 
-    assert snapshot.resolved_nodes_by_alias["A"]["mahiro CFG"].display_name is None
-    assert snapshot.resolved_nodes_by_alias["A"]["vectorscopeCC"].display_name is None
+    assert (
+        snapshot.resolved_nodes_by_alias["A"]["mahiro_cfg"].display_name == "Mahiro CFG"
+    )
+    assert (
+        snapshot.resolved_nodes_by_alias["A"]["vectorscopeCC"].display_name
+        == "VectorscopeCC"
+    )
+    assert (
+        snapshot.resolved_nodes_by_alias["A"]["positive_prompt"].display_name
+        == "Positive Prompt"
+    )
 
 
 def test_direct_workflow_node_title_owns_card_display_label() -> None:
@@ -528,7 +543,7 @@ def test_direct_workflow_node_title_owns_card_display_label() -> None:
                 "20": {
                     "class_type": "CheckpointLoaderSimple",
                     "inputs": {},
-                    "_meta": {"title": "Load model"},
+                    "_meta": {"title": "  Load model  "},
                 },
                 "14": {
                     "class_type": "KSamplerSelect",
@@ -545,7 +560,7 @@ def test_direct_workflow_node_title_owns_card_display_label() -> None:
     )
 
     resolved = snapshot.resolved_nodes_by_alias["Direct"]
-    assert resolved["20"].display_name == "Load model"
+    assert resolved["20"].display_name == "  Load model  "
     assert resolved["14"].display_name == "KSamplerSelect"
 
 
@@ -804,6 +819,7 @@ def test_loaded_cube_missing_numeric_input_uses_live_default() -> None:
     spec = snapshot.field_specs_by_alias["A"]["sampler"]["steps"]
     assert spec.value == 20
     assert spec.value_source == FieldValueSource.LIVE_DEFAULT
+    assert spec.label_source is FieldLabelSource.COMFY_DEFINITION
 
 
 def test_loaded_cube_missing_combo_uses_live_default() -> None:

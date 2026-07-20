@@ -23,6 +23,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from hashlib import blake2s
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.application.prompt_editor.prompt_lora_diagnostics import (
     lora_prompt_context,
     lora_source_range_context,
@@ -917,13 +919,13 @@ def _lora_projection_token(
     )
 
 
-def _lora_status_text(span: PromptLoraRendererSpanView) -> str | None:
+def _lora_status_text(span: PromptLoraRendererSpanView) -> ApplicationText | None:
     """Return compact status text for a projected LoRA chip."""
 
     if span.lora_status.value == "missing":
-        return "Not found"
+        return app_text("Not found")
     if span.lora_status.value == "ambiguous":
-        return "Ambiguous"
+        return app_text("Ambiguous")
     return None
 
 

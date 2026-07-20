@@ -134,7 +134,7 @@ def test_output_canvas_composition_builds_context_menu_controller_for_host() -> 
         active_set_index=1,
         _open_single_external_editor=None,
         _open_all_external_editor=opened.append,
-        _dock_action_text="Redock canvas",
+        _canvas_detached=True,
         dockActionRequested=dock_signal,
     )
     controller = output_context_menu_controller_for_host(

@@ -71,6 +71,7 @@ def test_early_launch_splash_supplies_process_pump_task_factory(
     started_splash, cancel_relay = early_launch_splash.start_early_launch_splash(
         ["main.py"],
         tmp_path,
+        "en",
     )
 
     assert started_splash is splash
@@ -89,6 +90,7 @@ def test_early_launch_splash_skips_no_comfy_startup(tmp_path: Path) -> None:
     assert early_launch_splash.start_early_launch_splash(
         ["main.py", "--no-comfy"],
         tmp_path,
+        "en",
     ) == (None, None)
 
 
@@ -103,6 +105,7 @@ def test_early_launch_splash_skips_startup_harness(
     assert early_launch_splash.start_early_launch_splash(
         ["main.py"],
         tmp_path,
+        "en",
     ) == (None, None)
 
 
@@ -138,6 +141,7 @@ def test_early_launch_splash_adopts_launcher_session(
     started_splash, cancel_relay = early_launch_splash.start_early_launch_splash(
         ["main.py", *splash_session_args(spec)],
         tmp_path,
+        "en",
     )
 
     assert started_splash is splash
@@ -170,6 +174,7 @@ def test_early_launch_splash_falls_back_when_adopted_session_write_fails(
     started_splash, cancel_relay = early_launch_splash.start_early_launch_splash(
         ["main.py", *splash_session_args(spec)],
         tmp_path,
+        "en",
     )
 
     assert started_splash is fallback_splash
@@ -198,6 +203,7 @@ def test_early_launch_splash_cancel_signal_reaches_relay(
     _started_splash, cancel_relay = early_launch_splash.start_early_launch_splash(
         ["main.py", *splash_session_args(spec)],
         tmp_path,
+        "en",
     )
     assert cancel_relay is not None
     cancel_path.write_text("cancel\n", encoding="utf-8")

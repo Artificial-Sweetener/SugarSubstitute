@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 
 from PySide6.QtCore import Property, QPoint, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import (
@@ -266,34 +268,38 @@ class CubeItem(ReorderableTabItemBase):
                     MenuItem(
                         "cube_stack.output_persistence",
                         (
-                            "Don't save outputs"
+                            app_text("Don't save outputs")
                             if self._output_persistence_enabled
-                            else "Save outputs"
+                            else app_text("Save outputs")
                         ),
                         callback=self._request_output_persistence_toggle,
                         icon=FluentIcon.SAVE,
                     ),
                     MenuItem(
                         "cube_stack.rename",
-                        "Rename",
+                        app_text("Rename"),
                         callback=self._request_alias_editing,
                         icon=FluentIcon.EDIT,
                     ),
                     MenuItem(
                         "cube_stack.duplicate",
-                        "Duplicate",
+                        app_text("Duplicate"),
                         callback=self._request_duplication,
                         icon=FluentIcon.COPY,
                     ),
                     MenuItem(
                         "cube_stack.bypass",
-                        "Remove bypass" if self._bypassed else "Bypass",
+                        (
+                            app_text("Remove bypass")
+                            if self._bypassed
+                            else app_text("Bypass")
+                        ),
                         callback=self._request_bypass_toggle,
                         icon=FluentIcon.PAUSE,
                     ),
                     MenuItem(
                         "cube_stack.remove",
-                        "Remove",
+                        app_text("Remove"),
                         callback=self._request_removal,
                         icon=FluentIcon.DELETE,
                     ),

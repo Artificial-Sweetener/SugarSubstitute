@@ -22,7 +22,10 @@ import sys
 import time
 from pathlib import Path
 
+from PySide6.QtCore import QLocale
+
 from substitute.app.bootstrap.startup_timing import StartupTimingRecord
+from sugarsubstitute_shared.localization import resolve_early_startup_locale
 
 
 def _record_elapsed(
@@ -67,7 +70,16 @@ def main() -> None:
         "entrypoint.import_early_launch_splash",
         phase_started_at,
     )
-    early_splash, cancel_relay = start_early_launch_splash(sys.argv, app_root)
+    early_locale = resolve_early_startup_locale(
+        sys.argv,
+        app_root=app_root,
+        ui_languages=tuple(QLocale.system().uiLanguages()),
+    )
+    early_splash, cancel_relay = start_early_launch_splash(
+        sys.argv,
+        app_root,
+        early_locale.effective_language.identifier,
+    )
     phase_started_at = _record_elapsed(
         startup_records,
         "entrypoint.start_early_launch_splash",

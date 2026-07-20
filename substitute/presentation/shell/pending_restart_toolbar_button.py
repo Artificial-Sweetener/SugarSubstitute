@@ -18,6 +18,14 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    app_text,
+    set_localized_accessible_description,
+    set_localized_accessible_name,
+    set_localized_tooltip,
+)
+
 from PySide6.QtCore import QEvent, QObject, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QIcon, QPaintEvent, QPainter
 from PySide6.QtWidgets import QAbstractButton, QBoxLayout, QWidget
@@ -58,7 +66,7 @@ class PendingRestartToolbarButton(QAbstractButton):
         self._alignment_toolbar: QWidget | None = None
         self._alignment_minimum_width = WORKFLOW_TOOLBAR_CONTROL_HEIGHT
         self.setObjectName("PendingRestartToolbarButton")
-        self.setAccessibleName("Pending restart requirements")
+        set_localized_accessible_name(self, "Pending restart requirements")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setFixedHeight(WORKFLOW_TOOLBAR_CONTROL_HEIGHT)
@@ -126,8 +134,11 @@ class PendingRestartToolbarButton(QAbstractButton):
         """Update the pending restart count and tooltip."""
 
         self._count = max(0, count)
-        self.setToolTip(_tooltip(self._count))
-        self.setAccessibleDescription(self.toolTip())
+        tooltip = _tooltip(self._count)
+        set_localized_tooltip(self, tooltip.source_text, *tooltip.arguments)
+        set_localized_accessible_description(
+            self, tooltip.source_text, *tooltip.arguments
+        )
         self.update()
 
     def count(self) -> int:
@@ -460,12 +471,12 @@ class PendingRestartToolbarButton(QAbstractButton):
         )
 
 
-def _tooltip(count: int) -> str:
+def _tooltip(count: int) -> ApplicationMessage:
     """Return the toolbar tooltip for the pending restart count."""
 
     if count == 1:
-        return "1 change requires restart"
-    return f"{count} changes require restart"
+        return app_text("1 change requires restart")
+    return app_text("%1 changes require restart", count)
 
 
 def _render_fluent_icon(

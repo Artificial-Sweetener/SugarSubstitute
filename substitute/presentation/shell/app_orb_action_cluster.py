@@ -18,6 +18,11 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_accessible_name,
+    set_localized_tooltip,
+)
+
 from PySide6.QtCore import QEvent, QPoint, QRectF, QSize, Qt
 from PySide6.QtGui import (
     QColor,
@@ -276,8 +281,8 @@ class AppOrbCubeStackButton(AppOrbActionButton):
         self.setObjectName(APP_ORB_CUBE_STACK_BUTTON_OBJECT_NAME)
         self.setCheckable(True)
         self._icon: object = AppIcon.PANEL_LEFT_20_FILLED
-        self.setToolTip("Collapse cube stack")
-        self.setAccessibleName("Collapse cube stack")
+        set_localized_tooltip(self, "Collapse cube stack")
+        set_localized_accessible_name(self, "Collapse cube stack")
 
     def setIcon(self, icon: object) -> None:
         """Store the current cube-stack icon descriptor."""
@@ -319,8 +324,8 @@ class AppOrbOverrideButton(AppOrbActionButton):
 
         super().__init__(parent, cluster_x=float(_BUTTON_WIDTH + _SEPARATOR_WIDTH))
         self.setObjectName(APP_ORB_OVERRIDE_BUTTON_OBJECT_NAME)
-        self.setToolTip("Select Global Field Overrides")
-        self.setAccessibleName("Select Global Field Overrides")
+        set_localized_tooltip(self, "Select Global Field Overrides")
+        set_localized_accessible_name(self, "Select Global Field Overrides")
         self._menu_controller = ShellMenuButtonController(
             self,
             menu_position=lambda: self.mapToGlobal(QPoint(0, self.height() - 2)),

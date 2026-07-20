@@ -27,8 +27,13 @@ from substitute.presentation.settings.settings_catalog import (
     SettingsSectionEntry,
     ordered_settings_pages,
 )
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    render_application_text,
+)
 
-_TOKEN_SEPARATOR_PATTERN = re.compile(r"[^0-9a-zA-Z_{}#]+")
+_TOKEN_SEPARATOR_PATTERN = re.compile(r"[^\w{}#]+", re.UNICODE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +48,7 @@ class SettingsSearchResult:
     def breadcrumb(self) -> str:
         """Return compact page and section context for the result."""
 
-        return f"{self.page.title} > {self.section.title}"
+        return f"{_render(self.page.title)} > {_render(self.section.title)}"
 
     @property
     def page_id(self) -> str:
@@ -105,16 +110,24 @@ def _searchable_tokens(
 
     text = " ".join(
         (
-            page.title,
-            page.subtitle,
-            section.title,
-            section.subtitle,
-            control.title,
-            control.description,
+            _render(page.title),
+            _render(page.subtitle),
+            _render(section.title),
+            _render(section.subtitle),
+            _render(control.title),
+            _render(control.description),
             " ".join(control.keywords),
         )
     )
     return frozenset(_query_tokens(text))
+
+
+def _render(text: ApplicationText) -> str:
+    """Resolve marked catalog copy for the active search language."""
+
+    if isinstance(text, ApplicationMessage):
+        return render_application_text(text)
+    return text
 
 
 __all__ = ["SettingsSearchResult", "search_settings_catalog"]

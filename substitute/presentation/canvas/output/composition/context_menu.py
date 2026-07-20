@@ -20,6 +20,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    render_application_text,
+)
+
 from substitute.presentation.canvas.output.output_canvas_context_menu_controller import (
     OutputCanvasContextMenuController,
     OutputContextMenu,
@@ -94,6 +99,12 @@ def output_context_menu_controller_for_host(
         open_all_external_editor=open_all_external_editor,
         reveal_asset=reveal_asset,
         allowed_image_ids=lambda: _allowed_output_image_ids_for(host),
-        dock_action_text=lambda: str(getattr(host, "_dock_action_text", "")),
+        dock_action_text=lambda: render_application_text(
+            app_text(
+                "Redock canvas"
+                if bool(getattr(host, "_canvas_detached", False))
+                else "Undock canvas"
+            )
+        ),
         request_dock_action=lambda: getattr(host, "dockActionRequested").emit(),
     )

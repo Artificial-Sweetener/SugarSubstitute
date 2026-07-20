@@ -18,6 +18,13 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    app_text,
+    render_source_application_text,
+)
+
 from substitute.application.error_report_builder import ErrorReportBuilder
 from substitute.application.errors import (
     DiagnosticSeverity,
@@ -50,7 +57,7 @@ def test_execution_report_preserves_full_traceback_and_node_context() -> None:
 
     rendered = ErrorReportBuilder().render(report)
 
-    assert report.title == "KSampler failed"
+    assert render_source_application_text(report.title) == "KSampler failed"
     assert report.severity is DiagnosticSeverity.ERROR
     assert report.message == "CUDA out of memory"
     assert report.traceback == ("Traceback line 1", "Traceback line 2")
@@ -217,3 +224,47 @@ def test_cube_library_drift_report_renders_warning_detail() -> None:
     assert "Cube 'CubeA'" in rendered
     assert "Path: E:\\recipes\\image.png" in rendered
     assert "Message Count: 2" in rendered
+
+
+def test_report_renderer_localizes_owned_copy_and_preserves_opaque_values() -> None:
+    """Report localization should not alter Comfy or authored diagnostic values."""
+
+    report = build_comfy_connection_error_report(
+        title=app_text("Connection failed"),
+        message="サーバーから返された内容",
+        stage="接続段階",
+        context=SubstituteOperationContext(
+            operation="接続操作",
+            workflow_name="作者のワークフロー",
+        ),
+    )
+    translations = {
+        "Error summary": "错误摘要",
+        "Title: %1": "标题：%1",
+        "Message: %1": "消息：%1",
+        "Connection failed": "连接失败",
+    }
+
+    def render(text: ApplicationText) -> str:
+        """Render selected test messages while retaining opaque arguments."""
+
+        if not isinstance(text, ApplicationMessage):
+            return text
+        value = translations.get(text.source_text, text.source_text)
+        for index in range(len(text.arguments), 0, -1):
+            argument = text.arguments[index - 1]
+            rendered_argument = (
+                render(argument)
+                if isinstance(argument, ApplicationMessage)
+                else str(argument)
+            )
+            value = value.replace(f"%{index}", rendered_argument)
+        return value
+
+    rendered = ErrorReportBuilder(text_renderer=render).render(report)
+
+    assert "错误摘要" in rendered
+    assert "标题：连接失败" in rendered
+    assert "消息：サーバーから返された内容" in rendered
+    assert "作者のワークフロー" in rendered
+    assert "接続段階" in rendered

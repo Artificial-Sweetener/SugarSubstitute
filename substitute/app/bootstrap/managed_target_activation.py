@@ -25,6 +25,9 @@ import time
 from typing import TextIO
 from typing import Callable, Protocol
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.presentation.localization import render_application_text
+
 from substitute.app.bootstrap.launch_splash import LaunchSplashClient
 from substitute.application.comfy_startup_diagnostics import (
     ComfyStartupDiagnosticsCollector,
@@ -88,19 +91,23 @@ def activate_target(
         nonlocal active_splash
         active_splash = None
 
-    def fan_out(line: str) -> None:
+    def fan_out(line: ApplicationText) -> None:
         """Forward one line while allowing the splash endpoint to detach."""
 
         fan_out_splash_and_shell_output(
             splash=active_splash,
             comfy_output_stream=comfy_output_stream,
-            line=line,
+            line=render_application_text(line),
             on_splash_disposed=detach_splash,
         )
 
     fan_out(
-        f"Activating {target.mode.value} Comfy target at "
-        f"{target.endpoint.host}:{target.endpoint.port}."
+        app_text(
+            "Activating %1 Comfy target at %2:%3.",
+            target.mode.value,
+            target.endpoint.host,
+            target.endpoint.port,
+        )
     )
     if target.launch_owned and target.workspace_path is not None:
         return process_manager.start_comfyui_background_managed(
@@ -138,32 +145,33 @@ def collect_and_fan_out_comfy_output(
     startup_diagnostics: ComfyStartupDiagnosticsCollector,
     splash: LaunchSplashClient | None,
     comfy_output_stream: ComfyOutputStreamProtocol,
-    line: str,
+    line: ApplicationText,
     on_splash_disposed: Callable[[], None] | None = None,
 ) -> None:
     """Collect one startup diagnostic record and forward it to visible sinks."""
 
+    rendered_line = render_application_text(line)
     started_at = time.perf_counter()
     try:
         try:
-            startup_diagnostics.append_output(line)
+            startup_diagnostics.append_output(rendered_line)
         except Exception as error:
             log_warning(
                 _LOGGER,
                 "Failed to classify Comfy startup output",
                 error=repr(error),
             )
-        mirror_managed_comfy_output_for_harness(line)
-        mirror_managed_comfy_output_timeline_for_harness(line)
+        mirror_managed_comfy_output_for_harness(rendered_line)
+        mirror_managed_comfy_output_timeline_for_harness(rendered_line)
         fan_out_splash_and_shell_output(
             splash=splash,
             comfy_output_stream=comfy_output_stream,
-            line=line,
+            line=rendered_line,
             on_splash_disposed=on_splash_disposed,
         )
     finally:
         elapsed_ms = (time.perf_counter() - started_at) * 1000.0
-        record_harness_output_fanout_timing(line, elapsed_ms)
+        record_harness_output_fanout_timing(rendered_line, elapsed_ms)
 
 
 def fan_out_splash_and_shell_output(

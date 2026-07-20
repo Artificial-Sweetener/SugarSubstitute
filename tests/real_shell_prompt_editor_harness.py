@@ -65,10 +65,15 @@ from substitute.presentation.shell.app_orb_action_cluster import (
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
+from sugarsubstitute_shared.presentation.localization import render_application_text
 
 from substitute.application.generation import (
     VisualAuthorizationService,
     WorkflowProgressService,
+)
+from substitute.application.localization import (
+    ActiveComfyNodeCatalogStore,
+    NodePresentationService,
 )
 from substitute.application.model_metadata import (
     ModelCatalogLookup,
@@ -795,8 +800,12 @@ class RealShellPromptEditorHarness:
             ),
             editor_snapshot_readiness=editor_snapshot.status.readiness.value,
             editor_snapshot_reason=editor_snapshot.status.unavailable_reason,
-            editor_scope_titles=tuple(scope.title for scope in scopes),
-            editor_scope_full_labels=tuple(scope.full_label for scope in scopes),
+            editor_scope_titles=tuple(
+                render_application_text(scope.title) for scope in scopes
+            ),
+            editor_scope_full_labels=tuple(
+                render_application_text(scope.full_label) for scope in scopes
+            ),
         )
 
     def probe_prompt_segment_dialog(
@@ -826,10 +835,14 @@ class RealShellPromptEditorHarness:
             )
         request = cast(Any, requests[0])
         return PromptSegmentDialogProbe(
-            title=str(request.title),
+            title=render_application_text(request.title),
             selected_text=str(request.selected_text),
-            scope_titles=tuple(scope.title for scope in request.scopes),
-            scope_full_labels=tuple(scope.full_label for scope in request.scopes),
+            scope_titles=tuple(
+                render_application_text(scope.title) for scope in request.scopes
+            ),
+            scope_full_labels=tuple(
+                render_application_text(scope.full_label) for scope in request.scopes
+            ),
         )
 
     def activate_workflow(self, alias: str, *, force_refresh: bool = True) -> None:
@@ -2938,6 +2951,11 @@ class _HarnessShell(QMainWindow):
         self.node_behavior_service = NodeBehaviorService(
             node_definition_gateway=self.node_definition_gateway
         )
+        self._node_catalog_store = ActiveComfyNodeCatalogStore()
+        self.node_presentation_service = NodePresentationService(
+            lambda: self._node_catalog_store.snapshot("en"),
+            application_text_renderer=render_application_text,
+        )
         self.danbooru_url_import_service = None
         self.danbooru_wiki_service = None
         self.danbooru_image_preview_service = None
@@ -3125,6 +3143,7 @@ class _HarnessShell(QMainWindow):
                 prompt_autocomplete_gateway=self.prompt_autocomplete_gateway,
                 prompt_wildcard_catalog_gateway=(self.prompt_wildcard_catalog_gateway),
                 node_behavior_service=self.node_behavior_service,
+                node_presentation_service=self.node_presentation_service,
                 prompt_lora_catalog_service=self.prompt_lora_catalog_service,
                 model_catalog_service=self.model_catalog_service,
                 thumbnail_asset_repository=self.thumbnail_asset_repository,

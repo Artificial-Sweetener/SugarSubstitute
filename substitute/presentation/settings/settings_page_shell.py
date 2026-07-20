@@ -23,6 +23,10 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QResizeEvent, QShowEvent
 from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 from qfluentwidgets import TitleLabel  # type: ignore[import-untyped]
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationText,
+    set_localized_text,
+)
 
 from substitute.presentation.editor.panel.widgets.scroll_surface import (
     EditorPanelScrollSurface,
@@ -45,7 +49,7 @@ class SettingsPageShell(QWidget):
     def __init__(
         self,
         *,
-        title: str,
+        title: ApplicationText,
         widget: QWidget,
         parent: QWidget | None = None,
     ) -> None:
@@ -93,7 +97,7 @@ class SettingsPageShell(QWidget):
         self._sync_content_column_width()
         self._scroll_surface.schedule_metrics_refresh()
 
-    def _build_layout(self, title: str, widget: QWidget) -> None:
+    def _build_layout(self, title: ApplicationText, widget: QWidget) -> None:
         """Create the centered scroll surface and compact page header."""
 
         self._content = QWidget(self)
@@ -120,9 +124,11 @@ class SettingsPageShell(QWidget):
         self._content_layout = QVBoxLayout(self._content_column)
         self._content_layout.setContentsMargins(0, 0, 0, 0)
         self._content_layout.setSpacing(SETTINGS_PAGE_HEADER_TO_FIRST_GROUP_SPACING)
-        self.breadcrumb_label = TitleLabel(
-            f"Settings > {title}",
-            self._content_column,
+        self.breadcrumb_label = TitleLabel("", self._content_column)
+        set_localized_text(
+            self.breadcrumb_label,
+            "Settings > %1",
+            title,
         )
         self._content_layout.addWidget(self.breadcrumb_label)
         self._content_layout.addWidget(widget)

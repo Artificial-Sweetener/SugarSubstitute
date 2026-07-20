@@ -1396,7 +1396,6 @@ def _remove_generation_queue_modules() -> None:
     for module_name in (
         "substitute.presentation.generation.queue_item_row",
         "substitute.presentation.generation.queue_rows_view",
-        "substitute.presentation.widgets.cursor_tooltip_filter",
         "substitute.presentation.widgets.row_interaction_feedback",
         "substitute.presentation.shell.chrome_style",
         "qfluentwidgets.common.config",
@@ -1432,13 +1431,14 @@ def _clear_gui_stubs_for_real_qt() -> None:
             if module is not None and not hasattr(module, "__file__"):
                 sys.modules.pop(module_name, None)
     _remove_generation_queue_modules()
+    sys.modules.pop("sugarsubstitute_shared.presentation.fluent_tooltips", None)
 
 
 def _install_cursor_tooltip_stub(monkeypatch: pytest.MonkeyPatch) -> None:
     """Install a lightweight cursor-tooltip helper module for row stubs."""
 
     cursor_tooltip = types.ModuleType(
-        "substitute.presentation.widgets.cursor_tooltip_filter"
+        "sugarsubstitute_shared.presentation.fluent_tooltips"
     )
 
     class _CursorToolTipFilter:
@@ -1461,6 +1461,7 @@ def _install_cursor_tooltip_stub(monkeypatch: pytest.MonkeyPatch) -> None:
         owner: object,
         *watched_widgets: object,
         show_delay_ms: int = 300,
+        **_kwargs: object,
     ) -> _CursorToolTipFilter:
         """Install one test cursor-tooltip filter on watched widgets."""
 
@@ -1473,11 +1474,14 @@ def _install_cursor_tooltip_stub(monkeypatch: pytest.MonkeyPatch) -> None:
             widget.installEventFilter(tooltip_filter)
         return tooltip_filter
 
-    cursor_tooltip.CursorToolTipFilter = _CursorToolTipFilter
-    cursor_tooltip.install_cursor_tooltip_filter = _install_cursor_tooltip_filter
+    cursor_tooltip.FluentToolTipFilter = _CursorToolTipFilter
+    cursor_tooltip.ensure_fluent_tooltip_filter = _install_cursor_tooltip_filter
+    cursor_tooltip.set_fluent_tooltip_text = lambda target, text: target.setToolTip(
+        text
+    )
     monkeypatch.setitem(
         sys.modules,
-        "substitute.presentation.widgets.cursor_tooltip_filter",
+        "sugarsubstitute_shared.presentation.fluent_tooltips",
         cursor_tooltip,
     )
 
@@ -1530,8 +1534,10 @@ def _install_queue_row_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     qfw_widgets = types.ModuleType("qfluentwidgets.components.widgets")
     qfw_tool_tip = types.ModuleType("qfluentwidgets.components.widgets.tool_tip")
     cursor_tooltip = types.ModuleType(
-        "substitute.presentation.widgets.cursor_tooltip_filter"
+        "sugarsubstitute_shared.presentation.fluent_tooltips"
     )
+    localization = types.ModuleType("substitute.presentation.localization")
+    localization.LocalizedCaptionLabel = _Widget
 
     class _ToolTipFilter:
         """Record QFluent tooltip-filter construction for queue row tests."""
@@ -1564,6 +1570,7 @@ def _install_queue_row_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
         owner: object,
         *watched_widgets: object,
         show_delay_ms: int = 300,
+        **_kwargs: object,
     ) -> _CursorToolTipFilter:
         """Install one test cursor-tooltip filter on watched widgets."""
 
@@ -1576,8 +1583,11 @@ def _install_queue_row_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
             widget.installEventFilter(tooltip_filter)
         return tooltip_filter
 
-    cursor_tooltip.CursorToolTipFilter = _CursorToolTipFilter
-    cursor_tooltip.install_cursor_tooltip_filter = _install_cursor_tooltip_filter
+    cursor_tooltip.FluentToolTipFilter = _CursorToolTipFilter
+    cursor_tooltip.ensure_fluent_tooltip_filter = _install_cursor_tooltip_filter
+    cursor_tooltip.set_fluent_tooltip_text = lambda target, text: target.setToolTip(
+        text
+    )
     shiboken = types.ModuleType("shiboken6")
     shiboken.isValid = lambda _obj: True
 
@@ -1587,6 +1597,11 @@ def _install_queue_row_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "PySide6.QtWidgets", qtwidgets)
     monkeypatch.setitem(sys.modules, "shiboken6", shiboken)
     monkeypatch.setitem(sys.modules, "qfluentwidgets", qfw)
+    monkeypatch.setitem(
+        sys.modules,
+        "substitute.presentation.localization",
+        localization,
+    )
     monkeypatch.setitem(sys.modules, "qfluentwidgets.components", qfw_components)
     monkeypatch.setitem(
         sys.modules,
@@ -1600,7 +1615,7 @@ def _install_queue_row_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setitem(
         sys.modules,
-        "substitute.presentation.widgets.cursor_tooltip_filter",
+        "sugarsubstitute_shared.presentation.fluent_tooltips",
         cursor_tooltip,
     )
     monkeypatch.setitem(sys.modules, "qfluentwidgets.common", qfw_common)
@@ -2930,6 +2945,14 @@ def _install_dropdown_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     """Install PySide and qfluent stubs needed by the dropdown module."""
 
     importlib.import_module("sugarsubstitute_shared.presentation.widgets.scrolling")
+    shared_localization = importlib.import_module(
+        "sugarsubstitute_shared.presentation.localization"
+    )
+    monkeypatch.setattr(
+        shared_localization,
+        "set_localized_tooltip",
+        lambda target, text, *arguments: target.setToolTip(str(text)),
+    )
 
     qtcore = types.ModuleType("PySide6.QtCore")
     qtcore.Qt = types.SimpleNamespace(
@@ -2983,8 +3006,12 @@ def _install_dropdown_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     material.AcrylicFlyoutViewBase = _Widget
     flyout = types.ModuleType("qfluentwidgets.components.widgets.flyout")
     flyout.FlyoutAnimationType = types.SimpleNamespace(DROP_DOWN="drop-down")
+    localization = types.ModuleType("substitute.presentation.localization")
+    localization.LocalizedBodyLabel = _Widget
+    localization.LocalizedCaptionLabel = _Widget
+    localization.LocalizedStrongBodyLabel = _Widget
     cursor_tooltip = types.ModuleType(
-        "substitute.presentation.widgets.cursor_tooltip_filter"
+        "sugarsubstitute_shared.presentation.fluent_tooltips"
     )
 
     class _CursorToolTipFilter:
@@ -3007,6 +3034,7 @@ def _install_dropdown_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
         owner: object,
         *watched_widgets: object,
         show_delay_ms: int = 300,
+        **_kwargs: object,
     ) -> _CursorToolTipFilter:
         """Install one test cursor-tooltip filter on watched widgets."""
 
@@ -3019,8 +3047,11 @@ def _install_dropdown_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
             widget.installEventFilter(tooltip_filter)
         return tooltip_filter
 
-    cursor_tooltip.CursorToolTipFilter = _CursorToolTipFilter
-    cursor_tooltip.install_cursor_tooltip_filter = _install_cursor_tooltip_filter
+    cursor_tooltip.FluentToolTipFilter = _CursorToolTipFilter
+    cursor_tooltip.ensure_fluent_tooltip_filter = _install_cursor_tooltip_filter
+    cursor_tooltip.set_fluent_tooltip_text = lambda target, text: target.setToolTip(
+        text
+    )
     shiboken = types.ModuleType("shiboken6")
     shiboken.isValid = lambda _obj: True
 
@@ -3030,6 +3061,11 @@ def _install_dropdown_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "PySide6.QtWidgets", qtwidgets)
     monkeypatch.setitem(sys.modules, "shiboken6", shiboken)
     monkeypatch.setitem(sys.modules, "qfluentwidgets", qfw)
+    monkeypatch.setitem(
+        sys.modules,
+        "substitute.presentation.localization",
+        localization,
+    )
     monkeypatch.setitem(sys.modules, "qfluentwidgets.common", qfw_common)
     monkeypatch.setitem(sys.modules, "qfluentwidgets.common.config", qfw_config)
     monkeypatch.setitem(
@@ -3055,7 +3091,7 @@ def _install_dropdown_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setitem(
         sys.modules,
-        "substitute.presentation.widgets.cursor_tooltip_filter",
+        "sugarsubstitute_shared.presentation.fluent_tooltips",
         cursor_tooltip,
     )
     for module_name in (
@@ -3064,11 +3100,11 @@ def _install_dropdown_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
         "substitute.presentation.generation.queue_item_row",
         "substitute.presentation.generation.queue_rows_view",
         "substitute.presentation.resources.app_icon",
-        "substitute.presentation.widgets.cursor_tooltip_filter",
+        "sugarsubstitute_shared.presentation.fluent_tooltips",
         "substitute.presentation.widgets.row_interaction_feedback",
         "substitute.presentation.shell.chrome_style",
     ):
-        if module_name != "substitute.presentation.widgets.cursor_tooltip_filter":
+        if module_name != "sugarsubstitute_shared.presentation.fluent_tooltips":
             sys.modules.pop(module_name, None)
 
 

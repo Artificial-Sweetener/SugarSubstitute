@@ -35,6 +35,7 @@ from substitute.application.workflows import CubeRuntimeIssueSource
 from substitute.application.ports import NodeDefinitionHydrationResult
 from substitute.presentation.editor.panel.view import EditorPanel
 from tests.execution_test_helpers import immediate_editor_panel_execution_factories
+from tests.localization_testing import empty_node_presentation_service
 
 
 class _EmptyNodeDefinitionGateway:
@@ -152,6 +153,7 @@ def test_editor_hydration_error_can_register_cube_runtime_issue() -> None:
         prompt_autocomplete_gateway=SimpleNamespace(),
         prompt_wildcard_catalog_gateway=SimpleNamespace(),
         node_behavior_service=NodeBehaviorService(node_definition_gateway=gateway),
+        node_presentation_service=empty_node_presentation_service(),
         error_presenter=presenter,
         workflow_id="workflow-a",
         editor_panel_execution_factories=immediate_editor_panel_execution_factories(),
@@ -210,6 +212,7 @@ def test_recoverable_live_node_definition_report_is_deduplicated() -> None:
         prompt_autocomplete_gateway=SimpleNamespace(),
         prompt_wildcard_catalog_gateway=SimpleNamespace(),
         node_behavior_service=NodeBehaviorService(node_definition_gateway=gateway),
+        node_presentation_service=empty_node_presentation_service(),
         error_presenter=presenter,
         workflow_id="workflow-a",
         editor_panel_execution_factories=immediate_editor_panel_execution_factories(),

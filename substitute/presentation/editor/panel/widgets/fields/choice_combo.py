@@ -22,9 +22,15 @@ from collections.abc import Sequence
 
 from PySide6.QtWidgets import QWidget
 
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    app_text,
+    clear_localized_property,
+    set_localized_placeholder,
+)
 from substitute.presentation.widgets import ComboBox
 
-EMPTY_CHOICE_PLACEHOLDER = "No options available"
+EMPTY_CHOICE_PLACEHOLDER: ApplicationMessage = app_text("No options available")
 
 
 class EditorChoiceComboBox(ComboBox):
@@ -50,7 +56,11 @@ class EditorChoiceComboBox(ComboBox):
             self.addItems([label for label, _value in items])
             has_options = bool(items)
             self.setEnabled(has_options)
-            self.setPlaceholderText("" if has_options else EMPTY_CHOICE_PLACEHOLDER)
+            if has_options:
+                clear_localized_property(self, "placeholder")
+                self.setPlaceholderText("")
+            else:
+                set_localized_placeholder(self, EMPTY_CHOICE_PLACEHOLDER)
             if has_options:
                 self.setCurrentText(selected_label or items[0][0])
         finally:

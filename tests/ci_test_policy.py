@@ -104,6 +104,8 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_prompt_projection_geometry_authority.py",
         "tests/test_prompt_projection_incremental_caret_map_contract.py",
         "tests/test_prompt_projection_incremental_editing.py",
+        # Input-method events exercise native Qt composition state.
+        "tests/test_prompt_projection_input_method.py",
         "tests/test_prompt_projection_layout_surface.py",
         "tests/test_prompt_projection_literal_normalization.py",
         "tests/test_prompt_projection_lora_surface.py",
@@ -123,6 +125,8 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_prompt_wildcard_overlay_contract.py",
         # QFluent menu construction can terminate an xdist Qt worker.
         "tests/test_qfluent_menu_renderer.py",
+        # QFluent's process-global font/QSS refresh can terminate an xdist worker.
+        "tests/test_qfluent_font_adapter.py",
         # Real Output QPane interaction owns native scene and popup state.
         "tests/test_real_shell_output_canvas_abuse_matrix.py",
         "tests/test_real_shell_output_canvas_scenarios.py",

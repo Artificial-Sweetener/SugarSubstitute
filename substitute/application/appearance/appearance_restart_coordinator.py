@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 from typing import Protocol
 
 from substitute.application.appearance.active_appearance_baseline import (
@@ -81,7 +83,7 @@ class AppearanceRestartCoordinator:
         active = self._active_baseline.snapshot()
         return self._restart_requirements.register_delta(
             key=THEME_MODE_RESTART_KEY,
-            label="Theme mode",
+            label=app_text("Theme mode"),
             active_value=active.theme_mode.value,
             saved_value=resolved.requested.theme_mode.value,
             scope=RestartScope.WINDOW,
@@ -98,7 +100,7 @@ class AppearanceRestartCoordinator:
         active = self._active_baseline.snapshot()
         return self._restart_requirements.register_delta(
             key=BACKDROP_MODE_RESTART_KEY,
-            label="Window material",
+            label=app_text("Window material"),
             active_value=active.backdrop_mode.value,
             saved_value=resolved.requested.backdrop_mode.value,
             scope=RestartScope.WINDOW,

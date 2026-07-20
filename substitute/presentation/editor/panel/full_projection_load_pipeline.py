@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from time import perf_counter
@@ -540,7 +542,7 @@ class EditorFullProjectionLoadPipeline:
 
             phase_started = perf_counter()
             ports.projection_lifecycle.refresh_visibility(
-                message="Failed to refresh editor visibility after cube load",
+                message=app_text("Failed to refresh editor visibility after cube load"),
                 reason="full_workflow_projection",
                 use_cached_snapshot=True,
             )

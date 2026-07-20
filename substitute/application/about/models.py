@@ -21,7 +21,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-ABOUT_PROJECT_SUMMARY = (
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
+ABOUT_PROJECT_SUMMARY: ApplicationText = app_text(
     "SugarSubstitute provides a focused PySide6 workspace for ComfyUI, with "
     "cube-based workflow composition, managed model metadata, prompt tooling, "
     "and integrated image canvas workflows."
@@ -43,13 +45,14 @@ class AboutVersionStatus(Enum):
 class AboutVersionRow:
     """Describe one component version displayed on the About Settings page."""
 
-    label: str
-    value: str
+    component_key: str
+    label: ApplicationText
+    value: ApplicationText
     status: AboutVersionStatus
-    subtitle: str = ""
+    subtitle: ApplicationText = ""
     authors: str = ""
     external_url: str = ""
-    detail: str = ""
+    detail: ApplicationText = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,7 +60,7 @@ class AboutInfoSnapshot:
     """Collect project and runtime facts for the About Settings page."""
 
     versions: tuple[AboutVersionRow, ...]
-    project_summary: str
+    project_summary: ApplicationText
     supporters: tuple[str, ...]
     special_thanks: tuple[str, ...]
 

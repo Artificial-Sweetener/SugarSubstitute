@@ -20,6 +20,13 @@ from __future__ import annotations
 
 from typing import Any, Literal, cast
 
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    app_text,
+    set_localized_tooltip,
+    translate_application_message,
+)
+
 try:
     from PySide6.QtCore import QEvent, QPoint, QRect, QRectF, QSize, Qt, Signal
 except ImportError:  # pragma: no cover - lightweight test stubs
@@ -151,12 +158,15 @@ from substitute.presentation.widgets.row_interaction_feedback import (
     RowInteractionFeedback,
     is_left_mouse_press,
 )
-from substitute.presentation.widgets.cursor_tooltip_filter import (
-    install_cursor_tooltip_filter,
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    ensure_fluent_tooltip_filter,
+    set_fluent_tooltip_text,
 )
 from substitute.presentation.shell.chrome_style import connect_theme_refresh
 
 
+_REMOVE_JOB_TOOLTIP: ApplicationMessage = app_text("Remove job")
+_CANCEL_JOB_TOOLTIP: ApplicationMessage = app_text("Cancel job")
 _THUMBNAIL_CACHE = GenerationQueueThumbnailCache()
 _THUMBNAIL_SIZE = QSize(52, 52)
 _QUEUE_TITLE_FONT_DELTA = 1
@@ -355,9 +365,11 @@ class GenerationQueueItemRow(QFrame):
         )
 
         action_icon = FIF.DELETE if row.action == "remove" else FIF.CLOSE
-        action_tooltip = "Remove job" if row.action == "remove" else "Cancel job"
+        action_tooltip = (
+            _REMOVE_JOB_TOOLTIP if row.action == "remove" else _CANCEL_JOB_TOOLTIP
+        )
         self._action_button = TransparentToolButton(action_icon, self)
-        self._action_button.setToolTip(action_tooltip)
+        set_localized_tooltip(self._action_button, action_tooltip)
         self._action_button.setFixedSize(28, 28)
         self._action_button.setCursor(qt.PointingHandCursor)
         self._action_button.setVisible(row.action is not None)
@@ -512,7 +524,7 @@ class GenerationQueueItemRow(QFrame):
                 entries=(
                     MenuItem(
                         "generation_queue.open_snapshot",
-                        "Open as Workflow Tab",
+                        app_text("Open as Workflow Tab"),
                         callback=self._emit_open_snapshot_request,
                         icon=FIF.ADD,
                     ),
@@ -532,10 +544,10 @@ class GenerationQueueItemRow(QFrame):
         """Apply one tooltip to the row and text labels."""
 
         text = tooltip or ""
-        self.setToolTip(text)
-        self._title_label.setToolTip("")
-        self._subtitle_label.setToolTip("")
-        self._text_column.setToolTip("")
+        set_fluent_tooltip_text(self, text)
+        set_fluent_tooltip_text(self._title_label, "")
+        set_fluent_tooltip_text(self._subtitle_label, "")
+        set_fluent_tooltip_text(self._text_column, "")
 
     @staticmethod
     def _row_body_tooltip(row: QueueJobRowView) -> str | None:
@@ -545,15 +557,20 @@ class GenerationQueueItemRow(QFrame):
             return row.prompt_tooltip or row.tooltip
         if row.prompt_tooltip is None:
             return row.tooltip
-        return f"{row.tooltip}\n\nPrompt preview:\n{row.prompt_tooltip}"
+        return translate_application_message(
+            "%1\n\nPrompt preview:\n%2",
+            row.tooltip,
+            row.prompt_tooltip,
+        )
 
     def _install_prompt_tooltip_filter(self, *widgets: QWidget) -> None:
         """Install one row-owned cursor tooltip filter on body tooltip targets."""
 
-        self._tooltip_filter = install_cursor_tooltip_filter(
+        self._tooltip_filter = ensure_fluent_tooltip_filter(
             self,
             *widgets,
             show_delay_ms=600,
+            cursor_anchor=True,
         )
 
     @staticmethod
@@ -647,8 +664,10 @@ class GenerationQueueItemRow(QFrame):
         set_icon = getattr(self._action_button, "setIcon", None)
         if callable(set_icon):
             set_icon(action_icon)
-        action_tooltip = "Remove job" if row.action == "remove" else "Cancel job"
-        self._action_button.setToolTip(action_tooltip)
+        action_tooltip = (
+            _REMOVE_JOB_TOOLTIP if row.action == "remove" else _CANCEL_JOB_TOOLTIP
+        )
+        set_localized_tooltip(self._action_button, action_tooltip)
         self._action_button.setVisible(row.action is not None)
 
     def _apply_body_cursor(self) -> None:

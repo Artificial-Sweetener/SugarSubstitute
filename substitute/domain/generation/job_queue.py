@@ -24,6 +24,8 @@ from pathlib import Path
 from collections.abc import Mapping
 from typing import Literal
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 from substitute.domain.comfy_workflow import DirectWorkflowGenerationPlan
 
 GenerationJobStatus = Literal[
@@ -65,7 +67,7 @@ class GenerationQueueJob:
     generation_run_id: str | None = None
     client_id: str | None = None
     failure_message: str | None = None
-    failure_summary: str | None = None
+    failure_summary: ApplicationText | None = None
     failure_detail: str | None = None
     output_run_number: int | None = None
     projected_output_run_number: int | None = None

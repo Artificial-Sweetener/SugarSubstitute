@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.managed_text_assets import WildcardManagedTextAssetService
@@ -65,17 +67,17 @@ class WildcardManagementModal(ManagedTextAssetModal):
         """Create the wildcard management modal."""
 
         super().__init__(
-            title="Wildcards",
+            title=app_text("Wildcards"),
             asset_title="Wildcard files",
             empty_text="No user wildcard files yet.",
             service=service,
             create_actions=(
                 ManagedTextAssetCreateAction(
-                    label="New TXT",
+                    label=app_text("New TXT"),
                     kind=ManagedTextAssetKind.PROMPT_TEXT,
                 ),
                 ManagedTextAssetCreateAction(
-                    label="New CSV",
+                    label=app_text("New CSV"),
                     kind=ManagedTextAssetKind.CSV,
                     default_content="value\n",
                 ),

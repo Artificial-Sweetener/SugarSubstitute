@@ -33,6 +33,7 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     SearchLineEdit,
     TitleLabel,
 )
+from tests.localization_testing import stub_translation_manager
 
 from substitute.application.about import (
     AboutInfoService,
@@ -589,6 +590,7 @@ def test_settings_workspace_uses_user_intent_navigation_order(
         comfy_environment_service=cast(ComfyEnvironmentService, object()),
         cube_library_management_service=cast(CubeLibraryManagementService, object()),
         about_info_service=cast(AboutInfoService, _AboutInfoService()),
+        localization_manager=stub_translation_manager(),
         comfy_connection_settings_service=cast(
             ComfyConnectionSettingsService,
             _ConnectionSettingsService(),
@@ -1871,6 +1873,7 @@ def _about_snapshot(version_value: str) -> AboutInfoSnapshot:
     return AboutInfoSnapshot(
         versions=(
             AboutVersionRow(
+                component_key="SugarSubstitute",
                 label="SugarSubstitute",
                 value=version_value,
                 status=AboutVersionStatus.AVAILABLE,
@@ -1889,6 +1892,7 @@ def _settings_workspace(tmp_path: Path) -> Any:
         comfy_environment_service=cast(ComfyEnvironmentService, object()),
         cube_library_management_service=cast(CubeLibraryManagementService, object()),
         about_info_service=cast(AboutInfoService, _AboutInfoService()),
+        localization_manager=stub_translation_manager(),
         comfy_connection_settings_service=cast(
             ComfyConnectionSettingsService,
             _ConnectionSettingsService(),

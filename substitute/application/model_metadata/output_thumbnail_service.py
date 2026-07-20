@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -138,7 +140,9 @@ class SetModelThumbnailFromOutputService:
                 kind=kind,
                 value=value,
                 image_id=request.image_id,
-                message="Thumbnail assignment requires a model kind and value.",
+                message=app_text(
+                    "Thumbnail assignment requires a model kind and value."
+                ),
             )
         log_info(
             _LOGGER,
@@ -167,7 +171,9 @@ class SetModelThumbnailFromOutputService:
                 kind=kind,
                 value=value,
                 image_id=request.image_id,
-                message="Thumbnail assignment failed; existing metadata was kept.",
+                message=app_text(
+                    "Thumbnail assignment failed; existing metadata was kept."
+                ),
             )
 
     def _set_thumbnail(
@@ -194,7 +200,7 @@ class SetModelThumbnailFromOutputService:
                 kind=kind,
                 value=value,
                 image_id=image_id,
-                message="The selected model is no longer present locally.",
+                message=app_text("The selected model is no longer present locally."),
             )
         sha256 = self._sha256_for_entry(entry, cancellation)
         if sha256 is None:
@@ -204,7 +210,7 @@ class SetModelThumbnailFromOutputService:
                 value=value,
                 image_id=image_id,
                 relative_path=entry.source.relative_path,
-                message="The selected model could not be fingerprinted.",
+                message=app_text("The selected model could not be fingerprinted."),
             )
         image_meta = self._image_registry.metadata_for(image_id)
         payload = self._image_registry.payload_for(image_id)
@@ -216,7 +222,7 @@ class SetModelThumbnailFromOutputService:
                 image_id=image_id,
                 relative_path=entry.source.relative_path,
                 sha256=sha256,
-                message="The selected output image is no longer available.",
+                message=app_text("The selected output image is no longer available."),
             )
         evidence = LocalModelEvidence.from_backend_entry(entry, sha256)
         previous_record = self._catalog.record_for_sha256(evidence.sha256)
@@ -233,7 +239,7 @@ class SetModelThumbnailFromOutputService:
                 image_id=image_id,
                 relative_path=entry.source.relative_path,
                 sha256=evidence.sha256,
-                message="The selected output image could not be decoded.",
+                message=app_text("The selected output image could not be decoded."),
             )
         provider = previous_record.provider if previous_record is not None else None
         provider_status = (
@@ -277,7 +283,7 @@ class SetModelThumbnailFromOutputService:
             relative_path=entry.source.relative_path,
             sha256=evidence.sha256,
             thumbnail_updated=True,
-            message="Thumbnail updated from output canvas.",
+            message=app_text("Thumbnail updated from output canvas."),
         )
 
     def _selected_backend_entry(

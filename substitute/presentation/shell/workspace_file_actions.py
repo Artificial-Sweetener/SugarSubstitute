@@ -18,6 +18,13 @@
 
 from __future__ import annotations
 
+from substitute.presentation.workflows.workflow_tabs_view import (
+    workflow_tab_source_text,
+)
+
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable, Mapping, MutableMapping
 from dataclasses import dataclass
 from inspect import signature
@@ -35,6 +42,10 @@ from substitute.application.execution import (
     TaskRequest,
     TaskScope,
     TaskSubmitter,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    render_application_text,
+    translate_application_message,
 )
 from substitute.application.errors import (
     SubstituteOperationContext,
@@ -357,7 +368,7 @@ class CubeLibraryManagementServiceProtocol(Protocol):
     def recipe_drift_messages(
         self,
         buffers: Mapping[str, Mapping[str, object]],
-    ) -> tuple[str, ...]:
+    ) -> tuple[ApplicationText, ...]:
         """Return user-facing recipe cube drift notices."""
 
 
@@ -814,8 +825,11 @@ class WorkspaceFileActions:
             self._log_exception(_LOGGER, "Failed to export workflow", **log_context)
             self._show_exception_or_critical(
                 error,
-                title="Export workflow failed",
-                message=f"Failed to export workflow: {error}",
+                title=app_text("Export workflow failed"),
+                message=translate_application_message(
+                    "Failed to export workflow: %1",
+                    error,
+                ),
                 stage="export",
                 context=SubstituteOperationContext(
                     operation="export_workflow_json",
@@ -916,7 +930,7 @@ class WorkspaceFileActions:
             projects_dir=resolved_projects_dir,
             current_index=current_index,
             current_workflow_id=current_id,
-            current_tab_text=current_tab_item.text(),
+            current_tab_text=workflow_tab_source_text(current_tab_item),
             active_workflow_id=view.workflow_session_service.active_workflow_id,
             source_path=source_path,
         )
@@ -1377,8 +1391,11 @@ class WorkspaceFileActions:
         )
         self._show_exception_or_critical(
             error,
-            title="Load recipe failed",
-            message=f"Failed to load recipe: {error}",
+            title=app_text("Load recipe failed"),
+            message=translate_application_message(
+                "Failed to load recipe: %1",
+                error,
+            ),
             stage="load",
             context=SubstituteOperationContext(
                 operation="load_recipe",
@@ -1403,7 +1420,7 @@ class WorkspaceFileActions:
         model_label = _deferred_recipe_model_download_label(request)
         busy_token = view.editor_busy.begin(
             target_workflow_id,
-            message=f"Downloading {model_label}",
+            message=app_text("Downloading %1", model_label),
         )
         self._recipe_model_download_request_id += 1
         request_id = self._recipe_model_download_request_id
@@ -1552,7 +1569,7 @@ class WorkspaceFileActions:
         self._view.editor_busy.update_download(
             busy_token,
             EditorBusyDownloadState(
-                title=f"Downloading {model_label}",
+                title=app_text("Downloading %1", model_label),
                 message=_recipe_model_download_message(job, model_label=model_label),
                 detail=detail,
                 progress_per_mille=_recipe_model_download_progress(job),
@@ -1668,7 +1685,7 @@ class WorkspaceFileActions:
 
         QMessageBox.warning(
             cast(Any, self._view),
-            "Model download failed",
+            render_application_text(app_text("Model download failed")),
             str(error),
         )
 
@@ -1905,10 +1922,10 @@ class WorkspaceFileActions:
             log_warning(
                 _LOGGER,
                 "Recipe cube library drift detected",
-                drift_message=message,
+                drift_message=render_application_text(message),
             )
         report = build_cube_library_drift_report(
-            messages,
+            tuple(render_application_text(message) for message in messages),
             context=SubstituteOperationContext(
                 operation="load_recipe_cube_library_drift",
                 workflow_id=workflow_id,
@@ -1987,7 +2004,7 @@ class WorkspaceFileActions:
 
         normalized = normalize_default_workflow_tab_label(base_name)
         existing_labels = {
-            item.text()
+            workflow_tab_source_text(item)
             for workflow_id, item in self._view.workflow_tabbar.itemMap.items()
             if workflow_id != target_workflow_id
         }
@@ -2067,25 +2084,25 @@ def _recipe_model_download_message(
     job: BackendModelDownloadJob,
     *,
     model_label: str,
-) -> str:
+) -> ApplicationText:
     """Return user-facing workflow overlay copy for one download job."""
 
     if job.status is ModelDownloadStatus.QUEUED:
-        return "Preparing the download."
+        return app_text("Preparing the download.")
     if job.status is ModelDownloadStatus.RUNNING:
-        return job.detail or "Starting the model download."
+        return job.detail or app_text("Starting the model download.")
     if job.status is ModelDownloadStatus.COMPLETE:
-        return "The model has finished downloading."
+        return app_text("The model has finished downloading.")
     if job.status is ModelDownloadStatus.CANCELLED:
-        return "Cancelling the model download."
+        return app_text("Cancelling the model download.")
     if job.status is ModelDownloadStatus.FAILED:
-        return "The model download failed."
-    return "Downloading the model this recipe needs."
+        return app_text("The model download failed.")
+    return app_text("Downloading the model this recipe needs.")
 
 
 def _deferred_recipe_model_download_label(
     request: DeferredRecipeModelDownload,
-) -> str:
+) -> ApplicationText:
     """Return the best CivitAI model label for a deferred recipe download."""
 
     for reference in request.required.references:
@@ -2108,25 +2125,26 @@ def _deferred_recipe_model_download_label(
             return model_name
         if candidate.name.strip():
             return candidate.name.strip()
-    return "model"
+    return app_text("model")
 
 
-def _recipe_model_download_detail(job: BackendModelDownloadJob) -> str:
+def _recipe_model_download_detail(job: BackendModelDownloadJob) -> ApplicationText:
     """Return concise download byte progress text."""
 
     if job.status is ModelDownloadStatus.QUEUED:
-        return "Waiting for the download to start..."
+        return app_text("Waiting for the download to start...")
     if job.status is ModelDownloadStatus.COMPLETE:
-        return "Updating the recipe..."
+        return app_text("Updating the recipe...")
     if job.status is ModelDownloadStatus.CANCELLED:
-        return "Cancelling download..."
+        return app_text("Cancelling download...")
     if job.status is ModelDownloadStatus.FAILED:
-        return job.error or "Download failed."
+        return job.error or app_text("Download failed.")
     if job.bytes_downloaded is None or not job.bytes_total:
-        return job.detail or "Downloading..."
-    return (
-        f"{_format_download_bytes(job.bytes_downloaded)} of "
-        f"{_format_download_bytes(job.bytes_total)}"
+        return job.detail or app_text("Downloading...")
+    return app_text(
+        "%1 of %2",
+        _format_download_bytes(job.bytes_downloaded),
+        _format_download_bytes(job.bytes_total),
     )
 
 

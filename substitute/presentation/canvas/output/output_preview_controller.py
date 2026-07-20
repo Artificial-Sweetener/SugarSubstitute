@@ -360,6 +360,7 @@ class OutputPreviewController:
                 representative_source_key=source_key or None,
                 representative_set_index=set_index if source_key else None,
                 status="running",
+                title_is_default=False,
             )
             return
         scene = scene_groups[scene_key]
@@ -375,6 +376,7 @@ class OutputPreviewController:
                 representative_source_key=source_key or None,
                 representative_set_index=set_index if source_key else None,
                 status="running",
+                title_is_default=scene.title_is_default and not scene_title,
             )
             return
         preview_scene_groups[scene_key] = OutputCanvasSceneGroup(
@@ -394,6 +396,7 @@ class OutputPreviewController:
                 scene.representative_set_index or (set_index if source_key else None)
             ),
             status=scene.status,
+            title_is_default=scene.title_is_default,
         )
 
     def close_final_output_preview_lane(

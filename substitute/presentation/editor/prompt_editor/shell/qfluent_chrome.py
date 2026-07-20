@@ -23,7 +23,7 @@ from typing import Protocol, cast
 
 from PySide6.QtCore import QEvent, QObject, QRect, Qt, QTimer
 from PySide6.QtGui import QFont, QPalette, QWheelEvent
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.presentation.shell.chrome_style import connect_theme_refresh
 
@@ -180,10 +180,23 @@ class PromptShellQFluentChrome:
 
         self._finish_pending_key_edit_block("editor_focus_out")
 
-    def schedule_focus_out_cleanup(self) -> None:
+    def schedule_focus_out_cleanup(self, reason: Qt.FocusReason) -> None:
         """Defer focus-out interaction cleanup until Qt focus routing settles."""
 
-        QTimer.singleShot(0, self._handle_focus_out)
+        QTimer.singleShot(0, lambda: self._resolve_focus_out_cleanup(reason))
+
+    def _resolve_focus_out_cleanup(self, reason: Qt.FocusReason) -> None:
+        """Clean up only after focus has conclusively left the editor flow."""
+
+        host = cast(QWidget, self._host)
+        focus_widget = QApplication.focusWidget()
+        if focus_widget is host or (
+            focus_widget is not None and host.isAncestorOf(focus_widget)
+        ):
+            return
+        if focus_widget is None and reason == Qt.FocusReason.ActiveWindowFocusReason:
+            return
+        self._handle_focus_out()
 
     def handle_hide(self) -> None:
         """Route editor-hide cleanup to the interaction owner."""

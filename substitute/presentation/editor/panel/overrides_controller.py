@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import set_localized_tooltip
+
 from collections.abc import Mapping
 from functools import partial
 from inspect import signature
@@ -298,7 +300,7 @@ class GlobalOverridesManager:
         )
 
         if self.override_dropdown_btn is not None:
-            self.override_dropdown_btn.setToolTip("Set Global Override")
+            set_localized_tooltip(self.override_dropdown_btn, "Set Global Override")
 
     def rebuild_active_override_controls(self) -> None:
         """Rebuild active toolbar controls from the latest toolbar snapshot."""
@@ -1196,6 +1198,7 @@ class GlobalOverridesManager:
             field_info=list(spec.field_info) if spec.field_info is not None else None,
             value=value,
             field_behavior=spec.field_behavior,
+            label_source=spec.label_source,
             raw_value=spec.raw_value,
             value_source=spec.value_source,
         )

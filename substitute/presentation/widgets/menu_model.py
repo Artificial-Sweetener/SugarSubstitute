@@ -22,20 +22,22 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import TypeAlias
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 
 @dataclass(frozen=True, slots=True)
 class MenuItem:
     """Describe one executable menu row independent of Qt widgets."""
 
     action_id: str
-    label: str
+    label: ApplicationText
     callback: Callable[[], None] | None = None
     enabled: bool = True
     checkable: bool = False
     checked: bool = False
     checked_callback: Callable[[bool], None] | None = None
     shortcut: str | None = None
-    tooltip: str | None = None
+    tooltip: ApplicationText | None = None
     icon: object | None = None
     properties: Mapping[str, object] = field(default_factory=dict)
     data: object | None = None
@@ -51,14 +53,14 @@ class MenuSection:
     """Describe an optional disabled header followed by menu entries."""
 
     entries: tuple[MenuEntry, ...]
-    title: str | None = None
+    title: ApplicationText | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class MenuSubmenu:
     """Describe an eagerly populated submenu."""
 
-    label: str
+    label: ApplicationText
     entries: tuple[MenuEntry, ...]
     enabled: bool = True
     icon: object | None = None
@@ -68,7 +70,7 @@ class MenuSubmenu:
 class LazyMenuSubmenu:
     """Describe a submenu whose rows are populated only when opened."""
 
-    label: str
+    label: ApplicationText
     entries_factory: Callable[[], tuple[MenuEntry, ...]]
     enabled: bool = True
     icon: object | None = None
@@ -85,7 +87,7 @@ class MenuModel:
     """Describe one complete context menu independent of Qt widgets."""
 
     entries: tuple[MenuEntry, ...]
-    title: str = ""
+    title: ApplicationText = ""
     object_name: str | None = None
 
 

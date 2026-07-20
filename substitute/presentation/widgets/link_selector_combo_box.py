@@ -26,7 +26,6 @@ from PySide6.QtWidgets import QWidget
 from .combo_box import _COMBO_TEXT_CHROME_WIDTH, ComboBox
 
 _LINK_PREFIX = "🔗 "
-_INDEPENDENT_LABEL = "Independent"
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,11 +88,7 @@ class LinkSelectorComboBox(ComboBox):
 
         display_text = self._closed_display_text()
         available_width = max(0, width - self._closed_display_text_chrome_width())
-        if (
-            not display_text
-            or display_text == _INDEPENDENT_LABEL
-            or available_width <= 0
-        ):
+        if not display_text or available_width <= 0:
             return self.fontMetrics().elidedText(
                 display_text,
                 Qt.TextElideMode.ElideRight,

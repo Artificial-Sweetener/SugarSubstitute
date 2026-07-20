@@ -23,6 +23,11 @@ from uuid import UUID
 
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSourceGroup,
+    output_source_label_text,
+)
+from sugarsubstitute_shared.presentation.localization import render_application_text
+from sugarsubstitute_shared.presentation.localization import (
+    translate_application_message,
 )
 from substitute.application.workflows.output_canvas_route_scope import (
     source_grid_route_identity,
@@ -73,7 +78,10 @@ class OutputSourceGridComposer:
             return None
         plan = self._scene_builder.build(
             route=route,
-            title=f"{source.label} grid",
+            title=translate_application_message(
+                "%1 grid",
+                render_application_text(output_source_label_text(source)),
+            ),
             tiles=tiles,
             viewport_extent=viewport_extent or self._viewport_extent(),
             previous_dimensions=previous_dimensions,

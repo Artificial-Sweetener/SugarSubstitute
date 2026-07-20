@@ -23,6 +23,8 @@ from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from typing import Protocol
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.app.bootstrap.managed_compatibility_recovery import (
     should_attempt_owned_nodepack_recovery,
 )
@@ -464,7 +466,7 @@ class StartupReadinessController:
         trace_mark(
             "readiness_timer.runtime_incompatible",
             compatibility_status=compatibility.status.value,
-            compatibility_summary=compatibility.summary,
+            compatibility_summary=render_source_application_text(compatibility.summary),
             **self._current_trace_fields(),
         )
         if should_retry_startup_compatibility(

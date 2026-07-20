@@ -23,6 +23,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from uuid import UUID
 
+from sugarsubstitute_shared.localization import (
+    ApplicationText,
+    app_text,
+    opaque_text,
+    render_source_application_text,
+)
+
 from substitute.domain.generation import OutputResultPosition
 from substitute.domain.workflow import (
     ImageMeta,
@@ -49,6 +56,7 @@ class OutputCanvasSourceGroup:
     source_key: str
     label: str
     images_by_set: Mapping[int, OutputCanvasImageItem]
+    label_is_default: bool = False
 
     def first_item(self) -> OutputCanvasImageItem | None:
         """Return the first concrete item owned by this CubeOutput source."""
@@ -72,6 +80,7 @@ class OutputCanvasSceneGroup:
     representative_source_key: str | None = None
     representative_set_index: int | None = None
     status: str = "completed"
+    title_is_default: bool = False
 
 
 @dataclass(frozen=True)
@@ -205,10 +214,15 @@ def _source_groups_for_items(
 
     grouped_items: OrderedDict[str, list[tuple[UUID, ImageMeta]]] = OrderedDict()
     source_labels: dict[str, str] = {}
+    source_labels_are_default: dict[str, bool] = {}
     for image_id, image_meta in image_items:
         source_key = _source_key_for(image_id, image_meta)
         grouped_items.setdefault(source_key, []).append((image_id, image_meta))
         source_labels.setdefault(source_key, _source_label_for(image_meta))
+        source_labels_are_default.setdefault(
+            source_key,
+            _source_label_is_default(image_meta),
+        )
 
     sources: list[OutputCanvasSourceGroup] = []
     set_count = 0
@@ -297,6 +311,7 @@ def _source_groups_for_items(
                 source_key=source_key,
                 label=source_labels[source_key],
                 images_by_set=images_by_set,
+                label_is_default=source_labels_are_default[source_key],
             )
         )
 
@@ -351,12 +366,17 @@ def _scene_groups_for_items(
     grouped_items: OrderedDict[str, list[tuple[UUID, ImageMeta]]] = OrderedDict()
     scene_run_ids: dict[str, str] = {}
     scene_titles: dict[str, str] = {}
+    scene_titles_are_default: dict[str, bool] = {}
     scene_orders: dict[str, int] = {}
     for image_id, image_meta in image_items:
         scene_key = _scene_key_for(image_meta)
         grouped_items.setdefault(scene_key, []).append((image_id, image_meta))
         scene_run_ids.setdefault(scene_key, image_meta.scene_run_id)
         scene_titles.setdefault(scene_key, _scene_title_for(image_meta))
+        scene_titles_are_default.setdefault(
+            scene_key,
+            _scene_title_is_default(image_meta),
+        )
         scene_orders.setdefault(scene_key, _scene_order_for(image_meta))
 
     groups: list[OutputCanvasSceneGroup] = []
@@ -378,6 +398,7 @@ def _scene_groups_for_items(
                 primary_image_id=primary_image_id,
                 representative_source_key=representative_source_key,
                 representative_set_index=representative_set_index,
+                title_is_default=scene_titles_are_default[scene_key],
             )
         )
     return tuple(sorted(groups, key=lambda group: (group.order, group.scene_key)))
@@ -670,7 +691,13 @@ def _source_label_for(image_meta: ImageMeta) -> str:
         return image_meta.source_label
     if image_meta.cube_name:
         return image_meta.cube_name
-    return "Output"
+    return render_source_application_text(app_text("Output"))
+
+
+def _source_label_is_default(image_meta: ImageMeta) -> bool:
+    """Return whether source presentation uses app-owned fallback copy."""
+
+    return not image_meta.source_label and not image_meta.cube_name
 
 
 def _has_backend_routing_identity(image_meta: ImageMeta) -> bool:
@@ -699,7 +726,25 @@ def _scene_title_for(image_meta: ImageMeta) -> str:
 
     if image_meta.scene_title:
         return image_meta.scene_title
-    return "Scene"
+    return render_source_application_text(app_text("Scene"))
+
+
+def _scene_title_is_default(image_meta: ImageMeta) -> bool:
+    """Return whether scene presentation uses app-owned fallback copy."""
+
+    return not image_meta.scene_title
+
+
+def output_source_label_text(source: OutputCanvasSourceGroup) -> ApplicationText:
+    """Classify one source label as app fallback or exact authored content."""
+
+    return app_text("Output") if source.label_is_default else opaque_text(source.label)
+
+
+def output_scene_title_text(scene: OutputCanvasSceneGroup) -> ApplicationText:
+    """Classify one scene title as app fallback or exact authored content."""
+
+    return app_text("Scene") if scene.title_is_default else opaque_text(scene.title)
 
 
 def _scene_order_for(image_meta: ImageMeta) -> int:
@@ -730,4 +775,6 @@ __all__ = [
     "OutputCanvasSceneGroup",
     "OutputCanvasSourceGroup",
     "build_output_canvas_projection",
+    "output_scene_title_text",
+    "output_source_label_text",
 ]

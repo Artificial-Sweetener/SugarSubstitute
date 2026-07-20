@@ -18,6 +18,11 @@
 
 from __future__ import annotations
 
+from substitute.presentation.workflows.workflow_tabs_view import (
+    set_workflow_tab_source_text,
+    workflow_tab_source_text,
+)
+
 import json
 import os
 from collections.abc import Callable, Mapping, MutableMapping
@@ -1024,7 +1029,9 @@ class WorkflowWorkspaceCoordinator:
 
         planned_tab = view.workflow_tab_service.plan_new_workflow_tab(
             base_name=DEFAULT_WORKFLOW_TAB_LABEL,
-            existing_labels={item.text() for item in view.workflow_tabbar.items},
+            existing_labels={
+                workflow_tab_source_text(item) for item in view.workflow_tabbar.items
+            },
             existing_workflow_ids=view.workflow_session_service.workflows.keys(),
         )
         transition = view.workflow_session_service.add_workflow(
@@ -1241,7 +1248,9 @@ class WorkflowWorkspaceCoordinator:
 
         planned_tab = view.workflow_tab_service.plan_new_workflow_tab(
             base_name=base_label,
-            existing_labels={item.text() for item in view.workflow_tabbar.items},
+            existing_labels={
+                workflow_tab_source_text(item) for item in view.workflow_tabbar.items
+            },
             existing_workflow_ids=view.workflow_session_service.workflows.keys(),
         )
         log_info(
@@ -1449,16 +1458,16 @@ class WorkflowWorkspaceCoordinator:
         tab_item = view.workflow_tabbar.itemMap.get(old_workflow_id)
         if not decision.accepted:
             if tab_item is not None:
-                tab_item.setText(old_workflow_id)
+                set_workflow_tab_source_text(tab_item, old_workflow_id)
             return
         if tab_item is None:
             return
 
         if old_workflow_id == decision.workflow_id:
-            tab_item.setText(decision.tab_label)
+            set_workflow_tab_source_text(tab_item, decision.tab_label)
             return
 
-        tab_item.setText(decision.tab_label)
+        set_workflow_tab_source_text(tab_item, decision.tab_label)
         tab_item.setRouteKey(decision.workflow_id)
         view.workflow_tab_service.rekey_mapping(
             view.workflow_tabbar.itemMap,
@@ -1637,7 +1646,7 @@ class WorkflowWorkspaceCoordinator:
         item = self._view.workflow_tabbar.itemMap.get(workflow_id)
         if item is None:
             return workflow_id
-        return item.text()
+        return workflow_tab_source_text(item)
 
     def _workflow_tab_index(self, workflow_id: str, ordered_ids: list[str]) -> int:
         """Return current workflow tab index with ordered-id fallback."""

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -64,13 +66,13 @@ class CubeRuntimeIssue:
     cube_alias: str
     severity: CubeRuntimeIssueSeverity
     kind: CubeRuntimeIssueKind
-    message: str
+    message: ApplicationText
     operation: str
     source: CubeRuntimeIssueSource
     missing_node_classes: tuple[str, ...] = ()
     missing_fields: tuple[str, ...] = ()
     node_names: tuple[str, ...] = ()
-    recommended_action: str = ""
+    recommended_action: ApplicationText = ""
     update_candidate: LoadedCubeUpdateCandidate | None = None
 
 
@@ -251,8 +253,10 @@ def live_node_definition_error_to_cube_issues(
                     severity=CubeRuntimeIssueSeverity.ERROR,
                     kind=CubeRuntimeIssueKind.MISSING_LIVE_NODE_DEFINITION,
                     message=(
-                        "This cube cannot be rendered because live Comfy metadata "
-                        "is unavailable."
+                        app_text(
+                            "This cube cannot be rendered because live Comfy metadata "
+                            "is unavailable."
+                        )
                     ),
                     operation=error.operation,
                     source=source,
@@ -272,7 +276,9 @@ def live_node_definition_error_to_cube_issues(
                 cube_alias="",
                 severity=CubeRuntimeIssueSeverity.ERROR,
                 kind=CubeRuntimeIssueKind.MISSING_LIVE_NODE_FIELD,
-                message="A required live Comfy field definition is unavailable.",
+                message=app_text(
+                    "A required live Comfy field definition is unavailable."
+                ),
                 operation=error.operation,
                 source=source,
                 missing_fields=(field_name,),

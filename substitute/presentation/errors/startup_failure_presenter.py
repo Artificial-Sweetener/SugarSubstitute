@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import set_localized_window_title
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QWidget
 
@@ -29,7 +31,7 @@ def present_startup_failure_report(report: ErrorReport) -> None:
     """Show one blocking startup failure report in a temporary host widget."""
 
     host = QWidget()
-    host.setWindowTitle("ComfyUI startup failed")
+    set_localized_window_title(host, "ComfyUI startup failed")
     host.setWindowFlag(Qt.WindowType.Tool, True)
     host.resize(1024, 768)
     screen = QApplication.primaryScreen()

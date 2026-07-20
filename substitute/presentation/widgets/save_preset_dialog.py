@@ -18,6 +18,22 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.presentation.localization import (
+    LocalizationBindings,
+    LocalizedComboItem,
+    render_application_text,
+    set_localized_text,
+)
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedCaptionLabel,
+)
+
 from dataclasses import dataclass
 from typing import cast
 
@@ -25,7 +41,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import QDialog, QSizePolicy, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    BodyLabel,
     CaptionLabel,
     ComboBox,
     LineEdit,
@@ -42,8 +57,8 @@ _DIALOG_WIDTH = 360
 class PresetSaveScope:
     """Expose one scope choice for preset save dialogs."""
 
-    title: str
-    full_label: str
+    title: ApplicationText
+    full_label: ApplicationText
     association: UserPresetAssociation
 
 
@@ -54,23 +69,23 @@ class SavePresetDialog(MessageBoxBase):  # type: ignore[misc]
         self,
         *,
         parent: QWidget,
-        title: str,
+        title: ApplicationText,
         scopes: tuple[PresetSaveScope, ...],
-        name_label: str = "Name",
-        scope_label: str = "Save under",
+        name_label: ApplicationText = app_text("Name"),
+        scope_label: ApplicationText = app_text("Save under"),
     ) -> None:
         """Create a preset save dialog with caller-supplied copy."""
 
         super().__init__(parent)
         self._scopes = scopes
         self.widget.setMinimumWidth(_DIALOG_WIDTH)
-        self.yesButton.setText("Save")
-        self.cancelButton.setText("Cancel")
+        set_localized_text(self.yesButton, "Save")
+        set_localized_text(self.cancelButton, "Cancel")
 
-        self._title = BodyLabel(title, self.widget)
-        self._name_label = CaptionLabel(name_label, self.widget)
+        self._title = LocalizedBodyLabel(title, self.widget)
+        self._name_label = LocalizedCaptionLabel(name_label, self.widget)
         self._name_edit = LineEdit(self.widget)
-        self._scope_label = CaptionLabel(scope_label, self.widget)
+        self._scope_label = LocalizedCaptionLabel(scope_label, self.widget)
         self._scope_combo = ComboBox(self.widget)
         self._scope_combo.setSizePolicy(
             QSizePolicy.Policy.Expanding,
@@ -85,15 +100,25 @@ class SavePresetDialog(MessageBoxBase):  # type: ignore[misc]
         self.viewLayout.addWidget(self._scope_label)
         self.viewLayout.addWidget(self._scope_combo)
 
-        for scope in self._scopes:
-            self._scope_combo.addItem(
-                _elided_scope_label(
-                    scope.full_label,
-                    QFontMetrics(self._scope_combo.font()),
-                    _SCOPE_TEXT_WIDTH,
-                ),
-                userData=scope,
-            )
+        self._localization = LocalizationBindings(self)
+        self._localization.bind_combo_items(
+            self._scope_combo,
+            lambda: tuple(
+                LocalizedComboItem(
+                    scope,
+                    _elided_scope_label(
+                        render_application_text(scope.full_label),
+                        QFontMetrics(self._scope_combo.font()),
+                        _SCOPE_TEXT_WIDTH,
+                    ),
+                )
+                for scope in self._scopes
+            ),
+        )
+        self._localization.bind_tooltip(
+            self._scope_combo,
+            self._selected_scope_tooltip,
+        )
         self._update_scope_tooltip()
         self._update_save_enabled()
 
@@ -143,9 +168,20 @@ class SavePresetDialog(MessageBoxBase):  # type: ignore[misc]
 
         data = self._scope_combo.currentData()
         if isinstance(data, PresetSaveScope):
-            self._scope_combo.setToolTip(data.full_label)
+            set_fluent_tooltip_text(
+                self._scope_combo,
+                render_application_text(data.full_label),
+            )
         else:
-            self._scope_combo.setToolTip("")
+            set_fluent_tooltip_text(self._scope_combo, "")
+
+    def _selected_scope_tooltip(self) -> str:
+        """Return the active scope tooltip in the current application language."""
+
+        data = self._scope_combo.currentData()
+        if isinstance(data, PresetSaveScope):
+            return render_application_text(data.full_label)
+        return ""
 
 
 def preset_dialog_result(

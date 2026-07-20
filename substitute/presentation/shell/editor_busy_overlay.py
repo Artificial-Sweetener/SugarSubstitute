@@ -18,6 +18,16 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import (
+    apply_application_text,
+    app_text,
+)
+from substitute.presentation.localization import (
+    LocalizedLabel,
+    LocalizedNativePushButton,
+)
+
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer
@@ -104,7 +114,7 @@ class EditorBusyOverlay(QWidget):
         """Create a hidden overlay that tracks the parent widget geometry."""
 
         super().__init__(parent)
-        self._message = "Loading"
+        self._message: ApplicationText = app_text("Loading")
         self._ellipsis_index = 0
         self._cursor_overridden = False
         self._timer = QTimer(self)
@@ -152,15 +162,21 @@ class EditorBusyOverlay(QWidget):
             }
             """
         )
-        self._download_title = QLabel("Downloading model", self._download_panel)
-        self._download_message = QLabel(
-            "Downloading the model this recipe needs.",
+        self._download_title = LocalizedLabel(
+            app_text("Downloading model"), self._download_panel
+        )
+        self._download_message = LocalizedLabel(
+            app_text("Downloading the model this recipe needs."),
             self._download_panel,
         )
-        self._download_detail = QLabel("Starting download...", self._download_panel)
+        self._download_detail = LocalizedLabel(
+            app_text("Starting download..."), self._download_panel
+        )
         self._download_progress = QProgressBar(self._download_panel)
         self._download_progress.setRange(0, 0)
-        self._download_cancel = QPushButton("Cancel", self._download_panel)
+        self._download_cancel = LocalizedNativePushButton(
+            app_text("Cancel"), self._download_panel
+        )
         self._download_cancel.clicked.connect(self.cancel_requested.emit)
         download_buttons = QHBoxLayout()
         add_stretch = getattr(download_buttons, "addStretch", None)
@@ -181,10 +197,10 @@ class EditorBusyOverlay(QWidget):
         self._sync_geometry()
         self.hide()
 
-    def show_loading(self, message: str = "Loading") -> None:
+    def show_loading(self, message: ApplicationText = app_text("Loading")) -> None:
         """Show the busy wash and start animating the loading ellipses."""
 
-        self._message = message.strip() or "Loading"
+        self._message = message if message.strip() else app_text("Loading")
         self._ellipsis_index = 0
         self._refresh_label()
         self._sync_geometry()
@@ -201,9 +217,9 @@ class EditorBusyOverlay(QWidget):
     def show_download_progress(
         self,
         *,
-        title: str,
-        message: str,
-        detail: str,
+        title: ApplicationText,
+        message: ApplicationText,
+        detail: ApplicationText,
         progress_per_mille: int | None,
         cancel_enabled: bool = True,
     ) -> None:
@@ -277,7 +293,7 @@ class EditorBusyOverlay(QWidget):
     def _refresh_label(self) -> None:
         """Apply the current base message and ellipsis frame to separate labels."""
 
-        self._message_label.setText(self._message)
+        apply_application_text(self._message_label, self._message)
         self._ellipsis_label.setText(_ELLIPSIS_STATES[self._ellipsis_index])
         self._position_labels()
 

@@ -18,6 +18,13 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    LocalizedComboItem,
+    app_text,
+    set_localized_combo_items,
+)
+
+
 from dataclasses import replace
 
 from PySide6.QtWidgets import QStackedWidget, QWidget
@@ -63,8 +70,8 @@ class JpegCompanionSettingsControl(SwitchSettingsExpander):
         self._service = service
         settings = service.load_preferences().jpeg
         super().__init__(
-            title="JPEG companions",
-            description="Also save a JPEG beside each canonical recipe PNG.",
+            title=app_text("JPEG companions"),
+            description=app_text("Also save a JPEG beside each canonical recipe PNG."),
             visual_widget=build_settings_icon_widget(
                 AppIcon.SAVE_IMAGE_20_REGULAR,
                 parent,
@@ -107,8 +114,10 @@ class JpegCompanionSettingsControl(SwitchSettingsExpander):
         )
         self.add_widget(
             SettingsExpanderRow(
-                title="JPEG sizing",
-                description="Choose fixed quality or an approximate target file size.",
+                title=app_text("JPEG sizing"),
+                description=app_text(
+                    "Choose fixed quality or an approximate target file size."
+                ),
                 trailing_widget=controls,
                 parent=self.content_widget(),
             )
@@ -124,8 +133,16 @@ class JpegCompanionSettingsControl(SwitchSettingsExpander):
         combo = ComboBox(self.content_widget())
         combo.setObjectName("JpegSizingModeCombo")
         configure_settings_field_width(combo, preferred_width=140)
-        combo.addItem("Quality", userData=JpegSizingMode.QUALITY)
-        combo.addItem("Target size", userData=JpegSizingMode.TARGET_SIZE)
+        set_localized_combo_items(
+            combo,
+            (
+                LocalizedComboItem(JpegSizingMode.QUALITY, app_text("Quality")),
+                LocalizedComboItem(
+                    JpegSizingMode.TARGET_SIZE,
+                    app_text("Target size"),
+                ),
+            ),
+        )
         for index in range(combo.count()):
             if combo.itemData(index) is selected:
                 combo.setCurrentIndex(index)

@@ -20,6 +20,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from sugarsubstitute_shared.localization import (
+    ApplicationText,
+    render_source_application_text,
+)
+
 from substitute.application.ports.civitai_credential_store import (
     CivitaiCredentialStore,
     CredentialStorageUnavailableError,
@@ -32,8 +37,8 @@ class UnavailableCivitaiCredentialStore(CivitaiCredentialStore):
     """Report unavailable secure storage without persisting plaintext secrets."""
 
     backend_name: str
-    reason: str
-    remediation: str
+    reason: ApplicationText
+    remediation: ApplicationText
 
     def status(self) -> CredentialStoreStatus:
         """Return the configured unavailable storage status."""
@@ -69,9 +74,9 @@ def _status_message(status: CredentialStoreStatus) -> str:
 
     parts = ["Secure credential storage is unavailable."]
     if status.reason:
-        parts.append(status.reason)
+        parts.append(render_source_application_text(status.reason))
     if status.remediation:
-        parts.append(status.remediation)
+        parts.append(render_source_application_text(status.remediation))
     return " ".join(parts)
 
 

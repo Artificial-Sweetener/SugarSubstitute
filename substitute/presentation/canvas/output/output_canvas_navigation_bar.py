@@ -20,11 +20,20 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
+from typing import cast
 
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSceneGroup,
     OutputCanvasSourceGroup,
+    output_scene_title_text,
+    output_source_label_text,
 )
+from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    ToolTipTarget,
+    set_fluent_tooltip_text,
+)
+from sugarsubstitute_shared.presentation.localization import render_application_text
 from substitute.presentation.canvas.output.output_source_tooltip_presenter import (
     source_tab_tooltip_text,
 )
@@ -289,7 +298,10 @@ def source_tab_signature(
 ) -> SourceTabSignature:
     """Return stable source-tab identity values for rebuild cache checks."""
 
-    return tuple((source.source_key, source.label) for source in sources)
+    return tuple(
+        (source.source_key, render_application_text(output_source_label_text(source)))
+        for source in sources
+    )
 
 
 def source_tabs_rebuild_plan(
@@ -316,7 +328,7 @@ def source_tab_items(
     return tuple(
         SourceTabItem(
             source_key=source.source_key,
-            label=source.label,
+            label=render_application_text(output_source_label_text(source)),
             source=source,
         )
         for source in sources
@@ -370,11 +382,13 @@ def source_selector_full_text(
 
     source_groups = {source.source_key: source for source in sources}
     if active_source_key in source_groups:
-        return str(source_groups[active_source_key].label)
+        return render_application_text(
+            output_source_label_text(source_groups[active_source_key])
+        )
     first_source = next(iter(source_groups.values()), None)
     if first_source is not None:
-        return str(first_source.label)
-    return "Output"
+        return render_application_text(output_source_label_text(first_source))
+    return render_application_text(app_text("Output"))
 
 
 def source_selector_button_state(
@@ -463,9 +477,8 @@ def apply_source_button_state(
     set_text = getattr(button, "setText", None)
     if callable(set_text):
         set_text(button_state.text)
-    set_tooltip = getattr(button, "setToolTip", None)
-    if callable(set_tooltip):
-        set_tooltip(button_state.tooltip)
+    if hasattr(button, "setToolTip"):
+        set_fluent_tooltip_text(cast(ToolTipTarget, button), button_state.tooltip)
     set_fixed_width = getattr(button, "setFixedWidth", None)
     if callable(set_fixed_width):
         set_fixed_width(button_state.width)
@@ -583,11 +596,13 @@ def scene_selector_full_text(
     """Return the unelided label for the normal scene selector."""
 
     if active_scene_overview:
-        return "All"
+        return render_application_text(app_text("All"))
     scenes_by_key = {scene.scene_key: scene for scene in scene_groups}
     if active_scene_key in scenes_by_key:
-        return scenes_by_key[active_scene_key].title
-    return "All"
+        return render_application_text(
+            output_scene_title_text(scenes_by_key[active_scene_key])
+        )
+    return render_application_text(app_text("All"))
 
 
 def scene_selector_button_state(
@@ -637,8 +652,10 @@ def compare_scene_full_text(
 
     scenes_by_key = {scene.scene_key: scene for scene in scene_groups}
     if scene_count > 1 and scene_key in scenes_by_key:
-        return scenes_by_key[scene_key].title
-    return "All"
+        return render_application_text(
+            output_scene_title_text(scenes_by_key[scene_key])
+        )
+    return render_application_text(app_text("All"))
 
 
 def compare_scene_button_state(
@@ -687,9 +704,8 @@ def apply_scene_button_state(
     set_text = getattr(button, "setText", None)
     if callable(set_text):
         set_text(button_state.text)
-    set_tooltip = getattr(button, "setToolTip", None)
-    if callable(set_tooltip):
-        set_tooltip(button_state.tooltip)
+    if hasattr(button, "setToolTip"):
+        set_fluent_tooltip_text(cast(ToolTipTarget, button), button_state.tooltip)
     set_fixed_width = getattr(button, "setFixedWidth", None)
     if callable(set_fixed_width):
         set_fixed_width(button_state.width)

@@ -33,6 +33,12 @@ from substitute.presentation.semantic_colors import (
     legible_text_color_for_background,
     semantic_error_color,
 )
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    app_text,
+    render_application_text,
+)
 
 _AUTO_DISMISS_MS = 6000
 
@@ -50,6 +56,9 @@ class StartupDiagnosticsCallout(QObject):
 
         super().__init__(parent)
         self._parent = parent
+        if parent is not None:
+            parent.installEventFilter(self)
+        self._message_text: ApplicationText = ""
         self._message = ""
         self._pointer_x = 0
         self._tip: TeachingTip | None = None
@@ -57,11 +66,18 @@ class StartupDiagnosticsCallout(QObject):
         self._auto_dismiss_ms = auto_dismiss_ms
         self._has_errors = False
 
-    def show_for(self, anchor: QWidget, message: str, *, has_errors: bool) -> None:
+    def show_for(
+        self,
+        anchor: QWidget,
+        message: ApplicationText,
+        *,
+        has_errors: bool,
+    ) -> None:
         """Show a Fluent teaching tip with its tail aimed at the anchor."""
 
         self.dismiss()
-        self._message = message
+        self._message_text = message
+        self._message = render_application_text(message)
         self._has_errors = has_errors
         duration = self._auto_dismiss_ms if self._auto_dismiss_ms > 0 else -1
         target_bottom_center = anchor.mapToGlobal(
@@ -70,7 +86,7 @@ class StartupDiagnosticsCallout(QObject):
         self._tip = TeachingTip.create(
             target=anchor,
             title="",
-            content=message,
+            content=self._message,
             isClosable=False,
             duration=duration,
             tailPosition=TeachingTipTailPosition.TOP,
@@ -127,10 +143,23 @@ class StartupDiagnosticsCallout(QObject):
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Paint the active qfluent bubble with the selected diagnostics color."""
 
+        if watched is self._parent and event.type() == QEvent.Type.LanguageChange:
+            self._retranslate_message()
         if watched is self._accent_bubble and event.type() == QEvent.Type.Paint:
             self._paint_accent_bubble(watched)
             return True
         return super().eventFilter(watched, event)
+
+    def _retranslate_message(self) -> None:
+        """Refresh active callout copy without replacing its QFluent surface."""
+
+        self._message = render_application_text(self._message_text)
+        if self._tip is None:
+            return
+        content_label = getattr(self._tip.view, "contentLabel", None)
+        if isinstance(content_label, QLabel):
+            content_label.setText(self._message)
+            self._tip.adjustSize()
 
     def _align_tip_tail_to_target(self, target_bottom_center: QPoint) -> None:
         """Move the TeachingTip so qfluent's actual painted tail hits the target."""
@@ -210,11 +239,12 @@ class StartupDiagnosticsCallout(QObject):
         painter.drawPath(path.simplified())
 
 
-def startup_diagnostics_callout_message(*, has_errors: bool) -> str:
+def startup_diagnostics_callout_message(*, has_errors: bool) -> ApplicationMessage:
     """Return the titlebar callout message for startup diagnostics severity."""
 
-    issue_type = "errors" if has_errors else "warnings"
-    return f"ComfyUI reported {issue_type} during startup"
+    if has_errors:
+        return app_text("ComfyUI reported errors during startup")
+    return app_text("ComfyUI reported warnings during startup")
 
 
 def _diagnostics_bubble_color(*, has_errors: bool) -> QColor:

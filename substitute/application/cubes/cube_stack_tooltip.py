@@ -24,6 +24,8 @@ from html import escape
 import re
 from typing import Any
 
+from sugarsubstitute_shared.localization import opaque_text
+
 _MAX_DESCRIPTION_LENGTH = 220
 _MAX_LIST_VALUES = 3
 _TOOLTIP_WIDTH_PX = 420
@@ -114,7 +116,9 @@ def build_cube_stack_tooltip_text(
         return "\n".join(lines)
 
     rich_lines = _rich_tooltip_lines(metadata)
-    return f'<div style="{_TOOLTIP_STYLE}">' + "<br>".join(rich_lines) + "</div>"
+    return opaque_text(
+        f'<div style="{_TOOLTIP_STYLE}">' + "<br>".join(rich_lines) + "</div>"
+    )
 
 
 def build_cube_stack_tooltip_for_state(

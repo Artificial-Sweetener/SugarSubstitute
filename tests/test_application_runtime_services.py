@@ -59,6 +59,7 @@ from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
+from sugarsubstitute_shared.presentation.localization import TranslationManager
 
 TResult = TypeVar("TResult")
 
@@ -92,6 +93,12 @@ def test_application_runtime_services_schedule_session_autosave_on_disk_lane(
         "FileRestoreProjectionCacheRepository",
         lambda _cache_dir: object(),
     )
+    comfy_node_localization = object()
+    monkeypatch.setattr(
+        runtime_module,
+        "build_comfy_node_localization_runtime",
+        lambda *_args, **_kwargs: comfy_node_localization,
+    )
     monkeypatch.setattr(
         "PySide6.QtCore.QTimer.singleShot",
         lambda delay_ms, callback: single_shots.append((delay_ms, callback)),
@@ -100,6 +107,7 @@ def test_application_runtime_services_schedule_session_autosave_on_disk_lane(
     services = build_application_runtime_services(
         context=_context(tmp_path),
         comfy_output_stream=cast(TerminalOutputStream, object()),
+        localization_manager=cast(TranslationManager, object()),
         appearance_runtime=cast(AppearanceRuntimeController, _AppearanceRuntime()),
     )
 
@@ -109,14 +117,22 @@ def test_application_runtime_services_schedule_session_autosave_on_disk_lane(
     assert single_shots[0][0] == 500
     single_shots.pop()[1]()
 
+    assert services.comfy_node_localization is comfy_node_localization
     assert execution_runtime.submitter_calls == [
+        {
+            "name": "node_definition",
+            "owner_id": "comfy_node_localization",
+        },
         {
             "name": "disk_io_low_priority",
             "owner_id": "session_autosave",
-        }
+        },
     ]
-    assert len(execution_runtime.dispatchers) == 1
-    assert isinstance(execution_runtime.dispatchers[0], QtOwnerThreadDispatcher)
+    assert len(execution_runtime.dispatchers) == 2
+    assert all(
+        isinstance(dispatcher, QtOwnerThreadDispatcher)
+        for dispatcher in execution_runtime.dispatchers
+    )
     assert len(submitter.requests) == 1
     request = submitter.requests[0]
     assert request.identity.request_id == 1

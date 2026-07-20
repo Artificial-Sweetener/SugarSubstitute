@@ -18,6 +18,21 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    app_text,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    clear_localized_property,
+    render_application_text,
+    set_localized_placeholder,
+)
+
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import PurePosixPath, PureWindowsPath
@@ -232,7 +247,7 @@ class _ModelPickerComboSurface(EditableComboBox):  # type: ignore[misc]
         self._model_load_progress_pulse_timer.timeout.connect(
             self._advance_model_load_progress_pulse
         )
-        self.setPlaceholderText("Select model")
+        set_localized_placeholder(self, "Select model")
         self.set_search_mode(False)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.textEdited.connect(self.searchTextChanged.emit)
@@ -821,7 +836,7 @@ class ModelPickerField(QWidget):
         choice_source: RichChoiceSource,
         thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
         current_value: str = "",
-        search_placeholder: str = "Search models",
+        search_placeholder: ApplicationText = app_text("Search models"),
         open_url: UrlOpener | None = None,
         metadata_action_handler: ModelMetadataContextActionHandler | None = None,
         thumbnail_preload_route_factory: (
@@ -976,7 +991,7 @@ class ModelPickerField(QWidget):
         minimum_hint = self.minimumSizeHint()
         display_text = self._display_label_for_value(self._current_value)
         if not display_text:
-            display_text = self._search_placeholder
+            display_text = render_application_text(self._search_placeholder)
         text_width = self.fontMetrics().horizontalAdvance(display_text)
         preferred_width = max(
             minimum_hint.width(),
@@ -1249,8 +1264,16 @@ class ModelPickerField(QWidget):
         """Switch the combo surface from closed display into search entry mode."""
 
         self._surface.set_search_mode(True)
-        self._surface.setPlaceholderText(self._search_placeholder)
-        self._surface.setToolTip("")
+        if isinstance(self._search_placeholder, ApplicationMessage):
+            set_localized_placeholder(
+                self._surface,
+                self._search_placeholder.source_text,
+                *self._search_placeholder.arguments,
+            )
+        else:
+            clear_localized_property(self._surface, "placeholder")
+            self._surface.setPlaceholderText(self._search_placeholder)
+        set_fluent_tooltip_text(self._surface, "")
         self._clear_inline_completion()
         self._set_surface_text("")
 
@@ -1261,7 +1284,7 @@ class ModelPickerField(QWidget):
             return
         self._clear_inline_completion()
         self._surface.set_search_mode(False)
-        self._surface.setPlaceholderText("Select model")
+        set_localized_placeholder(self._surface, "Select model")
         self._sync_display_label()
 
     def _apply_search_text(self, query: str) -> None:
@@ -1471,10 +1494,11 @@ class ModelPickerField(QWidget):
 
         elided_label = self._elided_closed_display_label()
         self._set_surface_text(elided_label)
-        self._surface.setToolTip(
+        set_fluent_tooltip_text(
+            self._surface,
             self._closed_display_label
             if elided_label != self._closed_display_label
-            else ""
+            else "",
         )
         if self._surface.isReadOnly():
             self._surface.setCursorPosition(0)

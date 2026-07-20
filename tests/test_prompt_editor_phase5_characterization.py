@@ -26,8 +26,8 @@ from typing import Any, cast
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtCore import QEvent, QPoint, Qt
-from PySide6.QtGui import QContextMenuEvent, QFocusEvent, QTextCursor
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QContextMenuEvent, QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets.components.widgets.menu import RoundMenu  # type: ignore[import-untyped]
@@ -788,15 +788,19 @@ def test_phase5_restore_lifecycle_and_caret_state_remain_source_safe(
     editor.hide()
     process_events(app)
     hidden_source = editor.toPlainText()
+    focus_target = QWidget(editor.parentWidget())
+    focus_target.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+    focus_target.setGeometry(390, 20, 40, 40)
+    focus_target.show()
+    widgets.append(focus_target)
+    focus_target.setFocus(Qt.FocusReason.OtherFocusReason)
+    process_events(app)
     editor.show()
-    QApplication.sendEvent(
-        editor,
-        QFocusEvent(QEvent.Type.FocusIn, Qt.FocusReason.OtherFocusReason),
-    )
-    QApplication.sendEvent(
-        editor,
-        QFocusEvent(QEvent.Type.FocusOut, Qt.FocusReason.OtherFocusReason),
-    )
+    editor.setFocus(Qt.FocusReason.OtherFocusReason)
+    process_events(app)
+    focus_out_reasons.clear()
+    focus_out_controller_calls = 0
+    focus_target.setFocus(Qt.FocusReason.OtherFocusReason)
     editor.move(editor.pos() + QPoint(4, 3))
     editor.resize(editor.width() + 8, editor.height())
     process_events(app, cycles=10)
@@ -805,7 +809,7 @@ def test_phase5_restore_lifecycle_and_caret_state_remain_source_safe(
     assert editor.toPlainText() == hidden_source
     assert cast(Any, editor)._autocomplete._sessions.session.mode == "none"
     assert metadata_catchup_calls >= 2
-    assert focus_out_reasons == ["editor_focus_out"]
+    assert focus_out_reasons == ["focus_out"]
     assert focus_out_controller_calls == 1
     assert move_calls >= 1
     assert resize_sync_calls >= 1

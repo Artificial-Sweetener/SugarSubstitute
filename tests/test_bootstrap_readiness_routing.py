@@ -193,6 +193,17 @@ def _patch_startup_environment(
         )
 
     monkeypatch.setattr(startup, "prepare_startup_environment", prepare_environment)
+    monkeypatch.setattr(
+        startup.composition,
+        "build_application_localization_runtime",
+        lambda _app, _context, _locale: SimpleNamespace(
+            manager=SimpleNamespace(
+                snapshot=SimpleNamespace(effective_language_identifier="en"),
+                languageChanged=SimpleNamespace(connect=lambda _callback: None),
+            ),
+            initial_snapshot=SimpleNamespace(effective_language_identifier="en"),
+        ),
+    )
 
 
 def _patch_startup_restore_plan(
@@ -1938,10 +1949,20 @@ def test_main_window_dependencies_include_user_preset_service(tmp_path: Path) ->
     """Bootstrap composition should wire presets to the user-owned preset file."""
 
     context = _build_ready_context(tmp_path)
+    application = cast(
+        QApplication,
+        QApplication.instance() or QApplication([]),
+    )
+    localization = composition.build_application_localization_runtime(
+        application,
+        context,
+        None,
+    )
 
     runtime_services = composition.build_application_runtime_services(
         context=context,
         comfy_output_stream=cast(Any, object()),
+        localization_manager=localization.manager,
         appearance_runtime=composition.build_appearance_runtime(context),
     )
     dependencies = composition._build_main_window_dependencies(
@@ -1962,6 +1983,9 @@ def test_main_window_dependencies_include_user_preset_service(tmp_path: Path) ->
         runtime_services.session_autosave_service
     )
     assert dependencies.generation_result_snapshot_service is not None
+    dependencies.shell_resource_lifecycle.shutdown()
+    runtime_services.execution_runtime.shutdown()
+    localization.manager.close()
 
 
 def test_custom_window_close_event_delegates_to_shutdown_request() -> None:

@@ -20,6 +20,9 @@ from __future__ import annotations
 
 from substitute.application.display_labels import beautify_label
 from substitute.domain.workflow import is_cube_bypassed
+from sugarsubstitute_shared.presentation.localization import (
+    translate_application_message,
+)
 
 
 def cube_section_title(alias: str, cube_state: object | None) -> str:
@@ -27,7 +30,7 @@ def cube_section_title(alias: str, cube_state: object | None) -> str:
 
     title = beautify_label(alias)
     if cube_state is not None and is_cube_bypassed(cube_state):
-        return f"{title} (bypassed)"
+        return translate_application_message("%1 (bypassed)", title)
     return title
 
 

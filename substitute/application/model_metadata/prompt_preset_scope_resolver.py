@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from dataclasses import dataclass
 
 from substitute.application.model_metadata.model_catalog_service import (
@@ -39,8 +41,8 @@ _LOCAL_MODEL_PROVIDER = "local"
 class PromptPresetScopeOption:
     """Describe one save/list scope available for the active checkpoint."""
 
-    title: str
-    full_label: str
+    title: ApplicationText
+    full_label: ApplicationText
     association: UserPresetAssociation
 
 
@@ -53,8 +55,8 @@ def prompt_preset_scope_options_for_catalog_item(
 
     options: list[PromptPresetScopeOption] = [
         PromptPresetScopeOption(
-            title="Global",
-            full_label="Global",
+            title=app_text("Global"),
+            full_label=app_text("Global"),
             association=GLOBAL_PRESET_ASSOCIATION,
         )
     ]
@@ -62,7 +64,7 @@ def prompt_preset_scope_options_for_catalog_item(
         options.append(
             PromptPresetScopeOption(
                 title=association.label,
-                full_label=f"Base model: {association.label}",
+                full_label=app_text("Base model: %1", association.label),
                 association=association,
             )
         )
@@ -72,7 +74,11 @@ def prompt_preset_scope_options_for_catalog_item(
         options.append(
             PromptPresetScopeOption(
                 title=exact_title,
-                full_label=f"{exact_title}: {exact_association.label}",
+                full_label=app_text(
+                    "%1: %2",
+                    exact_title,
+                    exact_association.label,
+                ),
                 association=exact_association,
             )
         )
@@ -126,12 +132,12 @@ def _checkpoint_label(item: ModelCatalogItem) -> str:
     return item.display_name
 
 
-def _exact_model_title(model_kind: str | None) -> str:
+def _exact_model_title(model_kind: str | None) -> ApplicationText:
     """Return the compact exact-model scope title for one catalog kind."""
 
     if model_kind == "diffusion_models":
-        return "Diffusion model"
-    return "Checkpoint"
+        return app_text("Diffusion model")
+    return app_text("Checkpoint")
 
 
 def _local_model_key(item: ModelCatalogItem) -> str | None:

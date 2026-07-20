@@ -22,6 +22,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import render_application_text
+
 from substitute.application.error_report_builder import ErrorReportBuilder
 from substitute.application.errors import (
     ErrorReport,
@@ -45,8 +48,8 @@ class ErrorReportPresenterProtocol(Protocol):
     def show_exception_report(
         self,
         *,
-        title: str,
-        message: str,
+        title: ApplicationText,
+        message: ApplicationText,
         stage: str,
         error: BaseException,
         context: SubstituteOperationContext,
@@ -56,8 +59,8 @@ class ErrorReportPresenterProtocol(Protocol):
     def show_comfy_connection_report(
         self,
         *,
-        title: str,
-        message: str,
+        title: ApplicationText,
+        message: ApplicationText,
         stage: str,
         context: SubstituteOperationContext,
         error: BaseException | None = None,
@@ -71,7 +74,11 @@ class ErrorPresenter:
 
     parent: object | None = None
     open_console: Callable[[], None] | None = None
-    report_builder: ErrorReportBuilder = field(default_factory=ErrorReportBuilder)
+    report_builder: ErrorReportBuilder = field(
+        default_factory=lambda: ErrorReportBuilder(
+            text_renderer=render_application_text
+        )
+    )
     dialog_factory: DialogFactory | None = None
     _active_report_keys: set[tuple[str, str, str | None, str | None]] = field(
         default_factory=set,
@@ -102,8 +109,8 @@ class ErrorPresenter:
     def show_exception_report(
         self,
         *,
-        title: str,
-        message: str,
+        title: ApplicationText,
+        message: ApplicationText,
         stage: str,
         error: BaseException,
         context: SubstituteOperationContext,
@@ -123,8 +130,8 @@ class ErrorPresenter:
     def show_comfy_connection_report(
         self,
         *,
-        title: str,
-        message: str,
+        title: ApplicationText,
+        message: ApplicationText,
         stage: str,
         context: SubstituteOperationContext,
         error: BaseException | None = None,

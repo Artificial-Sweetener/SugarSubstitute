@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 import argparse
 import ctypes
 import json
@@ -232,7 +234,9 @@ def _windows_process_is_alive(pid: int) -> bool:
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     """Parse helper command-line arguments."""
 
-    parser = argparse.ArgumentParser(description="Run Sugar Substitute launch splash.")
+    parser = argparse.ArgumentParser(
+        description=app_text("Run Sugar Substitute launch splash.")
+    )
     parser.add_argument("--parent-pid", type=int, required=True)
     parser.add_argument("--theme-mode", type=str, required=False)
     parser.add_argument("--accent-color", type=str, required=False)

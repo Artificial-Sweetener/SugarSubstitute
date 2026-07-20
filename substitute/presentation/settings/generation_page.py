@@ -18,6 +18,18 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.presentation.localization import (
+    LocalizedComboItem,
+    render_application_text,
+    set_localized_combo_items,
+    translate_application_text,
+)
+
+from substitute.presentation.localization import LocalizedSwitchButton
+
+from substitute.presentation.localization import LocalizedPushButton
+
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
@@ -34,8 +46,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     IndicatorPosition,
     IconWidget,
     LineEdit,
-    PushButton,
-    SwitchButton,
 )
 
 from substitute.application.generation import (
@@ -70,7 +80,7 @@ from substitute.shared.logging.logger import get_logger, log_exception
 
 _LOGGER = get_logger("presentation.settings.generation_page")
 _COMBO_WIDTH = 180
-_PREVIEW_TYPE_DESCRIPTION = (
+_PREVIEW_TYPE_DESCRIPTION = app_text(
     "Choose the ComfyUI latent preview method sent with new prompts."
 )
 _PREVIEW_METHOD_LATENT2RGB = "latent2rgb"
@@ -105,7 +115,7 @@ class GenerationSettingsPage(QWidget):
             self,
             owner_id="generation_settings",
         )
-        self.preview_switch = SwitchButton(
+        self.preview_switch = LocalizedSwitchButton(
             "Off",
             self,
             indicatorPos=IndicatorPosition.RIGHT,
@@ -201,12 +211,14 @@ class GenerationSettingsPage(QWidget):
         self.preview_type_row_widget = self._preview_type_row()
         preview_cards.append(self.preview_type_row_widget)
         content_layout.addWidget(
-            SettingsCardGroup("Preview", cards=tuple(preview_cards), parent=self)
+            SettingsCardGroup(
+                app_text("Preview"), cards=tuple(preview_cards), parent=self
+            )
         )
         if self._output_preference_service is not None:
             content_layout.addWidget(
                 SettingsCardGroup(
-                    "Output",
+                    app_text("Output"),
                     cards=(
                         self._output_root_row(),
                         self._output_path_pattern_row(),
@@ -222,13 +234,13 @@ class GenerationSettingsPage(QWidget):
     def _enabled_row(self) -> InteractiveSettingsCard:
         """Create the generation preview toggle row."""
 
-        self.preview_switch.setOnText("On")
-        self.preview_switch.setOffText("Off")
         self.preview_switch.checkedChanged.connect(self._set_preview_enabled)
         row = InteractiveSettingsCard(
             visual_widget=self._icon_widget(AppIcon.IMAGE_SPARKLE_20_REGULAR),
-            title="Generation previews",
-            description="Show sampler preview frames while ComfyUI is generating.",
+            title=app_text("Generation previews"),
+            description=app_text(
+                "Show sampler preview frames while ComfyUI is generating."
+            ),
             trailing_widget=self.preview_switch,
             reserve_visual_space=True,
             parent=self,
@@ -244,7 +256,7 @@ class GenerationSettingsPage(QWidget):
         self.preview_type_combo.currentIndexChanged.connect(self._set_preview_method)
         row = SettingsCard(
             visual_widget=self._icon_widget(AppIcon.IMAGE_SPARKLE_20_REGULAR),
-            title="Preview type",
+            title=app_text("Preview type"),
             description=_PREVIEW_TYPE_DESCRIPTION,
             trailing_widget=self.preview_type_combo,
             reserve_visual_space=True,
@@ -257,9 +269,17 @@ class GenerationSettingsPage(QWidget):
 
         combo = ComboBox(self)
         configure_settings_field_width(combo, preferred_width=_COMBO_WIDTH)
-        combo.addItem("Latent RGB", userData=_PREVIEW_METHOD_LATENT2RGB)
-        combo.addItem("TAESD", userData=_PREVIEW_METHOD_TAESD)
-        combo.addItem("Auto", userData=_PREVIEW_METHOD_AUTO)
+        set_localized_combo_items(
+            combo,
+            (
+                LocalizedComboItem(
+                    _PREVIEW_METHOD_LATENT2RGB,
+                    app_text("Latent RGB"),
+                ),
+                LocalizedComboItem(_PREVIEW_METHOD_TAESD, app_text("TAESD")),
+                LocalizedComboItem(_PREVIEW_METHOD_AUTO, app_text("Auto")),
+            ),
+        )
         return combo
 
     def _output_root_edit(self) -> LineEdit:
@@ -294,9 +314,9 @@ class GenerationSettingsPage(QWidget):
     def _output_root_row(self) -> SettingsCard:
         """Create the output root folder row."""
 
-        browse_button = PushButton("Browse", self)
+        browse_button = LocalizedPushButton(app_text("Browse"), self)
         browse_button.clicked.connect(self._browse_output_root)
-        reset_button = PushButton("Default", self)
+        reset_button = LocalizedPushButton(app_text("Default"), self)
         reset_button.clicked.connect(self._clear_output_root)
         trailing = SettingsControlGroup(
             self.output_root_edit,
@@ -307,8 +327,8 @@ class GenerationSettingsPage(QWidget):
         )
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.SAVE_IMAGE_20_REGULAR),
-            title="Output folder",
-            description="Choose where generated images are saved.",
+            title=app_text("Output folder"),
+            description=app_text("Choose where generated images are saved."),
             trailing_widget=trailing,
             reserve_visual_space=True,
             wrap_threshold=720,
@@ -320,8 +340,10 @@ class GenerationSettingsPage(QWidget):
 
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.DOCUMENT_TEXT_20_REGULAR),
-            title="Output pattern",
-            description="Compose relative folders and filename without the .png extension.",
+            title=app_text("Output pattern"),
+            description=app_text(
+                "Compose relative folders and filename without the .png extension."
+            ),
             trailing_widget=SettingsControlGroup(
                 self.output_path_pattern_edit,
                 parent=self,
@@ -336,8 +358,8 @@ class GenerationSettingsPage(QWidget):
 
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.SAVE_IMAGE_20_REGULAR),
-            title="Output preview",
-            description="Shows an example path using the current settings.",
+            title=app_text("Output preview"),
+            description=app_text("Shows an example path using the current settings."),
             trailing_widget=SettingsControlGroup(
                 self.output_preview_edit,
                 parent=self,
@@ -443,7 +465,7 @@ class GenerationSettingsPage(QWidget):
 
         selected = QFileDialog.getExistingDirectory(
             self,
-            "Choose Output Folder",
+            translate_application_text("Choose Output Folder"),
             self.output_root_edit.text().strip(),
         )
         if selected:
@@ -526,14 +548,14 @@ class GenerationSettingsPage(QWidget):
             if result.preview is not None:
                 self.output_preview_edit.setText(result.preview.display_path)
             return
-        self.output_preview_edit.setText(result.message)
+        self.output_preview_edit.setText(render_application_text(result.message))
 
     def _apply_save_result(self, result: object) -> None:
         """Apply a completed preference save result to visible controls."""
 
         self._set_controls_busy(False)
         if not isinstance(result, GenerationPreviewSaveResult):
-            message = "Generation preview settings could not be saved."
+            message = app_text("Generation preview settings could not be saved.")
             self._set_status(message)
             self._show_error(message)
             return
@@ -573,7 +595,7 @@ class GenerationSettingsPage(QWidget):
             GenerationPreviewSaveResult(
                 preferences=self._preference_service.load_preferences(),
                 succeeded=False,
-                message="Generation preview settings could not be saved.",
+                message=app_text("Generation preview settings could not be saved."),
             )
         )
 
@@ -590,31 +612,31 @@ class GenerationSettingsPage(QWidget):
 
         self.preview_type_combo.setEnabled(bool(self.preview_switch.isChecked()))
 
-    def _set_status(self, text: str) -> None:
+    def _set_status(self, text: ApplicationText) -> None:
         """Remember save feedback without changing settings-row layout."""
 
         self._last_status_message = text
 
-    def _show_warning(self, message: str) -> None:
+    def _show_warning(self, message: ApplicationText) -> None:
         """Show non-blocking feedback for recoverable preview setup issues."""
 
         from qfluentwidgets import InfoBar
 
         InfoBar.warning(
-            title="Generation previews",
-            content=message,
+            title=render_application_text(app_text("Generation previews")),
+            content=render_application_text(message),
             duration=4000,
             parent=self.window(),
         )
 
-    def _show_error(self, message: str) -> None:
+    def _show_error(self, message: ApplicationText) -> None:
         """Show non-blocking feedback for failed preview preference saves."""
 
         from qfluentwidgets import InfoBar
 
         InfoBar.error(
-            title="Generation previews",
-            content=message,
+            title=render_application_text(app_text("Generation previews")),
+            content=render_application_text(message),
             duration=5000,
             parent=self.window(),
         )

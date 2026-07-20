@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable, Container, Mapping
 from dataclasses import dataclass
 from uuid import UUID
@@ -92,7 +94,7 @@ class OutputSceneOverviewComposer:
             return None
         return self._scene_builder.build(
             route=route,
-            title="All scenes",
+            title=app_text("All scenes"),
             tiles=tiles,
             viewport_extent=viewport_extent or self._viewport_extent(),
             previous_dimensions=previous_dimensions,

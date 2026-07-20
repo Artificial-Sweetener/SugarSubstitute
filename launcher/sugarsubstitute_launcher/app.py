@@ -24,7 +24,7 @@ import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments, parse_launcher_args
 from launcher.sugarsubstitute_launcher.connectivity import ReleaseConnectivityVerifier
@@ -35,6 +35,11 @@ from launcher.sugarsubstitute_launcher.install_layout import (
 )
 from launcher.sugarsubstitute_launcher.headless_install import HeadlessInstallService
 from launcher.sugarsubstitute_launcher.logging_setup import configure_launcher_logging
+from launcher.sugarsubstitute_launcher.localization import (
+    build_launcher_localization_runtime,
+    resolve_launcher_locale,
+    seed_headless_locale_preference,
+)
 from launcher.sugarsubstitute_launcher.platforms import detect_launcher_target
 from launcher.sugarsubstitute_launcher.process import (
     build_app_launch_command,
@@ -54,6 +59,7 @@ from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
 from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
+from sugarsubstitute_shared.localization import format_locale_argument
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -88,6 +94,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             install_root=layout.root,
             release_source=_explicit_release_source(args.manifest_url),
         )
+        seed_headless_locale_preference(
+            layout,
+            locale_override=args.locale_override,
+        )
         return 0
     startup_plan = resolve_startup_plan(
         explicit_install_root=args.install_root,
@@ -95,13 +105,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     layout = startup_plan.layout
     configure_launcher_logging(layout=layout)
+    resolved_locale = resolve_launcher_locale(
+        layout,
+        locale_override=args.locale_override,
+    )
+    locale_argument = format_locale_argument(
+        resolved_locale.effective_language.identifier
+    )
 
     app_launch_error: Exception | None = None
     if should_launch_installed_app(args=args, startup_plan=startup_plan):
         splash_session = None
         try:
             config = LauncherConfig.load(layout.config_path)
-            splash_session = start_launcher_splash_session(layout=layout)
+            splash_session = start_launcher_splash_session(
+                layout=layout,
+                locale_identifier=resolved_locale.effective_language.identifier,
+            )
             update_result = LauncherUpdateOrchestrator().run(
                 layout=layout,
                 config=config,
@@ -122,7 +142,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 0
             start_detached(
                 append_splash_session_args(
-                    build_app_launch_command(layout=layout),
+                    build_app_launch_command(
+                        layout=layout,
+                        extra_args=(locale_argument,),
+                    ),
                     splash_session,
                 )
             )
@@ -142,6 +165,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     owns_application = application is None
     if application is None:
         application = QApplication(sys.argv[:1])
+    application = cast(QApplication, application)
+
+    build_launcher_localization_runtime(
+        application,
+        layout=layout,
+        locale_override=args.locale_override,
+    )
 
     window = _launcher_main_window_class()(
         initial_layout=layout,

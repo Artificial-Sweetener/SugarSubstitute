@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass
 from typing import Protocol
@@ -234,7 +236,7 @@ class PromptDanbooruActionController:
             return None
         return PromptFeatureActionState(
             action_id="danbooru.wiki_lookup",
-            label="Danbooru wiki lookup",
+            label=app_text("Danbooru wiki lookup"),
             ready=True,
             command_request=PromptFeatureCommandRequest(
                 command_name="danbooru_wiki_lookup",

@@ -21,6 +21,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from sugarsubstitute_shared.localization import app_text
+
 from substitute.domain.onboarding import ComfyPythonBinding
 from substitute.infrastructure.comfy.backend_model_root_configurator import (
     configure_backend_model_root,
@@ -87,18 +89,22 @@ def prepare_verified_attached_comfy_setup(
     binding = python_binding
     if on_log is not None:
         on_log(
-            f"Using ComfyUI Python {binding.version} ({binding.architecture}) at "
-            f"{binding.executable}."
+            app_text(
+                "Using ComfyUI Python %1 (%2) at %3.",
+                binding.version,
+                binding.architecture,
+                binding.executable,
+            )
         )
     if on_status is not None:
-        on_status("Provisioning ComfyUI-Manager.")
+        on_status(app_text("Provisioning ComfyUI-Manager."))
     ensure_attached_workspace_manager(
         workspace,
         python_executable=binding.executable,
         on_log=on_log,
     )
     if on_status is not None:
-        on_status("Installing Substitute Comfy nodepacks.")
+        on_status(app_text("Installing Substitute Comfy nodepacks."))
     ensure_core_comfy_nodepacks(
         workspace,
         python_executable=binding.executable,
@@ -106,21 +112,21 @@ def prepare_verified_attached_comfy_setup(
     )
     if configure_model_root:
         if on_status is not None:
-            on_status("Configuring the ComfyUI models folder.")
+            on_status(app_text("Configuring the ComfyUI models folder."))
         configure_backend_model_root(
             workspace=workspace,
             python_executable=binding.executable,
             model_root=model_root,
         )
     if on_status is not None:
-        on_status("Preparing Base-Cubes dependencies.")
+        on_status(app_text("Preparing Base-Cubes dependencies."))
     run_sugarcubes_baseline_maintenance(
         workspace,
         python_executable=binding.executable,
         on_log=on_log,
     )
     if on_status is not None:
-        on_status("Preparing acceleration support.")
+        on_status(app_text("Preparing acceleration support."))
     reconcile_managed_acceleration_stack(
         workspace=workspace,
         python_executable=binding.executable,

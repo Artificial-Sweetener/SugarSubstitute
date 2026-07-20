@@ -25,6 +25,7 @@ from substitute.domain.node_behavior import (
     CollapseMode,
     EnabledSwitchPolicy,
     FieldBehaviorPatch,
+    FieldLabelSource,
     FieldPresentation,
     LabelMode,
     NodeBehaviorContext,
@@ -120,6 +121,50 @@ def test_resolver_applies_declarative_hook_and_runtime_precedence() -> None:
     assert resolved.card.collapse_mode == CollapseMode.EXEMPT
     assert resolved.card.title_controls == (TitleControl.PROMPT_LINK_SELECTOR,)
     assert resolved.fields["image"].presentation == FieldPresentation.MASK_PICKER
+
+
+def test_resolver_marks_host_labels_as_application_owned() -> None:
+    """Host-authored UI labels should remain eligible for application translation."""
+
+    resolved = resolve_node_behavior(
+        node_name="scope",
+        class_type="VectorscopeCC",
+        input_keys=("r",),
+        context=_context(node_name="scope", class_type="VectorscopeCC"),
+    )
+
+    red = resolved.fields["r"]
+    assert red.label_override is not None
+    assert red.label_override_source is FieldLabelSource.APPLICATION
+
+
+def test_resolver_marks_cube_behavior_labels_as_authored() -> None:
+    """Cube behavior labels should remain exact authored text in every locale."""
+
+    declarative = PackageBehaviorPatch(
+        by_node={
+            "node": NodeBehaviorPatch(
+                field_patches={
+                    "cfg": FieldBehaviorPatch(label_override="Author's CFG Label")
+                }
+            )
+        }
+    )
+
+    resolved = resolve_node_behavior(
+        node_name="node",
+        class_type="KSampler",
+        input_keys=("cfg",),
+        context=_context(
+            node_name="node",
+            class_type="KSampler",
+            declarative_patch=declarative,
+        ),
+    )
+
+    cfg = resolved.fields["cfg"]
+    assert cfg.label_override == "Author's CFG Label"
+    assert cfg.label_override_source is FieldLabelSource.AUTHORED
 
 
 def test_resolver_marks_authored_switch_policy_source() -> None:

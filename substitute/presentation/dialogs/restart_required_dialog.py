@@ -18,6 +18,14 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedPrimaryPushButton,
+    LocalizedPushButton,
+    LocalizedSubtitleLabel,
+)
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
@@ -33,9 +41,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     BodyLabel,
     CaptionLabel,
     MessageBoxBase,
-    PrimaryPushButton,
-    PushButton,
-    SubtitleLabel,
 )
 from shiboken6 import isValid
 
@@ -113,9 +118,11 @@ class RestartRequiredDialog(MessageBoxBase):  # type: ignore[misc]
     def _build_header(self) -> None:
         """Create the modal title and explanatory copy."""
 
-        self.title_label = SubtitleLabel("Restart required", self.widget)
-        self.body_label = BodyLabel(
-            "These changes will apply after restart.",
+        self.title_label = LocalizedSubtitleLabel(
+            app_text("Restart required"), self.widget
+        )
+        self.body_label = LocalizedBodyLabel(
+            app_text("These changes will apply after restart."),
             self.widget,
         )
         self.body_label.setWordWrap(True)
@@ -170,7 +177,7 @@ class RestartRequiredDialog(MessageBoxBase):  # type: ignore[misc]
         self.buttonLayout.setSpacing(12)
         self.buttonLayout.addStretch(1)
 
-        self.later_button = PushButton("Later", self.buttonGroup)
+        self.later_button = LocalizedPushButton(app_text("Later"), self.buttonGroup)
         self.later_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
         self.later_button.setMinimumWidth(_ACTION_BUTTON_MINIMUM_WIDTH)
         self.later_button.clicked.connect(self._reject_restart)
@@ -180,7 +187,9 @@ class RestartRequiredDialog(MessageBoxBase):  # type: ignore[misc]
             Qt.AlignmentFlag.AlignVCenter,
         )
 
-        self.restart_now_button = PrimaryPushButton("Restart now", self.buttonGroup)
+        self.restart_now_button = LocalizedPrimaryPushButton(
+            app_text("Restart now"), self.buttonGroup
+        )
         self.restart_now_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
         self.restart_now_button.setMinimumWidth(_ACTION_BUTTON_MINIMUM_WIDTH)
         self.restart_now_button.clicked.connect(self._accept_restart)

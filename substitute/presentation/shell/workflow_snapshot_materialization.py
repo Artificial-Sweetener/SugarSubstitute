@@ -18,6 +18,12 @@
 
 from __future__ import annotations
 
+from substitute.presentation.workflows.workflow_tabs_view import (
+    set_workflow_tab_source_text,
+)
+
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Protocol
@@ -211,7 +217,7 @@ class WorkflowSnapshotMaterializer:
 
         tab_item = view.workflow_tabbar.itemMap.get(workflow_id)
         if tab_item is not None and workflow_name:
-            tab_item.setText(workflow_name)
+            set_workflow_tab_source_text(tab_item, workflow_name)
         log_debug(
             _LOGGER,
             "Workflow snapshot cleared current workflow surfaces",
@@ -244,7 +250,7 @@ class WorkflowSnapshotMaterializer:
             select_after_load=False,
             scroll_after_load=False,
         )
-        busy_token = view.editor_busy.begin(workflow_id, message="Loading")
+        busy_token = view.editor_busy.begin(workflow_id, message=app_text("Loading"))
         busy_finished = False
 
         def finish_busy_state() -> None:
@@ -370,7 +376,7 @@ class WorkflowSnapshotMaterializer:
                 placeholder_item = target_cube_stack.insertTab(
                     target_cube_stack.count(),
                     routeKey=f"loading:{alias}",
-                    text="Loading...",
+                    text=app_text("Loading..."),
                     icon=icon_provider.CLOSE.icon(),
                 )
                 placeholder_index = target_cube_stack.items.index(placeholder_item)

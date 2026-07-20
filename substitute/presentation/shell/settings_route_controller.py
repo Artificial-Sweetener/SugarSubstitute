@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Mapping
 from typing import Any
 
@@ -67,6 +69,7 @@ class SettingsRouteController:
                 self.refresh_runtime_contracts_after_cube_dependency_restart
             ),
             about_info_service=shell.about_info_service,
+            localization_manager=shell.localization_manager,
             appearance_runtime=shell.appearance_runtime,
             appearance_restart_coordinator=shell.appearance_restart_coordinator,
             comfy_connection_settings_service=shell.comfy_connection_settings_service,
@@ -164,7 +167,9 @@ class SettingsRouteController:
             self._shell.workspace_generation_controller.set_backend_available(
                 False,
                 message=(
-                    "ComfyUI must restart before repaired cube dependencies can be used."
+                    app_text(
+                        "ComfyUI must restart before repaired cube dependencies can be used."
+                    )
                 ),
             )
             self._shell.generation_action_controller.apply_generation_action_availability()

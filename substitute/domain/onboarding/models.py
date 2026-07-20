@@ -101,6 +101,11 @@ class ComfyEndpoint:
 
         return self._http_url(f"/object_info/{quote(node_class, safe='')}")
 
+    def i18n_url(self) -> str:
+        """Return the custom-node localization catalog URL."""
+
+        return self._http_url("/i18n")
+
     def system_stats_url(self) -> str:
         """Return the Comfy system statistics endpoint URL."""
 

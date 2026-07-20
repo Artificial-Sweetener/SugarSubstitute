@@ -76,6 +76,7 @@ class StartupRuntimeBootstrap:
     """Return startup runtime objects needed by the remaining bootstrap flow."""
 
     app: Any
+    localization_runtime: Any
     appearance_runtime: Any
     theme_configuration: StartupThemeConfiguration
     comfy_output_stream: Any
@@ -96,9 +97,11 @@ class StartupRuntimeBootstrap:
 def build_startup_runtime_bootstrap(
     *,
     cli_args: Sequence[str],
+    locale_override: str | None,
     installation_context: InstallationContext,
     startup_timer: StartupPhaseTimer,
     create_application: Callable[[Sequence[str]], Any],
+    build_localization_runtime: Callable[[Any, InstallationContext, str | None], Any],
     build_appearance_runtime: Callable[[InstallationContext], Any],
     configure_theme: Callable[[Any], Any],
     build_application_runtime_services: Callable[..., Any],
@@ -111,6 +114,19 @@ def build_startup_runtime_bootstrap(
         with trace_span("startup.create_application"):
             app = create_application(cli_args)
     trace_mark("startup.application.created", app_type=type(app).__name__)
+    with startup_timer.phase("startup.build_localization_runtime"):
+        with trace_span("startup.build_localization_runtime"):
+            localization_runtime = build_localization_runtime(
+                app,
+                installation_context,
+                locale_override,
+            )
+    trace_mark(
+        "startup.localization.configured",
+        effective_language=(
+            localization_runtime.initial_snapshot.effective_language_identifier
+        ),
+    )
     with startup_timer.phase("startup.build_appearance_runtime"):
         with trace_span("startup.build_appearance_runtime"):
             appearance_runtime = build_appearance_runtime(installation_context)
@@ -132,11 +148,13 @@ def build_startup_runtime_bootstrap(
         runtime_services = build_application_runtime_services(
             context=installation_context,
             comfy_output_stream=comfy_output_stream,
+            localization_manager=localization_runtime.manager,
             appearance_runtime=appearance_runtime,
         )
     trace_mark("startup.runtime_services.built")
     return StartupRuntimeBootstrap(
         app=app,
+        localization_runtime=localization_runtime,
         appearance_runtime=appearance_runtime,
         theme_configuration=theme_configuration,
         comfy_output_stream=comfy_output_stream,

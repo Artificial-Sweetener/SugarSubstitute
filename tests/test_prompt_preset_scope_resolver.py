@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.model_metadata import (
     ModelCatalogItem,
     exact_model_association_for_catalog_item,
@@ -50,9 +52,12 @@ def test_scope_options_include_global_family_and_provider_version() -> None:
         "Illustrious",
         "Checkpoint",
     ]
-    assert options[1].full_label == "Base model: Illustrious"
+    assert render_source_application_text(options[1].full_label) == (
+        "Base model: Illustrious"
+    )
     assert (
-        options[2].full_label == "Checkpoint: Wrong Long Provider Name - Version Alpha"
+        render_source_application_text(options[2].full_label)
+        == "Checkpoint: Wrong Long Provider Name - Version Alpha"
     )
     assert options[2].association.scope is (
         UserPresetAssociationScope.PROVIDER_MODEL_VERSION
@@ -110,7 +115,9 @@ def test_diffusion_model_scope_uses_accurate_exact_model_label() -> None:
     )
 
     assert options[-1].title == "Diffusion model"
-    assert options[-1].full_label == "Diffusion model: Example"
+    assert render_source_application_text(options[-1].full_label) == (
+        "Diffusion model: Example"
+    )
 
 
 def _item(

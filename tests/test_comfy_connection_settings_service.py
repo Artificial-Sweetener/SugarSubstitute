@@ -21,6 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.onboarding import (
     ComfyConnectionSettingsDraft,
     ComfyConnectionSettingsService,
@@ -182,7 +184,7 @@ def test_connection_settings_loads_persisted_target(tmp_path: Path) -> None:
 
     assert snapshot.persisted_exists is True
     assert snapshot.target == repository.saved
-    assert "remote-box:8190" in snapshot.status_message
+    assert "remote-box:8190" in render_source_application_text(snapshot.status_message)
 
 
 def test_connection_settings_uses_default_when_target_is_missing(

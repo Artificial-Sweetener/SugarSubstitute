@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, cast
@@ -31,6 +33,9 @@ from substitute.application.generation import (
     GenerationPreparationResult,
     GenerationRequest,
     GenerationRunStarted,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    translate_application_message,
 )
 from substitute.application.ports import (
     GenerationExecutionTiming,
@@ -404,7 +409,7 @@ def enqueue_prompt_scene_generation(
     if not callable(enqueue_snapshot):
         error = preflight_error(
             workflow_id="queue",
-            message="Queue this scene requires the generation queue.",
+            message=app_text("Queue this scene requires the generation queue."),
         )
         feedback_dispatcher.on_failure(
             preflight_failure(
@@ -461,7 +466,9 @@ def scene_generation_context(
     if behavior_snapshot is None:
         raise preflight_error(
             workflow_id=request.workflow_id,
-            message="Scene generation requires an active workflow prompt index.",
+            message=app_text(
+                "Scene generation requires an active workflow prompt index."
+            ),
         )
 
     scene_analysis = PromptSceneAnalysisService().analyze(
@@ -472,8 +479,10 @@ def scene_generation_context(
         raise preflight_error(
             workflow_id=request.workflow_id,
             message=(
-                "Scene generation requires at least one **scene marker in the "
-                "first positive prompt."
+                app_text(
+                    "Scene generation requires at least one **scene marker in the "
+                    "first positive prompt."
+                )
             ),
         )
 
@@ -498,7 +507,10 @@ def scene_for_key(
             return scene
     raise preflight_error(
         workflow_id=workflow_id,
-        message=f"Generate scene could not find runnable scene: {scene_key}",
+        message=translate_application_message(
+            "Generate scene could not find runnable scene: %1",
+            scene_key,
+        ),
     )
 
 

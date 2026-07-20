@@ -865,7 +865,7 @@ def _ordered_script_node_items(
 
     return _positive_prompt_before_negative_prompt(
         list(nodes.items()),
-        lambda item: _prompt_polarity_from_text(
+        lambda item: _prompt_polarity(
             item[0],
             item[1].get("label") if isinstance(item[1], Mapping) else None,
         ),
@@ -879,7 +879,7 @@ def _ordered_script_input_items(
 
     return _positive_prompt_before_negative_prompt(
         list(inputs.items()),
-        lambda item: _prompt_polarity_from_text(item[0]),
+        lambda item: _prompt_polarity(item[0]),
     )
 
 
@@ -919,7 +919,7 @@ def _positive_prompt_before_negative_prompt(
     return ordered_items
 
 
-def _prompt_polarity_from_text(*parts: object) -> str | None:
+def _prompt_polarity(*parts: object) -> str | None:
     """Return prompt polarity when text clearly names a positive/negative prompt."""
 
     text = " ".join(str(part).casefold() for part in parts if isinstance(part, str))

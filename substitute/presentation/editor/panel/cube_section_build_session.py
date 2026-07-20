@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 import weakref
 from collections.abc import Mapping
 from time import perf_counter
@@ -282,7 +284,7 @@ class CubeSectionBuildSession:
                 node_class_type="",
                 kind="missing_behavior",
                 field_spec_count=0,
-                message="node missing from cube buffer",
+                message=app_text("node missing from cube buffer"),
             )
             log_debug(
                 _LOGGER,
@@ -303,7 +305,7 @@ class CubeSectionBuildSession:
                 node_class_type="",
                 kind="missing_behavior",
                 field_spec_count=0,
-                message="node payload is not a mapping",
+                message=app_text("node payload is not a mapping"),
             )
             log_debug(
                 _LOGGER,

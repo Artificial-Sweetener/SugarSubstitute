@@ -26,6 +26,10 @@ from PySide6.QtWidgets import QApplication
 
 from substitute.app.bootstrap.execution_runtime import ExecutionRuntime
 from substitute.app.bootstrap.appearance_runtime import AppearanceRuntimeController
+from substitute.app.bootstrap.localization_composition import (
+    ComfyNodeLocalizationRuntime,
+    build_comfy_node_localization_runtime,
+)
 from substitute.application.appearance import ActiveAppearanceBaseline
 from substitute.application.execution import (
     ExecutionContext,
@@ -49,6 +53,7 @@ from substitute.presentation.qt.execution import QtOwnerThreadDispatcher, QtUiSc
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
+from sugarsubstitute_shared.presentation.localization import TranslationManager
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +62,8 @@ class ApplicationRuntimeServices:
 
     context: InstallationContext
     comfy_output_stream: TerminalOutputStream
+    localization_manager: TranslationManager
+    comfy_node_localization: ComfyNodeLocalizationRuntime
     appearance_runtime: AppearanceRuntimeController
     active_appearance_baseline: ActiveAppearanceBaseline
     session_snapshot_repository: SessionSnapshotRepository
@@ -69,6 +76,7 @@ def build_application_runtime_services(
     *,
     context: InstallationContext,
     comfy_output_stream: TerminalOutputStream,
+    localization_manager: TranslationManager,
     appearance_runtime: AppearanceRuntimeController,
 ) -> ApplicationRuntimeServices:
     """Compose process-lifetime services available to shell construction."""
@@ -79,6 +87,21 @@ def build_application_runtime_services(
     )
     execution_runtime = ExecutionRuntime()
     qt_owner = _application_qt_owner()
+    comfy_catalog_submitter = execution_runtime.submitter(
+        "node_definition",
+        owner_id="comfy_node_localization",
+        dispatcher=QtOwnerThreadDispatcher(qt_owner),
+    )
+    comfy_catalog_scheduler = _ComfyNodeLocalizationRefreshScheduler(
+        comfy_catalog_submitter
+    )
+    comfy_node_localization = build_comfy_node_localization_runtime(
+        qt_owner,
+        manager=localization_manager,
+        endpoint=context.comfy_target.endpoint,
+        cache_root=context.cache_dir,
+        background_scheduler=comfy_catalog_scheduler.schedule,
+    )
     autosave_scheduler = QtUiScheduler(qt_owner)
     session_autosave_submitter = execution_runtime.submitter(
         "disk_io_low_priority",
@@ -91,6 +114,8 @@ def build_application_runtime_services(
     return ApplicationRuntimeServices(
         context=context,
         comfy_output_stream=comfy_output_stream,
+        localization_manager=localization_manager,
+        comfy_node_localization=comfy_node_localization,
         appearance_runtime=appearance_runtime,
         active_appearance_baseline=ActiveAppearanceBaseline(
             appearance_runtime.load_preferences()
@@ -148,6 +173,36 @@ class _SessionAutosavePersistenceScheduler:
             work=lambda _token: callback(),
         )
         self._scope.submit(request)
+
+
+class _ComfyNodeLocalizationRefreshScheduler:
+    """Schedule process-lifetime Comfy localization refreshes on its owned lane."""
+
+    def __init__(self, submitter: TaskSubmitter) -> None:
+        """Store the execution scope and deterministic request sequence."""
+
+        self._scope = TaskScope(
+            submitter=submitter,
+            scope_id="comfy_node_localization_refresh",
+        )
+        self._request_ids = count(1)
+
+    def schedule(self, callback: Callable[[], None]) -> object:
+        """Submit one bounded custom-node catalog refresh."""
+
+        request: TaskRequest[None] = TaskRequest(
+            identity=TaskIdentity(
+                request_id=next(self._request_ids),
+                domain="comfy_node_localization_refresh",
+            ),
+            context=ExecutionContext(
+                operation="refresh_comfy_node_localization",
+                reason="localization_generation_changed",
+                lane="node_definition",
+            ),
+            work=lambda _token: callback(),
+        )
+        return self._scope.submit(request)
 
 
 __all__ = [

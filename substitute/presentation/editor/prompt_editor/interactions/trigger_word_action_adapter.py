@@ -18,6 +18,11 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    render_application_text,
+    set_localized_tooltip,
+)
+
 from collections.abc import Callable
 
 from PySide6.QtCore import Qt
@@ -75,8 +80,11 @@ class PromptTriggerWordActionAdapter:
             self._action_parent,
         )
         action.triggered.connect(lambda: self._execute_trigger_words(prepared_action))
-        action.setToolTip(full_label)
-        action.setProperty(_TRIGGER_MENU_FULL_LABEL_PROPERTY, full_label)
+        set_localized_tooltip(action, full_label.source_text, *full_label.arguments)
+        action.setProperty(
+            _TRIGGER_MENU_FULL_LABEL_PROPERTY,
+            render_application_text(full_label),
+        )
         return action
 
     def trigger_words_action_label(self, display_name: str) -> str:

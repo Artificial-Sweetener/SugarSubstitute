@@ -36,6 +36,20 @@ GROUPED_FIELD_DIVIDER_WIDTH: int
 class BuiltFieldRow:
     field_key: Any
     row: QWidget
+    text_targets: tuple[FieldRowTextTarget, ...]
+    def __init__(
+        self,
+        field_key: Any,
+        row: QWidget,
+        text_targets: tuple[FieldRowTextTarget, ...] = ...,
+    ) -> None: ...
+
+class FieldRowTextTarget:
+    field_key: str
+    label: Any | None
+    field_widget: QWidget
+    tooltip_owner: QWidget
+    tooltip_targets: tuple[QWidget, ...]
 
 class ScalarFieldRowWidget(QWidget):
     def __init__(self, parent: QWidget | None = ...) -> None: ...

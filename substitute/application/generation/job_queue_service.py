@@ -25,6 +25,8 @@ from pathlib import Path
 from typing import Literal, Protocol
 from uuid import uuid4
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.application.execution import (
     ExecutionContext,
     TaskScope,
@@ -898,7 +900,7 @@ class GenerationJobQueueService:
     ) -> None:
         """Fail one job that cannot receive a committed output number."""
 
-        message = "Failed to allocate output run number."
+        message = app_text("Failed to allocate output run number.")
         callbacks.on_failure(
             GenerationFailure(
                 stage="queue",
@@ -1088,7 +1090,7 @@ class GenerationJobQueueService:
             failure_message = (
                 result.failure.message
                 if result.failure is not None
-                else "Generation dispatch failed."
+                else app_text("Generation dispatch failed.")
             )
             self._mark_failed(
                 job_id,
@@ -1558,7 +1560,7 @@ class GenerationJobQueueService:
         generation_run_id: str | None = None,
         client_id: str | None = None,
         failure_message: str | None = None,
-        failure_summary: str | None = None,
+        failure_summary: ApplicationText | None = None,
         failure_detail: str | None = None,
         output_run_number: int | None = None,
         output_bucket_key: str | None = None,

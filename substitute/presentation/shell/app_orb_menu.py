@@ -35,18 +35,25 @@ from substitute.presentation.widgets.menu_model import (
     MenuSeparator,
 )
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_accessible_name,
+    set_localized_tooltip,
+)
 
 APP_ORB_MENU_OBJECT_NAME = "AppOrbMenuButton"
-APP_ORB_MENU_ACCESSIBLE_NAME = "Application menu"
+APP_ORB_MENU_ACCESSIBLE_NAME: ApplicationText = app_text("Application menu")
 APP_ORB_MENU_OVERLAP_PX = 6
-OPEN_SUGAR_SCRIPT_MENU_TEXT = "Open Sugar Script..."
-SAVE_SUGAR_SCRIPT_MENU_TEXT = "Save Sugar Script"
-SAVE_SUGAR_SCRIPT_AS_MENU_TEXT = "Save Sugar Script As..."
-EXPORT_COMFY_WORKFLOW_MENU_TEXT = "Export to Comfy Workflow..."
-SETTINGS_MENU_TEXT = "Settings"
-COMFYUI_SETTINGS_MENU_TEXT = "ComfyUI Settings..."
-RESTART_GUI_MENU_TEXT = "Restart the GUI"
-RESTART_COMFYUI_MENU_TEXT = "Restart Comfy"
+OPEN_SUGAR_SCRIPT_MENU_TEXT: ApplicationText = app_text("Open Sugar Script...")
+SAVE_SUGAR_SCRIPT_MENU_TEXT: ApplicationText = app_text("Save Sugar Script")
+SAVE_SUGAR_SCRIPT_AS_MENU_TEXT: ApplicationText = app_text("Save Sugar Script As...")
+EXPORT_COMFY_WORKFLOW_MENU_TEXT: ApplicationText = app_text(
+    "Export to Comfy Workflow..."
+)
+SETTINGS_MENU_TEXT: ApplicationText = app_text("Settings")
+COMFYUI_SETTINGS_MENU_TEXT: ApplicationText = app_text("ComfyUI Settings...")
+RESTART_GUI_MENU_TEXT: ApplicationText = app_text("Restart the GUI")
+RESTART_COMFYUI_MENU_TEXT: ApplicationText = app_text("Restart Comfy")
 
 
 class AppOrbMenuButton(QAbstractButton):
@@ -66,8 +73,8 @@ class AppOrbMenuButton(QAbstractButton):
 
         super().__init__(parent)
         self.setObjectName(APP_ORB_MENU_OBJECT_NAME)
-        self.setToolTip(APP_ORB_MENU_ACCESSIBLE_NAME)
-        self.setAccessibleName(APP_ORB_MENU_ACCESSIBLE_NAME)
+        set_localized_tooltip(self, "Application menu")
+        set_localized_accessible_name(self, "Application menu")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self._app_icon = application_icon()

@@ -24,7 +24,13 @@ from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 from qfluentwidgets.components.widgets.menu import Action  # type: ignore[import-untyped]
 
-CIVITAI_PAGE_ACTION_TEXT = "Go to CivitAI page"
+from sugarsubstitute_shared.localization import ApplicationMessage
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    apply_application_text,
+)
+
+CIVITAI_PAGE_ACTION_TEXT: ApplicationMessage = app_text("Go to CivitAI page")
 UrlOpener = Callable[[str], bool]
 
 
@@ -43,7 +49,8 @@ def civitai_page_action(
     normalized_model_page_url = model_page_url.strip() if model_page_url else ""
     if not normalized_model_page_url:
         return None
-    action = Action(CIVITAI_PAGE_ACTION_TEXT)
+    action = Action("")
+    apply_application_text(action, CIVITAI_PAGE_ACTION_TEXT)
     action.triggered.connect(
         lambda _checked=False, url=normalized_model_page_url: open_url(url)
     )

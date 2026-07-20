@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 import os
 from dataclasses import dataclass
 from typing import cast
@@ -148,7 +150,9 @@ class _LoraMetadata:
                 payload=PromptLoraTriggerWordsPayload(
                     insertion_text=insertion_text,
                     display_name=token_context.display_name,
-                    full_label=full_label,
+                    full_label=app_text(
+                        "Trigger words: %1", token_context.display_name
+                    ),
                 ),
             ),
         )

@@ -1519,7 +1519,7 @@ def isDarkTheme() -> bool:
 def _fallback_font(render_size: int) -> QFont:
     """Return the normalized fallback font for the requested icon footprint."""
 
-    font = QFont("Segoe UI")
+    font = QFont()
     font.setBold(True)
     font.setPixelSize(max(10, round(render_size * _FALLBACK_FONT_SCALE)))
     return font

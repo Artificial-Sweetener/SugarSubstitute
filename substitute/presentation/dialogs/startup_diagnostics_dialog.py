@@ -18,6 +18,26 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+
+from sugarsubstitute_shared.localization import ApplicationMessage, ApplicationText
+from sugarsubstitute_shared.presentation.localization import app_text
+
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_text,
+    set_localized_tooltip,
+)
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedCaptionLabel,
+    LocalizedPrimaryPushButton,
+    LocalizedPushButton,
+    LocalizedStrongBodyLabel,
+    LocalizedSubtitleLabel,
+)
+
 from collections.abc import Callable
 from collections.abc import Mapping, Sequence
 import logging
@@ -39,16 +59,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    BodyLabel,
-    CaptionLabel,
     FluentIcon as FIF,
     InfoBarIcon,
     MessageBoxBase,
     PlainTextEdit,
-    PrimaryPushButton,
     PushButton,
     StrongBodyLabel,
-    SubtitleLabel,
     Theme,
     drawIcon,
 )
@@ -95,11 +111,11 @@ class StartupDiagnosticsIncidentView(Protocol):
         """Return the stable incident fingerprint."""
 
     @property
-    def title(self) -> str:
+    def title(self) -> ApplicationText:
         """Return the incident title."""
 
     @property
-    def message(self) -> str:
+    def message(self) -> ApplicationText:
         """Return the incident message."""
 
     @property
@@ -111,15 +127,15 @@ class StartupDiagnosticsIncidentView(Protocol):
         """Return the incident severity enum or string value."""
 
     @property
-    def impact(self) -> str | None:
+    def impact(self) -> ApplicationText | None:
         """Return the incident impact summary when available."""
 
     @property
-    def cause(self) -> str | None:
+    def cause(self) -> ApplicationText | None:
         """Return the likely incident cause when available."""
 
     @property
-    def remediation(self) -> str | None:
+    def remediation(self) -> ApplicationText | None:
         """Return the suggested incident action when available."""
 
     @property
@@ -232,9 +248,11 @@ class StartupDiagnosticsDialog(MessageBoxBase):  # type: ignore[misc]
         layout.setHorizontalSpacing(_HEADER_ICON_TEXT_SPACING)
         layout.setVerticalSpacing(_HEADER_TEXT_SPACING)
 
-        self._title_label = SubtitleLabel("ComfyUI started with issues", header)
-        self._message_label = BodyLabel(
-            "ComfyUI is ready, but it reported issues while loading.",
+        self._title_label = LocalizedSubtitleLabel(
+            app_text("ComfyUI started with issues"), header
+        )
+        self._message_label = LocalizedBodyLabel(
+            app_text("ComfyUI is ready, but it reported issues while loading."),
             header,
         )
         self._title_label.setSizePolicy(
@@ -284,16 +302,16 @@ class StartupDiagnosticsDialog(MessageBoxBase):  # type: ignore[misc]
         layout.setSpacing(8)
         rows = (
             (
-                "Errors",
+                app_text("Errors"),
                 str(_count_severity(self._incidents, "error")),
                 InfoBarIcon.ERROR,
             ),
             (
-                "Warnings",
+                app_text("Warnings"),
                 str(_count_severity(self._incidents, "warning")),
                 InfoBarIcon.INFORMATION,
             ),
-            ("Ignored", str(self._ignored_count), FIF.HIDE),
+            (app_text("Ignored"), str(self._ignored_count), FIF.HIDE),
         )
         for label, value, icon in rows:
             layout.addWidget(
@@ -320,10 +338,12 @@ class StartupDiagnosticsDialog(MessageBoxBase):  # type: ignore[misc]
         row_index = 0
         for incident in self._incidents:
             checkbox = QCheckBox(self._incidents_frame)
-            checkbox.setToolTip("Ignore this startup issue next time")
+            set_localized_tooltip(checkbox, "Ignore this startup issue next time")
             self._checkboxes[incident.fingerprint] = checkbox
 
-            title = StrongBodyLabel(_incident_title(incident), self._incidents_frame)
+            title = LocalizedStrongBodyLabel(
+                _incident_title(incident), self._incidents_frame
+            )
             detail_widgets = _incident_detail_widgets(
                 incident,
                 self._incidents_frame,
@@ -350,7 +370,7 @@ class StartupDiagnosticsDialog(MessageBoxBase):  # type: ignore[misc]
     def _build_details(self) -> None:
         """Create the complete report details panel."""
 
-        self._details_button = PushButton("Show report", self.widget)
+        self._details_button = LocalizedPushButton(app_text("Show report"), self.widget)
         self._details_button.clicked.connect(self._toggle_details)
         self._body_layout.addWidget(self._details_button)
 
@@ -384,13 +404,17 @@ class StartupDiagnosticsDialog(MessageBoxBase):  # type: ignore[misc]
         self.buttonLayout.setSpacing(12)
         self.buttonLayout.addStretch(1)
 
-        self._copy_button = PushButton("Copy report", self.buttonGroup)
+        self._copy_button = LocalizedPushButton(
+            app_text("Copy report"), self.buttonGroup
+        )
         self._copy_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
         self._copy_button.setMinimumWidth(_ACTION_BUTTON_MINIMUM_WIDTH)
         self._copy_button.clicked.connect(self._copy_report)
         self.buttonLayout.addWidget(self._copy_button, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self._ignore_button = PushButton("Ignore selected", self.buttonGroup)
+        self._ignore_button = LocalizedPushButton(
+            app_text("Ignore selected"), self.buttonGroup
+        )
         self._ignore_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
         self._ignore_button.setMinimumWidth(_ACTION_BUTTON_MINIMUM_WIDTH)
         self._ignore_button.clicked.connect(self.accept)
@@ -400,7 +424,9 @@ class StartupDiagnosticsDialog(MessageBoxBase):  # type: ignore[misc]
             Qt.AlignmentFlag.AlignVCenter,
         )
 
-        self._close_button = PrimaryPushButton("Close", self.buttonGroup)
+        self._close_button = LocalizedPrimaryPushButton(
+            app_text("Close"), self.buttonGroup
+        )
         self._close_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
         self._close_button.setMinimumWidth(_CLOSE_BUTTON_MINIMUM_WIDTH)
         self._close_button.clicked.connect(self.reject)
@@ -426,8 +452,9 @@ class StartupDiagnosticsDialog(MessageBoxBase):  # type: ignore[misc]
         """Show or hide the complete diagnostics report body."""
 
         self._details_visible = not self._details_visible
-        self._details_button.setText(
-            "Hide report" if self._details_visible else "Show report"
+        set_localized_text(
+            self._details_button,
+            "Hide report" if self._details_visible else "Show report",
         )
         self._animate_report_visibility(self._details_visible)
 
@@ -747,10 +774,23 @@ def _count_severity(
     return sum(1 for incident in incidents if _severity_value(incident) == severity)
 
 
-def _incident_title(incident: StartupDiagnosticsIncidentView) -> str:
+def _incident_title(incident: StartupDiagnosticsIncidentView) -> ApplicationMessage:
     """Return one row title that includes severity without fatal styling."""
 
-    return f"{_severity_value(incident).title()}: {incident.title}"
+    return app_text("%1: %2", _severity_text(incident), incident.title)
+
+
+def _severity_text(incident: StartupDiagnosticsIncidentView) -> ApplicationText:
+    """Return explicit application copy for supported incident severities."""
+
+    severity = _severity_value(incident)
+    if severity == "error":
+        return app_text("Error")
+    if severity == "warning":
+        return app_text("Warning")
+    if severity == "info":
+        return app_text("Info")
+    return severity.title()
 
 
 def _incident_detail_widgets(
@@ -762,16 +802,16 @@ def _incident_detail_widgets(
 
     widgets: list[QWidget] = []
 
-    source = CaptionLabel(_source_location_text(incident), parent)
+    source = LocalizedCaptionLabel(_source_location_text(incident), parent)
     source.setWordWrap(True)
     widgets.append(source)
 
-    cause = BodyLabel(incident.cause or incident.message, parent)
+    cause = LocalizedBodyLabel(incident.cause or incident.message, parent)
     cause.setWordWrap(True)
     widgets.append(cause)
 
-    action = BodyLabel(
-        incident.remediation or "Review the startup report.",
+    action = LocalizedBodyLabel(
+        incident.remediation or app_text("Review the startup report."),
         parent,
     )
     action.setWordWrap(True)
@@ -783,17 +823,17 @@ def _incident_detail_widgets(
     return tuple(widgets)
 
 
-def _source_location_text(incident: StartupDiagnosticsIncidentView) -> str:
+def _source_location_text(incident: StartupDiagnosticsIncidentView) -> ApplicationText:
     """Return one compact source/location display line."""
 
-    source = incident.source or "unknown"
+    source: ApplicationText = incident.source or app_text("unknown")
     location = _mapping_text(incident.values, "location")
-    return f"{source} • {location}" if location else source
+    return app_text("%1 • %2", source, location) if location else source
 
 
 def _summary_tile(
     *,
-    label: str,
+    label: ApplicationText,
     value: str,
     icon: object,
     parent: QWidget,
@@ -812,7 +852,7 @@ def _summary_tile(
     icon_widget.setObjectName("StartupDiagnosticsSummaryTileIcon")
     layout.addWidget(icon_widget, 0, 0, Qt.AlignmentFlag.AlignVCenter)
 
-    label_widget = CaptionLabel(label, panel)
+    label_widget = LocalizedCaptionLabel(label, panel)
     layout.addWidget(label_widget, 0, 1, Qt.AlignmentFlag.AlignVCenter)
 
     value_widget = StrongBodyLabel(value, panel)
@@ -834,7 +874,7 @@ def _incident_link_buttons(
     if repository_url:
         buttons.append(
             _incident_link_button(
-                text="Repository",
+                text=app_text("Repository"),
                 icon=FIF.GITHUB,
                 url=repository_url,
                 parent=parent,
@@ -845,7 +885,7 @@ def _incident_link_buttons(
     if issues_url:
         buttons.append(
             _incident_link_button(
-                text="Report issue",
+                text=app_text("Report issue"),
                 icon=FIF.FEEDBACK,
                 url=issues_url,
                 parent=parent,
@@ -871,7 +911,7 @@ def _incident_link_row(links: tuple[PushButton, ...], parent: QWidget) -> QWidge
 
 def _incident_link_button(
     *,
-    text: str,
+    text: ApplicationText,
     icon: object,
     url: str,
     parent: QWidget,
@@ -879,10 +919,10 @@ def _incident_link_button(
 ) -> PushButton:
     """Return one secondary incident link button."""
 
-    button = PushButton(text, parent)
+    button = LocalizedPushButton(text, parent)
     button.setIcon(icon)
     button.setFixedHeight(26)
-    button.setToolTip(url)
+    set_fluent_tooltip_text(button, url)
     button.clicked.connect(_open_url_handler(url, open_url))
     return button
 

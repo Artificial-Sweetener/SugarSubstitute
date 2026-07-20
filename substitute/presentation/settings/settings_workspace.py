@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -75,6 +77,9 @@ from substitute.presentation.settings.settings_composite_pages import (
 from substitute.presentation.settings.settings_page_renderer import CatalogSettingsPage
 from substitute.presentation.settings.settings_search import search_settings_catalog
 from substitute.presentation.settings.settings_search_page import SettingsSearchPage
+from substitute.presentation.settings.language_settings import (
+    build_language_settings_section,
+)
 from substitute.presentation.settings.settings_async import (
     SettingsAsyncTaskRunnerFactory,
 )
@@ -82,6 +87,7 @@ from substitute.application.generation import (
     GenerationPreviewPreferenceService,
     OutputPreferenceService,
 )
+from sugarsubstitute_shared.presentation.localization import TranslationManager
 from substitute.presentation.settings.about_page import AboutSettingsPage
 from substitute.presentation.settings.settings_navigation import (
     SettingsNavigationDescriptor,
@@ -117,6 +123,7 @@ def create_settings_workspace(
     cube_library_restart_required_changed: Callable[[bool], None] | None = None,
     cube_library_post_restart_refresh: Callable[[], None] | None = None,
     about_info_service: AboutInfoService,
+    localization_manager: TranslationManager,
     comfy_connection_settings_service: ComfyConnectionSettingsService,
     appearance_runtime: AppearanceRuntimeProtocol,
     appearance_restart_coordinator: AppearanceRestartCoordinator,
@@ -189,6 +196,17 @@ def create_settings_workspace(
             show_restart_requirements=show_restart_requirements,
         )
     )
+    appearance_entry = SettingsPageEntry(
+        page_id=appearance_entry.page_id,
+        title=appearance_entry.title,
+        subtitle=appearance_entry.subtitle,
+        icon=appearance_entry.icon,
+        order=appearance_entry.order,
+        sections=(
+            build_language_settings_section(localization_manager),
+            *appearance_entry.sections,
+        ),
+    )
     catalog_search_pages = (
         generation_entry,
         prompt_entry,
@@ -199,8 +217,8 @@ def create_settings_workspace(
     navigation_descriptors = _navigation_descriptors(
         SettingsNavigationDescriptor(
             page_id=ABOUT_SECTION_ID,
-            title="About",
-            subtitle="Version, project, and acknowledgements",
+            title=app_text("About"),
+            subtitle=app_text("Version, project, and acknowledgements"),
             icon=AppIcon.CUBE_20_FILLED,
         ),
         generation_entry,
@@ -208,14 +226,14 @@ def create_settings_workspace(
         model_sources_entry,
         SettingsNavigationDescriptor(
             page_id=LIBRARY_SECTION_ID,
-            title="Library",
-            subtitle="Cube Packs and readiness",
+            title=app_text("Library"),
+            subtitle=app_text("Cube Packs and readiness"),
             icon=AppIcon.LIBRARY_20_REGULAR,
         ),
         SettingsNavigationDescriptor(
             page_id=COMFYUI_SECTION_ID,
-            title="ComfyUI",
-            subtitle="Connection, setup, and Python environment",
+            title=app_text("ComfyUI"),
+            subtitle=app_text("Connection, setup, and Python environment"),
             icon=AppIcon.PLUG_CONNECTED_SETTINGS_20_REGULAR,
         ),
         appearance_entry,
@@ -223,8 +241,8 @@ def create_settings_workspace(
     pages = (
         SettingsPageDescriptor(
             page_id=ABOUT_SECTION_ID,
-            title="About",
-            subtitle="Version, project, and acknowledgements.",
+            title=app_text("About"),
+            subtitle=app_text("Version, project, and acknowledgements."),
             icon=AppIcon.CUBE_20_FILLED,
             create_widget=lambda parent: AboutSettingsPage(
                 about_info_service,
@@ -264,8 +282,8 @@ def create_settings_workspace(
         ),
         SettingsPageDescriptor(
             page_id=LIBRARY_SECTION_ID,
-            title="Library",
-            subtitle="Manage Cube Packs tracked by the active Comfy target.",
+            title=app_text("Library"),
+            subtitle=app_text("Manage Cube Packs tracked by the active Comfy target."),
             icon=AppIcon.LIBRARY_20_REGULAR,
             create_widget=lambda parent: CubeLibrarySettingsPage(
                 cube_library_management_service,
@@ -280,8 +298,10 @@ def create_settings_workspace(
         ),
         SettingsPageDescriptor(
             page_id=COMFYUI_SECTION_ID,
-            title="ComfyUI",
-            subtitle="Manage ComfyUI connection, setup, and Python environment.",
+            title=app_text("ComfyUI"),
+            subtitle=app_text(
+                "Manage ComfyUI connection, setup, and Python environment."
+            ),
             icon=AppIcon.PLUG_CONNECTED_SETTINGS_20_REGULAR,
             create_widget=lambda parent: _comfyui_settings_page(
                 comfy_environment_service=comfy_environment_service,

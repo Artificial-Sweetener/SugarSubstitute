@@ -23,6 +23,7 @@ from uuid import UUID
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
+from sugarsubstitute_shared.localization import ApplicationText
 
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
@@ -57,12 +58,16 @@ class InputCanvas(QWidget):
         """Return the event image ID exposed by the route projector."""
         ...
 
-    def set_available(self, available: bool, reason: str = "") -> None:
+    def set_available(
+        self,
+        available: bool,
+        reason: ApplicationText = "",
+    ) -> None:
         """Set active-workflow Input canvas availability presentation."""
         ...
 
-    def set_dock_action_text(self, text: str) -> None:
-        """Set the label for the host-owned dock context-menu action."""
+    def set_canvas_detached(self, detached: bool) -> None:
+        """Set manager-owned canvas attachment state."""
         ...
 
     def set_mask_tool_menu_state(self, state: InputMaskToolMenuState) -> None:

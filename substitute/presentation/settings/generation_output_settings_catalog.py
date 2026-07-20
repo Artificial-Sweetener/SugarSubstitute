@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+
 from substitute.application.generation import OutputPreferenceService
 from substitute.presentation.settings.generation_output_settings_rows import (
     GenerationOutputSettingsRows,

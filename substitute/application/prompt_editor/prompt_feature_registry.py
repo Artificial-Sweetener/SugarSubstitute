@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -41,53 +43,61 @@ class PromptFeatureDefinition:
 PROMPT_FEATURE_DEFINITIONS: tuple[PromptFeatureDefinition, ...] = (
     PromptFeatureDefinition(
         feature=PromptEditorFeature.EMPHASIS,
-        label="Emphasis weights",
-        description="Adjust weighted prompt text and show emphasis controls.",
+        label=app_text("Emphasis weights"),
+        description=app_text("Adjust weighted prompt text and show emphasis controls."),
         default_user_allowed=True,
         field_style_aliases=("emphasis",),
         renderer_syntax_kinds=("emphasis",),
     ),
     PromptFeatureDefinition(
         feature=PromptEditorFeature.DANBOORU_URL_IMPORT,
-        label="Danbooru URL import",
-        description="Paste supported Danbooru post or image URLs as prompt tags.",
+        label=app_text("Danbooru URL import"),
+        description=app_text(
+            "Paste supported Danbooru post or image URLs as prompt tags."
+        ),
         default_user_allowed=True,
         field_style_aliases=("danbooru_url_import",),
     ),
     PromptFeatureDefinition(
         feature=PromptEditorFeature.DANBOORU_WIKI_LOOKUP,
-        label="Danbooru wiki lookup",
-        description="Open selected prompt text as an in-app Danbooru wiki definition.",
+        label=app_text("Danbooru wiki lookup"),
+        description=app_text(
+            "Open selected prompt text as an in-app Danbooru wiki definition."
+        ),
         default_user_allowed=True,
         field_style_aliases=("danbooru_wiki_lookup",),
     ),
     PromptFeatureDefinition(
         feature=PromptEditorFeature.WILDCARD_SYNTAX,
-        label="Wildcard syntax",
-        description="Highlight and resolve wildcard tokens.",
+        label=app_text("Wildcard syntax"),
+        description=app_text("Highlight and resolve wildcard tokens."),
         default_user_allowed=True,
         field_style_aliases=("wildcard", "wildcard_syntax"),
         renderer_syntax_kinds=("wildcard",),
     ),
     PromptFeatureDefinition(
         feature=PromptEditorFeature.WILDCARD_AUTOCOMPLETE,
-        label="Wildcard autocomplete",
-        description="Suggest wildcard completions while editing prompts.",
+        label=app_text("Wildcard autocomplete"),
+        description=app_text("Suggest wildcard completions while editing prompts."),
         default_user_allowed=True,
         field_style_aliases=("wildcard", "wildcard_autocomplete"),
         dependencies=(PromptEditorFeature.WILDCARD_SYNTAX,),
     ),
     PromptFeatureDefinition(
         feature=PromptEditorFeature.AUTOCOMPLETE_GHOST_TEXT,
-        label="Autocomplete ghost text",
-        description="Preview the selected autocomplete suffix inline while editing prompts.",
+        label=app_text("Autocomplete ghost text"),
+        description=app_text(
+            "Preview the selected autocomplete suffix inline while editing prompts."
+        ),
         default_user_allowed=True,
     ),
     PromptFeatureDefinition(
         feature=PromptEditorFeature.LORA_SYNTAX,
-        label="LoRA syntax",
+        label=app_text("LoRA syntax"),
         description=(
-            "Parse and decorate Prompt Control LoRA schedule tokens in prompts."
+            app_text(
+                "Parse and decorate Prompt Control LoRA schedule tokens in prompts."
+            )
         ),
         default_user_allowed=True,
         field_style_aliases=("lora", "lora_syntax"),
@@ -95,45 +105,57 @@ PROMPT_FEATURE_DEFINITIONS: tuple[PromptFeatureDefinition, ...] = (
     ),
     PromptFeatureDefinition(
         feature=PromptEditorFeature.LORA_AUTOCOMPLETE,
-        label="LoRA autocomplete",
-        description="Suggest LoRA names from the model catalog while editing prompts.",
+        label=app_text("LoRA autocomplete"),
+        description=app_text(
+            "Suggest LoRA names from the model catalog while editing prompts."
+        ),
         default_user_allowed=True,
         field_style_aliases=("lora", "lora_autocomplete"),
         dependencies=(PromptEditorFeature.LORA_SYNTAX,),
     ),
     PromptFeatureDefinition(
         feature=PromptEditorFeature.LORA_PICKER,
-        label="LoRA picker",
-        description="Insert Prompt Control LoRA schedule tokens from the prompt menu.",
+        label=app_text("LoRA picker"),
+        description=app_text(
+            "Insert Prompt Control LoRA schedule tokens from the prompt menu."
+        ),
         default_user_allowed=True,
         field_style_aliases=("lora", "lora_picker"),
         dependencies=(PromptEditorFeature.LORA_SYNTAX,),
     ),
     PromptFeatureDefinition(
         feature=PromptEditorFeature.LORA_TRIGGER_WORDS,
-        label="LoRA trigger words",
-        description="Suggest trigger words for LoRAs that affect this prompt.",
+        label=app_text("LoRA trigger words"),
+        description=app_text(
+            "Suggest trigger words for LoRAs that affect this prompt."
+        ),
         default_user_allowed=True,
         field_style_aliases=("lora", "lora_trigger_words"),
     ),
     PromptFeatureDefinition(
         feature=PromptEditorFeature.SEGMENT_REORDER,
-        label="Segment reorder",
-        description="Reorder prompt lines and comma-separated prompt segments.",
+        label=app_text("Segment reorder"),
+        description=app_text(
+            "Reorder prompt lines and comma-separated prompt segments."
+        ),
         default_user_allowed=True,
         field_style_aliases=("segment_reorder",),
     ),
     PromptFeatureDefinition(
         feature=PromptEditorFeature.SPELLCHECK,
-        label="Spellcheck",
-        description="Underline prompt prose spelling issues and offer corrections.",
+        label=app_text("Spellcheck"),
+        description=app_text(
+            "Underline prompt prose spelling issues and offer corrections."
+        ),
         default_user_allowed=True,
         field_style_aliases=("spellcheck",),
     ),
     PromptFeatureDefinition(
         feature=PromptEditorFeature.DUPLICATE_SEGMENT_DIAGNOSTICS,
-        label="Duplicate segment warnings",
-        description="Underline repeated prompt segments and offer cleanup actions.",
+        label=app_text("Duplicate segment warnings"),
+        description=app_text(
+            "Underline repeated prompt segments and offer cleanup actions."
+        ),
         default_user_allowed=True,
         field_style_aliases=("duplicate_segment_diagnostics",),
     ),

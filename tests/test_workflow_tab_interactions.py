@@ -67,7 +67,7 @@ def _clear_gui_stubs() -> None:
         for name in list(sys.modules):
             if name == "qframelesswindow" or name.startswith("qframelesswindow."):
                 sys.modules.pop(name, None)
-    sys.modules.pop("substitute.presentation.widgets.cursor_tooltip_filter", None)
+    sys.modules.pop("sugarsubstitute_shared.presentation.fluent_tooltips", None)
 
 
 def _workflow_tabs_module() -> Any:

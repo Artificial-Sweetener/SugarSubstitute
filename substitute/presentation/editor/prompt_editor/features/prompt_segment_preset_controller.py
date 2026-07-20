@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 import logging
 from collections.abc import Hashable
 
@@ -301,7 +303,7 @@ class PromptSegmentPresetController:
             return False
         request = PromptSegmentPresetSaveDialogRequest(
             parent=self._host.prompt_segment_dialog_parent(),
-            title="Save segment",
+            title=app_text("Save segment"),
             scopes=scopes,
             selected_text=selected_text,
         )

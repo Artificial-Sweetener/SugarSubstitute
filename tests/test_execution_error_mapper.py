@@ -22,6 +22,8 @@ import ast
 import json
 from pathlib import Path
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.errors import RuntimeReportContext
 from substitute.infrastructure.comfy.execution_error_mapper import (
     format_execution_error,
@@ -161,7 +163,9 @@ def test_route_execution_error_event_builds_failure_payload() -> None:
     assert result.error_message == "ModuleNotFoundError: No module named 'xformers'"
     assert result.error_detail == "Traceback line 1\nTraceback line 2"
     assert result.error_report is not None
-    assert result.error_report.title == "KSampler failed"
+    assert render_source_application_text(result.error_report.title) == (
+        "KSampler failed"
+    )
     assert result.error_report.workflow_id == "wf-1"
     assert result.error_report.runtime.comfy_version == "0.3.1"
     assert result.error_report.runtime.pytorch_version == "2.8.0"

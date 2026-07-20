@@ -18,6 +18,11 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    render_application_text,
+)
+
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol, cast
@@ -317,7 +322,7 @@ class EditorPanelRuntimeIssuePresenter:
             )
             return
         self._error_presenter.show_comfy_connection_report(
-            title="Live Comfy node definitions unavailable",
+            title=app_text("Live Comfy node definitions unavailable"),
             message=_live_node_definition_error_message(error),
             stage="load_node_definitions",
             context=_live_node_definition_operation_context(
@@ -473,16 +478,17 @@ def _issue_display_lines(issues: Sequence[CubeRuntimeIssue]) -> tuple[str, ...]:
     lines: list[str] = []
     for issue in issues:
         if issue.message:
-            lines.append(issue.message)
+            lines.append(render_application_text(issue.message))
         if issue.missing_node_classes:
             lines.extend(
-                f"Missing definition: {class_type}"
+                render_application_text(app_text("Missing definition: %1", class_type))
                 for class_type in issue.missing_node_classes[:4]
             )
         if issue.missing_fields:
             lines.extend(
-                f"Missing field: {field}" for field in issue.missing_fields[:4]
+                render_application_text(app_text("Missing field: %1", field))
+                for field in issue.missing_fields[:4]
             )
         if issue.recommended_action:
-            lines.append(issue.recommended_action)
+            lines.append(render_application_text(issue.recommended_action))
     return tuple(dict.fromkeys(lines))

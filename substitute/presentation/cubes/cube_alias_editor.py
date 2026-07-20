@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QColor,
@@ -25,6 +27,7 @@ from PySide6.QtGui import (
     QFont,
     QFontMetrics,
     QImage,
+    QInputMethodEvent,
     QKeyEvent,
     QMouseEvent,
     QPaintEvent,
@@ -41,6 +44,11 @@ from substitute.presentation.cubes.cube_alias_text_layout import (
     layout_cube_alias_text,
     prefix_token_range,
 )
+from substitute.presentation.cubes.cube_alias_input_method import (
+    CubeAliasInputMethodController,
+    CubeAliasInputMethodHost,
+)
+from substitute.presentation.text_coordinates import TextCoordinateMap
 
 
 class CubeAliasEditor(QWidget):
@@ -62,14 +70,19 @@ class CubeAliasEditor(QWidget):
         self._editing_active = False
         self._primary_font = QFont(self.font())
         self._text_color = QColor()
+        self._input_method_controller = CubeAliasInputMethodController(
+            cast(CubeAliasInputMethodHost, self)
+        )
         self.setObjectName("cubeAliasEditor")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled, True)
         self.hide()
 
     def begin(self, text: str) -> None:
         """Start editing one alias and select all text."""
 
+        self._input_method_controller.cancel()
         self._original_text = text
         self.setText(text)
         self._selection_anchor = 0
@@ -90,6 +103,7 @@ class CubeAliasEditor(QWidget):
     def setText(self, text: str) -> None:  # noqa: N802
         """Replace current editor text and refresh token state."""
 
+        self._input_method_controller.cancel()
         self._text = text
         self._token_range = prefix_token_range(text)
         self._cursor_index = max(0, min(self._cursor_index, len(self._text)))
@@ -138,6 +152,8 @@ class CubeAliasEditor(QWidget):
 
         if not self._editing_active:
             return
+        QApplication.inputMethod().commit()
+        self._input_method_controller.cancel()
         committed = self._text.strip()
         self._finish_editing()
         self.hide()
@@ -150,6 +166,7 @@ class CubeAliasEditor(QWidget):
 
         if not self._editing_active:
             return
+        self._input_method_controller.cancel()
         self._text = self._original_text
         self._token_range = prefix_token_range(self._text)
         self._finish_editing()
@@ -175,6 +192,59 @@ class CubeAliasEditor(QWidget):
 
         self.commit()
         super().focusOutEvent(event)
+
+    def inputMethodEvent(self, event: QInputMethodEvent) -> None:  # noqa: N802
+        """Apply platform composition while keeping preedit out of alias state."""
+
+        if not self._editing_active:
+            event.ignore()
+            return
+        self._input_method_controller.handle_event(event)
+        event.accept()
+        self.update()
+        QApplication.inputMethod().update(Qt.InputMethodQuery.ImQueryAll)
+
+    def inputMethodQuery(self, query: Qt.InputMethodQuery) -> object:  # noqa: N802
+        """Expose committed Unicode text and painted caret geometry to the IME."""
+
+        coordinates = TextCoordinateMap(self._text)
+        if query is Qt.InputMethodQuery.ImEnabled:
+            return self._editing_active
+        if query is Qt.InputMethodQuery.ImReadOnly:
+            return not self._editing_active
+        if query is Qt.InputMethodQuery.ImHints:
+            return self.inputMethodHints()
+        if query is Qt.InputMethodQuery.ImFont:
+            return QFont(self._primary_font)
+        if query in {
+            Qt.InputMethodQuery.ImCursorRectangle,
+            Qt.InputMethodQuery.ImAnchorRectangle,
+        }:
+            return self._input_method_cursor_rect()
+        if query is Qt.InputMethodQuery.ImInputItemClipRectangle:
+            return QRectF(self.rect())
+        if query is Qt.InputMethodQuery.ImSurroundingText:
+            return self._text
+        if query in {
+            Qt.InputMethodQuery.ImCursorPosition,
+            Qt.InputMethodQuery.ImAbsolutePosition,
+        }:
+            return coordinates.python_to_utf16(self._cursor_index)
+        if query is Qt.InputMethodQuery.ImAnchorPosition:
+            anchor = self._selection_anchor
+            return coordinates.python_to_utf16(
+                self._cursor_index if anchor is None else anchor
+            )
+        if query is Qt.InputMethodQuery.ImCurrentSelection:
+            selection = self._selection_range()
+            return "" if selection is None else self._text[slice(*selection)]
+        if query is Qt.InputMethodQuery.ImTextBeforeCursor:
+            return self._text[: self._cursor_index]
+        if query is Qt.InputMethodQuery.ImTextAfterCursor:
+            return self._text[self._cursor_index :]
+        if query is Qt.InputMethodQuery.ImMaximumTextLength:
+            return 2_147_483_647
+        return super().inputMethodQuery(query)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
         """Handle single-line alias editing keyboard commands."""
@@ -302,6 +372,7 @@ class CubeAliasEditor(QWidget):
         self._draw_selection(painter, layout)
         self._draw_layout_text(painter, layout)
         self._draw_selected_layout_text(painter, layout)
+        self._draw_preedit_decoration(painter, layout)
         self._draw_caret(painter, layout)
 
     def _layout(self, painter: QPainter) -> CubeAliasTextLayout:
@@ -309,7 +380,7 @@ class CubeAliasEditor(QWidget):
 
         return layout_cube_alias_text(
             painter,
-            text=self._text,
+            text=self._input_method_controller.display_text(),
             row_rect=QRectF(self.rect()),
             primary_font=self._primary_font,
         )
@@ -363,6 +434,8 @@ class CubeAliasEditor(QWidget):
     ) -> None:
         """Draw selection rectangles behind selected text."""
 
+        if self._input_method_controller.preedit_state is not None:
+            return
         selection = self._selection_range()
         if selection is None:
             return
@@ -387,6 +460,8 @@ class CubeAliasEditor(QWidget):
     ) -> None:
         """Draw selected text with QFluent line-edit highlighted text color."""
 
+        if self._input_method_controller.preedit_state is not None:
+            return
         selection = self._selection_range()
         if selection is None:
             return
@@ -431,10 +506,48 @@ class CubeAliasEditor(QWidget):
     ) -> None:
         """Draw the caret on the shared body baseline."""
 
+        if self._input_method_controller.preedit_state is not None:
+            return
         if self._selection_range() is not None:
             return
         caret_x = self._x_for_index(self._cursor_index, layout)
         painter.setPen(ThemeColor.PRIMARY.color())
+        painter.drawLine(
+            QPointF(caret_x, layout.baseline_y - 13),
+            QPointF(caret_x, layout.baseline_y + 3),
+        )
+
+    def _draw_preedit_decoration(
+        self,
+        painter: QPainter,
+        layout: CubeAliasTextLayout,
+    ) -> None:
+        """Underline transient preedit text and draw its platform-owned caret."""
+
+        state = self._input_method_controller.preedit_state
+        if state is None:
+            return
+        display_text = self._input_method_controller.display_text()
+        start = state.source_start
+        end = start + len(state.text)
+        start_x = self._x_for_display_index(start, layout, display_text)
+        end_x = self._x_for_display_index(end, layout, display_text)
+        painter.setPen(ThemeColor.PRIMARY.color())
+        painter.drawLine(
+            QPointF(start_x, layout.baseline_y + 4),
+            QPointF(end_x, layout.baseline_y + 4),
+        )
+        if not state.cursor_visible:
+            return
+        preedit_cursor = TextCoordinateMap(state.text).utf16_to_python(
+            state.cursor_utf16,
+            prefer_after=True,
+        )
+        caret_x = self._x_for_display_index(
+            start + preedit_cursor,
+            layout,
+            display_text,
+        )
         painter.drawLine(
             QPointF(caret_x, layout.baseline_y - 13),
             QPointF(caret_x, layout.baseline_y + 3),
@@ -518,6 +631,17 @@ class CubeAliasEditor(QWidget):
         self._selection_anchor = None
         self._token_range = prefix_token_range(self._text)
         self.update()
+
+    def replace_input_method_range(
+        self,
+        *,
+        start: int,
+        end: int,
+        replacement_text: str,
+    ) -> None:
+        """Commit one IME replacement through the existing alias mutation path."""
+
+        self._replace_range(start, end, replacement_text)
 
     def _copy_selection(self) -> None:
         """Copy selected text to the clipboard."""
@@ -643,7 +767,17 @@ class CubeAliasEditor(QWidget):
     def _x_for_index(self, index: int, layout: CubeAliasTextLayout) -> float:
         """Return the local x-coordinate for one text index."""
 
-        bounded = self._bounded_index(index)
+        return self._x_for_display_index(index, layout, self._text)
+
+    @staticmethod
+    def _x_for_display_index(
+        index: int,
+        layout: CubeAliasTextLayout,
+        display_text: str,
+    ) -> float:
+        """Return local x for an index in committed or transient display text."""
+
+        bounded = max(0, min(index, len(display_text)))
         prefix = layout.prefix_segment
         if prefix is not None and bounded <= prefix.end:
             if bounded <= prefix.start:
@@ -653,6 +787,32 @@ class CubeAliasEditor(QWidget):
         body_offset = max(0, bounded - body.start)
         width = QFontMetrics(body.font).horizontalAdvance(body.text[:body_offset])
         return body.rect.x() + width
+
+    def _input_method_cursor_rect(self) -> QRectF:
+        """Return the painted preedit caret rect used by candidate windows."""
+
+        image, painter = self._offscreen_painter()
+        try:
+            layout = self._layout(painter)
+            state = self._input_method_controller.preedit_state
+            display_text = self._input_method_controller.display_text()
+            if state is None:
+                display_index = self._cursor_index
+            else:
+                preedit_cursor = TextCoordinateMap(state.text).utf16_to_python(
+                    state.cursor_utf16,
+                    prefer_after=True,
+                )
+                display_index = state.source_start + preedit_cursor
+            caret_x = self._x_for_display_index(
+                display_index,
+                layout,
+                display_text,
+            )
+            return QRectF(caret_x, layout.baseline_y - 13, 1.0, 16.0)
+        finally:
+            painter.end()
+            _ = image
 
     def _index_at_x(self, x: float) -> int:
         """Return nearest text index for a local x-coordinate."""

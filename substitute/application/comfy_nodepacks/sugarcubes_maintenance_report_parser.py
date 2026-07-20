@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 import json
@@ -29,8 +31,8 @@ class SugarCubesMaintenanceDiagnostic:
 
     code: str
     severity: str
-    title: str
-    message: str
+    title: ApplicationText
+    message: ApplicationText
     details: Mapping[str, object]
 
 
@@ -110,7 +112,7 @@ def sugarcubes_diagnostics_from_payload(
             SugarCubesMaintenanceDiagnostic(
                 code="sugarcubes_maintenance_failed",
                 severity="error",
-                title="SugarCubes maintenance failed",
+                title=app_text("SugarCubes maintenance failed"),
                 message=error.strip(),
                 details=details_mapping(payload.get("details")),
             )
@@ -120,10 +122,12 @@ def sugarcubes_diagnostics_from_payload(
             SugarCubesMaintenanceDiagnostic(
                 code="sugarcubes_maintenance_output_unparseable",
                 severity="error",
-                title="SugarCubes maintenance output was unreadable",
+                title=app_text("SugarCubes maintenance output was unreadable"),
                 message=(
-                    "SugarCubes maintenance did not return parseable diagnostics. "
-                    "Startup is continuing."
+                    app_text(
+                        "SugarCubes maintenance did not return parseable diagnostics. "
+                        "Startup is continuing."
+                    )
                 ),
                 details={"outputExcerpt": "\n".join(output_lines[-20:])},
             )
@@ -309,7 +313,7 @@ def _maintenance_diagnostic_from_mapping(
     return SugarCubesMaintenanceDiagnostic(
         code=string_value(item.get("code")) or "sugarcubes_maintenance_issue",
         severity=normalized_diagnostic_severity(item.get("severity")),
-        title=title or "SugarCubes maintenance issue",
+        title=title or app_text("SugarCubes maintenance issue"),
         message=message or title,
         details=details_mapping(item.get("details")),
     )
@@ -331,11 +335,17 @@ def _diagnostics_from_sync_errors(
             SugarCubesMaintenanceDiagnostic(
                 code="base_cubes_sync_failed",
                 severity="warning",
-                title="Base-Cubes sync failed",
+                title=app_text("Base-Cubes sync failed"),
                 message=(
-                    "SugarCubes could not update Base-Cubes and is using the local checkout."
+                    app_text(
+                        "SugarCubes could not update Base-Cubes and is using the local "
+                        "checkout."
+                    )
                     if "Base-Cubes" in repo_ref
-                    else "SugarCubes could not update one cube pack and is using local data."
+                    else app_text(
+                        "SugarCubes could not update one cube pack and is using local "
+                        "data."
+                    )
                 ),
                 details=dict(item),
             )
@@ -355,11 +365,13 @@ def _diagnostics_from_repair_payload(
             SugarCubesMaintenanceDiagnostic(
                 code="sugarcubes_dependency_install_failed",
                 severity="error",
-                title="SugarCubes dependency install failed",
+                title=app_text("SugarCubes dependency install failed"),
                 message=(
-                    f"{node_id} could not be installed automatically."
+                    app_text("%1 could not be installed automatically.", node_id)
                     if node_id
-                    else "A cube dependency could not be installed automatically."
+                    else app_text(
+                        "A cube dependency could not be installed automatically."
+                    )
                 ),
                 details=item,
             )
@@ -370,11 +382,16 @@ def _diagnostics_from_repair_payload(
             SugarCubesMaintenanceDiagnostic(
                 code="sugarcubes_dependency_version_repair_failed",
                 severity="error",
-                title="SugarCubes dependency version repair failed",
+                title=app_text("SugarCubes dependency version repair failed"),
                 message=(
-                    f"{node_id} could not be moved to the cube-required version."
+                    app_text(
+                        "%1 could not be moved to the cube-required version.",
+                        node_id,
+                    )
                     if node_id
-                    else "A cube dependency could not be moved to the required version."
+                    else app_text(
+                        "A cube dependency could not be moved to the required version."
+                    )
                 ),
                 details=item,
             )
@@ -405,10 +422,14 @@ def _diagnostic_from_dependency_readiness(
         details["installedCustomNodes"] = list(installed_nodes)
     if install_plan_ids:
         details["installPlanNodeIds"] = list(install_plan_ids)
-    title = "SugarCubes required dependencies are missing"
-    message = "SugarCubes still reports missing baseline cube dependencies."
+    title = app_text("SugarCubes required dependencies are missing")
+    message = app_text("SugarCubes still reports missing baseline cube dependencies.")
     if missing_nodes:
-        message = f"{message} Missing: {', '.join(missing_nodes[:5])}."
+        message = app_text(
+            "%1 Missing: %2.",
+            message,
+            ", ".join(missing_nodes[:5]),
+        )
     return SugarCubesMaintenanceDiagnostic(
         code="sugarcubes_dependency_maintenance_pending",
         severity="error" if exit_code != 0 else "warning",

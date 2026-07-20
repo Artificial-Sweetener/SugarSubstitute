@@ -29,6 +29,8 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 import pytest
 
+from sugarsubstitute_shared.presentation.localization import render_application_text
+
 from substitute.application.model_metadata import ModelCatalogItem, ModelCatalogSnapshot
 from substitute.application.user_presets import UserPresetService
 from substitute.domain.user_presets import UserPreset
@@ -844,13 +846,17 @@ def test_real_shell_saved_segment_menu_refreshes_after_diffusion_model_projectio
 
         assert "Save segment as..." in trace.menu_rows
         assert segment_snapshot.save_state.ready
-        assert [scope.title for scope in segment_snapshot.save_state.save_scopes] == [
+        assert [
+            render_application_text(scope.title)
+            for scope in segment_snapshot.save_state.save_scopes
+        ] == [
             "Global",
             "Anima",
             "Diffusion model",
         ]
         assert [
-            scope.full_label for scope in segment_snapshot.save_state.save_scopes
+            render_application_text(scope.full_label)
+            for scope in segment_snapshot.save_state.save_scopes
         ] == [
             "Global",
             "Base model: Anima",

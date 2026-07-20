@@ -60,6 +60,7 @@ from tests.prompt_projection_test_helpers import (
     token_weight_controls_for,
 )
 from tests.execution_test_helpers import immediate_editor_panel_execution_factories
+from tests.localization_testing import empty_node_presentation_service
 
 _REAL_PROMPT_EDITOR_WHEEL_CONTROL_XDIST_SKIP = pytest.mark.skipif(
     bool(os.environ.get("PYTEST_XDIST_WORKER")),
@@ -149,6 +150,7 @@ def _editor_panel_for_wheel_intent_tests() -> EditorPanel:
         node_behavior_service=NodeBehaviorService(
             node_definition_gateway=node_definition_gateway
         ),
+        node_presentation_service=empty_node_presentation_service(),
         editor_panel_execution_factories=immediate_editor_panel_execution_factories(),
     )
 

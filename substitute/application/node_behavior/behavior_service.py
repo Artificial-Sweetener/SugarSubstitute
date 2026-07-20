@@ -58,7 +58,12 @@ from substitute.shared.logging.logger import (
     log_timing,
 )
 
+from .authored_card_title_resolver import (
+    AuthoredCardTitleRequest,
+    AuthoredCardTitleResolver,
+)
 from .field_classification import NodeFieldKind, classify_node_field
+from .field_label_source import FieldLabelSourceResolver
 from .direct_output_behavior_inference_service import (
     DirectOutputBehaviorInferenceService,
 )
@@ -119,6 +124,8 @@ class NodeBehaviorService:
         self._section_node_source_factory = SectionNodeSourceFactory(
             node_definition_gateway
         )
+        self._authored_card_title_resolver = AuthoredCardTitleResolver()
+        self._field_label_source_resolver = FieldLabelSourceResolver()
         self._model_backed_node_detector = model_backed_node_detector
         self._prompt_endpoint_service = PromptEndpointService()
         self._node_link_endpoint_service = NodeLinkEndpointService()
@@ -256,19 +263,27 @@ class NodeBehaviorService:
                     input_keys=input_keys,
                     context=context,
                 )
-                if (
-                    bool(
-                        getattr(
-                            cube_state,
-                            "uses_node_titles_as_card_labels",
-                            False,
-                        )
+                authored_card_title = self._authored_card_title_resolver.resolve(
+                    AuthoredCardTitleRequest(
+                        node_name=node_name,
+                        source_node_title=context.node_title,
+                        source_node_title_owns_card_label=bool(
+                            getattr(
+                                cube_state,
+                                "uses_node_titles_as_card_labels",
+                                False,
+                            )
+                        ),
+                        is_subgraph_wrapper=is_subgraph_wrapper_definition(
+                            live_definition
+                        ),
                     )
-                    and context.node_title is not None
-                ):
-                    resolved = replace(resolved, display_name=context.node_title)
-                elif is_subgraph_wrapper_definition(live_definition):
-                    resolved = replace(resolved, display_name=context.node_title)
+                )
+                if authored_card_title is not None:
+                    resolved = replace(
+                        resolved,
+                        display_name=authored_card_title,
+                    )
                 resolved = self._with_node_tooltip(
                     live_definition=live_definition,
                     resolved_behavior=resolved,
@@ -793,6 +808,10 @@ class NodeBehaviorService:
                 raw_value=raw_value,
                 value_source=value_source,
                 field_behavior=field_behavior,
+                label_source=self._field_label_source_resolver.resolve(
+                    field_behavior=field_behavior,
+                    metadata=runtime_meta,
+                ),
             )
         return field_specs
 

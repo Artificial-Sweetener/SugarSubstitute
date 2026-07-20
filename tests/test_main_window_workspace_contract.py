@@ -528,6 +528,31 @@ def _install_stubs() -> None:
     )
     sys.modules["substitute.application.workflows"] = workflows_module
 
+    canvas_route_projector_port = types.ModuleType(
+        "substitute.application.workflows.canvas_route_projector_port"
+    )
+    canvas_route_projector_port.create_canvas_session_boundary = object
+    sys.modules["substitute.application.workflows.canvas_route_projector_port"] = (
+        canvas_route_projector_port
+    )
+
+    editor_busy_overlay = types.ModuleType(
+        "substitute.presentation.shell.editor_busy_overlay"
+    )
+
+    class _EditorBusyOverlay(_Widget):
+        """Represent the workspace-owned busy overlay under widget stubs."""
+
+        def __init__(self, parent: _Widget) -> None:
+            super().__init__(parent)
+            self.setGeometry(parent.rect())
+            self.hide()
+
+    editor_busy_overlay.EditorBusyOverlay = _EditorBusyOverlay
+    sys.modules["substitute.presentation.shell.editor_busy_overlay"] = (
+        editor_busy_overlay
+    )
+
     canvas_module = types.ModuleType("substitute.presentation.canvas")
     canvas_module.build_linked_group = lambda members: ("linked", members)
     chrome_factories: list[object] = []
@@ -699,6 +724,7 @@ def _preserve_stubbed_modules() -> dict[str, types.ModuleType]:
             "substitute.presentation.shell.main_window_workspace",
             "substitute.presentation.shell.editor_busy_overlay",
             "substitute.application.workflows",
+            "substitute.application.workflows.canvas_route_projector_port",
             "substitute.presentation.canvas",
             "substitute.presentation.workflows.cube_stack_view",
             "substitute.presentation.workflows.workflow_tabs_view",
@@ -724,6 +750,7 @@ def _restore_stubbed_modules(preserved_modules: dict[str, types.ModuleType]) -> 
             "substitute.presentation.shell.main_window_workspace",
             "substitute.presentation.shell.editor_busy_overlay",
             "substitute.application.workflows",
+            "substitute.application.workflows.canvas_route_projector_port",
             "substitute.presentation.canvas",
             "substitute.presentation.workflows.cube_stack_view",
             "substitute.presentation.workflows.workflow_tabs_view",
@@ -744,7 +771,6 @@ def _import_module():
     preserved_modules = _preserve_stubbed_modules()
     _install_stubs()
     sys.modules.pop("substitute.presentation.shell.main_window_workspace", None)
-    sys.modules.pop("substitute.presentation.shell.editor_busy_overlay", None)
     sys.modules.pop("substitute.presentation.shell.generation_progress_strip", None)
     try:
         module = importlib.import_module(

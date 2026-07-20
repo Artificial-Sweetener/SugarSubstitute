@@ -23,6 +23,7 @@ from enum import StrEnum
 
 from substitute.domain.node_behavior import (
     FieldBehavior,
+    FieldLabelSource,
     NodeDisplayDecision,
     ResolvedNodeBehavior,
     RevealMenuEntry,
@@ -59,6 +60,7 @@ class ResolvedFieldSpec:
     field_info: list[object] | None
     value: object
     field_behavior: FieldBehavior
+    label_source: FieldLabelSource = FieldLabelSource.COMFY_DEFINITION
     raw_value: object | None = None
     value_source: FieldValueSource = FieldValueSource.EXPLICIT
 

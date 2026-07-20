@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import set_localized_placeholder
+
 from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import SearchLineEdit  # type: ignore[import-untyped]
@@ -37,7 +39,7 @@ class SettingsToolbarSearchBox(SearchLineEdit):  # type: ignore[misc]
 
         super().__init__(parent)
         self.setObjectName(SETTINGS_TOOLBAR_SEARCH_OBJECT_NAME)
-        self.setPlaceholderText("Search settings")
+        set_localized_placeholder(self, "Search settings")
         self.setClearButtonEnabled(True)
         self.setFixedWidth(SETTINGS_TOOLBAR_SEARCH_WIDTH)
         self._search_debounce_timer = QTimer(self)

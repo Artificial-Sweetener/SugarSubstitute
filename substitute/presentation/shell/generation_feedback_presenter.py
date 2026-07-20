@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from sugarsubstitute_shared.presentation.localization import render_application_text
+
 from substitute.application.generation import GenerationFailure
 from substitute.application.generation.failure_summary import (
     format_generation_failure_line,
@@ -207,7 +209,7 @@ class GenerationFeedbackPresenter:
         if callable(clear_previews):
             clear_previews(failure.workflow_id)
         self._shell._comfy_output_stream.append_line(
-            format_generation_failure_line(failure)
+            render_application_text(format_generation_failure_line(failure))
         )
         error_presenter = getattr(self._shell, "_error_presenter", None)
         if failure.error_report is not None and error_presenter is not None:

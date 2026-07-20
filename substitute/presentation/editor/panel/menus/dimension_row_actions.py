@@ -22,6 +22,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Mapping, TypeGuard, cast
 
+from sugarsubstitute_shared.localization import ApplicationMessage
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import RoundMenu  # type: ignore[import-untyped]
@@ -46,14 +49,16 @@ from substitute.presentation.widgets.menu_model import (
 )
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
 
-SWAP_DIMENSION_ACTION_TEXT = "Swap width & height"
-SET_DIMENSIONS_MENU_TEXT = "Set dimensions"
-SAVE_CURRENT_DIMENSIONS_MENU_TEXT = "Save current dimensions"
-SAVE_GLOBALLY_ACTION_TEXT = "Save globally"
-SET_RATIO_BY_WIDTH_MENU_TEXT = "Set ratio by Width"
-SET_RATIO_BY_HEIGHT_MENU_TEXT = "Set ratio by Height"
-LANDSCAPE_ASPECT_RATIO_MENU_TEXT = "Landscape"
-PORTRAIT_ASPECT_RATIO_MENU_TEXT = "Portrait"
+SWAP_DIMENSION_ACTION_TEXT: ApplicationMessage = app_text("Swap width & height")
+SET_DIMENSIONS_MENU_TEXT: ApplicationMessage = app_text("Set dimensions")
+SAVE_CURRENT_DIMENSIONS_MENU_TEXT: ApplicationMessage = app_text(
+    "Save current dimensions"
+)
+SAVE_GLOBALLY_ACTION_TEXT: ApplicationMessage = app_text("Save globally")
+SET_RATIO_BY_WIDTH_MENU_TEXT: ApplicationMessage = app_text("Set ratio by Width")
+SET_RATIO_BY_HEIGHT_MENU_TEXT: ApplicationMessage = app_text("Set ratio by Height")
+LANDSCAPE_ASPECT_RATIO_MENU_TEXT: ApplicationMessage = app_text("Landscape")
+PORTRAIT_ASPECT_RATIO_MENU_TEXT: ApplicationMessage = app_text("Portrait")
 
 
 class DimensionSide(Enum):
@@ -413,7 +418,7 @@ def _save_current_dimensions_entry(
         entries.append(
             MenuItem(
                 "dimension.save.model",
-                f"Save for {menu_model.model_save_label}",
+                app_text("Save for %1", menu_model.model_save_label),
                 callback=lambda: (
                     dimension_preset_source.save_current_dimensions_for_model(
                         width,

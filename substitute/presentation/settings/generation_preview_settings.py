@@ -18,6 +18,14 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.presentation.localization import (
+    LocalizedComboItem,
+    render_application_text,
+    set_localized_combo_items,
+)
+
+
 from collections.abc import Callable
 
 from PySide6.QtWidgets import QWidget
@@ -68,8 +76,10 @@ class GenerationPreviewSettingsControl(SwitchSettingsExpander):
         self._last_status_message = ""
         preferences = service.load_preferences()
         super().__init__(
-            title="Generation previews",
-            description="Show sampler preview frames while ComfyUI is generating.",
+            title=app_text("Generation previews"),
+            description=app_text(
+                "Show sampler preview frames while ComfyUI is generating."
+            ),
             visual_widget=build_settings_icon_widget(
                 AppIcon.IMAGE_SPARKLE_20_REGULAR,
                 parent,
@@ -82,9 +92,11 @@ class GenerationPreviewSettingsControl(SwitchSettingsExpander):
         self.method_combo = self._build_method_combo(preferences.method)
         self.add_widget(
             SettingsExpanderRow(
-                title="Preview type",
+                title=app_text("Preview type"),
                 description=(
-                    "Choose the ComfyUI latent preview method sent with new prompts."
+                    app_text(
+                        "Choose the ComfyUI latent preview method sent with new prompts."
+                    )
                 ),
                 trailing_widget=SettingsControlGroup(
                     self.method_combo,
@@ -135,9 +147,23 @@ class GenerationPreviewSettingsControl(SwitchSettingsExpander):
         combo = ComboBox(self.content_widget())
         combo.setObjectName("GenerationPreviewMethodCombo")
         configure_settings_field_width(combo, preferred_width=180)
-        combo.addItem("Latent RGB", userData=GenerationPreviewMethod.LATENT2RGB)
-        combo.addItem("TAESD", userData=GenerationPreviewMethod.TAESD)
-        combo.addItem("Auto", userData=GenerationPreviewMethod.AUTO)
+        set_localized_combo_items(
+            combo,
+            (
+                LocalizedComboItem(
+                    GenerationPreviewMethod.LATENT2RGB,
+                    app_text("Latent RGB"),
+                ),
+                LocalizedComboItem(
+                    GenerationPreviewMethod.TAESD,
+                    app_text("TAESD"),
+                ),
+                LocalizedComboItem(
+                    GenerationPreviewMethod.AUTO,
+                    app_text("Auto"),
+                ),
+            ),
+        )
         for index in range(combo.count()):
             if combo.itemData(index) is selected:
                 combo.setCurrentIndex(index)
@@ -166,7 +192,7 @@ class GenerationPreviewSettingsControl(SwitchSettingsExpander):
         self._save_generation += 1
         self._active_save_generation = self._save_generation
         self._set_controls_busy(True)
-        self._last_status_message = "Saving generation preview settings."
+        self._last_status_message = app_text("Saving generation preview settings.")
         self._save_runner.run(
             task_id=_SAVE_TASK_ID,
             generation=self._save_generation,
@@ -195,7 +221,9 @@ class GenerationPreviewSettingsControl(SwitchSettingsExpander):
                 error=payload.error,
             )
         self._restore_persisted_preferences()
-        self._last_status_message = "Generation preview settings could not be saved."
+        self._last_status_message = app_text(
+            "Generation preview settings could not be saved."
+        )
         self._show_error(self._last_status_message)
 
     def _apply_save_result(self, result: GenerationPreviewSaveResult) -> None:
@@ -250,22 +278,22 @@ class GenerationPreviewSettingsControl(SwitchSettingsExpander):
         self.switch.setEnabled(not busy)
         self.method_combo.setEnabled(not busy)
 
-    def _show_warning(self, message: str) -> None:
+    def _show_warning(self, message: ApplicationText) -> None:
         """Show non-blocking feedback for unavailable TAESD assets."""
 
         InfoBar.warning(
-            title="Generation previews",
-            content=message,
+            title=render_application_text(app_text("Generation previews")),
+            content=render_application_text(message),
             duration=4000,
             parent=self.window(),
         )
 
-    def _show_error(self, message: str) -> None:
+    def _show_error(self, message: ApplicationText) -> None:
         """Show non-blocking feedback for failed preference operations."""
 
         InfoBar.error(
-            title="Generation previews",
-            content=message,
+            title=render_application_text(app_text("Generation previews")),
+            content=render_application_text(message),
             duration=5000,
             parent=self.window(),
         )

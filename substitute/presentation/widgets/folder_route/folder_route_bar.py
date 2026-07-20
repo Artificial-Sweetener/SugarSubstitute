@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt, Signal
+from sugarsubstitute_shared.presentation.localization import translate_application_text
+
+from PySide6.QtCore import QEvent, QSize, Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     BreadcrumbBar,
@@ -94,6 +96,13 @@ class FolderRouteBar(QWidget):
 
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._rebuild()
+
+    def changeEvent(self, event: QEvent) -> None:  # noqa: N802
+        """Retranslate the application-owned root breadcrumb in place."""
+
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.LanguageChange:
+            self._rebuild()
 
     def set_route_tree(self, route_tree: FolderRouteTree) -> None:
         """Replace the route tree and refresh route controls."""
@@ -184,7 +193,7 @@ class FolderRouteBar(QWidget):
 
         self._breadcrumb.clear()
         self._route_by_key = {_ROOT_ROUTE_KEY: ()}
-        self._breadcrumb.addItem(_ROOT_ROUTE_KEY, "All")
+        self._breadcrumb.addItem(_ROOT_ROUTE_KEY, translate_application_text("All"))
         for index, label in enumerate(self._current_route):
             route = self._current_route[: index + 1]
             route_key = self._route_key(route)

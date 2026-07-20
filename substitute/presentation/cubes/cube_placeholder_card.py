@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_accessible_name,
+)
+
 from PySide6.QtCore import QEvent, QPoint, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QEnterEvent, QMouseEvent, QPainter, QPen
 from PySide6.QtWidgets import QFrame, QSizePolicy, QWidget
@@ -77,7 +81,7 @@ class CubePlaceholderCard(QFrame):
             else Qt.CursorShape.ArrowCursor
         )
         if interactive:
-            self.setAccessibleName("Add cube")
+            set_localized_accessible_name(self, "Add cube")
         self._apply_theme_styles()
         self._apply_compact_progress_width()
         connect_theme_refresh(self, self._apply_theme_styles)

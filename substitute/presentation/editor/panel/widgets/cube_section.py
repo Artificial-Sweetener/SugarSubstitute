@@ -18,6 +18,14 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import (
+    apply_application_text,
+    app_text,
+    set_localized_tooltip,
+)
+from substitute.presentation.localization import LocalizedLabel
+
 from collections.abc import Mapping
 from dataclasses import dataclass
 from time import perf_counter
@@ -258,7 +266,7 @@ class CubeSectionView(QWidget):
 
         return self._issue_messages
 
-    def showUpdatingWash(self, message: str = "Updating") -> None:
+    def showUpdatingWash(self, message: ApplicationText = app_text("Updating")) -> None:
         """Show a local update wash while this cube section is being rebuilt."""
 
         self._updating_overlay.showUpdating(message)
@@ -655,7 +663,7 @@ class _CubeSectionUpdatingOverlay(QWidget):
         """Initialize the overlay as an input-blocking child widget."""
 
         super().__init__(parent)
-        self._message = "Updating"
+        self._message: ApplicationText = app_text("Updating")
         self._ellipsis_index = 0
         self._timer = QTimer(self)
         self._timer.setInterval(_UPDATING_ELLIPSIS_INTERVAL_MS)
@@ -677,10 +685,10 @@ class _CubeSectionUpdatingOverlay(QWidget):
             """
         )
 
-    def showUpdating(self, message: str = "Updating") -> None:
+    def showUpdating(self, message: ApplicationText = app_text("Updating")) -> None:
         """Show this overlay and start the lightweight ellipsis animation."""
 
-        self._message = message.strip() or "Updating"
+        self._message = message if message.strip() else app_text("Updating")
         self._ellipsis_index = 0
         parent = self.parentWidget()
         if parent is not None:
@@ -724,8 +732,13 @@ class _CubeSectionUpdatingOverlay(QWidget):
     def _refresh_label(self) -> None:
         """Apply the current update message."""
 
-        self._label.setText(
-            f"{self._message}{_UPDATING_ELLIPSIS_STATES[self._ellipsis_index]}"
+        apply_application_text(
+            self._label,
+            app_text(
+                "%1%2",
+                self._message,
+                _UPDATING_ELLIPSIS_STATES[self._ellipsis_index],
+            ),
         )
         self._position_label()
 
@@ -772,7 +785,7 @@ class CubeSectionBuilder:
         )
 
         reveal_button = ToggleTransparentDropDownToolButton(FIF.VIEW, header_bar)
-        reveal_button.setToolTip("Reveal Hidden Cards")
+        set_localized_tooltip(reveal_button, "Reveal Hidden Cards")
         reveal_menu = CheckableMenu(
             parent=header_bar,
             indicatorType=MenuIndicatorType.CHECK,
@@ -937,7 +950,7 @@ def _build_runtime_issue_panel(issue_lines: tuple[str, ...]) -> QWidget:
     glyph.setFixedSize(EDITOR_ROW_ICON_SIZE, EDITOR_ROW_ICON_SIZE)
     header_layout.addWidget(glyph)
 
-    title = QLabel("Cube disabled", header)
+    title = LocalizedLabel(app_text("Cube disabled"), header)
     title.setObjectName("CubeRuntimeIssueTitle")
     title_font = title.font()
     title_font.setPointSize(14)

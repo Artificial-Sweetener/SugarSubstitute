@@ -28,6 +28,11 @@ from substitute.application.generation import (
     format_generation_duration,
     summarize_generation_failure,
 )
+from sugarsubstitute_shared.presentation.localization import (
+    render_application_text,
+    translate_application_message,
+    translate_application_text,
+)
 
 _STATUS_LABELS = {
     "pending": "Waiting",
@@ -110,7 +115,12 @@ def queue_job_display_items(
     display_jobs = _queue_display_jobs(jobs)
     pending_visual_index_by_job_id = _pending_visual_index_by_job_id(display_jobs)
     for job in display_jobs:
-        status = _STATUS_LABELS.get(job.status, job.status)
+        status_source = _STATUS_LABELS.get(job.status)
+        status = (
+            translate_application_text(status_source)
+            if status_source is not None
+            else job.status
+        )
         visual_role = _queue_visual_role(job)
         rows.append(
             QueueJobRowView(
@@ -327,29 +337,37 @@ def _queue_subtitle(
     if job.status == "pending":
         ahead_count = pending_ahead_by_job_id.get(job.job_id, 0)
         if ahead_count == 0:
-            return "Next"
-        return f"Waiting - {ahead_count} ahead"
+            return translate_application_text("Next")
+        return translate_application_message("Waiting - %1 ahead", ahead_count)
     if job.status == "dispatching":
-        return "Preparing"
+        return translate_application_text("Preparing")
     if job.status == "comfy_pending":
-        return "Queued in Comfy"
+        return translate_application_text("Queued in Comfy")
     if job.status == "running":
         if job.progress_percent is None:
-            return "Running"
+            return translate_application_text("Running")
         percent = int(max(0.0, min(100.0, job.progress_percent)) + 0.5)
-        return f"{percent}% complete"
+        return translate_application_message("%1% complete", percent)
     if job.status == "completed":
         duration_text = format_generation_duration(job.execution_duration_ms)
         if duration_text:
-            return f"Completed, {duration_text}"
-        return "Completed"
+            return translate_application_message("Completed, %1", duration_text)
+        return translate_application_text("Completed")
     if job.status == "cancelled":
         if job.output_count == 0:
-            return "Cancelled - No outputs saved"
-        return f"Cancelled - {_output_count_text(job.output_count)} saved"
+            return translate_application_text("Cancelled - No outputs saved")
+        return translate_application_message(
+            "Cancelled - %1 saved",
+            _output_count_text(job.output_count),
+        )
     if job.status == "failed":
-        return f"Failed - {_queue_failure_summary(job)}"
-    return _STATUS_LABELS.get(job.status, job.status)
+        return translate_application_message("Failed - %1", _queue_failure_summary(job))
+    fallback_source = _STATUS_LABELS.get(job.status)
+    return (
+        translate_application_text(fallback_source)
+        if fallback_source is not None
+        else job.status
+    )
 
 
 def _queue_failure_summary(job: GenerationQueueJob) -> str:
@@ -359,9 +377,9 @@ def _queue_failure_summary(job: GenerationQueueJob) -> str:
         job.failure_message,
         detail=job.failure_detail,
     )
-    normalized = " ".join(summary.strip().split())
+    normalized = " ".join(render_application_text(summary).strip().split())
     if not normalized:
-        normalized = "Generation failed"
+        normalized = translate_application_text("Generation failed")
     return _right_elided_text(normalized, _MAX_FAILURE_SUBTITLE_SUMMARY_LENGTH)
 
 
@@ -379,8 +397,8 @@ def _output_count_text(output_count: int) -> str:
     """Return pluralized output count text."""
 
     if output_count == 1:
-        return "1 output"
-    return f"{output_count} outputs"
+        return translate_application_text("1 output")
+    return translate_application_message("%1 outputs", output_count)
 
 
 def _queue_tooltip(job: GenerationQueueJob) -> str | None:
@@ -388,7 +406,7 @@ def _queue_tooltip(job: GenerationQueueJob) -> str | None:
 
     details: list[str] = []
     if job.prompt_id is not None:
-        details.append(f"Prompt: {job.prompt_id}")
+        details.append(translate_application_message("Prompt: %1", job.prompt_id))
     if job.status == "failed" and job.failure_summary is not None:
         _append_tooltip_detail(details, job.failure_summary)
     if job.failure_message is not None:
@@ -396,7 +414,10 @@ def _queue_tooltip(job: GenerationQueueJob) -> str | None:
     if job.failure_detail is not None and job.failure_detail != job.failure_message:
         _append_tooltip_detail(details, job.failure_detail)
     if job.last_output_path is not None:
-        _append_tooltip_detail(details, f"Last output: {job.last_output_path}")
+        _append_tooltip_detail(
+            details,
+            translate_application_message("Last output: %1", job.last_output_path),
+        )
     if not details:
         return None
     return "\n".join(details)

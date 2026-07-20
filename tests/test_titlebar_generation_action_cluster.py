@@ -19,10 +19,11 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
-from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QEvent, QTranslator, Qt
 from PySide6.QtGui import QColor, QImage, QPainter
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
@@ -57,7 +58,7 @@ from substitute.presentation.shell.chrome_style import (
     winui_accent_button_disabled_foreground_color,
     workflow_chrome_wash_color,
 )
-from substitute.presentation.widgets.cursor_tooltip_filter import CursorToolTipFilter
+from sugarsubstitute_shared.presentation.fluent_tooltips import FluentToolTipFilter
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
@@ -612,6 +613,60 @@ def test_generation_titlebar_cluster_applies_presentation_state() -> None:
     assert cluster._action_continuous.isEnabled() is False
 
 
+def test_generation_titlebar_tooltips_retranslate_existing_segments() -> None:
+    """Keep tooltips and accessible names in the active language in place."""
+
+    application = _app()
+    resource_root = (
+        Path(__file__).resolve().parents[1]
+        / "substitute"
+        / "presentation"
+        / "resources"
+        / "i18n"
+    )
+    chinese = QTranslator()
+    japanese = QTranslator()
+    assert chinese.load(str(resource_root / "sugarsubstitute_zh_CN.qm"))
+    assert japanese.load(str(resource_root / "sugarsubstitute_ja_JP.qm"))
+    assert application.installTranslator(chinese)
+    cluster = GenerationTitleBarActionCluster()
+    try:
+        assert [segment.toolTip() for segment in cluster._segments] == [
+            "停止生成",
+            "生成",
+            "跳过当前生成",
+            "生成队列",
+        ]
+        assert [segment.accessibleName() for segment in cluster._segments] == [
+            "停止生成",
+            "生成",
+            "跳过当前生成",
+            "生成队列",
+        ]
+
+        assert application.removeTranslator(chinese)
+        assert application.installTranslator(japanese)
+        for segment in cluster._segments:
+            application.sendEvent(segment, QEvent(QEvent.Type.LanguageChange))
+
+        assert [segment.toolTip() for segment in cluster._segments] == [
+            "生成を停止",
+            "生成",
+            "生成をスキップ",
+            "生成キュー",
+        ]
+        assert [segment.accessibleName() for segment in cluster._segments] == [
+            "生成を停止",
+            "生成",
+            "生成をスキップ",
+            "生成キュー",
+        ]
+    finally:
+        application.removeTranslator(japanese)
+        application.removeTranslator(chinese)
+        cluster.close()
+
+
 def test_generation_titlebar_segments_install_qfluent_tooltip_filters() -> None:
     """Each titlebar action segment should use the shared QFluent tooltip path."""
 
@@ -620,7 +675,7 @@ def test_generation_titlebar_segments_install_qfluent_tooltip_filters() -> None:
     event = QEvent(QEvent.Type.ToolTip)
 
     for segment in cluster._segments:
-        assert isinstance(segment._tooltip_filter, CursorToolTipFilter)
+        assert isinstance(segment._tooltip_filter, FluentToolTipFilter)
         assert segment._tooltip_filter.parent() is segment
         assert segment._tooltip_filter._show_when_disabled is True
         assert segment._tooltip_filter.eventFilter(segment, event) is True

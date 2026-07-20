@@ -23,6 +23,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.domain.onboarding import (
     BootstrapRoute,
     ComfyEndpoint,
@@ -122,10 +124,10 @@ class OnboardingCompletionResult:
 class OnboardingProvisioningFailure(Exception):
     """Describe a user-facing onboarding failure with remediation guidance."""
 
-    headline: str
-    user_message: str
+    headline: ApplicationText
+    user_message: ApplicationText
     technical_detail: str
-    remediation_steps: tuple[str, ...]
+    remediation_steps: tuple[ApplicationText, ...]
 
     def __str__(self) -> str:
         """Render the technical detail when coerced to a string."""
@@ -587,8 +589,8 @@ class OnboardingFlowService:
         draft: OnboardingDraftState,
         credential_draft: OnboardingCredentialDraft | None = None,
         restart_required: bool,
-        on_status: Callable[[str], None],
-        on_log: Callable[[str], None],
+        on_status: Callable[[ApplicationText], None],
+        on_log: Callable[[ApplicationText], None],
     ) -> OnboardingCompletionResult:
         """Provision the selected target and return the completion payload."""
         bundle = self.service_bundle_factory(draft.installation_root)
@@ -600,8 +602,8 @@ class OnboardingFlowService:
             host=draft.endpoint_host.strip(),
             port=int(draft.endpoint_port),
         )
-        on_status("Starting setup.")
-        on_log(f"Runtime root: {draft.installation_root / 'runtime'}")
+        on_status(app_text("Starting setup."))
+        on_log(app_text("Runtime root: %1", draft.installation_root / "runtime"))
         target_mode = ComfyTargetMode(draft.target_mode)
         transaction_id: str | None = None
         try:
@@ -644,18 +646,21 @@ class OnboardingFlowService:
                     transaction.transaction_id,
                     managed_runtime,
                 )
-                on_status("Saving your setup choices.")
-                on_log(f"Managed workspace: {draft.managed_workspace_path}")
+                on_status(app_text("Saving your setup choices."))
+                on_log(app_text("Managed workspace: %1", draft.managed_workspace_path))
                 on_log(
-                    "[ManagedInstall] "
-                    f"platform={managed_runtime.detected_platform or 'unknown'} "
-                    f"accelerator={managed_runtime.detected_accelerator or 'unknown'} "
-                    f"target={managed_runtime.install_target or 'unknown'} "
-                    f"python={managed_runtime.python_version or 'unknown'} "
-                    f"channel={managed_runtime.comfy_channel or 'unknown'} "
-                    f"backend={managed_runtime.backend_policy or 'unknown'} "
-                    f"torch_channel={managed_runtime.torch_release_channel or 'unknown'} "
-                    f"stability={managed_runtime.stability.value}"
+                    app_text(
+                        "[ManagedInstall] platform=%1 accelerator=%2 target=%3 "
+                        "python=%4 channel=%5 backend=%6 torch_channel=%7 stability=%8",
+                        managed_runtime.detected_platform or "unknown",
+                        managed_runtime.detected_accelerator or "unknown",
+                        managed_runtime.install_target or "unknown",
+                        managed_runtime.python_version or "unknown",
+                        managed_runtime.comfy_channel or "unknown",
+                        managed_runtime.backend_policy or "unknown",
+                        managed_runtime.torch_release_channel or "unknown",
+                        managed_runtime.stability.value,
+                    )
                 )
                 bundle.setup_transaction_service.update_status(
                     transaction.transaction_id,
@@ -668,7 +673,7 @@ class OnboardingFlowService:
                     transaction.transaction_id,
                     runtime,
                 )
-                on_status("Installing ComfyUI and finishing setup.")
+                on_status(app_text("Installing ComfyUI and finishing setup."))
                 bundle.setup_transaction_service.update_status(
                     transaction.transaction_id,
                     SetupTransactionStatus.MANAGED_WORKSPACE_PROVISIONING,
@@ -730,15 +735,17 @@ class OnboardingFlowService:
             elif target_mode is ComfyTargetMode.ATTACHED_LOCAL:
                 if draft.attached_workspace_path is None:
                     raise OnboardingProvisioningFailure(
-                        headline="Choose your existing ComfyUI folder",
-                        user_message=(
+                        headline=app_text("Choose your existing ComfyUI folder"),
+                        user_message=app_text(
                             "Use My Current ComfyUI needs the folder that contains "
                             "your local ComfyUI installation."
                         ),
                         technical_detail="Existing local ComfyUI setup requires a folder path.",
                         remediation_steps=(
-                            "Choose the folder that contains ComfyUI's main.py file.",
-                            "Then run setup again.",
+                            app_text(
+                                "Choose the folder that contains ComfyUI's main.py file."
+                            ),
+                            app_text("Then run setup again."),
                         ),
                     )
                 if self.attached_workspace_provisioner is None:
@@ -757,8 +764,10 @@ class OnboardingFlowService:
                     ),
                 )
                 transaction_id = transaction.transaction_id
-                on_status("Preparing your existing ComfyUI setup.")
-                on_log(f"Attached workspace: {draft.attached_workspace_path}")
+                on_status(app_text("Preparing your existing ComfyUI setup."))
+                on_log(
+                    app_text("Attached workspace: %1", draft.attached_workspace_path)
+                )
                 pending_context = (
                     bundle.onboarding_service.build_attached_local_context(
                         endpoint=endpoint,
@@ -799,7 +808,7 @@ class OnboardingFlowService:
                     transaction.transaction_id,
                     managed_runtime,
                 )
-                on_status("Preparing your existing ComfyUI installation.")
+                on_status(app_text("Preparing your existing ComfyUI installation."))
                 bundle.setup_transaction_service.update_status(
                     transaction.transaction_id,
                     SetupTransactionStatus.MANAGED_WORKSPACE_PROVISIONING,
@@ -845,8 +854,14 @@ class OnboardingFlowService:
                     ),
                 )
                 transaction_id = transaction.transaction_id
-                on_status("Saving your remote ComfyUI connection.")
-                on_log(f"Remote endpoint: {draft.endpoint_host}:{draft.endpoint_port}")
+                on_status(app_text("Saving your remote ComfyUI connection."))
+                on_log(
+                    app_text(
+                        "Remote endpoint: %1:%2",
+                        draft.endpoint_host,
+                        draft.endpoint_port,
+                    )
+                )
                 pending_context = bundle.onboarding_service.build_remote_context(
                     endpoint=endpoint,
                 )
@@ -1004,14 +1019,16 @@ class OnboardingFlowService:
             )
         except OnboardingPreferenceSetupFailure as error:
             raise OnboardingProvisioningFailure(
-                headline="Substitute couldn't save these setup choices",
-                user_message=(
+                headline=app_text("Substitute couldn't save these setup choices"),
+                user_message=app_text(
                     "Substitute couldn't save one of the folder or helper settings."
                 ),
                 technical_detail=str(error).strip() or type(error).__name__,
                 remediation_steps=(
-                    "Review the folder choices and try again.",
-                    "You can also finish setup with the defaults and adjust Settings later.",
+                    app_text("Review the folder choices and try again."),
+                    app_text(
+                        "You can also finish setup with the defaults and adjust Settings later."
+                    ),
                 ),
             ) from error
 
@@ -1020,7 +1037,7 @@ class OnboardingFlowService:
         *,
         bundle: OnboardingBundleProtocol,
         credential_draft: OnboardingCredentialDraft | None,
-        on_log: Callable[[str], None],
+        on_log: Callable[[ApplicationText], None],
     ) -> None:
         """Save optional credentials without failing completed core setup."""
 
@@ -1035,7 +1052,9 @@ class OnboardingFlowService:
                 error=error,
             )
             on_log(
-                "CivitAI API key could not be saved. You can add it later in Settings."
+                app_text(
+                    "CivitAI API key could not be saved. You can add it later in Settings."
+                )
             )
 
     @staticmethod
@@ -1087,15 +1106,15 @@ class OnboardingFlowService:
         )
         if issue.code is ReadinessIssueCode.ATTACHED_WORKSPACE_MISSING:
             return OnboardingProvisioningFailure(
-                headline="The ComfyUI folder couldn't be found",
-                user_message=(
+                headline=app_text("The ComfyUI folder couldn't be found"),
+                user_message=app_text(
                     "Substitute couldn't find the local ComfyUI folder you entered."
                 ),
                 technical_detail=technical_detail,
                 remediation_steps=(
-                    "Check that the folder still exists.",
-                    "Choose the folder that contains ComfyUI's main.py file.",
-                    "Then try again.",
+                    app_text("Check that the folder still exists."),
+                    app_text("Choose the folder that contains ComfyUI's main.py file."),
+                    app_text("Then try again."),
                 ),
             )
         if issue.code is ReadinessIssueCode.TARGET_ENDPOINT_UNREACHABLE:
@@ -1105,8 +1124,8 @@ class OnboardingFlowService:
                 technical_detail=technical_detail,
             )
         return OnboardingProvisioningFailure(
-            headline="Substitute couldn't finish this setup",
-            user_message=(
+            headline=app_text("Substitute couldn't finish this setup"),
+            user_message=app_text(
                 "Setup details were saved, but Substitute still found a problem that "
                 "needs attention before it can continue."
             ),
@@ -1133,16 +1152,21 @@ class OnboardingFlowService:
         technical_detail = str(error).strip() or type(error).__name__
         if _is_storage_exhaustion_detail(technical_detail):
             return OnboardingProvisioningFailure(
-                headline="Substitute ran out of temporary install space",
-                user_message=(
+                headline=app_text("Substitute ran out of temporary install space"),
+                user_message=app_text(
                     "Setup could not finish while downloading or installing Python "
                     "packages for ComfyUI."
                 ),
                 technical_detail=technical_detail,
                 remediation_steps=(
-                    f"Free space on the drive that contains {draft.installation_root}.",
-                    "Or go back and choose an install location on a drive with more free space.",
-                    "Then run setup again.",
+                    app_text(
+                        "Free space on the drive that contains %1.",
+                        draft.installation_root,
+                    ),
+                    app_text(
+                        "Or go back and choose an install location on a drive with more free space."
+                    ),
+                    app_text("Then run setup again."),
                 ),
             )
         if (
@@ -1150,16 +1174,21 @@ class OnboardingFlowService:
             and "invalid ComfyUI repository" in technical_detail
         ):
             return OnboardingProvisioningFailure(
-                headline="The ComfyUI folder needs to be cleared before setup can continue",
-                user_message=(
+                headline=app_text(
+                    "The ComfyUI folder needs to be cleared before setup can continue"
+                ),
+                user_message=app_text(
                     "Substitute found leftover files in the selected ComfyUI folder, so "
                     "it could not install a fresh managed setup there."
                 ),
                 technical_detail=technical_detail,
                 remediation_steps=(
-                    f"Delete the incomplete folder at {draft.managed_workspace_path}.",
-                    "Or go back and choose a different empty ComfyUI folder.",
-                    "Then run setup again.",
+                    app_text(
+                        "Delete the incomplete folder at %1.",
+                        draft.managed_workspace_path,
+                    ),
+                    app_text("Or go back and choose a different empty ComfyUI folder."),
+                    app_text("Then run setup again."),
                 ),
             )
         if (
@@ -1167,16 +1196,16 @@ class OnboardingFlowService:
             and "already contains files" in technical_detail
         ):
             return OnboardingProvisioningFailure(
-                headline="The ComfyUI folder needs to be empty first",
-                user_message=(
+                headline=app_text("The ComfyUI folder needs to be empty first"),
+                user_message=app_text(
                     "Substitute can't install a fresh managed ComfyUI setup into a "
                     "folder that already has other files in it."
                 ),
                 technical_detail=technical_detail,
                 remediation_steps=(
-                    f"Empty the folder at {draft.managed_workspace_path}.",
-                    "Or go back and choose a different empty folder.",
-                    "Then try again.",
+                    app_text("Empty the folder at %1.", draft.managed_workspace_path),
+                    app_text("Or go back and choose a different empty folder."),
+                    app_text("Then try again."),
                 ),
             )
         if (
@@ -1184,13 +1213,15 @@ class OnboardingFlowService:
             and "couldn't download ComfyUI" in technical_detail
         ):
             return OnboardingProvisioningFailure(
-                headline="Substitute couldn't download ComfyUI",
-                user_message=("Setup couldn't download the ComfyUI files it needs."),
+                headline=app_text("Substitute couldn't download ComfyUI"),
+                user_message=app_text(
+                    "Setup couldn't download the ComfyUI files it needs."
+                ),
                 technical_detail=technical_detail,
                 remediation_steps=(
-                    "Check your internet connection.",
-                    "Make sure the selected folder is writable.",
-                    "Then try again.",
+                    app_text("Check your internet connection."),
+                    app_text("Make sure the selected folder is writable."),
+                    app_text("Then try again."),
                 ),
             )
         if (
@@ -1198,15 +1229,17 @@ class OnboardingFlowService:
             and "Python packages" in technical_detail
         ):
             return OnboardingProvisioningFailure(
-                headline="Substitute couldn't finish installing ComfyUI",
-                user_message=(
+                headline=app_text("Substitute couldn't finish installing ComfyUI"),
+                user_message=app_text(
                     "ComfyUI was downloaded, but some of its Python packages could not be installed."
                 ),
                 technical_detail=technical_detail,
                 remediation_steps=(
-                    "Check your internet connection.",
-                    "Make sure security software is not blocking Python package downloads.",
-                    "Then try again.",
+                    app_text("Check your internet connection."),
+                    app_text(
+                        "Make sure security software is not blocking Python package downloads."
+                    ),
+                    app_text("Then try again."),
                 ),
             )
         if (
@@ -1214,29 +1247,35 @@ class OnboardingFlowService:
             and "required custom nodes" in technical_detail
         ):
             return OnboardingProvisioningFailure(
-                headline="Substitute couldn't finish preparing ComfyUI",
-                user_message=(
+                headline=app_text("Substitute couldn't finish preparing ComfyUI"),
+                user_message=app_text(
                     "ComfyUI was installed, but Substitute couldn't finish preparing the required node packs."
                 ),
                 technical_detail=technical_detail,
                 remediation_steps=(
-                    "Check the live output for the custom-node problem.",
-                    "Fix the reported issue if you can.",
-                    "Then try again.",
+                    app_text("Check the live output for the custom-node problem."),
+                    app_text("Fix the reported issue if you can."),
+                    app_text("Then try again."),
                 ),
             )
         if target_mode is ComfyTargetMode.MANAGED_LOCAL:
             return OnboardingProvisioningFailure(
-                headline="Substitute couldn't finish setting up ComfyUI",
-                user_message=(
+                headline=app_text("Substitute couldn't finish setting up ComfyUI"),
+                user_message=app_text(
                     "Setup stopped before ComfyUI was ready. Read the live output "
                     "below, fix the problem it mentions, and then try again."
                 ),
                 technical_detail=technical_detail,
                 remediation_steps=(
-                    "Make sure the selected folder is writable and has enough free space.",
-                    "Keep your internet connection available while setup runs.",
-                    "If the folder already contains a partial install, delete it before retrying.",
+                    app_text(
+                        "Make sure the selected folder is writable and has enough free space."
+                    ),
+                    app_text(
+                        "Keep your internet connection available while setup runs."
+                    ),
+                    app_text(
+                        "If the folder already contains a partial install, delete it before retrying."
+                    ),
                 ),
             )
         if target_mode is ComfyTargetMode.ATTACHED_LOCAL:
@@ -1244,15 +1283,17 @@ class OnboardingFlowService:
                 return OnboardingFlowService._attached_python_resolution_failure(error)
             if "could not be found" in technical_detail.lower():
                 return OnboardingProvisioningFailure(
-                    headline="The ComfyUI folder couldn't be found",
-                    user_message=(
+                    headline=app_text("The ComfyUI folder couldn't be found"),
+                    user_message=app_text(
                         "Substitute couldn't find the local ComfyUI folder you entered."
                     ),
                     technical_detail=technical_detail,
                     remediation_steps=(
-                        "Check that the folder still exists.",
-                        "Choose the folder that contains ComfyUI's main.py file.",
-                        "Then try again.",
+                        app_text("Check that the folder still exists."),
+                        app_text(
+                            "Choose the folder that contains ComfyUI's main.py file."
+                        ),
+                        app_text("Then try again."),
                     ),
                 )
             if "did not respond at" in technical_detail.lower():
@@ -1262,23 +1303,33 @@ class OnboardingFlowService:
                     technical_detail=technical_detail,
                 )
             return OnboardingProvisioningFailure(
-                headline="Substitute could not prepare this local ComfyUI setup",
-                user_message=(
+                headline=app_text(
+                    "Substitute could not prepare this local ComfyUI setup"
+                ),
+                user_message=app_text(
                     "Review the existing ComfyUI folder and local address, then try again."
                 ),
                 technical_detail=technical_detail,
                 remediation_steps=(
-                    "Make sure the folder points to the ComfyUI setup you want Substitute to launch.",
-                    "Confirm the local host and port are free for Substitute to use.",
+                    app_text(
+                        "Make sure the folder points to the ComfyUI setup you want Substitute to launch."
+                    ),
+                    app_text(
+                        "Confirm the local host and port are free for Substitute to use."
+                    ),
                 ),
             )
         return OnboardingProvisioningFailure(
-            headline="Substitute could not finish this remote connection setup",
-            user_message=("Review the remote address details, then try again."),
+            headline=app_text(
+                "Substitute could not finish this remote connection setup"
+            ),
+            user_message=app_text("Review the remote address details, then try again."),
             technical_detail=technical_detail,
             remediation_steps=(
-                "Confirm the remote host and port are correct.",
-                "Make sure this computer can reach the remote ComfyUI server.",
+                app_text("Confirm the remote host and port are correct."),
+                app_text(
+                    "Make sure this computer can reach the remote ComfyUI server."
+                ),
             ),
         )
 
@@ -1290,56 +1341,62 @@ class OnboardingFlowService:
 
         if error.reason is ComfyPythonResolutionFailure.WORKSPACE_INVALID:
             return OnboardingProvisioningFailure(
-                headline="Choose the folder that contains ComfyUI",
-                user_message=(
+                headline=app_text("Choose the folder that contains ComfyUI"),
+                user_message=app_text(
                     "The selected folder is not a complete ComfyUI installation."
                 ),
                 technical_detail=error.detail,
                 remediation_steps=(
-                    "Go back to My Current ComfyUI.",
-                    "Choose the folder that contains ComfyUI's main.py file.",
-                    "Then run setup again.",
+                    app_text("Go back to My Current ComfyUI."),
+                    app_text("Choose the folder that contains ComfyUI's main.py file."),
+                    app_text("Then run setup again."),
                 ),
             )
         if error.reason is ComfyPythonResolutionFailure.AMBIGUOUS:
             return OnboardingProvisioningFailure(
-                headline="Choose which Python this ComfyUI setup uses",
-                user_message=(
+                headline=app_text("Choose which Python this ComfyUI setup uses"),
+                user_message=app_text(
                     "Substitute found more than one working Python environment and "
                     "needs you to choose the one ComfyUI uses."
                 ),
                 technical_detail=error.detail,
                 remediation_steps=(
-                    "Go back to My Current ComfyUI.",
-                    "Use Browse beside Python executable and choose this ComfyUI setup's Python.",
-                    "Then run setup again.",
+                    app_text("Go back to My Current ComfyUI."),
+                    app_text(
+                        "Use Browse beside Python executable and choose this ComfyUI setup's Python."
+                    ),
+                    app_text("Then run setup again."),
                 ),
             )
         if error.reason is ComfyPythonResolutionFailure.EXPLICIT_SELECTION_INVALID:
             return OnboardingProvisioningFailure(
-                headline="Choose a working Python for this ComfyUI setup",
-                user_message=(
+                headline=app_text("Choose a working Python for this ComfyUI setup"),
+                user_message=app_text(
                     "The Python executable you selected could not run this ComfyUI "
                     "installation."
                 ),
                 technical_detail=error.detail,
                 remediation_steps=(
-                    "Go back to My Current ComfyUI.",
-                    "Use Browse beside Python executable and choose the Python ComfyUI actually uses.",
-                    "Then run setup again.",
+                    app_text("Go back to My Current ComfyUI."),
+                    app_text(
+                        "Use Browse beside Python executable and choose the Python ComfyUI actually uses."
+                    ),
+                    app_text("Then run setup again."),
                 ),
             )
         return OnboardingProvisioningFailure(
-            headline="Choose the Python this ComfyUI setup uses",
-            user_message=(
+            headline=app_text("Choose the Python this ComfyUI setup uses"),
+            user_message=app_text(
                 "Substitute could not identify a working Python environment "
                 "automatically."
             ),
             technical_detail=error.detail,
             remediation_steps=(
-                "Go back to My Current ComfyUI.",
-                "Use Browse beside Python executable and choose the Python ComfyUI uses.",
-                "Then run setup again.",
+                app_text("Go back to My Current ComfyUI."),
+                app_text(
+                    "Use Browse beside Python executable and choose the Python ComfyUI uses."
+                ),
+                app_text("Then run setup again."),
             ),
         )
 
@@ -1355,27 +1412,31 @@ class OnboardingFlowService:
         endpoint_label = f"{draft.endpoint_host}:{draft.endpoint_port}"
         if target_mode is ComfyTargetMode.ATTACHED_LOCAL:
             return OnboardingProvisioningFailure(
-                headline="Substitute couldn't reach your ComfyUI setup",
-                user_message=(
+                headline=app_text("Substitute couldn't reach your ComfyUI setup"),
+                user_message=app_text(
                     "Substitute couldn't connect to the local ComfyUI address you entered."
                 ),
                 technical_detail=technical_detail,
                 remediation_steps=(
-                    f"Make sure ComfyUI is running at {endpoint_label}.",
-                    "Check that the host and port match your ComfyUI window.",
-                    "Then try again.",
+                    app_text("Make sure ComfyUI is running at %1.", endpoint_label),
+                    app_text("Check that the host and port match your ComfyUI window."),
+                    app_text("Then try again."),
                 ),
             )
         return OnboardingProvisioningFailure(
-            headline="Substitute couldn't reach the remote ComfyUI server",
-            user_message=(
+            headline=app_text("Substitute couldn't reach the remote ComfyUI server"),
+            user_message=app_text(
                 "Substitute couldn't connect to the remote ComfyUI address you entered."
             ),
             technical_detail=technical_detail,
             remediation_steps=(
-                f"Make sure a ComfyUI server is running at {endpoint_label}.",
-                "Check that the host and port are correct from this computer.",
-                "Then try again.",
+                app_text(
+                    "Make sure a ComfyUI server is running at %1.", endpoint_label
+                ),
+                app_text(
+                    "Check that the host and port are correct from this computer."
+                ),
+                app_text("Then try again."),
             ),
         )
 
@@ -1385,30 +1446,48 @@ class OnboardingFlowService:
         issue: ReadinessIssue,
         draft: OnboardingDraftState,
         target_mode: ComfyTargetMode,
-    ) -> str:
+    ) -> ApplicationText:
         """Return one short user-facing next step for a readiness issue."""
 
         if issue.code is ReadinessIssueCode.MANAGED_WORKSPACE_NOT_INSTALLED:
-            return "Run setup again so Substitute can finish installing ComfyUI."
+            return app_text(
+                "Run setup again so Substitute can finish installing ComfyUI."
+            )
         if issue.code is ReadinessIssueCode.MANAGED_WORKSPACE_NOT_LAUNCHABLE:
-            return (
+            return app_text(
                 "Run setup again after fixing the files mentioned in the live output."
             )
         if issue.code is ReadinessIssueCode.MANAGED_WORKSPACE_NODEPACKS_MISSING:
-            return "Run setup again so Substitute can install its required Comfy nodepacks."
+            return app_text(
+                "Run setup again so Substitute can install its required Comfy nodepacks."
+            )
         if issue.code is ReadinessIssueCode.MANAGED_WORKSPACE_NOT_VALIDATED:
-            return "Run setup again so Substitute can validate the managed backend on this machine."
+            return app_text(
+                "Run setup again so Substitute can validate the managed backend on this machine."
+            )
         if issue.code is ReadinessIssueCode.MANAGED_WORKSPACE_FOREIGN_LISTENER_BLOCKED:
-            return f"Stop the other process using {draft.endpoint_host}:{draft.endpoint_port}, or choose a different managed port."
+            return app_text(
+                "Stop the other process using %1:%2, or choose a different managed port.",
+                draft.endpoint_host,
+                draft.endpoint_port,
+            )
         if issue.code is ReadinessIssueCode.MANAGED_WORKSPACE_BACKEND_INVALID:
-            return "Run setup again so Substitute can install the correct backend for the detected hardware."
+            return app_text(
+                "Run setup again so Substitute can install the correct backend for the detected hardware."
+            )
         if issue.code is ReadinessIssueCode.ATTACHED_WORKSPACE_MISSING:
-            return "Check that the ComfyUI folder still exists, or clear that field."
+            return app_text(
+                "Check that the ComfyUI folder still exists, or clear that field."
+            )
         if issue.code is ReadinessIssueCode.TARGET_ENDPOINT_UNREACHABLE:
-            return f"Make sure ComfyUI is running at {draft.endpoint_host}:{draft.endpoint_port}."
+            return app_text(
+                "Make sure ComfyUI is running at %1:%2.",
+                draft.endpoint_host,
+                draft.endpoint_port,
+            )
         if target_mode is ComfyTargetMode.MANAGED_LOCAL:
-            return "Check the managed ComfyUI folder and try again."
-        return "Review the connection details and try again."
+            return app_text("Check the managed ComfyUI folder and try again.")
+        return app_text("Review the connection details and try again.")
 
 
 def _is_storage_exhaustion_detail(detail: str) -> bool:

@@ -18,6 +18,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from PySide6.QtCore import QEvent, QTranslator
 from PySide6.QtWidgets import QApplication
 from qfluentwidgets import (  # type: ignore[import-untyped]
     CheckBox,
@@ -135,6 +138,60 @@ def test_cube_update_modal_uses_version_language() -> None:
         assert "hash" not in joined.lower()
         assert "sha" not in joined.lower()
     finally:
+        dialog.close()
+        dialog.deleteLater()
+        app.processEvents()
+
+
+def test_cube_update_row_copy_retranslates_without_losing_combo_selection() -> None:
+    """Refresh derived labels in place while retaining stable update actions."""
+
+    app = _app()
+    resource_root = (
+        Path(__file__).resolve().parents[1]
+        / "substitute"
+        / "presentation"
+        / "resources"
+        / "i18n"
+    )
+    chinese = QTranslator()
+    japanese = QTranslator()
+    assert chinese.load(str(resource_root / "sugarsubstitute_zh_CN.qm"))
+    assert japanese.load(str(resource_root / "sugarsubstitute_ja_JP.qm"))
+    assert app.installTranslator(chinese)
+    candidate = _candidate("用户标题")
+    dialog = CubeUpdateModal(candidates=(candidate,))
+    controls = dialog._row_controls[candidate]
+    controls.action_combo.setCurrentIndex(2)
+    selected_action = controls.action_combo.currentData()
+    try:
+        assert controls.secondary_label.text() == (
+            "Workflow One | 当前：v1.0 | 可用：v2.0"
+        )
+        assert controls.action_combo.itemText(0) == "更新到 v2.0"
+        assert controls.action_combo.itemText(1) == "保留 v1.0"
+        assert controls.version_combo.itemText(0) == "v2.0  最新"
+
+        assert app.removeTranslator(chinese)
+        assert app.installTranslator(japanese)
+        for widget in (
+            controls.secondary_label,
+            controls.action_combo,
+            controls.version_combo,
+        ):
+            app.sendEvent(widget, QEvent(QEvent.Type.LanguageChange))
+
+        assert controls.secondary_label.text() == (
+            "Workflow One | 現在：v1.0 | 利用可能：v2.0"
+        )
+        assert controls.action_combo.itemText(0) == "v2.0 に更新"
+        assert controls.action_combo.itemText(1) == "v1.0 のまま"
+        assert controls.version_combo.itemText(0) == "v2.0  最新"
+        assert controls.action_combo.currentData() == selected_action
+        assert candidate.cube_alias == "用户标题"
+    finally:
+        app.removeTranslator(japanese)
+        app.removeTranslator(chinese)
         dialog.close()
         dialog.deleteLater()
         app.processEvents()

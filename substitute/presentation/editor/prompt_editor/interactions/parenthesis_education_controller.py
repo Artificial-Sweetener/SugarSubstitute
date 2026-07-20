@@ -18,12 +18,17 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import TeachingTip, TeachingTipTailPosition  # type: ignore[import-untyped]
 
 from substitute.application.ports.prompt_parenthesis_education_state import (
     PromptParenthesisEducationState,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    translate_application_message,
 )
 from substitute.domain.prompt.emphasis_semantics import (
     format_generated_emphasis_weight,
@@ -60,10 +65,11 @@ class PromptParenthesisEducationController(QObject):
         )
         self._tip = TeachingTip.create(
             target=self._target,
-            title="Use explicit prompt emphasis",
-            content=(
-                f"Nested parentheses were converted to :{explicit_weight}. "
-                "Explicit weights are stable across diffusion models."
+            title=app_text("Use explicit prompt emphasis"),
+            content=translate_application_message(
+                "Nested parentheses were converted to :%1. Explicit weights are "
+                "stable across diffusion models.",
+                explicit_weight,
             ),
             isClosable=True,
             duration=8000,

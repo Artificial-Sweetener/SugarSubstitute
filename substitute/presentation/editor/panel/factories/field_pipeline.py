@@ -18,10 +18,13 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+from substitute.presentation.localization import LocalizedCheckBox
+
 from collections.abc import Callable
 from typing import Any, cast
 
-from qfluentwidgets import CheckBox, LineEdit  # type: ignore[import-untyped]
+from qfluentwidgets import LineEdit  # type: ignore[import-untyped]
 
 from substitute.application.danbooru import (
     DanbooruImagePreviewService,
@@ -392,7 +395,7 @@ def widget_factory_bool(
     if kwargs.get("field_type") != "BOOLEAN":
         return None
 
-    field = CheckBox("Enable", parent)
+    field = LocalizedCheckBox(app_text("Enable"), parent)
     field.setChecked(bool(value))
     return cast(object, field)
 

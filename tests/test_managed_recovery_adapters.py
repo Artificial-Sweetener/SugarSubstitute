@@ -24,6 +24,8 @@ from typing import Any, cast
 
 import pytest
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.app.bootstrap import managed_recovery_adapters
 from substitute.app.bootstrap.startup_resources import StartupResourceRegistry
 from substitute.application.backend_compatibility import (
@@ -392,7 +394,7 @@ def test_startup_recovery_failure_builds_runtime_incident(tmp_path: Path) -> Non
     )
 
     incident = incidents[0]
-    assert getattr(incident, "message") == (
+    assert render_source_application_text(getattr(incident, "message")) == (
         "SugarCubes version is incompatible. Required BackEnd: >=1.6.2,<2.0.0. "
         "Required SugarCubes: >=0.10.0,<2.0.0. recovery failed"
     )

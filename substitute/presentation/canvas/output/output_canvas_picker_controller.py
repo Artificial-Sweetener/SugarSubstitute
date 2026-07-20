@@ -25,7 +25,11 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
     OutputCanvasSceneGroup,
     OutputCanvasSourceGroup,
+    output_scene_title_text,
+    output_source_label_text,
 )
+from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.localization import render_application_text
 from substitute.application.workflows.output_compare_state import (
     OutputCompareSelection,
     OutputCompareState,
@@ -183,7 +187,7 @@ class OutputCanvasPickerController:
         items = tuple(
             CanvasNavPickerItem(
                 scene.scene_key,
-                scene.title,
+                render_application_text(output_scene_title_text(scene)),
                 enabled=bool(scene.sources),
             )
             for scene in projection.scene_groups
@@ -223,7 +227,11 @@ class OutputCanvasPickerController:
         if selection is None or len(sources) <= 1:
             return
         items = tuple(
-            CanvasNavPickerItem(source.source_key, source.label) for source in sources
+            CanvasNavPickerItem(
+                source.source_key,
+                render_application_text(output_source_label_text(source)),
+            )
+            for source in sources
         )
         self.show_source_picker_for(
             self.compare_source_button(side),
@@ -236,7 +244,7 @@ class OutputCanvasPickerController:
     def scene_picker_items(self) -> tuple[CanvasNavPickerItem, ...]:
         """Return scene selector rows with All first and scene titles after it."""
 
-        items = [CanvasNavPickerItem("all", "All")]
+        items = [CanvasNavPickerItem("all", render_application_text(app_text("All")))]
         for scene in sorted(
             self.scene_groups_by_key().values(),
             key=lambda group: group.order,
@@ -244,7 +252,7 @@ class OutputCanvasPickerController:
             items.append(
                 CanvasNavPickerItem(
                     scene.scene_key,
-                    scene.title,
+                    render_application_text(output_scene_title_text(scene)),
                     enabled=scene.primary_image_id is not None
                     or scene.preview_image_id is not None,
                 )
@@ -255,7 +263,10 @@ class OutputCanvasPickerController:
         """Return source selector rows in source-tab order."""
 
         return tuple(
-            CanvasNavPickerItem(source.source_key, source.label)
+            CanvasNavPickerItem(
+                source.source_key,
+                render_application_text(output_source_label_text(source)),
+            )
             for source in self.visible_source_groups_by_key().values()
         )
 

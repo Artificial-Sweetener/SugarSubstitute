@@ -27,6 +27,7 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 _EXPECTED_RUNTIME_DEPENDENCIES = frozenset(
     {
         "comtypes",
+        "ijson",
         "keyring",
         "pillow",
         "photoshop",

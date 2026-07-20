@@ -638,6 +638,7 @@ def scene_group_without_preview(
         representative_source_key=scene.representative_source_key,
         representative_set_index=scene.representative_set_index,
         status=scene.status,
+        title_is_default=scene.title_is_default,
     )
 
 

@@ -30,6 +30,8 @@ from typing import Any
 
 import pytest
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.ports import (
     GenerationExecutionTiming,
     ListenerCallbacks,
@@ -687,7 +689,9 @@ def test_runnable_reports_execution_error_detail(monkeypatch) -> None:
     assert failures[0].error == "ModuleNotFoundError: No module named 'xformers'"
     assert failures[0].detail == "Traceback line 1\nTraceback line 2"
     assert failures[0].error_report is not None
-    assert failures[0].error_report.title == "KSampler failed"
+    assert render_source_application_text(failures[0].error_report.title) == (
+        "KSampler failed"
+    )
     assert failures[0].error_report.runtime.comfy_version == "0.3.1"
     assert failures[0].error_report.runtime.pytorch_version == "2.8.0"
     assert failures[0].error_report.runtime.devices == (

@@ -97,9 +97,11 @@ def run_application(
     install_qt_message_trace_handler()
     runtime_bootstrap = build_startup_runtime_bootstrap(
         cli_args=cli_args,
+        locale_override=cli_options.locale_override,
         installation_context=installation_context,
         startup_timer=startup_timer,
         create_application=composition.create_application,
+        build_localization_runtime=(composition.build_application_localization_runtime),
         build_appearance_runtime=composition.build_appearance_runtime,
         configure_theme=composition.configure_theme,
         build_application_runtime_services=(

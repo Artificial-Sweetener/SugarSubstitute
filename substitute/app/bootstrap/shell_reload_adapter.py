@@ -21,6 +21,8 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Protocol, cast
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.presentation.localization import render_application_text
 
 from substitute.app.bootstrap.gui_reload_coordinator import (
     GuiReloadCoordinator,
@@ -331,7 +333,7 @@ class ShellReloadAdapter:
         )
         return shown
 
-    def show_reload_message(self, message: str) -> None:
+    def show_reload_message(self, message: ApplicationText) -> None:
         """Show one non-fatal GUI reload message."""
 
         try:
@@ -339,7 +341,11 @@ class ShellReloadAdapter:
             from PySide6.QtWidgets import QWidget
 
             parent = cast(QWidget | None, self.current_shell())
-            QMessageBox.warning(parent, "Reload GUI", message)
+            QMessageBox.warning(
+                parent,
+                render_application_text(app_text("Reload GUI")),
+                render_application_text(message),
+            )
         except Exception:
             log_exception(_LOGGER, "Failed to show GUI reload message")
 

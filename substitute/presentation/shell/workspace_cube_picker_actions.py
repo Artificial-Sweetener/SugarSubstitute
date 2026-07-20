@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from inspect import Parameter, signature
@@ -539,10 +541,12 @@ class WorkspaceCubePickerActions:
                 )
                 self._show_exception_report(
                     catalog_error,
-                    title="Cube picker failed",
+                    title=app_text("Cube picker failed"),
                     message=(
-                        "Cube Library is not available yet. "
-                        "Wait for Substitute BackEnd to finish starting, then try again."
+                        app_text(
+                            "Cube Library is not available yet. "
+                            "Wait for Substitute BackEnd to finish starting, then try again."
+                        )
                     ),
                     stage="cube_picker",
                     context=SubstituteOperationContext(
@@ -576,10 +580,12 @@ class WorkspaceCubePickerActions:
             )
             self._show_exception_report(
                 exc,
-                title="Cube picker failed",
+                title=app_text("Cube picker failed"),
                 message=(
-                    "Failed to list available cubes. "
-                    "Please verify your cube packages and try again."
+                    app_text(
+                        "Failed to list available cubes. "
+                        "Please verify your cube packages and try again."
+                    )
                 ),
                 stage="cube_picker",
                 context=SubstituteOperationContext(
@@ -769,7 +775,7 @@ class WorkspaceCubePickerActions:
             kept_existing_count=len(final_existing_aliases),
             new_entry_count=len(new_entries),
         )
-        busy_token = view.editor_busy.begin(workflow_id, message="Loading")
+        busy_token = view.editor_busy.begin(workflow_id, message=app_text("Loading"))
 
         for alias in removed_aliases:
             view.cube_stack_service.apply_cube_removal(workflow, alias)
@@ -846,7 +852,7 @@ class WorkspaceCubePickerActions:
             placeholder_item = active_stack.insertTab(
                 placeholder_insert_index,
                 routeKey=f"loading:{alias_name}",
-                text="Loading...",
+                text=app_text("Loading..."),
                 icon=icon_provider.CLOSE.icon(),
             )
             placeholder_index = active_stack.items.index(placeholder_item)
@@ -1037,10 +1043,12 @@ class WorkspaceCubePickerActions:
                 if queue_failures:
                     self._show_exception_report(
                         queue_failures[0],
-                        title="Staged cube queue failed",
+                        title=app_text("Staged cube queue failed"),
                         message=(
-                            "Failed to queue one or more staged cubes. "
-                            "Please try again."
+                            app_text(
+                                "Failed to queue one or more staged cubes. "
+                                "Please try again."
+                            )
                         ),
                         stage="cube_load",
                         context=SubstituteOperationContext(

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.workflows.workflow_tabs_view import (
+    workflow_tab_source_text,
+)
+
 from collections.abc import Mapping
 from time import perf_counter
 from typing import Any, Protocol
@@ -100,7 +104,9 @@ def duplicate_workflow_tab_for_view(
     duplicate_started_at = perf_counter()
     workflow = view.workflow_session_service.get_workflow(workflow_id)
     tab_item = view.workflow_tabbar.itemMap.get(workflow_id)
-    base_label = tab_item.text() if tab_item is not None else workflow_id
+    base_label = (
+        workflow_tab_source_text(tab_item) if tab_item is not None else workflow_id
+    )
     log_info(
         _LOGGER,
         "Workflow duplicate requested",
