@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 from PySide6.QtWidgets import QWidget
 
@@ -30,6 +31,9 @@ from substitute.presentation.cubes.cube_stack_metrics import (
 )
 from substitute.presentation.editor.panel.content_gutter_controller import (
     DIRECT_WORKFLOW_LEFT_GUTTER,
+)
+from substitute.presentation.editor.panel.field_state_controller import (
+    EditorFieldBinding,
 )
 from substitute.application.direct_workflows import (
     DirectWorkflowGenerationPlanService,
@@ -319,6 +323,118 @@ def test_real_shell_sdxl_fixture_mounts_inferred_prompt_editors() -> None:
 
         assert harness.rendered_prompt_fields() == (("50", "text"), ("51", "text"))
         assert harness.rendered_node_card_order()[:2] == ("51", "50")
+    finally:
+        harness.close()
+
+
+def test_real_shell_dynamic_combo_replaces_active_nested_fields(tmp_path: Path) -> None:
+    """Changing a native dynamic selector should rebuild its card descendants."""
+
+    workflow_path = tmp_path / "dynamic-combo.json"
+    workflow_path.write_text(
+        json.dumps(
+            {
+                "nodes": [
+                    {
+                        "id": 1,
+                        "type": "NativeDynamicNode",
+                        "inputs": [],
+                        "outputs": [],
+                        "widgets_values": ["Quality", "a lighthouse", 7],
+                    }
+                ],
+                "links": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    definitions = {
+        "NativeDynamicNode": {
+            "input": {
+                "required": {
+                    "model": [
+                        "COMFY_DYNAMICCOMBO_V3",
+                        {
+                            "options": [
+                                {
+                                    "key": "Quality",
+                                    "inputs": {
+                                        "required": {
+                                            "prompt": [
+                                                "STRING",
+                                                {"default": "", "multiline": True},
+                                            ]
+                                        }
+                                    },
+                                },
+                                {
+                                    "key": "Speed",
+                                    "inputs": {
+                                        "required": {
+                                            "steps": [
+                                                "INT",
+                                                {"default": 4, "min": 1, "max": 20},
+                                            ]
+                                        }
+                                    },
+                                },
+                            ]
+                        },
+                    ],
+                    "seed": ["INT", {"default": 0}],
+                }
+            }
+        }
+    }
+    harness = RealShellDirectWorkflowHarness()
+    try:
+        harness.load_direct_workflow(
+            workflow_path,
+            node_definitions=definitions,
+            expected_node_names=frozenset({"1"}),
+        )
+        panel = harness.shell.editor_panels[harness.direct_workflow_id]
+        registered_fields = cast(
+            dict[tuple[str, str, str], object],
+            getattr(cast(Any, panel), "input_widgets_by_field_key"),
+        )
+
+        def node_fields() -> dict[str, object]:
+            """Return current registered fields for the dynamic node."""
+
+            return {
+                field_key: widget
+                for (_alias, node_name, field_key), widget in registered_fields.items()
+                if node_name == "1"
+            }
+
+        initial_fields = node_fields()
+        assert set(initial_fields) == {"model", "model.prompt", "seed"}
+        binding = EditorFieldBinding.from_widget(initial_fields["model"])
+        assert binding is not None
+        assert binding.native_widget_type == "COMFY_DYNAMICCOMBO_V3"
+
+        set_current_text = getattr(initial_fields["model"], "setCurrentText")
+        set_current_text("Speed")
+        harness.process_events()
+        workflow = harness.shell.workflow_session_service.get_workflow(
+            harness.direct_workflow_id
+        )
+        assert workflow is not None and workflow.direct_workflow is not None
+        converted_nodes = workflow.direct_workflow.buffer["nodes"]
+        assert isinstance(converted_nodes, dict)
+        dynamic_node = converted_nodes["1"]
+        assert isinstance(dynamic_node, dict)
+        assert dynamic_node["inputs"]["model"] == "Speed"
+
+        harness.wait_until(
+            lambda: (
+                set(node_fields()) == {"model", "model.steps", "seed"}
+                and not panel.is_projection_active()
+            ),
+            description="dynamic nested field replacement",
+        )
+        assert "model.prompt" not in node_fields()
     finally:
         harness.close()
 
