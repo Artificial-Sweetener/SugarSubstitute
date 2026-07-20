@@ -70,12 +70,12 @@ Prompt preview:
 %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="32"></location>
+      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="40"></location>
       <source>%1 %2</source>
       <translation>%1 %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="30"></location>
+      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="38"></location>
       <source>%1 %2 %3</source>
       <translation>%1 %2 %3</translation>
     </message>
@@ -610,6 +610,11 @@ Prompt preview:
       <translation>附加的工作区：%1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="197"></location>
+      <source>Audio files (*.wav *.mp3 *.flac *.m4a *.ogg);;All files (*)</source>
+      <translation>音频文件 (*.wav *.mp3 *.flac *.m4a *.ogg);;所有文件 (*)</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/generation_page.py" line="280"></location>
       <source>Auto</source>
       <translation>自动</translation>
@@ -633,6 +638,11 @@ Prompt preview:
       <location filename="../substitute/application/comfy_startup_diagnostics/startup_failure_report_service.py" line="161"></location>
       <source>Automatic managed core update was attempted, but the runtime is still incompatible. Repair the managed Comfy installation or update Substitute.</source>
       <translation>已尝试自动更新受管理的核心组件，但运行环境仍不兼容。请修复受管理的 Comfy 安装，或更新 Substitute。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="504"></location>
+      <source>Automatically detect</source>
+      <translation>自动检测</translation>
     </message>
     <message>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="277"></location>
@@ -705,9 +715,14 @@ Prompt preview:
       <translation>受阻</translation>
     </message>
     <message>
-      <location filename="../substitute/domain/node_behavior/defaults.py" line="154"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="74"></location>
       <source>Blue</source>
       <translation>蓝色</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="54"></location>
+      <source>Bounding box</source>
+      <translation>边界框</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="426"></location>
@@ -985,6 +1000,21 @@ Prompt preview:
       <translation>为此 ComfyUI 安装选择可用的 Python</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="86"></location>
+      <source>Choose an existing audio file</source>
+      <translation>选择现有音频文件</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="195"></location>
+      <source>Choose audio</source>
+      <translation>选择音频</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/color_field.py" line="43"></location>
+      <source>Choose color</source>
+      <translation>选择颜色</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/jpeg_companion_settings.py" line="118"></location>
       <source>Choose fixed quality or an approximate target file size.</source>
       <translation>选择固定质量或大致的目标文件大小。</translation>
@@ -1005,7 +1035,7 @@ Prompt preview:
       <translation>选择 Substitute 连接 ComfyUI 的方式</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/language_settings.py" line="90"></location>
+      <location filename="../substitute/presentation/settings/language_settings.py" line="98"></location>
       <source>Choose how SugarSubstitute presents text.</source>
       <translation>选择 SugarSubstitute 显示文本的方式。</translation>
     </message>
@@ -1085,7 +1115,7 @@ Prompt preview:
       <translation>选择包含现有 ComfyUI main.py 文件的文件夹。Substitute 启动时将运行此副本。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/language_settings.py" line="58"></location>
+      <location filename="../substitute/presentation/settings/language_settings.py" line="66"></location>
       <source>Choose the language used by SugarSubstitute. Changes apply immediately.</source>
       <translation>选择 SugarSubstitute 使用的语言。更改会立即生效。</translation>
     </message>
@@ -1148,6 +1178,11 @@ Prompt preview:
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="559"></location>
       <source>Choose your setup</source>
       <translation>选择设置方式</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="109"></location>
+      <source>CivitAI API key</source>
+      <translation>CivitAI API 密钥</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1178"></location>
@@ -1293,6 +1328,11 @@ Prompt preview:
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1338"></location>
       <source>Clearing planned changes.</source>
       <translation>正在清除计划更改。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/curve_field.py" line="254"></location>
+      <source>Click to add, drag to move, and right-click to remove a point.</source>
+      <translation>单击添加点，拖动移动，右键单击删除点。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="532"></location>
@@ -1690,7 +1730,7 @@ Prompt preview:
       <translation>组合相对文件夹和文件名，无需添加 .png 扩展名。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="27"></location>
+      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="35"></location>
       <source>Configured</source>
       <translation>已配置</translation>
     </message>
@@ -2043,6 +2083,11 @@ Install these nodes now?</source>
       <translation>当前输出</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/curve_field.py" line="252"></location>
+      <source>Curve</source>
+      <translation>曲线</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="581"></location>
       <source>Cut</source>
       <translation>剪切</translation>
@@ -2188,6 +2233,11 @@ Install these nodes now?</source>
       <translation>扩散模型</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/cube_stack_presentation_controller.py" line="464"></location>
+      <source>Direct Comfy workflows contain no cube stack.</source>
+      <translation>直接载入的 Comfy 工作流不包含 Cube 堆栈。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="633"></location>
       <source>Disable</source>
       <translation>禁用</translation>
@@ -2278,6 +2328,16 @@ Install these nodes now?</source>
       <translation>重复片段警告</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="71"></location>
+      <source>Edit Color</source>
+      <translation>编辑颜色</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/curve_field.py" line="311"></location>
+      <source>Edit curve (%1 points)</source>
+      <translation>编辑曲线（%1 个点）</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="326"></location>
       <source>Edit user wildcard files and refresh prompt metadata.</source>
       <translation>编辑用户通配符文件并刷新提示词元数据。</translation>
@@ -2308,7 +2368,7 @@ Install these nodes now?</source>
       <translation>请清空 %1 处的文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="398"></location>
+      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="420"></location>
       <source>Enable</source>
       <translation>启用</translation>
     </message>
@@ -2516,6 +2576,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="667"></location>
       <source>Fetching Danbooru wiki content...</source>
       <translation>正在获取 Danbooru Wiki 内容...</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="604"></location>
+      <source>Filter packages, claimants, or tags</source>
+      <translation>筛选包、使用方或标签</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="159"></location>
@@ -2738,7 +2803,7 @@ Install these nodes now?</source>
       <translation>前往 CivitAI 页面</translation>
     </message>
     <message>
-      <location filename="../substitute/domain/node_behavior/defaults.py" line="148"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="73"></location>
       <source>Green</source>
       <translation>绿色</translation>
     </message>
@@ -2746,6 +2811,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/errors.py" line="554"></location>
       <source>HTTP status: %1</source>
       <translation>HTTP 状态：%1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="43"></location>
+      <source>Height</source>
+      <translation>高度</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1126"></location>
@@ -3058,12 +3128,12 @@ Install these nodes now?</source>
       <translation>横向</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/language_settings.py" line="57"></location>
+      <location filename="../substitute/presentation/settings/language_settings.py" line="65"></location>
       <source>Language</source>
       <translation>语言</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/language_settings.py" line="89"></location>
+      <location filename="../substitute/presentation/settings/language_settings.py" line="97"></location>
       <source>Language and region</source>
       <translation>语言和区域</translation>
     </message>
@@ -3573,7 +3643,7 @@ Install these nodes now?</source>
       <translation>否</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="27"></location>
+      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="35"></location>
       <source>No API key configured</source>
       <translation>未配置 API 密钥</translation>
     </message>
@@ -3591,6 +3661,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1120"></location>
       <source>No Danbooru wiki page was found for "%1".</source>
       <translation>未找到“%1”的 Danbooru 百科页面。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="211"></location>
+      <source>No audio</source>
+      <translation>无音频</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/planned_changes_panel.py" line="224"></location>
@@ -3651,6 +3726,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1113"></location>
       <source>No matching cubes</source>
       <translation>没有匹配的方块</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="127"></location>
+      <source>No microphone</source>
+      <translation>未检测到麦克风</translation>
     </message>
     <message>
       <location filename="../substitute/application/errors.py" line="577"></location>
@@ -3758,6 +3838,16 @@ Install these nodes now?</source>
       <translation>未加载</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="754"></location>
+      <source>Number of queued generations to create</source>
+      <translation>要加入队列的生成任务数</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="47"></location>
+      <source>OK</source>
+      <translation>确定</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/errors.py" line="633"></location>
       <source>OS: %1</source>
       <translation>操作系统：%1</translation>
@@ -3776,6 +3866,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="578"></location>
       <source>On Pixiv:</source>
       <translation>在 Pixiv 上：</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="75"></location>
+      <source>Opacity</source>
+      <translation>不透明度</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/about_page.py" line="587"></location>
@@ -3958,6 +4053,11 @@ Install these nodes now?</source>
       <translation>粘贴</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/civitai_page.py" line="111"></location>
+      <source>Paste CivitAI API key</source>
+      <translation>粘贴 CivitAI API 密钥</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="265"></location>
       <source>Paste a GitHub URL. Substitute validates and syncs the pack.</source>
       <translation>粘贴 GitHub URL。Substitute 将验证并同步该包。</translation>
@@ -3981,6 +4081,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/errors.py" line="598"></location>
       <source>Path</source>
       <translation>路径</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="444"></location>
+      <source>Path on the ComfyUI host</source>
+      <translation>ComfyUI 主机上的路径</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="795"></location>
@@ -4333,7 +4438,22 @@ Install these nodes now?</source>
       <translation>重新配置</translation>
     </message>
     <message>
-      <location filename="../substitute/domain/node_behavior/defaults.py" line="142"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="78"></location>
+      <source>Record audio from the default microphone</source>
+      <translation>使用默认麦克风录制音频</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="186"></location>
+      <source>Recording failed</source>
+      <translation>录音失败</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="169"></location>
+      <source>Recording…</source>
+      <translation>正在录音…</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
       <source>Red</source>
       <translation>红色</translation>
     </message>
@@ -4952,7 +5072,7 @@ No known extension claimant.</source>
       <translation>搜索 %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="586"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="585"></location>
       <source>Search cubes</source>
       <translation>搜索立方体</translation>
     </message>
@@ -4967,7 +5087,12 @@ No known extension claimant.</source>
       <translation>搜索设置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="28"></location>
+      <location filename="../substitute/presentation/widgets/search_box.py" line="171"></location>
+      <source>Search…</source>
+      <translation>搜索…</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="36"></location>
       <source>Secure credential storage is unavailable.</source>
       <translation>安全凭据存储不可用。</translation>
     </message>
@@ -5022,6 +5147,11 @@ No known extension claimant.</source>
       <translation>全选</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/widgets/model_picker/model_picker_field.py" line="250"></location>
+      <source>Select model</source>
+      <translation>选择模型</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="327"></location>
       <source>Select the executable used by the custom shortcut, script, launcher, or environment manager that starts ComfyUI.</source>
       <translation>请选择自定义快捷方式、脚本、启动器或环境管理器实际用于启动 ComfyUI 的可执行文件。</translation>
@@ -5037,7 +5167,7 @@ No known extension claimant.</source>
       <translation>服务器端点</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="303"></location>
+      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="309"></location>
       <source>Set Global Override</source>
       <translation>设置全局覆盖</translation>
     </message>
@@ -6452,6 +6582,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>标题：%1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/cube_stack_presentation_controller.py" line="475"></location>
+      <source>Toggle between expanded and compact cube cards.</source>
+      <translation>在展开和紧凑的 Cube 卡片之间切换。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/errors.py" line="556"></location>
       <source>Top-level error:</source>
       <translation>顶层错误：</translation>
@@ -6917,6 +7052,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>设置为何在此暂停</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="42"></location>
+      <source>Width</source>
+      <translation>宽度</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/prompt_editor/prompt_feature_registry.py" line="80"></location>
       <source>Wildcard autocomplete</source>
       <translation>通配符自动补全</translation>
@@ -6985,6 +7125,16 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1133"></location>
       <source>Working...</source>
       <translation>正在处理...</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="40"></location>
+      <source>X coordinate</source>
+      <translation>X 坐标</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="41"></location>
+      <source>Y coordinate</source>
+      <translation>Y 坐标</translation>
     </message>
     <message>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="350"></location>
@@ -7097,6 +7247,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>现有的本地 ComfyUI</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="255"></location>
+      <source>https://github.com/owner/repository</source>
+      <translation>https://github.com/owner/repository</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/installation_service.py" line="125"></location>
       <source>legacy projects root</source>
       <translation>旧版项目根目录</translation>
@@ -7160,6 +7315,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="472"></location>
       <source>v%1  Newest</source>
       <translation>v%1  最新</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="121"></location>
+      <source>x %1 · y %2 · %3×%4</source>
+      <translation>x %1，y %2，%3×%4</translation>
     </message>
   </context>
 </TS>

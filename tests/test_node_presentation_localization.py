@@ -110,6 +110,88 @@ def test_catalog_resolver_merges_properties_and_normalizes_dotted_class_types() 
     assert output.tooltip.text == "English output tooltip"
 
 
+def test_catalog_resolver_normalizes_dotted_dynamic_field_keys() -> None:
+    """Resolve Comfy's flattened underscore keys for dotted dynamic inputs."""
+
+    active = _catalog(
+        "zh-Hans",
+        NodeTextSource.ACTIVE_COMFY,
+        {
+            "ByteDanceNode": NodeCatalogText(
+                display_name=None,
+                description=None,
+                inputs={
+                    "model_duration": NodeFieldCatalogText(
+                        name="时长",
+                        tooltip="输出视频的时长。",
+                    )
+                },
+                outputs={},
+            )
+        },
+    )
+    resolver = NodeTextCatalogResolver(
+        NodeTextCatalogSnapshot(
+            effective_language_identifier="zh-Hans",
+            revision=1,
+            active_layers=(active,),
+            english_layers=(),
+        )
+    )
+
+    field = resolver.input_text("ByteDanceNode", "model.duration")
+
+    assert field.name is not None
+    assert field.name.text == "时长"
+    assert field.tooltip is not None
+    assert field.tooltip.text == "输出视频的时长。"
+    assert resolver.input_search_aliases("ByteDanceNode", "model.duration") == ("时长",)
+
+
+def test_catalog_resolver_prefers_exact_dynamic_field_keys() -> None:
+    """Keep exact custom-node keys ahead of Comfy's underscore compatibility key."""
+
+    active = _catalog(
+        "ja",
+        NodeTextSource.ACTIVE_COMFY,
+        {
+            "VendorNode": NodeCatalogText(
+                display_name=None,
+                description=None,
+                inputs={
+                    "model.duration": NodeFieldCatalogText(
+                        name="正確な期間",
+                        tooltip="正確なキー",
+                    ),
+                    "model_duration": NodeFieldCatalogText(
+                        name="互換期間",
+                        tooltip="互換キー",
+                    ),
+                },
+                outputs={},
+            )
+        },
+    )
+    resolver = NodeTextCatalogResolver(
+        NodeTextCatalogSnapshot(
+            effective_language_identifier="ja",
+            revision=1,
+            active_layers=(active,),
+            english_layers=(),
+        )
+    )
+
+    field = resolver.input_text("VendorNode", "model.duration")
+
+    assert field.name is not None
+    assert field.name.text == "正確な期間"
+    assert field.tooltip is not None
+    assert field.tooltip.text == "正確なキー"
+    assert resolver.input_search_aliases("VendorNode", "model.duration") == (
+        "正確な期間",
+    )
+
+
 def test_node_presentation_preserves_authored_text_and_localizes_other_fields() -> None:
     """Keep authored identity literal while localizing catalog-owned presentation."""
 

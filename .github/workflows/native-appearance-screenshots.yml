@@ -10,7 +10,7 @@ env:
   PYTHON_VERSION: "3.12.10"
   LINUX_PYTHON_VERSION: "3.12.13"
   LINUX_QT_PACKAGES: >-
-    xvfb libegl1 libfontconfig1 libgl1 libxcb-cursor0 libxcb-icccm4
+    xvfb libegl1 libfontconfig1 libgl1 libpulse0 libxcb-cursor0 libxcb-icccm4
     libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
     libxcb-util1 libxcb-xkb1 libxkbcommon-x11-0 libxkbcommon0
 

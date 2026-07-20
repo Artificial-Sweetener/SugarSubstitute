@@ -26,6 +26,9 @@ from substitute.domain.cubes import SubgraphWrapperDefinitionIndex
 from substitute.domain.comfy_workflow.editor_definitions import (
     workflow_local_editor_definition,
 )
+from substitute.domain.comfy_workflow.native_widget_schema import (
+    normalize_native_widget_definition,
+)
 
 from .list_value_resolver import extract_live_list_options
 from .live_definition_authority import (
@@ -56,6 +59,7 @@ _WRAPPER_STRUCTURAL_METADATA_KEYS = frozenset(
     }
 )
 _LIVE_METADATA_FALLBACK_SOURCE = "live_metadata_fallback"
+_DYNAMIC_COMBO_TYPE = "COMFY_DYNAMICCOMBO_V3"
 
 
 class EditorNodeDefinitionResolver:
@@ -95,9 +99,21 @@ class EditorNodeDefinitionResolver:
             live_payload.get(class_type) if isinstance(live_payload, Mapping) else None
         )
         if isinstance(live_definition, Mapping):
+            inputs = node_data.get("inputs")
+            selected_values = inputs if isinstance(inputs, Mapping) else {}
+            live_definition = normalize_native_widget_definition(
+                live_definition,
+                selected_values,
+            )
             if local_definition is None:
                 return deepcopy(dict(live_definition))
-            return _merge_definitions(local_definition, live_definition)
+            return _merge_definitions(
+                _without_stale_dynamic_descendants(
+                    local_definition,
+                    live_definition,
+                ),
+                live_definition,
+            )
         if local_definition is not None:
             return deepcopy(dict(local_definition))
         return None
@@ -253,6 +269,53 @@ def _merge_definitions(
             merged_input[str(section_name)] = merged_section
         merged["input"] = merged_input
     return merged
+
+
+def _without_stale_dynamic_descendants(
+    local_definition: Mapping[str, object],
+    live_definition: Mapping[str, object],
+) -> dict[str, object]:
+    """Remove imported descendants superseded by an active live dynamic schema."""
+
+    dynamic_prefixes = _dynamic_field_prefixes(live_definition)
+    cleaned = deepcopy(dict(local_definition))
+    if not dynamic_prefixes:
+        return cleaned
+    input_section = cleaned.get("input")
+    if not isinstance(input_section, dict):
+        return cleaned
+    for section_name in ("required", "optional"):
+        section = input_section.get(section_name)
+        if not isinstance(section, dict):
+            continue
+        input_section[section_name] = {
+            field_name: field_definition
+            for field_name, field_definition in section.items()
+            if not any(
+                str(field_name).startswith(f"{prefix}.") for prefix in dynamic_prefixes
+            )
+        }
+    return cleaned
+
+
+def _dynamic_field_prefixes(definition: Mapping[str, object]) -> frozenset[str]:
+    """Return normalized selectors whose descendants are live-schema-owned."""
+
+    input_section = definition.get("input")
+    if not isinstance(input_section, Mapping):
+        return frozenset()
+    prefixes: set[str] = set()
+    for section_name in ("required", "optional"):
+        section = input_section.get(section_name)
+        if not isinstance(section, Mapping):
+            continue
+        for field_name, field_definition in section.items():
+            if not isinstance(field_name, str):
+                continue
+            metadata = _field_metadata(field_definition)
+            if metadata.get("native_widget_type") == _DYNAMIC_COMBO_TYPE:
+                prefixes.add(field_name)
+    return frozenset(prefixes)
 
 
 def _raw_field_definition(

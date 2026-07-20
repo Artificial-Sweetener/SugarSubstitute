@@ -21,11 +21,19 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QTranslator
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QLineEdit, QWidget
 
 from substitute.presentation.localization import (
     LocalizedLabel,
     LocalizedNativePushButton,
+)
+from substitute.presentation.dialogs import LocalizedColorDialog
+from substitute.presentation.editor.panel.widgets.fields.native import (
+    AudioRecordField,
+    BoundingBoxField,
+    ColorField,
+    CurveField,
 )
 from substitute.application.ports.civitai_credential_store import CredentialStoreStatus
 from substitute.presentation.settings.civitai_credential_status import (
@@ -65,6 +73,24 @@ def test_catalog_extraction_includes_every_explicit_conditional_message() -> Non
 
     assert "Undock canvas" in sources
     assert "Redock canvas" in sources
+
+
+def test_catalog_extraction_includes_every_localized_property_owner() -> None:
+    """Keep placeholders, accessibility copy, and tooltips in release catalogs."""
+
+    sources = {
+        message.source
+        for message in extract_application_messages(Path(__file__).resolve().parents[1])
+    }
+
+    assert {
+        "Automatically detect",
+        "Direct Comfy workflows contain no cube stack.",
+        "Number of queued generations to create",
+        "Search…",
+        "Select model",
+        "Toggle between expanded and compact cube cards.",
+    } <= sources
 
 
 def test_packaged_catalogs_switch_common_ui_copy_without_touching_authored_text() -> (
@@ -188,6 +214,61 @@ def test_packaged_catalogs_translate_output_fallbacks_but_not_authored_matches()
     )
 
     assert application.removeTranslator(chinese)
+
+
+def test_packaged_catalogs_translate_native_widget_and_qfluent_dialog_chrome() -> None:
+    """Exercise newly owned native controls through the compiled release catalogs."""
+
+    application = _application()
+    chinese = _translator("sugarsubstitute_zh_CN.qm")
+    japanese = _translator("sugarsubstitute_ja_JP.qm")
+    assert application.installTranslator(chinese)
+    owner = QWidget()
+    audio = AudioRecordField(None, owner)
+    box = BoundingBoxField({"x": 1, "y": 2, "width": 3, "height": 4}, owner)
+    curve = CurveField({}, owner)
+    color_field = ColorField("#123456", owner)
+    color_dialog = LocalizedColorDialog(
+        QColor("#123456"),
+        app_text("Choose color"),
+        owner,
+        enable_alpha=True,
+    )
+    try:
+        assert audio.status_label.text() == "无音频"
+        assert audio.record_button.toolTip() == "使用默认麦克风录制音频"
+        assert box.text() == "x 1，y 2，3×4"
+        assert curve.text() == "编辑曲线（2 个点）"
+        assert color_field.picker.toolTip() == "选择颜色"
+        assert color_dialog.editLabel.text() == "编辑颜色"
+        assert color_dialog.opacityLabel.text() == "不透明度"
+        assert color_dialog.yesButton.text() == "确定"
+
+        assert application.removeTranslator(chinese)
+        assert application.installTranslator(japanese)
+        for widget in (
+            owner,
+            *owner.findChildren(QWidget),
+            color_dialog,
+            *color_dialog.findChildren(QWidget),
+        ):
+            application.sendEvent(widget, QEvent(QEvent.Type.LanguageChange))
+
+        assert audio.status_label.text() == "音声なし"
+        assert audio.record_button.toolTip() == "デフォルトのマイクで音声を録音"
+        assert box.text() == "x 1・y 2・3×4"
+        assert curve.text() == "カーブを編集（2点）"
+        assert color_field.picker.toolTip() == "色を選択"
+        assert color_dialog.editLabel.text() == "色を編集"
+        assert color_dialog.opacityLabel.text() == "不透明度"
+        assert color_dialog.yesButton.text() == "決定"
+        assert color_field.value() == "#123456"
+    finally:
+        application.removeTranslator(japanese)
+        application.removeTranslator(chinese)
+        color_dialog.close()
+        color_dialog.deleteLater()
+        owner.deleteLater()
 
 
 def test_nested_credential_status_copy_retranslates_in_place() -> None:
