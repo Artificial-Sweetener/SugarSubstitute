@@ -154,6 +154,7 @@ class EditorFieldBinding:
     prompt_field_identity: str | None
     node_type: str | None = None
     field_type: str | None = None
+    native_widget_type: str | None = None
 
     @classmethod
     def from_metadata(cls, metadata: object) -> EditorFieldBinding | None:
@@ -171,6 +172,12 @@ class EditorFieldBinding:
         value_source = metadata.get("value_source")
         node_type = metadata.get("node_type")
         field_type = metadata.get("type")
+        meta_info = metadata.get("meta_info")
+        native_widget_type = (
+            meta_info.get("native_widget_type")
+            if isinstance(meta_info, Mapping)
+            else None
+        )
         field_key = raw_key.strip()
         prompt_identity = (
             f"{node_name.strip()}.{field_key}"
@@ -187,6 +194,9 @@ class EditorFieldBinding:
             prompt_field_identity=prompt_identity,
             node_type=node_type if isinstance(node_type, str) else None,
             field_type=field_type if isinstance(field_type, str) else None,
+            native_widget_type=(
+                native_widget_type if isinstance(native_widget_type, str) else None
+            ),
         )
 
     @classmethod
@@ -269,8 +279,36 @@ class EditorPanelFieldStateController:
         if isinstance(widget, MaskPicker):
             self.wire_maskpicker_state(widget, cube_state)
             return
+        if self._wire_semantic_value_widget_state(widget, cube_state):
+            return
         if widget.__class__.__name__ == "SwitchButton":
             self.wire_switchbutton_state(widget, cube_state)
+
+    def _wire_semantic_value_widget_state(
+        self,
+        widget: object,
+        cube_state: object,
+    ) -> bool:
+        """Wire a custom field exposing the shared value/setValue/valueChanged API."""
+
+        value_reader = getattr(widget, "value", None)
+        value_writer = getattr(widget, "setValue", None)
+        value_changed = getattr(widget, "valueChanged", None)
+        if (
+            not callable(value_reader)
+            or not callable(value_writer)
+            or value_changed is None
+            or not hasattr(value_changed, "connect")
+        ):
+            return False
+        self.wire_widget_state(
+            widget,
+            cube_state,
+            get_val_func=lambda field: field.value(),
+            set_val_func=lambda field, value: field.setValue(value),
+            signal=value_changed,
+        )
+        return True
 
     def sync_prompt_editor_values_from_buffers(self) -> None:
         """Restore all prompt-editor widgets from authoritative workflow buffers."""

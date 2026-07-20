@@ -221,7 +221,9 @@ _FILE_DIALOG_METHODS = frozenset(
 )
 _PROPERTY_MESSAGE_FUNCTIONS = frozenset(
     {
+        "set_localized_accessible_description",
         "set_localized_accessible_name",
+        "set_localized_placeholder",
         "set_localized_text",
         "set_localized_tooltip",
         "set_localized_window_title",
@@ -645,6 +647,14 @@ def _visible_candidates(call: ast.Call) -> list[ast.expr]:
         candidates.append(call.args[1])
     if name == "set_fluent_tooltip_text" and len(call.args) >= 2:
         candidates.append(call.args[1])
+    if name in {"LocalizedColorDialog", "LocalizedColorPickerButton"}:
+        if len(call.args) >= 2:
+            candidates.append(call.args[1])
+        candidates.extend(
+            keyword.value
+            for keyword in call.keywords
+            if keyword.arg in {"dialog_title", "title"}
+        )
     if name in _POSITIONAL_VISIBLE_CALLS and call.args:
         candidates.append(call.args[0])
     if name in {"Action", "QAction"} and call.args:

@@ -70,12 +70,12 @@ Prompt preview:
 %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="32"></location>
+      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="40"></location>
       <source>%1 %2</source>
       <translation>%1 %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="30"></location>
+      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="38"></location>
       <source>%1 %2 %3</source>
       <translation>%1 %2 %3</translation>
     </message>
@@ -610,6 +610,11 @@ Prompt preview:
       <translation>接続したワークスペース：%1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="197"></location>
+      <source>Audio files (*.wav *.mp3 *.flac *.m4a *.ogg);;All files (*)</source>
+      <translation>音声ファイル (*.wav *.mp3 *.flac *.m4a *.ogg);;すべてのファイル (*)</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/generation_page.py" line="280"></location>
       <source>Auto</source>
       <translation>自動</translation>
@@ -633,6 +638,11 @@ Prompt preview:
       <location filename="../substitute/application/comfy_startup_diagnostics/startup_failure_report_service.py" line="161"></location>
       <source>Automatic managed core update was attempted, but the runtime is still incompatible. Repair the managed Comfy installation or update Substitute.</source>
       <translation>管理対象のコアは自動更新されましたが、実行環境にはまだ互換性がありません。管理対象の Comfy インストールを修復するか、Substitute を更新してください。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="504"></location>
+      <source>Automatically detect</source>
+      <translation>自動検出</translation>
     </message>
     <message>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="277"></location>
@@ -705,9 +715,14 @@ Prompt preview:
       <translation>ブロック中</translation>
     </message>
     <message>
-      <location filename="../substitute/domain/node_behavior/defaults.py" line="154"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="74"></location>
       <source>Blue</source>
       <translation>青</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="54"></location>
+      <source>Bounding box</source>
+      <translation>バウンディングボックス</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="426"></location>
@@ -985,6 +1000,21 @@ Prompt preview:
       <translation>この ComfyUI で動作する Python を選択</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="86"></location>
+      <source>Choose an existing audio file</source>
+      <translation>既存の音声ファイルを選択</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="195"></location>
+      <source>Choose audio</source>
+      <translation>音声を選択</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/color_field.py" line="43"></location>
+      <source>Choose color</source>
+      <translation>色を選択</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/jpeg_companion_settings.py" line="118"></location>
       <source>Choose fixed quality or an approximate target file size.</source>
       <translation>固定品質またはおおよその目標ファイルサイズを選択します。</translation>
@@ -1005,7 +1035,7 @@ Prompt preview:
       <translation>Substitute から ComfyUI への接続方法を選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/language_settings.py" line="90"></location>
+      <location filename="../substitute/presentation/settings/language_settings.py" line="98"></location>
       <source>Choose how SugarSubstitute presents text.</source>
       <translation>SugarSubstitute の表示言語を選びます。</translation>
     </message>
@@ -1085,7 +1115,7 @@ Prompt preview:
       <translation>既存の ComfyUI の main.py があるフォルダーを選んでください。Substitute の起動時にこの環境を使用します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/language_settings.py" line="58"></location>
+      <location filename="../substitute/presentation/settings/language_settings.py" line="66"></location>
       <source>Choose the language used by SugarSubstitute. Changes apply immediately.</source>
       <translation>SugarSubstitute で使用する言語を選びます。変更はすぐに反映されます。</translation>
     </message>
@@ -1148,6 +1178,11 @@ Prompt preview:
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="559"></location>
       <source>Choose your setup</source>
       <translation>セットアップ方法を選択</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="109"></location>
+      <source>CivitAI API key</source>
+      <translation>CivitAI API キー</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1178"></location>
@@ -1293,6 +1328,11 @@ Prompt preview:
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1338"></location>
       <source>Clearing planned changes.</source>
       <translation>予定されている変更をクリアしています。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/curve_field.py" line="254"></location>
+      <source>Click to add, drag to move, and right-click to remove a point.</source>
+      <translation>クリックで点を追加、ドラッグで移動、右クリックで削除します。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="532"></location>
@@ -1690,7 +1730,7 @@ Prompt preview:
       <translation>.png 拡張子を除いた相対フォルダーとファイル名を組み立てます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="27"></location>
+      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="35"></location>
       <source>Configured</source>
       <translation>設定済み</translation>
     </message>
@@ -2043,6 +2083,11 @@ Install these nodes now?</source>
       <translation>現在の出力</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/curve_field.py" line="252"></location>
+      <source>Curve</source>
+      <translation>カーブ</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="581"></location>
       <source>Cut</source>
       <translation>切り取り</translation>
@@ -2188,6 +2233,11 @@ Install these nodes now?</source>
       <translation>拡散モデル</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/cube_stack_presentation_controller.py" line="464"></location>
+      <source>Direct Comfy workflows contain no cube stack.</source>
+      <translation>直接読み込んだ Comfy ワークフローには Cube スタックがありません。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="633"></location>
       <source>Disable</source>
       <translation>無効にする</translation>
@@ -2278,6 +2328,16 @@ Install these nodes now?</source>
       <translation>重複部分の警告</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="71"></location>
+      <source>Edit Color</source>
+      <translation>色を編集</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/curve_field.py" line="311"></location>
+      <source>Edit curve (%1 points)</source>
+      <translation>カーブを編集（%1点）</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="326"></location>
       <source>Edit user wildcard files and refresh prompt metadata.</source>
       <translation>ユーザーのワイルドカードファイルを編集し、プロンプトのメタデータを更新します。</translation>
@@ -2308,7 +2368,7 @@ Install these nodes now?</source>
       <translation>%1 のフォルダーを空にしてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="398"></location>
+      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="420"></location>
       <source>Enable</source>
       <translation>有効にする</translation>
     </message>
@@ -2516,6 +2576,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="667"></location>
       <source>Fetching Danbooru wiki content...</source>
       <translation>Danbooru Wiki の内容を取得しています...</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="604"></location>
+      <source>Filter packages, claimants, or tags</source>
+      <translation>パッケージ、依存元、タグを絞り込む</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="159"></location>
@@ -2738,7 +2803,7 @@ Install these nodes now?</source>
       <translation>CivitAI ページを開く</translation>
     </message>
     <message>
-      <location filename="../substitute/domain/node_behavior/defaults.py" line="148"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="73"></location>
       <source>Green</source>
       <translation>緑</translation>
     </message>
@@ -2746,6 +2811,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/errors.py" line="554"></location>
       <source>HTTP status: %1</source>
       <translation>HTTP ステータス：%1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="43"></location>
+      <source>Height</source>
+      <translation>高さ</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1126"></location>
@@ -3058,12 +3128,12 @@ Install these nodes now?</source>
       <translation>横向き</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/language_settings.py" line="57"></location>
+      <location filename="../substitute/presentation/settings/language_settings.py" line="65"></location>
       <source>Language</source>
       <translation>言語</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/language_settings.py" line="89"></location>
+      <location filename="../substitute/presentation/settings/language_settings.py" line="97"></location>
       <source>Language and region</source>
       <translation>言語と地域</translation>
     </message>
@@ -3573,7 +3643,7 @@ Install these nodes now?</source>
       <translation>いいえ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="27"></location>
+      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="35"></location>
       <source>No API key configured</source>
       <translation>API キーが設定されていません</translation>
     </message>
@@ -3591,6 +3661,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1120"></location>
       <source>No Danbooru wiki page was found for "%1".</source>
       <translation>「%1」の Danbooru Wiki ページが見つかりませんでした。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="211"></location>
+      <source>No audio</source>
+      <translation>音声なし</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/planned_changes_panel.py" line="224"></location>
@@ -3651,6 +3726,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1113"></location>
       <source>No matching cubes</source>
       <translation>一致するキューブはありません</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="127"></location>
+      <source>No microphone</source>
+      <translation>マイクが見つかりません</translation>
     </message>
     <message>
       <location filename="../substitute/application/errors.py" line="577"></location>
@@ -3758,6 +3838,16 @@ Install these nodes now?</source>
       <translation>未読み込み</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="754"></location>
+      <source>Number of queued generations to create</source>
+      <translation>生成キューに追加する件数</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="47"></location>
+      <source>OK</source>
+      <translation>決定</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/errors.py" line="633"></location>
       <source>OS: %1</source>
       <translation>OS：%1</translation>
@@ -3776,6 +3866,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="578"></location>
       <source>On Pixiv:</source>
       <translation>Pixiv では：</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="75"></location>
+      <source>Opacity</source>
+      <translation>不透明度</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/about_page.py" line="587"></location>
@@ -3958,6 +4053,11 @@ Install these nodes now?</source>
       <translation>貼り付け</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/civitai_page.py" line="111"></location>
+      <source>Paste CivitAI API key</source>
+      <translation>CivitAI API キーを貼り付け</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="265"></location>
       <source>Paste a GitHub URL. Substitute validates and syncs the pack.</source>
       <translation>GitHub URL を貼り付けてください。Substitute がパックを検証して同期します。</translation>
@@ -3981,6 +4081,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/errors.py" line="598"></location>
       <source>Path</source>
       <translation>パス</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="444"></location>
+      <source>Path on the ComfyUI host</source>
+      <translation>ComfyUI ホスト上のパス</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="795"></location>
@@ -4333,7 +4438,22 @@ Install these nodes now?</source>
       <translation>再設定</translation>
     </message>
     <message>
-      <location filename="../substitute/domain/node_behavior/defaults.py" line="142"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="78"></location>
+      <source>Record audio from the default microphone</source>
+      <translation>デフォルトのマイクで音声を録音</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="186"></location>
+      <source>Recording failed</source>
+      <translation>録音に失敗しました</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="169"></location>
+      <source>Recording…</source>
+      <translation>録音中…</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
       <source>Red</source>
       <translation>赤</translation>
     </message>
@@ -4952,7 +5072,7 @@ No known extension claimant.</source>
       <translation>%1 を検索</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="586"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="585"></location>
       <source>Search cubes</source>
       <translation>キューブを検索</translation>
     </message>
@@ -4967,7 +5087,12 @@ No known extension claimant.</source>
       <translation>設定を検索</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="28"></location>
+      <location filename="../substitute/presentation/widgets/search_box.py" line="171"></location>
+      <source>Search…</source>
+      <translation>検索…</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/civitai_credential_status.py" line="36"></location>
       <source>Secure credential storage is unavailable.</source>
       <translation>安全な認証情報ストレージを利用できません。</translation>
     </message>
@@ -5022,6 +5147,11 @@ No known extension claimant.</source>
       <translation>すべて選択</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/widgets/model_picker/model_picker_field.py" line="250"></location>
+      <source>Select model</source>
+      <translation>モデルを選択</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="327"></location>
       <source>Select the executable used by the custom shortcut, script, launcher, or environment manager that starts ComfyUI.</source>
       <translation>カスタムショートカット、スクリプト、ランチャー、または環境マネージャーが実際に ComfyUI の起動に使用している実行ファイルを選んでください。</translation>
@@ -5037,7 +5167,7 @@ No known extension claimant.</source>
       <translation>サーバーエンドポイント</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="303"></location>
+      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="309"></location>
       <source>Set Global Override</source>
       <translation>グローバルオーバーライドを設定</translation>
     </message>
@@ -6452,6 +6582,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>タイトル：%1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/cube_stack_presentation_controller.py" line="475"></location>
+      <source>Toggle between expanded and compact cube cards.</source>
+      <translation>展開表示とコンパクト表示の Cube カードを切り替えます。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/errors.py" line="556"></location>
       <source>Top-level error:</source>
       <translation>最上位のエラー：</translation>
@@ -6917,6 +7052,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ここでセットアップが一時停止する理由</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="42"></location>
+      <source>Width</source>
+      <translation>幅</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/prompt_editor/prompt_feature_registry.py" line="80"></location>
       <source>Wildcard autocomplete</source>
       <translation>ワイルドカードの自動補完</translation>
@@ -6985,6 +7125,16 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1133"></location>
       <source>Working...</source>
       <translation>処理中...</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="40"></location>
+      <source>X coordinate</source>
+      <translation>X座標</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="41"></location>
+      <source>Y coordinate</source>
+      <translation>Y座標</translation>
     </message>
     <message>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="350"></location>
@@ -7097,6 +7247,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>既存のローカル ComfyUI</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="255"></location>
+      <source>https://github.com/owner/repository</source>
+      <translation>https://github.com/owner/repository</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/installation_service.py" line="125"></location>
       <source>legacy projects root</source>
       <translation>従来のプロジェクトルート</translation>
@@ -7160,6 +7315,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="472"></location>
       <source>v%1  Newest</source>
       <translation>v%1  最新</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="121"></location>
+      <source>x %1 · y %2 · %3×%4</source>
+      <translation>x %1・y %2・%3×%4</translation>
     </message>
   </context>
 </TS>

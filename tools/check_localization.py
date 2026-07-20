@@ -105,6 +105,36 @@ def find_non_fluent_tooltip_usage(
     return tuple(sorted(violations))
 
 
+def find_unowned_qt_translation_usage(
+    project_root: Path,
+) -> tuple[SourcePolicyViolation, ...]:
+    """Find Qt translation calls that bypass the explicit AppText catalog owner."""
+
+    violations: list[SourcePolicyViolation] = []
+    roots = (
+        project_root / "substitute",
+        project_root / "launcher" / "sugarsubstitute_launcher",
+        project_root / "sugarsubstitute_shared",
+    )
+    for root in roots:
+        for path in sorted(root.rglob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
+                owner = _direct_attribute_owner(call.func, "tr")
+                if owner not in {"self", "QObject"}:
+                    continue
+                violations.append(
+                    SourcePolicyViolation(
+                        filename=path.relative_to(project_root).as_posix(),
+                        line=call.lineno,
+                        reason=(
+                            f"{owner}.tr() bypasses the AppText localization owner"
+                        ),
+                    )
+                )
+    return tuple(sorted(violations))
+
+
 def main() -> int:
     """Fail when UI copy or editable input bypasses localization policy."""
 
@@ -133,6 +163,10 @@ def main() -> int:
     failures.extend(
         f"{item.filename}:{item.line}: {item.reason}"
         for item in find_non_fluent_tooltip_usage(project_root)
+    )
+    failures.extend(
+        f"{item.filename}:{item.line}: {item.reason}"
+        for item in find_unowned_qt_translation_usage(project_root)
     )
     if failures:
         print("\n".join(failures))
@@ -211,6 +245,14 @@ def _terminal_name(expression: ast.expr) -> str:
     if isinstance(expression, ast.Attribute):
         return expression.attr
     return ""
+
+
+def _direct_attribute_owner(expression: ast.expr, attribute: str) -> str:
+    """Return a direct name owner for one selected attribute call."""
+
+    if not isinstance(expression, ast.Attribute) or expression.attr != attribute:
+        return ""
+    return expression.value.id if isinstance(expression.value, ast.Name) else ""
 
 
 def _constant_string(expression: ast.expr) -> str | None:

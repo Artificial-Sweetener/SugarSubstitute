@@ -23,6 +23,8 @@ from copy import deepcopy
 
 from substitute.domain.common import JsonObject
 
+from .native_widget_schema import normalize_native_widget_definition
+
 
 def editor_definition_for_widget_inputs(
     inputs: object,
@@ -53,7 +55,8 @@ def editor_definition_from_comfy_definition(
 
     if not isinstance(definition, Mapping):
         return None
-    input_section = definition.get("input")
+    normalized_definition = normalize_native_widget_definition(definition, values)
+    input_section = normalized_definition.get("input")
     if not isinstance(input_section, Mapping):
         return None
     required: dict[str, object] = {}

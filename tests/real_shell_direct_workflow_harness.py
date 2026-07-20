@@ -21,13 +21,17 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, Mapping, cast
+from typing import Any, Callable, Mapping, cast
 
 from PySide6.QtCore import QElapsedTimer, QPoint
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.application.direct_workflows import DirectWorkflowLoadService
+from substitute.application.node_behavior import EditorBehaviorSnapshot
+from substitute.application.workflows.editor_projection_service import (
+    DIRECT_WORKFLOW_SECTION_KEY,
+)
 from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.workflow import WorkflowDocumentKind, WorkflowState
 from substitute.infrastructure.comfy.workflow_document_repository import (
@@ -36,6 +40,15 @@ from substitute.infrastructure.comfy.workflow_document_repository import (
 from substitute.presentation.editor.panel.overrides_controller import (
     GlobalOverridesManager,
 )
+from substitute.presentation.editor.panel.cube_section_build_plan import (
+    NodeCardBuildOutcome,
+)
+from substitute.presentation.editor.panel.cube_section_build_session import (
+    CubeSectionBuildSession,
+)
+from substitute.presentation.editor.panel.projection_coordinator import (
+    EditorPanelProjectionCoordinator,
+)
 from substitute.presentation.editor.panel.override_control_identity import (
     OVERRIDE_CONTROL_ROLE,
     OVERRIDE_KEY_PROPERTY,
@@ -43,6 +56,7 @@ from substitute.presentation.editor.panel.override_control_identity import (
     OVERRIDE_ROLE_PROPERTY,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor
+from substitute.presentation.editor.panel.widgets.cube_section import CubeSectionView
 from substitute.presentation.cubes.cube_stack_metrics import (
     CUBE_STACK_EXPANDED_WIDTH,
 )
@@ -194,6 +208,33 @@ class RealShellDirectWorkflowHarness:
     ) -> None:
         """Load a workflow and wait for its expected atomic card projection."""
 
+        self.load_direct_workflow_and_wait(
+            path,
+            node_definitions=node_definitions,
+        )
+        panel = self.shell.editor_panels[self.direct_workflow_id]
+
+        def expected_projection_visible() -> bool:
+            """Return whether the completed projection exposes required card owners."""
+
+            return expected_node_names.issubset(
+                set(self.rendered_node_names())
+            ) and not (panel.is_projection_active())
+
+        self.wait_until(
+            expected_projection_visible,
+            description=f"direct workflow cards {sorted(expected_node_names)!r}",
+        )
+
+    def load_direct_workflow_and_wait(
+        self,
+        path: Path,
+        *,
+        node_definitions: Mapping[str, Mapping[str, object]],
+        timeout_ms: int = 30_000,
+    ) -> None:
+        """Load one workflow and wait for its complete production card projection."""
+
         self.shell.node_definition_gateway.install_recorded_definitions(
             node_definitions
         )
@@ -211,22 +252,59 @@ class RealShellDirectWorkflowHarness:
         self.wait_for_transition()
         panel = self.shell.editor_panels[self.direct_workflow_id]
 
-        def expected_projection_visible() -> bool:
-            """Return whether the atomic projection exposes required card owners."""
+        def projection_complete() -> bool:
+            """Finalize eligible reveals and report complete projection ownership."""
 
             if panel.has_pending_visible_projection_commit():
                 panel.finalize_pending_visible_projection()
             self.process_events()
-            rendered_node_names = set(self.rendered_node_names())
-            return (
-                expected_node_names.issubset(rendered_node_names)
-                and not panel.is_projection_active()
-            )
+            return not panel.is_projection_active()
 
         self.wait_until(
-            expected_projection_visible,
-            description=f"direct workflow cards {sorted(expected_node_names)!r}",
+            projection_complete,
+            description=f"complete direct workflow projection for {path.name}",
+            timeout_ms=timeout_ms,
         )
+
+    def direct_behavior_snapshot(self) -> EditorBehaviorSnapshot:
+        """Return the behavior snapshot consumed by the current direct projection."""
+
+        panel = self.shell.editor_panels[self.direct_workflow_id]
+        snapshot = panel.current_behavior_snapshot()
+        if not isinstance(snapshot, EditorBehaviorSnapshot):
+            raise AssertionError("direct workflow behavior snapshot is unavailable")
+        return snapshot
+
+    def direct_node_card_build_outcomes(self) -> tuple[NodeCardBuildOutcome, ...]:
+        """Return production per-node outcomes retained by the build registry."""
+
+        panel = self.shell.editor_panels[self.direct_workflow_id]
+        coordinator = getattr(panel, "_projection_coordinator", None)
+        if not isinstance(coordinator, EditorPanelProjectionCoordinator):
+            raise AssertionError(
+                "direct workflow projection coordinator is unavailable"
+            )
+        record = coordinator._composition.build_registry.record_for(  # noqa: SLF001
+            DIRECT_WORKFLOW_SECTION_KEY
+        )
+        if record is None or record.state != "complete":
+            raise AssertionError("direct workflow build record is not complete")
+        session = record.session
+        if not isinstance(session, CubeSectionBuildSession):
+            raise AssertionError("direct workflow build session is unavailable")
+        return session.node_outcomes
+
+    def direct_section_view(self) -> CubeSectionView:
+        """Return the production section that owns the direct masonry layout."""
+
+        panel = self.shell.editor_panels[self.direct_workflow_id]
+        cube_widgets = cast(
+            dict[str, object], getattr(cast(Any, panel), "cube_widgets")
+        )
+        section = cube_widgets.get(DIRECT_WORKFLOW_SECTION_KEY)
+        if not isinstance(section, CubeSectionView):
+            raise AssertionError("direct workflow section view is unavailable")
+        return section
 
     def install_cube_seed_control(
         self,
