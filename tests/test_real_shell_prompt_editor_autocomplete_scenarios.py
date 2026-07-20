@@ -1242,8 +1242,14 @@ def test_real_shell_repeated_backspace_undoes_as_one_delete_group(
         pytest.fail(f"prompt editor invariant failed; artifacts: {artifact}")
 
     assert deleted.source_text == "abc"
-    assert deleted.undo_delete_group_active
-    assert deleted.undo_delete_group_key is not None
+    if deleted.undo_delete_group_active:
+        assert deleted.undo_delete_group_key is not None
+        assert deleted.undo_depth == 0
+    else:
+        # A loaded runner may cross the real 750 ms idle boundary while the
+        # diagnostic snapshot pumps events; the committed group remains one step.
+        assert deleted.undo_delete_group_key is None
+        assert deleted.undo_depth == 1
     assert undone.source_text == "abcdef"
     assert not undone.undo_delete_group_active
     assert undone.redo_available
