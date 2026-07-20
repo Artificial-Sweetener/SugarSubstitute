@@ -46,6 +46,7 @@ from substitute.presentation.editor.panel.projection_session import (
     ActiveProjectionSession,
 )
 from tests.node_behavior_test_helpers import build_behavior_snapshot, cube_state
+from tests.localization_testing import empty_node_presentation_service
 
 
 def _import_epanel_module():
@@ -1518,6 +1519,7 @@ def test_editor_panel_build_node_card_uses_node_card_builder_constructor_surface
     fake._services = mod.EditorPanelServiceBundle(
         node_definition_gateway=fake.node_definition_gateway,
         node_behavior_service=object(),
+        node_presentation_service=empty_node_presentation_service(),
         prompt=mod.EditorPanelPromptServiceBundle(
             autocomplete_gateway=fake.prompt_autocomplete_gateway,
             wildcard_catalog_gateway=fake.prompt_wildcard_catalog_gateway,
@@ -1621,6 +1623,7 @@ def test_editor_panel_prepares_node_card_prompt_inputs(monkeypatch) -> None:
     fake._services = mod.EditorPanelServiceBundle(
         node_definition_gateway=fake.node_definition_gateway,
         node_behavior_service=object(),
+        node_presentation_service=empty_node_presentation_service(),
         prompt=mod.EditorPanelPromptServiceBundle(
             autocomplete_gateway=fake.prompt_autocomplete_gateway,
             wildcard_catalog_gateway=fake.prompt_wildcard_catalog_gateway,

@@ -21,6 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 
 @dataclass(frozen=True, slots=True)
 class CredentialStoreStatus:
@@ -28,8 +30,8 @@ class CredentialStoreStatus:
 
     available: bool
     backend_name: str
-    reason: str | None = None
-    remediation: str | None = None
+    reason: ApplicationText | None = None
+    remediation: ApplicationText | None = None
 
 
 class CredentialStorageUnavailableError(RuntimeError):

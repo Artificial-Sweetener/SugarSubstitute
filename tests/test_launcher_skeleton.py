@@ -62,6 +62,7 @@ from launcher.sugarsubstitute_launcher.ui.main_window import (
 )
 from launcher.sugarsubstitute_launcher.release_sources import LocalFolderReleaseSource
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
+from sugarsubstitute_shared.localization import LanguagePreference, resolve_locale
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -76,6 +77,29 @@ def qt_application() -> QApplication:
     if application is None:
         application = QApplication([])
     return cast(QApplication, application)
+
+
+@pytest.fixture(autouse=True)
+def deterministic_launcher_localization(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep launcher skeleton routing independent from the host machine locale."""
+
+    resolved = resolve_locale(
+        LanguagePreference.explicit("en"),
+        ui_languages=(),
+    )
+    monkeypatch.setattr(
+        launcher_app,
+        "resolve_launcher_locale",
+        lambda _layout, *, locale_override: resolved,
+    )
+    monkeypatch.setattr(
+        launcher_app,
+        "build_launcher_localization_runtime",
+        lambda _application, **_kwargs: SimpleNamespace(
+            manager=object(),
+            initial_snapshot=SimpleNamespace(effective_language_identifier="en"),
+        ),
+    )
 
 
 def _pump_events_until(
@@ -115,6 +139,8 @@ def test_launcher_args_parse_internal_flags(tmp_path: Path) -> None:
             str(install_root),
             "--handoff-geometry",
             "10,20,1260,800",
+            "--locale",
+            "ja-JP",
         ]
     )
 
@@ -126,6 +152,7 @@ def test_launcher_args_parse_internal_flags(tmp_path: Path) -> None:
     assert args.headless_install is False
     assert args.verify_release_connectivity is False
     assert args.manifest_url is None
+    assert args.locale_override == "ja"
 
 
 def test_launcher_args_parse_headless_release_probe_flags(tmp_path: Path) -> None:
@@ -152,6 +179,15 @@ def test_launcher_args_parse_headless_release_probe_flags(tmp_path: Path) -> Non
     assert install_args.manifest_url == manifest_url
     assert connectivity_args.verify_release_connectivity is True
     assert connectivity_args.manifest_url == manifest_url
+    assert install_args.locale_override is None
+    assert connectivity_args.locale_override is None
+
+
+def test_launcher_args_reject_unsupported_locale_override() -> None:
+    """Launcher handoffs must not admit unshipped or automatic locale values."""
+
+    with pytest.raises(SystemExit):
+        parse_launcher_args(["--locale", "zh-TW"])
 
 
 def test_headless_install_requires_explicit_install_root() -> None:
@@ -554,7 +590,7 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
     monkeypatch.setattr(
         launcher_app,
         "start_launcher_splash_session",
-        lambda *, layout: None,
+        lambda *, layout, locale_identifier: None,
     )
     monkeypatch.setattr(
         launcher_app,
@@ -573,6 +609,7 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
             str(layout.runtime_python),
             str(layout.app_entrypoint),
             f"--install-root={layout.root}",
+            "--locale=en",
         ]
     ]
 
@@ -628,7 +665,7 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
     monkeypatch.setattr(
         launcher_app,
         "start_launcher_splash_session",
-        lambda *, layout: splash_session,
+        lambda *, layout, locale_identifier: splash_session,
     )
     monkeypatch.setattr(
         launcher_app,
@@ -648,6 +685,7 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
         str(layout.runtime_python),
         str(layout.app_entrypoint),
         f"--install-root={layout.root}",
+        "--locale=en",
         "--splash-session-endpoint=127.0.0.1:49152",
     ]
 
@@ -703,7 +741,7 @@ def test_launcher_main_hands_off_pending_launcher_update_instead_of_app(
     monkeypatch.setattr(
         launcher_app,
         "start_launcher_splash_session",
-        lambda *, layout: splash_session,
+        lambda *, layout, locale_identifier: splash_session,
     )
     monkeypatch.setattr(
         launcher_app,

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from time import perf_counter
@@ -583,7 +585,9 @@ class EditorIncrementalInsertPipeline:
             )
             ports.projection_lifecycle.refresh_visibility(
                 message=(
-                    "Failed to refresh editor visibility after incremental cube insert"
+                    app_text(
+                        "Failed to refresh editor visibility after incremental cube insert"
+                    )
                 ),
                 reason="cube_added",
                 use_cached_snapshot=True,

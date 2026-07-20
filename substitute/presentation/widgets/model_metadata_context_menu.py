@@ -30,11 +30,15 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
     RoundMenu,
 )
 
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from substitute.presentation.shell.output_canvas_thumbnail_choices import (
     OutputCanvasThumbnailChoice,
 )
 
 from substitute.presentation.widgets.civitai_page_action import (
+    CIVITAI_PAGE_ACTION_TEXT,
     UrlOpener,
     civitai_page_action,
     open_external_url,
@@ -48,7 +52,7 @@ from substitute.presentation.widgets.menu_model import (
 )
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
 
-_SET_THUMBNAIL_FROM_CANVAS_LABEL = "Set thumbnail from canvas"
+_SET_THUMBNAIL_FROM_CANVAS_LABEL = app_text("Set thumbnail from canvas")
 
 
 class ModelMetadataContextActionHandler(Protocol):
@@ -104,7 +108,7 @@ class ModelMetadataContextMenuTarget:
 class ModelMetadataMenuAction:
     """Describe one executable model metadata menu item."""
 
-    label: str
+    label: ApplicationText
     callback: Callable[[], None]
     enabled: bool = True
 
@@ -113,7 +117,7 @@ class ModelMetadataMenuAction:
 class ModelMetadataMenuSubmenu:
     """Describe one nested model metadata menu item."""
 
-    label: str
+    label: ApplicationText
     children: tuple[ModelMetadataMenuItem, ...]
     enabled: bool = True
 
@@ -176,7 +180,7 @@ class ModelMetadataContextMenuActionBuilder:
             action.trigger()
 
         return ModelMetadataMenuAction(
-            action.text(),
+            CIVITAI_PAGE_ACTION_TEXT,
             open_page,
         )
 
@@ -196,7 +200,7 @@ class ModelMetadataContextMenuActionBuilder:
             self._action_handler.refresh_civitai_metadata(target)
 
         return ModelMetadataMenuAction(
-            "Refresh CivitAI metadata",
+            app_text("Refresh CivitAI metadata"),
             refresh_metadata,
         )
 
@@ -378,7 +382,7 @@ def _thumbnail_submenu_children(
     if active_choice is not None:
         children.append(
             _thumbnail_choice_action(
-                "Current image",
+                app_text("Current image"),
                 target,
                 active_choice,
                 action_handler,
@@ -396,7 +400,7 @@ def _thumbnail_submenu_children(
 
 
 def _thumbnail_choice_action(
-    label: str,
+    label: ApplicationText,
     target: ModelMetadataContextMenuTarget,
     choice: OutputCanvasThumbnailChoice,
     action_handler: ModelMetadataContextActionHandler,
@@ -448,7 +452,7 @@ def _scene_level_items(
 
     items: list[ModelMetadataMenuItem] = []
     for scene_choices in _groups_by_scene(choices):
-        scene_label = scene_choices[0].scene_title or "Scene"
+        scene_label: ApplicationText = scene_choices[0].scene_title or app_text("Scene")
         if len(scene_choices) == 1:
             items.append(
                 _thumbnail_choice_action(
@@ -529,7 +533,9 @@ def _source_level_items(
         source_choices = tuple(
             choice for choice in choices if choice.source_key == source_key
         )
-        source_label = source_choices[0].source_label or "Output"
+        source_label: ApplicationText = source_choices[0].source_label or app_text(
+            "Output"
+        )
         if len(source_choices) == 1:
             items.append(
                 _thumbnail_choice_action(
@@ -563,7 +569,7 @@ def _image_leaf_actions_for_choices(
 
     return tuple(
         _thumbnail_choice_action(
-            f"Image {index}",
+            app_text("Image %1", index),
             target,
             choice,
             action_handler,
@@ -604,10 +610,10 @@ def _has_meaningful_scenes(
     )
 
 
-def _batch_label(set_index: int) -> str:
+def _batch_label(set_index: int) -> ApplicationText:
     """Return user-facing batch text for one output set index."""
 
-    return f"Batch {set_index}"
+    return app_text("Batch %1", set_index)
 
 
 __all__ = [

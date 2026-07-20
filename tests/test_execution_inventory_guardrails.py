@@ -67,6 +67,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
         {"threading.Lock"}
     ),
     "substitute/application/cubes/cube_load_service.py": frozenset({"threading.Lock"}),
+    "substitute/application/localization/comfy_node_catalog_store.py": frozenset(
+        {"threading.RLock"}
+    ),
     "substitute/application/model_metadata/model_catalog_service.py": frozenset(
         {"threading.RLock"}
     ),
@@ -95,6 +98,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
         {"threading.Lock"}
     ),
     "substitute/infrastructure/external/comfy_object_info_client.py": frozenset(
+        {"threading.RLock"}
+    ),
+    "substitute/infrastructure/localization/comfy_i18n_client.py": frozenset(
         {"threading.RLock"}
     ),
     "substitute/infrastructure/persistence/file_prompt_autocomplete_gateway.py": (

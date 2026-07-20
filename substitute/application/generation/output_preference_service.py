@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -58,7 +60,7 @@ class OutputPreferenceSaveResult:
 
     preferences: OutputPreferences
     succeeded: bool
-    message: str
+    message: ApplicationText
     preview: OutputPathRenderResult | None = None
 
 
@@ -124,7 +126,7 @@ class OutputPreferenceService:
         return OutputPreferenceSaveResult(
             preferences=normalized,
             succeeded=True,
-            message="Output settings saved.",
+            message=app_text("Output settings saved."),
             preview=self.render_preview(normalized),
         )
 

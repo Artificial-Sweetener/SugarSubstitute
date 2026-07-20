@@ -21,9 +21,11 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.localization import render_application_text
 from substitute.application.workflows import NodeLinkEndpointIndex, NodeLinkIdentity
 
-INDEPENDENT_LINK_LABEL = "Independent"
+INDEPENDENT_LINK_LABEL = app_text("Independent")
 LINK_TARGET_PREFIX = "🔗 "
 
 
@@ -47,9 +49,10 @@ def node_link_width_labels_by_identity(
     """Return node-link width labels grouped by endpoint compatibility identity."""
 
     labels_by_identity: dict[NodeLinkIdentity, tuple[str, ...]] = {}
+    independent_label = render_application_text(INDEPENDENT_LINK_LABEL)
     for identity in endpoint_index.identities():
-        labels: list[str] = [INDEPENDENT_LINK_LABEL]
-        seen = {INDEPENDENT_LINK_LABEL}
+        labels: list[str] = [independent_label]
+        seen = {independent_label}
         for cube_alias in ordered_aliases:
             if endpoint_index.endpoint_for(cube_alias, identity) is None:
                 continue

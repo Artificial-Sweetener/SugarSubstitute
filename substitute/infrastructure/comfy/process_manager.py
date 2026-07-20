@@ -21,6 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.infrastructure.comfy.managed_install import ensure_managed_comfy_setup
 from substitute.infrastructure.comfy.managed_launcher import (
     ManagedComfyState,
@@ -58,7 +60,7 @@ class ManagedComfyStateCleanupResult:
     registry_cleared: bool
     termination: ManagedProcessTerminationResult | None
     termination_status: ManagedProcessTerminationStatus | None
-    user_safe_detail: str
+    user_safe_detail: ApplicationText
     diagnostic_detail: str
 
 
@@ -81,7 +83,7 @@ def kill_comfyui_state(
             registry_cleared=False,
             termination=None,
             termination_status=None,
-            user_safe_detail="No managed ComfyUI cleanup was required.",
+            user_safe_detail=app_text("No managed ComfyUI cleanup was required."),
             diagnostic_detail="No managed ComfyUI state was available for cleanup.",
         )
     process = state.proc
@@ -102,7 +104,7 @@ def kill_comfyui_state(
             registry_cleared=False,
             termination=None,
             termination_status=None,
-            user_safe_detail="No managed ComfyUI cleanup was required.",
+            user_safe_detail=app_text("No managed ComfyUI cleanup was required."),
             diagnostic_detail=(
                 "Managed ComfyUI cleanup found no live process handle or ownership metadata."
             ),

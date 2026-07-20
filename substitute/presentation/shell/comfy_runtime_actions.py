@@ -22,6 +22,8 @@ from collections.abc import Callable
 from typing import Any
 
 from PySide6.QtWidgets import QMessageBox
+from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.localization import render_application_text
 
 from substitute.presentation.shell import comfy_settings_webview
 from substitute.shared.logging.logger import get_logger, log_exception, log_warning
@@ -68,8 +70,10 @@ class ComfyRuntimeActions:
             log_warning(_LOGGER, "ComfyUI restart requested without a handler")
             QMessageBox.warning(
                 self._shell,
-                "Restart ComfyUI",
-                "ComfyUI restart is not available in this session.",
+                render_application_text(app_text("Restart ComfyUI")),
+                render_application_text(
+                    app_text("ComfyUI restart is not available in this session.")
+                ),
             )
             return
         handler()
@@ -83,8 +87,13 @@ class ComfyRuntimeActions:
             comfy_settings_webview.log_webengine_unavailable()
             QMessageBox.warning(
                 self._shell,
-                "ComfyUI Settings",
-                "Qt WebEngine is not available, so ComfyUI Settings cannot open here.",
+                render_application_text(app_text("ComfyUI Settings")),
+                render_application_text(
+                    app_text(
+                        "Qt WebEngine is not available, so ComfyUI Settings cannot "
+                        "open here."
+                    )
+                ),
             )
             return
 
@@ -104,8 +113,12 @@ class ComfyRuntimeActions:
             )
             QMessageBox.warning(
                 self._shell,
-                "ComfyUI Settings",
-                "ComfyUI Settings could not be opened in the embedded webview.",
+                render_application_text(app_text("ComfyUI Settings")),
+                render_application_text(
+                    app_text(
+                        "ComfyUI Settings could not be opened in the embedded webview."
+                    )
+                ),
             )
 
 

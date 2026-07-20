@@ -45,6 +45,7 @@ from substitute.application.node_behavior import (
     ResolvedFieldSpec,
     required_node_definition_classes_for_editor_projection,
 )
+from substitute.application.localization import NodePresentationService
 from substitute.application.editor_search import EditorSearchResult
 from substitute.application.danbooru import (
     DanbooruImagePreviewService,
@@ -608,6 +609,7 @@ class EditorPanel(QWidget):
         prompt_autocomplete_gateway: PromptAutocompleteGateway,
         prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
         node_behavior_service: NodeBehaviorService,
+        node_presentation_service: NodePresentationService,
         danbooru_url_import_service: DanbooruUrlImportService | None = None,
         danbooru_wiki_service: DanbooruWikiContentService | None = None,
         danbooru_image_preview_service: DanbooruImagePreviewService | None = None,
@@ -670,6 +672,7 @@ class EditorPanel(QWidget):
         self._services = EditorPanelServiceBundle(
             node_definition_gateway=node_definition_gateway,
             node_behavior_service=node_behavior_service,
+            node_presentation_service=node_presentation_service,
             prompt=prompt_services,
             model=EditorPanelModelServiceBundle(
                 catalog_service=model_catalog_service,

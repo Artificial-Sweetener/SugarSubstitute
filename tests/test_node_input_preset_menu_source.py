@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.model_metadata import ModelCatalogItem, ModelCatalogSnapshot
 from substitute.application.user_presets import UserPresetService
 from substitute.domain.user_presets import (
@@ -163,17 +165,16 @@ def test_source_lists_family_and_global_node_input_sections() -> None:
     ]
     assert [item.label for item in model.sections[0].presets] == ["Fast Draft"]
     assert [item.label for item in model.sections[1].presets] == ["Balanced"]
-    assert model.save_scopes == (
-        PresetSaveScope(
-            title="Global",
-            full_label="Global",
-            association=GLOBAL_PRESET_ASSOCIATION,
-        ),
-        PresetSaveScope(
-            title="Illustrious",
-            full_label="Base model: Illustrious",
-            association=illustrious,
-        ),
+    assert tuple(
+        (
+            scope.title,
+            render_source_application_text(scope.full_label),
+            scope.association,
+        )
+        for scope in model.save_scopes
+    ) == (
+        ("Global", "Global", GLOBAL_PRESET_ASSOCIATION),
+        ("Illustrious", "Base model: Illustrious", illustrious),
     )
 
 

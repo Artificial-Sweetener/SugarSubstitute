@@ -21,6 +21,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Protocol
 
+from sugarsubstitute_shared.presentation.localization import render_application_text
+
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.comfy_startup_diagnostics import (
@@ -200,6 +202,7 @@ def _present_dialog(
         report_text=render_startup_diagnostics_report(
             state.incidents,
             transcript=state.transcript,
+            text_renderer=render_application_text,
         ),
         ignored_count=state.ignored_count,
         parent=parent,

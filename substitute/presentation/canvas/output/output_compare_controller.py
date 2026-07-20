@@ -25,7 +25,10 @@ from typing import Protocol
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
     OutputCanvasSourceGroup,
+    output_source_label_text,
 )
+from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.localization import render_application_text
 from substitute.application.workflows.output_compare_resolution import (
     default_output_compare_state,
     reconcile_output_compare_state,
@@ -345,11 +348,11 @@ class OutputCompareController:
 
         projection = self.output_projection()
         if projection is None:
-            return "Output"
+            return render_application_text(app_text("Output"))
         for source in self.compare_sources_for_selection(projection, selection):
             if source.source_key == selection.source_key:
-                return source.label
-        return "Output"
+                return render_application_text(output_source_label_text(source))
+        return render_application_text(app_text("Output"))
 
     def compare_set_count(self, side: str) -> int:
         """Return set count available to one compare side."""

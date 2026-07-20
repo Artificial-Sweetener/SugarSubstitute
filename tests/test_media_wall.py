@@ -44,7 +44,7 @@ from substitute.domain.model_metadata import (
     ThumbnailAsset,
 )
 from substitute.shared.qt_thumbnail_codec import prepare_qt_thumbnail
-from substitute.presentation.widgets.cursor_tooltip_filter import CursorToolTipFilter
+from sugarsubstitute_shared.presentation.fluent_tooltips import FluentToolTipFilter
 from substitute.presentation.widgets.media_wall import (
     JustifiedLayoutInput,
     JustifiedLayoutItem,
@@ -973,7 +973,7 @@ def test_media_wall_qfluent_tooltip_tracks_hovered_tile_path() -> None:
     )
 
     event = _mouse_move_event(view, QPoint(10, 10))
-    assert isinstance(view._tooltip_filter, CursorToolTipFilter)
+    assert isinstance(view._tooltip_filter, FluentToolTipFilter)
     assert view._tooltip_filter.eventFilter(view.viewport(), event) is False
 
     assert view.toolTip() == "checkpoints/one.safetensors"

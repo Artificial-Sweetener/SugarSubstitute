@@ -27,6 +27,8 @@ from typing import Self, TypeVar, cast
 
 from pytest import MonkeyPatch
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.execution import CancellationToken
 from substitute.application.execution.executor import TaskRequest
 from tests.execution_testing import ManualTaskHandle
@@ -1980,7 +1982,8 @@ def test_failed_active_job_stores_summary_and_detail() -> None:
     job = service.jobs()[0]
     assert job.status == "failed"
     assert job.failure_message == "Execution failed"
-    assert job.failure_summary == "Missing xformers"
+    assert job.failure_summary is not None
+    assert render_source_application_text(job.failure_summary) == "Missing xformers"
     assert job.failure_detail == "ModuleNotFoundError: No module named 'xformers'"
 
 

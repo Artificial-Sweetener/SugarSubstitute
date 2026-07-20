@@ -18,6 +18,18 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationText,
+    apply_application_text,
+    app_text,
+    set_localized_text,
+    set_localized_window_title,
+)
+from substitute.presentation.localization import (
+    LocalizedLabel,
+    LocalizedNativePushButton,
+)
+
 from collections.abc import Callable
 
 from PySide6.QtCore import Qt
@@ -26,7 +38,6 @@ from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -40,7 +51,7 @@ class ShutdownRecoveryDialog(QDialog):
 
         super().__init__(parent)
         self._allow_close = False
-        self.setWindowTitle("Could Not Finish Closing")
+        set_localized_window_title(self, "Could Not Finish Closing")
         self.setModal(True)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.setWindowFlag(Qt.WindowType.WindowContextHelpButtonHint, False)
@@ -49,15 +60,19 @@ class ShutdownRecoveryDialog(QDialog):
 
         self.primary_label = QLabel("", self)
         self.secondary_label = QLabel("", self)
-        self.warning_label = QLabel(
-            "If you close anyway, a background service may still be running.",
+        self.warning_label = LocalizedLabel(
+            app_text("If you close anyway, a background service may still be running."),
             self,
         )
-        self.details_toggle_button = QPushButton("Show Details", self)
+        self.details_toggle_button = LocalizedNativePushButton(
+            app_text("Show Details"), self
+        )
         self.details_toggle_button.setCheckable(True)
         self.details_label = QLabel("", self)
-        self.retry_button = QPushButton("Retry", self)
-        self.force_close_button = QPushButton("Close Substitute Anyway", self)
+        self.retry_button = LocalizedNativePushButton(app_text("Retry"), self)
+        self.force_close_button = LocalizedNativePushButton(
+            app_text("Close Substitute Anyway"), self
+        )
 
         self.primary_label.setWordWrap(True)
         self.secondary_label.setWordWrap(True)
@@ -85,21 +100,27 @@ class ShutdownRecoveryDialog(QDialog):
         layout.addWidget(self.details_label)
         layout.addLayout(button_row)
 
-    def show_uncertain_outcome(self, detail_text: str) -> None:
+    def show_uncertain_outcome(self, detail_text: ApplicationText) -> None:
         """Render the recovery copy for an uncertain shutdown outcome."""
 
         self._set_copy(
-            primary_text="Substitute could not confirm that shutdown finished.",
-            secondary_text="You can retry shutdown or close Substitute anyway.",
+            primary_text=app_text(
+                "Substitute could not confirm that shutdown finished."
+            ),
+            secondary_text=app_text(
+                "You can retry shutdown or close Substitute anyway."
+            ),
             detail_text=detail_text,
         )
 
-    def show_failed_outcome(self, detail_text: str) -> None:
+    def show_failed_outcome(self, detail_text: ApplicationText) -> None:
         """Render the recovery copy for a failed shutdown outcome."""
 
         self._set_copy(
-            primary_text="Substitute could not finish closing completely.",
-            secondary_text="You can retry shutdown or close Substitute anyway.",
+            primary_text=app_text("Substitute could not finish closing completely."),
+            secondary_text=app_text(
+                "You can retry shutdown or close Substitute anyway."
+            ),
             detail_text=detail_text,
         )
 
@@ -137,24 +158,25 @@ class ShutdownRecoveryDialog(QDialog):
     def _set_copy(
         self,
         *,
-        primary_text: str,
-        secondary_text: str,
-        detail_text: str,
+        primary_text: ApplicationText,
+        secondary_text: ApplicationText,
+        detail_text: ApplicationText,
     ) -> None:
         """Apply one recovery copy set and reset the details expander."""
 
-        self.primary_label.setText(primary_text)
-        self.secondary_label.setText(secondary_text)
-        self.details_label.setText(detail_text)
+        apply_application_text(self.primary_label, primary_text)
+        apply_application_text(self.secondary_label, secondary_text)
+        apply_application_text(self.details_label, detail_text)
         self.details_toggle_button.setChecked(False)
-        self.details_toggle_button.setText("Show Details")
+        set_localized_text(self.details_toggle_button, "Show Details")
         self.details_label.hide()
 
     def _toggle_details_visibility(self) -> None:
         """Toggle the visibility of the sanitized detail text."""
 
         details_visible = self.details_toggle_button.isChecked()
-        self.details_toggle_button.setText(
-            "Hide Details" if details_visible else "Show Details"
+        set_localized_text(
+            self.details_toggle_button,
+            "Hide Details" if details_visible else "Show Details",
         )
         self.details_label.setVisible(details_visible)

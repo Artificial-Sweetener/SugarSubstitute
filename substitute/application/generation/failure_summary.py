@@ -21,6 +21,8 @@ from __future__ import annotations
 import re
 from typing import Protocol
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 _MAX_FALLBACK_LENGTH = 48
 
 
@@ -32,7 +34,7 @@ class GenerationFailureLine(Protocol):
         """Return the failure stage key to display."""
 
     @property
-    def message(self) -> str:
+    def message(self) -> ApplicationText:
         """Return the user-visible failure message."""
 
     @property
@@ -40,54 +42,56 @@ class GenerationFailureLine(Protocol):
         """Return the Comfy prompt ID when the failure has one."""
 
 
-def format_generation_failure_line(failure: GenerationFailureLine) -> str:
+def format_generation_failure_line(
+    failure: GenerationFailureLine,
+) -> ApplicationText:
     """Build one shell-visible generation failure line."""
 
     stage_label = failure.stage.replace("_", " ").strip() or "generation"
     base_message = (
-        f"Generation failed during {stage_label}: {failure.message}"
+        app_text("Generation failed during %1: %2", stage_label, failure.message)
         if failure.message
-        else f"Generation failed during {stage_label}."
+        else app_text("Generation failed during %1.", stage_label)
     )
     if failure.prompt_id is None:
         return base_message
-    return f"{base_message} prompt_id={failure.prompt_id}"
+    return app_text("%1 prompt_id=%2", base_message, failure.prompt_id)
 
 
 def summarize_generation_failure(
     message: str | None,
     *,
     detail: str | None = None,
-) -> str:
+) -> ApplicationText:
     """Return a compact user-facing generation failure summary."""
 
     source = _combine_failure_text(message, detail)
     lowered = source.lower()
     if not source:
-        return "Generation failed"
+        return app_text("Generation failed")
 
     module_name = _extract_missing_module(source)
     if module_name:
-        return f"Missing {module_name}"
+        return app_text("Missing %1", module_name)
 
     dll_module_name = _extract_failed_import_module(source)
     if dll_module_name:
-        return f"{dll_module_name} failed to load"
+        return app_text("%1 failed to load", dll_module_name)
 
     if _looks_like_unattributed_import_failure(lowered):
-        return "Dependency failed"
+        return app_text("Dependency failed")
 
     if _looks_like_out_of_memory(lowered):
-        return "Out of memory"
+        return app_text("Out of memory")
 
     if _looks_like_comfy_unavailable(lowered):
-        return "ComfyUI unavailable"
+        return app_text("ComfyUI unavailable")
 
     if _looks_like_missing_model(lowered):
-        return "Missing model"
+        return app_text("Missing model")
 
     if _looks_like_invalid_input(lowered):
-        return "Invalid input"
+        return app_text("Invalid input")
 
     return _fallback_summary(message or detail or source)
 
@@ -200,14 +204,14 @@ def _looks_like_invalid_input(lowered: str) -> bool:
     )
 
 
-def _fallback_summary(source: str | None) -> str:
+def _fallback_summary(source: str | None) -> ApplicationText:
     """Return a clipped first-line/first-sentence fallback summary."""
 
     if source is None:
-        return "Generation failed"
+        return app_text("Generation failed")
     normalized = " ".join(source.strip().split())
     if not normalized:
-        return "Generation failed"
+        return app_text("Generation failed")
     first_line = normalized.splitlines()[0].strip()
     first_sentence_match = re.match(r"(.+?[.!?])(?:\s|$)", first_line)
     candidate = (

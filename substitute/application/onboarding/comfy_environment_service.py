@@ -24,6 +24,8 @@ import os
 from pathlib import Path
 from typing import Protocol
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.domain.onboarding import (
     ComfyPythonBinding,
     ComfyPythonDiscoveryResult,
@@ -100,7 +102,7 @@ class AttachedPythonRecoverySnapshot:
     state: AttachedPythonRecoveryState
     binding: ComfyPythonBinding | None
     processes: tuple[LocalComfyProcess, ...]
-    detail: str
+    detail: ApplicationText
 
     @property
     def can_continue(self) -> bool:
@@ -160,20 +162,24 @@ class ComfyEnvironmentService:
                     state=AttachedPythonRecoveryState.WAITING_FOR_SHUTDOWN,
                     binding=binding,
                     processes=processes,
-                    detail="The Python environment is verified. Close ComfyUI to continue.",
+                    detail=app_text(
+                        "The Python environment is verified. Close ComfyUI to continue."
+                    ),
                 )
             return AttachedPythonRecoverySnapshot(
                 state=AttachedPythonRecoveryState.READY,
                 binding=binding,
                 processes=(),
-                detail="ComfyUI is closed and its Python environment is ready.",
+                detail=app_text(
+                    "ComfyUI is closed and its Python environment is ready."
+                ),
             )
         if not processes:
             return AttachedPythonRecoverySnapshot(
                 state=AttachedPythonRecoveryState.WAITING_FOR_LAUNCH,
                 binding=None,
                 processes=(),
-                detail=(
+                detail=app_text(
                     "Open this ComfyUI installation yourself using your usual shortcut, "
                     "script, or launcher. Substitute will detect it automatically."
                 ),
@@ -183,7 +189,7 @@ class ComfyEnvironmentService:
                 state=AttachedPythonRecoveryState.OTHER_COMFY_RUNNING,
                 binding=None,
                 processes=processes,
-                detail=(
+                detail=app_text(
                     "A different ComfyUI installation is running. Start the selected "
                     "ComfyUI folder so Substitute can identify its Python environment."
                 ),
@@ -193,7 +199,7 @@ class ComfyEnvironmentService:
                 state=AttachedPythonRecoveryState.MULTIPLE_MATCHING,
                 binding=None,
                 processes=processes,
-                detail=(
+                detail=app_text(
                     "More than one process is running this ComfyUI installation. "
                     "Close the extra instance and leave one running."
                 ),
@@ -209,16 +215,18 @@ class ComfyEnvironmentService:
                 state=AttachedPythonRecoveryState.PYTHON_VALIDATION_FAILED,
                 binding=None,
                 processes=processes,
-                detail=(
-                    probe.failure
-                    or "The running ComfyUI Python environment could not be validated."
+                detail=probe.failure
+                or app_text(
+                    "The running ComfyUI Python environment could not be validated."
                 ),
             )
         return AttachedPythonRecoverySnapshot(
             state=AttachedPythonRecoveryState.WAITING_FOR_SHUTDOWN,
             binding=probe.binding,
             processes=processes,
-            detail="Found the Python environment ComfyUI uses. Close ComfyUI to continue.",
+            detail=app_text(
+                "Found the Python environment ComfyUI uses. Close ComfyUI to continue."
+            ),
         )
 
     def validate_browsed_python(

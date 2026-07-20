@@ -19,6 +19,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 from substitute.presentation.editor.panel.node_card_builder import NodeCardBuilder
 from tests.node_card_builder_test_helpers import build_node_card_builder
 from tests.node_behavior_test_helpers import build_behavior_snapshot
+from tests.localization_testing import technical_node_presentation
 
 
 class DummyGateway:
@@ -337,6 +338,10 @@ def test_node_link_selector_renders_before_enabled_switch(monkeypatch) -> None:
         snapshot=builder._snapshot_panel(cube_b, "B"),
         no_chevron=False,
         cube_state=cube_b,
+        node_presentation=technical_node_presentation(
+            node_name=node_name,
+            class_type=node_type,
+        ),
     )
 
     assert chevron is not None

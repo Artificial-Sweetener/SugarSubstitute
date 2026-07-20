@@ -140,6 +140,7 @@ class EditorSearchService:
                     query.node_filter_text,
                     node_name=node_name,
                     class_type=resolved_behavior.class_type,
+                    authored_title=resolved_behavior.display_name,
                     field_specs=field_specs_by_node.get(node_name, {}).values(),
                 ):
                     matching_nodes.add((cube_alias, node_name))
@@ -261,6 +262,7 @@ class EditorSearchService:
         *,
         node_name: str,
         class_type: str,
+        authored_title: str | None,
         field_specs: Iterable[ResolvedFieldSpec],
     ) -> bool:
         """Return whether one node should remain visible for the supplied query."""
@@ -269,6 +271,8 @@ class EditorSearchService:
             node_name.lower(),
             class_type.lower(),
         ]
+        if authored_title is not None:
+            corpus.append(authored_title.lower())
         for field_spec in field_specs:
             corpus.append(field_spec.field_key.lower())
             corpus.append(self._field_label(field_spec).lower())

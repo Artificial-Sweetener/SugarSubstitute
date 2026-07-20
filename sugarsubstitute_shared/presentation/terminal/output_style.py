@@ -49,6 +49,10 @@ _TERMINAL_FONT_FALLBACKS = (
     "Liberation Mono",
     "DejaVu Sans Mono",
     "Noto Sans Mono",
+    "Noto Sans Mono CJK SC",
+    "Noto Sans Mono CJK JP",
+    "Microsoft YaHei UI",
+    "Yu Gothic UI",
     "Courier New",
 )
 

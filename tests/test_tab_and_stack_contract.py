@@ -154,7 +154,7 @@ def _clear_gui_stubs():
     sys.modules.pop("substitute.presentation.workflows.workflow_tabs_view", None)
     sys.modules.pop("substitute.presentation.workflows.cube_stack_view", None)
     sys.modules.pop("substitute.presentation.workflows.reorderable_tabs_base", None)
-    sys.modules.pop("substitute.presentation.widgets.cursor_tooltip_filter", None)
+    sys.modules.pop("sugarsubstitute_shared.presentation.fluent_tooltips", None)
 
 
 def _attach_cube_stack_selection_methods(mod, fake: SimpleNamespace) -> None:

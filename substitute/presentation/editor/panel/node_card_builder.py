@@ -39,7 +39,6 @@ except ImportError:  # pragma: no cover - test-stub fallback only
         """Provide a no-op font helper when qfluentwidgets is unavailable."""
 
 
-from substitute.application.display_labels import beautify_label
 from substitute.application.node_behavior import (
     CollapseMode,
     FieldBehavior,
@@ -48,6 +47,10 @@ from substitute.application.node_behavior import (
     ResolvedFieldSpec,
     ResolvedNodeBehavior,
     TitleControl,
+)
+from substitute.domain.localization import (
+    FieldPresentation as LocalizedFieldPresentation,
+    NodePresentation,
 )
 from .node_card.accordion_motion import (
     AccordionChevronWidget,
@@ -70,6 +73,13 @@ from substitute.presentation.editor.panel.menus.node_input_preset_menu_source im
 from substitute.presentation.editor.panel.menus.node_title_preset_actions import (
     NodeInputPresetContext,
     bind_node_title_preset_actions,
+)
+from substitute.presentation.editor.panel.node_presentation_adapter import (
+    build_node_presentation_request,
+)
+from substitute.presentation.editor.panel.node_presentation_binding import (
+    NodeCardPresentationBinding,
+    NodeTitleTextTarget,
 )
 from substitute.presentation.editor.panel.factories import widget_wiring
 from substitute.presentation.editor.panel.factories.field_pipeline import (
@@ -119,7 +129,6 @@ from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset
 from substitute.presentation.widgets.tooltips import (
     bind_fluent_tooltip,
     normalized_tooltip,
-    tooltip_from_field_meta,
 )
 from substitute.presentation.editor.utils import sanitation
 from substitute.presentation.editor.utils.create_vbox import create_vbox
@@ -284,17 +293,16 @@ class NodeCardBodyComposer:
         widget: QWidget,
         field_behavior: FieldBehavior,
         content_layout: QVBoxLayout,
-    ) -> None:
+    ) -> BuiltFieldRow:
         """Build and append one single-field row with body-owned separators."""
 
-        self._append_row(
-            content_layout,
-            self._field_rows.build_input_row(
-                label=label,
-                widget=widget,
-                field_behavior=field_behavior,
-            ),
+        built_row = self._field_rows.build_input_row(
+            label=label,
+            widget=widget,
+            field_behavior=field_behavior,
         )
+        self._append_row(content_layout, built_row)
+        return built_row
 
     def add_n_column_row(
         self,
@@ -303,17 +311,18 @@ class NodeCardBodyComposer:
         field_behaviors: Mapping[str, FieldBehavior],
         content_layout: QVBoxLayout,
         node_name: str = "",
-    ) -> None:
+        field_labels: Mapping[str, str] | None = None,
+    ) -> BuiltFieldRow:
         """Build and append one grouped row with body-owned separators."""
 
-        self._append_row(
-            content_layout,
-            self._field_rows.build_n_column_row(
-                fields=fields,
-                field_behaviors=field_behaviors,
-                node_name=node_name,
-            ),
+        built_row = self._field_rows.build_n_column_row(
+            fields=fields,
+            field_behaviors=field_behaviors,
+            node_name=node_name,
+            field_labels=field_labels,
         )
+        self._append_row(content_layout, built_row)
+        return built_row
 
     def _append_row(
         self,
@@ -519,6 +528,16 @@ class NodeCardBuilder:
             return None
         snapshot_started_at = panel_projection_observability_started_at()
         snapshot = self._snapshot_panel(cube_state, alias)
+        presentation_request = build_node_presentation_request(
+            node_definition_gateway=self._services.node_definition_gateway,
+            node_name=node_name,
+            node_type=node_type,
+            field_specs=field_specs,
+            resolved_behavior=resolved_behavior,
+        )
+        node_presentation = self._services.node_presentation_service.present(
+            presentation_request
+        )
         _log_node_card_build_timing(
             "node_card.snapshot_panel",
             started_at=snapshot_started_at,
@@ -526,6 +545,12 @@ class NodeCardBuilder:
         )
         wrapper_parent = parent if parent is not None else self.panel
         wrapper = NodeCardWidget(wrapper_parent)
+        presentation_binding = NodeCardPresentationBinding(
+            owner=wrapper,
+            service=self._services.node_presentation_service,
+            request=presentation_request,
+        )
+        setattr(wrapper, "_node_presentation_binding", presentation_binding)
         node_card, node_card_layout, content_body, content_layout = (
             self._create_node_card_container(parent=wrapper)
         )
@@ -603,6 +628,7 @@ class NodeCardBuilder:
                             cube_state=cube_state,
                             alias=alias,
                             prompt_field_inputs=prompt_field_inputs,
+                            field_presentation=node_presentation.fields[key],
                         )
                         if field is None or field is LAYOUT_HANDLED:
                             self._log_wrapper_field_trace(
@@ -628,12 +654,17 @@ class NodeCardBuilder:
                         widgets.append((key, field))
                         field_behaviors[key] = field_behavior
                     if widgets:
-                        self._body_composer.add_n_column_row(
+                        built_row = self._body_composer.add_n_column_row(
                             fields=widgets,
                             field_behaviors=field_behaviors,
                             content_layout=content_layout,
                             node_name=node_name,
+                            field_labels={
+                                key: node_presentation.fields[key].label
+                                for key, _widget in widgets
+                            },
                         )
+                        presentation_binding.add_field_targets(built_row.text_targets)
                     continue
 
                 key = key_group[0]
@@ -676,6 +707,7 @@ class NodeCardBuilder:
                     cube_state=cube_state,
                     alias=alias,
                     prompt_field_inputs=prompt_field_inputs,
+                    field_presentation=node_presentation.fields[key],
                 )
                 if field is None or field is LAYOUT_HANDLED:
                     self._log_wrapper_field_trace(
@@ -698,12 +730,13 @@ class NodeCardBuilder:
                     field_spec=field_specs.get(key),
                     widget_type=field.__class__.__name__,
                 )
-                self._add_input_row(
-                    label=self._display_label_for_field(field_specs[key]),
+                built_row = self._add_input_row(
+                    label=node_presentation.fields[key].label,
                     widget=field,
                     field_behavior=field_behavior,
                     content_layout=content_layout,
                 )
+                presentation_binding.add_field_targets(built_row.text_targets)
             _log_node_card_build_timing(
                 "node_card.build_fields",
                 started_at=fields_started_at,
@@ -756,6 +789,7 @@ class NodeCardBuilder:
             ),
             cube_state=cube_state,
             parent=node_card,
+            node_presentation=node_presentation,
         )
         _log_node_card_build_timing(
             "node_card.create_title_row",
@@ -764,6 +798,9 @@ class NodeCardBuilder:
             has_rows=has_rows,
             has_title_controls=has_title_controls,
         )
+        title_target = getattr(title_row, "_node_title_text_target", None)
+        if isinstance(title_target, NodeTitleTextTarget):
+            presentation_binding.set_title_target(title_target)
         node_card_layout.addWidget(title_row)
         accordion_controller = None
         if has_rows:
@@ -814,8 +851,13 @@ class NodeCardBuilder:
         wrapper.setProperty("node_name", node_name)
         wrapper.setProperty("node_class_type", node_type)
         wrapper.setProperty("node_card_variant", node_card_variant.value)
+        wrapper.setProperty("node_title_source", node_presentation.title_source.value)
+        wrapper.setProperty(
+            "node_search_aliases", list(node_presentation.search_aliases)
+        )
         wrapper.setProperty("has_title_controls", has_title_controls)
         wrapper.setProperty("base_card_visible", True)
+        presentation_binding.retranslate()
         if parent is None:
             wrapper.setVisible(True)
         else:
@@ -976,10 +1018,10 @@ class NodeCardBuilder:
         widget: QWidget,
         field_behavior: FieldBehavior,
         content_layout: QVBoxLayout,
-    ) -> None:
+    ) -> BuiltFieldRow:
         """Add one input row through the shared row builder."""
 
-        self._body_composer.add_input_row(
+        return self._body_composer.add_input_row(
             label=label,
             widget=widget,
             field_behavior=field_behavior,
@@ -993,6 +1035,7 @@ class NodeCardBuilder:
         field_behaviors: Mapping[str, FieldBehavior],
         content_layout: QVBoxLayout,
         node_name: str = "",
+        field_labels: Mapping[str, str] | None = None,
     ) -> None:
         """Add one grouped multi-column row through the shared row builder."""
 
@@ -1001,6 +1044,7 @@ class NodeCardBuilder:
             field_behaviors=field_behaviors,
             content_layout=content_layout,
             node_name=node_name,
+            field_labels=field_labels,
         )
 
     def _gather_visible_keys(
@@ -1062,18 +1106,6 @@ class NodeCardBuilder:
             ),
         )
 
-    @staticmethod
-    def _display_label_for_field(field_spec: ResolvedFieldSpec) -> str:
-        """Return the public field label when wrapper metadata provides one."""
-
-        for metadata_key in ("label", "localized_name"):
-            metadata_value = field_spec.meta_info.get(metadata_key)
-            if isinstance(metadata_value, str):
-                stripped = metadata_value.strip()
-                if stripped:
-                    return stripped
-        return field_spec.field_key
-
     def _create_field_for_key(
         self,
         *,
@@ -1084,6 +1116,7 @@ class NodeCardBuilder:
         allow_unbounded_content_height: bool,
         cube_state: Any,
         alias: str | None,
+        field_presentation: LocalizedFieldPresentation,
         prompt_field_inputs: Mapping[str, NodeCardPromptFieldInputs] | None = None,
     ) -> Any:
         """Build one field widget from resolved field behavior and live definitions."""
@@ -1091,6 +1124,8 @@ class NodeCardBuilder:
         key = field_spec.field_key
         extended_meta = dict(field_spec.meta_info)
         extended_meta["cube_alias"] = alias
+        if field_presentation.tooltip is not None:
+            extended_meta["tooltip"] = field_presentation.tooltip
         cube_buffer = self._cube_buffer(cube_state)
         node_data = cube_buffer.get("nodes", {}).get(node_name)
         if isinstance(node_data, dict):
@@ -1146,6 +1181,7 @@ class NodeCardBuilder:
                     else None,
                     value=field_spec.value,
                     field_behavior=field_spec.field_behavior,
+                    label_source=field_spec.label_source,
                     raw_value=field_spec.raw_value,
                     value_source=field_spec.value_source,
                 ),
@@ -1213,13 +1249,13 @@ class NodeCardBuilder:
         if result is None or result is LAYOUT_HANDLED:
             return result
         widget = result[0] if isinstance(result, tuple) else result
-        field_tooltip = tooltip_from_field_meta(field_spec.meta_info)
+        field_tooltip = field_presentation.tooltip
         metadata = {
             "cube_alias": alias,
             "node_name": node_name,
             "key": key,
             "type": field_spec.field_type,
-            "meta_info": dict(field_spec.meta_info),
+            "meta_info": extended_meta,
             "field_info": field_spec.field_info,
             "constraints": dict(field_spec.constraints),
             "node_type": field_spec.class_type,
@@ -1383,6 +1419,7 @@ class NodeCardBuilder:
         node_type: str = "",
         inputs: Mapping[str, object] | None = None,
         field_specs: Mapping[str, ResolvedFieldSpec] | None = None,
+        node_presentation: NodePresentation,
     ) -> tuple[QWidget, AccordionChevronWidget | None]:
         """Build the title row from resolved card behavior."""
 
@@ -1402,17 +1439,10 @@ class NodeCardBuilder:
             self._resolve_title_icon(resolved_behavior.card.icon_name),
             parent=card_title,
         )
-        title_tooltip = normalized_tooltip(resolved_behavior.card.tooltip)
+        title_tooltip = normalized_tooltip(node_presentation.card_tooltip)
         title_layout.addWidget(title_icon)
 
-        display_name = (
-            resolved_behavior.display_name.strip()
-            if isinstance(resolved_behavior.display_name, str)
-            else ""
-        )
-        title_label = CaptionLabel(
-            literal_label_text(display_name or beautify_label(node_name))
-        )
+        title_label = CaptionLabel(literal_label_text(node_presentation.title))
         setFont(title_label, 14, QFont.DemiBold)
         title_layout.addWidget(title_label)
         title_layout.addStretch()
@@ -1425,6 +1455,15 @@ class NodeCardBuilder:
             show_delay_ms=600,
         )
         card_title.set_interactive_targets((title_icon, title_label))
+        setattr(
+            card_title,
+            "_node_title_text_target",
+            NodeTitleTextTarget(
+                owner=card_title,
+                label=title_label,
+                tooltip_targets=(card_title, title_icon, title_label),
+            ),
+        )
         if inputs is not None and field_specs is not None:
             self._bind_node_input_preset_menu(
                 title_row=card_title,

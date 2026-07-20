@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -147,7 +149,7 @@ GLOBAL_PRESET_ASSOCIATION = UserPresetAssociation(
     scope=UserPresetAssociationScope.GLOBAL,
     provider=None,
     key="global",
-    label="Global",
+    label=app_text("Global"),
 )
 
 

@@ -19,13 +19,12 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
-
 from PySide6.QtWidgets import QWidget
 
-from substitute.presentation.widgets.cursor_tooltip_filter import (
-    CursorToolTipFilter,
-    install_cursor_tooltip_filter,
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    FluentToolTipFilter,
+    ensure_fluent_tooltip_filter,
+    set_fluent_tooltip_text,
 )
 
 _EDITOR_TOOLTIP_FILTER_ATTR = "_editor_tooltip_filter"
@@ -65,20 +64,25 @@ def bind_fluent_tooltip(
     tooltip: str | None,
     *watched_widgets: QWidget,
     show_delay_ms: int = 600,
-) -> CursorToolTipFilter | None:
+) -> FluentToolTipFilter | None:
     """Bind tooltip text to one owner-backed QFluent cursor tooltip filter."""
 
     text = tooltip or ""
-    set_tooltip: Any = getattr(owner, "setToolTip", None)
-    if callable(set_tooltip):
-        set_tooltip(text)
+    set_fluent_tooltip_text(owner, text)
+    existing_filter = getattr(owner, _EDITOR_TOOLTIP_FILTER_ATTR, None)
     if not text:
+        if isinstance(existing_filter, FluentToolTipFilter):
+            existing_filter.hide_tooltip()
+            return existing_filter
         setattr(owner, _EDITOR_TOOLTIP_FILTER_ATTR, None)
         return None
-    tooltip_filter = install_cursor_tooltip_filter(
+    if isinstance(existing_filter, FluentToolTipFilter):
+        return existing_filter
+    tooltip_filter = ensure_fluent_tooltip_filter(
         owner,
         *(watched_widgets or (owner,)),
         show_delay_ms=show_delay_ms,
+        cursor_anchor=True,
     )
     setattr(owner, _EDITOR_TOOLTIP_FILTER_ATTR, tooltip_filter)
     return tooltip_filter

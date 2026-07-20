@@ -19,6 +19,12 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationMessage
+from sugarsubstitute_shared.presentation.localization import (
+    apply_application_text,
+    app_text,
+)
+
 from typing import Callable, cast
 
 from PySide6.QtCore import (
@@ -77,6 +83,7 @@ from substitute.presentation.shell.chrome_style import (
     connect_theme_refresh,
     workflow_chrome_wash_color,
 )
+from substitute.application.workflows import workflow_tab_display_text
 from substitute.presentation.widgets.menu_model import (
     MenuEntry,
     MenuItem,
@@ -122,7 +129,9 @@ _UNREAD_SHIMMER_EDGE_ALPHA_DARK = 16
 _UNREAD_SHIMMER_EDGE_ALPHA_LIGHT = 22
 _UNREAD_SHIMMER_CENTER_ALPHA_DARK = 45
 _UNREAD_SHIMMER_CENTER_ALPHA_LIGHT = 55
-REOPEN_CLOSED_WORKFLOW_MENU_TEXT = "Reopen Closed Workflow"
+REOPEN_CLOSED_WORKFLOW_MENU_TEXT: ApplicationMessage = app_text(
+    "Reopen Closed Workflow"
+)
 
 
 class TabItem(ReorderableTabItemBase):
@@ -150,6 +159,7 @@ class TabItem(ReorderableTabItemBase):
         """Disable selected-tab shadow so workflow tabs stay flat."""
         super()._postInit()
         self.setParentMouseEventForwarding(False)
+        self._source_text = str(self.text())
         self._backdrop_mode: ShellBackdropMode | None = None
         self._owning_tab_bar: TabBar | None = None
         self._orb_cutout_progress = 0.0
@@ -172,6 +182,17 @@ class TabItem(ReorderableTabItemBase):
         self.setShadowEnabled(False)
         self._apply_theme_styles()
         connect_theme_refresh(self, self._apply_theme_styles)
+
+    def set_source_text(self, text: str) -> None:
+        """Store invariant workflow text and project its localized display label."""
+
+        self._source_text = text
+        apply_application_text(self, workflow_tab_display_text(text))
+
+    def source_text(self) -> str:
+        """Return the invariant authored or generated workflow label."""
+
+        return self._source_text
 
     def set_owning_tab_bar(self, tab_bar: "TabBar") -> None:
         """Set the tab bar that owns orb-cutout role and overlay invalidation."""
@@ -513,6 +534,29 @@ class TabItem(ReorderableTabItemBase):
         painter.setBrush(gradient)
         painter.drawPath(path)
         painter.restore()
+
+
+def workflow_tab_source_text(item: object) -> str:
+    """Return invariant workflow text from a production tab or compatible stub."""
+
+    source_text = getattr(item, "source_text", None)
+    if callable(source_text):
+        return str(source_text())
+    text = getattr(item, "text", None)
+    return str(text()) if callable(text) else ""
+
+
+def set_workflow_tab_source_text(item: object, text: str) -> None:
+    """Set invariant workflow text on a production tab or compatible stub."""
+
+    set_source_text = getattr(item, "set_source_text", None)
+    if callable(set_source_text):
+        set_source_text(text)
+        return
+    set_text = getattr(item, "setText", None)
+    if not callable(set_text):
+        raise TypeError("Workflow tab items must expose a text setter.")
+    set_text(text)
 
 
 class WorkflowTabCornerOverlay(QWidget):
@@ -881,6 +925,8 @@ class TabBar(ReorderableTabBarBase):
         if self.is_settings_route(routeKey):
             raise ValueError("Settings is a shell-owned route, not a workflow tab.")
         item = super().insertTab(index, routeKey, text, icon, onClick)
+        if isinstance(item, TabItem):
+            item.set_source_text(text)
         item.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         item.installEventFilter(self)
         item.customContextMenuRequested.connect(
@@ -1031,8 +1077,28 @@ class TabBar(ReorderableTabBarBase):
         old_key = tab_item.routeKey() or ""
         if self.is_settings_route(old_key):
             return
+        if isinstance(tab_item, TabItem):
+            tab_item.set_source_text(new_name)
         self.tabRenamed.emit(old_key, new_name)
         self.workflowRenameRequested.emit(old_key, new_name)
+
+    def tabText(self, index: int) -> str:
+        """Return invariant workflow text rather than its localized projection."""
+
+        item = self.tabItem(index)
+        if isinstance(item, TabItem):
+            return item.source_text()
+        return workflow_tab_source_text(item) if item is not None else ""
+
+    def setTabText(self, index: int, text: str) -> None:
+        """Set invariant workflow text and refresh its localized projection."""
+
+        item = self.tabItem(index)
+        if isinstance(item, TabItem):
+            item.set_source_text(text)
+            return
+        if item is not None:
+            set_workflow_tab_source_text(item, text)
 
     def _emitBarClicked(self, index: int) -> None:
         """Emit workflow tab clicked signal."""
@@ -1166,13 +1232,13 @@ class TabBar(ReorderableTabBarBase):
                 (
                     MenuItem(
                         "workflow_tab.rename",
-                        "Rename",
+                        app_text("Rename"),
                         callback=tab_item._startRename,
                         icon=FIF.EDIT,
                     ),
                     MenuItem(
                         "workflow_tab.duplicate",
-                        "Duplicate",
+                        app_text("Duplicate"),
                         callback=lambda item=tab_item: self._emit_duplicate_requested(
                             item
                         ),
@@ -1569,4 +1635,6 @@ __all__ = [
     "TabCloseButtonDisplayMode",
     "TabItem",
     "WorkflowTabCornerOverlay",
+    "set_workflow_tab_source_text",
+    "workflow_tab_source_text",
 ]

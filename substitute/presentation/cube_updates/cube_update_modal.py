@@ -18,6 +18,21 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    app_text,
+    set_localized_combo_item,
+    set_localized_tooltip,
+)
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedCaptionLabel,
+    LocalizedPrimaryPushButton,
+    LocalizedPushButton,
+    LocalizedSubtitleLabel,
+)
+
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -33,15 +48,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    BodyLabel,
-    CaptionLabel,
     CheckBox,
     ComboBox,
     MessageBoxBase,
-    PrimaryPushButton,
-    PushButton,
     StrongBodyLabel,
-    SubtitleLabel,
 )
 from shiboken6 import isValid
 
@@ -73,6 +83,7 @@ class _CandidateRowControls:
     """Store widgets that define one candidate row's selected action."""
 
     checkbox: CheckBox
+    secondary_label: LocalizedCaptionLabel
     action_combo: ComboBox
     version_combo: ComboBox
 
@@ -210,9 +221,11 @@ class CubeUpdateModal(MessageBoxBase):  # type: ignore[misc]
     def _build_header(self) -> None:
         """Create the title and explanatory text."""
 
-        self._title_label = SubtitleLabel("Cube updates available", self.widget)
-        self._message_label = BodyLabel(
-            "Updated versions are available for loaded cubes.",
+        self._title_label = LocalizedSubtitleLabel(
+            app_text("Cube updates available"), self.widget
+        )
+        self._message_label = LocalizedBodyLabel(
+            app_text("Updated versions are available for loaded cubes."),
             self.widget,
         )
         self._message_label.setWordWrap(True)
@@ -232,20 +245,24 @@ class CubeUpdateModal(MessageBoxBase):  # type: ignore[misc]
         for row_index, candidate in enumerate(self._candidates):
             checkbox = CheckBox(self._rows_frame)
             checkbox.setChecked(True)
-            checkbox.setToolTip("Update this workflow cube to the latest version")
+            set_localized_tooltip(
+                checkbox, "Update this workflow cube to the latest version"
+            )
             self._checkboxes[candidate] = checkbox
 
             primary = StrongBodyLabel(_primary_text(candidate), self._rows_frame)
             primary.setWordWrap(True)
-            secondary = CaptionLabel(_secondary_text(candidate), self._rows_frame)
+            secondary = LocalizedCaptionLabel(
+                _secondary_text(candidate), self._rows_frame
+            )
             secondary.setWordWrap(True)
             action_combo = ComboBox(self._rows_frame)
-            action_combo.setToolTip(
-                "Choose how this workflow cube should handle the update"
+            set_localized_tooltip(
+                action_combo, "Choose how this workflow cube should handle the update"
             )
             _populate_action_combo(action_combo, candidate=candidate)
             version_combo = ComboBox(self._rows_frame)
-            version_combo.setToolTip("Choose a specific cube version")
+            set_localized_tooltip(version_combo, "Choose a specific cube version")
             _populate_version_combo(
                 version_combo,
                 candidate=candidate,
@@ -253,6 +270,7 @@ class CubeUpdateModal(MessageBoxBase):  # type: ignore[misc]
             )
             self._row_controls[candidate] = _CandidateRowControls(
                 checkbox=checkbox,
+                secondary_label=secondary,
                 action_combo=action_combo,
                 version_combo=version_combo,
             )
@@ -279,13 +297,17 @@ class CubeUpdateModal(MessageBoxBase):  # type: ignore[misc]
         self.buttonLayout.setSpacing(12)
         self.buttonLayout.addStretch(1)
 
-        self._keep_button = PushButton("Keep current", self.buttonGroup)
+        self._keep_button = LocalizedPushButton(
+            app_text("Keep current"), self.buttonGroup
+        )
         self._keep_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
         self._keep_button.setMinimumWidth(_ACTION_BUTTON_MINIMUM_WIDTH)
         self._keep_button.clicked.connect(self.reject)
         self.buttonLayout.addWidget(self._keep_button, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self._update_button = PrimaryPushButton("Update selected", self.buttonGroup)
+        self._update_button = LocalizedPrimaryPushButton(
+            app_text("Update selected"), self.buttonGroup
+        )
         self._update_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
         self._update_button.setMinimumWidth(_ACTION_BUTTON_MINIMUM_WIDTH)
         self._update_button.clicked.connect(self.accept)
@@ -342,13 +364,15 @@ def _primary_text(candidate: LoadedCubeUpdateCandidate) -> str:
     return f"{candidate.cube_alias} - {display_name}"
 
 
-def _secondary_text(candidate: LoadedCubeUpdateCandidate) -> str:
+def _secondary_text(candidate: LoadedCubeUpdateCandidate) -> ApplicationMessage:
     """Return secondary row text for one candidate."""
 
     workflow_name = candidate.workflow_name or candidate.workflow_id
-    return (
-        f"{workflow_name} | Current: v{candidate.current_version} | "
-        f"Available: v{candidate.latest_version}"
+    return app_text(
+        "%1 | Current: v%2 | Available: v%3",
+        workflow_name,
+        candidate.current_version,
+        candidate.latest_version,
     )
 
 
@@ -362,17 +386,29 @@ def _populate_action_combo(
     for action, label in (
         (
             LoadedCubeUpdateAction.UPDATE_INSTANCE,
-            f"Update to v{candidate.latest_version}",
+            app_text(
+                "Update to v%1",
+                candidate.latest_version,
+            ),
         ),
-        (LoadedCubeUpdateAction.KEEP_PINNED, f"Keep v{candidate.current_version}"),
+        (
+            LoadedCubeUpdateAction.KEEP_PINNED,
+            app_text("Keep v%1", candidate.current_version),
+        ),
         (
             LoadedCubeUpdateAction.UPDATE_MATCHING_VERSION,
-            f"Update all v{candidate.current_version} instances",
+            app_text(
+                "Update all v%1 instances",
+                candidate.current_version,
+            ),
         ),
-        (LoadedCubeUpdateAction.SWITCH_TO_VERSION, "Choose version..."),
-        (LoadedCubeUpdateAction.FOLLOW_LATEST, "Always use newest version"),
+        (LoadedCubeUpdateAction.SWITCH_TO_VERSION, app_text("Choose version...")),
+        (
+            LoadedCubeUpdateAction.FOLLOW_LATEST,
+            app_text("Always use newest version"),
+        ),
     ):
-        combo.addItem(label, userData=action)
+        _add_combo_item(combo, label, user_data=action)
 
 
 def _populate_version_combo(
@@ -384,7 +420,11 @@ def _populate_version_combo(
     """Populate versions available for one cube id."""
 
     for version in _unique_versions(candidate, versions):
-        combo.addItem(_version_label(version, candidate=candidate), userData=version)
+        _add_combo_item(
+            combo,
+            _version_label(version, candidate=candidate),
+            user_data=version,
+        )
 
 
 def _unique_versions(
@@ -425,15 +465,28 @@ def _version_label(
     version: str,
     *,
     candidate: LoadedCubeUpdateCandidate,
-) -> str:
+) -> ApplicationText:
     """Return a compact human-readable version label."""
 
-    suffix = ""
     if version == candidate.latest_version:
-        suffix = "  Newest"
+        return app_text("v%1  Newest", version)
     elif version == candidate.current_version:
-        suffix = "  Current"
-    return f"v{version}{suffix}"
+        return app_text("v%1  Current", version)
+    return f"v{version}"
+
+
+def _add_combo_item(
+    combo: ComboBox,
+    label: ApplicationText,
+    *,
+    user_data: object,
+) -> None:
+    """Add one stable combo item and bind only app-owned presentation text."""
+
+    item_index = combo.count()
+    combo.addItem(str(label), userData=user_data)
+    if isinstance(label, ApplicationMessage):
+        set_localized_combo_item(combo, item_index, label)
 
 
 def _resolve_parent(parent: object | None) -> QWidget:

@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 import pytest
 
 from substitute.application.onboarding import (
@@ -967,7 +969,7 @@ def test_flow_service_maps_storage_exhaustion_to_temp_space_copy(
     )
 
     assert failure.headline == "Substitute ran out of temporary install space"
-    assert str(tmp_path) in failure.remediation_steps[0]
+    assert str(tmp_path) in render_source_application_text(failure.remediation_steps[0])
     assert "Python packages" in failure.user_message
 
 

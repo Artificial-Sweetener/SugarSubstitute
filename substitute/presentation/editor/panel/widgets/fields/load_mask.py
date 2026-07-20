@@ -24,6 +24,8 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QFileDialog, QWidget
 
+from sugarsubstitute_shared.presentation.localization import translate_application_text
+
 from substitute.shared.logging.logger import get_logger, log_warning
 
 from .thumbnail_picker_base import ThumbnailPickerBase
@@ -57,7 +59,6 @@ class MaskPicker(ThumbnailPickerBase):
             default_folder=default_folder,
             placeholder_image=placeholder_image,
             button_padding=button_padding,
-            browse_button_text="Browse Files",
         )
         self.cube_alias = cube_alias
         self.node_name = node_name
@@ -73,9 +74,9 @@ class MaskPicker(ThumbnailPickerBase):
 
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Choose Mask",
+            translate_application_text("Choose Mask"),
             self.default_folder,
-            "Images (*.png *.jpg *.jpeg *.bmp *.gif)",
+            translate_application_text("Images (*.png *.jpg *.jpeg *.bmp *.gif)"),
         )
         if file_path:
             self.set_mask_path(file_path)

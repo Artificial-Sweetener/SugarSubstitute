@@ -18,9 +18,15 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    set_localized_window_title,
+)
+from substitute.presentation.localization import LocalizedLabel
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent, QKeyEvent
-from PySide6.QtWidgets import QDialog, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
 
 
 class ShutdownProgressDialog(QDialog):
@@ -31,15 +37,15 @@ class ShutdownProgressDialog(QDialog):
 
         super().__init__(parent)
         self._allow_close = False
-        self.setWindowTitle("Closing Substitute")
+        set_localized_window_title(self, "Closing Substitute")
         self.setModal(True)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.setWindowFlag(Qt.WindowType.WindowContextHelpButtonHint, False)
         self.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
         self.setMinimumWidth(360)
 
-        self.headline_label = QLabel("Closing Substitute...", self)
-        self.body_label = QLabel("Please wait a moment.", self)
+        self.headline_label = LocalizedLabel(app_text("Closing Substitute..."), self)
+        self.body_label = LocalizedLabel(app_text("Please wait a moment."), self)
 
         self.body_label.setWordWrap(True)
 

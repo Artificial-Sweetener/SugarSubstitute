@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.workflows.workflow_tabs_view import (
+    workflow_tab_source_text,
+)
+
 from collections.abc import Callable, Mapping
 from typing import Protocol
 
@@ -75,7 +79,7 @@ class WorkflowDocumentTargetResolver:
         tab_item = view.workflow_tabbar.tabItem(view.workflow_tabbar.currentIndex())
         current_id = tab_item.routeKey()
         workflow = view.workflow_session_service.get_workflow(current_id)
-        if _is_blank_default_workflow(workflow, tab_item.text()):
+        if _is_blank_default_workflow(workflow, workflow_tab_source_text(tab_item)):
             return current_id
         add_workflow_tab()
         return view.workflow_session_service.active_workflow_id

@@ -25,6 +25,8 @@ from typing import cast
 
 import pytest
 
+from sugarsubstitute_shared.localization import app_text
+
 from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
@@ -191,7 +193,7 @@ class _LoraMetadata:
                         payload=PromptLoraTriggerWordsPayload(
                             insertion_text=prompt_text,
                             display_name="Test",
-                            full_label="Trigger words: Test",
+                            full_label=app_text("Trigger words: %1", "Test"),
                         ),
                     ),
                 ),

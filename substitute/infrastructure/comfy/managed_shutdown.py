@@ -24,6 +24,8 @@ import os
 from time import monotonic, sleep
 import subprocess
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedProcessHandle,
 )
@@ -62,7 +64,7 @@ class ManagedProcessTerminationResult:
     verification_timed_out: bool = False
     termination_command_timed_out: bool = False
     elapsed_ms: int = 0
-    user_safe_detail: str = ""
+    user_safe_detail: ApplicationText = ""
     diagnostic_detail: str = ""
 
 
@@ -76,7 +78,7 @@ def kill_managed_comfy(
             status=ManagedProcessTerminationStatus.NO_ACTION_REQUIRED,
             pid=None,
             attempted=False,
-            user_safe_detail="No managed process shutdown was required.",
+            user_safe_detail=app_text("No managed process shutdown was required."),
             diagnostic_detail="No managed process handle was available.",
         )
     if proc.poll() is not None:
@@ -84,7 +86,7 @@ def kill_managed_comfy(
             status=ManagedProcessTerminationStatus.TERMINATED_CONFIRMED,
             pid=proc.pid,
             attempted=False,
-            user_safe_detail="Shutdown finished cleanly.",
+            user_safe_detail=app_text("Shutdown finished cleanly."),
             diagnostic_detail="Managed process had already exited.",
         )
     return kill_managed_comfy_pid(proc.pid)
@@ -102,7 +104,7 @@ def kill_managed_comfy_metadata(
             status=ManagedProcessTerminationStatus.NO_ACTION_REQUIRED,
             pid=None,
             attempted=False,
-            user_safe_detail="No managed process shutdown was required.",
+            user_safe_detail=app_text("No managed process shutdown was required."),
             diagnostic_detail="Managed process metadata was unavailable.",
         )
     if metadata.containment_mode == "windows_job_object":
@@ -126,7 +128,7 @@ def kill_managed_comfy_pid(pid: int | None) -> ManagedProcessTerminationResult:
             status=ManagedProcessTerminationStatus.NO_ACTION_REQUIRED,
             pid=pid,
             attempted=False,
-            user_safe_detail="No managed process shutdown was required.",
+            user_safe_detail=app_text("No managed process shutdown was required."),
             diagnostic_detail="Managed process pid was unavailable.",
         )
     started_at = monotonic()
@@ -177,7 +179,9 @@ def _kill_windows_process(
             attempted=True,
             termination_command_timed_out=True,
             elapsed_ms=elapsed_ms,
-            user_safe_detail="The termination command timed out before completion.",
+            user_safe_detail=app_text(
+                "The termination command timed out before completion."
+            ),
             diagnostic_detail=_format_timeout_diagnostic(error),
         )
     except OSError as error:
@@ -193,7 +197,7 @@ def _kill_windows_process(
             pid=pid,
             attempted=True,
             elapsed_ms=elapsed_ms,
-            user_safe_detail="The termination command could not be started.",
+            user_safe_detail=app_text("The termination command could not be started."),
             diagnostic_detail=_format_os_error_diagnostic(error),
         )
     elapsed_ms = _elapsed_ms_since(started_at)
@@ -214,7 +218,7 @@ def _kill_windows_process(
             attempted=True,
             verification_timed_out=verification_timed_out,
             elapsed_ms=elapsed_ms,
-            user_safe_detail="Shutdown finished cleanly.",
+            user_safe_detail=app_text("Shutdown finished cleanly."),
             diagnostic_detail=diagnostic_detail,
         )
     if terminated:
@@ -223,7 +227,7 @@ def _kill_windows_process(
             pid=pid,
             attempted=True,
             elapsed_ms=elapsed_ms,
-            user_safe_detail="Shutdown finished cleanly.",
+            user_safe_detail=app_text("Shutdown finished cleanly."),
             diagnostic_detail=diagnostic_detail,
         )
     return ManagedProcessTerminationResult(
@@ -232,7 +236,9 @@ def _kill_windows_process(
         attempted=True,
         verification_timed_out=verification_timed_out,
         elapsed_ms=elapsed_ms,
-        user_safe_detail="The termination command did not complete successfully.",
+        user_safe_detail=app_text(
+            "The termination command did not complete successfully."
+        ),
         diagnostic_detail=diagnostic_detail,
     )
 
@@ -274,9 +280,11 @@ def _kill_windows_job_owned_process(
         verification_timed_out=verification_timed_out,
         elapsed_ms=_elapsed_ms_since(started_at),
         user_safe_detail=(
-            "Shutdown finished cleanly."
+            app_text("Shutdown finished cleanly.")
             if terminated
-            else "Shutdown could not be confirmed before the verification timeout."
+            else app_text(
+                "Shutdown could not be confirmed before the verification timeout."
+            )
         ),
         diagnostic_detail=(
             "Closed Windows Job Object handle and verified managed process exit."
@@ -304,7 +312,7 @@ def _kill_posix_process(
             pid=pid,
             attempted=True,
             elapsed_ms=elapsed_ms,
-            user_safe_detail="Shutdown finished cleanly.",
+            user_safe_detail=app_text("Shutdown finished cleanly."),
             diagnostic_detail="POSIX managed process tree terminated.",
         )
     return ManagedProcessTerminationResult(
@@ -313,7 +321,9 @@ def _kill_posix_process(
         attempted=True,
         verification_timed_out=verification_timed_out,
         elapsed_ms=elapsed_ms,
-        user_safe_detail="Shutdown could not be confirmed before the verification timeout.",
+        user_safe_detail=app_text(
+            "Shutdown could not be confirmed before the verification timeout."
+        ),
         diagnostic_detail="Managed process tree remained alive after POSIX termination.",
     )
 
@@ -371,9 +381,11 @@ def _kill_posix_guardian_owned_process(
         verification_timed_out=verification_timed_out,
         elapsed_ms=_elapsed_ms_since(started_at),
         user_safe_detail=(
-            "Shutdown finished cleanly."
+            app_text("Shutdown finished cleanly.")
             if terminated
-            else "Shutdown could not be confirmed before the verification timeout."
+            else app_text(
+                "Shutdown could not be confirmed before the verification timeout."
+            )
         ),
         diagnostic_detail=(
             "Guardian-owned managed process group terminated."

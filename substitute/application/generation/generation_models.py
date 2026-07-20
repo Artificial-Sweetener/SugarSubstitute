@@ -23,6 +23,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 from substitute.application.errors import ErrorReport
 from substitute.application.ports.comfy_gateway import (
     GenerationExecutionTiming,
@@ -65,7 +67,7 @@ class GenerationFailure:
 
     stage: str
     workflow_id: WorkflowId
-    message: str
+    message: ApplicationText
     generation_run_id: str | None = None
     prompt_id: str | None = None
     client_id: str | None = None

@@ -26,6 +26,7 @@ from typing import cast
 import pytest
 from PySide6.QtCore import QObject, QPoint, QPointF, QEvent, QRect, Signal, Qt
 from PySide6.QtGui import QMouseEvent
+from PySide6.QtCore import QTranslator
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -81,7 +82,11 @@ from substitute.presentation.onboarding.onboarding_models import (
     OnboardingPageId,
     OnboardingTargetMode,
 )
-from substitute.presentation.onboarding.onboarding_window import OnboardingWindow
+from substitute.presentation.onboarding.onboarding_window import (
+    OnboardingIssuePanel,
+    OnboardingWindow,
+)
+from sugarsubstitute_shared.localization import app_text
 from substitute.presentation.shell.window_frame import (
     ShellBackdropMode,
     SubstituteWindowFrame,
@@ -436,6 +441,44 @@ def _app() -> QApplication:
     if app is None:
         app = QApplication([])
     return cast(QApplication, app)
+
+
+def test_onboarding_issue_panel_retains_semantic_copy_across_language_change() -> None:
+    """Render stored application messages in the active locale on every read."""
+
+    app = _app()
+    resource_root = (
+        Path(__file__).resolve().parents[1]
+        / "substitute"
+        / "presentation"
+        / "resources"
+        / "i18n"
+    )
+    chinese = QTranslator()
+    japanese = QTranslator()
+    assert chinese.load(str(resource_root / "sugarsubstitute_zh_CN.qm"))
+    assert japanese.load(str(resource_root / "sugarsubstitute_ja_JP.qm"))
+    assert app.installTranslator(chinese)
+    panel = OnboardingIssuePanel()
+    panel.set_issue_content(
+        title=app_text("Setup in progress"),
+        body=app_text("All set"),
+        detail="python.exe --technical-detail",
+    )
+    try:
+        assert panel.text() == "正在设置\n全部就绪\npython.exe --technical-detail"
+
+        assert app.removeTranslator(chinese)
+        assert app.installTranslator(japanese)
+        for widget in (panel, panel.title_label, panel.body_label):
+            app.sendEvent(widget, QEvent(QEvent.Type.LanguageChange))
+
+        assert panel.text() == "セットアップ中\n準備完了\npython.exe --technical-detail"
+        assert panel.toolTip() == "python.exe --technical-detail"
+    finally:
+        app.removeTranslator(japanese)
+        app.removeTranslator(chinese)
+        panel.close()
 
 
 def test_onboarding_window_uses_handoff_geometry(tmp_path: Path) -> None:
@@ -1341,10 +1384,11 @@ def test_onboarding_running_preflight_updates_live_until_comfy_stops(
         *window.comfy_preflight_page.explanation_panel.detail_labels,
     )
     for index, current_label in enumerate(explanation_labels[:-1]):
-        next_label = explanation_labels[index + 1]
-        assert current_label.geometry().bottom() < next_label.geometry().top()
-        required_height = current_label.heightForWidth(current_label.width())
-        assert required_height < 0 or current_label.height() >= required_height
+        current_widget = cast(QLabel, current_label)
+        next_label = cast(QLabel, explanation_labels[index + 1])
+        assert current_widget.geometry().bottom() < next_label.geometry().top()
+        required_height = current_widget.heightForWidth(current_widget.width())
+        assert required_height < 0 or current_widget.height() >= required_height
 
     coordinator.preflight_changed.emit(ComfyPreflightSnapshot(()))
     app.processEvents()

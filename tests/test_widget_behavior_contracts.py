@@ -392,6 +392,9 @@ def _import_search_box(monkeypatch):
     module = importlib.util.module_from_spec(spec)
     monkeypatch.setitem(sys.modules, module_name, module)
     spec.loader.exec_module(module)
+    module.set_localized_placeholder = lambda target, text: target.setPlaceholderText(
+        str(text)
+    )
     sys.modules.pop("substitute.presentation.widgets.menu_buttons", None)
     sys.modules.pop(module_name, None)
     return module
@@ -428,6 +431,7 @@ def _import_seed_box(
     module = importlib.util.module_from_spec(spec)
     monkeypatch.setitem(sys.modules, module_name, module)
     spec.loader.exec_module(module)
+    module.set_localized_tooltip = lambda target, text: target.setToolTip(str(text))
     sys.modules.pop("substitute.presentation.widgets.menu_buttons", None)
     sys.modules.pop(module_name, None)
     return module

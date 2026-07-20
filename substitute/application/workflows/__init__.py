@@ -196,6 +196,7 @@ if TYPE_CHECKING:
         WorkflowTabService,
         is_default_workflow_tab_label,
         normalize_default_workflow_tab_label,
+        workflow_tab_display_text,
     )
     from substitute.domain.links import (
         NodeLinkEndpoint,
@@ -485,6 +486,9 @@ _EXPORT_MODULES = {
     "normalize_default_workflow_tab_label": (
         "substitute.application.workflows.workflow_tab_service"
     ),
+    "workflow_tab_display_text": (
+        "substitute.application.workflows.workflow_tab_service"
+    ),
     "output_compare_candidates": (
         "substitute.application.workflows.output_compare_resolution"
     ),
@@ -629,6 +633,7 @@ __all__ = [
     "deterministic_host_composition_id",
     "is_default_workflow_tab_label",
     "normalize_default_workflow_tab_label",
+    "workflow_tab_display_text",
     "output_compare_available",
     "output_compare_candidates",
     "output_compare_image_ids",

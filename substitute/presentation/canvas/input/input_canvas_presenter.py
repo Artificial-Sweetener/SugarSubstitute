@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import opaque_text
+
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Protocol, cast
@@ -827,9 +831,11 @@ class InputCanvasPresenter:
         self._error_presenter.show_error_report(
             ErrorReport(
                 kind=ErrorReportKind.SUBSTITUTE_INTERNAL,
-                title="Mask dimensions do not match",
+                title=app_text("Mask dimensions do not match"),
                 message=(
-                    "The selected mask dimensions do not match the loaded input image."
+                    app_text(
+                        "The selected mask dimensions do not match the loaded input image."
+                    )
                 ),
                 stage="input_mask",
                 workflow_id=workflow_id,
@@ -888,10 +894,12 @@ class InputCanvasPresenter:
         self._error_presenter.show_error_report(
             ErrorReport(
                 kind=ErrorReportKind.SUBSTITUTE_INTERNAL,
-                title="Mask dimensions could not be verified",
+                title=app_text("Mask dimensions could not be verified"),
                 message=(
-                    "The selected mask dimensions could not be verified against "
-                    "the loaded input image."
+                    app_text(
+                        "The selected mask dimensions could not be verified against "
+                        "the loaded input image."
+                    )
                 ),
                 stage="input_mask",
                 workflow_id=workflow_id,
@@ -922,7 +930,7 @@ class InputCanvasPresenter:
         """Return display text for optional dimensions."""
 
         if dimensions is None:
-            return "unavailable"
+            return opaque_text("unavailable")
         return f"{dimensions[0]}x{dimensions[1]}"
 
 

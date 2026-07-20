@@ -30,6 +30,16 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
     RoundMenu,
 )
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+from sugarsubstitute_shared.presentation.localization import render_application_text
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    LocalizationBindings,
+)
+
 from .menu_model import (
     LazyMenuSubmenu,
     MenuEntry,
@@ -48,17 +58,20 @@ class QFluentMenuRenderer:
         """Store the Qt parent used for generated menus and actions."""
 
         self._parent = parent
+        self._localization_bindings = LocalizationBindings(parent)
+        _retain_localization_bindings(parent, self._localization_bindings)
 
     def render(self, model: MenuModel) -> RoundMenu:
         """Return a QFluent menu populated from ``model``."""
 
         menu = (
-            RoundMenu(model.title, self._parent)
+            RoundMenu(render_application_text(model.title), self._parent)
             if model.title
             else RoundMenu(parent=self._parent)
         )
         if model.object_name is not None:
             menu.setObjectName(model.object_name)
+        self._bind_text(menu.setTitle, model.title)
         self.populate_menu(menu, model.entries)
         return menu
 
@@ -103,8 +116,9 @@ class QFluentMenuRenderer:
         """Add one menu section with an optional disabled header."""
 
         if section.title is not None:
-            header = QAction(section.title, self._parent)
+            header = QAction(render_application_text(section.title), self._parent)
             header.setEnabled(False)
+            self._bind_text(header.setText, section.title)
             writer.add_action(header)
         for entry in section.entries:
             self._add_entry(writer, entry)
@@ -117,24 +131,27 @@ class QFluentMenuRenderer:
     ) -> RoundMenu:
         """Return an eagerly populated submenu for one model entry."""
 
-        submenu = RoundMenu(entry.label, parent_menu)
+        submenu = RoundMenu(render_application_text(entry.label), parent_menu)
+        self._bind_text(submenu.setTitle, entry.label)
         submenu.setEnabled(
             entry.enabled and menu_entries_have_enabled_action(entry.entries)
         )
         if entry.icon is not None:
             submenu.setIcon(cast(Any, entry.icon))
         self.populate_menu(submenu, entry.entries)
+        setattr(submenu, "_sugarsubstitute_localized_menu_label", entry.label)
         return submenu
 
     def _action_for_item(self, item: MenuItem) -> QAction:
         """Return a Qt action for one model item."""
 
         action = _new_action(
-            label=item.label,
+            label=render_application_text(item.label),
             parent=self._parent,
             icon=item.icon,
         )
         action.setEnabled(item.enabled)
+        self._bind_text(action.setText, item.label)
         action.setProperty("menuActionId", item.action_id)
         action.setCheckable(item.checkable)
         if item.checkable:
@@ -142,7 +159,11 @@ class QFluentMenuRenderer:
         if item.shortcut is not None:
             action.setShortcut(item.shortcut)
         if item.tooltip is not None:
-            action.setToolTip(item.tooltip)
+            set_fluent_tooltip_text(action, render_application_text(item.tooltip))
+            self._bind_text(
+                lambda text: set_fluent_tooltip_text(action, text),
+                item.tooltip,
+            )
         if item.data is not None:
             action.setData(item.data)
         for name, value in item.properties.items():
@@ -154,6 +175,20 @@ class QFluentMenuRenderer:
         if item.checked_callback is not None:
             action.toggled.connect(item.checked_callback)
         return action
+
+    def _bind_text(
+        self,
+        setter: object,
+        text: ApplicationText,
+    ) -> None:
+        """Retranslate marked application copy while preserving opaque content."""
+
+        if not isinstance(text, ApplicationMessage) or not callable(setter):
+            return
+        self._localization_bindings.bind_setter(
+            setter,
+            lambda: render_application_text(text),
+        )
 
 
 def menu_entries_have_enabled_action(entries: Iterable[MenuEntry]) -> bool:
@@ -186,10 +221,12 @@ class _LazyQFluentSubmenu(RoundMenu):  # type: ignore[misc]
     ) -> None:
         """Store lazy model state until the submenu opens."""
 
-        super().__init__(model.label, parent)
+        super().__init__(render_application_text(model.label), parent)
         self._model = model
         self._renderer = renderer
         self._populated = False
+        self._renderer._bind_text(self.setTitle, model.label)
+        setattr(self, "_sugarsubstitute_localized_menu_label", model.label)
         self.setEnabled(model.enabled)
         if model.icon is not None:
             self.setIcon(cast(Any, model.icon))
@@ -241,9 +278,26 @@ class _BatchedRoundMenuWriter:
 
         create_submenu_item = getattr(self.menu, "_createSubMenuItem")
         item, widget = create_submenu_item(submenu)
+        label = getattr(submenu, "_sugarsubstitute_localized_menu_label", None)
+        if isinstance(label, ApplicationMessage):
+            prefix = " " if submenu.icon().isNull() is False else ""
+            self._menu_bindings().bind_setter(
+                cast(QListWidgetItem, item).setText,
+                lambda: f"{prefix}{render_application_text(label)}",
+            )
         self.menu.view.addItem(cast(QListWidgetItem, item))
         self.menu.view.setItemWidget(cast(QListWidgetItem, item), cast(QWidget, widget))
         self._changed = True
+
+    def _menu_bindings(self) -> LocalizationBindings:
+        """Return the renderer-owned bindings associated with this menu."""
+
+        bindings = getattr(self.menu, "_sugarsubstitute_menu_bindings", None)
+        if isinstance(bindings, LocalizationBindings):
+            return bindings
+        bindings = LocalizationBindings(self.menu)
+        setattr(self.menu, "_sugarsubstitute_menu_bindings", bindings)
+        return bindings
 
     def add_separator(self) -> None:
         """Append a separator without calling RoundMenu.addSeparator()."""
@@ -277,6 +331,20 @@ def _new_action(
     if icon is None:
         return QAction(label, parent)
     return cast(QAction, Action(cast(Any, icon), label, parent))
+
+
+def _retain_localization_bindings(
+    owner: QWidget,
+    bindings: LocalizationBindings,
+) -> None:
+    """Retain renderer bindings for the lifetime of their presentation owner."""
+
+    attribute = "_sugarsubstitute_menu_renderer_bindings"
+    retained = getattr(owner, attribute, None)
+    if not isinstance(retained, list):
+        retained = []
+        setattr(owner, attribute, retained)
+    retained.append(bindings)
 
 
 __all__ = [

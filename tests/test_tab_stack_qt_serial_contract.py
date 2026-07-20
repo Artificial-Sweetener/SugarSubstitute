@@ -64,7 +64,7 @@ def _clear_gui_stubs() -> None:
         for name in list(sys.modules):
             if name == "qframelesswindow" or name.startswith("qframelesswindow."):
                 sys.modules.pop(name, None)
-    sys.modules.pop("substitute.presentation.widgets.cursor_tooltip_filter", None)
+    sys.modules.pop("sugarsubstitute_shared.presentation.fluent_tooltips", None)
 
 
 def _wheel_event(widget: QWidget, *, angle_delta_y: int) -> QWheelEvent:
@@ -201,7 +201,7 @@ def test_cubestack_tab_presentation_updates_metadata_and_tooltip() -> None:
     assert item.toolTip() == "Text to Image"
     assert item.secondaryText() == "v1.1.1 · base-cubes"
     assert item._tooltip_filter is not None
-    assert item._tooltip_filter._show_delay_ms == 1000
+    assert item._tooltip_filter.show_delay_ms == 1000
 
     stack.close()
     stack.deleteLater()

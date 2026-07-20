@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 import re
@@ -237,7 +239,10 @@ def _diagnostic_for_duplicate(
         severity=PromptDiagnosticSeverity.ERROR,
         source_start=duplicate_occurrence.source_start,
         source_end=duplicate_occurrence.source_end,
-        message=f"Duplicate prompt segment: {duplicate_occurrence.normalized_segment}",
+        message=app_text(
+            "Duplicate prompt segment: %1",
+            duplicate_occurrence.normalized_segment,
+        ),
         payload=payload,
     )
 

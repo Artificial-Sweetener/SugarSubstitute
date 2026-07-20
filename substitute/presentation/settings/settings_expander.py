@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.localization import LocalizedSwitchButton
+
+from sugarsubstitute_shared.presentation.localization import set_localized_tooltip
+
 from collections.abc import Iterable
 from typing import cast
 
@@ -37,7 +41,6 @@ from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon as FIF,
     IndicatorPosition,
-    SwitchButton,
 )
 
 from substitute.presentation.settings.settings_card import (
@@ -356,7 +359,7 @@ class SettingsExpanderChevron(QWidget):
             SETTINGS_EXPANDER_CHEVRON_BUTTON_SIZE,
         )
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setToolTip("Show all settings")
+        set_localized_tooltip(self, "Show all settings")
 
     def rotation_value(self) -> float:
         """Return the current chevron rotation for tests and callers."""
@@ -847,9 +850,9 @@ class SwitchSettingsExpander(SettingsExpander):
     ) -> None:
         """Create a switch-controlled settings expander without a chevron."""
 
-        switch = SwitchButton("Off", parent, indicatorPos=IndicatorPosition.RIGHT)
-        switch.setOnText("On")
-        switch.setOffText("Off")
+        switch = LocalizedSwitchButton(
+            "Off", parent, indicatorPos=IndicatorPosition.RIGHT
+        )
         switch.setChecked(checked)
         super().__init__(
             title=title,

@@ -65,7 +65,7 @@ class OutputCanvas(QWidget):
     _source_tabbar_preferred_width: int
     _source_tab_cache_signature: tuple[tuple[str, str], ...] | None
     _source_tab_tooltip_filters: dict[str, object]
-    _dock_action_text: str
+    _canvas_detached: bool
     _open_single_external_editor: Callable[[object, OutputImageMeta], bool]
     _open_all_external_editor: Callable[[list[tuple[object, OutputImageMeta]]], bool]
     _reveal_output_asset: Callable[[OutputImageMeta], bool]
@@ -111,8 +111,8 @@ class OutputCanvas(QWidget):
         """Bind the transient preview registry for the active projection surface."""
         ...
 
-    def set_dock_action_text(self, text: str) -> None:
-        """Set the label for the host-owned dock context-menu action."""
+    def set_canvas_detached(self, detached: bool) -> None:
+        """Set manager-owned canvas attachment state."""
         ...
 
     def bind_projection_session(self, session: OutputCanvasSession) -> None:

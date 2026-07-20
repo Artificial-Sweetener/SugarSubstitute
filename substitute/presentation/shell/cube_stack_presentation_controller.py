@@ -18,6 +18,14 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    app_text,
+    set_localized_accessible_name,
+    set_localized_accessible_description,
+    set_localized_tooltip,
+)
+
 from collections.abc import Callable, Iterable
 from typing import Protocol
 
@@ -46,6 +54,11 @@ from substitute.presentation.shell.workspace_splitter_controller import (
 from substitute.presentation.workflows.cube_stack_view import CubeStack
 from substitute.shared.logging.logger import get_logger, log_debug
 
+_UNAVAILABLE_LABEL: ApplicationMessage = app_text(
+    "Cube stack unavailable for Comfy workflows"
+)
+_EXPAND_LABEL: ApplicationMessage = app_text("Expand cube stack")
+_COLLAPSE_LABEL: ApplicationMessage = app_text("Collapse cube stack")
 _LOGGER = get_logger("presentation.shell.cube_stack_presentation_controller")
 
 
@@ -445,22 +458,22 @@ class CubeStackPresentationController(QObject):
             self._mode_button.blockSignals(blocked)
         self._mode_button.setEnabled(self._workflow_route_active and not unavailable)
         if unavailable:
-            label = "Cube stack unavailable for Comfy workflows"
-            self._mode_button.setToolTip(label)
-            self._mode_button.setAccessibleName(label)
-            self._mode_button.setAccessibleDescription(
-                "Direct Comfy workflows contain no cube stack."
+            label = _UNAVAILABLE_LABEL
+            set_localized_tooltip(self._mode_button, label)
+            set_localized_accessible_name(self._mode_button, label)
+            set_localized_accessible_description(
+                self._mode_button, "Direct Comfy workflows contain no cube stack."
             )
             return
-        label = "Expand cube stack" if compact else "Collapse cube stack"
+        label = _EXPAND_LABEL if compact else _COLLAPSE_LABEL
         icon = (
             AppIcon.PANEL_LEFT_20_REGULAR if compact else AppIcon.PANEL_LEFT_20_FILLED
         )
         self._mode_button.setIcon(icon)
-        self._mode_button.setToolTip(label)
-        self._mode_button.setAccessibleName(label)
-        self._mode_button.setAccessibleDescription(
-            "Toggle between expanded and compact cube cards."
+        set_localized_tooltip(self._mode_button, label)
+        set_localized_accessible_name(self._mode_button, label)
+        set_localized_accessible_description(
+            self._mode_button, "Toggle between expanded and compact cube cards."
         )
 
     def _target_compact(self, mode: CubeStackPresentationMode) -> bool:

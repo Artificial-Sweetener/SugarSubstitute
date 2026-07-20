@@ -24,6 +24,7 @@ from typing import Protocol
 
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets.common.icon import FluentIconBase  # type: ignore[import-untyped]
+from sugarsubstitute_shared.presentation.localization import ApplicationText
 
 
 class SettingsControlFactory(Protocol):
@@ -38,8 +39,8 @@ class SettingsControlEntry:
     """Describe one ordered, searchable Settings control."""
 
     setting_id: str
-    title: str
-    description: str
+    title: ApplicationText
+    description: ApplicationText
     keywords: tuple[str, ...]
     order: int
     factory: SettingsControlFactory
@@ -56,8 +57,8 @@ class SettingsSectionEntry:
     """Describe one ordered Settings section."""
 
     section_id: str
-    title: str
-    subtitle: str
+    title: ApplicationText
+    subtitle: ApplicationText
     order: int
     controls: tuple[SettingsControlEntry, ...]
 
@@ -77,8 +78,8 @@ class SettingsPageEntry:
     """Describe one user-facing Settings page."""
 
     page_id: str
-    title: str
-    subtitle: str
+    title: ApplicationText
+    subtitle: ApplicationText
     icon: FluentIconBase | str | None
     order: int
     sections: tuple[SettingsSectionEntry, ...]

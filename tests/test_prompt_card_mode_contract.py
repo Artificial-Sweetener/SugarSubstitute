@@ -27,6 +27,7 @@ import pytest
 from substitute.application.node_behavior import CardMode, CollapseMode
 import substitute.presentation.editor.panel.node_card_builder as node_card_view
 from substitute.presentation.editor.panel.widgets.field_row import (
+    BuiltFieldRow,
     EDITOR_FULL_WIDTH_ROW_MARGINS,
     EDITOR_ROW_BODY_SPACING,
 )
@@ -53,6 +54,17 @@ class _Gateway:
         """Return no required live definition payload."""
 
         return {}
+
+
+def _add_test_field_row(
+    content_layout: QVBoxLayout,
+    panel: QWidget,
+) -> BuiltFieldRow:
+    """Append one field-row stand-in with the current composition result shape."""
+
+    row = QWidget(panel)
+    content_layout.addWidget(row)
+    return BuiltFieldRow("prompt_template", row)
 
 
 class _Panel(QWidget):
@@ -175,8 +187,9 @@ def test_prompt_cards_resolve_to_prompt_mode_and_skip_collapse_animation(
     monkeypatch.setattr(
         NodeCardBuilder,
         "_add_input_row",
-        lambda self, *, content_layout, **_kwargs: content_layout.addWidget(
-            QWidget(panel)
+        lambda self, *, content_layout, **_kwargs: _add_test_field_row(
+            content_layout,
+            panel,
         ),
     )
 

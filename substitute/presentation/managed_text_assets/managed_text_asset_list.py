@@ -18,10 +18,14 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+
 from dataclasses import dataclass
 from typing import Any, cast
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QColor, QFontMetrics, QPalette
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -37,6 +41,12 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     CaptionLabel,
     ListItemDelegate,
     isDarkTheme,
+)
+
+from sugarsubstitute_shared.localization import ApplicationMessage, ApplicationText
+from sugarsubstitute_shared.presentation.localization import (
+    render_application_text,
+    set_localized_tooltip,
 )
 
 from substitute.application.managed_text_assets import ManagedTextAsset
@@ -73,7 +83,14 @@ class AssetRow(QWidget):
         self._full_label = asset.label
         self._full_subtitle = asset.subtitle
         self.setMinimumHeight(56)
-        self.setToolTip(asset.subtitle)
+        if isinstance(asset.subtitle, ApplicationMessage):
+            set_localized_tooltip(
+                self,
+                asset.subtitle.source_text,
+                *asset.subtitle.arguments,
+            )
+        else:
+            set_fluent_tooltip_text(self, asset.subtitle)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(10)
@@ -88,7 +105,9 @@ class AssetRow(QWidget):
         )
         self._label.setStyleSheet("font-weight: 600; margin: 0; padding: 0;")
         text_layout.addWidget(self._label)
-        self._subtitle = CaptionLabel(asset.subtitle, text_container)
+        self._subtitle = CaptionLabel(
+            render_application_text(asset.subtitle), text_container
+        )
         self._subtitle.setMinimumWidth(0)
         self._subtitle.setSizePolicy(
             QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred
@@ -111,6 +130,14 @@ class AssetRow(QWidget):
         super().showEvent(event)  # type: ignore[arg-type]
         self._apply_elision()
 
+    def changeEvent(self, event: object) -> None:  # noqa: N802
+        """Refresh localized elided copy when the application language changes."""
+
+        super().changeEvent(event)  # type: ignore[arg-type]
+        event_type = getattr(event, "type", None)
+        if callable(event_type) and event_type() == QEvent.Type.LanguageChange:
+            self._apply_elision()
+
     def mousePressEvent(self, event: object) -> None:  # noqa: N802
         """Select this asset when the row body is clicked."""
 
@@ -130,7 +157,9 @@ class AssetRow(QWidget):
         )
         self._subtitle.setText(
             QFontMetrics(self._subtitle.font()).elidedText(
-                self._full_subtitle, Qt.TextElideMode.ElideRight, width
+                render_application_text(self._full_subtitle),
+                Qt.TextElideMode.ElideRight,
+                width,
             )
         )
 
@@ -183,10 +212,10 @@ class AssetListItemDelegate(ListItemDelegate):  # type: ignore[misc]
 
 def group_assets(
     assets: tuple[ManagedTextAsset, ...],
-) -> tuple[tuple[str, tuple[ManagedTextAsset, ...]], ...]:
+) -> tuple[tuple[ApplicationText, tuple[ManagedTextAsset, ...]], ...]:
     """Group assets in first-seen group order."""
 
-    groups: dict[str, list[ManagedTextAsset]] = {}
+    groups: dict[ApplicationText, list[ManagedTextAsset]] = {}
     for asset in assets:
         groups.setdefault(asset.group, []).append(asset)
     return tuple((group, tuple(items)) for group, items in groups.items())

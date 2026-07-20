@@ -18,6 +18,13 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    set_localized_text,
+    set_localized_window_title,
+)
+from substitute.presentation.localization import LocalizedLabel
+
 from dataclasses import dataclass
 from importlib import import_module
 from json import dumps
@@ -26,7 +33,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtCore import QRect, Qt, QTimer, QUrl, QSize
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QDialog, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
 
 try:
     from qfluentwidgets.common.style_sheet import themeColor  # type: ignore[import-untyped]
@@ -175,7 +182,7 @@ class ComfySettingsWebViewDialog(QDialog):
         assert _qt_webengine_widgets is not None
         self._anchor = parent
         self.setObjectName(COMFY_SETTINGS_DIALOG_OBJECT_NAME)
-        self.setWindowTitle("ComfyUI Settings")
+        set_localized_window_title(self, "ComfyUI Settings")
         self.setWindowFlag(Qt.WindowType.Window, True)
         self.setWindowModality(Qt.WindowModality.NonModal)
         self.resize(QSize(1040, 760))
@@ -186,7 +193,9 @@ class ComfySettingsWebViewDialog(QDialog):
         self._view.setObjectName(COMFY_SETTINGS_VIEW_OBJECT_NAME)
         self._page = _qt_webengine_core.QWebEnginePage(self._profile, self._view)
         self._view.setPage(self._page)
-        self._loading_overlay = QLabel("Loading ComfyUI Settings...", self)
+        self._loading_overlay = LocalizedLabel(
+            app_text("Loading ComfyUI Settings..."), self
+        )
         self._loading_overlay.setObjectName(COMFY_SETTINGS_LOADING_OBJECT_NAME)
         self._loading_overlay.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._loading_overlay.setStyleSheet(
@@ -255,7 +264,7 @@ class ComfySettingsWebViewDialog(QDialog):
         """Hide the startup mask after Comfy has time to open Settings."""
 
         if not loaded:
-            self._loading_overlay.setText("ComfyUI did not finish loading.")
+            set_localized_text(self._loading_overlay, "ComfyUI did not finish loading.")
             return
         QTimer.singleShot(_LOADING_OVERLAY_RELEASE_DELAY_MS, self._hide_loading_overlay)
 

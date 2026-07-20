@@ -18,9 +18,25 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.presentation.localization import (
+    LocalizationBindings,
+    LocalizedComboItem,
+    apply_application_text,
+    render_application_text,
+    set_localized_text,
+)
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedCaptionLabel,
+    LocalizedCheckBox,
+    LocalizedPushButton,
+    LocalizedRadioButton,
+)
+
 from dataclasses import dataclass
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import (
     QFrame,
@@ -32,14 +48,12 @@ from PySide6.QtWidgets import (
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
     BodyLabel,
-    CaptionLabel,
     CheckBox,
     ComboBox,
     FluentIcon as FIF,
     IconWidget,
     LineEdit,
     PushButton,
-    RadioButton,
 )
 
 from substitute.presentation.onboarding.onboarding_models import OnboardingTargetMode
@@ -66,45 +80,86 @@ _CIVITAI_ALLOW_ALL = "allow_all"
 class TargetModePresentation:
     """Describe the concise product-facing copy for one target mode."""
 
-    title: str
-    summary: str
-    best_if: str
-    meaning: str
-    substitute_handles: str
-    you_handle: str
-    technical_note: str
+    title: ApplicationText
+    summary: ApplicationText
+    best_if: ApplicationText
+    meaning: ApplicationText
+    substitute_handles: ApplicationText
+    you_handle: ApplicationText
+    technical_note: ApplicationText
     icon: object
 
 
 _TARGET_MODE_PRESENTATION: dict[OnboardingTargetMode, TargetModePresentation] = {
     OnboardingTargetMode.MANAGED_LOCAL: TargetModePresentation(
-        title="Set up ComfyUI here",
-        summary="Substitute installs and prepares a local ComfyUI setup for you.",
-        best_if="Best if you want the simplest path.",
-        meaning="Substitute creates a local ComfyUI setup in the folder you choose.",
-        substitute_handles="Substitute installs ComfyUI, prepares what it needs, and keeps required node packs ready.",
-        you_handle="You mainly choose where the files live. Most people can leave the local address alone.",
-        technical_note="By default, the managed ComfyUI folder is created as `comfyui` inside your Substitute folder.",
+        title=app_text("Set up ComfyUI here"),
+        summary=app_text(
+            "Substitute installs and prepares a local ComfyUI setup for you."
+        ),
+        best_if=app_text("Best if you want the simplest path."),
+        meaning=app_text(
+            "Substitute creates a local ComfyUI setup in the folder you choose."
+        ),
+        substitute_handles=app_text(
+            "Substitute installs ComfyUI, prepares what it needs, and keeps required "
+            "node packs ready."
+        ),
+        you_handle=app_text(
+            "You mainly choose where the files live. Most people can leave the "
+            "local address alone."
+        ),
+        technical_note=app_text(
+            "By default, the managed ComfyUI folder is created as `comfyui` inside "
+            "your Substitute folder."
+        ),
         icon=FIF.HOME,
     ),
     OnboardingTargetMode.ATTACHED_LOCAL: TargetModePresentation(
-        title="Use my current ComfyUI",
-        summary="Substitute adopts and starts the local ComfyUI setup you already use.",
-        best_if="Best if you already have local ComfyUI set up.",
-        meaning="Substitute uses your current local ComfyUI folder without reinstalling the repository.",
-        substitute_handles="Substitute saves that folder, prepares the Python environment it needs, and starts ComfyUI for you.",
-        you_handle="You keep your ComfyUI files and models. Substitute takes over launching it while the app is running.",
-        technical_note="The ComfyUI folder is required so Substitute can launch it and inspect local custom-node files.",
+        title=app_text("Use my current ComfyUI"),
+        summary=app_text(
+            "Substitute adopts and starts the local ComfyUI setup you already use."
+        ),
+        best_if=app_text("Best if you already have local ComfyUI set up."),
+        meaning=app_text(
+            "Substitute uses your current local ComfyUI folder without reinstalling "
+            "the repository."
+        ),
+        substitute_handles=app_text(
+            "Substitute saves that folder, prepares the Python environment it needs, "
+            "and starts ComfyUI for you."
+        ),
+        you_handle=app_text(
+            "You keep your ComfyUI files and models. Substitute takes over launching "
+            "it while the app is running."
+        ),
+        technical_note=app_text(
+            "The ComfyUI folder is required so Substitute can launch it and inspect "
+            "local custom-node files."
+        ),
         icon=FIF.LINK,
     ),
     OnboardingTargetMode.REMOTE: TargetModePresentation(
-        title="Use remote ComfyUI",
-        summary="Substitute connects to a ComfyUI server running on another machine.",
-        best_if="Best if ComfyUI lives on another machine.",
-        meaning="Substitute sends work to a remote ComfyUI server instead of starting one here.",
-        substitute_handles="Substitute saves the remote address and prepares the local pieces it still needs for the canvas.",
-        you_handle="You keep the remote ComfyUI server running and reachable from this computer.",
-        technical_note="Some canvas features still need a local Python environment even when ComfyUI itself is remote.",
+        title=app_text("Use remote ComfyUI"),
+        summary=app_text(
+            "Substitute connects to a ComfyUI server running on another machine."
+        ),
+        best_if=app_text("Best if ComfyUI lives on another machine."),
+        meaning=app_text(
+            "Substitute sends work to a remote ComfyUI server instead of starting one "
+            "here."
+        ),
+        substitute_handles=app_text(
+            "Substitute saves the remote address and prepares the local pieces it "
+            "still needs for the canvas."
+        ),
+        you_handle=app_text(
+            "You keep the remote ComfyUI server running and reachable from this "
+            "computer."
+        ),
+        technical_note=app_text(
+            "Some canvas features still need a local Python environment even when "
+            "ComfyUI itself is remote."
+        ),
         icon=FIF.IOT,
     ),
 }
@@ -116,10 +171,10 @@ class OnboardingHeroPanel(QFrame):
     def __init__(
         self,
         *,
-        title: str,
-        description: str,
+        title: ApplicationText,
+        description: ApplicationText,
         icon: object,
-        eyebrow: str,
+        eyebrow: ApplicationText,
         parent: QWidget | None = None,
     ) -> None:
         """Build the compact hero with icon badge, title, and supporting line."""
@@ -145,16 +200,16 @@ class OnboardingHeroPanel(QFrame):
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setSpacing(5)
 
-        eyebrow_label = CaptionLabel(eyebrow, self)
+        eyebrow_label = LocalizedCaptionLabel(eyebrow, self)
         eyebrow_label.setObjectName("OnboardingHeroEyebrow")
         text_layout.addWidget(eyebrow_label)
 
-        self.title_label = BodyLabel(title, self)
+        self.title_label = LocalizedBodyLabel(title, self)
         self.title_label.setObjectName("OnboardingPageTitle")
         self.title_label.setWordWrap(True)
         text_layout.addWidget(self.title_label)
 
-        self.description_label = CaptionLabel(description, self)
+        self.description_label = LocalizedCaptionLabel(description, self)
         self.description_label.setObjectName("OnboardingPageDescription")
         self.description_label.setWordWrap(True)
         text_layout.addWidget(self.description_label)
@@ -168,10 +223,10 @@ class OnboardingPageFrame(QFrame):
     def __init__(
         self,
         *,
-        title: str,
-        description: str,
+        title: ApplicationText,
+        description: ApplicationText,
         icon: object,
-        eyebrow: str,
+        eyebrow: ApplicationText,
         parent: QWidget | None = None,
     ) -> None:
         """Build the shared page surface and expose a body layout for content."""
@@ -216,9 +271,9 @@ class OnboardingInfoPanel(QFrame):
     def __init__(
         self,
         *,
-        title: str,
-        description: str,
-        detail_lines: tuple[str, ...] = (),
+        title: ApplicationText,
+        description: ApplicationText,
+        detail_lines: tuple[ApplicationText, ...] = (),
         parent: QWidget | None = None,
     ) -> None:
         """Build the supporting panel with one short description and optional bullets."""
@@ -230,19 +285,19 @@ class OnboardingInfoPanel(QFrame):
         layout.setContentsMargins(18, 16, 18, 16)
         layout.setSpacing(8)
 
-        self.title_label = BodyLabel(title, self)
+        self.title_label = LocalizedBodyLabel(title, self)
         self.title_label.setObjectName("OnboardingInfoTitle")
         self.title_label.setWordWrap(True)
         layout.addWidget(self.title_label)
 
-        self.description_label = CaptionLabel(description, self)
+        self.description_label = LocalizedCaptionLabel(description, self)
         self.description_label.setObjectName("OnboardingInfoDescription")
         self.description_label.setWordWrap(True)
         layout.addWidget(self.description_label)
 
-        self.detail_labels: list[CaptionLabel] = []
+        self.detail_labels: list[LocalizedCaptionLabel] = []
         for detail_line in detail_lines:
-            detail_label = CaptionLabel(detail_line, self)
+            detail_label = LocalizedCaptionLabel(detail_line, self)
             detail_label.setObjectName("OnboardingInfoDetail")
             detail_label.setWordWrap(True)
             layout.addWidget(detail_label)
@@ -255,8 +310,8 @@ class OnboardingFieldBlock(QFrame):
     def __init__(
         self,
         *,
-        label: str,
-        helper_text: str,
+        label: ApplicationText,
+        helper_text: ApplicationText,
         field: QWidget,
         trailing_widget: QWidget | None = None,
         parent: QWidget | None = None,
@@ -270,7 +325,7 @@ class OnboardingFieldBlock(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(7)
 
-        label_widget = CaptionLabel(label, self)
+        label_widget = LocalizedCaptionLabel(label, self)
         label_widget.setObjectName("OnboardingFieldLabel")
         layout.addWidget(label_widget)
 
@@ -282,7 +337,7 @@ class OnboardingFieldBlock(QFrame):
             row.addWidget(trailing_widget)
         layout.addLayout(row)
 
-        helper_label = CaptionLabel(helper_text, self)
+        helper_label = LocalizedCaptionLabel(helper_text, self)
         helper_label.setObjectName("OnboardingFieldHelper")
         helper_label.setWordWrap(True)
         layout.addWidget(helper_label)
@@ -344,26 +399,26 @@ class TargetModeCard(QFrame):
         text_column.setContentsMargins(0, 0, 0, 0)
         text_column.setSpacing(4)
 
-        self.title_label = BodyLabel(presentation.title, self)
+        self.title_label = LocalizedBodyLabel(presentation.title, self)
         self.title_label.setObjectName("OnboardingTargetCardTitle")
         self.title_label.setWordWrap(True)
         text_column.addWidget(self.title_label)
 
-        self.summary_label = CaptionLabel(presentation.summary, self)
+        self.summary_label = LocalizedCaptionLabel(presentation.summary, self)
         self.summary_label.setObjectName("OnboardingTargetCardSummary")
         self.summary_label.setWordWrap(True)
         text_column.addWidget(self.summary_label)
         header_row.addLayout(text_column, 1)
         layout.addLayout(header_row)
 
-        self.best_if_label = CaptionLabel(presentation.best_if, self)
+        self.best_if_label = LocalizedCaptionLabel(presentation.best_if, self)
         self.best_if_label.setObjectName("OnboardingTargetCardBestIf")
         self.best_if_label.setWordWrap(True)
         layout.addWidget(self.best_if_label)
 
         layout.addStretch(1)
 
-        self.selection_radio = RadioButton("Select", self)
+        self.selection_radio = LocalizedRadioButton(app_text("Select"), self)
         self.selection_radio.setObjectName(f"OnboardingTargetCardRadio_{mode.value}")
         self.selection_radio.setProperty("targetMode", mode.value)
         self.selection_radio.setAutoExclusive(False)
@@ -375,7 +430,9 @@ class TargetModeCard(QFrame):
 
         self.setProperty("selected", selected)
         self.selection_radio.setChecked(selected)
-        self.selection_radio.setText("Selected" if selected else "Select")
+        self.selection_radio.setText(
+            app_text("Selected") if selected else app_text("Select")
+        )
         self.style().unpolish(self)
         self.style().polish(self)
 
@@ -404,22 +461,22 @@ class TargetModeSummaryPanel(QFrame):
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(8)
 
-        self.meaning_label = CaptionLabel("", self)
+        self.meaning_label = LocalizedCaptionLabel("", self)
         self.meaning_label.setObjectName("OnboardingModeSummaryText")
         self.meaning_label.setWordWrap(True)
         layout.addWidget(self.meaning_label)
 
-        self.substitute_label = CaptionLabel("", self)
+        self.substitute_label = LocalizedCaptionLabel("", self)
         self.substitute_label.setObjectName("OnboardingModeSummaryText")
         self.substitute_label.setWordWrap(True)
         layout.addWidget(self.substitute_label)
 
-        self.you_label = CaptionLabel("", self)
+        self.you_label = LocalizedCaptionLabel("", self)
         self.you_label.setObjectName("OnboardingModeSummaryText")
         self.you_label.setWordWrap(True)
         layout.addWidget(self.you_label)
 
-        self.technical_label = CaptionLabel("", self)
+        self.technical_label = LocalizedCaptionLabel("", self)
         self.technical_label.setObjectName("OnboardingModeTechnicalNote")
         self.technical_label.setWordWrap(True)
         layout.addWidget(self.technical_label)
@@ -427,10 +484,13 @@ class TargetModeSummaryPanel(QFrame):
     def set_presentation(self, presentation: TargetModePresentation) -> None:
         """Render the selected target-mode summary lines."""
 
-        self.meaning_label.setText(presentation.meaning)
-        self.substitute_label.setText(presentation.substitute_handles)
-        self.you_label.setText(presentation.you_handle)
-        self.technical_label.setText(presentation.technical_note)
+        apply_application_text(self.meaning_label, presentation.meaning)
+        apply_application_text(
+            self.substitute_label,
+            presentation.substitute_handles,
+        )
+        apply_application_text(self.you_label, presentation.you_handle)
+        apply_application_text(self.technical_label, presentation.technical_note)
 
 
 class InstallRootPage(OnboardingPageFrame):
@@ -442,32 +502,40 @@ class InstallRootPage(OnboardingPageFrame):
         """Build the first-run folder page with one primary action area."""
 
         super().__init__(
-            title="Choose where Substitute should keep its setup",
-            description="Pick the main folder for Substitute's files. If you let Substitute install ComfyUI for you, it will place that there too by default.",
+            title=app_text("Choose where Substitute should keep its setup"),
+            description=app_text(
+                "Pick the main folder for Substitute's files. If you let Substitute install ComfyUI for you, it will place that there too by default."
+            ),
             icon=FIF.FOLDER,
-            eyebrow="Start here",
+            eyebrow=app_text("Start here"),
             parent=parent,
         )
         self.setObjectName("OnboardingWelcomePage")
         self.install_root_edit = LineEdit(self)
         self.install_root_edit.setObjectName("OnboardingInstallRootEdit")
         self.install_root_edit.setPlaceholderText(substitute_install_example())
-        browse_button = PushButton("Browse...", self)
+        browse_button = LocalizedPushButton(app_text("Browse..."), self)
         browse_button.setObjectName("OnboardingInstallRootBrowseButton")
         browse_button.clicked.connect(self.browse_requested.emit)
 
         section = OnboardingSectionPanel(self)
         section.content_layout.addWidget(
             OnboardingFieldBlock(
-                label="Folder",
-                helper_text="Substitute will keep its own settings and setup files here. You can still switch between managed, existing, or remote ComfyUI later.",
+                label=app_text("Folder"),
+                helper_text=app_text(
+                    "Substitute will keep its own settings and setup files here. You "
+                    "can still switch between managed, existing, or remote ComfyUI "
+                    "later."
+                ),
                 field=self.install_root_edit,
                 trailing_widget=browse_button,
                 parent=self,
             )
         )
-        support_label = CaptionLabel(
-            "Substitute may create settings, a local runtime, cubes, and a `comfyui` folder here if you choose the managed setup.",
+        support_label = LocalizedCaptionLabel(
+            app_text(
+                "Substitute may create settings, a local runtime, cubes, and a `comfyui` folder here if you choose the managed setup."
+            ),
             section,
         )
         support_label.setObjectName("OnboardingSectionSupport")
@@ -483,10 +551,12 @@ class TargetModePage(OnboardingPageFrame):
         """Build the target-mode page using cards as the only visible selector."""
 
         super().__init__(
-            title="Choose how Substitute should reach ComfyUI",
-            description="Pick the setup that matches your current situation. You can change this later if your workflow changes.",
+            title=app_text("Choose how Substitute should reach ComfyUI"),
+            description=app_text(
+                "Pick the setup that matches your current situation. You can change this later if your workflow changes."
+            ),
             icon=FIF.LINK,
-            eyebrow="Choose your setup",
+            eyebrow=app_text("Choose your setup"),
             parent=parent,
         )
         self._selected_mode = OnboardingTargetMode.MANAGED_LOCAL
@@ -568,8 +638,10 @@ def _build_endpoint_row(
     row.setSpacing(14)
     row.addWidget(
         OnboardingFieldBlock(
-            label="Host",
-            helper_text="This is the address Substitute will use to reach ComfyUI.",
+            label=app_text("Host"),
+            helper_text=app_text(
+                "This is the address Substitute will use to reach ComfyUI."
+            ),
             field=fields.host_edit,
             parent=parent,
         ),
@@ -577,8 +649,10 @@ def _build_endpoint_row(
     )
     row.addWidget(
         OnboardingFieldBlock(
-            label="Port",
-            helper_text="This is the port number used by that ComfyUI address.",
+            label=app_text("Port"),
+            helper_text=app_text(
+                "This is the port number used by that ComfyUI address."
+            ),
             field=fields.port_spinbox,
             parent=parent,
         ),
@@ -600,18 +674,18 @@ class ManagedRuntimeSummaryPanel(QFrame):
         layout.setContentsMargins(18, 14, 18, 14)
         layout.setSpacing(8)
 
-        title_label = BodyLabel("Setup summary", self)
+        title_label = LocalizedBodyLabel(app_text("Setup summary"), self)
         title_label.setObjectName("OnboardingInfoTitle")
         layout.addWidget(title_label)
 
-        self.platform_label = CaptionLabel("", self)
-        self.accelerator_label = CaptionLabel("", self)
-        self.target_label = CaptionLabel("", self)
-        self.python_label = CaptionLabel("", self)
-        self.channel_label = CaptionLabel("", self)
-        self.backend_label = CaptionLabel("", self)
-        self.torch_channel_label = CaptionLabel("", self)
-        self.stability_label = CaptionLabel("", self)
+        self.platform_label = LocalizedCaptionLabel("", self)
+        self.accelerator_label = LocalizedCaptionLabel("", self)
+        self.target_label = LocalizedCaptionLabel("", self)
+        self.python_label = LocalizedCaptionLabel("", self)
+        self.channel_label = LocalizedCaptionLabel("", self)
+        self.backend_label = LocalizedCaptionLabel("", self)
+        self.torch_channel_label = LocalizedCaptionLabel("", self)
+        self.stability_label = LocalizedCaptionLabel("", self)
 
         summary_grid = QGridLayout()
         summary_grid.setContentsMargins(0, 0, 0, 0)
@@ -635,18 +709,22 @@ class ManagedRuntimeSummaryPanel(QFrame):
         summary_grid.setColumnStretch(1, 1)
         layout.addLayout(summary_grid)
 
-        self.torch_reason_label = CaptionLabel("", self)
+        self.torch_reason_label = LocalizedCaptionLabel("", self)
         self.torch_reason_label.setObjectName("OnboardingRuntimeSummaryReason")
         self.torch_reason_label.setWordWrap(True)
         layout.addWidget(self.torch_reason_label)
 
-        advanced_title = CaptionLabel("Advanced options", self)
+        advanced_title = LocalizedCaptionLabel(app_text("Advanced options"), self)
         advanced_title.setObjectName("OnboardingFieldLabel")
         layout.addWidget(advanced_title)
 
-        self.force_cpu_checkbox = CheckBox("Force CPU mode", self)
-        self.edge_torch_checkbox = CheckBox("Prefer cutting-edge torch backend", self)
-        self.edge_channel_checkbox = CheckBox("Use edge ComfyUI channel", self)
+        self.force_cpu_checkbox = LocalizedCheckBox(app_text("Force CPU mode"), self)
+        self.edge_torch_checkbox = LocalizedCheckBox(
+            app_text("Prefer cutting-edge torch backend"), self
+        )
+        self.edge_channel_checkbox = LocalizedCheckBox(
+            app_text("Use edge ComfyUI channel"), self
+        )
 
         advanced_grid = QGridLayout()
         advanced_grid.setContentsMargins(0, 0, 0, 0)
@@ -674,30 +752,50 @@ class ManagedRuntimeSummaryPanel(QFrame):
     ) -> None:
         """Render the current detected hardware and install selection summary."""
 
-        self.platform_label.setText(f"Platform: {detected_platform or 'Detecting'}")
-        self.accelerator_label.setText(
-            f"Accelerator: {detected_accelerator or 'Detecting'}"
+        set_localized_text(
+            self.platform_label,
+            "Platform: %1",
+            detected_platform or "Detecting",
         )
-        self.target_label.setText(
-            f"Install target: {selected_install_target or 'Pending selection'}"
+        set_localized_text(
+            self.accelerator_label,
+            "Accelerator: %1",
+            detected_accelerator or "Detecting",
         )
-        self.python_label.setText(
-            f"Python: {selected_python_version or 'Pending selection'}"
+        set_localized_text(
+            self.target_label,
+            "Install target: %1",
+            selected_install_target or "Pending selection",
         )
-        self.channel_label.setText(
-            f"ComfyUI channel: {selected_comfy_channel or 'Pending selection'}"
+        set_localized_text(
+            self.python_label,
+            "Python: %1",
+            selected_python_version or "Pending selection",
         )
-        self.backend_label.setText(
-            f"Backend: {selected_backend_policy or 'Pending selection'}"
+        set_localized_text(
+            self.channel_label,
+            "ComfyUI channel: %1",
+            selected_comfy_channel or "Pending selection",
         )
-        self.torch_channel_label.setText(
-            f"Torch channel: {selected_torch_channel or 'Pending selection'}"
+        set_localized_text(
+            self.backend_label,
+            "Backend: %1",
+            selected_backend_policy or "Pending selection",
         )
-        self.torch_reason_label.setText(
-            f"Reason: {selected_torch_reason or 'Pending selection'}"
+        set_localized_text(
+            self.torch_channel_label,
+            "Torch channel: %1",
+            selected_torch_channel or "Pending selection",
         )
-        self.stability_label.setText(
-            f"Path stability: {selected_stability or 'Pending selection'}"
+        set_localized_text(
+            self.torch_reason_label,
+            "Reason: %1",
+            selected_torch_reason or "Pending selection",
+        )
+        set_localized_text(
+            self.stability_label,
+            "Path stability: %1",
+            selected_stability or "Pending selection",
         )
 
 
@@ -710,10 +808,12 @@ class ManagedLocalPage(OnboardingPageFrame):
         """Build the managed-local page with the form as the primary content."""
 
         super().__init__(
-            title="Let Substitute set up ComfyUI for you",
-            description="This is the easiest option for most people. Substitute installs ComfyUI, prepares it, and keeps the setup ready to use.",
+            title=app_text("Let Substitute set up ComfyUI for you"),
+            description=app_text(
+                "This is the easiest option for most people. Substitute installs ComfyUI, prepares it, and keeps the setup ready to use."
+            ),
             icon=FIF.HOME,
-            eyebrow="Recommended for most people",
+            eyebrow=app_text("Recommended for most people"),
             parent=parent,
         )
         self.setObjectName("OnboardingManagedLocalPage")
@@ -725,7 +825,7 @@ class ManagedLocalPage(OnboardingPageFrame):
         self.workspace_edit = LineEdit(self)
         self.workspace_edit.setObjectName("OnboardingManagedWorkspaceEdit")
         self.workspace_edit.setPlaceholderText(managed_comfy_example())
-        browse_button = PushButton("Browse...", self)
+        browse_button = LocalizedPushButton(app_text("Browse..."), self)
         browse_button.setObjectName("OnboardingManagedWorkspaceBrowseButton")
         browse_button.clicked.connect(self.browse_requested.emit)
 
@@ -735,19 +835,27 @@ class ManagedLocalPage(OnboardingPageFrame):
         )
         section.content_layout.addWidget(
             OnboardingFieldBlock(
-                label="ComfyUI folder",
-                helper_text="This is where Substitute will place ComfyUI. Most people can keep the default location.",
+                label=app_text("ComfyUI folder"),
+                helper_text=app_text(
+                    "This is where Substitute will place ComfyUI. Most people can "
+                    "keep the default location."
+                ),
                 field=self.workspace_edit,
                 trailing_widget=browse_button,
                 parent=self,
             )
         )
         self.next_steps_panel = OnboardingInfoPanel(
-            title="What happens next",
-            description="Substitute saves this setup, installs ComfyUI in the folder above, picks the right backend for this machine, and prepares what it needs to run.",
+            title=app_text("What happens next"),
+            description=app_text(
+                "Substitute saves this setup, installs ComfyUI in the folder above, picks the right backend for this machine, and prepares what it needs to run."
+            ),
             detail_lines=(
-                "Most people can leave the local address unchanged.",
-                "First-time setup can take a while because ComfyUI and Python packages may need to be installed.",
+                app_text("Most people can leave the local address unchanged."),
+                app_text(
+                    "First-time setup can take a while because ComfyUI and Python "
+                    "packages may need to be installed."
+                ),
             ),
             parent=self,
         )
@@ -770,10 +878,12 @@ class AttachedLocalPage(OnboardingPageFrame):
         """Build the attached-local configuration page."""
 
         super().__init__(
-            title="Use the ComfyUI setup you already have",
-            description="Substitute will use this local ComfyUI folder, prepare what it needs, and start it for you.",
+            title=app_text("Use the ComfyUI setup you already have"),
+            description=app_text(
+                "Substitute will use this local ComfyUI folder, prepare what it needs, and start it for you."
+            ),
             icon=FIF.LINK,
-            eyebrow="Keep your existing setup",
+            eyebrow=app_text("Keep your existing setup"),
             parent=parent,
         )
         self.setObjectName("OnboardingAttachedLocalPage")
@@ -785,7 +895,7 @@ class AttachedLocalPage(OnboardingPageFrame):
         self.workspace_edit = LineEdit(self)
         self.workspace_edit.setObjectName("OnboardingAttachedWorkspaceEdit")
         self.workspace_edit.setPlaceholderText(existing_comfy_example())
-        browse_button = PushButton("Browse...", self)
+        browse_button = LocalizedPushButton(app_text("Browse..."), self)
         browse_button.setObjectName("OnboardingAttachedWorkspaceBrowseButton")
         browse_button.clicked.connect(self.browse_requested.emit)
 
@@ -795,8 +905,11 @@ class AttachedLocalPage(OnboardingPageFrame):
         )
         section.content_layout.addWidget(
             OnboardingFieldBlock(
-                label="ComfyUI folder",
-                helper_text="Choose the folder that contains your existing ComfyUI main.py file. Substitute will launch this copy when it starts.",
+                label=app_text("ComfyUI folder"),
+                helper_text=app_text(
+                    "Choose the folder that contains your existing ComfyUI main.py "
+                    "file. Substitute will launch this copy when it starts."
+                ),
                 field=self.workspace_edit,
                 trailing_widget=browse_button,
                 parent=self,
@@ -804,11 +917,16 @@ class AttachedLocalPage(OnboardingPageFrame):
         )
         section.content_layout.addWidget(
             OnboardingInfoPanel(
-                title="What happens next",
-                description="Substitute saves this folder as a local launch target and prepares the Python environment it needs.",
+                title=app_text("What happens next"),
+                description=app_text(
+                    "Substitute saves this folder as a local launch target and prepares the Python environment it needs."
+                ),
                 detail_lines=(
-                    "ComfyUI does not need to be running during setup.",
-                    "Substitute will start it and then wait for the local address to respond.",
+                    app_text("ComfyUI does not need to be running during setup."),
+                    app_text(
+                        "Substitute will start it and then wait for the local address "
+                        "to respond."
+                    ),
                 ),
                 parent=self,
             )
@@ -823,10 +941,12 @@ class RemotePage(OnboardingPageFrame):
         """Build the remote setup page with form-first composition."""
 
         super().__init__(
-            title="Connect to ComfyUI on another machine",
-            description="Use this when ComfyUI lives on another PC or server and you want Substitute to reach it from here.",
+            title=app_text("Connect to ComfyUI on another machine"),
+            description=app_text(
+                "Use this when ComfyUI lives on another PC or server and you want Substitute to reach it from here."
+            ),
             icon=FIF.IOT,
-            eyebrow="Remote connection",
+            eyebrow=app_text("Remote connection"),
             parent=parent,
         )
         self.setObjectName("OnboardingRemotePage")
@@ -842,11 +962,18 @@ class RemotePage(OnboardingPageFrame):
         )
         section.content_layout.addWidget(
             OnboardingInfoPanel(
-                title="What happens next",
-                description="Substitute saves the remote address and keeps the local pieces it still needs for the canvas on this computer.",
+                title=app_text("What happens next"),
+                description=app_text(
+                    "Substitute saves the remote address and keeps the local pieces it still needs for the canvas on this computer."
+                ),
                 detail_lines=(
-                    "Host and port are the address of the remote ComfyUI server.",
-                    "You keep that remote server running and reachable from this PC.",
+                    app_text(
+                        "Host and port are the address of the remote ComfyUI server."
+                    ),
+                    app_text(
+                        "You keep that remote server running and reachable from this "
+                        "PC."
+                    ),
                 ),
                 parent=self,
             )
@@ -866,10 +993,12 @@ class FolderSetupPage(OnboardingPageFrame):
         """Build the folder setup page."""
 
         super().__init__(
-            title="Choose where files should live",
-            description="These defaults work well for most people. Change them if you already keep models or finished images somewhere else.",
+            title=app_text("Choose where files should live"),
+            description=app_text(
+                "These defaults work well for most people. Change them if you already keep models or finished images somewhere else."
+            ),
             icon=FIF.FOLDER,
-            eyebrow="Folders",
+            eyebrow=app_text("Folders"),
             parent=parent,
         )
         self.setObjectName("OnboardingFolderSetupPage")
@@ -879,17 +1008,21 @@ class FolderSetupPage(OnboardingPageFrame):
         self.output_root_edit = LineEdit(self)
         self.output_root_edit.setObjectName("OnboardingOutputRootEdit")
 
-        self.managed_model_browse_button = PushButton("Browse...", self)
+        self.managed_model_browse_button = LocalizedPushButton(
+            app_text("Browse..."), self
+        )
         self.managed_model_browse_button.setObjectName(
             "OnboardingManagedModelRootBrowseButton"
         )
-        self.managed_model_default_button = PushButton("Use default", self)
+        self.managed_model_default_button = LocalizedPushButton(
+            app_text("Use default"), self
+        )
         self.managed_model_default_button.setObjectName(
             "OnboardingManagedModelRootDefaultButton"
         )
-        self.output_browse_button = PushButton("Browse...", self)
+        self.output_browse_button = LocalizedPushButton(app_text("Browse..."), self)
         self.output_browse_button.setObjectName("OnboardingOutputRootBrowseButton")
-        self.output_default_button = PushButton("Use default", self)
+        self.output_default_button = LocalizedPushButton(app_text("Use default"), self)
         self.output_default_button.setObjectName("OnboardingOutputRootDefaultButton")
 
         self.managed_model_browse_button.clicked.connect(
@@ -908,8 +1041,11 @@ class FolderSetupPage(OnboardingPageFrame):
         )
         self.managed_model_section.content_layout.addWidget(
             OnboardingFieldBlock(
-                label="Models folder",
-                helper_text="ComfyUI looks here for checkpoints, LoRAs, VAEs, and other model files. You can keep the default or choose a folder you already use.",
+                label=app_text("Models folder"),
+                helper_text=app_text(
+                    "ComfyUI looks here for checkpoints, LoRAs, VAEs, and other model "
+                    "files. You can keep the default or choose a folder you already use."
+                ),
                 field=self.managed_model_root_edit,
                 trailing_widget=model_buttons,
                 parent=self,
@@ -924,8 +1060,11 @@ class FolderSetupPage(OnboardingPageFrame):
         )
         output_section.content_layout.addWidget(
             OnboardingFieldBlock(
-                label="Output folder",
-                helper_text="Substitute saves finished images here. The default keeps them with your Substitute files.",
+                label=app_text("Output folder"),
+                helper_text=app_text(
+                    "Substitute saves finished images here. The default keeps them "
+                    "with your Substitute files."
+                ),
                 field=self.output_root_edit,
                 trailing_widget=output_buttons,
                 parent=self,
@@ -957,47 +1096,59 @@ class IntegrationsPage(OnboardingPageFrame):
         """Build the friendly integrations setup page."""
 
         super().__init__(
-            title="Choose helpful extras",
-            description="These features help with tags, model info, and preview image preferences. You can change them later in Settings.",
+            title=app_text("Choose helpful extras"),
+            description=app_text(
+                "These features help with tags, model info, and preview image preferences. You can change them later in Settings."
+            ),
             icon=FIF.ROBOT,
-            eyebrow="Helpful extras",
+            eyebrow=app_text("Helpful extras"),
             parent=parent,
         )
         self.setObjectName("OnboardingIntegrationsPage")
         self.content_column.setMinimumWidth(900)
+        self._localization = LocalizationBindings(self)
         danbooru_tag_help_row, self.danbooru_tag_help_checkbox = self._preference_row(
             "OnboardingDanbooruTagHelpSwitch",
-            "Help with prompt tags",
-            "Use Danbooru tag tools while writing prompts.",
+            app_text("Help with prompt tags"),
+            app_text("Use Danbooru tag tools while writing prompts."),
         )
         self.danbooru_image_policy_combo = self._danbooru_policy_combo()
         danbooru_image_policy_block = OnboardingFieldBlock(
-            label="Danbooru image rating",
-            helper_text="Choose which Danbooru wiki preview image ratings Substitute may show.",
+            label=app_text("Danbooru image rating"),
+            helper_text=app_text(
+                "Choose which Danbooru wiki preview image ratings Substitute may show."
+            ),
             field=self.danbooru_image_policy_combo,
             parent=self,
         )
         civitai_model_help_row, self.civitai_model_help_checkbox = self._preference_row(
             "OnboardingCivitaiModelHelpSwitch",
-            "Help find model info",
-            "Use CivitAI to help identify local models and missing recipe models.",
+            app_text("Help find model info"),
+            app_text(
+                "Use CivitAI to help identify local models and missing recipe models."
+            ),
         )
         civitai_downloads_row, self.civitai_downloads_checkbox = self._preference_row(
             "OnboardingCivitaiDownloadsSwitch",
-            "Offer model downloads",
-            "When a recipe needs a missing model, Substitute can offer verified CivitAI downloads.",
+            app_text("Offer model downloads"),
+            app_text(
+                "When a recipe needs a missing model, Substitute can offer verified "
+                "CivitAI downloads."
+            ),
         )
         self.civitai_thumbnail_policy_combo = self._civitai_thumbnail_policy_combo()
         civitai_thumbnail_policy_block = OnboardingFieldBlock(
-            label="CivitAI thumbnail content",
-            helper_text="Choose which CivitAI image levels may be used for model thumbnails.",
+            label=app_text("CivitAI thumbnail content"),
+            helper_text=app_text(
+                "Choose which CivitAI image levels may be used for model thumbnails."
+            ),
             field=self.civitai_thumbnail_policy_combo,
             parent=self,
         )
         self.civitai_api_key_edit = LineEdit(self)
         self.civitai_api_key_edit.setObjectName("OnboardingCivitaiApiKeyEdit")
         self.civitai_api_key_edit.setEchoMode(LineEdit.EchoMode.Password)
-        self.civitai_api_key_status = CaptionLabel("", self)
+        self.civitai_api_key_status = LocalizedCaptionLabel("", self)
         self.civitai_api_key_status.setObjectName("OnboardingCivitaiApiKeyStatus")
 
         choices_layout = QGridLayout()
@@ -1024,8 +1175,10 @@ class IntegrationsPage(OnboardingPageFrame):
         api_section = OnboardingSectionPanel(self)
         api_section.content_layout.addWidget(
             OnboardingFieldBlock(
-                label="CivitAI API key (optional)",
-                helper_text="You can skip this and add one later in Settings.",
+                label=app_text("CivitAI API key (optional)"),
+                helper_text=app_text(
+                    "You can skip this and add one later in Settings."
+                ),
                 field=self.civitai_api_key_edit,
                 parent=self,
             )
@@ -1043,7 +1196,7 @@ class IntegrationsPage(OnboardingPageFrame):
         """Render whether a CivitAI API key already exists without showing it."""
 
         self.civitai_api_key_status.setText(
-            "API key already saved" if configured else ""
+            app_text("API key already saved") if configured else ""
         )
 
     def danbooru_image_policy_value(self) -> str:
@@ -1083,8 +1236,8 @@ class IntegrationsPage(OnboardingPageFrame):
     def _preference_row(
         self,
         object_name: str,
-        label: str,
-        helper_text: str,
+        label: ApplicationText,
+        helper_text: ApplicationText,
     ) -> tuple[QFrame, CheckBox]:
         """Return a checkbox row with concise helper copy."""
 
@@ -1093,10 +1246,10 @@ class IntegrationsPage(OnboardingPageFrame):
         layout = QVBoxLayout(row)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
-        checkbox = CheckBox(label, row)
+        checkbox = LocalizedCheckBox(label, row)
         checkbox.setObjectName(object_name)
         checkbox.setChecked(True)
-        helper_label = CaptionLabel(helper_text, row)
+        helper_label = LocalizedCaptionLabel(helper_text, row)
         helper_label.setObjectName("OnboardingFieldHelper")
         helper_label.setWordWrap(True)
         layout.addWidget(checkbox)
@@ -1109,12 +1262,23 @@ class IntegrationsPage(OnboardingPageFrame):
         combo = ComboBox(self)
         combo.setObjectName("OnboardingDanbooruImagePolicyCombo")
         combo.setMinimumWidth(260)
-        combo.addItem("Safe only", userData=_DANBOORU_SAFE_ONLY)
-        combo.addItem(
-            "Safe and questionable",
-            userData=_DANBOORU_SAFE_AND_QUESTIONABLE,
+        self._localization.bind_combo_items(
+            combo,
+            lambda: (
+                LocalizedComboItem(
+                    _DANBOORU_SAFE_ONLY,
+                    render_application_text(app_text("Safe only")),
+                ),
+                LocalizedComboItem(
+                    _DANBOORU_SAFE_AND_QUESTIONABLE,
+                    render_application_text(app_text("Safe and questionable")),
+                ),
+                LocalizedComboItem(
+                    _DANBOORU_ALL_RATINGS,
+                    render_application_text(app_text("All ratings")),
+                ),
+            ),
         )
-        combo.addItem("All ratings", userData=_DANBOORU_ALL_RATINGS)
         return combo
 
     def _civitai_thumbnail_policy_combo(self) -> ComboBox:
@@ -1123,9 +1287,23 @@ class IntegrationsPage(OnboardingPageFrame):
         combo = ComboBox(self)
         combo.setObjectName("OnboardingCivitaiThumbnailPolicyCombo")
         combo.setMinimumWidth(260)
-        combo.addItem("SFW only", userData=_CIVITAI_SFW_ONLY)
-        combo.addItem("Allow soft", userData=_CIVITAI_ALLOW_SOFT)
-        combo.addItem("Allow all", userData=_CIVITAI_ALLOW_ALL)
+        self._localization.bind_combo_items(
+            combo,
+            lambda: (
+                LocalizedComboItem(
+                    _CIVITAI_SFW_ONLY,
+                    render_application_text(app_text("SFW only")),
+                ),
+                LocalizedComboItem(
+                    _CIVITAI_ALLOW_SOFT,
+                    render_application_text(app_text("Allow soft")),
+                ),
+                LocalizedComboItem(
+                    _CIVITAI_ALLOW_ALL,
+                    render_application_text(app_text("Allow all")),
+                ),
+            ),
+        )
         return combo
 
     def _set_combo_value(
@@ -1154,7 +1332,7 @@ class IntegrationsPage(OnboardingPageFrame):
     def _section_title(self, text: str, parent: QWidget) -> BodyLabel:
         """Return a compact title for one integration subsection."""
 
-        label = BodyLabel(text, parent)
+        label = LocalizedBodyLabel(text, parent)
         label.setObjectName("OnboardingInfoTitle")
         return label
 
@@ -1166,13 +1344,15 @@ class ProvisioningPage(OnboardingPageFrame):
         """Build the setup progress page with status-first hierarchy."""
 
         super().__init__(
-            title="Finishing your setup",
-            description="The first setup can take a few minutes.",
+            title=app_text("Finishing your setup"),
+            description=app_text("The first setup can take a few minutes."),
             icon=FIF.SYNC,
-            eyebrow="Setup in progress",
+            eyebrow=app_text("Setup in progress"),
             parent=parent,
         )
         self.setObjectName("OnboardingProvisioningPage")
+        self._failure_user_message: ApplicationText | None = None
+        self._failure_steps: tuple[ApplicationText, ...] = ()
         self.content_column.setMinimumWidth(760)
 
         self.status_panel = QFrame(self)
@@ -1186,20 +1366,24 @@ class ProvisioningPage(OnboardingPageFrame):
         status_layout.setContentsMargins(22, 20, 22, 20)
         status_layout.setSpacing(12)
 
-        self.status_label = BodyLabel("Starting setup…", self.status_panel)
+        self.status_label = LocalizedBodyLabel(
+            app_text("Starting setup…"), self.status_panel
+        )
         self.status_label.setObjectName("OnboardingProgressStatus")
         self.status_label.setWordWrap(True)
         status_layout.addWidget(self.status_label)
 
-        self.detail_label = CaptionLabel(
-            "You can follow the live output below while setup runs.",
+        self.detail_label = LocalizedCaptionLabel(
+            app_text("You can follow the live output below while setup runs."),
             self.status_panel,
         )
         self.detail_label.setObjectName("OnboardingStatusDetail")
         self.detail_label.setWordWrap(True)
         status_layout.addWidget(self.detail_label)
 
-        self.output_title_label = BodyLabel("Live Output", self.status_panel)
+        self.output_title_label = LocalizedBodyLabel(
+            app_text("Live Output"), self.status_panel
+        )
         self.output_title_label.setObjectName("OnboardingOutputTitle")
         status_layout.addWidget(self.output_title_label)
 
@@ -1215,7 +1399,7 @@ class ProvisioningPage(OnboardingPageFrame):
     def begin_progress(self) -> None:
         """Prepare the provisioning page for active work."""
 
-        self.status_label.setText("Starting setup…")
+        set_localized_text(self.status_label, "Starting setup…")
 
     def mark_complete(self) -> None:
         """Render the setup as complete."""
@@ -1242,11 +1426,34 @@ class ProvisioningPage(OnboardingPageFrame):
         self.details_surface.clear_output()
 
     def set_failure_guidance(
-        self, *, user_message: str, steps: tuple[str, ...]
+        self,
+        *,
+        user_message: ApplicationText,
+        steps: tuple[ApplicationText, ...],
     ) -> None:
         """Render user-facing recovery guidance for a provisioning failure."""
 
-        guidance_lines = [user_message, *[f"- {step}" for step in steps]]
+        self._failure_user_message = user_message
+        self._failure_steps = steps
+        self._render_failure_guidance()
+
+    def changeEvent(self, event: QEvent) -> None:  # noqa: N802
+        """Refresh active failure guidance after an in-place locale switch."""
+
+        super().changeEvent(event)
+        if event.type() is QEvent.Type.LanguageChange:
+            self._render_failure_guidance()
+
+    def _render_failure_guidance(self) -> None:
+        """Render the retained semantic failure guidance in the active locale."""
+
+        user_message = self._failure_user_message
+        if user_message is None:
+            return
+        guidance_lines = [
+            render_application_text(user_message),
+            *[f"- {render_application_text(step)}" for step in self._failure_steps],
+        ]
         self.detail_label.setText("\n".join(line for line in guidance_lines if line))
 
 
@@ -1257,10 +1464,12 @@ class CompletionPage(OnboardingPageFrame):
         """Build the completion page with primary success and optional details."""
 
         super().__init__(
-            title="Substitute is ready",
-            description="Your setup has been saved. Review the summary below, then open Substitute or close this window if a restart is needed.",
+            title=app_text("Substitute is ready"),
+            description=app_text(
+                "Your setup has been saved. Review the summary below, then open Substitute or close this window if a restart is needed."
+            ),
             icon=FIF.ACCEPT,
-            eyebrow="All set",
+            eyebrow=app_text("All set"),
             parent=parent,
         )
         self.setObjectName("OnboardingCompletionPage")
@@ -1289,11 +1498,11 @@ class CompletionPage(OnboardingPageFrame):
         summary_column.setContentsMargins(0, 0, 0, 0)
         summary_column.setSpacing(6)
 
-        title_label = BodyLabel("What's ready", self.success_panel)
+        title_label = LocalizedBodyLabel(app_text("What's ready"), self.success_panel)
         title_label.setObjectName("OnboardingInfoTitle")
         summary_column.addWidget(title_label)
 
-        self.summary_label = CaptionLabel("", self.success_panel)
+        self.summary_label = LocalizedCaptionLabel("", self.success_panel)
         self.summary_label.setObjectName("OnboardingCompletionSummary")
         self.summary_label.setWordWrap(True)
         summary_column.addWidget(self.summary_label)
@@ -1306,11 +1515,13 @@ class CompletionPage(OnboardingPageFrame):
         command_layout.setContentsMargins(16, 14, 16, 14)
         command_layout.setSpacing(8)
 
-        command_title = CaptionLabel("Advanced details", self.command_surface)
+        command_title = LocalizedCaptionLabel(
+            app_text("Advanced details"), self.command_surface
+        )
         command_title.setObjectName("OnboardingFieldLabel")
         command_layout.addWidget(command_title)
 
-        self.command_label = BodyLabel("", self.command_surface)
+        self.command_label = LocalizedBodyLabel("", self.command_surface)
         self.command_label.setObjectName("OnboardingCommandLabel")
         self.command_label.setWordWrap(True)
         self.command_label.setTextInteractionFlags(

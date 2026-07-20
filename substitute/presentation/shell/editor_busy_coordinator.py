@@ -23,6 +23,8 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import uuid4
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.shared.logging.logger import (
     get_logger,
     log_debug,
@@ -45,9 +47,9 @@ class EditorBusyToken:
 class EditorBusyDownloadState:
     """Describe workflow-scoped download progress for the busy overlay."""
 
-    title: str
-    message: str
-    detail: str
+    title: ApplicationText
+    message: ApplicationText
+    detail: ApplicationText
     progress_per_mille: int | None
     cancel_enabled: bool = True
 
@@ -56,7 +58,7 @@ class EditorBusyDownloadState:
 class _EditorBusyEntry:
     """Store one active workflow busy operation."""
 
-    message: str
+    message: ApplicationText
     download_state: EditorBusyDownloadState | None = None
     cancel_callback: Callable[[], None] | None = None
 
@@ -64,7 +66,7 @@ class _EditorBusyEntry:
 class EditorBusyOverlayProtocol(Protocol):
     """Describe the overlay behavior required by the busy coordinator."""
 
-    def show_loading(self, message: str = "Loading") -> None:
+    def show_loading(self, message: ApplicationText = app_text("Loading")) -> None:
         """Show the busy overlay with a base loading message."""
 
     def hide_loading(self) -> None:
@@ -73,9 +75,9 @@ class EditorBusyOverlayProtocol(Protocol):
     def show_download_progress(
         self,
         *,
-        title: str,
-        message: str,
-        detail: str,
+        title: ApplicationText,
+        message: ApplicationText,
+        detail: ApplicationText,
         progress_per_mille: int | None,
         cancel_enabled: bool = True,
     ) -> None:
@@ -85,7 +87,12 @@ class EditorBusyOverlayProtocol(Protocol):
 class EditorBusyControllerProtocol(Protocol):
     """Describe editor busy operations exposed to shell collaborators."""
 
-    def begin(self, workflow_id: str, *, message: str = "Loading") -> EditorBusyToken:
+    def begin(
+        self,
+        workflow_id: str,
+        *,
+        message: ApplicationText = app_text("Loading"),
+    ) -> EditorBusyToken:
         """Begin one editor busy operation for a workflow."""
 
     def end(self, token: EditorBusyToken | object) -> None:
@@ -130,7 +137,12 @@ class EditorBusyCoordinator:
         self._tokens_by_workflow: dict[str, dict[str, _EditorBusyEntry]] = {}
         self._is_shutdown = False
 
-    def begin(self, workflow_id: str, *, message: str = "Loading") -> EditorBusyToken:
+    def begin(
+        self,
+        workflow_id: str,
+        *,
+        message: ApplicationText = app_text("Loading"),
+    ) -> EditorBusyToken:
         """Begin one editor busy operation for a workflow."""
 
         token = EditorBusyToken(workflow_id=workflow_id, operation_id=uuid4().hex)

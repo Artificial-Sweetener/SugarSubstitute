@@ -37,6 +37,8 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
+from sugarsubstitute_shared.localization import ApplicationMessage, app_text
+
 from substitute.application.danbooru import (
     DanbooruWikiCodeNode,
     DanbooruWikiExternalLinkNode,
@@ -75,8 +77,8 @@ _CHIP_PADDING_X = 8.0
 _CHIP_PADDING_Y = 2.0
 _CHIP_RADIUS = 10.0
 _TEXT_LINE_PADDING_Y = 2.0
-_COPY_TAG_ACTION_TEXT = "Copy tag"
-_OPEN_IN_BROWSER_ACTION_TEXT = "Open in browser"
+_COPY_TAG_ACTION_TEXT: ApplicationMessage = app_text("Copy tag")
+_OPEN_IN_BROWSER_ACTION_TEXT: ApplicationMessage = app_text("Open in browser")
 _DANBOORU_WIKI_PAGE_BASE_URL = "https://danbooru.donmai.us/wiki_pages/"
 
 

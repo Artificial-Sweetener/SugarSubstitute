@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.ports import (
     PromptAutocompleteSuggestion,
     PromptWildcardReference,
@@ -92,7 +94,10 @@ def test_wildcard_diagnostic_provider_reports_missing_simple_wildcard() -> None:
     assert diagnostic.kind is PromptDiagnosticKind.WILDCARD
     assert diagnostic.severity is PromptDiagnosticSeverity.ERROR
     assert (diagnostic.source_start, diagnostic.source_end) == (7, 18)
-    assert diagnostic.message == "Missing wildcard: missing"
+    assert (
+        render_source_application_text(diagnostic.message)
+        == "Missing wildcard: missing"
+    )
     assert diagnostic.diagnostic_id == "wildcard:7:18:simple:missing:"
     assert isinstance(diagnostic.payload, PromptWildcardDiagnosticPayload)
     assert diagnostic.payload.identifier == "missing"
@@ -139,7 +144,10 @@ def test_wildcard_diagnostic_provider_reports_missing_csv_column() -> None:
 
     assert len(result.diagnostics) == 1
     diagnostic = result.diagnostics[0]
-    assert diagnostic.message == "Missing CSV wildcard column: monster:color"
+    assert (
+        render_source_application_text(diagnostic.message)
+        == "Missing CSV wildcard column: monster:color"
+    )
     assert isinstance(diagnostic.payload, PromptWildcardDiagnosticPayload)
     assert diagnostic.payload.identifier == "monster"
     assert diagnostic.payload.wildcard_form == "csv"

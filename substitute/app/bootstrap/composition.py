@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import set_localized_window_title
+
 import hashlib
 import importlib
 import os
@@ -41,6 +43,10 @@ from substitute.application.appearance.appearance_preference_service import (
     AppearancePreferenceService,
 )
 from substitute.app.bootstrap.appearance_runtime import AppearanceRuntimeController
+from substitute.app.bootstrap.localization_composition import (
+    build_application_localization_runtime,
+    build_node_presentation_service,
+)
 from substitute.application.comfy_environment import ComfyEnvironmentService
 from substitute.application.execution import (
     DirectExecutionDispatcher,
@@ -2543,6 +2549,11 @@ def _build_main_window_dependencies(
         workspace_generation_controller=workspace_generation_controller,
         shell_resource_lifecycle=shell_resource_lifecycle,
         comfy_output_stream=comfy_output_stream,
+        localization_manager=runtime_services.localization_manager,
+        node_presentation_service=build_node_presentation_service(
+            runtime_services.localization_manager,
+            runtime_services.comfy_node_localization.store,
+        ),
         node_definition_gateway=node_definition_gateway,
         prompt_autocomplete_gateway=prompt_autocomplete_gateway,
         prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
@@ -2755,9 +2766,18 @@ def build_main_window(
     )
     if runtime_services is None:
         appearance_runtime = build_appearance_runtime(context)
+        application = QApplication.instance()
+        if not isinstance(application, QApplication):
+            raise RuntimeError("QApplication is required before shell composition.")
+        localization_runtime = build_application_localization_runtime(
+            application,
+            context,
+            None,
+        )
         runtime_services = build_application_runtime_services(
             context=context,
             comfy_output_stream=comfy_output_stream,
+            localization_manager=localization_runtime.manager,
             appearance_runtime=appearance_runtime,
         )
     else:
@@ -2786,7 +2806,7 @@ def build_main_window(
                 backdrop_mode=_resolved_shell_backdrop_mode(appearance_runtime),
                 create_body_material_surface=False,
             )
-            frame.setWindowTitle("Sugar Substitute")
+            set_localized_window_title(frame, "Sugar Substitute")
             frame.setWindowIcon(application_icon())
             frame.destroyed.connect(dependencies.shell_resource_lifecycle.shutdown)
 
@@ -3476,6 +3496,7 @@ __all__ = [
     "build_main_window",
     "configure_windows_app_user_model_id",
     "create_application",
+    "build_application_localization_runtime",
     "configure_theme",
     "build_model_metadata_refresh_service",
     "show_onboarding_window",

@@ -25,6 +25,8 @@ from typing import Literal, Protocol
 
 from PySide6.QtCore import QObject, Signal
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.application.execution import (
     ExecutionContext,
     TaskIdentity,
@@ -92,8 +94,8 @@ class OnboardingFlowServiceLike(Protocol):
         draft: OnboardingDraftState,
         credential_draft: OnboardingCredentialDraft | None = None,
         restart_required: bool,
-        on_status: Callable[[str], None],
-        on_log: Callable[[str], None],
+        on_status: Callable[[ApplicationText], None],
+        on_log: Callable[[ApplicationText], None],
     ) -> OnboardingCompletionResult:
         """Provision the selected onboarding draft and return its completion."""
 
@@ -135,7 +137,7 @@ class _OnboardingProvisioningProgressEvent:
     """Record one provisioning progress publication requested by task work."""
 
     kind: Literal["status", "log"]
-    message: str
+    message: ApplicationText
 
 
 @dataclass(frozen=True)
@@ -150,8 +152,8 @@ class _OnboardingProvisioningTaskResult:
 class ReadinessIssuePresentation:
     """Describe the user-facing wording for one readiness issue."""
 
-    headline: str
-    user_message: str
+    headline: ApplicationText
+    user_message: ApplicationText
     technical_detail: str
 
 
@@ -161,8 +163,10 @@ def _generic_provisioning_failure(
     """Return a user-facing provisioning failure for unexpected errors."""
 
     return OnboardingProvisioningFailure(
-        headline="Substitute ran into a setup problem",
-        user_message="Review the details below, fix the reported issue, and try again.",
+        headline=app_text("Substitute ran into a setup problem"),
+        user_message=app_text(
+            "Review the details below, fix the reported issue, and try again."
+        ),
         technical_detail=str(error).strip() or type(error).__name__,
         remediation_steps=(),
     )
@@ -174,8 +178,8 @@ class OnboardingController(QObject):
     draft_changed = Signal(object)
     provisioning_started = Signal()
     provisioning_finished = Signal()
-    progress_status_changed = Signal(str)
-    progress_log_emitted = Signal(str)
+    progress_status_changed = Signal(object)
+    progress_log_emitted = Signal(object)
     failure_reported = Signal(object)
     completion_ready = Signal(object)
 
@@ -597,7 +601,7 @@ class OnboardingController(QObject):
         *,
         request_id: int,
         kind: Literal["status", "log"],
-        message: str,
+        message: ApplicationText,
     ) -> None:
         """Queue one background progress event for controller-thread delivery."""
 
@@ -714,153 +718,163 @@ class OnboardingController(QObject):
 
         presentations = {
             "installation_config_missing": ReadinessIssuePresentation(
-                headline="Substitute still needs a home folder",
-                user_message=(
+                headline=app_text("Substitute still needs a home folder"),
+                user_message=app_text(
                     "Finish setup so Substitute knows where to keep its files."
                 ),
                 technical_detail="Installation configuration has not been saved yet.",
             ),
             "installation_config_invalid": ReadinessIssuePresentation(
-                headline="Substitute's saved folder settings need to be fixed",
-                user_message=(
+                headline=app_text(
+                    "Substitute's saved folder settings need to be fixed"
+                ),
+                user_message=app_text(
                     "The stored folder locations no longer match this installation."
                 ),
                 technical_detail=issue.detail,
             ),
             "runtime_config_missing": ReadinessIssuePresentation(
-                headline="Substitute still needs its local runtime",
-                user_message=(
+                headline=app_text("Substitute still needs its local runtime"),
+                user_message=app_text(
                     "Continue setup so Substitute can prepare the local Python files it needs to run."
                 ),
                 technical_detail="Runtime configuration has not been created yet.",
             ),
             "runtime_config_invalid": ReadinessIssuePresentation(
-                headline="Substitute's local runtime settings need repair",
-                user_message=(
+                headline=app_text("Substitute's local runtime settings need repair"),
+                user_message=app_text(
                     "Some saved runtime paths no longer line up with this installation."
                 ),
                 technical_detail=issue.detail,
             ),
             "runtime_not_provisioned": ReadinessIssuePresentation(
-                headline="Substitute is not fully prepared yet",
-                user_message=(
+                headline=app_text("Substitute is not fully prepared yet"),
+                user_message=app_text(
                     "The local runtime has not been set up yet, so the app cannot open normally."
                 ),
                 technical_detail="The local runtime has not been provisioned.",
             ),
             "runtime_provisioning_incomplete": ReadinessIssuePresentation(
-                headline="Substitute's local setup was interrupted",
-                user_message=(
+                headline=app_text("Substitute's local setup was interrupted"),
+                user_message=app_text(
                     "Finish repairing the local runtime before opening the app."
                 ),
                 technical_detail=issue.detail,
             ),
             "runtime_python_missing": ReadinessIssuePresentation(
-                headline="Local setup is incomplete",
-                user_message="A required local Python file is missing.",
+                headline=app_text("Local setup is incomplete"),
+                user_message=app_text("A required local Python file is missing."),
                 technical_detail="Missing runtime Python executable.",
             ),
             "target_config_missing": ReadinessIssuePresentation(
-                headline="Substitute still needs a ComfyUI connection",
-                user_message=(
+                headline=app_text("Substitute still needs a ComfyUI connection"),
+                user_message=app_text(
                     "Choose whether Substitute should set up ComfyUI, use an existing copy, or connect to another machine."
                 ),
                 technical_detail="ComfyUI target configuration has not been saved yet.",
             ),
             "target_config_invalid": ReadinessIssuePresentation(
-                headline="The saved ComfyUI connection needs to be fixed",
-                user_message=(
+                headline=app_text("The saved ComfyUI connection needs to be fixed"),
+                user_message=app_text(
                     "Some required connection details are missing or no longer valid."
                 ),
                 technical_detail=issue.detail,
             ),
             "managed_workspace_not_configured": ReadinessIssuePresentation(
-                headline="Substitute needs a ComfyUI folder to finish setup",
-                user_message=(
+                headline=app_text("Substitute needs a ComfyUI folder to finish setup"),
+                user_message=app_text(
                     "Choose where Substitute should place the managed ComfyUI files."
                 ),
                 technical_detail="Managed local mode is missing its ComfyUI folder path.",
             ),
             "managed_workspace_not_installed": ReadinessIssuePresentation(
-                headline="ComfyUI still needs to be installed",
-                user_message=(
+                headline=app_text("ComfyUI still needs to be installed"),
+                user_message=app_text(
                     "The managed ComfyUI setup is not ready yet. Continue repair to install it."
                 ),
                 technical_detail="Managed ComfyUI workspace is not installed.",
             ),
             "managed_workspace_not_launchable": ReadinessIssuePresentation(
-                headline="ComfyUI needs repair before it can start",
-                user_message=(
+                headline=app_text("ComfyUI needs repair before it can start"),
+                user_message=app_text(
                     "The managed ComfyUI files are present, but the setup is not ready to launch."
                 ),
                 technical_detail="Managed ComfyUI workspace is not launchable.",
             ),
             "managed_workspace_not_validated": ReadinessIssuePresentation(
-                headline="ComfyUI still needs hardware validation",
-                user_message=(
+                headline=app_text("ComfyUI still needs hardware validation"),
+                user_message=app_text(
                     "Substitute has not finished validating the managed backend for this machine yet."
                 ),
                 technical_detail=issue.detail,
             ),
             "managed_workspace_foreign_listener_blocked": ReadinessIssuePresentation(
-                headline="Another process is already using the saved ComfyUI address",
-                user_message=(
+                headline=app_text(
+                    "Another process is already using the saved ComfyUI address"
+                ),
+                user_message=app_text(
                     "Substitute will not start over a different app that is already listening on the managed port."
                 ),
                 technical_detail=issue.detail,
             ),
             "managed_workspace_backend_invalid": ReadinessIssuePresentation(
-                headline="The managed ComfyUI backend does not match this hardware",
-                user_message=(
+                headline=app_text(
+                    "The managed ComfyUI backend does not match this hardware"
+                ),
+                user_message=app_text(
                     "Repair will re-install ComfyUI with a backend that matches the detected accelerator."
                 ),
                 technical_detail=issue.detail,
             ),
             "attached_workspace_missing": ReadinessIssuePresentation(
-                headline="The saved ComfyUI folder couldn't be found",
-                user_message=(
+                headline=app_text("The saved ComfyUI folder couldn't be found"),
+                user_message=app_text(
                     "Check that the local ComfyUI folder still exists, then choose the folder that contains ComfyUI's main.py file."
                 ),
                 technical_detail=issue.detail,
             ),
             "target_endpoint_invalid": ReadinessIssuePresentation(
-                headline="The saved ComfyUI address needs to be fixed",
-                user_message=(
+                headline=app_text("The saved ComfyUI address needs to be fixed"),
+                user_message=app_text(
                     "Review the host and port so Substitute knows where to find ComfyUI."
                 ),
                 technical_detail=issue.detail,
             ),
             "target_endpoint_unreachable": ReadinessIssuePresentation(
-                headline="Substitute couldn't reach the saved ComfyUI address",
-                user_message=(
+                headline=app_text(
+                    "Substitute couldn't reach the saved ComfyUI address"
+                ),
+                user_message=app_text(
                     "Make sure ComfyUI is running at the saved address, then try again."
                 ),
                 technical_detail=issue.detail,
             ),
             "backend_compatibility_failed": ReadinessIssuePresentation(
-                headline="The saved ComfyUI runtime needs an extension update",
-                user_message=(
+                headline=app_text(
+                    "The saved ComfyUI runtime needs an extension update"
+                ),
+                user_message=app_text(
                     "Repair the target so Substitute BackEnd and SugarCubes match this version of Substitute."
                 ),
                 technical_detail=issue.detail,
             ),
             "setup_transaction_interrupted": ReadinessIssuePresentation(
-                headline="Setup was interrupted",
-                user_message=(
+                headline=app_text("Setup was interrupted"),
+                user_message=app_text(
                     "Continue setup to finish validating the selected ComfyUI runtime."
                 ),
                 technical_detail=issue.detail,
             ),
             "setup_transaction_failed": ReadinessIssuePresentation(
-                headline="Setup did not finish",
-                user_message=(
+                headline=app_text("Setup did not finish"),
+                user_message=app_text(
                     "Review the setup details below, fix the reported issue, and try again."
                 ),
                 technical_detail=issue.detail,
             ),
             "setup_transaction_corrupt": ReadinessIssuePresentation(
-                headline="Setup state could not be read",
-                user_message=(
+                headline=app_text("Setup state could not be read"),
+                user_message=app_text(
                     "Start setup again so Substitute can save a clean setup state."
                 ),
                 technical_detail=issue.detail,
@@ -869,8 +883,8 @@ class OnboardingController(QObject):
         return presentations.get(
             getattr(issue, "code").value,
             ReadinessIssuePresentation(
-                headline="Substitute found a setup problem",
-                user_message=(
+                headline=app_text("Substitute found a setup problem"),
+                user_message=app_text(
                     "Review the details below and continue through repair to finish setting things up."
                 ),
                 technical_detail=issue.detail,

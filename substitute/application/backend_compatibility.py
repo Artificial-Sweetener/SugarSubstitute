@@ -23,6 +23,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.application.runtime_mode import ApplicationRuntimeModeService
 from substitute.domain.comfy_nodepacks import (
     SUGARCUBES_REQUIRED_MINIMUM_VERSION,
@@ -98,7 +100,7 @@ class BackendCompatibilityResult:
     """Represent compatibility status and user-facing version facts."""
 
     status: RuntimeCompatibilityStatus
-    summary: str
+    summary: ApplicationText
     installed_backend_version: str = ""
     required_backend_version: str = ""
     installed_sugarcubes_version: str = ""
@@ -128,7 +130,7 @@ class BackendCompatibilityService:
         if capabilities is None:
             return BackendCompatibilityResult(
                 status=RuntimeCompatibilityStatus.BACKEND_UNREACHABLE,
-                summary="Substitute BackEnd capabilities could not be read.",
+                summary=app_text("Substitute BackEnd capabilities could not be read."),
                 repairable=True,
             )
         backend_result = self._assess_backend(capabilities)
@@ -139,7 +141,7 @@ class BackendCompatibilityService:
             return sugar_result
         return BackendCompatibilityResult(
             status=RuntimeCompatibilityStatus.COMPATIBLE,
-            summary="Substitute BackEnd and SugarCubes are compatible.",
+            summary=app_text("Substitute BackEnd and SugarCubes are compatible."),
             installed_backend_version=capabilities.extension_version,
             required_backend_version=self._backend_range_text(),
             installed_sugarcubes_version=capabilities.cube_library.sugar_cubes_version,
@@ -155,7 +157,7 @@ class BackendCompatibilityService:
         if capabilities.api_version != self.policy.required_backend_api_version:
             return BackendCompatibilityResult(
                 status=RuntimeCompatibilityStatus.BACKEND_API_MISMATCH,
-                summary="Substitute BackEnd API version is incompatible.",
+                summary=app_text("Substitute BackEnd API version is incompatible."),
                 installed_backend_version=str(capabilities.api_version),
                 required_backend_version=str(self.policy.required_backend_api_version),
                 repairable=True,
@@ -168,9 +170,9 @@ class BackendCompatibilityService:
         if missing_features:
             return BackendCompatibilityResult(
                 status=RuntimeCompatibilityStatus.BACKEND_FEATURE_MISSING,
-                summary=(
-                    "Substitute BackEnd is missing required features: "
-                    + ", ".join(missing_features)
+                summary=app_text(
+                    "Substitute BackEnd is missing required features: %1",
+                    ", ".join(missing_features),
                 ),
                 installed_backend_version=capabilities.extension_version,
                 required_backend_version=self._backend_range_text(),
@@ -179,7 +181,9 @@ class BackendCompatibilityService:
         if not capabilities.extension_version:
             return BackendCompatibilityResult(
                 status=RuntimeCompatibilityStatus.BACKEND_VERSION_UNKNOWN,
-                summary="Substitute BackEnd did not report its extension version.",
+                summary=app_text(
+                    "Substitute BackEnd did not report its extension version."
+                ),
                 required_backend_version=self._backend_range_text(),
                 repairable=True,
             )
@@ -199,7 +203,7 @@ class BackendCompatibilityService:
             )
             return BackendCompatibilityResult(
                 status=status,
-                summary="Substitute BackEnd version is incompatible.",
+                summary=app_text("Substitute BackEnd version is incompatible."),
                 installed_backend_version=capabilities.extension_version,
                 required_backend_version=self._backend_range_text(),
                 repairable=True,
@@ -217,7 +221,7 @@ class BackendCompatibilityService:
             return BackendCompatibilityResult(
                 status=RuntimeCompatibilityStatus.SUGARCUBES_MISSING,
                 summary=cube_library.unavailable_reason
-                or "SugarCubes is not available on this target.",
+                or app_text("SugarCubes is not available on this target."),
                 installed_backend_version=capabilities.extension_version,
                 required_sugarcubes_version=self._sugarcubes_range_text(),
                 repairable=True,
@@ -230,7 +234,7 @@ class BackendCompatibilityService:
                 return None
             return BackendCompatibilityResult(
                 status=RuntimeCompatibilityStatus.SUGARCUBES_VERSION_UNKNOWN,
-                summary="SugarCubes did not report its runtime version.",
+                summary=app_text("SugarCubes did not report its runtime version."),
                 installed_backend_version=capabilities.extension_version,
                 required_sugarcubes_version=self._sugarcubes_range_text(),
                 repairable=True,
@@ -245,7 +249,9 @@ class BackendCompatibilityService:
                 status=(
                     RuntimeCompatibilityStatus.SUGARCUBES_DEV_VERSION_RELEASE_BLOCKED
                 ),
-                summary="SugarCubes prerelease versions are not allowed in release mode.",
+                summary=app_text(
+                    "SugarCubes prerelease versions are not allowed in release mode."
+                ),
                 installed_backend_version=capabilities.extension_version,
                 installed_sugarcubes_version=cube_library.sugar_cubes_version,
                 required_sugarcubes_version=self._sugarcubes_range_text(),
@@ -262,7 +268,7 @@ class BackendCompatibilityService:
             )
             return BackendCompatibilityResult(
                 status=status,
-                summary="SugarCubes version is incompatible.",
+                summary=app_text("SugarCubes version is incompatible."),
                 installed_backend_version=capabilities.extension_version,
                 installed_sugarcubes_version=cube_library.sugar_cubes_version,
                 required_sugarcubes_version=self._sugarcubes_range_text(),

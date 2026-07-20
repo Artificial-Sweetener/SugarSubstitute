@@ -18,11 +18,18 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.presentation.localization import (
+    apply_application_text,
+    render_application_text,
+    set_localized_window_title,
+)
+
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import QStackedLayout, QVBoxLayout, QWidget
 from qfluentwidgets import Pivot, PivotItem  # type: ignore[import-untyped]
 from qfluentwidgets.common.font import setFont  # type: ignore[import-untyped]
@@ -61,12 +68,13 @@ FloatingChromeFactory = Callable[[], FloatingCanvasChrome | None]
 class CanvasHostPage:
     """Describe one canvas page hosted by the generic canvas shell."""
 
-    label: str
+    route_key: str
+    title: ApplicationText
     widget: QWidget
     floating_chrome_factory: FloatingChromeFactory | None = None
     default_available: bool = True
-    unavailable_reason: str = ""
-    fallback_label: str | None = None
+    unavailable_reason: ApplicationText = ""
+    fallback_route_key: str | None = None
 
 
 class DockablePivotItem(PivotItem):  # type: ignore[misc]
@@ -98,7 +106,7 @@ class CanvasTabManager(QWidget):
         """Initialize pivot/stack canvas region and add configured pages."""
 
         super().__init__(parent)
-        self.setWindowTitle("Canvas Tab Demo")
+        set_localized_window_title(self, "Canvas Tab Demo")
         self.resize(1000, 700)
 
         self.pivot = Pivot()
@@ -116,16 +124,18 @@ class CanvasTabManager(QWidget):
         self.floating_windows: dict[str, FloatingCanvasWindow] = {}
         self._canvas_dock_action_callbacks: dict[str, Callable[..., None]] = {}
         self._canvas_availability: dict[str, bool] = {}
+        self._canvas_titles: dict[str, ApplicationText] = {}
         self._floating_chrome_factories: dict[str, FloatingChromeFactory] = {}
         self._fallback_labels: dict[str, str | None] = {}
 
         for page in pages:
-            self._floating_chrome_factories[page.label] = (
+            self._canvas_titles[page.route_key] = page.title
+            self._floating_chrome_factories[page.route_key] = (
                 page.floating_chrome_factory or _no_floating_chrome
             )
-            self._fallback_labels[page.label] = page.fallback_label
-            self._canvas_availability[page.label] = page.default_available
-            self.add_canvas(page.label, page.widget)
+            self._fallback_labels[page.route_key] = page.fallback_route_key
+            self._canvas_availability[page.route_key] = page.default_available
+            self.add_canvas(page.route_key, page.widget)
 
         self.stack.setCurrentIndex(0)
         self.pivot.setItemFontSize(14)
@@ -164,10 +174,10 @@ class CanvasTabManager(QWidget):
         for page in pages:
             if not page.default_available:
                 self.set_canvas_available(
-                    page.label,
+                    page.route_key,
                     False,
                     reason=page.unavailable_reason,
-                    fallback_label=page.fallback_label,
+                    fallback_label=page.fallback_route_key,
                 )
 
     def add_canvas(self, label: str, widget: QWidget) -> None:
@@ -182,7 +192,7 @@ class CanvasTabManager(QWidget):
         self.pivot.insertWidget(-1, label, pivot_item)
         self.canvas_map[label] = widget
         self.wrapper_map[label] = wrapper
-        CanvasTabManager._set_canvas_dock_action_text(self, label, "Undock canvas")
+        CanvasTabManager._set_canvas_detached(self, label, False)
         CanvasTabManager._connect_canvas_dock_action(self, label, widget)
         self.stack.insertWidget(len(self.pivot.items) - 1, wrapper)
         if len(self.pivot.items) == 1:
@@ -364,11 +374,7 @@ class CanvasTabManager(QWidget):
             self.wrapper_map[redock_label] = redock_wrapper
             self.stack.insertWidget(insert_index, redock_wrapper)
             self.floating_windows.pop(redock_label, None)
-            CanvasTabManager._set_canvas_dock_action_text(
-                self,
-                redock_label,
-                "Undock canvas",
-            )
+            CanvasTabManager._set_canvas_detached(self, redock_label, False)
             canvas_availability = getattr(self, "_canvas_availability", {})
             fallback_labels = getattr(self, "_fallback_labels", {})
             if not canvas_availability.get(redock_label, True):
@@ -406,14 +412,24 @@ class CanvasTabManager(QWidget):
         floating_window.setWindowFlag(Qt.Window, True)  # type: ignore[attr-defined]
         floating_window.setWindowFlag(Qt.Tool, False)  # type: ignore[attr-defined]
         floating_window.setWindowModality(Qt.NonModal)  # type: ignore[attr-defined]
-        floating_window.setWindowTitle(f"{label} Canvas")
+        page_title = getattr(self, "_canvas_titles", {}).get(label, label)
+        if isinstance(floating_window, QObject):
+            set_localized_window_title(
+                floating_window,
+                "%1 Canvas",
+                page_title,
+            )
+        else:
+            floating_window.setWindowTitle(
+                render_application_text(app_text("%1 Canvas", page_title))
+            )
         floating_window.setWindowIcon(self.window().windowIcon())
         layout_changed = getattr(floating_window, "layoutStateChanged", None)
         connect = getattr(layout_changed, "connect", None)
         if callable(connect):
             connect(lambda: CanvasTabManager._emit_layout_state_changed(self))
         self.floating_windows[label] = floating_window
-        CanvasTabManager._set_canvas_dock_action_text(self, label, "Redock canvas")
+        CanvasTabManager._set_canvas_detached(self, label, True)
         floating_window.resize(800, 600)
         floating_window.show()
         emit = getattr(getattr(self, "canvas_activated", None), "emit", None)
@@ -544,7 +560,9 @@ class CanvasTabManager(QWidget):
     def _create_pivot_item(self, label: str) -> DockablePivotItem:
         """Create a styled dockable pivot item for one canvas label."""
 
-        pivot_item = DockablePivotItem(label, self.pivot)
+        title = getattr(self, "_canvas_titles", {}).get(label, label)
+        pivot_item = DockablePivotItem("", self.pivot)
+        apply_application_text(pivot_item, title)
         pivot_item.doubleClicked.connect(lambda: self.undock_tab(label))
         pivot_item.setStyleSheet(self._pivot_item_stylesheet())
         setFont(pivot_item, 14)
@@ -580,13 +598,13 @@ class CanvasTabManager(QWidget):
         callbacks[label] = callback
         connect(callback)
 
-    def _set_canvas_dock_action_text(self, label: str, text: str) -> None:
-        """Update one canvas widget's context-menu dock action label."""
+    def _set_canvas_detached(self, label: str, detached: bool) -> None:
+        """Update one canvas widget's locale-neutral attachment state."""
 
         canvas = self.canvas_map.get(label)
-        set_dock_action_text = getattr(canvas, "set_dock_action_text", None)
-        if callable(set_dock_action_text):
-            set_dock_action_text(text)
+        set_canvas_detached = getattr(canvas, "set_canvas_detached", None)
+        if callable(set_canvas_detached):
+            set_canvas_detached(detached)
 
     def _apply_theme_styles(self) -> None:
         """Reapply pivot item colors after theme or accent changes."""

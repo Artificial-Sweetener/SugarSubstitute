@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections import OrderedDict
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass
@@ -228,7 +230,7 @@ class PromptWildcardFeatureController:
         self._snapshot = self._build_snapshot(stale=False, wildcard_action_ready=True)
         return (
             PromptWildcardContextAction(
-                label="Wildcard not found",
+                label=app_text("Wildcard not found"),
                 callback_ready=False,
                 disabled_reason="missing_wildcard",
             ),

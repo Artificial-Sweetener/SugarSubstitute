@@ -77,6 +77,7 @@ def _shell() -> SimpleNamespace:
         cube_library_management_service=object(),
         invalidate_cube_catalog_cache=lambda: None,
         about_info_service=object(),
+        localization_manager=object(),
         appearance_runtime=object(),
         appearance_restart_coordinator=object(),
         comfy_connection_settings_service=object(),
@@ -149,6 +150,7 @@ def test_create_settings_workspace_wires_callbacks_and_layout(
     assert calls[0]["appearance_restart_coordinator"] is (
         shell.appearance_restart_coordinator
     )
+    assert calls[0]["localization_manager"] is shell.localization_manager
     assert (
         calls[0]["prompt_editor_preferences_changed"]
         == controller.handle_prompt_editor_preferences_changed

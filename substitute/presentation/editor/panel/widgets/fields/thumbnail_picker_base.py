@@ -21,6 +21,9 @@ from __future__ import annotations
 import os
 from typing import Any, Callable
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+from substitute.presentation.localization import LocalizedPushButton
+
 from PySide6.QtCore import QRectF, QSize, Qt
 from PySide6.QtGui import (
     QColor,
@@ -38,7 +41,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import PushButton  # type: ignore[import-untyped]
 
 try:
     from qfluentwidgets.common.font import setFont  # type: ignore[import-untyped]
@@ -49,9 +51,10 @@ except ImportError:  # pragma: no cover - test-stub fallback only
 
 
 from substitute.presentation.shell.chrome_style import connect_theme_refresh
-from substitute.presentation.widgets.cursor_tooltip_filter import (
-    CursorToolTipFilter,
-    install_cursor_tooltip_filter,
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    FluentToolTipFilter,
+    ensure_fluent_tooltip_filter,
+    set_fluent_tooltip_text,
 )
 
 try:
@@ -146,7 +149,7 @@ class ThumbnailPickerBase(QWidget):
         default_folder: str = "",
         placeholder_image: str | None = None,
         button_padding: int = 24,
-        browse_button_text: str = "Browse Files",
+        browse_button_text: ApplicationText = app_text("Browse Files"),
     ) -> None:
         """Initialize the shared thumbnail-picker widget structure."""
 
@@ -160,7 +163,7 @@ class ThumbnailPickerBase(QWidget):
         self.button_padding = button_padding
         self._current_file_path: str | None = None
         self._placeholder_image_path: str | None = None
-        self._caption_tooltip_filter: CursorToolTipFilter | None = None
+        self._caption_tooltip_filter: FluentToolTipFilter | None = None
 
         self.thumbnail = HighlightLabel(self)
         self.thumbnail.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -171,13 +174,14 @@ class ThumbnailPickerBase(QWidget):
         setFont(self.caption, 13)
         self.caption.setText("")
         self.caption.hide()
-        self._caption_tooltip_filter = install_cursor_tooltip_filter(
+        self._caption_tooltip_filter = ensure_fluent_tooltip_filter(
             self.caption,
             self.caption,
             show_delay_ms=600,
+            cursor_anchor=True,
         )
 
-        self.button = PushButton(browse_button_text, self)
+        self.button = LocalizedPushButton(browse_button_text, self)
 
         v_layout = QVBoxLayout(self)
         v_layout.setSpacing(6)
@@ -274,7 +278,7 @@ class ThumbnailPickerBase(QWidget):
         self.thumbnail.clear()
         self.caption.setText("")
         self.caption.setFixedWidth(self.thumbnail_size - 8)
-        self.caption.setToolTip("")
+        set_fluent_tooltip_text(self.caption, "")
         self.caption.hide()
         self._current_file_path = None
 
@@ -323,7 +327,7 @@ class ThumbnailPickerBase(QWidget):
         self.thumbnail.setCornerRadius(self.corner_radius)
         self.caption.setFixedWidth(pixmap.width())
         self.caption.setText(caption_text)
-        self.caption.setToolTip(tooltip_text)
+        set_fluent_tooltip_text(self.caption, tooltip_text)
         self.caption.setVisible(bool(caption_text))
 
     def _rounded_pixmap(self, pixmap: QPixmap, radius: int) -> QPixmap:

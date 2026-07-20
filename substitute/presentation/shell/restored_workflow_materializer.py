@@ -36,6 +36,7 @@ from substitute.presentation.shell.workflow_ui_factory import workflow_ui_factor
 from substitute.presentation.shell.workflow_surface_results import WorkflowUiSurfaces
 from substitute.presentation.workflows.workflow_tabs_view import (
     SETTINGS_WORKSPACE_ROUTE,
+    workflow_tab_source_text,
 )
 from substitute.shared.logging.logger import get_logger, log_info
 from substitute.shared.startup_trace import trace_mark, trace_span
@@ -365,7 +366,9 @@ class RestoredWorkflowMaterializer:
     ) -> WorkspaceSnapshot:
         """Return a copy whose workflow ids and labels do not collide."""
 
-        existing_labels = {item.text() for item in self._shell.workflow_tabbar.items}
+        existing_labels = {
+            workflow_tab_source_text(item) for item in self._shell.workflow_tabbar.items
+        }
         return WorkspaceAppendService().snapshot_with_unique_open_ids(
             snapshot,
             existing_workflow_ids=set(self._shell.workflow_session_service.workflows),

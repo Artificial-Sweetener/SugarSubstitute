@@ -26,6 +26,7 @@ from PySide6.QtCore import QRectF, QSizeF
 from PySide6.QtGui import QFont, QFontMetricsF, QTextLayout, QTextOption
 
 from substitute.application.prompt_editor import PromptDocumentView
+from substitute.presentation.text_coordinates import TextCoordinateMap
 
 from .model import (
     PromptProjectionDisplayMode,
@@ -692,7 +693,13 @@ class PromptProjectionLineLayoutBuilder:
                 text_line.setLineWidth(max(1.0, content_width - line_width))
                 text_layout.endLayout()
 
-                candidate_length = max(1, text_line.textLength())
+                candidate_length = max(
+                    1,
+                    TextCoordinateMap(remaining_text).utf16_to_python(
+                        text_line.textLength(),
+                        prefer_after=False,
+                    ),
+                )
                 break_decision = _adjust_break_for_word_integrity(
                     cluster_text,
                     consumed_cluster_length=consumed_cluster_length,
@@ -1634,8 +1641,12 @@ def _unwrapped_text_offsets_uncached(
     if not text_line.isValid():
         return (0.0,)
     offsets: list[float] = []
+    coordinates = TextCoordinateMap(text)
     for index in range(len(text) + 1):
-        cursor_x = cast(tuple[float, int], text_line.cursorToX(index))
+        cursor_x = cast(
+            tuple[float, int],
+            text_line.cursorToX(coordinates.python_to_utf16(index)),
+        )
         offsets.append(float(cursor_x[0]))
     return tuple(offsets)
 

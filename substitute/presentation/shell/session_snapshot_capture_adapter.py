@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.workflows.workflow_tabs_view import (
+    workflow_tab_source_text,
+)
+
 from pathlib import Path
 from typing import Any, cast
 
@@ -85,7 +89,7 @@ class SessionSnapshotCaptureAdapter:
         item = self._shell.workflow_tabbar.itemMap.get(workflow_id)
         if item is None:
             return workflow_id
-        return str(item.text())
+        return workflow_tab_source_text(item)
 
     def active_cube_alias(self, workflow_id: str) -> str | None:
         """Return the active cube alias for one workflow."""

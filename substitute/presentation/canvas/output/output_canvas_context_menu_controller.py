@@ -23,6 +23,8 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
 )
@@ -142,25 +144,25 @@ class OutputCanvasContextMenuController:
             (
                 MenuItem(
                     "output_canvas.copy",
-                    "Copy",
+                    app_text("Copy"),
                     callback=self.copy_current_image,
                     icon=self.copy_icon(),
                 ),
                 MenuItem(
                     "output_canvas.open_current_external",
-                    "Open in Photoshop",
+                    app_text("Open in Photoshop"),
                     callback=self.open_current_external,
                     icon=self.open_external_icon(),
                 ),
                 MenuItem(
                     "output_canvas.open_all_external",
-                    "Open All in Photoshop",
+                    app_text("Open All in Photoshop"),
                     callback=self.open_all_external,
                     icon=self.open_all_external_icon(),
                 ),
                 MenuItem(
                     "output_canvas.reveal_current_asset",
-                    "Reveal in File Manager",
+                    app_text("Reveal in File Manager"),
                     callback=self.reveal_current_asset,
                     enabled=self._current_asset_has_path(),
                     icon=self.reveal_asset_icon(),
@@ -256,7 +258,7 @@ class OutputCanvasContextMenuController:
             return None
         return MenuItem(
             "output_canvas.compare_outputs",
-            "Compare outputs",
+            app_text("Compare outputs"),
             enabled=True,
             checkable=True,
             checked=compare_enabled,

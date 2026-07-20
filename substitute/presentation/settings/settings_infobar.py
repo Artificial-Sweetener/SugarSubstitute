@@ -28,6 +28,8 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon,
     TransparentToolButton,
 )
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import apply_application_text
 
 SettingsInfoBarSeverity = Literal["info", "success", "warning", "error"]
 
@@ -63,15 +65,15 @@ class SettingsInfoBar(QFrame):
         self,
         *,
         severity: SettingsInfoBarSeverity,
-        title: str,
-        message: str,
+        title: ApplicationText,
+        message: ApplicationText,
     ) -> None:
         """Render one notification and show the bar."""
 
         self._severity = severity
-        self.title_label.setText(title)
+        apply_application_text(self.title_label, title)
         self.title_label.setVisible(bool(title.strip()))
-        self.message_label.setText(message)
+        apply_application_text(self.message_label, message)
         self.message_label.setVisible(bool(message.strip()))
         self._apply_style()
         self.show()
@@ -79,8 +81,8 @@ class SettingsInfoBar(QFrame):
     def clear(self) -> None:
         """Hide the current notification."""
 
-        self.title_label.setText("")
-        self.message_label.setText("")
+        apply_application_text(self.title_label, "")
+        apply_application_text(self.message_label, "")
         self.hide()
 
     def severity(self) -> SettingsInfoBarSeverity:

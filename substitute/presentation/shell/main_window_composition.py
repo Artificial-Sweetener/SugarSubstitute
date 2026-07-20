@@ -320,6 +320,8 @@ def capture_dependencies(
     shell.invalidate_cube_catalog_cache = dependencies.invalidate_cube_catalog_cache
     shell.generation_job_queue_service = dependencies.generation_job_queue_service
     shell.shell_resource_lifecycle = dependencies.shell_resource_lifecycle
+    shell.localization_manager = dependencies.localization_manager
+    shell.node_presentation_service = dependencies.node_presentation_service
     shell.asset_reveal_service = dependencies.asset_reveal_service
     shell.canvas_io_service = dependencies.canvas_io_service
     shell.workflow_asset_service = dependencies.workflow_asset_service

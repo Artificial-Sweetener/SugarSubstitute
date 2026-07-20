@@ -19,9 +19,10 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any, cast
 
-from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
+from PySide6.QtCore import QEvent, QPoint, QPointF, QTranslator, Qt
 from PySide6.QtGui import QCursor, QImage, QMouseEvent, QPixmap
 from PySide6.QtWidgets import QApplication, QAbstractButton, QWidget
 import pytest
@@ -88,6 +89,47 @@ def test_app_orb_menu_button_exposes_expected_menu_actions() -> None:
     assert not hasattr(button, "set_reopen_closed_workflow_enabled")
 
     button.close()
+
+
+def test_app_orb_menu_retranslates_existing_actions_in_place() -> None:
+    """The primary application menu must switch language without reconstruction."""
+
+    application = _app()
+    resource_root = (
+        Path(__file__).resolve().parents[1]
+        / "substitute"
+        / "presentation"
+        / "resources"
+        / "i18n"
+    )
+    chinese = QTranslator()
+    japanese = QTranslator()
+    assert chinese.load(str(resource_root / "sugarsubstitute_zh_CN.qm"))
+    assert japanese.load(str(resource_root / "sugarsubstitute_ja_JP.qm"))
+    assert application.installTranslator(chinese)
+    button = AppOrbMenuButton()
+    try:
+        assert button.toolTip() == "应用菜单"
+        assert button.accessibleName() == "应用菜单"
+        assert button._open_action.text() == "打开 Sugar Script..."
+        assert button._save_action.text() == "保存 Sugar Script"
+        assert button._settings_action.text() == "设置"
+        assert button._restart_gui_action.text() == "重启图形界面"
+
+        assert application.removeTranslator(chinese)
+        assert application.installTranslator(japanese)
+        application.sendEvent(button, QEvent(QEvent.Type.LanguageChange))
+
+        assert button.toolTip() == "アプリケーションメニュー"
+        assert button.accessibleName() == "アプリケーションメニュー"
+        assert button._open_action.text() == "Sugar Script を開く..."
+        assert button._save_action.text() == "Sugar Script を保存"
+        assert button._settings_action.text() == "設定"
+        assert button._restart_gui_action.text() == "GUI を再起動"
+    finally:
+        application.removeTranslator(japanese)
+        application.removeTranslator(chinese)
+        button.close()
 
 
 def test_app_orb_menu_actions_emit_intent_signals() -> None:

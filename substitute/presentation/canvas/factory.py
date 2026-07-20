@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable
 from typing import cast
 from uuid import UUID
@@ -124,12 +126,14 @@ def create_canvas_tabs(
         manager = CanvasTabManager(
             pages=(
                 CanvasHostPage(
-                    label="Input",
+                    route_key="Input",
+                    title=app_text("Input"),
                     widget=input_canvas,
-                    fallback_label="Output",
+                    fallback_route_key="Output",
                 ),
                 CanvasHostPage(
-                    label="Output",
+                    route_key="Output",
+                    title=app_text("Output"),
                     widget=output_canvas,
                     floating_chrome_factory=output_chrome_factory,
                 ),

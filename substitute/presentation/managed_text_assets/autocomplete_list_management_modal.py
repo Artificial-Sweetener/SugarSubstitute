@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.managed_text_assets import (
@@ -70,18 +72,18 @@ class AutocompleteListManagementModal(ManagedTextAssetModal):
         """Build the autocomplete list management experience."""
 
         super().__init__(
-            title="Autocomplete Lists",
+            title=app_text("Autocomplete Lists"),
             asset_title="Tag lists",
             empty_text="No custom or censored tag lists yet.",
             service=service,
             create_actions=(
                 ManagedTextAssetCreateAction(
-                    label="New custom list",
+                    label=app_text("New custom list"),
                     kind=ManagedTextAssetKind.PROMPT_TEXT,
                     category=PromptAutocompleteListKind.CUSTOM.value,
                 ),
                 ManagedTextAssetCreateAction(
-                    label="New censored list",
+                    label=app_text("New censored list"),
                     kind=ManagedTextAssetKind.PROMPT_TEXT,
                     category=PromptAutocompleteListKind.CENSORED.value,
                 ),

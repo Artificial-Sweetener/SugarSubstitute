@@ -18,7 +18,22 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt, Signal
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    app_text,
+)
+
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_text,
+    set_localized_tooltip,
+)
+from substitute.presentation.localization import (
+    LocalizedPrimaryPushButton,
+    LocalizedPushButton,
+    LocalizedStrongBodyLabel,
+)
+
+from PySide6.QtCore import QEvent, QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QBoxLayout,
@@ -34,8 +49,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon,
     InfoBadge,
     ListWidget,
-    PrimaryPushButton,
-    PushButton,
     StrongBodyLabel,
     TransparentToolButton,
 )
@@ -43,6 +56,10 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
 from substitute.application.comfy_environment import (
     ComfyMaintenancePlan,
     ComfyMaintenancePlanItem,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    translate_application_message,
+    translate_application_text,
 )
 
 _PLAN_ITEM_ID_ROLE = Qt.ItemDataRole.UserRole
@@ -105,21 +122,26 @@ class PlanQueueItemWidget(QWidget):
         layout.addLayout(text_layout)
 
         self.move_up_button = TransparentToolButton(FluentIcon.UP, self)
-        self.move_up_button.setToolTip("Move up")
+        set_localized_tooltip(self.move_up_button, "Move up")
         self.move_up_button.setEnabled(self._item.can_reorder and not self._linked)
         self.move_up_button.setFixedSize(24, 24)
         self.move_up_button.clicked.connect(
             lambda: self.move_up_requested.emit(self._item.item_id)
         )
         self.move_down_button = TransparentToolButton(FluentIcon.DOWN, self)
-        self.move_down_button.setToolTip("Move down")
+        set_localized_tooltip(self.move_down_button, "Move down")
         self.move_down_button.setEnabled(self._item.can_reorder and not self._linked)
         self.move_down_button.setFixedSize(24, 24)
         self.move_down_button.clicked.connect(
             lambda: self.move_down_requested.emit(self._item.item_id)
         )
         self.remove_button = TransparentToolButton(FluentIcon.DELETE, self)
-        self.remove_button.setToolTip(_remove_tooltip(self._item))
+        remove_tooltip = _remove_tooltip(self._item)
+        set_localized_tooltip(
+            self.remove_button,
+            remove_tooltip.source_text,
+            *remove_tooltip.arguments,
+        )
         self.remove_button.setEnabled(self._item.can_remove and not self._linked)
         self.remove_button.setFixedSize(24, 24)
         self.remove_button.clicked.connect(
@@ -137,6 +159,15 @@ class PlanQueueItemWidget(QWidget):
             _PLAN_LINKED_ROW_HEIGHT if self._linked else _PLAN_ROW_HEIGHT
         )
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+
+    def changeEvent(self, event: QEvent) -> None:  # noqa: N802
+        """Retranslate derived app copy while retaining backend-authored row text."""
+
+        super().changeEvent(event)
+        if event.type() != QEvent.Type.LanguageChange:
+            return
+        self.target_label.setText(_target_summary(self._item))
+        self.target_label.setVisible(bool(self.target_label.text()))
 
 
 class PlannedChangesPanel(QFrame):
@@ -190,10 +221,17 @@ class PlannedChangesPanel(QFrame):
             self.selected_detail_label.hide()
         else:
             self.plan_list.hide()
-            self.empty_label.setText("No changes planned.")
+            set_localized_text(self.empty_label, "No changes planned.")
             self.empty_label.show()
             self.selected_detail_label.hide()
         self._rendering = False
+
+    def changeEvent(self, event: QEvent) -> None:  # noqa: N802
+        """Retranslate derived plan summary without rebuilding backend-owned rows."""
+
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.LanguageChange and self._plan is not None:
+            self.summary_label.setText(_plan_summary_text(self._plan))
 
     def item_ids(self) -> tuple[str, ...]:
         """Return the queue item IDs in rendered order."""
@@ -242,7 +280,7 @@ class PlannedChangesPanel(QFrame):
         header = QHBoxLayout()
         header.setContentsMargins(0, 0, 0, 0)
         header.setSpacing(8)
-        self.title_label = StrongBodyLabel("Planned changes", self)
+        self.title_label = LocalizedStrongBodyLabel(app_text("Planned changes"), self)
         header.addWidget(self.title_label)
         header.addStretch(1)
         layout.addLayout(header)
@@ -290,10 +328,12 @@ class PlannedChangesPanel(QFrame):
         self._action_row = QHBoxLayout()
         self._action_row.setContentsMargins(0, 0, 0, 0)
         self._action_row.setSpacing(8)
-        self.apply_button = PrimaryPushButton("Apply planned changes", self)
+        self.apply_button = LocalizedPrimaryPushButton(
+            app_text("Apply planned changes"), self
+        )
         self.apply_button.setEnabled(False)
         self.apply_button.clicked.connect(self._emit_apply)
-        self.clear_button = PushButton("Clear", self)
+        self.clear_button = LocalizedPushButton(app_text("Clear"), self)
         self.clear_button.setEnabled(False)
         self.clear_button.clicked.connect(self.clear_requested.emit)
         self._action_row.addWidget(self.apply_button)
@@ -388,7 +428,11 @@ def _target_summary(item: ComfyMaintenancePlanItem) -> str:
         item.install_requirements
         and item.install_requirements != item.affected_packages
     ):
-        return f"{', '.join(item.affected_packages)} from {', '.join(item.install_requirements)}"
+        return translate_application_message(
+            "%1 from %2",
+            ", ".join(item.affected_packages),
+            ", ".join(item.install_requirements),
+        )
     if len(item.affected_packages) == 1:
         package_name = item.affected_packages[0]
         if package_name.casefold() in item.title.casefold():
@@ -402,14 +446,17 @@ def _plan_summary_text(plan: ComfyMaintenancePlan) -> str:
     if not plan.items:
         return ""
     change_text = (
-        "1 change planned"
+        translate_application_text("1 change planned")
         if len(plan.items) == 1
-        else f"{len(plan.items)} changes planned"
+        else translate_application_message("%1 changes planned", len(plan.items))
     )
     if plan.summary.applyable:
         return change_text
     if plan.blockers:
-        return f"{change_text}; blocked until issues are resolved."
+        return translate_application_message(
+            "%1; blocked until issues are resolved.",
+            change_text,
+        )
     return change_text
 
 
@@ -487,27 +534,48 @@ def _badges_for_item(
 
     badges: list[InfoBadge] = []
     if item.generated and not linked:
-        badges.append(_configured_badge("Req", parent, tooltip="Required action"))
+        badges.append(
+            _configured_badge(
+                app_text("Req"), parent, tooltip=app_text("Required action")
+            )
+        )
     if item.blockers:
-        badge = InfoBadge.error("Blocked", parent)
-        _configure_badge(badge)
+        badge = InfoBadge.error("", parent)
+        _bind_badge_text(badge, app_text("Blocked"))
         badges.append(badge)
     return tuple(badges)
 
 
 def _configured_badge(
-    text: str,
+    text: ApplicationMessage,
     parent: QWidget,
     *,
-    tooltip: str | None = None,
+    tooltip: ApplicationMessage | None = None,
 ) -> InfoBadge:
     """Return one compact informational badge."""
 
-    badge = InfoBadge.info(text, parent)
+    badge = InfoBadge.info("", parent)
+    _bind_badge_text(badge, text)
     if tooltip is not None:
-        badge.setToolTip(tooltip)
-    _configure_badge(badge)
+        set_localized_tooltip(badge, tooltip.source_text, *tooltip.arguments)
     return badge
+
+
+def _bind_badge_text(badge: InfoBadge, text: ApplicationMessage) -> None:
+    """Bind badge copy and recompute its compact width after translation."""
+
+    def apply_text(translated: str) -> None:
+        """Apply one translated badge value without clipping it."""
+
+        badge.setText(translated)
+        _configure_badge(badge)
+
+    set_localized_text(
+        badge,
+        text.source_text,
+        *text.arguments,
+        property_setter=apply_text,
+    )
 
 
 def _configure_badge(badge: InfoBadge) -> None:
@@ -518,12 +586,12 @@ def _configure_badge(badge: InfoBadge) -> None:
     badge.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
 
-def _remove_tooltip(item: ComfyMaintenancePlanItem) -> str:
+def _remove_tooltip(item: ComfyMaintenancePlanItem) -> ApplicationMessage:
     """Return remove tooltip text for one item."""
 
     if item.can_remove:
-        return "Remove from plan"
-    return "Required by another planned change"
+        return app_text("Remove from plan")
+    return app_text("Required by another planned change")
 
 
 def _move_id(

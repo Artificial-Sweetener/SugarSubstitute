@@ -23,6 +23,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
 
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import render_application_text
+
 from substitute.app.bootstrap.launch_splash import LaunchSplashClient
 from substitute.app.bootstrap.managed_compatibility_recovery import (
     ManagedCompatibilityCleanupResultProtocol,
@@ -94,12 +97,12 @@ class ManagedRecoveryStartupAdapters:
         self._launch_task_factory = launch_task_factory
         self._process_pump_task_factory = process_pump_task_factory
 
-    def append_recovery_message(self, message: str) -> None:
+    def append_recovery_message(self, message: ApplicationText) -> None:
         """Append one managed recovery message to the current splash."""
 
         splash = self._splash()
         if splash is not None:
-            splash.append_log(message)
+            splash.append_log(render_application_text(message))
 
     def emit_recovery_log(self, line: str) -> None:
         """Forward one managed recovery output line to startup sinks."""

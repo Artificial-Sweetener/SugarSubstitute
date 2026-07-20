@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from sugarsubstitute_shared.localization import render_source_application_text
 from substitute.application.recipes import RecipeModelCivitaiState
 from substitute.presentation.dialogs.recipe_model_resolution_dialog import (
     _header_message,
@@ -31,19 +32,21 @@ from substitute.presentation.dialogs.recipe_model_resolution_dialog import (
 def test_recipe_model_reference_label_hides_internal_field_details() -> None:
     """Missing-model rows should show model names, not node/hash implementation data."""
 
-    label = _reference_label(
-        SimpleNamespace(
-            alias="Anima/Text to Image",
-            node_name="models",
-            input_key="diffusion_model",
-            kind="diffusion_models",
-            sha256="A" * 64,
-            value="Anima/model.safetensors",
-            civitai_state=RecipeModelCivitaiState.FOUND,
-            candidate=SimpleNamespace(
-                model_name="Anima",
-                name="anima_baseV10.safetensors",
-            ),
+    label = render_source_application_text(
+        _reference_label(
+            SimpleNamespace(
+                alias="Anima/Text to Image",
+                node_name="models",
+                input_key="diffusion_model",
+                kind="diffusion_models",
+                sha256="A" * 64,
+                value="Anima/model.safetensors",
+                civitai_state=RecipeModelCivitaiState.FOUND,
+                candidate=SimpleNamespace(
+                    model_name="Anima",
+                    name="anima_baseV10.safetensors",
+                ),
+            )
         )
     )
 
@@ -59,16 +62,18 @@ def test_recipe_model_reference_label_hides_internal_field_details() -> None:
 def test_recipe_model_reference_label_describes_missing_value_plainly() -> None:
     """Rows without download candidates should still avoid internal identifiers."""
 
-    label = _reference_label(
-        SimpleNamespace(
-            alias="Upscale",
-            node_name="model_loader",
-            input_key="model_name",
-            kind="upscale_models",
-            sha256="B" * 64,
-            value=r"RealESRGAN\missing-upscaler.pth",
-            civitai_state=RecipeModelCivitaiState.NO_SAFE_FILE,
-            candidate=None,
+    label = render_source_application_text(
+        _reference_label(
+            SimpleNamespace(
+                alias="Upscale",
+                node_name="model_loader",
+                input_key="model_name",
+                kind="upscale_models",
+                sha256="B" * 64,
+                value=r"RealESRGAN\missing-upscaler.pth",
+                civitai_state=RecipeModelCivitaiState.NO_SAFE_FILE,
+                candidate=None,
+            )
         )
     )
 

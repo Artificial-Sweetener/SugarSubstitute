@@ -19,6 +19,10 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+
 from collections.abc import Callable
 from typing import cast
 
@@ -37,6 +41,7 @@ from qfluentwidgets.common.icon import (  # type: ignore[import-untyped]
 from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
     FluentStyleSheet,
     isDarkTheme,
+    setCustomStyleSheet,
 )
 from shiboken6 import isValid
 
@@ -82,6 +87,11 @@ from substitute.presentation.workflows.cube_stack_presentation_geometry import (
 )
 
 CubeCloseButtonDisplayMode = ReorderableCloseButtonDisplayMode
+
+_STACK_TRANSPARENCY_QSS = "CubeStack { background-color: transparent; border: none; }"
+_STACK_VIEW_TRANSPARENCY_QSS = (
+    "QWidget#view { background-color: transparent; border: none; }"
+)
 
 
 class CubeStack(ReorderableTabBarBase):
@@ -155,11 +165,19 @@ class CubeStack(ReorderableTabBarBase):
         FluentStyleSheet.TAB_VIEW.apply(self.view)
 
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setStyleSheet("background-color: transparent; border: none;")
+        setCustomStyleSheet(
+            self,
+            _STACK_TRANSPARENCY_QSS,
+            _STACK_TRANSPARENCY_QSS,
+        )
         self.viewport().setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.viewport().setStyleSheet("background-color: transparent; border: none;")
         self.view.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.view.setStyleSheet("background-color: transparent; border: none;")
+        setCustomStyleSheet(
+            self.view,
+            _STACK_VIEW_TRANSPARENCY_QSS,
+            _STACK_VIEW_TRANSPARENCY_QSS,
+        )
         self.addPlaceholder.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         self._initLayout()
@@ -320,7 +338,7 @@ class CubeStack(ReorderableTabBarBase):
             return
         item = self.items[index]
         item.setText(primary_text)
-        item.setToolTip(tooltip_text)
+        set_fluent_tooltip_text(item, tooltip_text)
         if isinstance(item, CubeItem):
             item.setSecondaryText(secondary_text)
         self._schedule_indicator_realign()

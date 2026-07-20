@@ -23,6 +23,8 @@ from pathlib import Path
 import subprocess
 from typing import Callable
 
+from sugarsubstitute_shared.localization import app_text
+
 from substitute.infrastructure.comfy.hardware_models import AcceleratorClass
 from substitute.infrastructure.comfy.torch_policy import TorchReleaseChannel
 from substitute.infrastructure.comfy.managed_validation import (
@@ -153,11 +155,13 @@ def validate_managed_environment(
         )
     if on_log is not None:
         on_log(
-            "[Validation] "
-            f"torch={torch_version or 'unknown'} "
-            f"backend={detected_backend} "
-            f"channel={detected_torch_channel} "
-            f"device={device_name or 'unknown'}"
+            app_text(
+                "[Validation] torch=%1 backend=%2 channel=%3 device=%4",
+                torch_version or "unknown",
+                detected_backend,
+                detected_torch_channel,
+                device_name or "unknown",
+            )
         )
     return ManagedEnvironmentValidationResult(
         success=True,

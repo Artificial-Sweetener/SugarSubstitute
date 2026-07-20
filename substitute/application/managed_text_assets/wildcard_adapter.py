@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.application.prompt_wildcards import (
     PromptWildcardFileEntry,
     PromptWildcardFileManagementService,
@@ -32,8 +34,8 @@ from .models import (
     RenameManagedTextAssetRequest,
 )
 
-_TEXT_GROUP = "TXT Wildcards"
-_CSV_GROUP = "CSV Wildcards"
+_TEXT_GROUP = app_text("TXT Wildcards")
+_CSV_GROUP = app_text("CSV Wildcards")
 _SUPPORTED_SUFFIXES = frozenset({".txt", ".csv"})
 
 
@@ -176,11 +178,12 @@ def _wildcard_line_count(text: str) -> int:
     return len(text.splitlines())
 
 
-def _wildcard_count_text(count: int) -> str:
+def _wildcard_count_text(count: int) -> ApplicationText:
     """Return row subtitle text for one wildcard count."""
 
-    label = "wildcard" if count == 1 else "wildcards"
-    return f"{count} {label}"
+    if count == 1:
+        return app_text("%1 wildcard", count)
+    return app_text("%1 wildcards", count)
 
 
 __all__ = ["WildcardManagedTextAssetService"]

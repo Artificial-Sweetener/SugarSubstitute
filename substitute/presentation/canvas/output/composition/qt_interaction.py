@@ -127,9 +127,7 @@ def compose_output_qt_interaction(
         open_all_external_icon=lambda: AppIcon.IMAGE_MULTIPLE_20_REGULAR,
         reveal_asset_icon=lambda: AppIcon.FOLDER_OPEN_20_REGULAR,
         dock_action_icon=lambda: (
-            FIF.FULL_SCREEN
-            if host._dock_action_text == "Undock canvas"
-            else FIF.BACK_TO_WINDOW
+            FIF.FULL_SCREEN if not host._canvas_detached else FIF.BACK_TO_WINDOW
         ),
         menu_animation_type=lambda: MenuAnimationType.DROP_DOWN,
         map_to_global=lambda pos: host.pane.mapToGlobal(pos),

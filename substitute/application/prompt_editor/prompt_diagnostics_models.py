@@ -21,6 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 
 class PromptDiagnosticKind(Enum):
     """Identify the source and action family of one prompt diagnostic."""
@@ -83,7 +85,7 @@ class PromptDiagnostic:
     severity: PromptDiagnosticSeverity
     source_start: int
     source_end: int
-    message: str
+    message: ApplicationText
     payload: PromptDiagnosticPayload
 
     def __post_init__(self) -> None:

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import ApplicationText, app_text
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -120,10 +122,10 @@ class ShutdownRecoveryDialogProtocol(Protocol):
     def set_force_close_callback(self, callback: Callable[[], None]) -> None:
         """Connect the force-close action to one callback."""
 
-    def show_uncertain_outcome(self, detail_text: str) -> None:
+    def show_uncertain_outcome(self, detail_text: ApplicationText) -> None:
         """Render the uncertain-outcome copy."""
 
-    def show_failed_outcome(self, detail_text: str) -> None:
+    def show_failed_outcome(self, detail_text: ApplicationText) -> None:
         """Render the failed-outcome copy."""
 
 
@@ -309,7 +311,7 @@ class ShutdownCoordinator(QObject):
         if not isinstance(outcome.result, ManagedComfyCleanupResult):
             self._show_recovery_for_unexpected_failure(
                 _UnexpectedCleanupFailure(
-                    message="Shutdown returned an invalid cleanup result."
+                    message=app_text("Shutdown returned an invalid cleanup result.")
                 )
             )
             return
@@ -394,8 +396,10 @@ class ShutdownCoordinator(QObject):
             elapsed_ms=0,
             taskkill_timeout=False,
             verification_timeout=False,
-            user_detail="Substitute could not finish closing completely.",
-            technical_detail="Shutdown encountered an unexpected error before cleanup could finish.",
+            user_detail=app_text("Substitute could not finish closing completely."),
+            technical_detail=app_text(
+                "Shutdown encountered an unexpected error before cleanup could finish."
+            ),
             diagnostic_detail=failure.message,
         )
         self._show_recovery_dialog(result)
@@ -444,8 +448,10 @@ class ShutdownCoordinator(QObject):
             elapsed_ms=_CLEANUP_ATTEMPT_TIMEOUT_MS,
             taskkill_timeout=False,
             verification_timeout=True,
-            user_detail="Substitute could not finish closing completely.",
-            technical_detail="Shutdown timed out before cleanup could finish.",
+            user_detail=app_text("Substitute could not finish closing completely."),
+            technical_detail=app_text(
+                "Shutdown timed out before cleanup could finish."
+            ),
             diagnostic_detail=(
                 "Cleanup task did not finish before the coordinator timeout."
             ),

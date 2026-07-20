@@ -18,6 +18,9 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationMessage
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from dataclasses import dataclass
 
 from substitute.application.prompt_editor import (
@@ -49,7 +52,7 @@ class PromptLoraTriggerWordsPayload:
 
     insertion_text: str
     display_name: str
-    full_label: str
+    full_label: ApplicationMessage
     snapshot_identity: CatalogSnapshotIdentity | None = None
 
 
@@ -63,8 +66,6 @@ class PromptLoraModelPagePayload:
 
 PromptLoraTriggerWordsAction = PromptFeatureActionState[PromptLoraTriggerWordsPayload]
 PromptLoraModelPageAction = PromptFeatureActionState[PromptLoraModelPagePayload]
-
-_TRIGGER_WORDS_LABEL_PREFIX = "Trigger words: "
 
 
 class PromptLoraContextActionController:
@@ -97,7 +98,7 @@ class PromptLoraContextActionController:
             return None
         return PromptLoraModelPageAction(
             action_id="lora.open_model_page",
-            label="Open CivitAI page",
+            label=app_text("Open CivitAI page"),
             ready=True,
             command_request=PromptFeatureCommandRequest(
                 command_name="lora_open_model_page",
@@ -180,10 +181,10 @@ class PromptLoraContextActionController:
             )
         )
 
-    def trigger_words_full_label(self, display_name: str) -> str:
+    def trigger_words_full_label(self, display_name: str) -> ApplicationMessage:
         """Return the unelided action label for one trigger-word action."""
 
-        return f"{_TRIGGER_WORDS_LABEL_PREFIX}{display_name}"
+        return app_text("Trigger words: %1", display_name)
 
 
 __all__ = [

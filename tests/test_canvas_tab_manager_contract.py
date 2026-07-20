@@ -624,10 +624,10 @@ def test_add_canvas_sets_and_connects_context_menu_dock_action(monkeypatch) -> N
     class _Canvas:
         def __init__(self) -> None:
             self.dockActionRequested = _DockSignal()
-            self.text_calls: list[str] = []
+            self.detached_calls: list[bool] = []
 
-        def set_dock_action_text(self, text: str) -> None:
-            self.text_calls.append(text)
+        def set_canvas_detached(self, detached: bool) -> None:
+            self.detached_calls.append(detached)
 
     class _Pivot:
         def __init__(self) -> None:
@@ -671,7 +671,7 @@ def test_add_canvas_sets_and_connects_context_menu_dock_action(monkeypatch) -> N
     mod.CanvasTabManager.add_canvas(fake, "Input", canvas)
     canvas.dockActionRequested.emit()
 
-    assert canvas.text_calls == ["Undock canvas"]
+    assert canvas.detached_calls == [False]
     assert handled == ["Input"]
 
 
@@ -1723,6 +1723,9 @@ def test_undock_all_tabs_emits_hidden_visibility(monkeypatch) -> None:
         def __init__(self, *_args, **_kwargs) -> None:
             self.doubleClicked = _Signal()
 
+        def setText(self, _text: str) -> None:
+            return None
+
         def setStyleSheet(self, _qss: str) -> None:
             return None
 
@@ -1893,6 +1896,9 @@ def test_redock_output_inserts_after_input_when_input_is_docked(monkeypatch) -> 
         def __init__(self, *_args, **_kwargs) -> None:
             self.doubleClicked = _Signal()
 
+        def setText(self, _text: str) -> None:
+            return None
+
         def setStyleSheet(self, _qss: str) -> None:
             return None
 
@@ -2032,11 +2038,12 @@ def test_redock_output_after_unavailable_input_shows_output_canvas() -> None:
     manager = mod.CanvasTabManager(
         pages=(
             mod.CanvasHostPage(
-                label="Input",
+                route_key="Input",
+                title="Input",
                 widget=QWidget(),
-                fallback_label="Output",
+                fallback_route_key="Output",
             ),
-            mod.CanvasHostPage(label="Output", widget=QWidget()),
+            mod.CanvasHostPage(route_key="Output", title="Output", widget=QWidget()),
         )
     )
 

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Mapping
 from typing import Any
 from typing import cast
@@ -280,17 +282,17 @@ class GenerationActionController:
         if state == "ready":
             self._shell.workspace_generation_controller.set_backend_available(
                 True,
-                message="ComfyUI is ready.",
+                message=app_text("ComfyUI is ready."),
             )
         elif state == "starting":
             self._shell.workspace_generation_controller.set_backend_available(
                 False,
-                message="ComfyUI is still starting.",
+                message=app_text("ComfyUI is still starting."),
             )
         else:
             self._shell.workspace_generation_controller.set_backend_available(
                 False,
-                message="ComfyUI is unavailable.",
+                message=app_text("ComfyUI is unavailable."),
             )
         log_info(
             _LOGGER,

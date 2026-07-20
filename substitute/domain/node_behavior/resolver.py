@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from .defaults import host_field_behavior_patch, host_node_behavior_patch
 from .common_field_groups import infer_common_field_groups
 from .dimension_fields import infer_dimension_field_groups
@@ -28,6 +30,7 @@ from .models import (
     CardBehaviorPatch,
     FieldBehavior,
     FieldBehaviorPatch,
+    FieldLabelSource,
     NodeBehaviorContext,
     NodeBehaviorPatch,
     OverrideBehavior,
@@ -101,6 +104,7 @@ def merge_field_behavior_patches(
     row_mode = None
     label_mode = None
     label_override = None
+    label_override_source = None
     column_span = None
     style = None
     hidden = None
@@ -117,6 +121,7 @@ def merge_field_behavior_patches(
             label_mode = patch.label_mode
         if patch.label_override is not None:
             label_override = patch.label_override
+            label_override_source = patch.label_override_source
         if patch.column_span is not None:
             column_span = patch.column_span
         if patch.style is not None:
@@ -139,6 +144,7 @@ def merge_field_behavior_patches(
         row_mode=row_mode,
         label_mode=label_mode,
         label_override=label_override,
+        label_override_source=label_override_source,
         column_span=column_span,
         style=style,
         hidden=hidden,
@@ -434,6 +440,11 @@ def _apply_field_patch(base: FieldBehavior, patch: FieldBehaviorPatch) -> FieldB
             if patch.label_override is not None
             else base.label_override
         ),
+        label_override_source=(
+            patch.label_override_source
+            if patch.label_override is not None
+            else base.label_override_source
+        ),
         column_span=(
             patch.column_span if patch.column_span is not None else base.column_span
         ),
@@ -469,6 +480,46 @@ def _apply_field_patch(base: FieldBehavior, patch: FieldBehaviorPatch) -> FieldB
     )
 
 
+def _with_field_patch_label_source(
+    patch: FieldBehaviorPatch,
+    source: FieldLabelSource,
+) -> FieldBehaviorPatch:
+    """Tag one present label override with its already-known layer owner."""
+
+    if patch.label_override is None:
+        return patch
+    return replace(patch, label_override_source=source)
+
+
+def _with_field_label_source(
+    patch: NodeBehaviorPatch,
+    source: FieldLabelSource,
+) -> NodeBehaviorPatch:
+    """Tag node-patch label overrides with their behavior-layer owner."""
+
+    return replace(
+        patch,
+        field_patches={
+            field_key: _with_field_patch_label_source(field_patch, source)
+            for field_key, field_patch in patch.field_patches.items()
+        },
+    )
+
+
+def _with_behavior_sources(
+    patch: NodeBehaviorPatch,
+    *,
+    activation_source: ActivationSwitchSource,
+    label_source: FieldLabelSource,
+) -> NodeBehaviorPatch:
+    """Attach behavior-layer provenance without changing patch values."""
+
+    return _with_field_label_source(
+        _patch_with_enabled_switch_source(patch, activation_source),
+        label_source,
+    )
+
+
 def resolve_node_behavior(
     *,
     node_name: str,
@@ -480,33 +531,42 @@ def resolve_node_behavior(
 
     node_instance_key = f"{context.cube_alias}:{node_name}"
     merged_patch = merge_node_behavior_patches(
-        _patch_with_enabled_switch_source(
+        _with_behavior_sources(
             host_node_behavior_patch(node_name, class_type),
-            ActivationSwitchSource.HOST,
+            activation_source=ActivationSwitchSource.HOST,
+            label_source=FieldLabelSource.APPLICATION,
         ),
-        infer_node_behavior_patch(
-            context.live_node_definition,
-            node_title=context.node_title,
-            input_keys=input_keys,
+        _with_field_label_source(
+            infer_node_behavior_patch(
+                context.live_node_definition,
+                node_title=context.node_title,
+                input_keys=input_keys,
+            ),
+            FieldLabelSource.APPLICATION,
         ),
-        context.graph_inference_patch or NodeBehaviorPatch(),
-        _patch_with_enabled_switch_source(
+        _with_field_label_source(
+            context.graph_inference_patch or NodeBehaviorPatch(),
+            FieldLabelSource.APPLICATION,
+        ),
+        _with_behavior_sources(
             (
                 context.declarative_patch.by_class.get(class_type, NodeBehaviorPatch())
                 if context.declarative_patch is not None
                 else NodeBehaviorPatch()
             ),
-            ActivationSwitchSource.DECLARATIVE,
+            activation_source=ActivationSwitchSource.DECLARATIVE,
+            label_source=FieldLabelSource.AUTHORED,
         ),
-        _patch_with_enabled_switch_source(
+        _with_behavior_sources(
             (
                 context.declarative_patch.by_node.get(node_name, NodeBehaviorPatch())
                 if context.declarative_patch is not None
                 else NodeBehaviorPatch()
             ),
-            ActivationSwitchSource.DECLARATIVE,
+            activation_source=ActivationSwitchSource.DECLARATIVE,
+            label_source=FieldLabelSource.AUTHORED,
         ),
-        _patch_with_enabled_switch_source(
+        _with_behavior_sources(
             (
                 context.declarative_patch.by_node_instance.get(
                     node_instance_key,
@@ -515,25 +575,28 @@ def resolve_node_behavior(
                 if context.declarative_patch is not None
                 else NodeBehaviorPatch()
             ),
-            ActivationSwitchSource.DECLARATIVE,
+            activation_source=ActivationSwitchSource.DECLARATIVE,
+            label_source=FieldLabelSource.AUTHORED,
         ),
-        _patch_with_enabled_switch_source(
+        _with_behavior_sources(
             (
                 context.hook_patch.by_class.get(class_type, NodeBehaviorPatch())
                 if context.hook_patch is not None
                 else NodeBehaviorPatch()
             ),
-            ActivationSwitchSource.HOOK,
+            activation_source=ActivationSwitchSource.HOOK,
+            label_source=FieldLabelSource.AUTHORED,
         ),
-        _patch_with_enabled_switch_source(
+        _with_behavior_sources(
             (
                 context.hook_patch.by_node.get(node_name, NodeBehaviorPatch())
                 if context.hook_patch is not None
                 else NodeBehaviorPatch()
             ),
-            ActivationSwitchSource.HOOK,
+            activation_source=ActivationSwitchSource.HOOK,
+            label_source=FieldLabelSource.AUTHORED,
         ),
-        _patch_with_enabled_switch_source(
+        _with_behavior_sources(
             (
                 context.hook_patch.by_node_instance.get(
                     node_instance_key, NodeBehaviorPatch()
@@ -541,11 +604,13 @@ def resolve_node_behavior(
                 if context.hook_patch is not None
                 else NodeBehaviorPatch()
             ),
-            ActivationSwitchSource.HOOK,
+            activation_source=ActivationSwitchSource.HOOK,
+            label_source=FieldLabelSource.AUTHORED,
         ),
-        _patch_with_enabled_switch_source(
+        _with_behavior_sources(
             context.node_instance_patch or NodeBehaviorPatch(),
-            ActivationSwitchSource.RUNTIME,
+            activation_source=ActivationSwitchSource.RUNTIME,
+            label_source=FieldLabelSource.AUTHORED,
         ),
     )
 
@@ -555,7 +620,10 @@ def resolve_node_behavior(
         fields[field_key] = _apply_field_patch(
             _apply_field_patch(
                 _default_field_behavior(field_key),
-                host_field_behavior_patch(field_key),
+                _with_field_patch_label_source(
+                    host_field_behavior_patch(field_key),
+                    FieldLabelSource.APPLICATION,
+                ),
             ),
             merged_patch.field_patches.get(field_key, FieldBehaviorPatch()),
         )
@@ -578,6 +646,7 @@ def resolve_node_behavior(
                 row_mode=field_behavior.row_mode,
                 label_mode=field_behavior.label_mode,
                 label_override=field_behavior.label_override,
+                label_override_source=field_behavior.label_override_source,
                 column_span=field_behavior.column_span,
                 style=field_behavior.style,
                 hidden=True,

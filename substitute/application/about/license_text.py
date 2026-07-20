@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
-ABOUT_LICENSE_PREAMBLE = (
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
+ABOUT_LICENSE_PREAMBLE: ApplicationText = app_text(
     "SugarSubstitute is free software, shared in the spirit of collaboration, "
     "curiosity, and user freedom.\n\n"
     "The GNU General Public License version 3 protects your right to use the "

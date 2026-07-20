@@ -18,10 +18,12 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
-from PySide6.QtGui import QMouseEvent
+from typing import cast
+
+from PySide6.QtCore import QEvent, QPoint, QRect, Qt
+from PySide6.QtGui import QInputMethodEvent, QMouseEvent
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QLineEdit, QWidget
 from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
     ThemeColor,
     isDarkTheme,
@@ -262,9 +264,11 @@ def test_drag_selection_touching_prefix_expands_to_token_boundaries() -> None:
         Qt.KeyboardModifier.NoModifier,
         QPoint(2, editor.height() // 2),
     )
+    move_position = QPoint(60, editor.height() // 2)
     move_event = QMouseEvent(
         QEvent.Type.MouseMove,
-        QPointF(60, editor.height() / 2),
+        move_position,
+        editor.mapToGlobal(move_position),
         Qt.MouseButton.NoButton,
         Qt.MouseButton.LeftButton,
         Qt.KeyboardModifier.NoModifier,
@@ -306,3 +310,54 @@ def test_clipboard_copy_cut_and_paste_body_text() -> None:
     QTest.keyClick(editor, Qt.Key.Key_V, Qt.KeyboardModifier.ControlModifier)
 
     assert editor.text() == " to ImageText"
+
+
+def test_native_input_method_commits_cjk_and_non_bmp_text_exactly() -> None:
+    """Commit CJK and non-BMP IME text through the existing painted editor."""
+
+    editor = _editor("Old")
+    committed_text = "中文 日本語 👩‍💻"
+    preedit = QInputMethodEvent("にほん", [])
+
+    QApplication.sendEvent(editor, preedit)
+
+    commit = QInputMethodEvent()
+    commit.setCommitString(committed_text)
+    QApplication.sendEvent(editor, commit)
+
+    assert editor.text() == committed_text
+    assert editor.inputMethodHints() == Qt.InputMethodHint.ImhNone
+
+
+def test_input_method_support_preserves_custom_editor_and_resting_render() -> None:
+    """Cancelling transient preedit must restore the exact painted editor pixels."""
+
+    editor = _editor("SDXL/Text to Image")
+    before = editor.grab().toImage()
+
+    QApplication.sendEvent(editor, QInputMethodEvent("にほん", []))
+    QApplication.sendEvent(editor, QInputMethodEvent())
+    after = editor.grab().toImage()
+
+    assert not isinstance(editor, QLineEdit)
+    assert before.size() == after.size()
+    assert before.format() == after.format()
+    assert bytes(before.bits()) == bytes(after.bits())
+
+
+def test_preedit_is_transient_and_utf16_queries_preserve_non_bmp_boundaries() -> None:
+    """Preedit must not mutate source and Qt queries must use UTF-16 coordinates."""
+
+    editor = _editor("A👩‍💻日")
+    editor.selectRange(2, 2)
+
+    QApplication.sendEvent(editor, QInputMethodEvent("かな", []))
+
+    assert editor.text() == "A👩‍💻日"
+    assert editor.inputMethodQuery(Qt.InputMethodQuery.ImSurroundingText) == "A👩‍💻日"
+    assert editor.inputMethodQuery(Qt.InputMethodQuery.ImCursorPosition) == 3
+    cursor_rectangle = cast(
+        QRect,
+        editor.inputMethodQuery(Qt.InputMethodQuery.ImCursorRectangle),
+    )
+    assert cursor_rectangle.isValid()

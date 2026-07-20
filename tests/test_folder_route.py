@@ -19,11 +19,12 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, QTranslator, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import BreadcrumbBar, SingleDirectionScrollArea  # type: ignore[import-untyped]
@@ -172,6 +173,51 @@ def test_folder_route_bar_renders_breadcrumb_and_emits_ancestor_route() -> None:
     app.processEvents()
 
     assert emitted == [()]
+
+
+def test_folder_route_root_breadcrumb_retranslates_without_losing_route() -> None:
+    """Refresh the app-owned root label while preserving authored path segments."""
+
+    app = ensure_qapp()
+    resource_root = (
+        Path(__file__).resolve().parents[1]
+        / "substitute"
+        / "presentation"
+        / "resources"
+        / "i18n"
+    )
+    chinese = QTranslator()
+    japanese = QTranslator()
+    assert chinese.load(str(resource_root / "sugarsubstitute_zh_CN.qm"))
+    assert japanese.load(str(resource_root / "sugarsubstitute_ja_JP.qm"))
+    assert app.installTranslator(chinese)
+    bar = FolderRouteBar()
+    bar.set_current_route(("用户目录",))
+    breadcrumb = bar.findChild(BreadcrumbBar)
+    assert breadcrumb is not None
+    try:
+        assert [
+            breadcrumb.itemAt(index).text for index in range(breadcrumb.count())
+        ] == [
+            "全部",
+            "用户目录",
+        ]
+
+        assert app.removeTranslator(chinese)
+        assert app.installTranslator(japanese)
+        app.sendEvent(bar, QEvent(QEvent.Type.LanguageChange))
+
+        assert [
+            breadcrumb.itemAt(index).text for index in range(breadcrumb.count())
+        ] == [
+            "すべて",
+            "用户目录",
+        ]
+        assert bar.current_route() == ("用户目录",)
+    finally:
+        app.removeTranslator(japanese)
+        app.removeTranslator(chinese)
+        bar.close()
 
 
 def test_folder_route_bar_renders_child_route_buttons() -> None:

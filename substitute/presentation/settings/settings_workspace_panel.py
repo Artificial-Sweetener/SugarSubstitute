@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import cast
@@ -31,6 +33,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qfluentwidgets.common.icon import FluentIconBase  # type: ignore[import-untyped]
+from sugarsubstitute_shared.presentation.localization import ApplicationText
 
 from substitute.presentation.motion import (
     SETTINGS_PAGE_TRANSITION_DURATION_MS,
@@ -53,8 +56,8 @@ class SettingsPageDescriptor:
     """Describe one page registered in the Settings workspace."""
 
     page_id: str
-    title: str
-    subtitle: str
+    title: ApplicationText
+    subtitle: ApplicationText
     icon: FluentIconBase | str | None
     widget: QWidget | None = None
     create_widget: SettingsPageWidgetFactory | None = None
@@ -162,7 +165,9 @@ class SettingsWorkspacePanel(QWidget):
             self._stack.removeWidget(previous_shell)
             previous_shell.setParent(None)
             previous_shell.deleteLater()
-        shell = SettingsPageShell(title="Search settings", widget=widget, parent=self)
+        shell = SettingsPageShell(
+            title=app_text("Search settings"), widget=widget, parent=self
+        )
         self._search_shell = shell
         self._search_active = True
         self._stack.addWidget(shell)

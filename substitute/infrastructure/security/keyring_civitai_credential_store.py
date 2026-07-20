@@ -22,6 +22,12 @@ from dataclasses import dataclass
 import importlib
 from types import ModuleType
 
+from sugarsubstitute_shared.localization import (
+    ApplicationText,
+    app_text,
+    render_source_application_text,
+)
+
 from substitute.application.ports.civitai_credential_store import (
     CivitaiCredentialStore,
     CredentialStorageUnavailableError,
@@ -32,12 +38,12 @@ from substitute.shared.logging.logger import get_logger, log_warning
 _LOGGER = get_logger("infrastructure.security.civitai_keyring")
 _SERVICE_NAME = "SugarSubstitute.CivitAI"
 _ACCOUNT_NAME = "api_key"
-_LINUX_REMEDIATION = (
+_LINUX_REMEDIATION = app_text(
     "Install and enable GNOME Keyring, KWallet, or another "
     "Secret Service-compatible keyring through your distribution's package manager, "
     "then sign in or unlock it and restart Substitute."
 )
-_MACOS_REMEDIATION = (
+_MACOS_REMEDIATION = app_text(
     "Enable or unlock macOS Keychain access for this user, then restart Substitute."
 )
 
@@ -126,7 +132,9 @@ class KeyringCivitaiCredentialStore(CivitaiCredentialStore):
                         CredentialStoreStatus(
                             available=False,
                             backend_name=self.backend_name,
-                            reason="The operating-system credential store rejected the key.",
+                            reason=app_text(
+                                "The operating-system credential store rejected the key."
+                            ),
                             remediation=self.remediation,
                         )
                     )
@@ -153,25 +161,31 @@ class KeyringCivitaiCredentialStore(CivitaiCredentialStore):
                 return
             raise
 
-    def _unavailable_reason(self) -> str | None:
+    def _unavailable_reason(self) -> ApplicationText | None:
         """Return why the active keyring backend cannot securely store secrets."""
 
         get_keyring = getattr(self.keyring_module, "get_keyring", None)
         if not callable(get_keyring):
-            return "The keyring package did not expose a credential backend."
+            return app_text("The keyring package did not expose a credential backend.")
         try:
             backend = get_keyring()
         except Exception as error:
             if self._is_keyring_error(error):
-                return "No compatible operating-system credential store is available."
+                return app_text(
+                    "No compatible operating-system credential store is available."
+                )
             raise
         backend_type = type(backend)
         backend_module = backend_type.__module__.casefold()
         backend_name = backend_type.__name__.casefold()
         if "keyring.backends.fail" in backend_module or backend_name == "failkeyring":
-            return "No compatible operating-system credential store is available."
+            return app_text(
+                "No compatible operating-system credential store is available."
+            )
         if "keyring.backends.null" in backend_module or backend_name == "keyring":
-            return "No compatible operating-system credential store is available."
+            return app_text(
+                "No compatible operating-system credential store is available."
+            )
         return None
 
     def _is_keyring_error(self, error: BaseException) -> bool:
@@ -213,9 +227,9 @@ def _status_message(status: CredentialStoreStatus) -> str:
 
     parts = ["Secure credential storage is unavailable."]
     if status.reason:
-        parts.append(status.reason)
+        parts.append(render_source_application_text(status.reason))
     if status.remediation:
-        parts.append(status.remediation)
+        parts.append(render_source_application_text(status.remediation))
     return " ".join(parts)
 
 

@@ -76,11 +76,11 @@ def _qapp() -> QApplication:
     return QApplication([])
 
 
-def test_thumbnail_picker_caption_uses_cursor_tooltip_filter() -> None:
-    """Caption tooltip behavior should use the shared cursor-anchored filter."""
+def test_thumbnail_picker_caption_uses_fluent_tooltip_filter() -> None:
+    """Caption tooltip behavior should use the shared QFluent owner."""
 
     _qapp()
-    sys.modules.pop("substitute.presentation.widgets.cursor_tooltip_filter", None)
+    sys.modules.pop("sugarsubstitute_shared.presentation.fluent_tooltips", None)
     sys.modules.pop(
         "substitute.presentation.editor.panel.widgets.fields.thumbnail_picker_base",
         None,
@@ -93,9 +93,9 @@ def test_thumbnail_picker_caption_uses_cursor_tooltip_filter() -> None:
 
     assert isinstance(
         picker._caption_tooltip_filter,
-        mod.CursorToolTipFilter,
+        mod.FluentToolTipFilter,
     )
-    assert picker._caption_tooltip_filter._show_delay_ms == 600
+    assert picker._caption_tooltip_filter._tooltipDelay == 600
 
     picker.close()
     picker.deleteLater()

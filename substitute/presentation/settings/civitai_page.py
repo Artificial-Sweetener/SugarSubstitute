@@ -18,6 +18,20 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
+from substitute.presentation.localization import LocalizedSwitchButton
+
+from sugarsubstitute_shared.presentation.localization import (
+    LocalizedComboItem,
+    apply_application_text,
+    render_application_text,
+    set_localized_placeholder,
+    set_localized_text,
+    set_localized_combo_items,
+)
+from substitute.presentation.localization import LocalizedPushButton
+
 from typing import Any
 
 from PySide6.QtWidgets import QLineEdit, QVBoxLayout, QWidget
@@ -27,7 +41,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     IconWidget,
     IndicatorPosition,
     LineEdit,
-    PushButton,
     SwitchButton,
 )
 
@@ -38,12 +51,14 @@ from substitute.application.civitai import (
 )
 from substitute.application.ports.civitai_credential_store import (
     CredentialStorageUnavailableError,
-    CredentialStoreStatus,
 )
 from substitute.presentation.settings.settings_card import (
     SETTINGS_CARD_ICON_MAX_SIZE,
     InteractiveSettingsCard,
     SettingsCard,
+)
+from substitute.presentation.settings.civitai_credential_status import (
+    api_key_status_text,
 )
 from substitute.presentation.settings.settings_cache_size import format_cache_size
 from substitute.presentation.settings.settings_card_group import SettingsCardGroup
@@ -93,16 +108,16 @@ class CivitaiSettingsPage(QWidget):
         self.download_path_preview_edit = self._download_path_preview_edit()
         self.download_token_autocomplete: PathPatternTokenAutocomplete | None = None
         self._api_key_edit = LineEdit(self)
-        self._api_key_edit.setPlaceholderText("Paste CivitAI API key")
+        set_localized_placeholder(self._api_key_edit, "Paste CivitAI API key")
         self._api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
         configure_settings_field_width(
             self._api_key_edit,
             preferred_width=_API_KEY_WIDTH,
         )
         self._api_key_status_label = BodyLabel("", self)
-        self._api_key_set_button = PushButton("Set/update", self)
-        self._api_key_test_button = PushButton("Test", self)
-        self._api_key_clear_button = PushButton("Clear", self)
+        self._api_key_set_button = LocalizedPushButton(app_text("Set/update"), self)
+        self._api_key_test_button = LocalizedPushButton(app_text("Test"), self)
+        self._api_key_clear_button = LocalizedPushButton(app_text("Clear"), self)
         self._cache_summary_label = BodyLabel("", self)
         self._install_download_token_autocomplete()
         self._build_layout()
@@ -136,21 +151,24 @@ class CivitaiSettingsPage(QWidget):
             storage_available = storage_status.available
             self._api_key_set_button.setEnabled(storage_available)
             self._api_key_clear_button.setEnabled(storage_available)
-            self._api_key_status_label.setText(
-                _api_key_status_text(
+            apply_application_text(
+                self._api_key_status_label,
+                api_key_status_text(
                     status=storage_status,
                     has_key=(
                         self._credential_service.has_api_key()
                         if storage_available
                         else False
                     ),
-                )
+                ),
             )
-            self._cache_summary_label.setText(
-                f"{cache_summary.provider_record_count} provider records, "
-                f"{cache_summary.thumbnail_source_count} thumbnail sources, "
-                f"{cache_summary.thumbnail_variant_count} variants, "
-                f"{format_cache_size(cache_summary.thumbnail_bytes)}"
+            set_localized_text(
+                self._cache_summary_label,
+                "%1 provider records, %2 thumbnail sources, %3 variants, %4",
+                cache_summary.provider_record_count,
+                cache_summary.thumbnail_source_count,
+                cache_summary.thumbnail_variant_count,
+                format_cache_size(cache_summary.thumbnail_bytes),
             )
         finally:
             self._is_loading = False
@@ -196,7 +214,7 @@ class CivitaiSettingsPage(QWidget):
         content_layout.setSpacing(SETTINGS_CARD_GROUP_TOP_MARGIN)
         content_layout.addWidget(
             SettingsCardGroup(
-                "API key",
+                app_text("API key"),
                 cards=(
                     self._api_key_status_row(),
                     self._api_key_actions_row(),
@@ -206,7 +224,7 @@ class CivitaiSettingsPage(QWidget):
         )
         content_layout.addWidget(
             SettingsCardGroup(
-                "Lookup and downloads",
+                app_text("Lookup and downloads"),
                 cards=(
                     self._metadata_lookup_row(),
                     self._missing_model_lookup_row(),
@@ -217,7 +235,7 @@ class CivitaiSettingsPage(QWidget):
         )
         content_layout.addWidget(
             SettingsCardGroup(
-                "Download organization",
+                app_text("Download organization"),
                 cards=(
                     self._download_path_pattern_row(),
                     self._download_path_preview_row(),
@@ -227,7 +245,7 @@ class CivitaiSettingsPage(QWidget):
         )
         content_layout.addWidget(
             SettingsCardGroup(
-                "Thumbnails",
+                app_text("Thumbnails"),
                 cards=(
                     self._thumbnail_downloads_row(),
                     self._thumbnail_policy_row(),
@@ -237,7 +255,7 @@ class CivitaiSettingsPage(QWidget):
         )
         content_layout.addWidget(
             SettingsCardGroup(
-                "Cache",
+                app_text("Cache"),
                 cards=(
                     self._cache_summary_row(),
                     self._cache_actions_row(),
@@ -256,8 +274,10 @@ class CivitaiSettingsPage(QWidget):
             visual_widget=self._icon_widget(
                 AppIcon.PLUG_CONNECTED_CHECKMARK_20_REGULAR
             ),
-            title="API key status",
-            description="Used for authenticated CivitAI lookups and downloads.",
+            title=app_text("API key status"),
+            description=app_text(
+                "Used for authenticated CivitAI lookups and downloads."
+            ),
             trailing_widget=SettingsControlGroup(
                 self._api_key_status_label,
                 parent=self,
@@ -275,8 +295,10 @@ class CivitaiSettingsPage(QWidget):
         self._api_key_clear_button.clicked.connect(self._clear_api_key)
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.KEY_20_REGULAR),
-            title="API key",
-            description="The key is stored in your operating system's secure credential store.",
+            title=app_text("API key"),
+            description=app_text(
+                "The key is stored in your operating system's secure credential store."
+            ),
             trailing_widget=SettingsControlGroup(
                 self._api_key_edit,
                 self._api_key_set_button,
@@ -298,8 +320,10 @@ class CivitaiSettingsPage(QWidget):
         )
         return self._toggle_row(
             icon=AppIcon.DATABASE_SEARCH_20_REGULAR,
-            title="Look up local model metadata",
-            description="Query CivitAI for hashes already known in the local model cache.",
+            title=app_text("Look up local model metadata"),
+            description=app_text(
+                "Query CivitAI for hashes already known in the local model cache."
+            ),
             switch=self._metadata_lookup_switch,
         )
 
@@ -311,8 +335,10 @@ class CivitaiSettingsPage(QWidget):
         )
         return self._toggle_row(
             icon=AppIcon.BOX_SEARCH_20_REGULAR,
-            title="Look up missing recipe models",
-            description="Use CivitAI only after local recipe model matching fails.",
+            title=app_text("Look up missing recipe models"),
+            description=app_text(
+                "Use CivitAI only after local recipe model matching fails."
+            ),
             switch=self._missing_model_lookup_switch,
         )
 
@@ -322,8 +348,10 @@ class CivitaiSettingsPage(QWidget):
         self._downloads_switch.checkedChanged.connect(self._set_downloads_enabled)
         return self._toggle_row(
             icon=AppIcon.ARROW_DOWNLOAD_20_REGULAR,
-            title="Offer verified model downloads",
-            description="Allow missing-model resolution to offer CivitAI downloads.",
+            title=app_text("Offer verified model downloads"),
+            description=app_text(
+                "Allow missing-model resolution to offer CivitAI downloads."
+            ),
             switch=self._downloads_switch,
         )
 
@@ -351,8 +379,10 @@ class CivitaiSettingsPage(QWidget):
 
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.FOLDER_OPEN_20_REGULAR),
-            title="Model folder pattern",
-            description="Organize downloaded models inside the matching Comfy model folder.",
+            title=app_text("Model folder pattern"),
+            description=app_text(
+                "Organize downloaded models inside the matching Comfy model folder."
+            ),
             trailing_widget=SettingsControlGroup(
                 self.download_path_pattern_edit,
                 parent=self,
@@ -367,8 +397,8 @@ class CivitaiSettingsPage(QWidget):
 
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.DOCUMENT_TEXT_20_REGULAR),
-            title="Download path preview",
-            description="Shows an example path using the current pattern.",
+            title=app_text("Download path preview"),
+            description=app_text("Shows an example path using the current pattern."),
             trailing_widget=SettingsControlGroup(
                 self.download_path_preview_edit,
                 parent=self,
@@ -386,8 +416,10 @@ class CivitaiSettingsPage(QWidget):
         )
         return self._toggle_row(
             icon=AppIcon.IMAGE_MULTIPLE_20_REGULAR,
-            title="Download CivitAI thumbnails",
-            description="Download provider images for model picker thumbnails.",
+            title=app_text("Download CivitAI thumbnails"),
+            description=app_text(
+                "Download provider images for model picker thumbnails."
+            ),
             switch=self._thumbnail_downloads_switch,
         )
 
@@ -399,8 +431,10 @@ class CivitaiSettingsPage(QWidget):
         )
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.SHIELD_CHECKMARK_20_REGULAR),
-            title="Thumbnail safety",
-            description="Control which CivitAI images may be used as thumbnails.",
+            title=app_text("Thumbnail safety"),
+            description=app_text(
+                "Control which CivitAI images may be used as thumbnails."
+            ),
             trailing_widget=SettingsControlGroup(
                 self._thumbnail_policy_combo,
                 parent=self,
@@ -415,8 +449,10 @@ class CivitaiSettingsPage(QWidget):
 
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.DATABASE_SEARCH_20_REGULAR),
-            title="Cache usage",
-            description="Summarizes cached CivitAI provider metadata and thumbnails.",
+            title=app_text("Cache usage"),
+            description=app_text(
+                "Summarizes cached CivitAI provider metadata and thumbnails."
+            ),
             trailing_widget=SettingsControlGroup(
                 self._cache_summary_label,
                 parent=self,
@@ -429,16 +465,20 @@ class CivitaiSettingsPage(QWidget):
     def _cache_actions_row(self) -> SettingsCard:
         """Create cache maintenance controls."""
 
-        clear_thumbnails_button = PushButton("Clear thumbnails", self)
+        clear_thumbnails_button = LocalizedPushButton(
+            app_text("Clear thumbnails"), self
+        )
         clear_thumbnails_button.clicked.connect(self._clear_thumbnails)
-        clear_metadata_button = PushButton("Clear metadata", self)
+        clear_metadata_button = LocalizedPushButton(app_text("Clear metadata"), self)
         clear_metadata_button.clicked.connect(self._clear_metadata)
-        refresh_button = PushButton("Refresh", self)
+        refresh_button = LocalizedPushButton(app_text("Refresh"), self)
         refresh_button.clicked.connect(self._refresh_metadata)
         return SettingsCard(
             visual_widget=self._icon_widget(AppIcon.BROOM_20_REGULAR),
-            title="Cache maintenance",
-            description="Clear or refresh CivitAI-facing cached model metadata.",
+            title=app_text("Cache maintenance"),
+            description=app_text(
+                "Clear or refresh CivitAI-facing cached model metadata."
+            ),
             trailing_widget=SettingsControlGroup(
                 clear_thumbnails_button,
                 clear_metadata_button,
@@ -475,9 +515,9 @@ class CivitaiSettingsPage(QWidget):
     def _switch(self) -> SwitchButton:
         """Create a standard on/off settings switch."""
 
-        switch = SwitchButton("Off", self, indicatorPos=IndicatorPosition.RIGHT)
-        switch.setOnText("On")
-        switch.setOffText("Off")
+        switch = LocalizedSwitchButton(
+            "Off", self, indicatorPos=IndicatorPosition.RIGHT
+        )
         return switch
 
     def _thumbnail_policy_combo_widget(self) -> ComboBox:
@@ -485,10 +525,15 @@ class CivitaiSettingsPage(QWidget):
 
         combo = ComboBox(self)
         configure_settings_field_width(combo, preferred_width=_COMBO_WIDTH)
-        combo.addItem("Disabled", userData="disabled")
-        combo.addItem("SFW only", userData="sfw_only")
-        combo.addItem("Allow soft", userData="allow_soft")
-        combo.addItem("Allow all", userData="allow_all")
+        set_localized_combo_items(
+            combo,
+            (
+                LocalizedComboItem("disabled", app_text("Disabled")),
+                LocalizedComboItem("sfw_only", app_text("SFW only")),
+                LocalizedComboItem("allow_soft", app_text("Allow soft")),
+                LocalizedComboItem("allow_all", app_text("Allow all")),
+            ),
+        )
         return combo
 
     def _install_download_token_autocomplete(self) -> None:
@@ -511,12 +556,13 @@ class CivitaiSettingsPage(QWidget):
 
         key = self._api_key_edit.text().strip()
         if not key:
-            self._api_key_status_label.setText("Enter an API key first")
+            set_localized_text(self._api_key_status_label, "Enter an API key first")
             return
         storage_status = self._credential_service.storage_status()
         if not storage_status.available:
-            self._api_key_status_label.setText(
-                _api_key_status_text(status=storage_status, has_key=False)
+            apply_application_text(
+                self._api_key_status_label,
+                api_key_status_text(status=storage_status, has_key=False),
             )
             return
         try:
@@ -531,7 +577,7 @@ class CivitaiSettingsPage(QWidget):
 
         key = self._api_key_edit.text().strip() or None
         result = self._credential_service.test_api_key(key)
-        self._api_key_status_label.setText(result.message)
+        apply_application_text(self._api_key_status_label, result.message)
 
     def _clear_api_key(self) -> None:
         """Clear the stored CivitAI API key."""
@@ -600,7 +646,9 @@ class CivitaiSettingsPage(QWidget):
             self.download_path_pattern_edit.text()
         )
         if not result.succeeded:
-            self.download_path_preview_edit.setText(result.message)
+            self.download_path_preview_edit.setText(
+                render_application_text(result.message)
+            )
             return
         self._is_loading = True
         try:
@@ -644,23 +692,6 @@ class CivitaiSettingsPage(QWidget):
             if combo.itemData(index) == value:
                 combo.setCurrentIndex(index)
                 return
-
-
-def _api_key_status_text(
-    *,
-    status: CredentialStoreStatus,
-    has_key: bool,
-) -> str:
-    """Return concise API key status and storage availability copy."""
-
-    if not status.available:
-        parts = ["Secure credential storage is unavailable."]
-        if status.reason:
-            parts.append(status.reason)
-        if status.remediation:
-            parts.append(status.remediation)
-        return " ".join(parts)
-    return "Configured" if has_key else "No API key configured"
 
 
 __all__ = ["CivitaiSettingsPage"]

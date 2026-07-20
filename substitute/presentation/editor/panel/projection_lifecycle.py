@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from time import perf_counter
@@ -180,7 +182,7 @@ class EditorProjectionLifecyclePipeline:
             clear_issue(cube_alias)
         self.discard_cube_widget(cube_alias, reason="cube_removed")
         self.refresh_visibility(
-            message="Failed to refresh editor visibility after cube removal",
+            message=app_text("Failed to refresh editor visibility after cube removal"),
             reason="cube_removed",
         )
         self._ports.invalidate_projection("cube_removed")
@@ -233,7 +235,7 @@ class EditorProjectionLifecyclePipeline:
 
         panel._refresh_link_widgets()
         self.refresh_visibility(
-            message="Failed to refresh editor visibility after cube rename",
+            message=app_text("Failed to refresh editor visibility after cube rename"),
             reason="cube_renamed",
         )
         self._ports.invalidate_projection("cube_renamed")
@@ -258,7 +260,7 @@ class EditorProjectionLifecyclePipeline:
 
         panel._refresh_link_widgets()
         self.refresh_visibility(
-            message="Failed to refresh editor visibility after cube reorder",
+            message=app_text("Failed to refresh editor visibility after cube reorder"),
             reason="stack_reordered",
         )
         log_timing(

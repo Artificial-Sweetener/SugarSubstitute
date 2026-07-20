@@ -19,13 +19,40 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, cast
+
+from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.domain.appearance import AppearanceThemeMode
 from substitute.domain.onboarding import ComfyTargetMode, RuntimeBootstrapStatus
 from tools.ci.capture_native_appearance import (
+    _shutdown_capture_surface,
     build_capture_context,
     parse_args,
 )
+
+
+class _ExecutionRuntime:
+    """Record capture worker shutdown."""
+
+    def __init__(self) -> None:
+        """Initialize the shutdown count."""
+
+        self.shutdown_count = 0
+
+    def shutdown(self) -> None:
+        """Record one process-worker shutdown."""
+
+        self.shutdown_count += 1
+
+
+class _RuntimeServices:
+    """Expose the capture cleanup collaborator used by the helper."""
+
+    def __init__(self) -> None:
+        """Create the recording execution runtime."""
+
+        self.execution_runtime = _ExecutionRuntime()
 
 
 def test_build_capture_context_owns_isolated_visual_fixture(tmp_path: Path) -> None:
@@ -70,3 +97,22 @@ def test_parse_args_builds_explicit_dark_capture_request(tmp_path: Path) -> None
     assert request.width == 1280
     assert request.height == 800
     assert request.settle_ms == 250
+
+
+def test_capture_shutdown_destroys_frame_before_application_quit() -> None:
+    """Dispose shell-owned callbacks while localization translators remain valid."""
+
+    app = QApplication.instance() or QApplication([])
+    frame = QWidget()
+    destroyed: list[bool] = []
+    frame.destroyed.connect(lambda: destroyed.append(True))
+    runtime_services = _RuntimeServices()
+
+    _shutdown_capture_surface(
+        cast(QApplication, app),
+        frame,
+        cast(Any, runtime_services),
+    )
+
+    assert runtime_services.execution_runtime.shutdown_count == 1
+    assert destroyed == [True]

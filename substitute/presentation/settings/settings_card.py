@@ -66,6 +66,11 @@ from substitute.presentation.settings.settings_style import (
 from substitute.presentation.widgets.row_interaction_feedback import (
     RowInteractionFeedback,
 )
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    LocalizationBindings,
+)
 
 SettingsCardLayoutMode = Literal["wide", "wrapped", "wrapped_no_icon"]
 SettingsCardContentAlignment = Literal["right", "left", "vertical"]
@@ -85,8 +90,8 @@ class SettingsCard(QFrame):
     def __init__(
         self,
         *,
-        title: str,
-        description: str = "",
+        title: ApplicationText,
+        description: ApplicationText = "",
         visual_widget: QWidget | None = None,
         trailing_widget: QWidget | None = None,
         reserve_visual_space: bool = True,
@@ -120,6 +125,9 @@ class SettingsCard(QFrame):
         self.visual_slot = self._build_visual_slot(visual_widget)
         self.title_label = self._build_title_label(title)
         self.description_label = self._build_description_label(description)
+        self._localization_bindings = LocalizationBindings(self)
+        self._bind_application_message(self.title_label, title)
+        self._bind_application_message(self.description_label, description)
         self.text_column = self._build_text_column()
         self.trailing_widget = trailing_widget
         self.action_icon = self._build_action_icon(action_icon, show_chevron)
@@ -209,7 +217,7 @@ class SettingsCard(QFrame):
             layout.addWidget(visual_widget, 0, Qt.AlignmentFlag.AlignCenter)
         return slot
 
-    def _build_title_label(self, title: str) -> BodyLabel:
+    def _build_title_label(self, title: ApplicationText) -> BodyLabel:
         """Create the card title label."""
 
         label = BodyLabel(title, self)
@@ -220,7 +228,7 @@ class SettingsCard(QFrame):
         label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         return label
 
-    def _build_description_label(self, description: str) -> CaptionLabel:
+    def _build_description_label(self, description: ApplicationText) -> CaptionLabel:
         """Create the optional card description label."""
 
         label = CaptionLabel(description, self)
@@ -231,6 +239,16 @@ class SettingsCard(QFrame):
         label.setVisible(bool(description))
         label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         return label
+
+    def _bind_application_message(
+        self,
+        target: BodyLabel | CaptionLabel,
+        message: ApplicationText,
+    ) -> None:
+        """Retain marked app copy while leaving opaque strings untouched."""
+
+        if isinstance(message, ApplicationMessage):
+            self._localization_bindings.bind_message(target, message)
 
     def _build_text_column(self) -> QWidget:
         """Create the title and description column."""
@@ -470,8 +488,8 @@ class InteractiveSettingsCard(SettingsCard):
     def __init__(
         self,
         *,
-        title: str,
-        description: str = "",
+        title: ApplicationText,
+        description: ApplicationText = "",
         visual_widget: QWidget | None = None,
         trailing_widget: QWidget | None = None,
         reserve_visual_space: bool = True,

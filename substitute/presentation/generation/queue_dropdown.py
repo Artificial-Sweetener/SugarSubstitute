@@ -18,6 +18,12 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedStrongBodyLabel,
+)
+
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
@@ -83,7 +89,7 @@ class GenerationQueueDropdownView(AcrylicFlyoutViewBase):  # type: ignore[misc]
         self._layout.setContentsMargins(14, 12, 14, 14)
         self._layout.setSpacing(10)
 
-        title = StrongBodyLabel("Generation queue", self)
+        title = LocalizedStrongBodyLabel(app_text("Generation queue"), self)
         title.setObjectName("GenerationQueueTitle")
         self._layout.addWidget(title)
 
@@ -92,7 +98,9 @@ class GenerationQueueDropdownView(AcrylicFlyoutViewBase):  # type: ignore[misc]
         empty_state_layout.setContentsMargins(0, 0, 0, 0)
         empty_state_layout.setSpacing(0)
 
-        self._empty_label = BodyLabel("No queued jobs", self._empty_state)
+        self._empty_label = LocalizedBodyLabel(
+            app_text("No queued jobs"), self._empty_state
+        )
         self._empty_label.setAlignment(qt.AlignCenter)
         self._empty_label.setMinimumHeight(88)
         empty_state_layout.addStretch(1)

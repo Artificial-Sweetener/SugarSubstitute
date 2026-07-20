@@ -62,6 +62,11 @@ def test_present_startup_failure_report_uses_temporary_centered_host(
     )
     monkeypatch.setattr(
         startup_failure_presenter,
+        "set_localized_window_title",
+        lambda target, source: target.setWindowTitle(source),
+    )
+    monkeypatch.setattr(
+        startup_failure_presenter,
         "ErrorPresenter",
         lambda *, parent: _Presenter(parent=parent, presented=presented),
     )

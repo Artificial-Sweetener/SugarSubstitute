@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -36,7 +38,7 @@ class CivitaiApiKeyTestResult:
     """Describe the result of testing stored CivitAI credentials."""
 
     succeeded: bool
-    message: str
+    message: ApplicationText
 
 
 class CivitaiCredentialService:
@@ -96,12 +98,12 @@ class CivitaiCredentialService:
         if not candidate_key:
             return CivitaiApiKeyTestResult(
                 succeeded=False,
-                message="No CivitAI API key is configured.",
+                message=app_text("No CivitAI API key is configured."),
             )
         if self._validation_client_factory is None:
             return CivitaiApiKeyTestResult(
                 succeeded=True,
-                message="CivitAI API key is stored.",
+                message=app_text("CivitAI API key is stored."),
             )
         result = self._validation_client_factory(
             candidate_key
@@ -112,11 +114,11 @@ class CivitaiCredentialService:
         }:
             return CivitaiApiKeyTestResult(
                 succeeded=True,
-                message="CivitAI API key works.",
+                message=app_text("CivitAI API key works."),
             )
         return CivitaiApiKeyTestResult(
             succeeded=False,
-            message=result.error or "CivitAI API key test failed.",
+            message=result.error or app_text("CivitAI API key test failed."),
         )
 
 

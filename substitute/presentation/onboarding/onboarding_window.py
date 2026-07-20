@@ -18,6 +18,28 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+
+from sugarsubstitute_shared.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    app_text,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    apply_application_text,
+    render_application_text,
+    set_localized_text,
+    set_localized_window_title,
+)
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedCaptionLabel,
+    LocalizedPrimaryPushButton,
+    LocalizedPushButton,
+)
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -35,11 +57,8 @@ from PySide6.QtWidgets import (
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
     BodyLabel,
-    CaptionLabel,
     FluentIcon as FIF,
     IconWidget,
-    PrimaryPushButton,
-    PushButton,
 )
 from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
     isDarkTheme,
@@ -47,6 +66,7 @@ from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
 )
 
 from substitute.application.onboarding import OnboardingProvisioningFailure
+from sugarsubstitute_shared.presentation.localization import translate_application_text
 from substitute.application.onboarding.comfy_environment_service import (
     AttachedPythonRecoverySnapshot,
     ComfyPreflightSnapshot,
@@ -94,17 +114,23 @@ from substitute.presentation.shell.window_frame import SubstituteWindowFrame
 from substitute.shared.logging.logger import get_logger, log_warning
 
 
-_FLOW_SUMMARY_BY_MODE = {
-    OnboardingFlowMode.FIRST_RUN: "Choose a folder and connect Substitute to ComfyUI.",
-    OnboardingFlowMode.REPAIR: "Fix the saved setup so Substitute can open again.",
-    OnboardingFlowMode.RECONFIGURE: "Change the saved setup or ComfyUI connection.",
+_FLOW_SUMMARY_BY_MODE: dict[OnboardingFlowMode, ApplicationText] = {
+    OnboardingFlowMode.FIRST_RUN: app_text(
+        "Choose a folder and connect Substitute to ComfyUI."
+    ),
+    OnboardingFlowMode.REPAIR: app_text(
+        "Fix the saved setup so Substitute can open again."
+    ),
+    OnboardingFlowMode.RECONFIGURE: app_text(
+        "Change the saved setup or ComfyUI connection."
+    ),
 }
 
-_STEP_TITLES = (
-    "Choose a folder",
-    "Pick a setup",
-    "Confirm the details",
-    "Finish setup",
+_STEP_TITLES: tuple[ApplicationText, ...] = (
+    app_text("Choose a folder"),
+    app_text("Pick a setup"),
+    app_text("Confirm the details"),
+    app_text("Finish setup"),
 )
 
 _ONBOARDING_WINDOW_WIDTH = 1260
@@ -119,88 +145,92 @@ class ProgressPresentation:
 
     step_number: int
     step_count: int
-    title: str
-    helper: str
+    title: ApplicationText
+    helper: ApplicationText
 
 
 _PROGRESS_BY_PAGE = {
     OnboardingPageId.WELCOME: ProgressPresentation(
         step_number=1,
         step_count=4,
-        title="Choose a folder",
-        helper="You can change the ComfyUI connection later.",
+        title=app_text("Choose a folder"),
+        helper=app_text("You can change the ComfyUI connection later."),
     ),
     OnboardingPageId.COMFY_PREFLIGHT: ProgressPresentation(
         step_number=1,
         step_count=4,
-        title="Check ComfyUI",
-        helper="Setup continues automatically once ComfyUI is closed.",
+        title=app_text("Check ComfyUI"),
+        helper=app_text("Setup continues automatically once ComfyUI is closed."),
     ),
     OnboardingPageId.TARGET_MODE: ProgressPresentation(
         step_number=2,
         step_count=4,
-        title="Pick a setup",
-        helper="Most people should start with the first option.",
+        title=app_text("Pick a setup"),
+        helper=app_text("Most people should start with the first option."),
     ),
     OnboardingPageId.MANAGED_LOCAL: ProgressPresentation(
         step_number=3,
         step_count=4,
-        title="Confirm the details",
-        helper="The defaults usually work well for first-time setup.",
+        title=app_text("Confirm the details"),
+        helper=app_text("The defaults usually work well for first-time setup."),
     ),
     OnboardingPageId.ATTACHED_LOCAL: ProgressPresentation(
         step_number=3,
         step_count=4,
-        title="Confirm the details",
-        helper="Choose the existing ComfyUI folder Substitute should launch.",
+        title=app_text("Confirm the details"),
+        helper=app_text("Choose the existing ComfyUI folder Substitute should launch."),
     ),
     OnboardingPageId.ATTACHED_PYTHON_CHOICE: ProgressPresentation(
         step_number=3,
         step_count=4,
-        title="Find ComfyUI's environment",
-        helper="Choose how Substitute should identify ComfyUI's Python.",
+        title=app_text("Find ComfyUI's environment"),
+        helper=app_text("Choose how Substitute should identify ComfyUI's Python."),
     ),
     OnboardingPageId.ATTACHED_PYTHON_PROCESS: ProgressPresentation(
         step_number=3,
         step_count=4,
-        title="Detect ComfyUI's environment",
-        helper="Start ComfyUI yourself; Substitute will detect it automatically.",
+        title=app_text("Detect ComfyUI's environment"),
+        helper=app_text(
+            "Start ComfyUI yourself; Substitute will detect it automatically."
+        ),
     ),
     OnboardingPageId.ATTACHED_PYTHON_MANUAL: ProgressPresentation(
         step_number=3,
         step_count=4,
-        title="Select ComfyUI's environment",
-        helper="Choose the Python executable that this ComfyUI installation uses.",
+        title=app_text("Select ComfyUI's environment"),
+        helper=app_text(
+            "Choose the Python executable that this ComfyUI installation uses."
+        ),
     ),
     OnboardingPageId.REMOTE: ProgressPresentation(
         step_number=3,
         step_count=4,
-        title="Confirm the details",
-        helper="Use the server address this computer can reach.",
+        title=app_text("Confirm the details"),
+        helper=app_text("Use the server address this computer can reach."),
     ),
     OnboardingPageId.FOLDERS: ProgressPresentation(
         step_number=3,
         step_count=4,
-        title="Confirm the details",
-        helper="Keep the defaults or point Substitute at your folders.",
+        title=app_text("Confirm the details"),
+        helper=app_text("Keep the defaults or point Substitute at your folders."),
     ),
     OnboardingPageId.INTEGRATIONS: ProgressPresentation(
         step_number=3,
         step_count=4,
-        title="Confirm the details",
-        helper="Helpful extras can be changed later in Settings.",
+        title=app_text("Confirm the details"),
+        helper=app_text("Helpful extras can be changed later in Settings."),
     ),
     OnboardingPageId.PROVISIONING: ProgressPresentation(
         step_number=4,
         step_count=4,
-        title="Finish setup",
-        helper="This can take a little while the first time.",
+        title=app_text("Finish setup"),
+        helper=app_text("This can take a little while the first time."),
     ),
     OnboardingPageId.COMPLETION: ProgressPresentation(
         step_number=4,
         step_count=4,
-        title="Ready to launch",
-        helper="You're almost done.",
+        title=app_text("Ready to launch"),
+        helper=app_text("You're almost done."),
     ),
 }
 
@@ -213,7 +243,11 @@ class OnboardingIssuePanel(QFrame):
 
         super().__init__(parent)
         self.setObjectName("OnboardingIssuePanel")
-        self._text = ""
+        self._issue_title: ApplicationText = app_text(
+            "Let's get this setup back on track"
+        )
+        self._issue_body: ApplicationText = ""
+        self._issue_detail = ""
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 10, 12, 10)
@@ -227,34 +261,52 @@ class OnboardingIssuePanel(QFrame):
         self.icon_widget.setFixedSize(16, 16)
         header_row.addWidget(self.icon_widget, alignment=Qt.AlignmentFlag.AlignTop)
 
-        self.title_label = CaptionLabel("Let's get this setup back on track", self)
+        self.title_label = LocalizedCaptionLabel(
+            app_text("Let's get this setup back on track"), self
+        )
         self.title_label.setObjectName("OnboardingIssueTitle")
         self.title_label.setWordWrap(True)
         header_row.addWidget(self.title_label, 1, alignment=Qt.AlignmentFlag.AlignTop)
         layout.addLayout(header_row)
 
-        self.body_label = CaptionLabel("", self)
+        self.body_label = LocalizedCaptionLabel("", self)
         self.body_label.setObjectName("OnboardingIssueBody")
         self.body_label.setWordWrap(True)
         layout.addWidget(self.body_label)
 
-    def set_issue_content(self, *, title: str, body: str, detail: str) -> None:
+    def set_issue_content(
+        self,
+        *,
+        title: ApplicationText,
+        body: ApplicationText,
+        detail: str,
+    ) -> None:
         """Render the issue headline, user guidance, and technical detail."""
 
-        self.title_label.setText(title)
-        self.body_label.setText(body)
-        self.setToolTip(detail)
-        self._text = "\n".join(part for part in (title, body, detail) if part)
+        apply_application_text(self.title_label, title)
+        apply_application_text(self.body_label, body)
+        set_fluent_tooltip_text(self, detail)
+        self._issue_title = title
+        self._issue_body = body
+        self._issue_detail = detail
 
     def setText(self, text: str) -> None:
         """Preserve the label-like API used by existing tests."""
 
-        self.set_issue_content(title=self.title_label.text(), body=text, detail="")
+        self.set_issue_content(title=self._issue_title, body=text, detail="")
 
     def text(self) -> str:
         """Return the rendered issue copy for contract tests."""
 
-        return self._text
+        return "\n".join(
+            part
+            for part in (
+                render_application_text(self._issue_title),
+                render_application_text(self._issue_body),
+                self._issue_detail,
+            )
+            if part
+        )
 
 
 class OnboardingStepItem(QFrame):
@@ -264,7 +316,7 @@ class OnboardingStepItem(QFrame):
         self,
         *,
         index: int,
-        title: str,
+        title: ApplicationText,
         parent: QWidget | None = None,
     ) -> None:
         """Build the compact numbered step row used for guided progress."""
@@ -281,7 +333,7 @@ class OnboardingStepItem(QFrame):
         self.index_label.setObjectName("OnboardingStepNumber")
         layout.addWidget(self.index_label, alignment=Qt.AlignmentFlag.AlignTop)
 
-        self.title_label = CaptionLabel(title, self)
+        self.title_label = LocalizedCaptionLabel(title, self)
         self.title_label.setObjectName("OnboardingStepTitle")
         self.title_label.setWordWrap(True)
         layout.addWidget(self.title_label, 1)
@@ -336,7 +388,12 @@ class OnboardingWindow(SubstituteWindowFrame):
         self._recovery_snapshot: AttachedPythonRecoverySnapshot | None = None
 
         self.setObjectName("OnboardingWindow")
-        self.setWindowTitle(self._window_title(controller.flow_mode))
+        window_title = self._window_title(controller.flow_mode)
+        set_localized_window_title(
+            self,
+            window_title.source_text,
+            *window_title.arguments,
+        )
         self.setWindowIcon(application_icon())
         self.setFixedSize(_ONBOARDING_WINDOW_WIDTH, _ONBOARDING_WINDOW_HEIGHT)
         self.titleBar.minBtn.hide()
@@ -397,15 +454,15 @@ class OnboardingWindow(SubstituteWindowFrame):
         brand_text.setContentsMargins(0, 0, 0, 0)
         brand_text.setSpacing(4)
 
-        self.flow_title_label = BodyLabel(
-            self._window_title(self._controller.flow_mode).replace("Substitute ", ""),
+        self.flow_title_label = LocalizedBodyLabel(
+            self._rail_title(self._controller.flow_mode),
             self.identity_rail,
         )
         self.flow_title_label.setObjectName("OnboardingRailTitle")
         self.flow_title_label.setWordWrap(True)
         brand_text.addWidget(self.flow_title_label)
 
-        self.flow_summary_label = CaptionLabel(
+        self.flow_summary_label = LocalizedCaptionLabel(
             _FLOW_SUMMARY_BY_MODE[self._controller.flow_mode],
             self.identity_rail,
         )
@@ -415,16 +472,16 @@ class OnboardingWindow(SubstituteWindowFrame):
         brand_row.addLayout(brand_text, 1)
         rail_layout.addLayout(brand_row)
 
-        self.progress_count_label = CaptionLabel("", self.identity_rail)
+        self.progress_count_label = LocalizedCaptionLabel("", self.identity_rail)
         self.progress_count_label.setObjectName("OnboardingProgressCount")
         rail_layout.addWidget(self.progress_count_label)
 
-        self.progress_title_label = BodyLabel("", self.identity_rail)
+        self.progress_title_label = LocalizedBodyLabel("", self.identity_rail)
         self.progress_title_label.setObjectName("OnboardingProgressTitle")
         self.progress_title_label.setWordWrap(True)
         rail_layout.addWidget(self.progress_title_label)
 
-        self.progress_helper_label = CaptionLabel("", self.identity_rail)
+        self.progress_helper_label = LocalizedCaptionLabel("", self.identity_rail)
         self.progress_helper_label.setObjectName("OnboardingProgressHelper")
         self.progress_helper_label.setWordWrap(True)
         rail_layout.addWidget(self.progress_helper_label)
@@ -520,12 +577,14 @@ class OnboardingWindow(SubstituteWindowFrame):
         footer_layout.setSpacing(10)
         footer_layout.addStretch(1)
 
-        self.back_button = PushButton("Back", self.footer_row)
+        self.back_button = LocalizedPushButton(app_text("Back"), self.footer_row)
         self.back_button.setObjectName("OnboardingBackButton")
-        self.route_switch_button = PushButton("", self.footer_row)
+        self.route_switch_button = LocalizedPushButton("", self.footer_row)
         self.route_switch_button.setObjectName("OnboardingRouteSwitchButton")
         self.route_switch_button.hide()
-        self.primary_button = PrimaryPushButton("Continue", self.footer_row)
+        self.primary_button = LocalizedPrimaryPushButton(
+            app_text("Continue"), self.footer_row
+        )
         self.primary_button.setObjectName("OnboardingPrimaryButton")
         self.back_button.setMinimumWidth(76)
         self.primary_button.setMinimumWidth(164)
@@ -830,12 +889,8 @@ class OnboardingWindow(SubstituteWindowFrame):
         self._controller.provisioning_finished.connect(
             self._handle_provisioning_finished
         )
-        self._controller.progress_status_changed.connect(
-            self.provisioning_page.status_label.setText
-        )
-        self._controller.progress_log_emitted.connect(
-            self._provisioning_output_stream.append_line
-        )
+        self._controller.progress_status_changed.connect(self._handle_progress_status)
+        self._controller.progress_log_emitted.connect(self._handle_progress_log)
         self._controller.failure_reported.connect(self._handle_failure)
         self._controller.completion_ready.connect(self._handle_completion)
         coordinator = self._environment_coordinator
@@ -912,7 +967,7 @@ class OnboardingWindow(SubstituteWindowFrame):
                 self._show_page(OnboardingPageId.ATTACHED_PYTHON_CHOICE)
                 return
             self.primary_button.setEnabled(False)
-            self.primary_button.setText("Finding Python…")
+            set_localized_text(self.primary_button, "Finding Python…")
             coordinator.discover_attached_python(workspace)
             return
         elif self._current_page is OnboardingPageId.ATTACHED_PYTHON_CHOICE:
@@ -995,7 +1050,7 @@ class OnboardingWindow(SubstituteWindowFrame):
             self._preflight_destination = None
             self._show_page(destination)
             return
-        self.primary_button.setText("Checking ComfyUI…")
+        set_localized_text(self.primary_button, "Checking ComfyUI…")
         self.primary_button.setEnabled(False)
         coordinator.start_preflight()
 
@@ -1008,10 +1063,10 @@ class OnboardingWindow(SubstituteWindowFrame):
         if self._current_page is OnboardingPageId.ATTACHED_PYTHON_MANUAL:
             self._show_page(OnboardingPageId.ATTACHED_PYTHON_PROCESS)
 
-    def _show_route_switch(self, label: str) -> None:
+    def _show_route_switch(self, label: ApplicationText) -> None:
         """Place a recovery-route alternative in the window footer."""
 
-        self.route_switch_button.setText(label)
+        apply_application_text(self.route_switch_button, label)
         self.route_switch_button.adjustSize()
         self.route_switch_button.show()
 
@@ -1046,7 +1101,7 @@ class OnboardingWindow(SubstituteWindowFrame):
         if page_id is OnboardingPageId.COMFY_PREFLIGHT:
             self._preflight_snapshot = None
             self.comfy_preflight_page.show_checking()
-            self.primary_button.setText("Checking…")
+            set_localized_text(self.primary_button, "Checking…")
             self.primary_button.setEnabled(False)
             if coordinator is not None:
                 coordinator.start_preflight()
@@ -1060,7 +1115,7 @@ class OnboardingWindow(SubstituteWindowFrame):
         if page_id is OnboardingPageId.ATTACHED_PYTHON_PROCESS:
             self._recovery_snapshot = None
             self.attached_python_process_page.reset()
-            self._show_route_switch("Select Python manually instead")
+            self._show_route_switch(app_text("Select Python manually instead"))
             self.primary_button.hide()
             self._start_attached_python_recovery()
             return
@@ -1068,14 +1123,14 @@ class OnboardingWindow(SubstituteWindowFrame):
         if page_id is OnboardingPageId.ATTACHED_PYTHON_MANUAL:
             self._recovery_snapshot = None
             self.attached_python_manual_page.reset()
-            self._show_route_switch("Detect from running ComfyUI instead")
+            self._show_route_switch(app_text("Detect from running ComfyUI instead"))
             self.primary_button.hide()
             return
 
         if page_id is OnboardingPageId.PROVISIONING:
             self.back_button.setEnabled(False)
             self.primary_button.setEnabled(False)
-            self.primary_button.setText("Working...")
+            set_localized_text(self.primary_button, "Working...")
             self.primary_button.adjustSize()
             if not self._provisioning_started:
                 self._provisioning_started = True
@@ -1085,13 +1140,21 @@ class OnboardingWindow(SubstituteWindowFrame):
             return
 
         if page_id is OnboardingPageId.COMPLETION and self._last_completion is not None:
-            self.primary_button.setText(
-                "Close" if self._last_completion.restart_required else "Open Substitute"
+            set_localized_text(
+                self.primary_button,
+                (
+                    "Close"
+                    if self._last_completion.restart_required
+                    else "Open Substitute"
+                ),
             )
             self.primary_button.adjustSize()
             return
 
-        self.primary_button.setText(self._primary_button_label(page_id))
+        apply_application_text(
+            self.primary_button,
+            self._primary_button_label(page_id),
+        )
         self.primary_button.adjustSize()
 
     def _refresh_current_page_height(self) -> None:
@@ -1115,11 +1178,14 @@ class OnboardingWindow(SubstituteWindowFrame):
         """Refresh the compact progress copy shown in the left rail."""
 
         progress = _PROGRESS_BY_PAGE[page_id]
-        self.progress_count_label.setText(
-            f"Step {progress.step_number} of {progress.step_count}"
+        set_localized_text(
+            self.progress_count_label,
+            "Step %1 of %2",
+            progress.step_number,
+            progress.step_count,
         )
-        self.progress_title_label.setText(progress.title)
-        self.progress_helper_label.setText(progress.helper)
+        apply_application_text(self.progress_title_label, progress.title)
+        apply_application_text(self.progress_helper_label, progress.helper)
         for index, step_item in enumerate(self.step_items, start=1):
             step_item.set_state(
                 active=index == progress.step_number,
@@ -1218,14 +1284,17 @@ class OnboardingWindow(SubstituteWindowFrame):
                 detail=issue.technical_detail,
             )
         else:
-            body = f"{len(issues)} saved setup items need repair before Substitute can open."
+            body = app_text(
+                "%1 saved setup items need repair before Substitute can open.",
+                len(issues),
+            )
             detail = "\n".join(
                 f"- {issue.technical_detail}"
                 for issue in issues
                 if issue.technical_detail
             )
             self.issue_banner.set_issue_content(
-                title="Setup needs attention",
+                title=app_text("Setup needs attention"),
                 body=body,
                 detail=detail,
             )
@@ -1235,11 +1304,22 @@ class OnboardingWindow(SubstituteWindowFrame):
         """Switch the provisioning page into its active state."""
 
         self.provisioning_page.begin_progress()
-        self.provisioning_page.status_label.setText("Starting setup.")
-        self.provisioning_page.detail_label.setText(
-            "You can follow the live output below while setup runs."
+        set_localized_text(self.provisioning_page.status_label, "Starting setup.")
+        set_localized_text(
+            self.provisioning_page.detail_label,
+            "You can follow the live output below while setup runs.",
         )
         self.provisioning_page.clear_details()
+
+    def _handle_progress_status(self, message: ApplicationText) -> None:
+        """Render one semantic provisioning status in the active locale."""
+
+        apply_application_text(self.provisioning_page.status_label, message)
+
+    def _handle_progress_log(self, message: ApplicationText) -> None:
+        """Append one provisioning transcript line in the active locale."""
+
+        self._provisioning_output_stream.append_line(render_application_text(message))
 
     def _handle_provisioning_finished(self) -> None:
         """Re-enable progression once provisioning has finished."""
@@ -1247,12 +1327,12 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.primary_button.setEnabled(self._last_completion is not None)
         if self._last_completion is not None:
             self.provisioning_page.mark_complete()
-            self.primary_button.setText("Review setup")
+            set_localized_text(self.primary_button, "Review setup")
             self.primary_button.adjustSize()
             return
         self.back_button.setEnabled(True)
         self.primary_button.setEnabled(True)
-        self.primary_button.setText("Try again")
+        set_localized_text(self.primary_button, "Try again")
         self.primary_button.adjustSize()
 
     def _handle_failure(self, failure: object) -> None:
@@ -1263,15 +1343,18 @@ class OnboardingWindow(SubstituteWindowFrame):
             failure
             if isinstance(failure, OnboardingProvisioningFailure)
             else OnboardingProvisioningFailure(
-                headline="Setup needs attention.",
-                user_message=(
+                headline=app_text("Setup needs attention."),
+                user_message=app_text(
                     "Review the details below, fix the reported issue, and try again."
                 ),
                 technical_detail=str(failure),
                 remediation_steps=(),
             )
         )
-        self.provisioning_page.status_label.setText(typed_failure.headline)
+        apply_application_text(
+            self.provisioning_page.status_label,
+            typed_failure.headline,
+        )
         self.provisioning_page.set_failure_guidance(
             user_message=typed_failure.user_message,
             steps=typed_failure.remediation_steps,
@@ -1291,10 +1374,12 @@ class OnboardingWindow(SubstituteWindowFrame):
             return
         self._last_completion = typed_completion
         if typed_completion.restart_required:
-            summary = "Your updated setup has been saved. Close Substitute now, then open it again to use the new configuration."
+            summary = app_text(
+                "Your updated setup has been saved. Close Substitute now, then open it again to use the new configuration."
+            )
         else:
-            summary = "Your setup is saved and ready to use."
-        self.completion_page.summary_label.setText(summary)
+            summary = app_text("Your setup is saved and ready to use.")
+        apply_application_text(self.completion_page.summary_label, summary)
         self.completion_page.command_label.setText(
             " ".join(typed_completion.launch_command)
         )
@@ -1309,7 +1394,7 @@ class OnboardingWindow(SubstituteWindowFrame):
         if self._current_page is OnboardingPageId.COMFY_PREFLIGHT:
             self._preflight_snapshot = result
             self.comfy_preflight_page.apply_snapshot(result)
-            self.primary_button.setText("Continue")
+            set_localized_text(self.primary_button, "Continue")
             self.primary_button.setEnabled(result.can_continue)
             return
         destination = self._preflight_destination
@@ -1322,7 +1407,7 @@ class OnboardingWindow(SubstituteWindowFrame):
         self._show_page(OnboardingPageId.COMFY_PREFLIGHT)
         self._preflight_snapshot = result
         self.comfy_preflight_page.apply_snapshot(result)
-        self.primary_button.setText("Continue")
+        set_localized_text(self.primary_button, "Continue")
         self.primary_button.setEnabled(False)
 
     def _handle_attached_python_discovery(self, result: object) -> None:
@@ -1369,7 +1454,7 @@ class OnboardingWindow(SubstituteWindowFrame):
             self.attached_python_process_page.apply_snapshot(result)
         else:
             self.attached_python_manual_page.apply_snapshot(result)
-        self.primary_button.setText("Continue")
+        set_localized_text(self.primary_button, "Continue")
         self.primary_button.setVisible(result.can_continue)
         self.primary_button.setEnabled(result.can_continue)
         self.route_switch_button.setVisible(result.binding is None)
@@ -1384,7 +1469,7 @@ class OnboardingWindow(SubstituteWindowFrame):
         if result.binding is None:
             self.attached_python_manual_page.show_validation_failure(
                 result.failure
-                or "The selected Python executable could not be validated."
+                or app_text("The selected Python executable could not be validated.")
             )
             self.primary_button.hide()
             self.route_switch_button.show()
@@ -1427,8 +1512,10 @@ class OnboardingWindow(SubstituteWindowFrame):
         ):
             self._show_page(OnboardingPageId.COMFY_PREFLIGHT)
         if self._current_page is OnboardingPageId.COMFY_PREFLIGHT:
-            self.comfy_preflight_page.status_label.setText(
-                f"ComfyUI could not be checked yet: {detail}"
+            set_localized_text(
+                self.comfy_preflight_page.status_label,
+                "ComfyUI could not be checked yet: %1",
+                detail,
             )
             return
         if self._current_page is OnboardingPageId.ATTACHED_PYTHON_PROCESS:
@@ -1442,7 +1529,7 @@ class OnboardingWindow(SubstituteWindowFrame):
 
         selected = QFileDialog.getExistingDirectory(
             self,
-            "Choose Installation Root",
+            translate_application_text("Choose Installation Root"),
             self.install_root_page.install_root_edit.text(),
         )
         if selected:
@@ -1453,7 +1540,7 @@ class OnboardingWindow(SubstituteWindowFrame):
 
         selected = QFileDialog.getExistingDirectory(
             self,
-            "Choose Managed ComfyUI Folder",
+            translate_application_text("Choose Managed ComfyUI Folder"),
             self.managed_local_page.workspace_edit.text(),
         )
         if selected:
@@ -1464,7 +1551,7 @@ class OnboardingWindow(SubstituteWindowFrame):
 
         selected = QFileDialog.getExistingDirectory(
             self,
-            "Choose Existing ComfyUI Folder",
+            translate_application_text("Choose Existing ComfyUI Folder"),
             self.attached_local_page.workspace_edit.text(),
         )
         if selected:
@@ -1475,9 +1562,11 @@ class OnboardingWindow(SubstituteWindowFrame):
 
         selected, _selected_filter = QFileDialog.getOpenFileName(
             self,
-            "Choose ComfyUI Python Executable",
+            translate_application_text("Choose ComfyUI Python Executable"),
             str(self._controller.draft.attached_workspace_path or ""),
-            "Python executable (python.exe python);;All files (*)",
+            translate_application_text(
+                "Python executable (python.exe python);;All files (*)"
+            ),
         )
         workspace = self._controller.draft.attached_workspace_path
         coordinator = self._environment_coordinator
@@ -1495,7 +1584,7 @@ class OnboardingWindow(SubstituteWindowFrame):
 
         selected = QFileDialog.getExistingDirectory(
             self,
-            "Choose Models Folder",
+            translate_application_text("Choose Models Folder"),
             self.folder_setup_page.managed_model_root_edit.text(),
         )
         if selected:
@@ -1506,7 +1595,7 @@ class OnboardingWindow(SubstituteWindowFrame):
 
         selected = QFileDialog.getExistingDirectory(
             self,
-            "Choose Output Folder",
+            translate_application_text("Choose Output Folder"),
             self.folder_setup_page.output_root_edit.text(),
         )
         if selected:
@@ -1586,28 +1675,38 @@ class OnboardingWindow(SubstituteWindowFrame):
         super().closeEvent(event)
 
     @staticmethod
-    def _window_title(flow_mode: OnboardingFlowMode) -> str:
+    def _window_title(flow_mode: OnboardingFlowMode) -> ApplicationMessage:
         """Return the onboarding window title for one entry mode."""
 
         if flow_mode is OnboardingFlowMode.REPAIR:
-            return "Substitute Repair"
+            return app_text("Substitute Repair")
         if flow_mode is OnboardingFlowMode.RECONFIGURE:
-            return "Substitute Reconfigure"
-        return "Substitute Setup"
+            return app_text("Substitute Reconfigure")
+        return app_text("Substitute Setup")
 
     @staticmethod
-    def _primary_button_label(page_id: OnboardingPageId) -> str:
+    def _rail_title(flow_mode: OnboardingFlowMode) -> ApplicationMessage:
+        """Return the compact localized rail title for one entry mode."""
+
+        if flow_mode is OnboardingFlowMode.REPAIR:
+            return app_text("Repair")
+        if flow_mode is OnboardingFlowMode.RECONFIGURE:
+            return app_text("Reconfigure")
+        return app_text("Setup")
+
+    @staticmethod
+    def _primary_button_label(page_id: OnboardingPageId) -> ApplicationMessage:
         """Return the primary action text for the supplied page."""
 
         if page_id in {OnboardingPageId.WELCOME, OnboardingPageId.TARGET_MODE}:
-            return "Continue"
+            return app_text("Continue")
         if page_id in {
             OnboardingPageId.MANAGED_LOCAL,
             OnboardingPageId.ATTACHED_LOCAL,
             OnboardingPageId.REMOTE,
             OnboardingPageId.FOLDERS,
         }:
-            return "Save and continue"
+            return app_text("Save and continue")
         if page_id is OnboardingPageId.INTEGRATIONS:
-            return "Finish setup"
-        return "Continue"
+            return app_text("Finish setup")
+        return app_text("Continue")

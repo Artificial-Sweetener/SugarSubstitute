@@ -25,6 +25,7 @@ import sys
 
 from substitute.app.bootstrap.app_layout import resolve_app_layout
 from substitute.app.bootstrap.startup_trace import trace_mark
+from sugarsubstitute_shared.localization import parse_locale_override
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +37,7 @@ class StartupCliArguments:
     no_comfy: bool
     handoff_geometry: tuple[int, int, int, int] | None
     install_root: Path | None
+    locale_override: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +83,16 @@ def extract_handoff_geometry(
     return None
 
 
+def extract_locale_override(cli_args: Sequence[str]) -> str | None:
+    """Return a validated effective locale passed between executable processes."""
+
+    prefix = "--locale="
+    for raw_arg in cli_args:
+        if raw_arg.startswith(prefix):
+            return parse_locale_override(raw_arg[len(prefix) :].strip())
+    return None
+
+
 def parse_startup_cli_arguments(argv: Sequence[str] | None) -> StartupCliArguments:
     """Parse startup CLI arguments into one immutable bootstrap input object."""
 
@@ -91,6 +103,7 @@ def parse_startup_cli_arguments(argv: Sequence[str] | None) -> StartupCliArgumen
         no_comfy="--no-comfy" in args,
         handoff_geometry=extract_handoff_geometry(args),
         install_root=extract_install_root(args),
+        locale_override=extract_locale_override(args),
     )
 
 
@@ -103,6 +116,7 @@ def trace_startup_cli_arguments(arguments: StartupCliArguments) -> None:
         no_comfy=arguments.no_comfy,
         arg_count=len(arguments.args),
         handoff_geometry_present=arguments.handoff_geometry is not None,
+        locale_override_present=arguments.locale_override is not None,
     )
 
 
@@ -139,6 +153,7 @@ __all__ = [
     "build_ready_app_launch_command",
     "extract_handoff_geometry",
     "extract_install_root",
+    "extract_locale_override",
     "parse_startup_cli_arguments",
     "prepare_ready_app_launch",
     "trace_startup_cli_arguments",

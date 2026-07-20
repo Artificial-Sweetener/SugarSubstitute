@@ -21,10 +21,11 @@ from __future__ import annotations
 import os
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, cast
 
 import pytest
-from PySide6.QtCore import QObject, QPoint, QRect, Qt
+from PySide6.QtCore import QEvent, QObject, QPoint, QRect, Qt, QTranslator
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
     QApplication,
@@ -93,6 +94,15 @@ class _SlowAboutInfoService(_AboutInfoService):
         return super().snapshot()
 
 
+class _NoBackendCapabilities:
+    """Provide an unavailable backend for production About copy tests."""
+
+    def get_capabilities(self) -> None:
+        """Return no connected backend capabilities."""
+
+        return None
+
+
 def _task_runner_factory(
     parent: QObject,
     *,
@@ -150,6 +160,83 @@ def test_about_settings_page_renders_refreshed_snapshot() -> None:
     assert "Special thanks" in labels
     assert "Contributor One" in labels
     assert page.findChild(QWidget, "AboutLicenseActionRow") is not None
+    page.close()
+
+
+def test_about_settings_page_switches_production_copy_without_reconstruction(
+    request: pytest.FixtureRequest,
+) -> None:
+    """The About surface must translate its app copy while retaining its widgets."""
+
+    app = _app()
+    resource_root = (
+        Path(__file__).resolve().parents[1]
+        / "substitute"
+        / "presentation"
+        / "resources"
+        / "i18n"
+    )
+    chinese = QTranslator()
+    japanese = QTranslator()
+    assert chinese.load(str(resource_root / "sugarsubstitute_zh_CN.qm"))
+    assert japanese.load(str(resource_root / "sugarsubstitute_ja_JP.qm"))
+    request.addfinalizer(lambda: app.removeTranslator(chinese))
+    request.addfinalizer(lambda: app.removeTranslator(japanese))
+    assert app.installTranslator(chinese)
+    service = AboutInfoService(
+        backend_capabilities=cast(Any, _NoBackendCapabilities()),
+        comfy_runtime_info=lambda: None,
+        local_versions=lambda _names, *, fallback: fallback,
+        app_version=lambda: "1.0.0",
+    )
+    page = AboutSettingsPage(
+        service,
+        task_runner_factory=_task_runner_factory,
+    )
+    page.show()
+    app.processEvents()
+    original_project_card = page._project_card
+
+    labels = _label_texts(page)
+    assert "版本信息" in labels
+    assert "项目" in labels
+    assert "许可证" in labels
+    assert "支持者" in labels
+    assert "特别鸣谢" in labels
+    sugar_subtitle = page.findChild(QLabel, "AboutVersionSubtitle-SugarSubstitute")
+    assert sugar_subtitle is not None
+    assert sugar_subtitle.toolTip() == "适用于 ComfyUI 的原生 Qt 桌面前端"
+    assert page._project_card.description_label.text() == (
+        "SugarSubstitute 为 ComfyUI 提供专注的 PySide6 工作区，支持基于方块的"
+        "工作流组合、托管模型元数据、提示词工具以及集成的图像画布工作流。"
+    )
+    assert any(text.startswith("SugarSubstitute 是自由软件") for text in labels)
+
+    assert app.removeTranslator(chinese)
+    assert app.installTranslator(japanese)
+    for widget in (page, *page.findChildren(QObject)):
+        app.sendEvent(widget, QEvent(QEvent.Type.LanguageChange))
+
+    labels = _label_texts(page)
+    assert "バージョン情報" in labels
+    assert "プロジェクト" in labels
+    assert "ライセンス" in labels
+    assert "支援者" in labels
+    assert "スペシャルサンクス" in labels
+    assert sugar_subtitle.toolTip() == (
+        "ComfyUI 用のデスクトップネイティブ Qt フロントエンド"
+    )
+    assert page._project_card.description_label.text() == (
+        "SugarSubstitute は ComfyUI 用の使いやすい PySide6 ワークスペースです。"
+        "キューブによるワークフロー構成、管理されたモデルメタデータ、"
+        "プロンプトツール、統合画像キャンバスのワークフローに対応しています。"
+    )
+    assert any(
+        text.startswith("SugarSubstitute は自由ソフトウェアです") for text in labels
+    )
+    assert page._project_card is original_project_card
+
+    assert app.removeTranslator(japanese)
     page.close()
 
 
@@ -731,6 +818,7 @@ def _snapshot(qpane_version: str) -> AboutInfoSnapshot:
     return AboutInfoSnapshot(
         versions=(
             AboutVersionRow(
+                component_key="SugarSubstitute",
                 label="SugarSubstitute",
                 value="0.5.0",
                 status=AboutVersionStatus.AVAILABLE,
@@ -741,6 +829,7 @@ def _snapshot(qpane_version: str) -> AboutInfoSnapshot:
                 ),
             ),
             AboutVersionRow(
+                component_key="ComfyUI",
                 label="ComfyUI",
                 value="0.3.2",
                 status=AboutVersionStatus.AVAILABLE,
@@ -751,6 +840,7 @@ def _snapshot(qpane_version: str) -> AboutInfoSnapshot:
                 external_url="https://github.com/Comfy-Org/ComfyUI",
             ),
             AboutVersionRow(
+                component_key="SugarCubes",
                 label="SugarCubes",
                 value="0.9.0",
                 status=AboutVersionStatus.AVAILABLE,
@@ -759,6 +849,7 @@ def _snapshot(qpane_version: str) -> AboutInfoSnapshot:
                 external_url="https://github.com/Artificial-Sweetener/SugarCubes",
             ),
             AboutVersionRow(
+                component_key="SubstituteBackend",
                 label="Substitute Backend",
                 value="1.4.0",
                 status=AboutVersionStatus.AVAILABLE,
@@ -769,6 +860,7 @@ def _snapshot(qpane_version: str) -> AboutInfoSnapshot:
                 ),
             ),
             AboutVersionRow(
+                component_key="SugarDSL",
                 label="Sugar-DSL",
                 value="0.2.0",
                 status=AboutVersionStatus.AVAILABLE,
@@ -780,6 +872,7 @@ def _snapshot(qpane_version: str) -> AboutInfoSnapshot:
                 external_url="https://github.com/Artificial-Sweetener/Sugar-DSL",
             ),
             AboutVersionRow(
+                component_key="QPane",
                 label="QPane",
                 value=qpane_version,
                 status=AboutVersionStatus.AVAILABLE,
@@ -788,6 +881,7 @@ def _snapshot(qpane_version: str) -> AboutInfoSnapshot:
                 external_url="https://github.com/Artificial-Sweetener/QPane",
             ),
             AboutVersionRow(
+                component_key="PySide6FluentWidgets",
                 label="PySide6-Fluent-Widgets",
                 value="1.11.2",
                 status=AboutVersionStatus.AVAILABLE,
@@ -796,6 +890,7 @@ def _snapshot(qpane_version: str) -> AboutInfoSnapshot:
                 external_url="https://github.com/zhiyiYo/PyQt-Fluent-Widgets",
             ),
             AboutVersionRow(
+                component_key="PySide6",
                 label="PySide6",
                 value="6.9.0",
                 status=AboutVersionStatus.AVAILABLE,

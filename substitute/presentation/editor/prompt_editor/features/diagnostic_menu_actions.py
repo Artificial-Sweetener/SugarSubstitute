@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
@@ -375,14 +377,14 @@ def _spelling_actions(
     else:
         actions.append(
             PromptContextMenuAction(
-                label="No spelling suggestions",
+                label=app_text("No spelling suggestions"),
                 callback=None,
                 enabled=False,
             )
         )
     actions.append(
         PromptContextMenuAction(
-            label="Ignore spelling",
+            label=app_text("Ignore spelling"),
             callback=lambda: ignore_spelling_diagnostic_for_session(
                 diagnostic,
                 source_identity=source_identity,
@@ -392,7 +394,7 @@ def _spelling_actions(
     if dictionary_add_supported:
         actions.append(
             PromptContextMenuAction(
-                label="Add to dictionary",
+                label=app_text("Add to dictionary"),
                 callback=lambda: add_spelling_diagnostic_to_dictionary(
                     diagnostic,
                     source_identity=source_identity,
@@ -414,21 +416,21 @@ def _duplicate_segment_actions(
 
     return (
         PromptContextMenuAction(
-            label="Remove duplicate",
+            label=app_text("Remove duplicate"),
             callback=lambda: remove_duplicate_diagnostic(
                 diagnostic,
                 source_identity=source_identity,
             ),
         ),
         PromptContextMenuAction(
-            label="Emphasize first",
+            label=app_text("Emphasize first"),
             callback=lambda: emphasize_first_duplicate_diagnostic(
                 diagnostic,
                 source_identity=source_identity,
             ),
         ),
         PromptContextMenuAction(
-            label="Ignore duplicate",
+            label=app_text("Ignore duplicate"),
             callback=lambda: ignore_duplicate_diagnostic(
                 diagnostic,
                 source_identity=source_identity,

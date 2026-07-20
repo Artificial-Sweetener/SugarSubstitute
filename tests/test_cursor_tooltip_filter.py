@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Tests for cursor-anchored tooltip positioning."""
+"""Tests for the application-owned QFluent tooltip adapter."""
 
 from __future__ import annotations
 
@@ -24,10 +24,10 @@ import pytest
 from PySide6.QtCore import QEvent, QPoint, QRect, QSize
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.presentation.widgets.cursor_tooltip_filter import (
-    CursorToolTipFilter,
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    FluentToolTipFilter,
     cursor_tooltip_position,
-    install_cursor_tooltip_filter,
+    ensure_fluent_tooltip_filter,
 )
 
 
@@ -116,6 +116,9 @@ class _Tooltip:
         """Record tooltip position."""
 
         self.position = position
+
+    def adjustPos(self, _owner: QWidget, _position: object) -> None:  # noqa: N802
+        """Accept QFluent's normal owner-relative positioning pass."""
 
     def show(self) -> None:
         """Record show call."""
@@ -208,19 +211,14 @@ class _TooltipMargins:
         return self._right
 
 
-class _GlobalPositionEvent:
+class _GlobalPositionEvent(QEvent):
     """Event double exposing Qt 6 globalPosition."""
 
     def __init__(self, event_type: QEvent.Type, global_pos: QPoint) -> None:
         """Store event type and global position."""
 
-        self._event_type = event_type
+        super().__init__(event_type)
         self._global_pos = global_pos
-
-    def type(self) -> QEvent.Type:
-        """Return event type."""
-
-        return self._event_type
 
     def globalPosition(self) -> object:  # noqa: N802
         """Return a QPointF-like object with toPoint()."""
@@ -271,31 +269,76 @@ def test_cursor_tooltip_position_clamps_left_and_top_edges() -> None:
     assert position == QPoint(10, 20)
 
 
-def test_install_cursor_tooltip_filter_uses_one_owner_filter_for_targets() -> None:
+def test_fluent_tooltip_filter_uses_one_owner_filter_for_targets() -> None:
     """The installer should share one owner-backed filter across watched widgets."""
 
     owner = _Owner()
     watched = _Watched()
 
-    tooltip_filter = install_cursor_tooltip_filter(
+    tooltip_filter = ensure_fluent_tooltip_filter(
         owner,
         owner,
         watched,
         show_delay_ms=25,
     )
 
-    assert isinstance(tooltip_filter, CursorToolTipFilter)
+    assert isinstance(tooltip_filter, FluentToolTipFilter)
+    assert owner.filters == [tooltip_filter]
+    assert watched.filters == [tooltip_filter]
+
+    repeated = ensure_fluent_tooltip_filter(
+        owner,
+        owner,
+        watched,
+        show_delay_ms=25,
+    )
+
+    assert repeated is tooltip_filter
     assert owner.filters == [tooltip_filter]
     assert watched.filters == [tooltip_filter]
 
 
-def test_cursor_tooltip_filter_shows_tooltip_at_event_cursor_position() -> None:
+def test_dynamic_tooltip_text_does_not_reset_specialized_filter_policy() -> None:
+    """Refreshing content must retain cursor anchoring and provider ownership."""
+
+    owner = _Owner()
+
+    def provider(_watched: object, _event: object) -> str:
+        """Return stable dynamic tooltip text for the filter contract."""
+
+        return "dynamic details"
+
+    tooltip_filter = ensure_fluent_tooltip_filter(
+        owner,
+        cursor_anchor=True,
+        show_when_disabled=True,
+        tooltip_provider=provider,
+    )
+
+    tooltip_filter._refresh_dynamic_tooltip(
+        owner,
+        QEvent(QEvent.Type.MouseMove),
+    )
+
+    assert owner.toolTip() == "dynamic details"
+    assert tooltip_filter._cursor_anchor is True
+    assert tooltip_filter._show_when_disabled is True
+    assert tooltip_filter._tooltip_provider is provider
+    assert owner.filters == [tooltip_filter]
+
+
+def test_fluent_tooltip_filter_shows_tooltip_at_event_cursor_position() -> None:
     """The filter should display tooltip text beside the latest cursor position."""
 
     owner = _Owner()
     owner.setToolTip("details")
     tooltip = _Tooltip()
-    tooltip_filter = CursorToolTipFilter(owner, show_delay_ms=0, offset=QPoint(5, 6))
+    tooltip_filter = FluentToolTipFilter(
+        owner,
+        show_delay_ms=0,
+        cursor_anchor=True,
+        cursor_offset=QPoint(5, 6),
+    )
     tooltip_filter._tooltip = tooltip
 
     event = _GlobalPositionEvent(QEvent.Type.Enter, QPoint(50, 60))
@@ -308,13 +351,18 @@ def test_cursor_tooltip_filter_shows_tooltip_at_event_cursor_position() -> None:
     assert tooltip.shown is True
 
 
-def test_cursor_tooltip_filter_clamps_qfluent_tooltip_width() -> None:
+def test_fluent_tooltip_filter_clamps_qfluent_tooltip_width() -> None:
     """The filter should bound and wrap the QFluent tooltip before positioning."""
 
     owner = _Owner()
     owner.setToolTip("x" * 800)
     tooltip = _Tooltip(QSize(900, 40))
-    tooltip_filter = CursorToolTipFilter(owner, show_delay_ms=0, offset=QPoint(5, 6))
+    tooltip_filter = FluentToolTipFilter(
+        owner,
+        show_delay_ms=0,
+        cursor_anchor=True,
+        cursor_offset=QPoint(5, 6),
+    )
     tooltip_filter._tooltip = tooltip
 
     event = _GlobalPositionEvent(QEvent.Type.Enter, QPoint(50, 60))
@@ -329,23 +377,23 @@ def test_cursor_tooltip_filter_clamps_qfluent_tooltip_width() -> None:
     assert tooltip.size().width() == 420
 
 
-def test_cursor_tooltip_filter_suppresses_native_tooltip_event() -> None:
+def test_fluent_tooltip_filter_suppresses_native_tooltip_event() -> None:
     """Native tooltip events should not create a second Qt tooltip."""
 
     owner = _Owner()
-    tooltip_filter = CursorToolTipFilter(owner)
+    tooltip_filter = FluentToolTipFilter(owner)
     event = _GlobalPositionEvent(QEvent.Type.ToolTip, QPoint(50, 60))
 
     assert tooltip_filter.eventFilter(owner, event) is True
 
 
-def test_cursor_tooltip_filter_hides_on_dismissal_events() -> None:
+def test_fluent_tooltip_filter_hides_on_dismissal_events() -> None:
     """Dismissal events should stop pending display and hide visible tooltip."""
 
     owner = _Owner()
     tooltip = _Tooltip()
     tooltip.shown = True
-    tooltip_filter = CursorToolTipFilter(owner)
+    tooltip_filter = FluentToolTipFilter(owner)
     tooltip_filter._tooltip = tooltip
 
     event = _GlobalPositionEvent(QEvent.Type.Leave, QPoint(50, 60))
@@ -354,12 +402,12 @@ def test_cursor_tooltip_filter_hides_on_dismissal_events() -> None:
     assert tooltip.hidden is True
 
 
-def test_cursor_tooltip_filter_does_not_show_without_tooltip_text() -> None:
+def test_fluent_tooltip_filter_does_not_show_without_tooltip_text() -> None:
     """An empty owner tooltip should prevent display."""
 
     owner = _Owner()
     tooltip = _Tooltip()
-    tooltip_filter = CursorToolTipFilter(owner)
+    tooltip_filter = FluentToolTipFilter(owner)
     tooltip_filter._tooltip = tooltip
 
     tooltip_filter.show_tooltip()
@@ -367,14 +415,14 @@ def test_cursor_tooltip_filter_does_not_show_without_tooltip_text() -> None:
     assert tooltip.shown is False
 
 
-def test_cursor_tooltip_filter_skips_disabled_owner_by_default() -> None:
+def test_fluent_tooltip_filter_skips_disabled_owner_by_default() -> None:
     """Disabled owner widgets should keep the existing no-tooltip default."""
 
     owner = _Owner()
     owner.setToolTip("disabled details")
     owner.setEnabled(False)
     tooltip = _Tooltip()
-    tooltip_filter = CursorToolTipFilter(owner, show_delay_ms=0)
+    tooltip_filter = FluentToolTipFilter(owner, show_delay_ms=0)
     tooltip_filter._tooltip = tooltip
 
     event = _GlobalPositionEvent(QEvent.Type.Enter, QPoint(50, 60))
@@ -385,17 +433,18 @@ def test_cursor_tooltip_filter_skips_disabled_owner_by_default() -> None:
     assert tooltip.shown is False
 
 
-def test_cursor_tooltip_filter_can_show_disabled_owner_tooltip() -> None:
+def test_fluent_tooltip_filter_can_show_disabled_owner_tooltip() -> None:
     """Opted-in disabled owner widgets should still show explanatory tooltips."""
 
     owner = _Owner()
     owner.setToolTip("disabled details")
     owner.setEnabled(False)
     tooltip = _Tooltip()
-    tooltip_filter = CursorToolTipFilter(
+    tooltip_filter = FluentToolTipFilter(
         owner,
         show_delay_ms=0,
-        offset=QPoint(5, 6),
+        cursor_anchor=True,
+        cursor_offset=QPoint(5, 6),
         show_when_disabled=True,
     )
     tooltip_filter._tooltip = tooltip
@@ -410,12 +459,12 @@ def test_cursor_tooltip_filter_can_show_disabled_owner_tooltip() -> None:
     assert tooltip.shown is True
 
 
-def test_install_cursor_tooltip_filter_preserves_disabled_owner_opt_in() -> None:
+def test_fluent_tooltip_filter_preserves_disabled_owner_opt_in() -> None:
     """The installer should pass disabled-tooltip ownership into the filter."""
 
     owner = _Owner()
 
-    tooltip_filter = install_cursor_tooltip_filter(
+    tooltip_filter = ensure_fluent_tooltip_filter(
         owner,
         show_when_disabled=True,
     )

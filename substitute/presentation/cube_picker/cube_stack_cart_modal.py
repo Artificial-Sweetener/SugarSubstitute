@@ -18,6 +18,22 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationText,
+    apply_application_text,
+    app_text,
+    set_localized_accessible_name,
+    set_localized_placeholder,
+    set_localized_tooltip,
+)
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedPrimaryPushButton,
+    LocalizedPushButton,
+    LocalizedStrongBodyLabel,
+    LocalizedTitleLabel,
+)
+
 from collections.abc import Callable, Mapping
 from time import perf_counter
 from typing import Literal, Protocol, cast
@@ -43,16 +59,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    BodyLabel,
     CaptionLabel,
     FluentIcon,
     MessageBoxBase,
-    PrimaryPushButton,
-    PushButton,
     ScrollArea,
     SearchLineEdit,
     StrongBodyLabel,
-    TitleLabel,
     ToolButton,
 )
 
@@ -506,19 +518,19 @@ class CubeStackCartModal(MessageBoxBase):  # type: ignore[misc]
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        self._title = TitleLabel("Add cubes", header)
+        self._title = LocalizedTitleLabel(app_text("Add cubes"), header)
         layout.addWidget(self._title, 1)
 
         self._refresh_button = ToolButton(FluentIcon.SYNC, header)
-        self._refresh_button.setToolTip("Refresh catalog")
-        self._refresh_button.setAccessibleName("Refresh catalog")
+        set_localized_tooltip(self._refresh_button, "Refresh catalog")
+        set_localized_accessible_name(self._refresh_button, "Refresh catalog")
         self._refresh_button.clicked.connect(self._refresh_records)
         self._refresh_button.setEnabled(self._refresh_catalog is not None)
         layout.addWidget(self._refresh_button, 0)
 
         self._close_button = ToolButton(FluentIcon.CLOSE, header)
-        self._close_button.setToolTip("Close")
-        self._close_button.setAccessibleName("Close")
+        set_localized_tooltip(self._close_button, "Close")
+        set_localized_accessible_name(self._close_button, "Close")
         self._close_button.clicked.connect(self.reject)
         layout.addWidget(self._close_button, 0)
 
@@ -564,14 +576,14 @@ class CubeStackCartModal(MessageBoxBase):  # type: ignore[misc]
         layout.setSpacing(_PANE_SPACING)
         self._library_controls_layout = layout
 
-        self._library_title: QWidget = StrongBodyLabel(
-            "Cube library", self._library_controls
+        self._library_title: QWidget = LocalizedStrongBodyLabel(
+            app_text("Cube library"), self._library_controls
         )
         layout.addWidget(self._library_title)
 
         self._search = SearchLineEdit(self._library_controls)
-        self._search.setPlaceholderText("Search cubes")
-        self._search.setAccessibleName("Search cubes")
+        set_localized_placeholder(self._search, "Search cubes")
+        set_localized_accessible_name(self._search, "Search cubes")
         self._search.setMinimumWidth(_LIBRARY_SEARCH_MIN_WIDTH)
         self._search.textChanged.connect(self._rebuild_results)
         self._search.installEventFilter(self)
@@ -641,7 +653,7 @@ class CubeStackCartModal(MessageBoxBase):  # type: ignore[misc]
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(8)
-        title = StrongBodyLabel("Cube stack", header)
+        title = LocalizedStrongBodyLabel(app_text("Cube stack"), header)
         header_layout.addWidget(title, 0)
         header_layout.addStretch(1)
         layout.addWidget(header)
@@ -689,15 +701,15 @@ class CubeStackCartModal(MessageBoxBase):  # type: ignore[misc]
         layout.setSpacing(8)
         layout.addStretch(1)
 
-        self._clear_button = PushButton("Reset", footer)
+        self._clear_button = LocalizedPushButton(app_text("Reset"), footer)
         self._clear_button.clicked.connect(self._reset_draft_stack)
         layout.addWidget(self._clear_button)
 
-        self._cancel_button = PushButton("Cancel", footer)
+        self._cancel_button = LocalizedPushButton(app_text("Cancel"), footer)
         self._cancel_button.clicked.connect(self.reject)
         layout.addWidget(self._cancel_button)
 
-        self._apply_button = PrimaryPushButton("Apply", footer)
+        self._apply_button = LocalizedPrimaryPushButton(app_text("Apply"), footer)
         self._apply_button.clicked.connect(self.accept)
         layout.addWidget(self._apply_button)
         self._footer = footer
@@ -1095,8 +1107,12 @@ class CubeStackCartModal(MessageBoxBase):  # type: ignore[misc]
     def _add_empty_state(self) -> None:
         """Show a compact library empty state."""
 
-        text = "No cubes available" if not self._records else "No matching cubes"
-        label = BodyLabel(text, self._results)
+        text = (
+            app_text("No cubes available")
+            if not self._records
+            else app_text("No matching cubes")
+        )
+        label = LocalizedBodyLabel(text, self._results)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label.setMinimumHeight(120)
         self._results_layout.addWidget(label)
@@ -1525,7 +1541,7 @@ class CubeStackCartModal(MessageBoxBase):  # type: ignore[misc]
         if self._refresh_catalog is None:
             return
         self._refresh_button.setEnabled(False)
-        self._set_library_message("Refreshing...")
+        self._set_library_message(app_text("Refreshing..."))
         try:
             snapshot = self._refresh_catalog()
         except Exception as error:
@@ -1534,7 +1550,7 @@ class CubeStackCartModal(MessageBoxBase):  # type: ignore[misc]
                 "Cube stack cart modal refresh failed",
                 error=error,
             )
-            self._set_library_message("Unable to refresh catalog")
+            self._set_library_message(app_text("Unable to refresh catalog"))
             return
         finally:
             self._refresh_button.setEnabled(True)
@@ -1547,16 +1563,16 @@ class CubeStackCartModal(MessageBoxBase):  # type: ignore[misc]
         if snapshot.error:
             self._set_library_message(snapshot.error)
         elif snapshot.state == "stale":
-            self._set_library_message("Showing stale catalog")
+            self._set_library_message(app_text("Showing stale catalog"))
         else:
             self._set_library_message(None)
 
-    def _set_library_message(self, text: str | None) -> None:
+    def _set_library_message(self, text: ApplicationText | None) -> None:
         """Show actionable library status without normal count metadata."""
 
-        message = text or ""
-        self._library_message_label.setText(message)
-        self._library_message_label.setVisible(bool(message))
+        message: ApplicationText = text or ""
+        apply_application_text(self._library_message_label, message)
+        self._library_message_label.setVisible(bool(text))
         self._apply_modal_size()
 
     def _sync_library_message_from_results(self, visible_count: int) -> None:

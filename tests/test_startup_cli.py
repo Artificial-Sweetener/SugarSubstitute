@@ -30,6 +30,7 @@ from substitute.app.bootstrap.startup_cli import (
     build_ready_app_launch_command,
     extract_handoff_geometry,
     extract_install_root,
+    extract_locale_override,
     parse_startup_cli_arguments,
     prepare_ready_app_launch,
     trace_startup_cli_arguments,
@@ -93,6 +94,21 @@ def test_extract_handoff_geometry_rejects_invalid_cli_rects() -> None:
     assert (
         extract_handoff_geometry(["main.py", "--handoff-geometry=10,20,0,704"]) is None
     )
+
+
+def test_extract_locale_override_normalizes_supported_handoff_values() -> None:
+    """Startup should share one validated locale representation with the launcher."""
+
+    assert extract_locale_override(["main.py"]) is None
+    assert extract_locale_override(["main.py", "--locale=zh_CN"]) == "zh-Hans"
+    assert extract_locale_override(["main.py", "--locale=ja-JP"]) == "ja"
+
+
+def test_extract_locale_override_rejects_unsupported_handoff_values() -> None:
+    """Malformed or unsupported locale handoffs should fail before composition."""
+
+    with pytest.raises(ValueError, match="locale override"):
+        extract_locale_override(["main.py", "--locale=zh-TW"])
     assert (
         extract_handoff_geometry(["main.py", "--handoff-geometry=10,20,1260"]) is None
     )
@@ -111,6 +127,7 @@ def test_parse_startup_cli_arguments_returns_immutable_bootstrap_inputs() -> Non
             "--no-comfy",
             "--install-root=E:\\Substitute",
             "--handoff-geometry=10,20,1260,800",
+            "--locale=zh_CN",
         ]
     )
 
@@ -120,11 +137,13 @@ def test_parse_startup_cli_arguments_returns_immutable_bootstrap_inputs() -> Non
             "--no-comfy",
             "--install-root=E:\\Substitute",
             "--handoff-geometry=10,20,1260,800",
+            "--locale=zh_CN",
         ),
         argv_provided=True,
         no_comfy=True,
         handoff_geometry=(10, 20, 1260, 800),
         install_root=Path("E:\\Substitute"),
+        locale_override="zh-Hans",
     )
 
 
@@ -142,6 +161,7 @@ def test_parse_startup_cli_arguments_uses_process_argv_when_not_provided(
     assert parsed.no_comfy is True
     assert parsed.handoff_geometry is None
     assert parsed.install_root is None
+    assert parsed.locale_override is None
 
 
 def test_trace_startup_cli_arguments_emits_prompt_safe_fields(
@@ -167,6 +187,7 @@ def test_trace_startup_cli_arguments_emits_prompt_safe_fields(
             no_comfy=True,
             handoff_geometry=(1, 2, 3, 4),
             install_root=None,
+            locale_override="ja",
         )
     )
 
@@ -178,6 +199,7 @@ def test_trace_startup_cli_arguments_emits_prompt_safe_fields(
                 "no_comfy": True,
                 "arg_count": 2,
                 "handoff_geometry_present": True,
+                "locale_override_present": True,
             },
         ),
     ]

@@ -65,6 +65,43 @@ def test_node_search_quotes_scope_text_matches_to_matching_nodes() -> None:
     )
 
 
+def test_node_search_uses_authored_card_title_without_comfy_aliases() -> None:
+    """Node mode should search the visible cube identity, not its control type."""
+
+    snapshot = build_behavior_snapshot(
+        cube_states={
+            "A": cube_state(
+                nodes={
+                    "positive_prompt": {
+                        "class_type": "PrimitiveStringMultiline",
+                        "inputs": {"value": "a red fox"},
+                    }
+                }
+            )
+        },
+        stack_order=["A"],
+        definitions_by_class={
+            "PrimitiveStringMultiline": {
+                "display_name": "Input Text",
+                "input": {"required": {"value": ["STRING", {"multiline": True}]}},
+            }
+        },
+    )
+    service = EditorSearchService()
+
+    authored_result = service.build_result(
+        snapshot,
+        service.build_query(mode=EditorSearchMode.NODE, raw_text="positive prompt"),
+    )
+    comfy_result = service.build_result(
+        snapshot,
+        service.build_query(mode=EditorSearchMode.NODE, raw_text="input text"),
+    )
+
+    assert authored_result.matching_nodes == {("A", "positive_prompt")}
+    assert comfy_result.matching_nodes == set()
+
+
 def test_field_search_matches_field_keys_and_effective_labels() -> None:
     """Field mode should match both canonical field keys and beautified labels."""
 

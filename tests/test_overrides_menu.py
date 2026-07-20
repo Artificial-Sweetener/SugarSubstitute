@@ -263,6 +263,13 @@ def test_rebuild_override_menu_uses_behavior_snapshot_candidates(monkeypatch) ->
     from substitute.presentation.editor.panel.overrides_controller import (
         GlobalOverridesManager,
     )
+    from substitute.presentation.editor.panel import overrides_controller
+
+    monkeypatch.setattr(
+        overrides_controller,
+        "set_localized_tooltip",
+        lambda target, text: target.setToolTip(str(text)),
+    )
 
     behavior_snapshot = EditorBehaviorSnapshot(
         resolved_nodes_by_alias={},

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.application.errors import (
     ErrorReport,
     ErrorReportKind,
@@ -80,11 +82,11 @@ def build_startup_readiness_timeout_incident(
 
     target = installation_context.comfy_target
     workspace = target.workspace_path or installation_context.managed_comfy_dir
-    message = "ComfyUI did not become ready before the startup timeout."
+    message = app_text("ComfyUI did not become ready before the startup timeout.")
     return ComfyStartupIncident(
         kind=ComfyStartupIncidentKind.READINESS_TIMEOUT,
         severity=ComfyStartupIncidentSeverity.FATAL,
-        title="ComfyUI failed to start",
+        title=app_text("ComfyUI failed to start"),
         message=message,
         source=str(workspace),
         fingerprint=build_startup_incident_fingerprint(
@@ -94,7 +96,7 @@ def build_startup_readiness_timeout_incident(
             message=message,
         ),
         log_excerpt=transcript,
-        remediation=(
+        remediation=app_text(
             "Review the startup log, then update or disable the last component "
             "that was loading before the timeout."
         ),
@@ -119,22 +121,32 @@ def build_startup_runtime_compatibility_incident(
 
     target = installation_context.comfy_target
     workspace = target.workspace_path or installation_context.managed_comfy_dir
-    message_parts = [compatibility.summary]
+    message: ApplicationText = compatibility.summary
     if compatibility.required_backend_version:
-        message_parts.append(
-            f"Required BackEnd: {compatibility.required_backend_version}."
+        message = _append_message_part(
+            message,
+            app_text(
+                "Required BackEnd: %1.",
+                compatibility.required_backend_version,
+            ),
         )
     if compatibility.required_sugarcubes_version:
-        message_parts.append(
-            f"Required SugarCubes: {compatibility.required_sugarcubes_version}."
+        message = _append_message_part(
+            message,
+            app_text(
+                "Required SugarCubes: %1.",
+                compatibility.required_sugarcubes_version,
+            ),
         )
     if error is not None:
-        message_parts.append(str(error).strip() or type(error).__name__)
-    message = " ".join(part for part in message_parts if part)
+        message = _append_message_part(
+            message,
+            str(error).strip() or type(error).__name__,
+        )
     return ComfyStartupIncident(
         kind=ComfyStartupIncidentKind.RUNTIME_COMPATIBILITY_FAILED,
         severity=ComfyStartupIncidentSeverity.FATAL,
-        title="Comfy runtime is incompatible",
+        title=app_text("Comfy runtime is incompatible"),
         message=message,
         source=str(workspace),
         exception_type=type(error).__name__ if error is not None else None,
@@ -146,11 +158,15 @@ def build_startup_runtime_compatibility_incident(
         ),
         log_excerpt=transcript,
         remediation=(
-            "Automatic managed core update was attempted, but the runtime is still "
-            "incompatible. Repair the managed Comfy installation or update Substitute."
+            app_text(
+                "Automatic managed core update was attempted, but the runtime is still "
+                "incompatible. Repair the managed Comfy installation or update Substitute."
+            )
             if recovery_attempted
-            else "Repair the Comfy target so Substitute BackEnd and SugarCubes satisfy "
-            "this Substitute build."
+            else app_text(
+                "Repair the Comfy target so Substitute BackEnd and SugarCubes satisfy "
+                "this Substitute build."
+            )
         ),
         values={
             "compatibility_status": compatibility.status.value,
@@ -164,6 +180,15 @@ def build_startup_runtime_compatibility_incident(
             "workspace": str(workspace),
         },
     )
+
+
+def _append_message_part(
+    message: ApplicationText,
+    part: ApplicationText,
+) -> ApplicationText:
+    """Append one localized sentence while preserving opaque diagnostic text."""
+
+    return app_text("%1 %2", message, part)
 
 
 def _bounded_report_text(records: tuple[str, ...], *, limit: int = 65536) -> str | None:

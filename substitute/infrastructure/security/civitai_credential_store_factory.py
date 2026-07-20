@@ -21,6 +21,8 @@ from __future__ import annotations
 from pathlib import Path
 import sys
 
+from sugarsubstitute_shared.localization import app_text
+
 from substitute.application.ports.civitai_credential_store import CivitaiCredentialStore
 from substitute.infrastructure.security.keyring_civitai_credential_store import (
     KeyringCivitaiCredentialStore,
@@ -32,15 +34,15 @@ from substitute.infrastructure.security.windows_civitai_credential_store import 
     WindowsCivitaiCredentialStore,
 )
 
-_LINUX_REMEDIATION = (
+_LINUX_REMEDIATION = app_text(
     "Install and enable GNOME Keyring, KWallet, or another "
     "Secret Service-compatible keyring through your distribution's package manager, "
     "then sign in or unlock it and restart Substitute."
 )
-_MACOS_REMEDIATION = (
+_MACOS_REMEDIATION = app_text(
     "Enable or unlock macOS Keychain access for this user, then restart Substitute."
 )
-_GENERIC_REMEDIATION = (
+_GENERIC_REMEDIATION = app_text(
     "Enable a supported operating-system credential store, then restart Substitute."
 )
 
@@ -56,7 +58,10 @@ def build_civitai_credential_store(settings_dir: Path) -> CivitaiCredentialStore
         return _keyring_store_for_linux()
     return UnavailableCivitaiCredentialStore(
         backend_name="Operating-system credential store",
-        reason=f"Unsupported platform for secure CivitAI credential storage: {sys.platform}.",
+        reason=app_text(
+            "Unsupported platform for secure CivitAI credential storage: %1.",
+            sys.platform,
+        ),
         remediation=_GENERIC_REMEDIATION,
     )
 
@@ -69,7 +74,7 @@ def _keyring_store_for_macos() -> CivitaiCredentialStore:
     except ImportError:
         return UnavailableCivitaiCredentialStore(
             backend_name="macOS Keychain",
-            reason="The Python keyring package is not installed.",
+            reason=app_text("The Python keyring package is not installed."),
             remediation=_MACOS_REMEDIATION,
         )
 
@@ -82,7 +87,7 @@ def _keyring_store_for_linux() -> CivitaiCredentialStore:
     except ImportError:
         return UnavailableCivitaiCredentialStore(
             backend_name="Linux Secret Service/KWallet",
-            reason="The Python keyring package is not installed.",
+            reason=app_text("The Python keyring package is not installed."),
             remediation=_LINUX_REMEDIATION,
         )
 

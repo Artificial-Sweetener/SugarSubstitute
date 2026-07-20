@@ -68,6 +68,7 @@ class NodeCardBodyComposer:
         field_behaviors: Mapping[str, Any],
         content_layout: Any,
         node_name: str = ...,
+        field_labels: Mapping[str, str] | None = ...,
     ) -> None: ...
 
 class NodeCardBuilder:
@@ -95,8 +96,6 @@ class NodeCardBuilder:
         parent: QWidget | None = ...,
         prompt_field_inputs: Mapping[str, NodeCardPromptFieldInputs] | None = ...,
     ) -> Any: ...
-    @staticmethod
-    def _display_label_for_field(field_spec: ResolvedFieldSpec) -> str: ...
     def _create_title_row(self, *args: Any, **kwargs: Any) -> Any: ...
 
 __all__: list[str]

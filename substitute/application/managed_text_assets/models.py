@@ -21,6 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 
 class ManagedTextAssetKind(StrEnum):
     """Classify editable text assets by authoring surface needs."""
@@ -35,8 +37,8 @@ class ManagedTextAsset:
 
     id: str
     label: str
-    group: str
-    subtitle: str
+    group: ApplicationText
+    subtitle: ApplicationText
     kind: ManagedTextAssetKind
     editable: bool
     can_rename: bool

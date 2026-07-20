@@ -23,6 +23,8 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
 
+from sugarsubstitute_shared.localization import opaque_text
+
 from substitute.application.prompt_editor import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
@@ -32,7 +34,7 @@ from substitute.app.bootstrap.startup_trace import trace_mark, trace_span
 from substitute.shared.logging.logger import get_logger, log_exception, log_timing
 
 _LOGGER = get_logger("app.bootstrap.prompt_editor_gui_warmup")
-_REPRESENTATIVE_PROMPT_TEXT = (
+_REPRESENTATIVE_PROMPT_TEXT = opaque_text(
     "masterpiece, highly detailed, (cinematic lighting:1.2), "
     "__style/portrait__, <lora:example-style:0.8>, [scene:hero], sharp focus"
 )

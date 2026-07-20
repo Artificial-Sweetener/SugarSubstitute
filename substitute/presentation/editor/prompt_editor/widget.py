@@ -1529,7 +1529,7 @@ class PromptEditor(QFluentTextEdit):
 
         self._qfluent_chrome.finish_pending_focus_out_edit_block()
         super().focusOutEvent(event)
-        self._qfluent_chrome.schedule_focus_out_cleanup()
+        self._qfluent_chrome.schedule_focus_out_cleanup(event.reason())
 
     def changeEvent(self, event: QEvent) -> None:
         """Keep the projection surface aligned to host font and palette changes."""
@@ -1549,7 +1549,9 @@ class PromptEditor(QFluentTextEdit):
                 self._qfluent_chrome.handle_focus_in()
                 return False
             if event.type() == QEvent.Type.FocusOut:
-                self._qfluent_chrome.schedule_focus_out_cleanup()
+                self._qfluent_chrome.schedule_focus_out_cleanup(
+                    cast(QFocusEvent, event).reason()
+                )
                 return False
             if event.type() == QEvent.Type.KeyPress:
                 self._handle_prompt_key_press(cast(QKeyEvent, event))

@@ -24,6 +24,11 @@ import hashlib
 import re
 from pathlib import PureWindowsPath
 
+from sugarsubstitute_shared.localization import (
+    ApplicationText,
+    render_source_application_text,
+)
+
 
 class ComfyStartupIncidentSeverity(Enum):
     """Classify startup incidents by user impact."""
@@ -57,16 +62,16 @@ class ComfyStartupIncident:
 
     kind: ComfyStartupIncidentKind
     severity: ComfyStartupIncidentSeverity
-    title: str
-    message: str
+    title: ApplicationText
+    message: ApplicationText
     source: str | None = None
     exception_type: str | None = None
     fingerprint: str = ""
     log_excerpt: tuple[str, ...] = ()
     traceback: tuple[str, ...] = ()
-    impact: str | None = None
-    cause: str | None = None
-    remediation: str | None = None
+    impact: ApplicationText | None = None
+    cause: ApplicationText | None = None
+    remediation: ApplicationText | None = None
     values: dict[str, object] = field(default_factory=dict)
 
 
@@ -75,7 +80,7 @@ def build_startup_incident_fingerprint(
     kind: ComfyStartupIncidentKind,
     source: str | None,
     exception_type: str | None,
-    message: str,
+    message: ApplicationText,
 ) -> str:
     """Return a stable key for one repeatable startup incident."""
 
@@ -84,7 +89,7 @@ def build_startup_incident_fingerprint(
             kind.value,
             normalized_startup_incident_source(source) or "",
             _normalized_fingerprint_segment(exception_type or ""),
-            _normalized_fingerprint_segment(message),
+            _normalized_fingerprint_segment(render_source_application_text(message)),
         )
     )
     return hashlib.sha256(material.encode("utf-8")).hexdigest()

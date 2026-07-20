@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.comfy_startup_diagnostics import (
     ComfyStartupDiagnosticsCollector,
 )
@@ -323,7 +325,10 @@ def test_module_not_found_custom_node_failure_gets_dependency_remediation() -> N
     incident = collector.incidents()[0]
 
     assert incident.exception_type == "ModuleNotFoundError"
-    assert incident.cause == "Missing Python dependency: einops."
+    assert incident.cause is not None
+    assert render_source_application_text(incident.cause) == (
+        "Missing Python dependency: einops."
+    )
     assert incident.remediation is not None
     assert (
         incident.remediation

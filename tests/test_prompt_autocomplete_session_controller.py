@@ -475,7 +475,7 @@ def test_autocomplete_handle_key_press_leaves_enter_to_editor_text_input() -> No
         ),
     )
     coordinator = build_test_autocomplete_coordinator(
-        SimpleNamespace(),
+        SimpleNamespace(isAncestorOf=lambda _widget: False),
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         autocomplete_session_controller=session_controller,
     )
@@ -525,12 +525,45 @@ def test_focus_lost_dismissal_keeps_session_when_panel_is_under_pointer(
         ),
     )
     coordinator = build_test_autocomplete_coordinator(
-        SimpleNamespace(),
+        SimpleNamespace(isAncestorOf=lambda _widget: False),
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         autocomplete_session_controller=session_controller,
     )
     coordinator._presenter = SimpleNamespace(
         panel_under_mouse=lambda: True,
+    )
+
+    coordinator.dismiss_autocomplete("focus_lost")
+
+    assert session_controller.state.lifecycle == "active"
+
+
+def test_focus_lost_dismissal_keeps_session_for_editor_descendant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep autocomplete when the projection surface owns editor focus."""
+
+    mod = import_autocomplete_module()
+    projection_surface = object()
+    editor = SimpleNamespace(
+        isAncestorOf=lambda widget: widget is projection_surface,
+    )
+    monkeypatch.setattr(
+        mod,
+        "QApplication",
+        SimpleNamespace(focusWidget=lambda: projection_surface),
+    )
+    session_controller = autocomplete_session_controller_with_session(
+        mod,
+        AutocompleteSession(
+            suggestions=(PromptAutocompleteSuggestion("1girl"),),
+            selected_index=0,
+        ),
+    )
+    coordinator = build_test_autocomplete_coordinator(
+        editor,
+        prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
+        autocomplete_session_controller=session_controller,
     )
 
     coordinator.dismiss_autocomplete("focus_lost")
@@ -557,7 +590,7 @@ def test_focus_lost_dismissal_clears_when_focus_leaves_editor_flow(
         ),
     )
     coordinator = build_test_autocomplete_coordinator(
-        SimpleNamespace(),
+        SimpleNamespace(isAncestorOf=lambda _widget: False),
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         autocomplete_session_controller=session_controller,
     )

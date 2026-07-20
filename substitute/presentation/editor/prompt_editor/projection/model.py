@@ -24,6 +24,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Protocol
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 from substitute.application.prompt_editor.prompt_lora_resolution_service import (
     PromptLoraResolutionStatus,
 )
@@ -163,7 +165,7 @@ class PromptProjectionToken:
     source_end: int
     display_text: str
     value_text: str | None = None
-    status_text: str | None = None
+    status_text: ApplicationText | None = None
     style_variant: str | None = None
     wildcard_display_tag: str | None = None
     wildcard_tag_is_explicit: bool = False

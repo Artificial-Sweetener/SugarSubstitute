@@ -22,6 +22,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import TypeAlias
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 
 @dataclass(frozen=True, slots=True)
 class DanbooruWikiTextNode:
@@ -157,7 +159,7 @@ DanbooruWikiBlock: TypeAlias = (
 class DanbooruWikiSectionContent:
     """Group semantic Danbooru blocks under one optional section heading."""
 
-    heading: str | None
+    heading: ApplicationText | None
     blocks: tuple[DanbooruWikiBlock, ...]
     anchor_id: str | None = None
 

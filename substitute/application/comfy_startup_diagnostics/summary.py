@@ -18,7 +18,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+
+from sugarsubstitute_shared.localization import (
+    ApplicationText,
+    app_text,
+    render_source_application_text,
+)
 
 from substitute.domain.comfy_startup_diagnostics import (
     ComfyStartupIncident,
@@ -44,57 +50,68 @@ def render_startup_diagnostics_report(
     incidents: Iterable[ComfyStartupIncident],
     *,
     transcript: tuple[str, ...] = (),
+    text_renderer: Callable[[ApplicationText], str] | None = None,
 ) -> str:
     """Render startup incidents and transcript as copyable plain text."""
 
     incident_list = tuple(incidents)
+    render = text_renderer or render_source_application_text
+    heading = render(app_text("ComfyUI startup diagnostics"))
     lines: list[str] = [
-        "ComfyUI startup diagnostics",
-        "----------------------------",
-        f"Incident count: {len(incident_list)}",
+        heading,
+        "-" * len(heading),
+        render(app_text("Incident count: %1", len(incident_list))),
     ]
     for index, incident in enumerate(incident_list, start=1):
         lines.extend(
             (
                 "",
-                f"{index}. {incident.title}",
-                f"Severity: {incident.severity.value}",
-                f"Kind: {incident.kind.value}",
-                f"Source: {incident.source or 'unknown'}",
-                f"Message: {incident.message}",
+                render(app_text("%1. %2", index, incident.title)),
+                render(app_text("Severity: %1", incident.severity.value)),
+                render(app_text("Kind: %1", incident.kind.value)),
+                render(
+                    app_text(
+                        "Source: %1",
+                        incident.source or app_text("unknown"),
+                    )
+                ),
+                render(app_text("Message: %1", incident.message)),
             )
         )
         if incident.impact:
-            lines.append(f"Impact: {incident.impact}")
+            lines.append(render(app_text("Impact: %1", incident.impact)))
         if incident.cause:
-            lines.append(f"Likely cause: {incident.cause}")
+            lines.append(render(app_text("Likely cause: %1", incident.cause)))
         location = _value_as_text(incident.values.get("location"))
         if location:
-            lines.append(f"Location: {location}")
+            lines.append(render(app_text("Location: %1", location)))
         missing_module = _value_as_text(incident.values.get("missing_module"))
         if missing_module:
-            lines.append(f"Missing module: {missing_module}")
+            lines.append(render(app_text("Missing module: %1", missing_module)))
         extension_version = _value_as_text(incident.values.get("extension_version"))
         if extension_version:
-            lines.append(f"Extension version: {extension_version}")
+            lines.append(render(app_text("Extension version: %1", extension_version)))
         repository_url = _value_as_text(incident.values.get("repository_url"))
         if repository_url:
-            lines.append(f"Repository: {repository_url}")
+            lines.append(render(app_text("Repository: %1", repository_url)))
         issues_url = _value_as_text(incident.values.get("issues_url"))
         if issues_url:
-            lines.append(f"Issues: {issues_url}")
+            lines.append(render(app_text("Issues: %1", issues_url)))
         repository_source = _value_as_text(incident.values.get("repository_source"))
         if repository_source:
-            lines.append(f"Metadata source: {repository_source}")
-        lines.append(f"Fingerprint: {incident.fingerprint}")
+            lines.append(render(app_text("Metadata source: %1", repository_source)))
+        lines.append(render(app_text("Fingerprint: %1", incident.fingerprint)))
         if incident.remediation:
-            lines.append(f"Suggested action: {incident.remediation}")
+            lines.append(render(app_text("Suggested action: %1", incident.remediation)))
         if incident.traceback:
-            lines.extend(("", "Traceback:", *incident.traceback))
+            lines.extend(("", render(app_text("Traceback:")), *incident.traceback))
         elif incident.log_excerpt:
-            lines.extend(("", "Log excerpt:", *incident.log_excerpt))
+            lines.extend(("", render(app_text("Log excerpt:")), *incident.log_excerpt))
     if transcript:
-        lines.extend(("", "Startup transcript", "------------------", *transcript))
+        transcript_heading = render(app_text("Startup transcript"))
+        lines.extend(
+            ("", transcript_heading, "-" * len(transcript_heading), *transcript)
+        )
     return "\n".join(lines).strip()
 
 

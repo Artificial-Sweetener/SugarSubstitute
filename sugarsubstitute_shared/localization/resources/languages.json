@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "default_language": "en",
+  "languages": [
+    {
+      "id": "en",
+      "native_display_name": "English",
+      "qt_locale_candidates": ["en_US", "en"],
+      "accepted_system_tags": ["en", "en-*"],
+      "comfy_catalog_aliases": ["en"],
+      "app_qm": null,
+      "launcher_qm": null,
+      "qtbase_qm": null,
+      "fluent_qm": null,
+      "fluent_catalog_source": "none",
+      "text_direction": "left-to-right",
+      "font_profile": "system",
+      "release_enabled": true
+    },
+    {
+      "id": "zh-Hans",
+      "native_display_name": "简体中文",
+      "qt_locale_candidates": ["zh_CN", "zh_SG", "zh_Hans"],
+      "accepted_system_tags": [
+        "zh",
+        "zh-Hans",
+        "zh-Hans-*",
+        "zh-CN",
+        "zh-CN-*",
+        "zh-SG",
+        "zh-SG-*",
+        "zh-MY",
+        "zh-MY-*"
+      ],
+      "comfy_catalog_aliases": ["zh", "zh-CN"],
+      "app_qm": "sugarsubstitute_zh_CN.qm",
+      "launcher_qm": "launcher_zh_CN.qm",
+      "qtbase_qm": "qtbase_zh_CN.qm",
+      "fluent_qm": "qfluentwidgets.zh_CN.qm",
+      "fluent_catalog_source": "upstream",
+      "text_direction": "left-to-right",
+      "font_profile": "cjk-sc",
+      "release_enabled": true
+    },
+    {
+      "id": "ja",
+      "native_display_name": "日本語",
+      "qt_locale_candidates": ["ja_JP", "ja"],
+      "accepted_system_tags": ["ja", "ja-*"],
+      "comfy_catalog_aliases": ["ja"],
+      "app_qm": "sugarsubstitute_ja_JP.qm",
+      "launcher_qm": "launcher_ja_JP.qm",
+      "qtbase_qm": "qtbase_ja.qm",
+      "fluent_qm": null,
+      "fluent_catalog_source": "none",
+      "text_direction": "left-to-right",
+      "font_profile": "cjk-jp",
+      "release_enabled": true
+    }
+  ]
+}

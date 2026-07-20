@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 import argparse
 import json
 import sys
@@ -31,6 +33,9 @@ from substitute.app.bootstrap.splash_process import (
     _handle_cancel_requested,
     _theme_mode_from_arg,
 )
+from substitute.app.bootstrap.splash_localization import (
+    build_splash_localization_runtime,
+)
 from substitute.app.bootstrap.theme import configure_theme
 from substitute.presentation.resources.app_icon import application_icon
 from substitute.shared.qfluentwidgets_banner import (
@@ -41,6 +46,7 @@ from sugarsubstitute_shared.launch_splash import (
     SplashSessionServer,
     splash_cancel_signal_path,
 )
+from sugarsubstitute_shared.localization import parse_locale_override
 
 
 class SplashSessionQtBridge(QObject):
@@ -72,6 +78,10 @@ def main(argv: list[str] | None = None) -> int:
     if app is None:
         app = QApplication([sys.argv[0]])
     app = cast(QApplication, app)
+    localization_runtime = build_splash_localization_runtime(
+        app,
+        locale_override=args.locale,
+    )
 
     with suppress_qfluentwidgets_import_banner():
         configure_theme(
@@ -120,6 +130,7 @@ def main(argv: list[str] | None = None) -> int:
         return int(app.exec())
     finally:
         server.close()
+        localization_runtime.manager.close()
 
 
 def _handle_session_message(
@@ -179,11 +190,14 @@ def _clear_stale_cancel_signal(*, server: SplashSessionServer) -> None:
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     """Parse shared splash host process arguments."""
 
-    parser = argparse.ArgumentParser(description="Run SugarSubstitute splash host.")
+    parser = argparse.ArgumentParser(
+        description=app_text("Run SugarSubstitute splash host.")
+    )
     parser.add_argument("--theme-mode", type=str, required=False)
     parser.add_argument("--accent-color", type=str, required=False)
     parser.add_argument("--backdrop-mode", type=str, required=False)
     parser.add_argument("--maximum-lifetime-seconds", type=float, default=1800.0)
+    parser.add_argument("--locale", type=parse_locale_override, default="en")
     return parser.parse_args(argv)
 
 

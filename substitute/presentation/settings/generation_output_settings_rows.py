@@ -18,11 +18,17 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import translate_application_text
+
+from sugarsubstitute_shared.presentation.localization import app_text
+
+from substitute.presentation.localization import LocalizedPushButton
+
 from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtWidgets import QFileDialog, QWidget
-from qfluentwidgets import LineEdit, PushButton  # type: ignore[import-untyped]
+from qfluentwidgets import LineEdit  # type: ignore[import-untyped]
 
 from substitute.application.generation import (
     OutputPersistenceMode,
@@ -66,8 +72,8 @@ class GenerationOutputSettingsRows:
         edit.setObjectName("OutputRootEdit")
         configure_settings_field_width(edit, preferred_width=420)
         edit.setText(str(preferences.organization.output_root or default_root))
-        browse_button = PushButton("Browse", parent)
-        reset_button = PushButton("Default", parent)
+        browse_button = LocalizedPushButton(app_text("Browse"), parent)
+        reset_button = LocalizedPushButton(app_text("Default"), parent)
 
         def current_preferences() -> OutputPreferences:
             """Return current aggregate with the edited root applied."""
@@ -96,7 +102,7 @@ class GenerationOutputSettingsRows:
 
             selected = QFileDialog.getExistingDirectory(
                 parent,
-                "Choose output folder",
+                translate_application_text("Choose output folder"),
                 edit.text().strip() or str(default_root),
             )
             if not selected:
@@ -123,8 +129,8 @@ class GenerationOutputSettingsRows:
             visual_widget=build_settings_icon_widget(
                 AppIcon.SAVE_IMAGE_20_REGULAR, parent
             ),
-            title="Output folder",
-            description="Choose where generated images are saved.",
+            title=app_text("Output folder"),
+            description=app_text("Choose where generated images are saved."),
             trailing_widget=SettingsControlGroup(
                 edit,
                 browse_button,
@@ -175,8 +181,10 @@ class GenerationOutputSettingsRows:
             visual_widget=build_settings_icon_widget(
                 AppIcon.DOCUMENT_TEXT_20_REGULAR, parent
             ),
-            title="Output pattern",
-            description="Compose relative folders and filename without the .png extension.",
+            title=app_text("Output pattern"),
+            description=app_text(
+                "Compose relative folders and filename without the .png extension."
+            ),
             trailing_widget=SettingsControlGroup(edit, parent=parent),
             reserve_visual_space=True,
             wrap_threshold=640,
@@ -201,8 +209,8 @@ class GenerationOutputSettingsRows:
             visual_widget=build_settings_icon_widget(
                 AppIcon.SAVE_IMAGE_20_REGULAR, parent
             ),
-            title="Output preview",
-            description="Shows an example path using the current settings.",
+            title=app_text("Output preview"),
+            description=app_text("Shows an example path using the current settings."),
             trailing_widget=SettingsControlGroup(edit, parent=parent),
             reserve_visual_space=True,
             wrap_threshold=680,
@@ -216,8 +224,10 @@ class GenerationOutputSettingsRows:
         return build_combo_settings_row(
             parent=parent,
             icon=AppIcon.SAVE_IMAGE_20_REGULAR,
-            title="Saved cube outputs",
-            description="Save every cube output or only the final active cube.",
+            title=app_text("Saved cube outputs"),
+            description=app_text(
+                "Save every cube output or only the final active cube."
+            ),
             options=(
                 ("Every cube", OutputPersistenceMode.ALL.value),
                 ("Final cube only", OutputPersistenceMode.FINAL_CUBE.value),

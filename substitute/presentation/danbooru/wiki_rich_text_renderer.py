@@ -54,13 +54,13 @@ class DanbooruWikiRichTextRenderer:
         body_html = _render_block_html(page_view.body_dtext)
         html_text = (
             "<html><head><style>"
-            "body { font-family: 'Segoe UI'; font-size: 10pt; line-height: 1.45; }"
+            "body { font-family: sans-serif; font-size: 10pt; line-height: 1.45; }"
             "h1,h2,h3,h4,h5,h6 { margin: 16px 0 8px 0; font-weight: 700; }"
             "p { margin: 0 0 10px 0; }"
             "ul,ol { margin: 0 0 10px 20px; }"
             "li { margin: 0 0 4px 0; }"
             "a { text-decoration: none; }"
-            "code { font-family: 'Cascadia Mono'; background: rgba(127,127,127,0.12);"
+            "code { font-family: monospace; background: rgba(127,127,127,0.12);"
             " padding: 1px 3px; border-radius: 3px; }"
             "blockquote { margin: 0 0 10px 12px; padding-left: 10px;"
             " border-left: 3px solid rgba(127,127,127,0.35); }"

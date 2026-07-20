@@ -32,6 +32,7 @@ from substitute.application.node_behavior import (
     NodeBehaviorService,
     ResolvedFieldSpec,
 )
+from substitute.application.localization import NodePresentationService
 from substitute.application.workflows import (
     CubeRuntimeIssue,
     CubeRuntimeIssueSource,
@@ -107,6 +108,7 @@ class EditorPanel(QWidget):
         prompt_autocomplete_gateway: PromptAutocompleteGateway,
         prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
         node_behavior_service: NodeBehaviorService,
+        node_presentation_service: NodePresentationService,
         danbooru_url_import_service: DanbooruUrlImportService | None = ...,
         danbooru_wiki_service: DanbooruWikiContentService | None = ...,
         danbooru_image_preview_service: DanbooruImagePreviewService | None = ...,

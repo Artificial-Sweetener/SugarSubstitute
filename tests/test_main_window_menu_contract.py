@@ -610,6 +610,12 @@ def _import_module():
     sys.modules.pop("substitute.presentation.shell.settings_toolbar_search", None)
     sys.modules.pop("substitute.presentation.shell.main_window_menu", None)
     try:
+        settings_search = importlib.import_module(
+            "substitute.presentation.shell.settings_toolbar_search"
+        )
+        settings_search.set_localized_placeholder = lambda target, text: (
+            target.setPlaceholderText(str(text))
+        )
         return importlib.import_module("substitute.presentation.shell.main_window_menu")
     finally:
         _restore_stubbed_modules(preserved_modules)

@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from sugarsubstitute_shared.presentation.localization import app_text
+
 
 class CanvasRouteController:
     """Own active workflow canvas-route projection for the shell."""
@@ -47,7 +49,7 @@ class CanvasRouteController:
             set_canvas_available(
                 "Input",
                 needs_input_canvas,
-                reason="No input canvas nodes",
+                reason=app_text("No input canvas nodes"),
                 fallback_label="Output",
             )
         self.restore_active_canvas_route(

@@ -18,6 +18,9 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+from substitute.presentation.localization import LocalizedCaptionLabel
+
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
@@ -773,7 +776,7 @@ class GenerationQueueRowsView(QWidget):
     def _create_separator(self) -> QLabel:
         """Create the quiet pending/resolved separator label."""
 
-        separator = CaptionLabel("Resolved", self)
+        separator = LocalizedCaptionLabel(app_text("Resolved"), self)
         separator.setObjectName("GenerationQueueResolvedSeparator")
         separator.setContentsMargins(2, 4, 2, 0)
         return cast(QLabel, separator)

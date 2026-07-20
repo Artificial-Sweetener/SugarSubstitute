@@ -18,11 +18,13 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import app_text
+from substitute.presentation.localization import LocalizedPrimaryPushButton
+
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import QApplication, QLayout, QSizePolicy, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     MessageBoxBase,
-    PrimaryPushButton,
     TextBrowser,
 )
 from shiboken6 import isValid
@@ -111,7 +113,9 @@ class LicenseDialog(MessageBoxBase):  # type: ignore[misc]
         self.buttonLayout.setSpacing(12)
         self.buttonLayout.addStretch(1)
 
-        self._close_button = PrimaryPushButton("Close", self.buttonGroup)
+        self._close_button = LocalizedPrimaryPushButton(
+            app_text("Close"), self.buttonGroup
+        )
         self._close_button.setObjectName("LicenseDialogCloseButton")
         self._close_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
         self._close_button.setMinimumWidth(_CLOSE_BUTTON_MINIMUM_WIDTH)
@@ -172,7 +176,7 @@ def _license_document_html(license_html: str) -> str:
 
     return (
         "<style>"
-        "body { font-family: 'Segoe UI', sans-serif; font-size: 13px; "
+        "body { font-family: sans-serif; font-size: 13px; "
         "line-height: 1.45; } "
         "h3 { font-size: 17px; margin-top: 0; } "
         "p { margin: 0 0 12px 0; } "

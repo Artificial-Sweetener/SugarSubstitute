@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.application.ports import (
     PromptWildcardCatalogGateway,
     PromptWildcardReference,
@@ -110,12 +112,16 @@ def _diagnostic_for_missing_wildcard(
     )
 
 
-def _missing_wildcard_message(span: PromptWildcardView) -> str:
+def _missing_wildcard_message(span: PromptWildcardView) -> ApplicationText:
     """Return concise user-facing diagnostic text for one missing wildcard."""
 
     if span.wildcard_form == "csv" and span.csv_column is not None:
-        return f"Missing CSV wildcard column: {span.identifier}:{span.csv_column}"
-    return f"Missing wildcard: {span.identifier}"
+        return app_text(
+            "Missing CSV wildcard column: %1:%2",
+            span.identifier,
+            span.csv_column,
+        )
+    return app_text("Missing wildcard: %1", span.identifier)
 
 
 __all__ = ["PromptWildcardDiagnosticProvider"]

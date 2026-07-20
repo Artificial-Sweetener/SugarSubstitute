@@ -28,6 +28,12 @@ from substitute.presentation.settings.settings_style import (
     SETTINGS_CARD_GROUP_SPACING,
     SETTINGS_CARD_GROUP_TITLE_BOTTOM_MARGIN,
 )
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    LocalizationBindings,
+    apply_application_text,
+)
 
 
 class SettingsCardGroup(QWidget):
@@ -35,22 +41,27 @@ class SettingsCardGroup(QWidget):
 
     def __init__(
         self,
-        title: str,
+        title: ApplicationText,
         *,
-        subtitle: str = "",
+        subtitle: ApplicationText = "",
         cards: Iterable[QWidget] = (),
         parent: QWidget | None = None,
     ) -> None:
         """Create a group with optional initial cards."""
 
         super().__init__(parent)
-        self.setObjectName(f"SettingsCardGroup-{title.replace(' ', '')}")
+        stable_title = (
+            title.source_text if isinstance(title, ApplicationMessage) else title
+        )
+        self.setObjectName(f"SettingsCardGroup-{stable_title.replace(' ', '')}")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setStyleSheet("background-color: transparent; border: none;")
         self.title_label = StrongBodyLabel(title, self)
         self.subtitle_label = CaptionLabel(subtitle, self)
         self.subtitle_label.setWordWrap(True)
         self.subtitle_label.setVisible(bool(subtitle))
+        self._localization_bindings = LocalizationBindings(self)
+        self._bind_heading_messages(title, subtitle)
         self._cards: list[QWidget] = []
         self._build_layout()
         for card in cards:
@@ -62,12 +73,28 @@ class SettingsCardGroup(QWidget):
         self._cards.append(card)
         self._card_layout.addWidget(card)
 
-    def set_heading(self, title: str, subtitle: str = "") -> None:
+    def set_heading(
+        self,
+        title: ApplicationText,
+        subtitle: ApplicationText = "",
+    ) -> None:
         """Update the visible heading text for this Settings section."""
 
-        self.title_label.setText(title)
-        self.subtitle_label.setText(subtitle)
+        apply_application_text(self.title_label, title)
+        apply_application_text(self.subtitle_label, subtitle)
         self.subtitle_label.setVisible(bool(subtitle))
+
+    def _bind_heading_messages(
+        self,
+        title: ApplicationText,
+        subtitle: ApplicationText,
+    ) -> None:
+        """Retain marked heading copy while leaving opaque strings untouched."""
+
+        if isinstance(title, ApplicationMessage):
+            self._localization_bindings.bind_message(self.title_label, title)
+        if isinstance(subtitle, ApplicationMessage):
+            self._localization_bindings.bind_message(self.subtitle_label, subtitle)
 
     def set_cards(self, cards: Iterable[QWidget]) -> None:
         """Replace the card order while preserving reused card widgets."""

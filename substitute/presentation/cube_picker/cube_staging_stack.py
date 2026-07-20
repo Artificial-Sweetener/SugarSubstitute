@@ -18,11 +18,14 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import set_localized_tooltip
+
 from typing import cast
 
 from PySide6.QtCore import (
     QEvent,
     QEasingCurve,
+    QObject,
     QPoint,
     QPropertyAnimation,
     QSize,
@@ -50,6 +53,9 @@ from substitute.application.cubes import (
     CubeStackAliasPlan,
     CubeStackDraftEntry,
     plan_cube_stack_aliases,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_accessible_name,
 )
 from substitute.presentation.cubes.cube_card_visual import (
     CubeCardVisual,
@@ -112,8 +118,13 @@ class CubeDraftStackCard(QFrame):
         )
         self.closeButton.setIconSize(QSize(10, 10))
         self.closeButton.setCursor(Qt.CursorShape.ArrowCursor)
-        self.closeButton.setToolTip("Remove")
-        self.closeButton.setAccessibleName(f"Remove {planned_alias}")
+        close_button = cast(QObject, self.closeButton)
+        set_localized_tooltip(close_button, "Remove")
+        set_localized_accessible_name(
+            close_button,
+            "Remove %1",
+            planned_alias,
+        )
         self.closeButton.clicked.connect(
             lambda: self.remove_requested.emit(self.entry.draft_id)
         )

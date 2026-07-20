@@ -33,7 +33,7 @@ from substitute.presentation.semantic_colors import (
 from substitute.presentation.shell.titlebar_buttons import (
     StartupDiagnosticsTitleBarButton,
 )
-from substitute.presentation.widgets.cursor_tooltip_filter import CursorToolTipFilter
+from sugarsubstitute_shared.presentation.fluent_tooltips import FluentToolTipFilter
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
@@ -61,7 +61,7 @@ def test_startup_diagnostics_button_exposes_accessible_titlebar_state() -> None:
     assert button.accessibleName() == "ComfyUI startup diagnostics"
     assert button.focusPolicy() == Qt.FocusPolicy.NoFocus
     assert button.visible_width > button.height()
-    assert isinstance(button._tooltip_filter, CursorToolTipFilter)
+    assert isinstance(button._tooltip_filter, FluentToolTipFilter)
     assert button._tooltip_filter.parent() is button
 
     button.close()

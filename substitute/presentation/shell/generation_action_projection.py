@@ -18,15 +18,17 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationMessage, app_text
+
 from substitute.presentation.shell.generation_action_state import (
     GenerationActionPresentation,
     GenerationActionState,
     GenerationPlayPresentationMode,
 )
 
-_GENERATE_TOOLTIP = "Generate"
-_CONTINUOUS_TOOLTIP = "Continuous"
-_END_CONTINUOUS_TOOLTIP = "Stop continuous after current job"
+_GENERATE_TOOLTIP = app_text("Generate")
+_CONTINUOUS_TOOLTIP = app_text("Continuous")
+_END_CONTINUOUS_TOOLTIP = app_text("Stop continuous after current job")
 
 
 def project_generation_actions(
@@ -76,7 +78,7 @@ def _project_play_mode(state: GenerationActionState) -> GenerationPlayPresentati
     return state.selected_mode
 
 
-def _play_tooltip(play_mode: GenerationPlayPresentationMode) -> str:
+def _play_tooltip(play_mode: GenerationPlayPresentationMode) -> ApplicationMessage:
     """Return tooltip text for one play segment presentation mode."""
 
     if play_mode == "generate":

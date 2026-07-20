@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from pathlib import PureWindowsPath
 import re
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from substitute.domain.comfy_startup_diagnostics.models import (
     ComfyStartupIncidentKind,
     normalized_startup_incident_source,
@@ -47,7 +49,7 @@ class StartupRemediationFacts:
     kind: ComfyStartupIncidentKind
     source: str | None
     exception_type: str | None
-    message: str
+    message: ApplicationText
     traceback: tuple[str, ...] = ()
     location: str | None = None
 
@@ -56,9 +58,9 @@ class StartupRemediationFacts:
 class StartupRemediation:
     """Describe user-facing impact and next steps for one startup incident."""
 
-    impact: str | None
-    suggested_action: str | None
-    cause: str | None = None
+    impact: ApplicationText | None
+    suggested_action: ApplicationText | None
+    cause: ApplicationText | None = None
 
 
 def build_startup_remediation(
@@ -72,47 +74,67 @@ def build_startup_remediation(
         case ComfyStartupIncidentKind.CUSTOM_NODE_PRESTARTUP_FAILED:
             return StartupRemediation(
                 impact=_extension_impact(facts.source),
-                cause="The extension startup script failed before normal imports completed.",
+                cause=app_text(
+                    "The extension startup script failed before normal imports completed."
+                ),
                 suggested_action=_DEFAULT_EXTENSION_ACTION,
             )
         case ComfyStartupIncidentKind.BUILTIN_NODE_IMPORT_FAILED:
             return StartupRemediation(
-                impact="Some built-in or API nodes may be unavailable in ComfyUI.",
-                cause="ComfyUI reported that one of its bundled node groups did not import correctly.",
-                suggested_action="Update ComfyUI dependencies and restart the application.",
+                impact=app_text(
+                    "Some built-in or API nodes may be unavailable in ComfyUI."
+                ),
+                cause=app_text(
+                    "ComfyUI reported that one of its bundled node groups did not import correctly."
+                ),
+                suggested_action=app_text(
+                    "Update ComfyUI dependencies and restart the application."
+                ),
             )
         case ComfyStartupIncidentKind.PROCESS_EXITED_BEFORE_READY:
             return StartupRemediation(
-                impact="ComfyUI did not become ready, so the application cannot continue startup.",
-                cause="The managed ComfyUI process exited before the readiness endpoint responded.",
-                suggested_action="Review the startup log and fix the last reported ComfyUI error.",
+                impact=app_text(
+                    "ComfyUI did not become ready, so the application cannot continue startup."
+                ),
+                cause=app_text(
+                    "The managed ComfyUI process exited before the readiness endpoint responded."
+                ),
+                suggested_action=app_text(
+                    "Review the startup log and fix the last reported ComfyUI error."
+                ),
             )
         case ComfyStartupIncidentKind.READINESS_TIMEOUT:
             return StartupRemediation(
-                impact="ComfyUI did not become ready before the startup timeout.",
-                cause="The readiness endpoint did not respond in time.",
-                suggested_action="Review the startup log for the slow or blocked startup step.",
+                impact=app_text(
+                    "ComfyUI did not become ready before the startup timeout."
+                ),
+                cause=app_text("The readiness endpoint did not respond in time."),
+                suggested_action=app_text(
+                    "Review the startup log for the slow or blocked startup step."
+                ),
             )
         case ComfyStartupIncidentKind.SUGARCUBES_MAINTENANCE_WARNING:
             return StartupRemediation(
-                impact=(
+                impact=app_text(
                     "ComfyUI can continue starting, but some SugarCubes workflows "
                     "may need attention before they run correctly."
                 ),
-                cause="SugarCubes reported a recoverable startup maintenance issue.",
-                suggested_action=(
+                cause=app_text(
+                    "SugarCubes reported a recoverable startup maintenance issue."
+                ),
+                suggested_action=app_text(
                     "Review the SugarCubes diagnostic details and repair the listed "
                     "cube pack or dependency when convenient."
                 ),
             )
         case ComfyStartupIncidentKind.SUGARCUBES_MAINTENANCE_FAILED:
             return StartupRemediation(
-                impact=(
+                impact=app_text(
                     "ComfyUI can continue starting, but SugarCubes cube features may "
                     "be degraded until this is repaired."
                 ),
-                cause="SugarCubes startup maintenance failed.",
-                suggested_action=(
+                cause=app_text("SugarCubes startup maintenance failed."),
+                suggested_action=app_text(
                     "Review the SugarCubes diagnostic details and repair the listed "
                     "cube pack, dependency, or local checkout."
                 ),
@@ -159,13 +181,13 @@ def _custom_node_import_remediation(
     if exception_type == "SyntaxError" and _contains_unicode_escape_error(message):
         return StartupRemediation(
             impact=_extension_impact(facts.source),
-            cause="Invalid backslash escape in the extension's Python code.",
+            cause=app_text("Invalid backslash escape in the extension's Python code."),
             suggested_action=_DEFAULT_EXTENSION_ACTION,
         )
     if exception_type == "SyntaxError":
         return StartupRemediation(
             impact=_extension_impact(facts.source),
-            cause="Python could not parse the extension's source code.",
+            cause=app_text("Python could not parse the extension's source code."),
             suggested_action=_DEFAULT_EXTENSION_ACTION,
         )
     if exception_type == "ModuleNotFoundError" or "no module named" in message:
@@ -175,25 +197,27 @@ def _custom_node_import_remediation(
         return StartupRemediation(
             impact=_extension_impact(facts.source),
             cause=(
-                f"Missing Python dependency: {missing_module}."
+                app_text("Missing Python dependency: %1.", missing_module)
                 if missing_module
-                else "The extension is missing a Python dependency."
+                else app_text("The extension is missing a Python dependency.")
             ),
-            suggested_action="Install or update the dependency in ComfyUI, then restart.",
+            suggested_action=app_text(
+                "Install or update the dependency in ComfyUI, then restart."
+            ),
         )
     if exception_type == "ImportError" or "cannot import name" in message:
         return StartupRemediation(
             impact=_extension_impact(facts.source),
-            cause="The extension may not match this ComfyUI version.",
-            suggested_action=(
+            cause=app_text("The extension may not match this ComfyUI version."),
+            suggested_action=app_text(
                 "Update the extension and its dependencies; it may not match this ComfyUI version."
             ),
         )
     if exception_type == "OSError" or _contains_native_load_error(message):
         return StartupRemediation(
             impact=_extension_impact(facts.source),
-            cause="A native dependency failed to load.",
-            suggested_action=(
+            cause=app_text("A native dependency failed to load."),
+            suggested_action=app_text(
                 "Reinstall the failing native dependency for this Python, PyTorch, "
                 "CUDA, and Windows setup."
             ),
@@ -201,14 +225,14 @@ def _custom_node_import_remediation(
     if exception_type in {"AttributeError", "TypeError"}:
         return StartupRemediation(
             impact=_extension_impact(facts.source),
-            cause="The extension may not match this ComfyUI version.",
-            suggested_action=(
+            cause=app_text("The extension may not match this ComfyUI version."),
+            suggested_action=app_text(
                 "Update the extension and its dependencies; it may not match this ComfyUI version."
             ),
         )
     return StartupRemediation(
         impact=_extension_impact(facts.source),
-        cause="ComfyUI could not import this extension.",
+        cause=app_text("ComfyUI could not import this extension."),
         suggested_action=_DEFAULT_EXTENSION_ACTION,
     )
 
@@ -239,17 +263,17 @@ def _contains_native_load_error(message: str) -> bool:
     )
 
 
-_DEFAULT_EXTENSION_ACTION = (
+_DEFAULT_EXTENSION_ACTION = app_text(
     "Update the extension first. If it still fails, report it to the maintainer."
 )
 
 
-def _extension_impact(source: str | None) -> str:
+def _extension_impact(source: str | None) -> ApplicationText:
     """Return a reusable impact statement for extension failures."""
 
-    return (
-        f"ComfyUI is ready, but {_source_label(source)} did not load. Workflows "
-        "using this extension may fail or show missing nodes."
+    return app_text(
+        "ComfyUI is ready, but %1 did not load. Workflows using this extension may fail or show missing nodes.",
+        _source_label(source),
     )
 
 

@@ -18,10 +18,16 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    set_localized_tooltip,
+)
+from substitute.presentation.localization import LocalizedBodyLabel
+
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QSize, Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import ScrollArea, TransparentToolButton  # type: ignore[import-untyped]
 
@@ -48,6 +54,10 @@ from substitute.presentation.generation.queue_rows_view import GenerationQueueRo
 from substitute.presentation.resources.app_icon import AppIcon
 from sugarsubstitute_shared.presentation.widgets.scrolling import (
     configure_qfluent_scroll_surface,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_text,
+    translate_application_message,
 )
 
 if TYPE_CHECKING:
@@ -87,10 +97,8 @@ class GenerationQueuePanel(QWidget):
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(8)
 
-        self._title_label = StrongBodyLabel(
-            self._header_title(pending_job_count=0),
-            self._header,
-        )
+        self._title_label = StrongBodyLabel("", self._header)
+        self._set_header_title(0)
         self._title_label.setObjectName("GenerationQueuePanelTitle")
         header_layout.addWidget(self._title_label)
         header_layout.addStretch(1)
@@ -101,7 +109,7 @@ class GenerationQueuePanel(QWidget):
         )
         self._hide_panel_button.setObjectName("GenerationQueuePanelHideButton")
         self._hide_panel_button.setIconSize(QSize(20, 20))
-        self._hide_panel_button.setToolTip("Hide full queue panel")
+        set_localized_tooltip(self._hide_panel_button, "Hide full queue panel")
         self._hide_panel_button.clicked.connect(lambda: self.hideRequested.emit())
         header_layout.addWidget(self._hide_panel_button)
         layout.addWidget(self._header)
@@ -111,7 +119,9 @@ class GenerationQueuePanel(QWidget):
         empty_state_layout.setContentsMargins(0, 0, 0, 0)
         empty_state_layout.setSpacing(0)
 
-        self._empty_label = BodyLabel("No queued jobs", self._empty_state)
+        self._empty_label = LocalizedBodyLabel(
+            app_text("No queued jobs"), self._empty_state
+        )
         self._empty_label.setAlignment(qt.AlignCenter)
         self._empty_label.setMinimumHeight(88)
         empty_state_layout.addStretch(1)
@@ -171,11 +181,7 @@ class GenerationQueuePanel(QWidget):
 
         jobs = event.jobs
         self._jobs = jobs
-        self._title_label.setText(
-            self._header_title(
-                pending_job_count=pending_generation_queue_job_count(jobs),
-            )
-        )
+        self._set_header_title(pending_generation_queue_job_count(jobs))
         if event.change_kind == "progress" and event.changed_job_id is not None:
             row = queue_job_row_view(jobs, event.changed_job_id)
             if row is not None and self._rows_view.update_row(row):
@@ -186,7 +192,33 @@ class GenerationQueuePanel(QWidget):
     def _header_title(*, pending_job_count: int) -> str:
         """Return the expanded queue panel title with the live pending count."""
 
-        return f"Generation Queue :: {pending_job_count} Pending Jobs"
+        return translate_application_message(
+            "Generation Queue :: %1 Pending Jobs",
+            pending_job_count,
+        )
+
+    def _set_header_title(self, pending_job_count: int) -> None:
+        """Bind the live count on Qt widgets and support lightweight test labels."""
+
+        if isinstance(self._title_label, QObject):
+            set_localized_text(
+                self._title_label,
+                "Generation Queue :: %1 Pending Jobs",
+                pending_job_count,
+            )
+            return
+        self._title_label.setText(
+            self._header_title(pending_job_count=pending_job_count)
+        )
+
+    def changeEvent(self, event: QEvent) -> None:  # noqa: N802
+        """Rebuild locale-projected queue rows without changing queue state."""
+
+        super().changeEvent(event)
+        if event.type() != QEvent.Type.LanguageChange:
+            return
+        self._set_header_title(pending_generation_queue_job_count(self._jobs))
+        self.set_items(queue_job_display_items(self._jobs))
 
 
 __all__ = ["GenerationQueuePanel"]

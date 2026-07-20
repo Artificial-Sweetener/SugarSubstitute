@@ -18,6 +18,9 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import app_text
+
 from dataclasses import dataclass
 from typing import Callable
 
@@ -239,7 +242,9 @@ class WorkspaceGenerationController:
         )
         self._continuous_active = False
         self._backend_available = True
-        self._backend_unavailable_message = "ComfyUI is still starting."
+        self._backend_unavailable_message: ApplicationText = app_text(
+            "ComfyUI is still starting."
+        )
 
     def close(self) -> None:
         """Close generation controller execution resources."""
@@ -254,7 +259,9 @@ class WorkspaceGenerationController:
 
         return self._continuous_active
 
-    def set_backend_available(self, available: bool, *, message: str) -> None:
+    def set_backend_available(
+        self, available: bool, *, message: ApplicationText
+    ) -> None:
         """Set whether generation may be dispatched to the Comfy backend."""
 
         self._backend_available = available
@@ -420,7 +427,9 @@ class WorkspaceGenerationController:
             failure = generation_preflight_failure(
                 GenerationPreflightError(
                     workflow_id="queue",
-                    message="Continuous generation requires the generation queue.",
+                    message=app_text(
+                        "Continuous generation requires the generation queue."
+                    ),
                 ),
                 operation="continuous_generation",
             )
@@ -467,14 +476,16 @@ class WorkspaceGenerationController:
         if self._job_queue_service is None:
             raise GenerationPreflightError(
                 workflow_id="queue",
-                message="Continuous generation requires the generation queue.",
+                message=app_text(
+                    "Continuous generation requires the generation queue."
+                ),
             )
 
         snapshots = self._build_queued_generation_snapshots(bindings)
         if not snapshots:
             raise GenerationPreflightError(
                 workflow_id="queue",
-                message="Continuous generation prepared no jobs.",
+                message=app_text("Continuous generation prepared no jobs."),
             )
         final_snapshot_index = len(snapshots) - 1
         entries = tuple(
@@ -514,13 +525,15 @@ class WorkspaceGenerationController:
         if self._job_queue_service is None:
             raise GenerationPreflightError(
                 workflow_id="queue",
-                message="Generation queue snapshot bindings are unavailable.",
+                message=app_text("Generation queue snapshot bindings are unavailable."),
             )
         capture_preparation = bindings.capture_queued_generation_preparation
         if capture_preparation is None:
             raise GenerationPreflightError(
                 workflow_id="queue",
-                message="Generation queue preparation bindings are unavailable.",
+                message=app_text(
+                    "Generation queue preparation bindings are unavailable."
+                ),
             )
         for batch_index in range(batch_count):
             try:
@@ -589,7 +602,7 @@ class WorkspaceGenerationController:
                 generation_preflight_failure(
                     GenerationPreflightError(
                         workflow_id="queue",
-                        message="Continuous generation prepared no jobs.",
+                        message=app_text("Continuous generation prepared no jobs."),
                     ),
                     operation="continuous_generation",
                 )
@@ -681,7 +694,7 @@ class WorkspaceGenerationController:
                 workflow_id="queue",
                 message=str(error),
                 error_report=build_substitute_exception_report(
-                    title="Generation preparation failed",
+                    title=app_text("Generation preparation failed"),
                     message=str(error),
                     stage="preflight",
                     error=error,
@@ -828,7 +841,7 @@ class WorkspaceGenerationController:
                 workflow_id="backend",
                 message=self._backend_unavailable_message,
                 error_report=build_comfy_connection_error_report(
-                    title="Comfy is unavailable",
+                    title=app_text("Comfy is unavailable"),
                     message=self._backend_unavailable_message,
                     stage="preflight",
                     context=SubstituteOperationContext(
@@ -849,7 +862,7 @@ class WorkspaceGenerationController:
         if bindings.build_queued_generation_snapshots is None:
             raise GenerationPreflightError(
                 workflow_id="queue",
-                message="Generation queue snapshot bindings are unavailable.",
+                message=app_text("Generation queue snapshot bindings are unavailable."),
             )
         return bindings.build_queued_generation_snapshots()
 
@@ -865,7 +878,7 @@ def generation_preflight_failure(
     error_report = error.error_report
     if error_report is None and error.report_error:
         error_report = build_substitute_exception_report(
-            title="Generation preflight failed",
+            title=app_text("Generation preflight failed"),
             message=str(error),
             stage="preflight",
             error=error,

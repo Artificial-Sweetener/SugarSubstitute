@@ -173,11 +173,23 @@ def _apply_field_row_divider_style(widget: QWidget) -> None:
 
 
 @dataclass(frozen=True)
+class FieldRowTextTarget:
+    """Expose stable label and tooltip targets for locale-only rebinding."""
+
+    field_key: str
+    label: CaptionLabel | None
+    field_widget: QWidget
+    tooltip_owner: QWidget
+    tooltip_targets: tuple[QWidget, ...]
+
+
+@dataclass(frozen=True)
 class BuiltFieldRow:
     """Carry one row widget and the field key used for visibility tracking."""
 
     field_key: Any
     row: QWidget
+    text_targets: tuple[FieldRowTextTarget, ...] = ()
 
 
 class FieldRowBuilder:
@@ -251,6 +263,7 @@ class FieldRowBuilder:
         input_metadata = widget.property("input_metadata")
         field_tooltip = tooltip_from_input_metadata(input_metadata)
         field_key = self._field_key_from_metadata(input_metadata)
+        leaf_field_key = self._leaf_field_key_from_metadata(input_metadata)
         if field_behavior.row_mode == RowMode.FULL_WIDTH:
             padded = QWidget(panel)
             padded_layout = QVBoxLayout(padded)
@@ -269,7 +282,21 @@ class FieldRowBuilder:
                 widget,
                 show_delay_ms=600,
             )
-            return BuiltFieldRow(field_key=field_key, row=padded)
+            return BuiltFieldRow(
+                field_key=field_key,
+                row=padded,
+                text_targets=(
+                    FieldRowTextTarget(
+                        field_key=leaf_field_key,
+                        label=None,
+                        field_widget=widget,
+                        tooltip_owner=padded,
+                        tooltip_targets=(padded, widget),
+                    ),
+                )
+                if leaf_field_key is not None
+                else (),
+            )
 
         row = ScalarFieldRowWidget(panel)
         row_layout = QHBoxLayout(row)
@@ -317,7 +344,21 @@ class FieldRowBuilder:
             *tooltip_targets,
             show_delay_ms=600,
         )
-        return BuiltFieldRow(field_key=field_key, row=row)
+        return BuiltFieldRow(
+            field_key=field_key,
+            row=row,
+            text_targets=(
+                FieldRowTextTarget(
+                    field_key=leaf_field_key,
+                    label=label_widget,
+                    field_widget=widget,
+                    tooltip_owner=row,
+                    tooltip_targets=tooltip_targets,
+                ),
+            )
+            if leaf_field_key is not None
+            else (),
+        )
 
     def add_n_column_row(
         self,
@@ -326,6 +367,7 @@ class FieldRowBuilder:
         field_behaviors: Mapping[str, FieldBehavior],
         content_layout: QVBoxLayout,
         node_name: str = "",
+        field_labels: Mapping[str, str] | None = None,
     ) -> None:
         """Render a grouped n-column row with divider and visibility tracking."""
 
@@ -333,6 +375,7 @@ class FieldRowBuilder:
             fields=fields,
             field_behaviors=field_behaviors,
             node_name=node_name,
+            field_labels=field_labels,
         )
         content_layout.addWidget(built_row.row)
         if built_row.field_key is not None:
@@ -344,6 +387,7 @@ class FieldRowBuilder:
         fields: list[tuple[str, QWidget]],
         field_behaviors: Mapping[str, FieldBehavior],
         node_name: str = "",
+        field_labels: Mapping[str, str] | None = None,
     ) -> BuiltFieldRow:
         """Build one grouped n-column row without body-level separators."""
 
@@ -361,6 +405,7 @@ class FieldRowBuilder:
         column_widgets: dict[str, QWidget] = {}
         column_tooltips: list[str] = []
         first_field_key = None
+        text_targets: list[FieldRowTextTarget] = []
 
         for index, (label, widget) in enumerate(fields):
             behavior = field_behaviors.get(label)
@@ -388,7 +433,7 @@ class FieldRowBuilder:
             label_text = (
                 behavior.label_override
                 if behavior is not None and behavior.label_override
-                else label
+                else (field_labels or {}).get(label, label)
             )
             label_widget: CaptionLabel | None = None
             if behavior is None or behavior.label_mode != LabelMode.HIDDEN:
@@ -418,6 +463,15 @@ class FieldRowBuilder:
                 field_tooltip,
                 *tooltip_targets,
                 show_delay_ms=600,
+            )
+            text_targets.append(
+                FieldRowTextTarget(
+                    field_key=label,
+                    label=label_widget,
+                    field_widget=widget,
+                    tooltip_owner=col,
+                    tooltip_targets=tooltip_targets,
+                )
             )
 
             if field_key is not None:
@@ -450,7 +504,22 @@ class FieldRowBuilder:
             row_container,
             show_delay_ms=600,
         )
-        return BuiltFieldRow(field_key=first_field_key, row=row_container)
+        return BuiltFieldRow(
+            field_key=first_field_key,
+            row=row_container,
+            text_targets=tuple(text_targets),
+        )
+
+    @staticmethod
+    def _leaf_field_key_from_metadata(
+        input_metadata: dict[str, Any] | None,
+    ) -> str | None:
+        """Return the locale-neutral field key from sanitized widget metadata."""
+
+        if not isinstance(input_metadata, dict):
+            return None
+        key = input_metadata.get("key")
+        return key if isinstance(key, str) and key else None
 
     def gather_visible_keys(
         self,
@@ -794,6 +863,7 @@ __all__ = [
     "EDITOR_ROW_ICON_SIZE",
     "EDITOR_ROW_SPACING",
     "FieldRowBuilder",
+    "FieldRowTextTarget",
     "GROUPED_FIELD_DIVIDER_WIDTH",
     "ScalarFieldRowWidget",
     "apply_editor_control_height",

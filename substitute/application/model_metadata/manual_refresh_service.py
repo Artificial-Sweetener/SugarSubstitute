@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -146,7 +148,9 @@ class ManualModelMetadataRefreshService:
                 ManualModelMetadataRefreshStatus.MODEL_NOT_FOUND_LOCALLY,
                 kind=kind,
                 value=value,
-                message="Manual metadata refresh requires a model kind and value.",
+                message=app_text(
+                    "Manual metadata refresh requires a model kind and value."
+                ),
             )
         log_info(
             _LOGGER,
@@ -171,7 +175,9 @@ class ManualModelMetadataRefreshService:
                 ManualModelMetadataRefreshStatus.FAILED_PRESERVED,
                 kind=kind,
                 value=value,
-                message="CivitAI metadata refresh failed; existing metadata was kept.",
+                message=app_text(
+                    "CivitAI metadata refresh failed; existing metadata was kept."
+                ),
             )
 
     def _refresh_model(
@@ -193,7 +199,7 @@ class ManualModelMetadataRefreshService:
                 ManualModelMetadataRefreshStatus.MODEL_NOT_FOUND_LOCALLY,
                 kind=kind,
                 value=value,
-                message="The selected model is no longer present locally.",
+                message=app_text("The selected model is no longer present locally."),
             )
         sha256 = self._sha256_for_entry(entry, cancellation)
         if sha256 is None:
@@ -202,7 +208,7 @@ class ManualModelMetadataRefreshService:
                 kind=kind,
                 value=value,
                 relative_path=entry.source.relative_path,
-                message="The selected model could not be fingerprinted.",
+                message=app_text("The selected model could not be fingerprinted."),
             )
         if cancellation.is_cancelled():
             return _result(
@@ -224,7 +230,7 @@ class ManualModelMetadataRefreshService:
                 value=value,
                 relative_path=entry.source.relative_path,
                 sha256=sha256,
-                message="CivitAI metadata lookup is disabled in Settings.",
+                message=app_text("CivitAI metadata lookup is disabled in Settings."),
             )
         try:
             lookup = self._civitai.lookup_model_version_by_hash(sha256)
@@ -242,7 +248,7 @@ class ManualModelMetadataRefreshService:
                 value=value,
                 relative_path=entry.source.relative_path,
                 sha256=sha256,
-                message="CivitAI lookup failed; existing metadata was kept.",
+                message=app_text("CivitAI lookup failed; existing metadata was kept."),
             )
         if lookup.status is CivitaiLookupStatus.NOT_FOUND:
             return _preserved_lookup_result(
@@ -250,7 +256,9 @@ class ManualModelMetadataRefreshService:
                 entry=entry,
                 sha256=sha256,
                 provider_status=lookup.status.value,
-                message="CivitAI did not return a match; existing metadata was kept.",
+                message=app_text(
+                    "CivitAI did not return a match; existing metadata was kept."
+                ),
             )
         if lookup.status is CivitaiLookupStatus.UNAVAILABLE:
             return _preserved_lookup_result(
@@ -258,7 +266,7 @@ class ManualModelMetadataRefreshService:
                 entry=entry,
                 sha256=sha256,
                 provider_status=lookup.status.value,
-                message="CivitAI is unavailable; existing metadata was kept.",
+                message=app_text("CivitAI is unavailable; existing metadata was kept."),
             )
         if lookup.status is not CivitaiLookupStatus.FOUND or lookup.version is None:
             return _preserved_lookup_result(
@@ -266,7 +274,9 @@ class ManualModelMetadataRefreshService:
                 entry=entry,
                 sha256=sha256,
                 provider_status=lookup.status.value,
-                message="CivitAI returned unusable metadata; existing metadata was kept.",
+                message=app_text(
+                    "CivitAI returned unusable metadata; existing metadata was kept."
+                ),
             )
 
         evidence = LocalModelEvidence.from_backend_entry(entry, sha256)
@@ -357,7 +367,7 @@ class ManualModelMetadataRefreshService:
             sha256=evidence.sha256,
             provider_status=lookup.status.value,
             thumbnail_updated=thumbnail_updated,
-            message="CivitAI metadata refreshed.",
+            message=app_text("CivitAI metadata refreshed."),
         )
 
     def _selected_backend_entry(

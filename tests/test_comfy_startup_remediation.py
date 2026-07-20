@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.domain.comfy_startup_diagnostics import (
     ComfyStartupIncidentKind,
     StartupRemediationFacts,
@@ -98,7 +100,10 @@ def test_module_not_found_gets_dependency_guidance() -> None:
         )
     )
 
-    assert remediation.cause == "Missing Python dependency: einops."
+    assert remediation.cause is not None
+    assert render_source_application_text(remediation.cause) == (
+        "Missing Python dependency: einops."
+    )
     assert remediation.suggested_action is not None
     assert (
         remediation.suggested_action

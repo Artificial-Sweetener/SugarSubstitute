@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from dataclasses import dataclass
 from typing import Literal
 
@@ -26,7 +28,7 @@ from substitute.domain.cube_library import CubeLibraryReadiness, CubePackRecord
 
 BadgeSeverity = Literal["neutral", "success", "warning", "error"]
 
-BASE_PACK_REMOVE_DISABLED_REASON = (
+BASE_PACK_REMOVE_DISABLED_REASON = app_text(
     "Base Cube Packs are required by Substitute and cannot be removed."
 )
 
@@ -36,7 +38,7 @@ class CubeLibraryStatusView:
     """Describe the active target status row for Cube Library settings."""
 
     available: bool
-    description: str
+    description: ApplicationText
     can_sync_all: bool
 
 
@@ -44,7 +46,7 @@ class CubeLibraryStatusView:
 class CubePackBadgeView:
     """Describe one compact state badge for a tracked Cube Pack."""
 
-    text: str
+    text: ApplicationText
     severity: BadgeSeverity
 
 
@@ -52,8 +54,8 @@ class CubePackBadgeView:
 class CubePackDetailView:
     """Describe one label/value row in an expanded Cube Pack."""
 
-    label: str
-    value: str
+    label: ApplicationText
+    value: ApplicationText
     severity: BadgeSeverity = "neutral"
     visible: bool = True
 
@@ -65,12 +67,12 @@ class CubePackRowView:
     repo_ref: str
     owner: str
     repo: str
-    title: str
-    subtitle: str
+    title: ApplicationText
+    subtitle: ApplicationText
     badges: tuple[CubePackBadgeView, ...]
     enabled: bool
     can_remove: bool
-    remove_disabled_reason: str
+    remove_disabled_reason: ApplicationText
     details: tuple[CubePackDetailView, ...]
 
 
@@ -79,8 +81,8 @@ class CubeLibraryReadinessView:
     """Describe target readiness for Settings presentation."""
 
     ready: bool
-    title: str
-    summary: str
+    title: ApplicationText
+    summary: ApplicationText
     details: tuple[CubePackDetailView, ...]
 
 
@@ -92,19 +94,19 @@ def project_library_status(
     if snapshot is None:
         return CubeLibraryStatusView(
             available=False,
-            description="Cube Library unavailable on the active target.",
+            description=app_text("Cube Library unavailable on the active target."),
             can_sync_all=False,
         )
     if not snapshot.available:
         return CubeLibraryStatusView(
             available=False,
-            description="Cube Library unavailable on the active target.",
+            description=app_text("Cube Library unavailable on the active target."),
             can_sync_all=False,
         )
     target = f"{snapshot.endpoint.host}:{snapshot.endpoint.port}"
     return CubeLibraryStatusView(
         available=True,
-        description=f"Connected to {target}.",
+        description=app_text("Connected to %1.", target),
         can_sync_all=any(pack.enabled for pack in snapshot.packs),
     )
 
@@ -138,8 +140,8 @@ def project_readiness(readiness: object | None) -> CubeLibraryReadinessView:
     if not isinstance(readiness, CubeLibraryReadiness):
         return CubeLibraryReadinessView(
             ready=False,
-            title="Target Readiness",
-            summary="Readiness unavailable from the active target.",
+            title=app_text("Target Readiness"),
+            summary=app_text("Readiness unavailable from the active target."),
             details=(),
         )
 
@@ -156,46 +158,51 @@ def project_readiness(readiness: object | None) -> CubeLibraryReadinessView:
         else None
     )
     summary = (
-        "Required custom nodes are installed."
+        app_text("Required custom nodes are installed.")
         if not missing and not version_issues and runtime_issue is None
-        else f"Missing custom nodes: {len(missing)}"
+        else app_text("Missing custom nodes: %1", len(missing))
         if missing
-        else f"Dependency version issues: {len(version_issues) + int(runtime_issue is not None)}"
+        else app_text(
+            "Dependency version issues: %1",
+            len(version_issues) + int(runtime_issue is not None),
+        )
     )
     details = (
         CubePackDetailView(
-            label="Required custom nodes",
+            label=app_text("Required custom nodes"),
             value=_join_values(readiness.required_custom_nodes),
         ),
         CubePackDetailView(
-            label="Missing custom nodes",
+            label=app_text("Missing custom nodes"),
             value=_join_values(missing),
             severity="error" if missing else "success",
         ),
         CubePackDetailView(
-            label="Installed custom nodes",
+            label=app_text("Installed custom nodes"),
             value=_join_values(readiness.installed_custom_nodes),
             visible=bool(readiness.installed_custom_nodes),
         ),
         CubePackDetailView(
-            label="Install support",
+            label=app_text("Install support"),
             value=_yes_no(readiness.install_supported),
         ),
-        CubePackDetailView(label="Can install", value=_yes_no(readiness.can_install)),
         CubePackDetailView(
-            label="Readiness errors",
+            label=app_text("Can install"), value=_yes_no(readiness.can_install)
+        ),
+        CubePackDetailView(
+            label=app_text("Readiness errors"),
             value=_join_values(readiness.errors),
             severity="error",
             visible=bool(readiness.errors),
         ),
         CubePackDetailView(
-            label="Dependency versions",
+            label=app_text("Dependency versions"),
             value=_version_issue_text(version_issues),
             severity="error",
             visible=bool(version_issues),
         ),
         CubePackDetailView(
-            label="Comfy runtime",
+            label=app_text("Comfy runtime"),
             value=_runtime_issue_text(runtime_issue),
             severity="error",
             visible=runtime_issue is not None,
@@ -206,21 +213,24 @@ def project_readiness(readiness: object | None) -> CubeLibraryReadinessView:
         and not missing
         and not version_issues
         and runtime_issue is None,
-        title="Target Readiness",
+        title=app_text("Target Readiness"),
         summary=summary,
         details=tuple(detail for detail in details if detail.visible),
     )
 
 
-def _pack_subtitle(pack: CubePackRecord) -> str:
+def _pack_subtitle(pack: CubePackRecord) -> ApplicationText:
     """Return the concise collapsed-row status summary for one pack."""
 
-    parts = [_cube_count_text(pack.cube_count), _last_sync_summary(pack)]
+    count = _cube_count_text(pack.cube_count)
+    sync = _last_sync_summary(pack)
+    if not pack.enabled and pack.update_available:
+        return app_text("%1 · %2 · Disabled · Update available", count, sync)
     if not pack.enabled:
-        parts.append("Disabled")
+        return app_text("%1 · %2 · Disabled", count, sync)
     if pack.update_available:
-        parts.append("Update available")
-    return " · ".join(parts)
+        return app_text("%1 · %2 · Update available", count, sync)
+    return app_text("%1 · %2", count, sync)
 
 
 def _pack_badges(pack: CubePackRecord) -> tuple[CubePackBadgeView, ...]:
@@ -228,13 +238,13 @@ def _pack_badges(pack: CubePackRecord) -> tuple[CubePackBadgeView, ...]:
 
     badges: list[CubePackBadgeView] = []
     if pack.default_base_repo:
-        badges.append(CubePackBadgeView("Base", "neutral"))
+        badges.append(CubePackBadgeView(app_text("Base"), "neutral"))
     if not pack.enabled:
-        badges.append(CubePackBadgeView("Disabled", "warning"))
+        badges.append(CubePackBadgeView(app_text("Disabled"), "warning"))
     if pack.update_available:
-        badges.append(CubePackBadgeView("Update available", "warning"))
+        badges.append(CubePackBadgeView(app_text("Update available"), "warning"))
     if _failed(pack.last_sync_status, pack.last_sync_error):
-        badges.append(CubePackBadgeView("Sync failed", "error"))
+        badges.append(CubePackBadgeView(app_text("Sync failed"), "error"))
     return tuple(badges)
 
 
@@ -246,23 +256,25 @@ def _pack_details(
     """Return expanded detail rows for one tracked Cube Pack."""
 
     details = (
-        CubePackDetailView("Cubes", _cube_list_text(cube_paths, pack.cube_count)),
-        CubePackDetailView("Last synced", _time_or_never(pack.last_sync_at)),
         CubePackDetailView(
-            "Sync status",
+            app_text("Cubes"), _cube_list_text(cube_paths, pack.cube_count)
+        ),
+        CubePackDetailView(app_text("Last synced"), _time_or_never(pack.last_sync_at)),
+        CubePackDetailView(
+            app_text("Sync status"),
             _text_or_unknown(pack.last_sync_status),
             _status_severity(pack.last_sync_status, pack.last_sync_error),
             visible=bool(pack.last_sync_status.strip()),
         ),
         CubePackDetailView(
-            "Last sync error",
+            app_text("Last sync error"),
             pack.last_sync_error.strip(),
             "error",
             visible=bool(pack.last_sync_error.strip()),
         ),
         CubePackDetailView(
-            "Update",
-            "Available",
+            app_text("Update"),
+            app_text("Available"),
             "warning",
             visible=pack.update_available,
         ),
@@ -270,16 +282,16 @@ def _pack_details(
     return tuple(detail for detail in details if detail.visible)
 
 
-def _last_sync_summary(pack: CubePackRecord) -> str:
+def _last_sync_summary(pack: CubePackRecord) -> ApplicationText:
     """Return the collapsed last-sync summary for one pack."""
 
     if _failed(pack.last_sync_status, pack.last_sync_error):
-        return "Sync failed"
+        return app_text("Sync failed")
     if pack.last_sync_at.strip():
-        return f"Last synced {pack.last_sync_at.strip()}"
+        return app_text("Last synced %1", pack.last_sync_at.strip())
     if pack.last_sync_status.strip():
-        return f"Sync {_text_or_unknown(pack.last_sync_status)}"
-    return "Never synced"
+        return app_text("Sync %1", _text_or_unknown(pack.last_sync_status))
+    return app_text("Never synced")
 
 
 def _status_severity(status: str, error: str) -> BadgeSeverity:
@@ -299,14 +311,17 @@ def _failed(status: str, error: str) -> bool:
     return bool(error.strip()) or normalized in {"error", "failed", "failure"}
 
 
-def _cube_count_text(count: int) -> str:
+def _cube_count_text(count: int) -> ApplicationText:
     """Return user-facing cube-count text."""
 
-    noun = "cube" if count == 1 else "cubes"
-    return f"{count} {noun}"
+    if count == 1:
+        return app_text("1 cube")
+    return app_text("%1 cubes", count)
 
 
-def _cube_list_text(cube_paths: tuple[str, ...], fallback_count: int) -> str:
+def _cube_list_text(
+    cube_paths: tuple[str, ...], fallback_count: int
+) -> ApplicationText:
     """Return cube path list text, falling back to a count when unavailable."""
 
     visible_paths = tuple(path.strip() for path in cube_paths if path.strip())
@@ -315,56 +330,56 @@ def _cube_list_text(cube_paths: tuple[str, ...], fallback_count: int) -> str:
     )
 
 
-def _text_or_unknown(value: str) -> str:
+def _text_or_unknown(value: str) -> ApplicationText:
     """Return trimmed text or an unknown placeholder."""
 
     stripped = value.strip()
-    return stripped if stripped else "unknown"
+    return stripped if stripped else app_text("unknown")
 
 
-def _time_or_never(value: str) -> str:
+def _time_or_never(value: str) -> ApplicationText:
     """Return trimmed timestamp text or a never placeholder."""
 
     stripped = value.strip()
-    return stripped if stripped else "Never"
+    return stripped if stripped else app_text("Never")
 
 
-def _yes_no(value: bool) -> str:
+def _yes_no(value: bool) -> ApplicationText:
     """Return a concise yes/no value."""
 
-    return "Yes" if value else "No"
+    return app_text("Yes") if value else app_text("No")
 
 
-def _join_values(values: tuple[str, ...]) -> str:
+def _join_values(values: tuple[str, ...]) -> ApplicationText:
     """Return a comma-separated display value for string tuples."""
 
     visible_values = tuple(value.strip() for value in values if value.strip())
-    return ", ".join(visible_values) if visible_values else "None"
+    return ", ".join(visible_values) if visible_values else app_text("None")
 
 
-def _version_issue_text(values: object) -> str:
+def _version_issue_text(values: object) -> ApplicationText:
     """Return concise display text for dependency version issues."""
 
     if not isinstance(values, tuple):
-        return "None"
+        return app_text("None")
     parts = [
         f"{item.display_name}: {item.status}"
         for item in values
         if getattr(item, "display_name", "") and getattr(item, "status", "")
     ]
-    return ", ".join(parts) if parts else "None"
+    return ", ".join(parts) if parts else app_text("None")
 
 
-def _runtime_issue_text(value: object) -> str:
+def _runtime_issue_text(value: object) -> ApplicationText:
     """Return concise display text for Comfy runtime readiness."""
 
     if value is None:
-        return "None"
+        return app_text("None")
     required = getattr(value, "required_version", "")
     status = getattr(value, "status", "")
     if required:
-        return f"Comfy {required}: {status}"
-    return str(status or "unknown")
+        return app_text("Comfy %1: %2", required, status)
+    return str(status) if status else app_text("unknown")
 
 
 __all__ = [

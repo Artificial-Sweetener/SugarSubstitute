@@ -22,7 +22,7 @@ import os
 from pathlib import Path
 from typing import cast
 
-from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QEvent, QTranslator, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QWidget
 import pytest
@@ -63,6 +63,36 @@ def test_pending_restart_toolbar_button_starts_hidden() -> None:
     assert button.accessibleName() == "Pending restart requirements"
 
     button.close()
+
+
+def test_pending_restart_copy_retranslates_without_recreating_button() -> None:
+    """Update restart tooltip and accessibility in place across live switching."""
+
+    application = _app()
+    resource_root = PROJECT_ROOT / "substitute" / "presentation" / "resources" / "i18n"
+    chinese = QTranslator()
+    japanese = QTranslator()
+    assert chinese.load(str(resource_root / "sugarsubstitute_zh_CN.qm"))
+    assert japanese.load(str(resource_root / "sugarsubstitute_ja_JP.qm"))
+    assert application.installTranslator(chinese)
+    button = PendingRestartToolbarButton()
+    button.set_count(2)
+    try:
+        assert button.accessibleName() == "待重启要求"
+        assert button.toolTip() == "2 项更改需要重启"
+        assert button.accessibleDescription() == "2 项更改需要重启"
+
+        assert application.removeTranslator(chinese)
+        assert application.installTranslator(japanese)
+        application.sendEvent(button, QEvent(QEvent.Type.LanguageChange))
+
+        assert button.accessibleName() == "保留中の再起動要件"
+        assert button.toolTip() == "再起動が必要な変更：2 件"
+        assert button.accessibleDescription() == "再起動が必要な変更：2 件"
+    finally:
+        application.removeTranslator(japanese)
+        application.removeTranslator(chinese)
+        button.close()
 
 
 def test_pending_restart_toolbar_button_shows_count() -> None:

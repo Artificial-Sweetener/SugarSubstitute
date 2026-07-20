@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -45,6 +49,12 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import BodyLabel, IconWidget  # type: ignore[import-untyped]
 from qfluentwidgets.common.icon import FluentIconBase  # type: ignore[import-untyped]
+from sugarsubstitute_shared.presentation.localization import (
+    ApplicationMessage,
+    ApplicationText,
+    apply_application_text,
+    set_localized_tooltip,
+)
 
 from substitute.presentation.motion import (
     SETTINGS_NAV_INDICATOR_DURATION_MS,
@@ -79,8 +89,8 @@ class SettingsNavigationDescriptor:
     """Describe one visible Settings navigation page."""
 
     page_id: str
-    title: str
-    subtitle: str
+    title: ApplicationText
+    subtitle: ApplicationText
     icon: FluentIconBase | str | None = None
 
 
@@ -105,7 +115,11 @@ class SettingsNavigationItem(QFrame):
         self.setFixedSize(
             SETTINGS_NAVIGATION_ITEM_WIDTH, SETTINGS_NAVIGATION_ITEM_HEIGHT
         )
-        self.setToolTip(descriptor.subtitle or descriptor.title)
+        tooltip = descriptor.subtitle or descriptor.title
+        if isinstance(tooltip, ApplicationMessage):
+            set_localized_tooltip(self, tooltip.source_text, *tooltip.arguments)
+        else:
+            set_fluent_tooltip_text(self, tooltip)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.icon_slot = self._build_icon_slot(descriptor.icon)
         self.title_label = self._build_title_label(descriptor.title)
@@ -206,10 +220,11 @@ class SettingsNavigationItem(QFrame):
             layout.addWidget(icon_widget, 0, Qt.AlignmentFlag.AlignCenter)
         return slot
 
-    def _build_title_label(self, title: str) -> BodyLabel:
+    def _build_title_label(self, title: ApplicationText) -> BodyLabel:
         """Create the one-line navigation title label."""
 
-        label = BodyLabel(title, self)
+        label = BodyLabel(str(title), self)
+        apply_application_text(label, title)
         label.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         return label
 

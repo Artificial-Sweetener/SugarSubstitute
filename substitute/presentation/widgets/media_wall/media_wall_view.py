@@ -40,9 +40,9 @@ from qfluentwidgets import ScrollBar  # type: ignore[import-untyped]
 
 from substitute.application.execution import TaskSubmitter
 from substitute.application.model_metadata import ThumbnailAssetRepository
-from substitute.presentation.widgets.cursor_tooltip_filter import (
-    CursorToolTipFilter,
-    install_cursor_tooltip_filter,
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    FluentToolTipFilter,
+    ensure_fluent_tooltip_filter,
 )
 from substitute.presentation.widgets.media_wall.justified_layout import (
     JustifiedLayoutInput,
@@ -148,7 +148,7 @@ class MediaWallView(QAbstractScrollArea):
         self._title_marquee_timer = QTimer(self)
         self._title_marquee_timer.setInterval(33)
         self._title_marquee_timer.timeout.connect(self.viewport().update)
-        self._tooltip_filter: CursorToolTipFilter | None = None
+        self._tooltip_filter: FluentToolTipFilter | None = None
         self.setFrameShape(QAbstractScrollArea.Shape.NoFrame)
         self.setMouseTracking(True)
         self.viewport().setMouseTracking(True)
@@ -455,10 +455,11 @@ class MediaWallView(QAbstractScrollArea):
     def _install_tooltip_filter(self) -> None:
         """Install QFluent cursor tooltips for dynamic tile hover text."""
 
-        self._tooltip_filter = install_cursor_tooltip_filter(
+        self._tooltip_filter = ensure_fluent_tooltip_filter(
             self,
             self.viewport(),
             show_delay_ms=600,
+            cursor_anchor=True,
             tooltip_provider=self._tooltip_for_hover_event,
         )
 

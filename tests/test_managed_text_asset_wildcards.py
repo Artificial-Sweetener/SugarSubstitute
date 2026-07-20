@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 import pytest
 
 from substitute.application.managed_text_assets import (
@@ -52,14 +54,14 @@ def test_wildcard_assets_map_txt_and_csv_metadata(tmp_path: Path) -> None:
     assert tuple(asset.id for asset in assets) == ("characters/hair.txt", "poses.csv")
     assert assets[0].label == "characters/hair"
     assert assets[0].group == "TXT Wildcards"
-    assert assets[0].subtitle == "2 wildcards"
+    assert render_source_application_text(assets[0].subtitle) == "2 wildcards"
     assert "characters/hair.txt" not in assets[0].subtitle
     assert "enabled" not in assets[0].subtitle
     assert "disabled" not in assets[0].subtitle
     assert assets[0].kind is ManagedTextAssetKind.PROMPT_TEXT
     assert assets[1].group == "CSV Wildcards"
     assert assets[1].kind is ManagedTextAssetKind.CSV
-    assert assets[1].subtitle == "1 wildcard"
+    assert render_source_application_text(assets[1].subtitle) == "1 wildcard"
     assert assets[1].metadata == (("Type", "CSV"),)
 
 

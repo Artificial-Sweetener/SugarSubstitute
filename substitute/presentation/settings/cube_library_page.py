@@ -18,6 +18,23 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.presentation.localization import app_text
+
+from substitute.presentation.localization import LocalizedSwitchButton
+
+from sugarsubstitute_shared.presentation.localization import (
+    apply_application_text,
+    render_application_text,
+    set_localized_placeholder,
+    set_localized_text,
+    set_localized_tooltip,
+)
+from substitute.presentation.localization import (
+    LocalizedPushButton,
+    LocalizedStrongBodyLabel,
+)
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
@@ -36,9 +53,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     IconWidget,
     IndicatorPosition,
     LineEdit,
-    PushButton,
-    StrongBodyLabel,
-    SwitchButton,
     TransparentToolButton,
 )
 
@@ -106,8 +120,8 @@ class CubeLibraryOperationResult:
     operation: str
     success: bool
     severity: SettingsInfoBarSeverity
-    title: str
-    message: str
+    title: ApplicationText
+    message: ApplicationText
     payload: object | None = None
     owner: str = ""
     repo: str = ""
@@ -217,14 +231,14 @@ class CubeLibrarySettingsPage(QWidget):
         """Create target status row."""
 
         self.refresh_button = TransparentToolButton(FluentIcon.SYNC, self)
-        self.refresh_button.setToolTip("Refresh")
+        set_localized_tooltip(self.refresh_button, "Refresh")
         self.refresh_button.clicked.connect(self.refresh)
-        self.sync_all_button = PushButton("Sync all", self)
+        self.sync_all_button = LocalizedPushButton(app_text("Sync all"), self)
         self.sync_all_button.clicked.connect(self._request_sync_all)
         return SettingsCard(
             visual_widget=_icon_widget(self, AppIcon.LIBRARY_20_REGULAR),
-            title="Cube Library",
-            description="Loading active target Cube Library state.",
+            title=app_text("Cube Library"),
+            description=app_text("Loading active target Cube Library state."),
             trailing_widget=_control_row(
                 self,
                 self.refresh_button,
@@ -238,15 +252,19 @@ class CubeLibrarySettingsPage(QWidget):
         """Create the URL-only add-pack row."""
 
         self.github_url_edit = LineEdit(self)
-        self.github_url_edit.setPlaceholderText("https://github.com/owner/repository")
+        set_localized_placeholder(
+            self.github_url_edit, "https://github.com/owner/repository"
+        )
         self.github_url_edit.setMinimumWidth(260)
-        self.add_button = PushButton("Add", self)
+        self.add_button = LocalizedPushButton(app_text("Add"), self)
         self.add_button.clicked.connect(self._request_add_pack)
         self.github_url_edit.textChanged.connect(self._sync_add_pack_actions)
         controls = _control_row(self, self.github_url_edit, self.add_button)
         expander = SettingsExpander(
-            title="Add Cube Pack",
-            description="Paste a GitHub URL. Substitute validates and syncs the pack.",
+            title=app_text("Add Cube Pack"),
+            description=app_text(
+                "Paste a GitHub URL. Substitute validates and syncs the pack."
+            ),
             visual_widget=_icon_widget(self, AppIcon.LINK_ADD_20_REGULAR),
             trailing_widget=controls,
             content_available=False,
@@ -254,8 +272,8 @@ class CubeLibrarySettingsPage(QWidget):
             parent=self,
         )
         self.validation_result_row = SettingsExpanderRow(
-            title="Validation result",
-            description="No repository has been validated.",
+            title=app_text("Validation result"),
+            description=app_text("No repository has been validated."),
             parent=expander.content_widget(),
         )
         self.validation_result_row.hide()
@@ -272,7 +290,9 @@ class CubeLibrarySettingsPage(QWidget):
         layout = QVBoxLayout(section)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(SETTINGS_CARD_GROUP_SPACING)
-        self.pack_section_title = StrongBodyLabel("Tracked Cube Packs", section)
+        self.pack_section_title = LocalizedStrongBodyLabel(
+            app_text("Tracked Cube Packs"), section
+        )
         self.pack_list = QWidget(section)
         self.pack_list.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.pack_list.setStyleSheet("background-color: transparent; border: none;")
@@ -359,8 +379,10 @@ class CubeLibrarySettingsPage(QWidget):
             self._render_readiness(None)
             self._show_notification(
                 severity="error",
-                title="Cube Library unavailable",
-                message="Failed to load Cube Library state from the active target.",
+                title=app_text("Cube Library unavailable"),
+                message=app_text(
+                    "Failed to load Cube Library state from the active target."
+                ),
             )
             return
         if self._restart_required_after_repair:
@@ -381,7 +403,7 @@ class CubeLibrarySettingsPage(QWidget):
         """Render the target status card."""
 
         view = project_library_status(snapshot)
-        self.status_row.description_label.setText(view.description)
+        apply_application_text(self.status_row.description_label, view.description)
         self.sync_all_button.setEnabled(view.can_sync_all)
 
     def _render_pack_rows(self, packs: tuple[CubePackRecord, ...]) -> None:
@@ -391,7 +413,9 @@ class CubeLibrarySettingsPage(QWidget):
         self._pack_expanders = {}
         _clear_layout(self.pack_list_layout)
         if not packs:
-            empty_action = PushButton("Add Cube Pack", self.pack_list)
+            empty_action = LocalizedPushButton(
+                app_text("Add Cube Pack"), self.pack_list
+            )
             empty_action.clicked.connect(self._focus_add_pack)
             self.pack_list_layout.addWidget(
                 SettingsCard(
@@ -399,9 +423,11 @@ class CubeLibrarySettingsPage(QWidget):
                         self.pack_list,
                         AppIcon.CUBE_MULTIPLE_20_REGULAR,
                     ),
-                    title="No Cube Packs tracked",
+                    title=app_text("No Cube Packs tracked"),
                     description=(
-                        "Add a GitHub Cube Pack to make its cubes available in the picker."
+                        app_text(
+                            "Add a GitHub Cube Pack to make its cubes available in the picker."
+                        )
                     ),
                     trailing_widget=empty_action,
                     reserve_visual_space=True,
@@ -446,22 +472,24 @@ class CubeLibrarySettingsPage(QWidget):
         for detail in view.details:
             expander.add_widget(_detail_card(detail, parent=expander.content_widget()))
         remove_description = (
-            "Remove this Cube Pack from the active target."
+            app_text("Remove this Cube Pack from the active target.")
             if view.can_remove
             else view.remove_disabled_reason
         )
-        sync_button = PushButton("Sync", expander.content_widget())
+        sync_button = LocalizedPushButton(app_text("Sync"), expander.content_widget())
         sync_button.clicked.connect(
             lambda _checked=False, item=pack: self._request_sync_pack(item)
         )
-        remove_button = PushButton("Remove", expander.content_widget())
+        remove_button = LocalizedPushButton(
+            app_text("Remove"), expander.content_widget()
+        )
         remove_button.setEnabled(view.can_remove)
         remove_button.clicked.connect(
             lambda _checked=False, item=pack: self._request_remove_pack(item)
         )
         expander.add_widget(
             SettingsExpanderRow(
-                title="Actions",
+                title=app_text("Actions"),
                 description=remove_description,
                 trailing_widget=_control_row(
                     expander.content_widget(),
@@ -475,13 +503,11 @@ class CubeLibrarySettingsPage(QWidget):
     def _pack_header_controls(self, pack: CubePackRecord) -> QWidget:
         """Create quiet direct controls for one collapsed pack row."""
 
-        enabled_switch = SwitchButton(
+        enabled_switch = LocalizedSwitchButton(
             "Off",
             self.pack_list,
             indicatorPos=IndicatorPosition.RIGHT,
         )
-        enabled_switch.setOnText("On")
-        enabled_switch.setOffText("Off")
         enabled_switch.setChecked(pack.enabled)
         enabled_switch.checkedChanged.connect(
             lambda checked, item=pack: self._request_toggle_enabled(item, checked)
@@ -523,14 +549,16 @@ class CubeLibrarySettingsPage(QWidget):
         for detail in readiness_view.details:
             expander.add_widget(_detail_card(detail, parent=expander.content_widget()))
         if self._dependency_repair_proposal is not None:
-            repair_button = PushButton(
-                "Install required nodes", expander.content_widget()
+            repair_button = LocalizedPushButton(
+                app_text("Install required nodes"), expander.content_widget()
             )
             repair_button.clicked.connect(self._request_repair_dependencies)
             expander.add_widget(
                 SettingsExpanderRow(
-                    title="Repair",
-                    description="Install missing custom nodes required by enabled cubes.",
+                    title=app_text("Repair"),
+                    description=app_text(
+                        "Install missing custom nodes required by enabled cubes."
+                    ),
                     trailing_widget=repair_button,
                     parent=expander.content_widget(),
                 )
@@ -549,15 +577,20 @@ class CubeLibrarySettingsPage(QWidget):
             )
             answer = QMessageBox.question(
                 self,
-                "Install required custom nodes",
-                "Cubes you are subscribed to require additional custom nodes.\n\n"
-                f"{node_list}\n\nInstall these nodes now?",
+                render_application_text(app_text("Install required custom nodes")),
+                render_application_text(
+                    app_text(
+                        "Cubes you are subscribed to require additional custom "
+                        "nodes.\n\n%1\n\nInstall these nodes now?",
+                        node_list,
+                    )
+                ),
             )
             if answer != QMessageBox.StandardButton.Yes:
                 self._show_notification(
                     severity="warning",
-                    title="Dependency repair skipped",
-                    message="Missing cube dependencies still need attention.",
+                    title=app_text("Dependency repair skipped"),
+                    message=app_text("Missing cube dependencies still need attention."),
                 )
                 return
         self._run_background(
@@ -577,12 +610,14 @@ class CubeLibrarySettingsPage(QWidget):
                     severity="success"
                     if result is not None and not result.failed_nodes
                     else "error",
-                    title="Required nodes installed"
+                    title=app_text("Required nodes installed")
                     if result is not None and not result.failed_nodes
-                    else "Dependency repair failed",
-                    message="Restart ComfyUI before using repaired cube dependencies."
+                    else app_text("Dependency repair failed"),
+                    message=app_text(
+                        "Restart ComfyUI before using repaired cube dependencies."
+                    )
                     if result is not None and result.restart_required
-                    else "Cube Library dependencies are up to date.",
+                    else app_text("Cube Library dependencies are up to date."),
                     payload=result,
                 )
             )
@@ -595,8 +630,8 @@ class CubeLibrarySettingsPage(QWidget):
                     operation="repair_dependencies",
                     success=False,
                     severity="error",
-                    title="Dependency repair failed",
-                    message="Could not install required Cube Library nodes.",
+                    title=app_text("Dependency repair failed"),
+                    message=app_text("Could not install required Cube Library nodes."),
                     error=error,
                 )
             )
@@ -608,8 +643,10 @@ class CubeLibrarySettingsPage(QWidget):
         if restart_service is None:
             self._show_notification(
                 severity="warning",
-                title="Restart ComfyUI manually",
-                message="Restart ComfyUI before using repaired cube dependencies.",
+                title=app_text("Restart ComfyUI manually"),
+                message=app_text(
+                    "Restart ComfyUI before using repaired cube dependencies."
+                ),
             )
             return
         self._run_background(
@@ -627,12 +664,12 @@ class CubeLibrarySettingsPage(QWidget):
                     operation="restart_comfy",
                     success=job is not None,
                     severity="success" if job is not None else "error",
-                    title="Comfy restart requested"
+                    title=app_text("Comfy restart requested")
                     if job is not None
-                    else "Comfy restart failed",
-                    message="Refreshing Cube Library after restart request."
+                    else app_text("Comfy restart failed"),
+                    message=app_text("Refreshing Cube Library after restart request.")
                     if job is not None
-                    else "Comfy restart could not be started.",
+                    else app_text("Comfy restart could not be started."),
                     payload=job,
                 )
             )
@@ -643,8 +680,8 @@ class CubeLibrarySettingsPage(QWidget):
                     operation="restart_comfy",
                     success=False,
                     severity="error",
-                    title="Comfy restart failed",
-                    message="Comfy restart could not be started.",
+                    title=app_text("Comfy restart failed"),
+                    message=app_text("Comfy restart could not be started."),
                     error=error,
                 )
             )
@@ -668,11 +705,12 @@ class CubeLibrarySettingsPage(QWidget):
         if candidate is None:
             self._show_notification(
                 severity="warning",
-                title="GitHub URL needed",
-                message="Paste a GitHub repository URL for a Cube Pack.",
+                title=app_text("GitHub URL needed"),
+                message=app_text("Paste a GitHub repository URL for a Cube Pack."),
             )
-            self.validation_result_row.description_label.setText(
-                "Paste a URL like https://github.com/owner/repository."
+            set_localized_text(
+                self.validation_result_row.description_label,
+                "Paste a URL like https://github.com/owner/repository.",
             )
             self.validation_result_row.show()
             self.add_pack_expander.set_content_available(True)
@@ -696,10 +734,10 @@ class CubeLibrarySettingsPage(QWidget):
                         operation="add",
                         success=False,
                         severity="error",
-                        title="Cube Pack validation failed",
-                        message=(
-                            f"Could not validate {candidate.repo_ref} on the "
-                            "active target."
+                        title=app_text("Cube Pack validation failed"),
+                        message=app_text(
+                            "Could not validate %1 on the active target.",
+                            candidate.repo_ref,
                         ),
                         owner=candidate.owner,
                         repo=candidate.repo,
@@ -713,8 +751,11 @@ class CubeLibrarySettingsPage(QWidget):
                         operation="validation",
                         success=False,
                         severity="warning",
-                        title="No cubes found",
-                        message=f"Validation found no cubes in {candidate.repo_ref}.",
+                        title=app_text("No cubes found"),
+                        message=app_text(
+                            "Validation found no cubes in %1.",
+                            candidate.repo_ref,
+                        ),
                         payload=preflight,
                         owner=candidate.owner,
                         repo=candidate.repo,
@@ -735,12 +776,15 @@ class CubeLibrarySettingsPage(QWidget):
                     severity="success"
                     if isinstance(result, CubePackRecord)
                     else "error",
-                    title="Cube Pack added"
+                    title=app_text("Cube Pack added")
                     if isinstance(result, CubePackRecord)
-                    else "Cube Pack add failed",
-                    message=f"Validated and synced {candidate.repo_ref}."
+                    else app_text("Cube Pack add failed"),
+                    message=app_text("Validated and synced %1.", candidate.repo_ref)
                     if isinstance(result, CubePackRecord)
-                    else f"Could not add {candidate.repo_ref}.",
+                    else app_text(
+                        "Could not add %1.",
+                        candidate.repo_ref,
+                    ),
                     payload=preflight,
                     owner=candidate.owner,
                     repo=candidate.repo,
@@ -761,8 +805,11 @@ class CubeLibrarySettingsPage(QWidget):
                     operation="add",
                     success=False,
                     severity="error",
-                    title="Cube Pack add failed",
-                    message=f"Could not add {candidate.repo_ref}.",
+                    title=app_text("Cube Pack add failed"),
+                    message=app_text(
+                        "Could not add %1.",
+                        candidate.repo_ref,
+                    ),
                     owner=candidate.owner,
                     repo=candidate.repo,
                     branch=_MAIN_BRANCH,
@@ -789,8 +836,11 @@ class CubeLibrarySettingsPage(QWidget):
                     operation="sync_all",
                     success=True,
                     severity="success",
-                    title="Cube Packs synced",
-                    message=f"Synced {len(result)} Cube Packs.",
+                    title=app_text("Cube Packs synced"),
+                    message=app_text(
+                        "Synced %1 Cube Packs.",
+                        len(result),
+                    ),
                     payload=result,
                 )
             )
@@ -801,8 +851,8 @@ class CubeLibrarySettingsPage(QWidget):
                     operation="sync_all",
                     success=False,
                     severity="error",
-                    title="Cube Pack sync failed",
-                    message="Could not sync Cube Packs.",
+                    title=app_text("Cube Pack sync failed"),
+                    message=app_text("Could not sync Cube Packs."),
                     error=error,
                 )
             )
@@ -833,12 +883,19 @@ class CubeLibrarySettingsPage(QWidget):
                     severity="success"
                     if isinstance(result, CubePackRecord)
                     else "error",
-                    title="Cube Pack updated"
+                    title=app_text("Cube Pack updated")
                     if isinstance(result, CubePackRecord)
-                    else "Cube Pack update failed",
-                    message=f"{pack.repo_ref} {'enabled' if enabled else 'disabled'}."
+                    else app_text("Cube Pack update failed"),
+                    message=app_text(
+                        "%1 %2.",
+                        pack.repo_ref,
+                        app_text("enabled") if enabled else app_text("disabled"),
+                    )
                     if isinstance(result, CubePackRecord)
-                    else f"Could not update {pack.repo_ref}.",
+                    else app_text(
+                        "Could not update %1.",
+                        pack.repo_ref,
+                    ),
                     payload=result,
                     owner=pack.owner,
                     repo=pack.repo,
@@ -858,8 +915,11 @@ class CubeLibrarySettingsPage(QWidget):
                     operation="toggle",
                     success=False,
                     severity="error",
-                    title="Cube Pack update failed",
-                    message=f"Could not update {pack.repo_ref}.",
+                    title=app_text("Cube Pack update failed"),
+                    message=app_text(
+                        "Could not update %1.",
+                        pack.repo_ref,
+                    ),
                     owner=pack.owner,
                     repo=pack.repo,
                     branch=pack.branch,
@@ -887,12 +947,15 @@ class CubeLibrarySettingsPage(QWidget):
                     severity="success"
                     if isinstance(result, CubePackRecord)
                     else "error",
-                    title="Cube Pack synced"
+                    title=app_text("Cube Pack synced")
                     if isinstance(result, CubePackRecord)
-                    else "Cube Pack sync failed",
-                    message=f"Synced {pack.repo_ref}."
+                    else app_text("Cube Pack sync failed"),
+                    message=app_text("Synced %1.", pack.repo_ref)
                     if isinstance(result, CubePackRecord)
-                    else f"Could not sync {pack.repo_ref}.",
+                    else app_text(
+                        "Could not sync %1.",
+                        pack.repo_ref,
+                    ),
                     payload=result,
                     owner=pack.owner,
                     repo=pack.repo,
@@ -912,8 +975,11 @@ class CubeLibrarySettingsPage(QWidget):
                     operation="sync",
                     success=False,
                     severity="error",
-                    title="Cube Pack sync failed",
-                    message=f"Could not sync {pack.repo_ref}.",
+                    title=app_text("Cube Pack sync failed"),
+                    message=app_text(
+                        "Could not sync %1.",
+                        pack.repo_ref,
+                    ),
                     owner=pack.owner,
                     repo=pack.repo,
                     branch=pack.branch,
@@ -927,14 +993,18 @@ class CubeLibrarySettingsPage(QWidget):
         if pack.default_base_repo:
             self._show_notification(
                 severity="warning",
-                title="Cube Pack cannot be removed",
-                message="Base Cube Packs are required by Substitute and cannot be removed.",
+                title=app_text("Cube Pack cannot be removed"),
+                message=app_text(
+                    "Base Cube Packs are required by Substitute and cannot be removed."
+                ),
             )
             return
         answer = QMessageBox.question(
             self,
-            "Remove Cube Pack",
-            f"Remove {pack.repo_ref} from the active target?",
+            render_application_text(app_text("Remove Cube Pack")),
+            render_application_text(
+                app_text("Remove %1 from the active target?", pack.repo_ref)
+            ),
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
@@ -953,10 +1023,17 @@ class CubeLibrarySettingsPage(QWidget):
                     operation="remove",
                     success=result,
                     severity="success" if result else "error",
-                    title="Cube Pack removed" if result else "Cube Pack remove failed",
-                    message=f"Removed {pack.repo_ref}."
+                    title=(
+                        app_text("Cube Pack removed")
+                        if result
+                        else app_text("Cube Pack remove failed")
+                    ),
+                    message=app_text("Removed %1.", pack.repo_ref)
                     if result
-                    else f"Could not remove {pack.repo_ref}.",
+                    else app_text(
+                        "Could not remove %1.",
+                        pack.repo_ref,
+                    ),
                     owner=pack.owner,
                     repo=pack.repo,
                     branch=pack.branch,
@@ -975,8 +1052,11 @@ class CubeLibrarySettingsPage(QWidget):
                     operation="remove",
                     success=False,
                     severity="error",
-                    title="Cube Pack remove failed",
-                    message=f"Could not remove {pack.repo_ref}.",
+                    title=app_text("Cube Pack remove failed"),
+                    message=app_text(
+                        "Could not remove %1.",
+                        pack.repo_ref,
+                    ),
                     owner=pack.owner,
                     repo=pack.repo,
                     branch=pack.branch,
@@ -1043,7 +1123,9 @@ class CubeLibrarySettingsPage(QWidget):
         """Show the Comfy restart action after dependency mutation."""
 
         _clear_layout(self.readiness_layout)
-        restart_button = PushButton("Restart Comfy", self.readiness_container)
+        restart_button = LocalizedPushButton(
+            app_text("Restart Comfy"), self.readiness_container
+        )
         restart_button.clicked.connect(self._request_restart_comfy)
         self.readiness_layout.addWidget(
             SettingsCard(
@@ -1051,10 +1133,12 @@ class CubeLibrarySettingsPage(QWidget):
                     self.readiness_container,
                     AppIcon.PLUG_CONNECTED_SETTINGS_20_REGULAR,
                 ),
-                title="Comfy restart required",
+                title=app_text("Comfy restart required"),
                 description=(
-                    "Cube dependency repair changed the target environment. Restart "
-                    "ComfyUI before generating with the repaired cubes."
+                    app_text(
+                        "Cube dependency repair changed the target environment. Restart "
+                        "ComfyUI before generating with the repaired cubes."
+                    )
                 ),
                 trailing_widget=restart_button,
                 reserve_visual_space=True,
@@ -1072,8 +1156,9 @@ class CubeLibrarySettingsPage(QWidget):
         """Render validation details inside the add-pack expander."""
 
         if not isinstance(payload, CubePackPreflight):
-            self.validation_result_row.description_label.setText(
-                "Validation did not return results."
+            set_localized_text(
+                self.validation_result_row.description_label,
+                "Validation did not return results.",
             )
             self.validation_result_row.show()
             self.add_pack_expander.set_content_available(True)
@@ -1081,9 +1166,15 @@ class CubeLibrarySettingsPage(QWidget):
             return
         paths = ", ".join(payload.cube_paths) if payload.cube_paths else "None"
         truncated = " Result was truncated." if payload.truncated else ""
-        self.validation_result_row.description_label.setText(
-            f"{payload.owner}/{payload.repo}: {payload.cube_count} "
-            f"{_cube_noun(payload.cube_count)} found. Cubes: {paths}.{truncated}"
+        set_localized_text(
+            self.validation_result_row.description_label,
+            "%1/%2: %3 %4 found. Cubes: %5.%6",
+            payload.owner,
+            payload.repo,
+            payload.cube_count,
+            _cube_noun(payload.cube_count),
+            paths,
+            truncated,
         )
         self.validation_result_row.show()
         self.add_pack_expander.set_content_available(True)

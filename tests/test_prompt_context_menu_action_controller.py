@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 from typing import Any, cast
 
 from substitute.presentation.editor.prompt_editor.commands import (
@@ -168,7 +170,7 @@ class _LoraMetadata:
                         payload=PromptLoraTriggerWordsPayload(
                             insertion_text=prompt_text,
                             display_name="Test",
-                            full_label="Trigger words: Test",
+                            full_label=app_text("Trigger words: %1", "Test"),
                         ),
                     ),
                 ),

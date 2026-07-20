@@ -36,6 +36,9 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
     RoundMenu,
 )
 
+from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.localization import render_application_text
+
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataMenuItem,
     model_metadata_menu_entries,
@@ -536,7 +539,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
         return tuple(
             MenuItem(
                 action_id=f"prompt.diagnostic.{index}",
-                label=str(self.tr(diagnostic_action.label)),
+                label=render_application_text(diagnostic_action.label),
                 callback=diagnostic_action.callback,
                 enabled=(
                     diagnostic_action.enabled and diagnostic_action.callback is not None
@@ -555,7 +558,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
             entries.append(
                 MenuItem(
                     "prompt.undo",
-                    str(self.tr("Undo")),
+                    render_application_text(app_text("Undo")),
                     callback=parent.undo,
                     shortcut="Ctrl+Z",
                     icon=FIF.RETURN.icon(),
@@ -565,7 +568,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
             entries.append(
                 MenuItem(
                     "prompt.redo",
-                    str(self.tr("Redo")),
+                    render_application_text(app_text("Redo")),
                     callback=parent.redo,
                     shortcut="Ctrl+Y",
                     icon=FIF.ROTATE.icon(),
@@ -575,28 +578,28 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
         clipboard_entries: tuple[MenuItem, ...] = (
             MenuItem(
                 "prompt.cut",
-                str(self.tr("Cut")),
+                render_application_text(app_text("Cut")),
                 callback=self._clipboard_actions.cut,
                 shortcut="Ctrl+X",
                 icon=FIF.CUT.icon(),
             ),
             MenuItem(
                 "prompt.copy",
-                str(self.tr("Copy")),
+                render_application_text(app_text("Copy")),
                 callback=self._clipboard_actions.copy,
                 shortcut="Ctrl+C",
                 icon=FIF.COPY.icon(),
             ),
             MenuItem(
                 "prompt.paste",
-                str(self.tr("Paste")),
+                render_application_text(app_text("Paste")),
                 callback=self._clipboard_actions.paste,
                 shortcut="Ctrl+V",
                 icon=FIF.PASTE.icon(),
             ),
             MenuItem(
                 "prompt.select_all",
-                str(self.tr("Select all")),
+                render_application_text(app_text("Select all")),
                 callback=self._clipboard_actions.select_all,
                 shortcut="Ctrl+A",
             ),
@@ -632,7 +635,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
             return None
         return MenuItem(
             "prompt.queue_scene",
-            str(self.tr("Queue this scene")),
+            render_application_text(app_text("Queue this scene")),
             callback=self._queue_scene_for_key,
         )
 
@@ -644,7 +647,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
         if not self._prompt_segment_model.sections:
             return None
         return LazyMenuSubmenu(
-            str(self.tr("Insert saved segment")),
+            render_application_text(app_text("Insert saved segment")),
             entries_factory=self._prompt_segment_entries,
         )
 
@@ -688,7 +691,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
         if not self._trigger_word_actions:
             return None
         return LazyMenuSubmenu(
-            str(self.tr("Insert trigger words")),
+            render_application_text(app_text("Insert trigger words")),
             entries_factory=self._trigger_word_entries,
         )
 
@@ -711,7 +714,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
             entries.append(
                 MenuItem(
                     "prompt.segment.save",
-                    str(self.tr("Save segment as...")),
+                    render_application_text(app_text("Save segment as...")),
                     callback=self._save_prompt_segment,
                     icon=FIF.SAVE.icon(),
                 )
@@ -720,7 +723,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
             entries.append(
                 MenuItem(
                     "prompt.danbooru.lookup",
-                    str(self.tr("Danbooru wiki lookup")),
+                    render_application_text(app_text("Danbooru wiki lookup")),
                     callback=self._lookup_danbooru_wiki,
                     icon=FIF.DICTIONARY.icon(),
                 )
@@ -729,7 +732,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
             entries.append(
                 MenuItem(
                     "prompt.lora.schedule",
-                    str(self.tr("Schedule LoRA")),
+                    render_application_text(app_text("Schedule LoRA")),
                     callback=self._schedule_lora_callback,
                     icon=FIF.EDIT.icon(),
                 )
@@ -741,7 +744,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
 
         return MenuItem(
             "prompt.rich_rendering.toggle",
-            str(self.tr("Rich prompt rendering")),
+            render_application_text(app_text("Rich prompt rendering")),
             checkable=True,
             checked=self._rich_prompt_rendering_enabled,
             checked_callback=self._toggle_rich_prompt_rendering,

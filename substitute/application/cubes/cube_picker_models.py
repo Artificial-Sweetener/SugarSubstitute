@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationMessage, app_text
+
 from collections.abc import Mapping
 from dataclasses import dataclass
 import re
@@ -45,11 +47,11 @@ CubeSearchTargetKind = Literal[
     "technical",
 ]
 
-_ROLE_TITLES: dict[CubePickerRole, str] = {
-    "start": "Start cubes",
-    "middle": "Middle cubes",
-    "end": "End cubes",
-    "unclassified": "Other cubes",
+_ROLE_TITLES: dict[CubePickerRole, ApplicationMessage] = {
+    "start": app_text("Start cubes"),
+    "middle": app_text("Middle cubes"),
+    "end": app_text("End cubes"),
+    "unclassified": app_text("Other cubes"),
 }
 _ALL_SECTION_ORDER: tuple[CubePickerRole, ...] = (
     "start",
@@ -58,7 +60,7 @@ _ALL_SECTION_ORDER: tuple[CubePickerRole, ...] = (
     "unclassified",
 )
 _UNSPECIFIED_MODEL_KEY = "unspecified"
-_UNSPECIFIED_MODEL_TITLE = "Unspecified model"
+_UNSPECIFIED_MODEL_TITLE = app_text("Unspecified model")
 
 
 @dataclass(frozen=True)
@@ -526,7 +528,9 @@ def _pack_group_from_entry(entry: CubePickerEntry) -> CubePickerPackGroup:
         )
     if source_kind:
         title = (
-            "Local cubes" if source_kind == "local" else f"{source_kind.title()} cubes"
+            app_text("Local cubes")
+            if source_kind == "local"
+            else app_text("%1 cubes", source_kind.title())
         )
         return CubePickerPackGroup(
             key=source_kind,
@@ -536,7 +540,7 @@ def _pack_group_from_entry(entry: CubePickerEntry) -> CubePickerPackGroup:
         )
     return CubePickerPackGroup(
         key="unknown",
-        title="Unknown source",
+        title=app_text("Unknown source"),
         local=False,
         unknown=True,
     )

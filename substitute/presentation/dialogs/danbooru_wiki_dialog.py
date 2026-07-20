@@ -18,6 +18,21 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationMessage, ApplicationText
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    render_application_text,
+    set_localized_accessible_name,
+    set_localized_tooltip,
+)
+
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedCaptionLabel,
+    LocalizedStrongBodyLabel,
+    LocalizedTitleLabel,
+)
+
 from collections.abc import Callable
 from dataclasses import dataclass
 import html
@@ -36,20 +51,22 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    BodyLabel,
     CaptionLabel,
     FluentIcon as FIF,
     MessageBoxBase,
-    StrongBodyLabel,
-    TitleLabel,
     ToolButton,
 )
-from qfluentwidgets.components.widgets.tool_tip import (  # type: ignore[import-untyped]
-    ToolTipFilter,
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    FluentToolTipFilter,
     ToolTipPosition,
+    ensure_fluent_tooltip_filter,
 )
 from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import-untyped]
 from shiboken6 import isValid
+
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_text,
+)
 
 from substitute.application.danbooru import (
     DanbooruContentFreshnessState,
@@ -106,7 +123,7 @@ _DARK_DIALOG_BODY_FILL = "#202020"
 _LIGHT_DIALOG_TOP_FILL = "#fbfbfb"
 _LIGHT_DIALOG_BODY_FILL = "#f4f4f4"
 _HEADER_BUTTON_SIZE = 28
-_DIALOG_FALLBACK_TITLE = "Danbooru wiki"
+_DIALOG_FALLBACK_TITLE = app_text("Danbooru wiki")
 _SURFACE_RADIUS = 18
 _HEADER_HORIZONTAL_PADDING = 24
 _HEADER_TOP_PADDING = 16
@@ -432,8 +449,8 @@ class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
         self._history_index = -1
         self._active_canonical_url: str | None = None
         self._active_request_token = 0
-        self._current_display_title = _DIALOG_FALLBACK_TITLE
-        self._header_tooltip_filters: list[ToolTipFilter] = []
+        self._current_display_title: ApplicationText = _DIALOG_FALLBACK_TITLE
+        self._header_tooltip_filters: list[FluentToolTipFilter] = []
 
         self.setClosableOnMaskClicked(False)
         self.setModal(True)
@@ -496,40 +513,40 @@ class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
         top_layout = QHBoxLayout(top_row)
         top_layout.setContentsMargins(0, 0, 0, 0)
         top_layout.setSpacing(8)
-        self._title_label = TitleLabel("Danbooru wiki", top_row)
+        self._title_label = LocalizedTitleLabel(app_text("Danbooru wiki"), top_row)
         self._title_label.setObjectName("danbooruWikiTitleLabel")
         self._back_button = self._header_icon_button(
             icon=FIF.LEFT_ARROW,
-            tooltip="Back",
-            accessible_name="Back",
+            tooltip=app_text("Back"),
+            accessible_name=app_text("Back"),
             parent=top_row,
         )
         self._back_button.clicked.connect(lambda: self._navigate_history(-1))
         self._forward_button = self._header_icon_button(
             icon=FIF.RIGHT_ARROW,
-            tooltip="Forward",
-            accessible_name="Forward",
+            tooltip=app_text("Forward"),
+            accessible_name=app_text("Forward"),
             parent=top_row,
         )
         self._forward_button.clicked.connect(lambda: self._navigate_history(+1))
         self._copy_button = self._header_icon_button(
             icon=FIF.COPY,
-            tooltip="Copy tag title",
-            accessible_name="Copy tag title",
+            tooltip=app_text("Copy tag title"),
+            accessible_name=app_text("Copy tag title"),
             parent=top_row,
         )
         self._copy_button.clicked.connect(self._copy_current_title)
         self._open_button = self._header_icon_button(
             icon=FIF.LINK,
-            tooltip="Open tag wiki article in browser",
-            accessible_name="Open tag wiki article in browser",
+            tooltip=app_text("Open tag wiki article in browser"),
+            accessible_name=app_text("Open tag wiki article in browser"),
             parent=top_row,
         )
         self._open_button.clicked.connect(self._open_current_page)
         self._close_button = self._header_icon_button(
             icon=FIF.CLOSE,
-            tooltip="Close",
-            accessible_name="Close",
+            tooltip=app_text("Close"),
+            accessible_name=app_text("Close"),
             parent=top_row,
         )
         self._close_button.clicked.connect(self.reject)
@@ -557,7 +574,9 @@ class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
             "QLabel { padding: 2px 8px; border-radius: 10px; "
             "background: rgba(127, 127, 127, 0.10); }"
         )
-        self._pixiv_prefix_label = CaptionLabel("On Pixiv:", meta_row)
+        self._pixiv_prefix_label = LocalizedCaptionLabel(
+            app_text("On Pixiv:"), meta_row
+        )
         self._pixiv_label = CaptionLabel("", meta_row)
         self._pixiv_label.setWordWrap(True)
         self._pixiv_label.setTextFormat(Qt.TextFormat.RichText)
@@ -625,8 +644,8 @@ class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
         state_layout = QVBoxLayout(state_widget)
         state_layout.setContentsMargins(0, 18, 0, 18)
         state_layout.setSpacing(8)
-        self._status_title_label = StrongBodyLabel("", state_widget)
-        self._status_body_label = BodyLabel("", state_widget)
+        self._status_title_label = LocalizedStrongBodyLabel("", state_widget)
+        self._status_body_label = LocalizedBodyLabel("", state_widget)
         self._status_body_label.setWordWrap(True)
         state_layout.addWidget(self._status_title_label)
         state_layout.addWidget(self._status_body_label)
@@ -644,8 +663,8 @@ class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
         display_title = target.strip().replace("_", " ") or _DIALOG_FALLBACK_TITLE
         self._set_title_text(display_title)
         self._show_status(
-            title="Loading definition",
-            body="Fetching Danbooru wiki content...",
+            title=app_text("Loading definition"),
+            body=app_text("Fetching Danbooru wiki content..."),
         )
         self._lookup_dispatcher.submit(
             lambda: self._load_dialog_page(target=target, by_title=by_title),
@@ -740,7 +759,7 @@ class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
             return sections
         return sections + (
             DanbooruWikiSectionContent(
-                heading="Posts",
+                heading=app_text("Posts"),
                 blocks=(DanbooruWikiImageReferenceBlock(items=tuple(recent_items)),),
             ),
         )
@@ -833,8 +852,8 @@ class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
             freshness_state=None,
         )
         self._show_status(
-            title="Lookup failed",
-            body="Danbooru wiki content could not be loaded unexpectedly.",
+            title=app_text("Lookup failed"),
+            body=app_text("Danbooru wiki content could not be loaded unexpectedly."),
         )
         log_warning(
             _LOGGER,
@@ -881,23 +900,27 @@ class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
     ) -> None:
         """Render the current page metadata in the native header."""
 
-        self._post_count_label.setText(
-            "" if post_count is None else f"{post_count:,} posts"
-        )
+        if post_count is None:
+            self._post_count_label.setText("")
+        else:
+            set_localized_text(
+                self._post_count_label,
+                "%1 posts",
+                f"{post_count:,}",
+            )
         self._freshness_label.setVisible(
             freshness_state is DanbooruContentFreshnessState.STALE
         )
-        self._freshness_label.setText(
-            ""
-            if freshness_state is not DanbooruContentFreshnessState.STALE
-            else "Cached copy"
-        )
+        if freshness_state is DanbooruContentFreshnessState.STALE:
+            set_localized_text(self._freshness_label, "Cached copy")
+        else:
+            self._freshness_label.setText("")
         pixiv_links = _pixiv_links_text(aliases)
         self._pixiv_prefix_label.setVisible(bool(pixiv_links))
         self._pixiv_label.setText(pixiv_links)
         self._pixiv_label.setVisible(bool(pixiv_links))
 
-    def _show_status(self, *, title: str, body: str) -> None:
+    def _show_status(self, *, title: ApplicationText, body: ApplicationText) -> None:
         """Display one native loading, empty, or error state in the body."""
 
         self._status_title_label.setText(title)
@@ -931,36 +954,44 @@ class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
     def _copy_current_title(self) -> None:
         """Copy the current visible page title without decorative quotes."""
 
-        QGuiApplication.clipboard().setText(self._current_display_title)
+        QGuiApplication.clipboard().setText(
+            render_application_text(self._current_display_title)
+        )
 
-    def _set_title_text(self, display_title: str) -> None:
+    def _set_title_text(self, display_title: ApplicationText) -> None:
         """Store and render the current title using the quoted header presentation."""
 
-        self._current_display_title = display_title.strip() or _DIALOG_FALLBACK_TITLE
-        self._title_label.setText(f'"{self._current_display_title}"')
+        self._current_display_title = (
+            display_title if display_title.strip() else _DIALOG_FALLBACK_TITLE
+        )
+        if self._current_display_title is _DIALOG_FALLBACK_TITLE:
+            self._title_label.setText(app_text('"%1"', _DIALOG_FALLBACK_TITLE))
+        else:
+            self._title_label.setText(f'"{self._current_display_title}"')
         self._sync_navigation_buttons()
 
     def _header_icon_button(
         self,
         *,
         icon: object,
-        tooltip: str,
-        accessible_name: str,
+        tooltip: ApplicationMessage,
+        accessible_name: ApplicationMessage,
         parent: QWidget,
     ) -> ToolButton:
         """Create one icon-only header action button."""
 
         button = ToolButton(icon, parent)
-        button.setToolTip(tooltip)
-        button.setAccessibleName(accessible_name)
+        set_localized_tooltip(button, tooltip.source_text, *tooltip.arguments)
+        set_localized_accessible_name(
+            button, accessible_name.source_text, *accessible_name.arguments
+        )
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setFixedSize(_HEADER_BUTTON_SIZE, _HEADER_BUTTON_SIZE)
-        tooltip_filter = ToolTipFilter(
+        tooltip_filter = ensure_fluent_tooltip_filter(
             button,
-            showDelay=1000,
+            show_delay_ms=1000,
             position=ToolTipPosition.BOTTOM,
         )
-        button.installEventFilter(tooltip_filter)
         self._header_tooltip_filters.append(tooltip_filter)
         return button
 
@@ -1066,28 +1097,35 @@ def _anchor_html(*, label: str, href: str) -> str:
     return f'<a href="{html.escape(href, quote=True)}">{html.escape(label)}</a>'
 
 
-def _status_title_for_failure(reason: DanbooruFailureReason | None) -> str:
+def _status_title_for_failure(
+    reason: DanbooruFailureReason | None,
+) -> ApplicationText:
     """Return the status title shown for one lookup failure reason."""
 
     if reason is DanbooruFailureReason.NOT_FOUND:
-        return "Definition not found"
+        return app_text("Definition not found")
     if reason is DanbooruFailureReason.UNAVAILABLE:
-        return "Danbooru unavailable"
+        return app_text("Danbooru unavailable")
     if reason is DanbooruFailureReason.INVALID_RESPONSE:
-        return "Malformed Danbooru response"
-    return "Definition unavailable"
+        return app_text("Malformed Danbooru response")
+    return app_text("Definition unavailable")
 
 
-def _status_body_for_failure(result: DanbooruWikiContentLookupResult) -> str:
+def _status_body_for_failure(
+    result: DanbooruWikiContentLookupResult,
+) -> ApplicationText:
     """Return the human-readable status body for one lookup failure result."""
 
     if result.failure_reason is DanbooruFailureReason.NOT_FOUND:
-        return f'No Danbooru wiki page was found for "{result.requested_text.strip()}".'
+        return app_text(
+            'No Danbooru wiki page was found for "%1".',
+            result.requested_text.strip(),
+        )
     if result.failure_reason is DanbooruFailureReason.UNAVAILABLE:
-        return "Danbooru did not respond. Try again in a moment."
+        return app_text("Danbooru did not respond. Try again in a moment.")
     if result.failure_reason is DanbooruFailureReason.INVALID_RESPONSE:
-        return "Danbooru returned content the app could not render safely."
-    return "The requested definition is not available."
+        return app_text("Danbooru returned content the app could not render safely.")
+    return app_text("The requested definition is not available.")
 
 
 def _embedded_references(

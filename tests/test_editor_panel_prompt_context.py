@@ -36,6 +36,7 @@ from substitute.domain.prompt import PromptEditorFeature, PromptFeatureDecision
 from substitute.domain.prompt.features import PromptEditorFeatureProfile
 from substitute.presentation.editor.panel.view import EditorPanel
 from tests.execution_test_helpers import immediate_editor_panel_execution_factories
+from tests.localization_testing import empty_node_presentation_service
 
 
 class _EmptyNodeDefinitionGateway:
@@ -76,6 +77,7 @@ def _editor_panel(
         node_behavior_service=NodeBehaviorService(
             node_definition_gateway=node_definition_gateway
         ),
+        node_presentation_service=empty_node_presentation_service(),
         scheduled_lora_provider=scheduled_lora_provider,
         prompt_feature_profile_service=prompt_feature_profile_service,
         editor_panel_execution_factories=immediate_editor_panel_execution_factories(),

@@ -28,6 +28,9 @@ from substitute.application.cube_library import (
     LoadedCubeUpdateCandidate,
     LoadedCubeUpdateSelection,
 )
+from sugarsubstitute_shared.presentation.localization import (
+    translate_application_message,
+)
 from substitute.application.cubes import (
     CubeInstanceStateTransferService,
     LoadedCubeDefinition,
@@ -263,9 +266,9 @@ class WorkspaceCubeUpdateActions:
                     cube_alias=candidate.cube_alias,
                     severity=CubeRuntimeIssueSeverity.WARNING,
                     kind=CubeRuntimeIssueKind.CUBE_LIBRARY_UPDATE_FAILED,
-                    message=(
-                        "Substitute could not update this cube from the Cube Library: "
-                        f"{error}"
+                    message=translate_application_message(
+                        "Substitute could not update this cube from the Cube Library: %1",
+                        error,
                     ),
                     operation="cube_library_update",
                     source=CubeRuntimeIssueSource.CUBE_LIBRARY,

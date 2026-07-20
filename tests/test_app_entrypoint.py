@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -46,11 +46,13 @@ def test_main_starts_early_splash_and_passes_it_to_bootstrap(
     def start_early_launch_splash(
         passed_argv: list[str],
         app_root: Path,
+        language_identifier: str,
     ) -> tuple[_Splash, _CancelRelay]:
         """Record entrypoint splash startup arguments."""
 
         calls.append(("splash_argv", list(passed_argv)))
         calls.append(("splash_root", app_root))
+        calls.append(("splash_locale", language_identifier))
         return splash, relay
 
     early_splash_module.start_early_launch_splash = start_early_launch_splash  # type: ignore[attr-defined]
@@ -86,6 +88,13 @@ def test_main_starts_early_splash_and_passes_it_to_bootstrap(
     )
     monkeypatch.setitem(sys.modules, "substitute.app.bootstrap.startup", startup_module)
     monkeypatch.setattr(sys, "argv", argv)
+    monkeypatch.setattr(
+        app_entrypoint,
+        "resolve_early_startup_locale",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            effective_language=SimpleNamespace(identifier="ja")
+        ),
+    )
 
     with pytest.raises(SystemExit) as exit_info:
         app_entrypoint.main()
@@ -95,6 +104,7 @@ def test_main_starts_early_splash_and_passes_it_to_bootstrap(
         ("env", Path(app_entrypoint.__file__).resolve().parent / ".env"),
         ("splash_argv", argv),
         ("splash_root", Path(app_entrypoint.__file__).resolve().parent),
+        ("splash_locale", "ja"),
         ("run_argv", argv),
         ("initial_splash", splash),
         ("cancel_connector", relay.connect),
@@ -122,7 +132,11 @@ def test_main_closes_early_splash_when_bootstrap_fails(
     env_file_module = ModuleType("substitute.app.bootstrap.env_file")
     env_file_module.load_env_file = lambda _path: None  # type: ignore[attr-defined]
     early_splash_module = ModuleType("substitute.app.bootstrap.early_launch_splash")
-    early_splash_module.start_early_launch_splash = lambda _argv, _root: (splash, relay)  # type: ignore[attr-defined]
+    setattr(
+        early_splash_module,
+        "start_early_launch_splash",
+        lambda _argv, _root, _locale: (splash, relay),
+    )
     startup_module = ModuleType("substitute.app.bootstrap.startup")
 
     def run_application(*_args: object, **_kwargs: object) -> int:

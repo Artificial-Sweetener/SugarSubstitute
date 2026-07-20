@@ -18,6 +18,12 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+from sugarsubstitute_shared.localization import ApplicationMessage, app_text
+from sugarsubstitute_shared.presentation.localization import apply_application_text
+
 from collections.abc import Callable
 
 from PySide6.QtCore import QSize, Qt
@@ -31,8 +37,8 @@ from substitute.application.danbooru.content_models import (
 )
 
 _THUMBNAIL_EDGE = 156
-_HIDDEN_LABEL_TEXT = "Hidden by content preferences"
-_UNAVAILABLE_LABEL_TEXT = "No preview"
+_HIDDEN_LABEL_TEXT: ApplicationMessage = app_text("Hidden by content preferences")
+_UNAVAILABLE_LABEL_TEXT: ApplicationMessage = app_text("No preview")
 
 
 class DanbooruWikiImageCard(QFrame):
@@ -111,10 +117,11 @@ class DanbooruWikiImageCard(QFrame):
             self._placeholder_label.hide()
             return
         self._image_label.hide()
-        self._placeholder_label.setText(
+        apply_application_text(
+            self._placeholder_label,
             _HIDDEN_LABEL_TEXT
             if self._preview.state is DanbooruImagePreviewState.HIDDEN
-            else _UNAVAILABLE_LABEL_TEXT
+            else _UNAVAILABLE_LABEL_TEXT,
         )
 
     def _refresh_pixmap(self) -> None:
@@ -125,7 +132,7 @@ class DanbooruWikiImageCard(QFrame):
         if self._source_pixmap.isNull():
             self._image_label.hide()
             self._placeholder_label.show()
-            self._placeholder_label.setText(_UNAVAILABLE_LABEL_TEXT)
+            apply_application_text(self._placeholder_label, _UNAVAILABLE_LABEL_TEXT)
             return
         scaled = self._source_pixmap.scaled(
             self.size(),
@@ -162,7 +169,7 @@ class DanbooruWikiImageCard(QFrame):
                 self._preview.hidden_reason or "Preview image could not be loaded."
             )
         if tooltip_parts:
-            self.setToolTip("\n".join(tooltip_parts))
+            set_fluent_tooltip_text(self, "\n".join(tooltip_parts))
 
 
 def _preview_size_from_metadata(preview: DanbooruWikiImagePreview) -> QSize | None:

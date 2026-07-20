@@ -34,6 +34,7 @@ from sugarsubstitute_shared.launch_splash import (
     splash_session_from_args,
 )
 from sugarsubstitute_shared.launch_splash.session import validate_splash_session_spec
+from sugarsubstitute_shared.localization import app_text, format_locale_argument
 
 from substitute.application.execution import (
     CancellationSource,
@@ -49,6 +50,7 @@ from substitute.app.bootstrap.launch_splash import (
     ProcessPumpWork,
     decode_splash_helper_event,
 )
+from substitute.app.bootstrap.early_splash_text import translate_early_splash_text
 from substitute.app.bootstrap.standalone_long_lived_execution import (
     StandaloneLongLivedExecutionOwner,
 )
@@ -64,6 +66,7 @@ _CANCEL_SIGNAL_MAX_SECONDS = 1800.0
 def start_early_launch_splash(
     argv: list[str],
     app_root: Path,
+    language_identifier: str,
 ) -> tuple[LaunchSplashClient | None, LaunchSplashCancelRelay | None]:
     """Start the early splash helper before the full app runtime is composed."""
 
@@ -75,7 +78,11 @@ def start_early_launch_splash(
     splash, adopted_spec = _adopt_existing_launch_splash(argv)
     adopted_existing_splash = splash is not None
     if splash is None:
-        splash, adopted_spec = _start_new_launch_splash(app_root, cancel_relay)
+        splash, adopted_spec = _start_new_launch_splash(
+            app_root,
+            cancel_relay,
+            language_identifier,
+        )
     if isinstance(splash, NullLaunchSplashClient):
         return None, None
     if adopted_spec is not None:
@@ -84,8 +91,13 @@ def start_early_launch_splash(
             cancel_relay=cancel_relay,
             process_pump_task_factory=_create_early_process_pump_task,
         )
+    startup_line = translate_early_splash_text(
+        app_root=app_root,
+        language_identifier=language_identifier,
+        source_text=app_text("Starting SugarSubstitute."),
+    )
     try:
-        splash.append_log("Starting SugarSubstitute.")
+        splash.append_log(startup_line)
     except OSError as error:
         if adopted_existing_splash:
             log_warning(
@@ -93,7 +105,11 @@ def start_early_launch_splash(
                 "Failed to adopt launcher splash session; starting app splash",
                 error=error,
             )
-            splash, adopted_spec = _start_new_launch_splash(app_root, cancel_relay)
+            splash, adopted_spec = _start_new_launch_splash(
+                app_root,
+                cancel_relay,
+                language_identifier,
+            )
             if isinstance(splash, NullLaunchSplashClient):
                 return None, None
             if adopted_spec is not None:
@@ -102,7 +118,7 @@ def start_early_launch_splash(
                     cancel_relay=cancel_relay,
                     process_pump_task_factory=_create_early_process_pump_task,
                 )
-            splash.append_log("Starting SugarSubstitute.")
+            splash.append_log(startup_line)
         else:
             raise
     return splash, cancel_relay
@@ -136,12 +152,14 @@ def _connect_splash_session(spec: SplashSessionSpec) -> LaunchSplashClient:
 def _start_new_launch_splash(
     app_root: Path,
     cancel_relay: LaunchSplashCancelRelay,
+    language_identifier: str,
 ) -> tuple[LaunchSplashClient, SplashSessionSpec | None]:
     """Start an app-owned shared launch-splash session."""
 
     return start_shared_launch_splash(
         app_root=app_root,
         on_cancel_requested=cancel_relay.request_cancel,
+        language_identifier=language_identifier,
         process_pump_task_factory=_create_early_process_pump_task,
     )
 
@@ -150,6 +168,7 @@ def start_shared_launch_splash(
     *,
     app_root: Path,
     on_cancel_requested: Callable[[], None],
+    language_identifier: str,
     process_pump_task_factory: Callable[
         [TaskIdentity, ExecutionContext, ProcessPumpWork, str],
         ProcessPumpTaskHandle,
@@ -163,6 +182,7 @@ def start_shared_launch_splash(
                 sys.executable,
                 "-m",
                 _SHARED_SPLASH_HOST_MODULE,
+                format_locale_argument(language_identifier),
             ],
             cwd=app_root,
             stdin=subprocess.DEVNULL,

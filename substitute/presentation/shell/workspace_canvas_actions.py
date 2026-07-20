@@ -18,6 +18,11 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    render_application_text,
+)
+
 import uuid
 from pathlib import Path
 from typing import Mapping, Protocol, cast
@@ -956,15 +961,19 @@ class WorkspaceCanvasActions:
     ) -> None:
         """Show an output-image load failure through the structured modal surface."""
 
-        message = f"Could not load image: {file_path}"
+        message = app_text("Could not load image: %1", file_path)
         if self._error_presenter is None:
-            fallback_message_box.critical(self._view, "Load Error", message)
+            fallback_message_box.critical(
+                self._view,
+                render_application_text(app_text("Load Error")),
+                render_application_text(message),
+            )
             return
 
         self._error_presenter.show_error_report(
             ErrorReport(
                 kind=ErrorReportKind.SUBSTITUTE_INTERNAL,
-                title="Generated image load failed",
+                title=app_text("Generated image load failed"),
                 message=message,
                 stage="canvas",
                 workflow_id=workflow_id,

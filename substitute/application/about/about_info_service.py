@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -39,67 +41,80 @@ from substitute.domain.runtime_versions import (
     SUGARSUBSTITUTE_DISTRIBUTION_NAMES,
 )
 
-_UNKNOWN = "Unknown"
-_UNAVAILABLE = "Unavailable"
-_NOT_CONNECTED = "Not connected"
-_SOURCE_CHECKOUT = "source checkout"
+_UNKNOWN = app_text("Unknown")
+_UNAVAILABLE = app_text("Unavailable")
+_NOT_CONNECTED = app_text("Not connected")
+_SOURCE_CHECKOUT = app_text("source checkout")
 
 
 @dataclass(frozen=True, slots=True)
 class _VersionComponentInfo:
     """Describe stable About display metadata for one versioned component."""
 
-    label: str
-    subtitle: str
+    key: str
+    label: ApplicationText
+    subtitle: ApplicationText
     authors: str
     external_url: str
 
 
 _SUGARSUBSTITUTE_INFO = _VersionComponentInfo(
-    label="SugarSubstitute",
-    subtitle="The desktop native Qt frontend for ComfyUI",
+    key="SugarSubstitute",
+    label=app_text("SugarSubstitute"),
+    subtitle=app_text("The desktop native Qt frontend for ComfyUI"),
     authors="Artificial Sweetener",
     external_url="https://github.com/Artificial-Sweetener/SugarSubstitute",
 )
 _COMFYUI_INFO = _VersionComponentInfo(
-    label="ComfyUI",
-    subtitle="The most powerful and modular diffusion model GUI, api and backend",
+    key="ComfyUI",
+    label=app_text("ComfyUI"),
+    subtitle=app_text(
+        "The most powerful and modular diffusion model GUI, api and backend"
+    ),
     authors="Comfy Org",
     external_url="https://github.com/Comfy-Org/ComfyUI",
 )
 _BACKEND_INFO = _VersionComponentInfo(
-    label="Substitute Backend",
-    subtitle="Allow communication between ComfyUI deployments & Substitute",
+    key="SubstituteBackend",
+    label=app_text("Substitute Backend"),
+    subtitle=app_text("Allow communication between ComfyUI deployments & Substitute"),
     authors="Artificial Sweetener",
     external_url="https://github.com/Artificial-Sweetener/Substitute-Backend",
 )
 _SUGAR_CUBES_INFO = _VersionComponentInfo(
-    label="SugarCubes",
-    subtitle="Composable workflow units for ComfyUI",
+    key="SugarCubes",
+    label=app_text("SugarCubes"),
+    subtitle=app_text("Composable workflow units for ComfyUI"),
     authors="Artificial Sweetener",
     external_url="https://github.com/Artificial-Sweetener/SugarCubes",
 )
 _SUGAR_DSL_INFO = _VersionComponentInfo(
-    label="Sugar-DSL",
-    subtitle="The scripting language for composing ComfyUI workflows with SugarCubes",
+    key="SugarDSL",
+    label=app_text("Sugar-DSL"),
+    subtitle=app_text(
+        "The scripting language for composing ComfyUI workflows with SugarCubes"
+    ),
     authors="Artificial Sweetener",
     external_url="https://github.com/Artificial-Sweetener/Sugar-DSL",
 )
 _QPANE_INFO = _VersionComponentInfo(
-    label="QPane",
-    subtitle="High-performance PySide6 image viewer",
+    key="QPane",
+    label=app_text("QPane"),
+    subtitle=app_text("High-performance PySide6 image viewer"),
     authors="Artificial Sweetener",
     external_url="https://github.com/Artificial-Sweetener/QPane",
 )
 _PYSIDE_FLUENT_WIDGETS_INFO = _VersionComponentInfo(
-    label="PySide6-Fluent-Widgets",
-    subtitle="A fluent design widgets library for PySide6",
+    key="PySide6FluentWidgets",
+    label=app_text("PySide6-Fluent-Widgets"),
+    subtitle=app_text("A fluent design widgets library for PySide6"),
     authors="zhiyiYo",
     external_url="https://github.com/zhiyiYo/PyQt-Fluent-Widgets",
 )
 _PYSIDE_INFO = _VersionComponentInfo(
-    label="PySide6",
-    subtitle="Qt for Python",
+    key="PySide6",
+    label=app_text("PySide6"),
+    subtitle=app_text("Qt for Python"),
     authors="the Qt Company",
     external_url="https://pyside.org/",
 )
@@ -148,7 +163,7 @@ class AboutInfoService:
         comfy_runtime_info: ComfyRuntimeInfoProvider,
         local_versions: LocalPackageVersionResolver,
         app_version: AppVersionProvider = current_app_version,
-        project_summary: str = ABOUT_PROJECT_SUMMARY,
+        project_summary: ApplicationText = ABOUT_PROJECT_SUMMARY,
         supporters: tuple[str, ...] = ABOUT_SUPPORTERS,
         special_thanks: tuple[str, ...] = ABOUT_SPECIAL_THANKS,
     ) -> None:
@@ -215,69 +230,45 @@ class AboutInfoService:
 
         return AboutInfoSnapshot(
             versions=(
-                AboutVersionRow(
-                    label=_SUGARSUBSTITUTE_INFO.label,
+                _version_row(
+                    _SUGARSUBSTITUTE_INFO,
                     value=_UNKNOWN,
                     status=AboutVersionStatus.UNKNOWN,
-                    subtitle=_SUGARSUBSTITUTE_INFO.subtitle,
-                    authors=_SUGARSUBSTITUTE_INFO.authors,
-                    external_url=_SUGARSUBSTITUTE_INFO.external_url,
                 ),
-                AboutVersionRow(
-                    label=_COMFYUI_INFO.label,
+                _version_row(
+                    _COMFYUI_INFO,
                     value=_NOT_CONNECTED,
                     status=AboutVersionStatus.NOT_CONNECTED,
-                    subtitle=_COMFYUI_INFO.subtitle,
-                    authors=_COMFYUI_INFO.authors,
-                    external_url=_COMFYUI_INFO.external_url,
                 ),
-                AboutVersionRow(
-                    label=_SUGAR_CUBES_INFO.label,
+                _version_row(
+                    _SUGAR_CUBES_INFO,
                     value=_NOT_CONNECTED,
                     status=AboutVersionStatus.NOT_CONNECTED,
-                    subtitle=_SUGAR_CUBES_INFO.subtitle,
-                    authors=_SUGAR_CUBES_INFO.authors,
-                    external_url=_SUGAR_CUBES_INFO.external_url,
                 ),
-                AboutVersionRow(
-                    label=_BACKEND_INFO.label,
+                _version_row(
+                    _BACKEND_INFO,
                     value=_NOT_CONNECTED,
                     status=AboutVersionStatus.NOT_CONNECTED,
-                    subtitle=_BACKEND_INFO.subtitle,
-                    authors=_BACKEND_INFO.authors,
-                    external_url=_BACKEND_INFO.external_url,
                 ),
-                AboutVersionRow(
-                    label=_SUGAR_DSL_INFO.label,
+                _version_row(
+                    _SUGAR_DSL_INFO,
                     value=_UNKNOWN,
                     status=AboutVersionStatus.UNKNOWN,
-                    subtitle=_SUGAR_DSL_INFO.subtitle,
-                    authors=_SUGAR_DSL_INFO.authors,
-                    external_url=_SUGAR_DSL_INFO.external_url,
                 ),
-                AboutVersionRow(
-                    label=_QPANE_INFO.label,
+                _version_row(
+                    _QPANE_INFO,
                     value=_UNKNOWN,
                     status=AboutVersionStatus.UNKNOWN,
-                    subtitle=_QPANE_INFO.subtitle,
-                    authors=_QPANE_INFO.authors,
-                    external_url=_QPANE_INFO.external_url,
                 ),
-                AboutVersionRow(
-                    label=_PYSIDE_FLUENT_WIDGETS_INFO.label,
+                _version_row(
+                    _PYSIDE_FLUENT_WIDGETS_INFO,
                     value=_UNKNOWN,
                     status=AboutVersionStatus.UNKNOWN,
-                    subtitle=_PYSIDE_FLUENT_WIDGETS_INFO.subtitle,
-                    authors=_PYSIDE_FLUENT_WIDGETS_INFO.authors,
-                    external_url=_PYSIDE_FLUENT_WIDGETS_INFO.external_url,
                 ),
-                AboutVersionRow(
-                    label=_PYSIDE_INFO.label,
+                _version_row(
+                    _PYSIDE_INFO,
                     value=_UNKNOWN,
                     status=AboutVersionStatus.UNKNOWN,
-                    subtitle=_PYSIDE_INFO.subtitle,
-                    authors=_PYSIDE_INFO.authors,
-                    external_url=_PYSIDE_INFO.external_url,
                 ),
             ),
             project_summary=self._project_summary,
@@ -309,22 +300,16 @@ class AboutInfoService:
         """Return the Substitute Backend version row."""
 
         if capabilities is None:
-            return AboutVersionRow(
-                label=_BACKEND_INFO.label,
+            return _version_row(
+                _BACKEND_INFO,
                 value=_NOT_CONNECTED,
                 status=AboutVersionStatus.NOT_CONNECTED,
-                subtitle=_BACKEND_INFO.subtitle,
-                authors=_BACKEND_INFO.authors,
-                external_url=_BACKEND_INFO.external_url,
             )
         if not capabilities.extension_version:
-            return AboutVersionRow(
-                label=_BACKEND_INFO.label,
+            return _version_row(
+                _BACKEND_INFO,
                 value=_UNKNOWN,
                 status=AboutVersionStatus.UNKNOWN,
-                subtitle=_BACKEND_INFO.subtitle,
-                authors=_BACKEND_INFO.authors,
-                external_url=_BACKEND_INFO.external_url,
             )
         return _version_row(
             _BACKEND_INFO,
@@ -339,33 +324,24 @@ class AboutInfoService:
         """Return the SugarCubes version row from Backend capabilities."""
 
         if capabilities is None:
-            return AboutVersionRow(
-                label=_SUGAR_CUBES_INFO.label,
+            return _version_row(
+                _SUGAR_CUBES_INFO,
                 value=_NOT_CONNECTED,
                 status=AboutVersionStatus.NOT_CONNECTED,
-                subtitle=_SUGAR_CUBES_INFO.subtitle,
-                authors=_SUGAR_CUBES_INFO.authors,
-                external_url=_SUGAR_CUBES_INFO.external_url,
             )
         cube_library = capabilities.cube_library
         if not cube_library.available:
-            return AboutVersionRow(
-                label=_SUGAR_CUBES_INFO.label,
+            return _version_row(
+                _SUGAR_CUBES_INFO,
                 value=_UNAVAILABLE,
                 status=AboutVersionStatus.UNAVAILABLE,
-                subtitle=_SUGAR_CUBES_INFO.subtitle,
-                authors=_SUGAR_CUBES_INFO.authors,
-                external_url=_SUGAR_CUBES_INFO.external_url,
                 detail=cube_library.unavailable_reason,
             )
         if not cube_library.sugar_cubes_version:
-            return AboutVersionRow(
-                label=_SUGAR_CUBES_INFO.label,
+            return _version_row(
+                _SUGAR_CUBES_INFO,
                 value=_UNKNOWN,
                 status=AboutVersionStatus.UNKNOWN,
-                subtitle=_SUGAR_CUBES_INFO.subtitle,
-                authors=_SUGAR_CUBES_INFO.authors,
-                external_url=_SUGAR_CUBES_INFO.external_url,
             )
         return _version_row(
             _SUGAR_CUBES_INFO,
@@ -380,13 +356,10 @@ class AboutInfoService:
         """Return the Sugar-DSL version row from Backend capabilities."""
 
         if capabilities is None:
-            return AboutVersionRow(
-                label=_SUGAR_DSL_INFO.label,
+            return _version_row(
+                _SUGAR_DSL_INFO,
                 value=_NOT_CONNECTED,
                 status=AboutVersionStatus.NOT_CONNECTED,
-                subtitle=_SUGAR_DSL_INFO.subtitle,
-                authors=_SUGAR_DSL_INFO.authors,
-                external_url=_SUGAR_DSL_INFO.external_url,
             )
         sugar_compile = capabilities.sugar_compile
         if (
@@ -394,32 +367,23 @@ class AboutInfoService:
             and not sugar_compile.available
             and not sugar_compile.unavailable_reason
         ):
-            return AboutVersionRow(
-                label=_SUGAR_DSL_INFO.label,
+            return _version_row(
+                _SUGAR_DSL_INFO,
                 value=_UNKNOWN,
                 status=AboutVersionStatus.UNKNOWN,
-                subtitle=_SUGAR_DSL_INFO.subtitle,
-                authors=_SUGAR_DSL_INFO.authors,
-                external_url=_SUGAR_DSL_INFO.external_url,
             )
         if not sugar_compile.available:
-            return AboutVersionRow(
-                label=_SUGAR_DSL_INFO.label,
+            return _version_row(
+                _SUGAR_DSL_INFO,
                 value=_UNAVAILABLE,
                 status=AboutVersionStatus.UNAVAILABLE,
-                subtitle=_SUGAR_DSL_INFO.subtitle,
-                authors=_SUGAR_DSL_INFO.authors,
-                external_url=_SUGAR_DSL_INFO.external_url,
                 detail=sugar_compile.unavailable_reason,
             )
         if not sugar_compile.sugar_dsl_version:
-            return AboutVersionRow(
-                label=_SUGAR_DSL_INFO.label,
+            return _version_row(
+                _SUGAR_DSL_INFO,
                 value=_UNKNOWN,
                 status=AboutVersionStatus.UNKNOWN,
-                subtitle=_SUGAR_DSL_INFO.subtitle,
-                authors=_SUGAR_DSL_INFO.authors,
-                external_url=_SUGAR_DSL_INFO.external_url,
             )
         return _version_row(
             _SUGAR_DSL_INFO,
@@ -434,22 +398,16 @@ class AboutInfoService:
         """Return the ComfyUI version row from runtime system stats."""
 
         if runtime_info is None:
-            return AboutVersionRow(
-                label=_COMFYUI_INFO.label,
+            return _version_row(
+                _COMFYUI_INFO,
                 value=_NOT_CONNECTED,
                 status=AboutVersionStatus.NOT_CONNECTED,
-                subtitle=_COMFYUI_INFO.subtitle,
-                authors=_COMFYUI_INFO.authors,
-                external_url=_COMFYUI_INFO.external_url,
             )
         if not runtime_info.comfy_version:
-            return AboutVersionRow(
-                label=_COMFYUI_INFO.label,
+            return _version_row(
+                _COMFYUI_INFO,
                 value=_UNKNOWN,
                 status=AboutVersionStatus.UNKNOWN,
-                subtitle=_COMFYUI_INFO.subtitle,
-                authors=_COMFYUI_INFO.authors,
-                external_url=_COMFYUI_INFO.external_url,
             )
         return _version_row(
             _COMFYUI_INFO,
@@ -461,13 +419,14 @@ class AboutInfoService:
 def _version_row(
     component: _VersionComponentInfo,
     *,
-    value: str,
+    value: ApplicationText,
     status: AboutVersionStatus,
-    detail: str = "",
+    detail: ApplicationText = "",
 ) -> AboutVersionRow:
     """Return a version row with stable component display metadata attached."""
 
     return AboutVersionRow(
+        component_key=component.key,
         label=component.label,
         value=value,
         status=status,

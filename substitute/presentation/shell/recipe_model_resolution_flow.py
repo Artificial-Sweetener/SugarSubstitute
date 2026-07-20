@@ -22,6 +22,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from PySide6.QtWidgets import QDialog, QMessageBox, QWidget
+from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.localization import render_application_text
 
 from substitute.application.civitai import CivitaiCredentialService
 from substitute.application.ports.civitai_credential_store import (
@@ -74,7 +76,9 @@ def resolve_missing_recipe_models_with_dialog(
         return None
     if download_service is None:
         QMessageBox.warning(
-            parent, "Model download unavailable", "Backend downloads are unavailable."
+            parent,
+            render_application_text(app_text("Model download unavailable")),
+            render_application_text(app_text("Backend downloads are unavailable.")),
         )
         return None
     entered_key = dialog.entered_api_key()
@@ -83,7 +87,11 @@ def resolve_missing_recipe_models_with_dialog(
         try:
             credential_service.save_api_key(entered_key)
         except CredentialStorageUnavailableError as error:
-            QMessageBox.warning(parent, "API key not saved", str(error))
+            QMessageBox.warning(
+                parent,
+                render_application_text(app_text("API key not saved")),
+                str(error),
+            )
             api_key_override = entered_key
     return DeferredRecipeModelDownload(
         service=download_service,
@@ -120,7 +128,9 @@ def prepare_missing_recipe_model_download(
         return None
     if download_service is None:
         QMessageBox.warning(
-            parent, "Model download unavailable", "Backend downloads are unavailable."
+            parent,
+            render_application_text(app_text("Model download unavailable")),
+            render_application_text(app_text("Backend downloads are unavailable.")),
         )
         return None
     entered_key = dialog.entered_api_key()
@@ -129,7 +139,11 @@ def prepare_missing_recipe_model_download(
         try:
             credential_service.save_api_key(entered_key)
         except CredentialStorageUnavailableError as error:
-            QMessageBox.warning(parent, "API key not saved", str(error))
+            QMessageBox.warning(
+                parent,
+                render_application_text(app_text("API key not saved")),
+                str(error),
+            )
             api_key_override = entered_key
     return DeferredRecipeModelDownload(
         service=download_service,

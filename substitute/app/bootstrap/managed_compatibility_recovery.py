@@ -23,6 +23,12 @@ from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from typing import Protocol, cast
 
+from sugarsubstitute_shared.localization import (
+    ApplicationText,
+    app_text,
+    render_source_application_text,
+)
+
 from substitute.application.execution import (
     ExecutionContext,
     TaskHandle,
@@ -126,7 +132,7 @@ class ManagedRecoveryControllerAdaptersProtocol(Protocol):
 class ManagedRecoveryStartupAdaptersProtocol(Protocol):
     """Group startup-facing managed recovery ports consumed by the controller."""
 
-    def append_recovery_message(self, message: str) -> None:
+    def append_recovery_message(self, message: ApplicationText) -> None:
         """Append a recovery message to the current startup surface."""
 
     def emit_recovery_log(self, line: str) -> None:
@@ -185,14 +191,14 @@ def core_nodepacks_for_compatibility_recovery(
 
 def owned_nodepack_recovery_message(
     nodepacks: frozenset[CoreNodepackId],
-) -> str:
+) -> ApplicationText:
     """Return a concise startup message for targeted owned-nodepack recovery."""
 
     if nodepacks == frozenset({CoreNodepackId.SUBSTITUTE_BACKEND}):
-        return "Updating Substitute BackEnd before opening."
+        return app_text("Updating Substitute BackEnd before opening.")
     if nodepacks == frozenset({CoreNodepackId.SUGARCUBES}):
-        return "Updating SugarCubes before opening."
-    return "Updating Substitute Comfy nodepacks before opening."
+        return app_text("Updating SugarCubes before opening.")
+    return app_text("Updating Substitute Comfy nodepacks before opening.")
 
 
 def should_attempt_owned_nodepack_recovery(
@@ -232,7 +238,7 @@ class ManagedCompatibilityRecoveryController:
         current_comfy_state: Callable[[], object | None],
         set_comfy_state: Callable[[object | None], None],
         set_backend_state: Callable[[str], None],
-        append_recovery_message: Callable[[str], None],
+        append_recovery_message: Callable[[ApplicationText], None],
         emit_recovery_log: RecoveryLogCallback,
         cleanup_state: ManagedCompatibilityCleanup,
         reconcile_owned_comfy_dependencies: OwnedComfyDependencyReconciliation,
@@ -280,7 +286,7 @@ class ManagedCompatibilityRecoveryController:
         trace_mark(
             "startup.runtime_compatibility.recovery.start",
             compatibility_status=compatibility.status.value,
-            compatibility_summary=compatibility.summary,
+            compatibility_summary=render_source_application_text(compatibility.summary),
             **self._trace_fields(),
         )
         refresh_nodepacks = core_nodepacks_for_compatibility_recovery(
@@ -386,7 +392,7 @@ def create_managed_compatibility_recovery_controller(
     current_comfy_state: Callable[[], object | None],
     set_comfy_state: Callable[[object | None], None],
     set_backend_state: Callable[[str], None],
-    append_recovery_message: Callable[[str], None],
+    append_recovery_message: Callable[[ApplicationText], None],
     emit_recovery_log: RecoveryLogCallback,
     cleanup_state: ManagedCompatibilityCleanup,
     reconcile_owned_comfy_dependencies: OwnedComfyDependencyReconciliation,

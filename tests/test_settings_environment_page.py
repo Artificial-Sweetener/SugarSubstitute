@@ -21,10 +21,12 @@ from __future__ import annotations
 import os
 import time
 from collections.abc import Callable
+from dataclasses import replace
+from pathlib import Path
 from typing import Any, cast
 
 import pytest
-from PySide6.QtCore import QObject, Qt
+from PySide6.QtCore import QEvent, QObject, QTranslator, Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QLabel, QSizePolicy, QToolButton, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
@@ -71,6 +73,7 @@ from substitute.presentation.settings.comfy_environment_package_list import (
 )
 from substitute.presentation.settings.planned_changes_panel import (
     PlanQueueItemWidget,
+    PlannedChangesPanel,
 )
 from substitute.presentation.settings.settings_async import SettingsAsyncTaskRunner
 from substitute.presentation.settings.settings_style import settings_card_border_color
@@ -933,6 +936,75 @@ def test_environment_page_requests_mouse_driven_operation_plan() -> None:
     assert page.planned_changes_panel.validation_label.isHidden()
     assert page.planned_changes_panel.selected_detail_label.isHidden()
     assert not page.planned_changes_panel.apply_button.isEnabled()
+
+
+def test_plan_badges_retranslate_and_resize_without_recreating_row() -> None:
+    """Keep compact plan state badges current across live locale changes."""
+
+    app = _app()
+    resource_root = (
+        Path(__file__).resolve().parents[1]
+        / "substitute"
+        / "presentation"
+        / "resources"
+        / "i18n"
+    )
+    chinese = QTranslator()
+    japanese = QTranslator()
+    assert chinese.load(str(resource_root / "sugarsubstitute_zh_CN.qm"))
+    assert japanese.load(str(resource_root / "sugarsubstitute_ja_JP.qm"))
+    assert app.installTranslator(chinese)
+    base_item = _plan_item(
+        item_id="required",
+        title="Required runtime repair",
+        operation="install",
+        affected=("runtime",),
+        install_requirements=("runtime-wheel",),
+        generated=True,
+    )
+    item = replace(
+        base_item,
+        blockers=(
+            ComfyMaintenancePlanIssue(
+                code="blocked",
+                message="Backend-owned blocker",
+                item_id=base_item.item_id,
+            ),
+        ),
+    )
+    row = PlanQueueItemWidget(item)
+    panel = PlannedChangesPanel()
+    panel.render_plan(_maintenance_plan(items=(base_item,), blocked=False))
+    try:
+        assert [badge.text() for badge in row.badges] == ["必需", "受阻"]
+        assert row.badges[0].toolTip() == "必需操作"
+        assert row.target_label.text() == "runtime-wheel 中的 runtime"
+        assert panel.summary_label.text() == "计划进行 1 项更改"
+        assert all(
+            badge.width() >= badge.fontMetrics().horizontalAdvance(badge.text()) + 18
+            for badge in row.badges
+        )
+
+        assert app.removeTranslator(chinese)
+        assert app.installTranslator(japanese)
+        for badge in row.badges:
+            app.sendEvent(badge, QEvent(QEvent.Type.LanguageChange))
+
+        assert [badge.text() for badge in row.badges] == ["必須", "ブロック中"]
+        assert row.badges[0].toolTip() == "必要な操作"
+        app.sendEvent(row, QEvent(QEvent.Type.LanguageChange))
+        assert row.target_label.text() == "runtime-wheel の runtime"
+        app.sendEvent(panel, QEvent(QEvent.Type.LanguageChange))
+        assert panel.summary_label.text() == "予定されている変更：1 件"
+        assert all(
+            badge.width() >= badge.fontMetrics().horizontalAdvance(badge.text()) + 18
+            for badge in row.badges
+        )
+    finally:
+        app.removeTranslator(japanese)
+        app.removeTranslator(chinese)
+        row.close()
+        panel.close()
 
 
 def test_environment_page_adds_uninstall_and_clears_plan() -> None:

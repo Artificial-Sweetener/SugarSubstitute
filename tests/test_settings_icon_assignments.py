@@ -23,6 +23,8 @@ from typing import cast
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QApplication
 
+from sugarsubstitute_shared.presentation.localization import TranslationManager
+
 from substitute.application.about import (
     AboutInfoService,
     AboutInfoSnapshot,
@@ -152,6 +154,7 @@ def test_explicit_settings_workspace_pages_use_deliberate_app_icons() -> None:
         comfy_environment_service=cast(ComfyEnvironmentService, object()),
         cube_library_management_service=cast(CubeLibraryManagementService, object()),
         about_info_service=cast(AboutInfoService, _AboutInfoService()),
+        localization_manager=cast(TranslationManager, object()),
         comfy_connection_settings_service=cast(
             ComfyConnectionSettingsService,
             object(),

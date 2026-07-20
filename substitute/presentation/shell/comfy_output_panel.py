@@ -18,6 +18,12 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    set_localized_tooltip,
+)
+from substitute.presentation.localization import LocalizedBodyLabel
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFrame,
@@ -28,7 +34,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    BodyLabel,
     FluentIcon as FIF,
     PlainTextEdit,
     TransparentToolButton,
@@ -81,14 +86,14 @@ class ComfyOutputPanel(QFrame):
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(4)
 
-        self._title_label = BodyLabel("Comfy Console", self._header)
+        self._title_label = LocalizedBodyLabel(app_text("Comfy Console"), self._header)
         self._title_label.setObjectName("ComfyOutputTitle")
         header_layout.addWidget(self._title_label)
         header_layout.addStretch(1)
 
         self._copy_button = TransparentToolButton(FIF.COPY, self._header)
         self._copy_button.setObjectName("ComfyOutputCopyButton")
-        self._copy_button.setToolTip("Copy all output")
+        set_localized_tooltip(self._copy_button, "Copy all output")
         self._copy_button.clicked.connect(self.copy_all_output)
         header_layout.addWidget(
             self._copy_button, alignment=Qt.AlignmentFlag.AlignVCenter
@@ -96,7 +101,7 @@ class ComfyOutputPanel(QFrame):
 
         self._clear_button = TransparentToolButton(FIF.BROOM, self._header)
         self._clear_button.setObjectName("ComfyOutputClearButton")
-        self._clear_button.setToolTip("Clear output")
+        set_localized_tooltip(self._clear_button, "Clear output")
         self._clear_button.clicked.connect(self.clear_output)
         header_layout.addWidget(
             self._clear_button, alignment=Qt.AlignmentFlag.AlignVCenter

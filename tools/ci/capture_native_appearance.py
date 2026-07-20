@@ -26,7 +26,7 @@ import platform
 import sys
 from typing import Sequence
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QEvent, QTimer
 from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.app.bootstrap import composition
@@ -117,9 +117,15 @@ def capture_native_appearance(request: NativeAppearanceCaptureRequest) -> Path:
     appearance_runtime = composition.build_appearance_runtime(context)
     resolved_appearance = composition.configure_theme(appearance_runtime)
     output_stream = TerminalOutputStream()
+    localization_runtime = composition.build_application_localization_runtime(
+        app,
+        context,
+        None,
+    )
     runtime_services = composition.build_application_runtime_services(
         context=context,
         comfy_output_stream=output_stream,
+        localization_manager=localization_runtime.manager,
         appearance_runtime=appearance_runtime,
     )
     frame = composition.show_main_window(
@@ -146,12 +152,10 @@ def capture_native_appearance(request: NativeAppearanceCaptureRequest) -> Path:
         except (OSError, RuntimeError, ValueError) as error:
             capture_errors.append(str(error))
         finally:
-            frame.close()
-            app.quit()
+            _shutdown_capture_surface(app, frame, runtime_services)
 
     QTimer.singleShot(request.settle_ms, save_capture)
     app.exec()
-    _shutdown_capture_runtime(runtime_services)
     if capture_errors:
         raise RuntimeError(capture_errors[0])
     if not request.output_path.is_file():
@@ -222,6 +226,20 @@ def _shutdown_capture_runtime(runtime_services: ApplicationRuntimeServices) -> N
     """Stop process-lifetime workers created for the disposable shell."""
 
     runtime_services.execution_runtime.shutdown()
+
+
+def _shutdown_capture_surface(
+    app: QApplication,
+    frame: QWidget,
+    runtime_services: ApplicationRuntimeServices,
+) -> None:
+    """Destroy the shell while translators and its cleanup dependencies are alive."""
+
+    _shutdown_capture_runtime(runtime_services)
+    frame.close()
+    frame.deleteLater()
+    app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app.quit()
 
 
 def parse_args(argv: Sequence[str] | None = None) -> NativeAppearanceCaptureRequest:

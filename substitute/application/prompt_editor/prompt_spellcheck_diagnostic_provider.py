@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
+
 from substitute.application.prompt_editor.prompt_diagnostics_models import (
     PromptDiagnostic,
     PromptDiagnosticKind,
@@ -61,7 +63,7 @@ class PromptSpellcheckDiagnosticProvider:
                     severity=PromptDiagnosticSeverity.ERROR,
                     source_start=issue.source_start,
                     source_end=issue.source_end,
-                    message=f"Possible spelling issue: {issue.word}",
+                    message=app_text("Possible spelling issue: %1", issue.word),
                     payload=PromptSpellingDiagnosticPayload(word=issue.word),
                 )
                 for issue in snapshot.issues

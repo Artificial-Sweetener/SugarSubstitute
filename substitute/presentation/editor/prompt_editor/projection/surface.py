@@ -43,6 +43,7 @@ from PySide6.QtGui import (
     QKeyEvent,
     QFontMetricsF,
     QHideEvent,
+    QInputMethodEvent,
     QMouseEvent,
     QPaintEvent,
     QPainter,
@@ -56,6 +57,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QAbstractScrollArea,
+    QApplication,
     QScrollBar,
     QWidget,
 )
@@ -71,6 +73,7 @@ from substitute.application.prompt_editor import (
 from substitute.presentation.widgets.text_caret import (
     paint_text_caret,
 )
+from substitute.presentation.text_coordinates import TextCoordinateMap
 from substitute.shared.logging.logger import (
     get_logger,
     log_debug,
@@ -131,6 +134,10 @@ from .freshness_controller import (
 from .layout_engine import (
     PromptProjectionIncrementalLayoutResult,
     PromptProjectionLayout,
+)
+from .input_method_controller import (
+    PromptInputMethodController,
+    PromptInputMethodHost,
 )
 from .lora_surface_features import (
     PromptSurfaceLoraFeatureDelegate,
@@ -412,6 +419,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
         initial_state = self._projection_document.caret_map.state_for_source_position(0)
         self._cursor_state = initial_state
         self._anchor_state = initial_state
+        self._input_method_controller = PromptInputMethodController(
+            cast(PromptInputMethodHost, self)
+        )
         self._editing_session = editing_session
         self._source_mutation_actions: PromptSurfaceSourceMutationActions | None = None
         self._edit_block_actions: PromptSurfaceEditBlockActions | None = None
@@ -493,6 +503,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled, True)
         self.setAcceptDrops(True)
         self.setMouseTracking(True)
         self.viewport().setMouseTracking(True)
@@ -2367,6 +2378,39 @@ class PromptProjectionSurface(QAbstractScrollArea):
         rect = self._current_caret_rect().toAlignedRect()
         return rect
 
+    def input_method_caret_rect(self, source_position: int) -> QRectF:
+        """Return a viewport-local caret rectangle for input-method geometry."""
+
+        self._flush_pending_projection_update(reason="input_method_caret_rect")
+        caret_state = self._projection_document.caret_map.state_for_source_position(
+            min(max(0, source_position), len(self.toPlainText()))
+        )
+        return self._layout.cursor_rect(
+            caret_state,
+            scroll_offset=self._scroll_offset(),
+        )
+
+    def replace_input_method_range(
+        self,
+        *,
+        start: int,
+        end: int,
+        replacement_text: str,
+    ) -> None:
+        """Commit one input-method edit through the authoritative command router."""
+
+        if not self._editing_enabled:
+            return
+        self._finish_pending_key_edit_block(reason="input_method_commit")
+        self._require_source_mutation_actions().replace_source_range(
+            start=start,
+            end=end,
+            replacement_text=replacement_text,
+            origin=PromptSourceEditOrigin.TYPED,
+            command_name="input_method_commit",
+            record_undo=True,
+        )
+
     def set_prompt_state(
         self,
         document_view: PromptDocumentView,
@@ -2457,6 +2501,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Record source revision and whether the next prompt state can be scheduled."""
 
+        self._input_method_controller.source_changed()
         if not deferrable_projection:
             self._clear_transient_caret_geometry()
         self._source_revision = source_revision
@@ -3141,6 +3186,29 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         self._handle_key_press_event(event)
 
+    def inputMethodEvent(self, event: QInputMethodEvent) -> None:  # noqa: N802
+        """Delegate platform IME composition without persisting preedit text."""
+
+        self._finish_pending_key_edit_block(reason="input_method_event")
+        self._input_method_controller.handle_event(event)
+        event.accept()
+        self.viewport().update()
+        QApplication.inputMethod().update(Qt.InputMethodQuery.ImQueryAll)
+
+    def inputMethodQuery(self, query: Qt.InputMethodQuery) -> object:  # noqa: N802
+        """Expose source, selection, and caret state to the platform input method."""
+
+        value = self._input_method_controller.query(
+            query,
+            font=self.font(),
+            palette=self.palette(),
+            input_method_hints=self.inputMethodHints(),
+            viewport_rect=QRectF(self.viewport().rect()),
+        )
+        if value is not None:
+            return value
+        return super().inputMethodQuery(query)
+
     def _handle_key_press_event(self, event: QKeyEvent) -> None:
         """Delegate one key press after the public Qt entrypoint receives it."""
 
@@ -3378,6 +3446,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def focusOutEvent(self, event: QFocusEvent) -> None:
         """Stop caret blinking when the surface itself loses focus ownership."""
 
+        QApplication.inputMethod().commit()
+        self._input_method_controller.cancel()
         self._finish_pending_key_edit_block(reason="focus_out")
         super().focusOutEvent(event)
         self._schedule_caret_blink_sync(reset_cycle=False)
@@ -3459,7 +3529,15 @@ class PromptProjectionSurface(QAbstractScrollArea):
             self._paint_transient_insertion_overlay(painter)
             self._paint_diagnostics(painter)
             self._paint_transient_deletion_overlay(painter)
-            if self._should_paint_caret():
+            self._input_method_controller.paint(
+                painter,
+                font=self.font(),
+                palette=self.palette(),
+            )
+            if (
+                not self._input_method_controller.is_composing
+                and self._should_paint_caret()
+            ):
                 paint_text_caret(
                     painter,
                     self._current_caret_rect(),
@@ -4287,12 +4365,15 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if self.cursor_position <= 0:
             self._flush_pending_projection_update(reason="backspace_at_start")
             return
+        previous_grapheme_boundary = TextCoordinateMap(
+            self.toPlainText()
+        ).previous_grapheme_boundary(self.cursor_position)
         if self._can_delete_raw_boundary_from_stale_projection(
-            start=self.cursor_position - 1,
+            start=previous_grapheme_boundary,
             end=self.cursor_position,
         ):
             self._replace_viewport_range(
-                self.cursor_position - 1, self.cursor_position, ""
+                previous_grapheme_boundary, self.cursor_position, ""
             )
             return
         if not self._cancel_stale_safe_projection_update(reason="backspace"):
@@ -4338,12 +4419,15 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if self.cursor_position >= len(self.toPlainText()):
             self._flush_pending_projection_update(reason="delete_at_end")
             return
+        next_grapheme_boundary = TextCoordinateMap(
+            self.toPlainText()
+        ).next_grapheme_boundary(self.cursor_position)
         if self._can_delete_raw_boundary_from_stale_projection(
             start=self.cursor_position,
-            end=self.cursor_position + 1,
+            end=next_grapheme_boundary,
         ):
             self._replace_viewport_range(
-                self.cursor_position, self.cursor_position + 1, ""
+                self.cursor_position, next_grapheme_boundary, ""
             )
             return
         if not self._cancel_stale_safe_projection_update(reason="delete"):

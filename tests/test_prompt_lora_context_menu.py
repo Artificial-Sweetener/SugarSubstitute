@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.prompt_editor import (
     PromptScheduledLora,
     PromptScheduledLoraService,
@@ -53,7 +55,10 @@ def test_lora_context_action_prepares_inline_trigger_word_payload() -> None:
     assert action.command_request.payload.insertion_text == (
         "imp princess, twili helmet"
     )
-    assert action.command_request.payload.full_label == "Trigger words: Friendly Midna"
+    assert (
+        render_source_application_text(action.command_request.payload.full_label)
+        == "Trigger words: Friendly Midna"
+    )
 
 
 def test_lora_context_action_filters_only_unconfigured_trigger_word_rows() -> None:

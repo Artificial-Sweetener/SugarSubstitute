@@ -18,6 +18,22 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    set_fluent_tooltip_text,
+)
+
+from sugarsubstitute_shared.presentation.localization import app_text
+
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_text,
+    set_localized_tooltip,
+)
+from substitute.presentation.localization import (
+    LocalizedCaptionLabel,
+    LocalizedPrimaryPushButton,
+    LocalizedPushButton,
+)
+
 from dataclasses import dataclass
 from typing import cast
 
@@ -39,7 +55,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon,
     ListWidget,
     MessageBoxBase,
-    PrimaryPushButton,
     PushButton,
     SimpleCardWidget,
     ToolButton,
@@ -87,6 +102,10 @@ from substitute.presentation.managed_text_assets.managed_text_asset_list import 
     muted_text_color,
 )
 from substitute.shared.logging.logger import get_logger, log_exception
+from sugarsubstitute_shared.presentation.localization import (
+    translate_application_message,
+    translate_application_text,
+)
 
 _LOGGER = get_logger("presentation.managed_text_assets.modal")
 _FALLBACK_PARENT: QWidget | None = None
@@ -183,7 +202,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             assets = self._service.list_assets()
         except Exception as exc:
             self._report_error(
-                title="Unable to load assets",
+                title=app_text("Unable to load assets"),
                 operation="wildcard_modal.list_assets",
                 error=exc,
             )
@@ -216,10 +235,10 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             )
             self._create_buttons.append(button)
             layout.addWidget(button, 0, Qt.AlignmentFlag.AlignTop)
-        self._apply_button = PrimaryPushButton("Apply", header)
+        self._apply_button = LocalizedPrimaryPushButton(app_text("Apply"), header)
         self._apply_button.setIcon(FluentIcon.ACCEPT)
         layout.addWidget(self._apply_button, 0, Qt.AlignmentFlag.AlignTop)
-        self._discard_button = PushButton("Discard", header)
+        self._discard_button = LocalizedPushButton(app_text("Discard"), header)
         self._discard_button.setIcon(FluentIcon.CLOSE)
         layout.addWidget(self._discard_button, 0, Qt.AlignmentFlag.AlignTop)
         self.viewLayout.addWidget(header)
@@ -287,9 +306,9 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         )
         inspector_layout.addWidget(self._asset_name, 1)
         self._save_button = ToolButton(FluentIcon.SAVE, inspector_header)
-        self._save_button.setToolTip("Save changes")
+        set_localized_tooltip(self._save_button, "Save changes")
         self._revert_button = ToolButton(FluentIcon.CANCEL, inspector_header)
-        self._revert_button.setToolTip("Discard changes")
+        set_localized_tooltip(self._revert_button, "Discard changes")
         inspector_layout.addWidget(self._save_button)
         inspector_layout.addWidget(self._revert_button)
         right_layout.addWidget(inspector_header)
@@ -396,7 +415,10 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             header_item = QListWidgetItem(self._asset_list)
             header_item.setData(HEADER_KIND_ROLE, "header")
             header_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-            header = CaptionLabel(f"{group} ({len(grouped_assets)})", self._asset_list)
+            header = LocalizedCaptionLabel(
+                app_text("%1 (%2)", group, len(grouped_assets)),
+                self._asset_list,
+            )
             header.setStyleSheet(
                 f"QLabel{{color:{muted_text_color().name()}; font-weight: 700;}}"
             )
@@ -452,7 +474,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
                 text = self._service.read_asset_text(asset_id)
             except Exception as exc:
                 self._report_error(
-                    title="Unable to read asset",
+                    title=app_text("Unable to read asset"),
                     operation="wildcard_modal.read_asset",
                     error=exc,
                 )
@@ -467,13 +489,13 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         """Bind selected asset title to the right inspector."""
 
         self._asset_name.setText(asset.label)
-        self._asset_name.setToolTip(asset.label)
+        set_fluent_tooltip_text(self._asset_name, asset.label)
         self._editor.setEnabled(asset.editable)
 
     def _bind_empty_state(self) -> None:
         """Show the right-pane empty state."""
 
-        self._asset_name.setText("No selection")
+        set_localized_text(self._asset_name, "No selection")
         self._set_editor_text("")
         self._editor.setEnabled(False)
         self._save_button.setEnabled(False)
@@ -519,7 +541,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             asset = self._service.save_asset_text(asset_id, edited_text)
         except Exception as exc:
             self._report_error(
-                title="Unable to save asset",
+                title=app_text("Unable to save asset"),
                 operation="wildcard_modal.save_asset",
                 error=exc,
             )
@@ -554,7 +576,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             self._service.refresh()
         except Exception as exc:
             self._report_error(
-                title="Unable to apply changes",
+                title=app_text("Unable to apply changes"),
                 operation="wildcard_modal.save",
                 error=exc,
             )
@@ -583,7 +605,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             )
         except Exception as exc:
             self._report_error(
-                title="Unable to create asset",
+                title=app_text("Unable to create asset"),
                 operation="wildcard_modal.create_asset",
                 error=exc,
             )
@@ -608,7 +630,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             entries.append(
                 MenuItem(
                     "managed_text_asset.toggle_enabled",
-                    "Disable" if asset.enabled else "Enable",
+                    app_text("Disable") if asset.enabled else app_text("Enable"),
                     callback=lambda: self._toggle_asset_enabled(asset),
                     icon=FluentIcon.PAUSE,
                 )
@@ -617,7 +639,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             entries.append(
                 MenuItem(
                     "managed_text_asset.rename",
-                    "Rename",
+                    app_text("Rename"),
                     callback=lambda: self._rename_asset(asset),
                     icon=FluentIcon.EDIT,
                 )
@@ -626,7 +648,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             entries.append(
                 MenuItem(
                     "managed_text_asset.delete",
-                    "Delete",
+                    app_text("Delete"),
                     callback=lambda: self._delete_asset(asset),
                     icon=FluentIcon.DELETE,
                 )
@@ -654,7 +676,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             )
         except Exception as exc:
             self._report_error(
-                title="Unable to rename asset",
+                title=app_text("Unable to rename asset"),
                 operation="wildcard_modal.rename_asset",
                 error=exc,
             )
@@ -677,7 +699,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             updated = self._service.set_asset_enabled(asset.id, not asset.enabled)
         except Exception as exc:
             self._report_error(
-                title="Unable to update asset",
+                title=app_text("Unable to update asset"),
                 operation="managed_text_asset.toggle_enabled",
                 error=exc,
             )
@@ -690,8 +712,8 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
 
         answer = QMessageBox.question(
             self,
-            "Delete wildcard",
-            f"Delete '{asset.label}'?",
+            translate_application_text("Delete wildcard"),
+            translate_application_message("Delete '%1'?", asset.label),
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
@@ -699,7 +721,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             self._service.delete_asset(asset.id)
         except Exception as exc:
             self._report_error(
-                title="Unable to delete asset",
+                title=app_text("Unable to delete asset"),
                 operation="wildcard_modal.delete_asset",
                 error=exc,
             )
@@ -738,9 +760,10 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
             operation=operation,
             error=repr(error),
         )
+        localized_title = translate_application_text(title)
         self._resolved_error_presenter().show_exception_report(
-            title=title,
-            message=f"{title}: {error}",
+            title=localized_title,
+            message=translate_application_message("%1: %2", localized_title, error),
             stage="managed_text_assets",
             error=error,
             context=SubstituteOperationContext(

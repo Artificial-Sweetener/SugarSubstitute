@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 import os
 from typing import cast
 from uuid import UUID, uuid4
@@ -377,7 +379,10 @@ def _submenu_child(
     """Return a submenu child by label."""
 
     for item in items:
-        if isinstance(item, ModelMetadataMenuSubmenu) and item.label == label:
+        if (
+            isinstance(item, ModelMetadataMenuSubmenu)
+            and render_source_application_text(item.label) == label
+        ):
             return item
     raise AssertionError(f"expected submenu {label!r}")
 
@@ -389,7 +394,10 @@ def _action_child(
     """Return an action child by label."""
 
     for item in items:
-        if isinstance(item, ModelMetadataMenuAction) and item.label == label:
+        if (
+            isinstance(item, ModelMetadataMenuAction)
+            and render_source_application_text(item.label) == label
+        ):
             return item
     raise AssertionError(f"expected action {label!r}")
 
@@ -398,7 +406,7 @@ def _labels(items: tuple[object, ...]) -> list[str]:
     """Return labels from action and submenu menu items."""
 
     return [
-        item.label
+        render_source_application_text(item.label)
         for item in items
         if isinstance(item, ModelMetadataMenuAction | ModelMetadataMenuSubmenu)
     ]

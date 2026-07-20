@@ -43,14 +43,14 @@ OUTPUT_NAVIGATION_CONTROLLER_SOURCE = (
 )
 
 
-def test_set_dock_action_text_updates_menu_label() -> None:
-    """Output dock action label should be stored for the next context menu."""
+def test_set_canvas_detached_updates_attachment_state() -> None:
+    """Output canvas should store locale-neutral attachment state."""
 
-    fake = SimpleNamespace(_dock_action_text="Undock canvas")
+    fake = SimpleNamespace(_canvas_detached=False)
 
-    cast(Any, OutputCanvas).set_dock_action_text(fake, "Redock canvas")
+    cast(Any, OutputCanvas).set_canvas_detached(fake, True)
 
-    assert fake._dock_action_text == "Redock canvas"
+    assert fake._canvas_detached is True
 
 
 def test_output_canvas_has_no_private_compare_pass_through_wrappers() -> None:
