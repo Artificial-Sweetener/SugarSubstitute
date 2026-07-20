@@ -20,6 +20,11 @@ from __future__ import annotations
 
 from substitute.presentation.dialogs.error_report_dialog import ErrorReportDialog
 from substitute.presentation.dialogs.license_dialog import LicenseDialog
+from substitute.presentation.dialogs.localized_fluent_dialogs import (
+    LocalizedColorDialog,
+    LocalizedColorPickerButton,
+    LocalizedMessageBoxBase,
+)
 from substitute.presentation.dialogs.recipe_model_resolution_dialog import (
     RecipeModelResolutionAction,
     RecipeModelResolutionDialog,
@@ -34,6 +39,9 @@ from substitute.presentation.dialogs.startup_diagnostics_dialog import (
 __all__ = [
     "ErrorReportDialog",
     "LicenseDialog",
+    "LocalizedColorDialog",
+    "LocalizedColorPickerButton",
+    "LocalizedMessageBoxBase",
     "RecipeModelResolutionAction",
     "RecipeModelResolutionDialog",
     "RestartRequiredDialog",

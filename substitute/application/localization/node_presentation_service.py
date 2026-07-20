@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import unicodedata
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 
 from sugarsubstitute_shared.localization import ApplicationMessage
 
@@ -119,7 +119,7 @@ class NodeTextCatalogResolver:
         candidates: list[tuple[NodeTextCatalog, NodeFieldCatalogText]] = []
         for catalog, node_entry in self._node_entries(class_type):
             collection = node_entry.outputs if output else node_entry.inputs
-            field_entry = collection.get(field_key)
+            field_entry = _first_field_entry(collection, field_key)
             if field_entry is not None:
                 candidates.append((catalog, field_entry))
         return ResolvedFieldCatalogText(
@@ -143,7 +143,7 @@ class NodeTextCatalogResolver:
         aliases: list[str | None] = []
         for _catalog, node_entry in self._node_entries(class_type):
             collection = node_entry.outputs if output else node_entry.inputs
-            field_entry = collection.get(field_key)
+            field_entry = _first_field_entry(collection, field_key)
             aliases.append(field_entry.name if field_entry is not None else None)
         return _unique_nonempty(aliases)
 
@@ -303,6 +303,26 @@ def _class_type_candidates(class_type: str) -> tuple[str, ...]:
 
     normalized = class_type.replace(".", "_")
     return (class_type,) if normalized == class_type else (class_type, normalized)
+
+
+def _field_key_candidates(field_key: str) -> tuple[str, ...]:
+    """Return exact and Comfy-flattened field keys in deterministic order."""
+
+    normalized = field_key.replace(".", "_")
+    return (field_key,) if normalized == field_key else (field_key, normalized)
+
+
+def _first_field_entry(
+    collection: Mapping[str, NodeFieldCatalogText],
+    field_key: str,
+) -> NodeFieldCatalogText | None:
+    """Return the exact field entry before its official flattened alias."""
+
+    for candidate in _field_key_candidates(field_key):
+        entry = collection.get(candidate)
+        if entry is not None:
+            return entry
+    return None
 
 
 def _first_resolved_text(

@@ -34,7 +34,6 @@ from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QSizePolicy, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     BodyLabel,
-    ColorDialog,
     ComboBox,
     FluentIcon as FIF,
     LineEdit,
@@ -70,6 +69,7 @@ from substitute.application.ports.civitai_credential_store import (
 from substitute.application.ports.danbooru_cache_repository import (
     DanbooruCacheRepository,
 )
+from substitute.presentation.dialogs import LocalizedColorDialog
 from substitute.application.prompt_editor import (
     PromptEditorFeature,
     PromptEditorPreferenceService,
@@ -1687,11 +1687,11 @@ class _SystemColorSettingsControl:
         initial_color: str,
         changed: Callable[[str], object],
     ) -> None:
-        """Open a QFluent color dialog and apply selected colors live."""
+        """Open the localized QFluent color dialog and apply selections live."""
 
-        dialog = ColorDialog(
+        dialog = LocalizedColorDialog(
             QColor(initial_color),
-            "Choose color",
+            app_text("Choose color"),
             self._parent.window(),
         )
 
