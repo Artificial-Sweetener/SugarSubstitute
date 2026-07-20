@@ -123,6 +123,10 @@ from .field_state_controller import (
     EditorPanelFieldStateController,
     EditorPanelFieldStateHost,
 )
+from .field_value_change_coordinator import (
+    DynamicFieldRefreshHost,
+    PanelFieldValueChangeCoordinator,
+)
 from .field_registry import EditorFieldRegistry
 from .context.active_model_snapshot import (
     CachedModelCatalogLookup,
@@ -283,21 +287,38 @@ def _field_state_controller_for_panel(panel: object) -> EditorPanelFieldStateCon
 
     controller = getattr(panel, "_field_state_controller", None)
     if controller is None:
+        field_change_coordinator = _field_value_change_coordinator_for_panel(panel)
         controller = EditorPanelFieldStateController(
             cast(EditorPanelFieldStateHost, panel),
-            field_value_changed=lambda binding, value: cast(
-                PanelPresetContextRefreshCoordinator,
-                getattr(panel, "_preset_context_refresh"),
-            ).update_field_value(
-                cube_alias=getattr(binding, "cube_alias", None),
-                node_name=getattr(binding, "node_name", None),
-                node_type=getattr(binding, "node_type", None),
-                field_key=binding.field_key,
-                value=value,
+            field_value_changed=(
+                field_change_coordinator.field_value_changed
+                if field_change_coordinator is not None
+                else None
             ),
         )
         setattr(panel, "_field_state_controller", controller)
     return cast(EditorPanelFieldStateController, controller)
+
+
+def _field_value_change_coordinator_for_panel(
+    panel: object,
+) -> PanelFieldValueChangeCoordinator | None:
+    """Return the coordinator when the host owns preset-context state."""
+
+    coordinator = getattr(panel, "_field_value_change_coordinator", None)
+    if coordinator is None:
+        preset_context = getattr(panel, "_preset_context_refresh", None)
+        if preset_context is None:
+            return None
+        coordinator = PanelFieldValueChangeCoordinator(
+            host=cast(DynamicFieldRefreshHost, panel),
+            preset_context=cast(
+                PanelPresetContextRefreshCoordinator,
+                preset_context,
+            ),
+        )
+        setattr(panel, "_field_value_change_coordinator", coordinator)
+    return cast(PanelFieldValueChangeCoordinator, coordinator)
 
 
 def _projection_stack_order(
@@ -848,17 +869,13 @@ class EditorPanel(QWidget):
         self._cube_visibility_menus: dict[str, CheckableMenu] = {}
         self._cube_registry = EditorCubeRegistry(cast(EditorCubeRegistryHost, self))
         self._cube_section_builder = CubeSectionBuilder(self)
+        self._field_value_change_coordinator = PanelFieldValueChangeCoordinator(
+            host=cast(DynamicFieldRefreshHost, self),
+            preset_context=self._preset_context_refresh,
+        )
         self._field_state_controller = EditorPanelFieldStateController(
             cast(EditorPanelFieldStateHost, self),
-            field_value_changed=lambda binding, value: (
-                self._preset_context_refresh.update_field_value(
-                    cube_alias=getattr(binding, "cube_alias", None),
-                    node_name=getattr(binding, "node_name", None),
-                    node_type=getattr(binding, "node_type", None),
-                    field_key=binding.field_key,
-                    value=value,
-                )
-            ),
+            field_value_changed=self._field_value_change_coordinator.field_value_changed,
         )
         self._choice_field_surface_reconciler = ChoiceFieldSurfaceReconciler(
             host=self,
@@ -1788,6 +1805,19 @@ class EditorPanel(QWidget):
             stack_order=stack_order,
             projection_signature=projection_signature,
             on_complete=projection_completed,
+        )
+
+    def mark_cube_sections_stale(
+        self,
+        cube_aliases: Sequence[str],
+        *,
+        reason: str,
+    ) -> bool:
+        """Mark rendered cube sections stale before a targeted replacement."""
+
+        return _projection_coordinator_for_panel(self).mark_cube_sections_stale(
+            cube_aliases,
+            reason=reason,
         )
 
     def has_pending_visible_projection_commit(self) -> bool:

@@ -82,6 +82,12 @@ from substitute.presentation.editor.panel.factories.field_pipeline import (
     LAYOUT_HANDLED,
     build_widget_for_field_spec,
 )
+from substitute.presentation.editor.panel.factories.field_build_outcome import (
+    EditorFieldBuildKind,
+)
+from substitute.presentation.editor.panel.factories.field_build_resolver import (
+    resolve_editor_field_build,
+)
 from substitute.presentation.editor.panel.override_control_binding import (
     bind_override_control,
 )
@@ -931,30 +937,49 @@ class GlobalOverridesManager:
             spec_value_source=control.spec.value_source.value,
         )
         widget_spec = self._toolbar_field_spec(control.spec, control.value)
-        try:
-            result = build_widget_for_field_spec(
-                parent=self.mainwindow.menu_bar,
-                field_spec=widget_spec,
-                prompt_autocomplete_gateway=self._prompt_autocomplete_gateway,
-                prompt_wildcard_catalog_gateway=self._prompt_wildcard_catalog_gateway,
-                danbooru_url_import_service=self._danbooru_url_import_service,
-                danbooru_wiki_service=self._danbooru_wiki_service,
-                danbooru_image_preview_service=self._danbooru_image_preview_service,
-                danbooru_recent_posts_service=self._danbooru_recent_posts_service,
-                prompt_lora_catalog_service=self._prompt_lora_catalog_service,
-                prompt_spellcheck_service=getattr(
-                    self.mainwindow,
-                    "prompt_spellcheck_service",
-                    None,
+
+        def build_override_surface() -> object | None:
+            """Invoke the raw factory inside the shared typed outcome boundary."""
+
+            return cast(
+                object | None,
+                build_widget_for_field_spec(
+                    parent=self.mainwindow.menu_bar,
+                    field_spec=widget_spec,
+                    prompt_autocomplete_gateway=self._prompt_autocomplete_gateway,
+                    prompt_wildcard_catalog_gateway=(
+                        self._prompt_wildcard_catalog_gateway
+                    ),
+                    danbooru_url_import_service=self._danbooru_url_import_service,
+                    danbooru_wiki_service=self._danbooru_wiki_service,
+                    danbooru_image_preview_service=(
+                        self._danbooru_image_preview_service
+                    ),
+                    danbooru_recent_posts_service=(self._danbooru_recent_posts_service),
+                    prompt_lora_catalog_service=self._prompt_lora_catalog_service,
+                    prompt_spellcheck_service=getattr(
+                        self.mainwindow,
+                        "prompt_spellcheck_service",
+                        None,
+                    ),
+                    model_choice_snapshot_controller=(
+                        self._model_choice_snapshot_controller
+                    ),
+                    thumbnail_asset_repository=self._thumbnail_asset_repository,
+                    model_metadata_action_handler=self._model_metadata_action_handler,
+                    node_definition_gateway=self._node_definition_gateway,
                 ),
-                model_choice_snapshot_controller=(
-                    self._model_choice_snapshot_controller
-                ),
-                thumbnail_asset_repository=self._thumbnail_asset_repository,
-                model_metadata_action_handler=self._model_metadata_action_handler,
-                node_definition_gateway=self._node_definition_gateway,
             )
-        except Exception as error:
+
+        outcome = resolve_editor_field_build(
+            field_spec=widget_spec,
+            build=build_override_surface,
+            layout_handled_sentinel=LAYOUT_HANDLED,
+        )
+        if outcome.kind is EditorFieldBuildKind.ERROR:
+            error = outcome.error
+            if error is None:
+                return False
             log_warning_exception(
                 _LOGGER,
                 "Failed to build pinned override control",
@@ -964,16 +989,21 @@ class GlobalOverridesManager:
                 field_key=control.spec.field_key,
             )
             return False
-        if result is None or result is LAYOUT_HANDLED:
+        if not outcome.rendered:
             log_warning(
                 _LOGGER,
-                "Failed to build pinned override control",
+                "Skipped unavailable pinned override control",
                 override_key=control.override_key,
                 class_type=control.spec.class_type,
                 field_key=control.spec.field_key,
+                outcome=outcome.kind.value,
+                reason=outcome.reason,
             )
             return False
 
+        result = outcome.surface
+        if result is None:
+            return False
         widget = result[0] if isinstance(result, tuple) else result
         label_widget = CaptionLabel(
             beautify_label(control.label),
@@ -996,7 +1026,7 @@ class GlobalOverridesManager:
             label_widget,
             tooltip_from_field_meta(widget_spec.meta_info),
             label_widget,
-            widget,
+            cast(QWidget, widget),
             show_delay_ms=600,
         )
 

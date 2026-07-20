@@ -76,6 +76,9 @@ from substitute.presentation.editor.panel.factories.numeric_factory import (
     NumericFieldBuildRequest,
     NumericFieldFactory,
 )
+from substitute.presentation.editor.panel.factories.native_comfy_widget_factory import (
+    NativeComfyWidgetFactory,
+)
 from substitute.presentation.editor.panel.factories.prompt_factory import (
     PromptEditorFieldBuildRequest,
     PromptEditorFieldFactory,
@@ -104,6 +107,7 @@ PROMPT_EDITOR_FIELD_FACTORY = PromptEditorFieldFactory()
 CHOICE_FIELD_FACTORY = ChoiceFieldFactory()
 NUMERIC_FIELD_FACTORY = NumericFieldFactory()
 IMAGE_MASK_FIELD_FACTORY = ImageMaskFieldFactory()
+NATIVE_COMFY_WIDGET_FACTORY = NativeComfyWidgetFactory()
 PROMPT_PROFILE_POLICY = PanelPromptProfilePolicy()
 LAYOUT_HANDLED = object()
 
@@ -282,6 +286,24 @@ def build_widget_for_field_behavior(
     )
     if numeric_result is not None:
         return numeric_result
+
+    native_result = NATIVE_COMFY_WIDGET_FACTORY.build_field_widget(
+        EditorFieldBuildRequest(
+            parent=parent,
+            node_name=node_name,
+            key=key,
+            value=value,
+            field_meta=field_meta,
+            node_definition_gateway=node_definition_gateway,
+            node_type=kwargs.get("node_type"),
+            field_type=kwargs.get("field_type"),
+            field_info=kwargs.get("field_info"),
+            constraints=constraints,
+            extra_kwargs=kwargs,
+        )
+    )
+    if native_result is not None:
+        return native_result
 
     return FIELD_FACTORY_REGISTRY.build_widget(
         EditorFieldBuildRequest(
