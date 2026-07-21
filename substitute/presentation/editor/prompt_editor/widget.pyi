@@ -23,6 +23,9 @@ from PySide6.QtCore import QMargins, QPointF, QSize, Qt
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QWidget
 
+from .projection.reorder_visual_snapshot import PromptReorderProjectionPaintSnapshot
+from .projection.reorder_surface_chrome import PromptReorderSurfaceChromeChip
+
 from substitute.application.danbooru import (
     DanbooruImagePreviewService,
     DanbooruRecentPostsService,
@@ -312,6 +315,13 @@ class PromptEditor(QWidget):
         chip_rendered_ranges_by_index: Any,
         chip_owned_ranges_by_index: Any,
     ) -> Any: ...
+    def reorder_live_placement_snapshot(
+        self,
+        *,
+        layout_view: Any,
+        chip_geometry_snapshot: Any,
+        gap_ranges_by_index: dict[int, tuple[int, int]],
+    ) -> Any: ...
     def reorder_preview_chip_geometry_snapshot(
         self,
         *,
@@ -329,9 +339,17 @@ class PromptEditor(QWidget):
         *,
         chip_geometry_snapshot: Any,
         chip_owned_ranges_by_index: Any,
+        chip_indices: frozenset[int] | None = ...,
     ) -> Any: ...
-    def set_reorder_overlay_suppressed_chip_indices(
-        self, chip_indices: frozenset[int]
+    def set_reorder_overlay_suppression_snapshots(
+        self,
+        snapshots_by_index: dict[int, PromptReorderProjectionPaintSnapshot],
+    ) -> None: ...
+    def set_reorder_surface_chrome(
+        self,
+        *,
+        mode: str,
+        chips: tuple[PromptReorderSurfaceChromeChip, ...],
     ) -> None: ...
     def reorder_preview_cursor_rect(self, position: int) -> Any: ...
     def reorder_base_drag_fragments(self, *, start: int, end: int) -> Any: ...

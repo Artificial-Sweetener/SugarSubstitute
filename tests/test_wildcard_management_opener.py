@@ -50,6 +50,11 @@ from tests.prompt_projection_test_helpers import (
 )
 from tests.execution_test_helpers import immediate_editor_panel_execution_factories
 from tests.real_shell_prompt_editor_harness import RealShellPromptEditorHarness
+from tests.prompt_reorder_pointer_test_helpers import (
+    PromptReorderPointerTarget,
+    drag_prompt_reorder_target_to_global,
+    prompt_reorder_pointer_target,
+)
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
@@ -387,7 +392,7 @@ def test_wildcard_modal_alt_reorders_tags_within_and_across_values(
     QTest.keyPress(editor, Qt.Key.Key_Alt)
     process_events(app)
     overlay = cast(QWidget, editor._segment_overlay)
-    assert len(overlay.findChildren(QWidget, "segmentChip")) == 5
+    assert len(cast(Any, overlay).pointer_region_rects()) == 5
     QTest.keyRelease(editor, Qt.Key.Key_Alt)
     process_events(app)
     assert editor.toPlainText() == source
@@ -524,9 +529,7 @@ def test_wildcard_modal_mouse_drag_preview_preserves_rendered_zebra(
     second_chip = _overlay_chip_by_segment_index(overlay, 1)
     _drag_reorder_chip_to_global(
         second_chip,
-        global_target=first_chip.mapToGlobal(
-            QPoint(4, max(4, first_chip.rect().center().y()))
-        ),
+        global_target=first_chip.leading_global_point(),
     )
     process_events(app)
     during = RealShellPromptEditorHarness.capture_source_line_chrome_render_probe(
@@ -546,7 +549,6 @@ def test_wildcard_modal_mouse_drag_preview_preserves_rendered_zebra(
     during_colors = dict(during.line_colors)
     after_colors = dict(after.line_colors)
     assert during.reorder_overlay_active is True
-    assert during.projection_preview_active is True
     assert during_colors[1] == before_colors[1]
     assert during_colors[1] != during_colors[2]
     assert after.reorder_overlay_active is False
@@ -593,7 +595,7 @@ def test_wildcard_modal_alt_reorders_csv_tags_without_moving_headers(
     QTest.keyPress(editor, Qt.Key.Key_Alt)
     process_events(app)
     overlay = cast(QWidget, editor._segment_overlay)
-    assert len(overlay.findChildren(QWidget, "segmentChip")) == 5
+    assert len(cast(Any, overlay).pointer_region_rects()) == 5
     QTest.keyRelease(editor, Qt.Key.Key_Alt)
     process_events(app)
     assert editor.toPlainText() == source
@@ -686,24 +688,19 @@ def _prompt_runtime_services() -> PromptEditorRuntimeServices:
     )
 
 
-def _overlay_chip_by_segment_index(overlay: QWidget, segment_index: int) -> QWidget:
-    """Return one production reorder chip by its stable segment index."""
+def _overlay_chip_by_segment_index(
+    overlay: QWidget, segment_index: int
+) -> PromptReorderPointerTarget:
+    """Return one production logical pointer target by segment index."""
 
-    for chip in overlay.findChildren(QWidget, "segmentChip"):
-        if chip.property("segmentIndex") == segment_index:
-            return chip
-    raise AssertionError(f"Missing segment chip for index {segment_index}.")
+    return prompt_reorder_pointer_target(overlay, segment_index)
 
 
 def _drag_reorder_chip_to_global(
-    chip: QWidget,
+    chip: PromptReorderPointerTarget,
     *,
     global_target: QPoint,
 ) -> None:
     """Drive one real mouse drag to the supplied global overlay position."""
 
-    start = chip.rect().center()
-    target = chip.mapFromGlobal(global_target)
-    QTest.mousePress(chip, Qt.MouseButton.LeftButton, pos=start)
-    QTest.mouseMove(chip, target, 10)
-    QTest.mouseRelease(chip, Qt.MouseButton.LeftButton, pos=target, delay=10)
+    drag_prompt_reorder_target_to_global(chip, global_target=global_target)

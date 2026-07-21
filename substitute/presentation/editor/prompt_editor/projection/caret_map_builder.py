@@ -18,11 +18,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+from .caret_stop_sequence import (
+    PromptProjectionCaretStopSequence,
+    PromptProjectionCaretStopSequenceBuilder,
+)
 from .model import (
     PromptProjectionCaretMap,
     PromptProjectionCaretPlacement,
     PromptProjectionCaretState,
-    PromptProjectionCaretStop,
     PromptProjectionRun,
     PromptProjectionRunKind,
     PromptProjectionRunRole,
@@ -34,8 +39,8 @@ from .model import (
 
 def build_prompt_projection_caret_map(
     *,
-    runs: tuple[PromptProjectionRun, ...],
-    tokens: tuple[PromptProjectionToken, ...],
+    runs: Sequence[PromptProjectionRun],
+    tokens: Sequence[PromptProjectionToken],
     source_length: int,
     projection_length: int,
 ) -> PromptProjectionCaretMap:
@@ -58,35 +63,24 @@ def build_prompt_projection_caret_map(
         )
 
     tokens_by_id = {token.token_id: token for token in tokens}
-    stops: list[PromptProjectionCaretStop] = []
+    stop_builder = PromptProjectionCaretStopSequenceBuilder()
     tokens_with_leading_edge: set[str] = set()
 
     def append_stop(
         projection_position: int,
         state: PromptProjectionCaretState,
     ) -> None:
-        stops.append(
-            PromptProjectionCaretStop(
-                visual_index=len(stops),
-                projection_position=projection_position,
-                state=state,
-            )
-        )
+        stop_builder.append_state(projection_position, state)
 
     def pop_plain_boundary_if_present(
         *,
         projection_position: int,
         source_position: int,
     ) -> None:
-        if not stops:
-            return
-        last_stop = stops[-1]
-        if (
-            last_stop.projection_position == projection_position
-            and last_stop.state.source_position == source_position
-            and last_stop.state.placement is PromptProjectionCaretPlacement.PLAIN_TEXT
-        ):
-            stops.pop()
+        stop_builder.pop_plain_boundary_if_present(
+            projection_position=projection_position,
+            source_position=source_position,
+        )
 
     def append_inline_preview_boundary_if_missing(
         run: PromptProjectionRun,
@@ -95,8 +89,9 @@ def build_prompt_projection_caret_map(
 
         if not run.ghosted:
             return
-        if stops:
-            last_stop = stops[-1]
+        if stop_builder.has_stops:
+            last_stop = stop_builder.last_stop
+            assert last_stop is not None
             if (
                 last_stop.projection_position == run.projection_start
                 and last_stop.state.source_position == run.source_start
@@ -121,12 +116,9 @@ def build_prompt_projection_caret_map(
                 append_inline_preview_boundary_if_missing(run)
                 continue
             if run.token_id is None:
-                stops.extend(
-                    _plain_text_caret_stops_for_run(
-                        run,
-                        visual_index_start=len(stops),
-                        boundary_start_index=0 if not stops else 1,
-                    )
+                stop_builder.append_plain_text_run(
+                    run,
+                    boundary_start_index=0 if not stop_builder.has_stops else 1,
                 )
                 continue
 
@@ -146,13 +138,7 @@ def build_prompt_projection_caret_map(
                     ),
                 )
                 tokens_with_leading_edge.add(token.token_id)
-            stops.extend(
-                _token_text_caret_stops_for_run(
-                    run,
-                    token=token,
-                    visual_index_start=len(stops),
-                )
-            )
+            stop_builder.append_token_text_run(run, token=token)
             if token.kind is PromptProjectionTokenKind.SCENE:
                 append_stop(
                     run.projection_end,
@@ -209,7 +195,7 @@ def build_prompt_projection_caret_map(
             ),
         )
 
-    if not stops:
+    if not stop_builder.has_stops:
         return _empty_caret_map(
             tokens=tokens,
             source_length=source_length,
@@ -217,7 +203,7 @@ def build_prompt_projection_caret_map(
         )
 
     return PromptProjectionCaretMap(
-        stops=tuple(stops),
+        stops=stop_builder.build(),
         tokens=tokens,
         source_length=source_length,
         projection_length=projection_length,
@@ -226,7 +212,7 @@ def build_prompt_projection_caret_map(
 
 def _empty_caret_map(
     *,
-    tokens: tuple[PromptProjectionToken, ...],
+    tokens: Sequence[PromptProjectionToken],
     source_length: int,
     projection_length: int,
 ) -> PromptProjectionCaretMap:
@@ -234,7 +220,7 @@ def _empty_caret_map(
 
     empty_state = PromptProjectionCaretState(source_position=0)
     return PromptProjectionCaretMap(
-        stops=(PromptProjectionCaretStop(0, 0, empty_state),),
+        stops=_single_explicit_stop_sequence(empty_state),
         tokens=tokens,
         source_length=source_length,
         projection_length=projection_length,
@@ -242,8 +228,8 @@ def _empty_caret_map(
 
 
 def _single_plain_text_run(
-    runs: tuple[PromptProjectionRun, ...],
-    tokens: tuple[PromptProjectionToken, ...],
+    runs: Sequence[PromptProjectionRun],
+    tokens: Sequence[PromptProjectionToken],
 ) -> PromptProjectionRun | None:
     """Return a source-backed single plain-text run when caret mapping is trivial."""
 
@@ -257,73 +243,41 @@ def _single_plain_text_run(
     return run
 
 
-def _plain_text_caret_stops_for_run(
-    run: PromptProjectionRun,
-    *,
-    visual_index_start: int,
-    boundary_start_index: int,
-) -> tuple[PromptProjectionCaretStop, ...]:
-    """Return plain-text caret stops for one source-backed text run."""
-
-    return tuple(
-        PromptProjectionCaretStop(
-            visual_index=visual_index_start + visual_offset,
-            projection_position=run.projection_start + boundary_index,
-            state=PromptProjectionCaretState(
-                source_position=run.source_positions[boundary_index],
-                placement=PromptProjectionCaretPlacement.PLAIN_TEXT,
-                run_id=run.run_id,
-            ),
-        )
-        for visual_offset, boundary_index in enumerate(
-            range(boundary_start_index, len(run.source_positions))
-        )
-    )
-
-
-def _token_text_caret_stops_for_run(
-    run: PromptProjectionRun,
-    *,
-    token: PromptProjectionToken,
-    visual_index_start: int,
-) -> tuple[PromptProjectionCaretStop, ...]:
-    """Return text-content caret stops for one token-owned text run."""
-
-    return tuple(
-        PromptProjectionCaretStop(
-            visual_index=visual_index_start + token_slot,
-            projection_position=run.projection_start + token_slot,
-            state=PromptProjectionCaretState(
-                source_position=source_position,
-                placement=PromptProjectionCaretPlacement.TOKEN_CONTENT,
-                token_id=token.token_id,
-                run_id=run.run_id,
-                token_slot=token_slot,
-            ),
-        )
-        for token_slot, source_position in enumerate(run.source_positions)
-    )
-
-
 def _single_plain_text_caret_map(
     run: PromptProjectionRun,
     *,
-    tokens: tuple[PromptProjectionToken, ...],
+    tokens: Sequence[PromptProjectionToken],
     source_length: int,
     projection_length: int,
 ) -> PromptProjectionCaretMap:
     """Build a caret map for the common token-free single-run document shape."""
 
     return PromptProjectionCaretMap(
-        stops=_plain_text_caret_stops_for_run(
-            run,
-            visual_index_start=0,
-            boundary_start_index=0,
-        ),
+        stops=_plain_text_stop_sequence(run),
         tokens=tokens,
         source_length=source_length,
         projection_length=projection_length,
     )
+
+
+def _plain_text_stop_sequence(
+    run: PromptProjectionRun,
+) -> PromptProjectionCaretStopSequence:
+    """Return a compact canonical sequence for one plain-text run."""
+
+    builder = PromptProjectionCaretStopSequenceBuilder()
+    builder.append_plain_text_run(run, boundary_start_index=0)
+    return builder.build()
+
+
+def _single_explicit_stop_sequence(
+    state: PromptProjectionCaretState,
+) -> PromptProjectionCaretStopSequence:
+    """Return a compact canonical sequence containing one explicit stop."""
+
+    builder = PromptProjectionCaretStopSequenceBuilder()
+    builder.append_state(0, state)
+    return builder.build()
 
 
 __all__ = ["build_prompt_projection_caret_map"]

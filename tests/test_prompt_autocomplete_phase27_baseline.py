@@ -211,6 +211,11 @@ class _AutocompleteRecorder:
         _ = query_state
         return True
 
+    def has_active_session(self) -> bool:
+        """Report that the recorder has no mounted autocomplete session."""
+
+        return False
+
     def dismiss_autocomplete(self, reason: object) -> None:
         """Record one presentation dismissal request."""
 

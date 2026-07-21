@@ -263,6 +263,19 @@ def test_managed_text_asset_modal_gives_editor_more_width() -> None:
     assert body_layout.stretch(1) == 18
 
 
+def test_managed_text_asset_modal_shadow_does_not_filter_editor_descendants() -> None:
+    """High-frequency editor paints should not invalidate a subtree effect."""
+
+    ensure_qapp()
+    modal = _modal(_FakeManagedTextAssetService())
+
+    assert modal.widget.graphicsEffect() is None
+    assert modal._static_shadow.parentWidget() is modal
+    assert not modal._static_shadow.mask().contains(
+        modal._static_shadow.rect().center()
+    )
+
+
 def test_managed_text_asset_modal_uses_owner_window_height() -> None:
     """The modal content should take 90 percent of the top-level owner height."""
 

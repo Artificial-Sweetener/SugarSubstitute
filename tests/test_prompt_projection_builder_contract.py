@@ -35,6 +35,9 @@ from substitute.presentation.editor.prompt_editor.projection.builder import (
     _lora_renderer_view_for_plan,
     PromptProjectionBuilder,
 )
+from substitute.presentation.editor.prompt_editor.projection.caret_stop_sequence import (
+    PromptProjectionCaretStopSequence,
+)
 from substitute.presentation.editor.prompt_editor.projection.model import (
     OBJECT_REPLACEMENT_CHARACTER,
     PromptProjectionCaretPlacement,
@@ -163,6 +166,26 @@ def test_projection_builder_projects_scene_titles_without_marker_symbol() -> Non
     assert scene_run.text_style_variant == "scene_title"
     assert "**portrait" not in projection.projection_text
     assert "portrait" in projection.projection_text
+
+
+def test_projection_builder_preserves_trailing_scene_title_spaces() -> None:
+    """Projected scene editing should retain every source-backed title boundary."""
+
+    projection = _build_projection("**scene  ")
+    scene_token = next(
+        token
+        for token in projection.tokens
+        if token.kind is PromptProjectionTokenKind.SCENE
+    )
+    scene_run = next(
+        run for run in projection.runs if run.token_id == scene_token.token_id
+    )
+
+    assert scene_token.display_text == "scene"
+    assert scene_run.display_text == "scene  "
+    assert projection.projection_text == "scene  "
+    trailing_state = projection.caret_map.state_for_source_position(len("**scene  "))
+    assert trailing_state.source_position == len("**scene  ")
 
 
 def test_projection_builder_keeps_scene_markers_literal_for_wildcard_documents() -> (
@@ -357,6 +380,19 @@ def test_projection_builder_plain_text_caret_map_exposes_all_source_boundaries()
         PromptProjectionCaretPlacement.PLAIN_TEXT
     }
     assert {stop.state.run_id for stop in stops} == {projection.runs[0].run_id}
+
+
+def test_projection_builder_keeps_long_caret_maps_run_bounded() -> None:
+    """Long decorated documents should not allocate one stored object per boundary."""
+
+    projection = _build_projection("(alpha:1.10), beta, " * 120)
+    stops = projection.caret_map.stops
+
+    assert isinstance(stops, PromptProjectionCaretStopSequence)
+    assert len(stops) > 1_000
+    assert stops.span_count <= (len(projection.runs) * 3) + 1
+    assert tuple(stop.visual_index for stop in stops[:4]) == (0, 1, 2, 3)
+    assert stops[-1].visual_index == len(stops) - 1
 
 
 def test_projection_builder_caret_map_builds_position_indexes_lazily() -> None:

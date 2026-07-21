@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -246,7 +247,7 @@ class _TextFragmentPaintStyle:
 
 
 def _visible_lines(
-    lines: tuple[PromptProjectionLineSnapshot, ...],
+    lines: Sequence[PromptProjectionLineSnapshot],
     *,
     document_clip: QRectF,
 ) -> tuple[PromptProjectionLineSnapshot, ...]:

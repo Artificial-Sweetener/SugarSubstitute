@@ -31,16 +31,11 @@ from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor import (
     PromptDocumentService,
-    PromptDocumentView,
     PromptLineDropTarget,
     PromptSyntaxService,
 )
-from substitute.presentation.editor.prompt_editor.projection.layout_engine import (
-    PromptProjectionLayout,
-)
 from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionDisplayMode,
-    PromptProjectionDocument,
 )
 from substitute.presentation.editor.prompt_editor.projection.reorder_interaction_geometry import (
     layout_view_key,
@@ -142,6 +137,7 @@ def _build_reorder_preview_state(
 
 def test_projection_surface_switches_to_reorder_preview_text_and_exposes_preview_queries(
     widgets: list[QWidget],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Preview state should replace live paint ownership without mutating the live document."""
 
@@ -175,6 +171,9 @@ def test_projection_surface_switches_to_reorder_preview_text_and_exposes_preview
     assert preview_document is not None
     assert preview_document.source_text == "beta, alpha, gamma"
     assert surface.projection_document().source_text == "alpha, beta, gamma"
+    counters = surface.reorder_geometry_cache_counters()
+    assert counters["preview_projection_full_layout_count"] == 0
+    assert counters["preview_projection_incremental_layout_count"] == 2
     beta_range = preview_state.preview_snapshot.chip_rendered_ranges_by_index[1]
     assert surface.reorder_preview_fragments(
         start=beta_range[0],
@@ -199,6 +198,23 @@ def test_projection_surface_switches_to_reorder_preview_text_and_exposes_preview
         == (preview_state.preview_snapshot.chip_owned_ranges_by_index[1])
     )
     assert beta_paint_snapshot.text_fragments
+    preview_layout = surface._reorder_preview_projection.preview_layout  # noqa: SLF001
+    assert preview_layout is not None
+
+    def fail_redundant_fragment_lookup(*_args: object, **_kwargs: object) -> None:
+        """Fail if fresh paint snapshots are ignored for suppression geometry."""
+
+        raise AssertionError("fresh preview paint snapshots should own suppression")
+
+    monkeypatch.setattr(
+        preview_layout,
+        "source_range_fragments",
+        fail_redundant_fragment_lookup,
+    )
+    surface.set_reorder_overlay_suppression_snapshots(
+        {index: preview_paint_snapshots[index] for index in (0, 2)}
+    )
+    assert surface._preview_visible_region() is not None  # noqa: SLF001
     assert surface.reorder_preview_cursor_rect(beta_range[0]).isEmpty() is False
     base_drag_snapshot = preview_state.base_drag_snapshot
     assert base_drag_snapshot is not None
@@ -215,11 +231,10 @@ def test_projection_surface_switches_to_reorder_preview_text_and_exposes_preview
     assert surface.reorder_base_drag_cursor_rect(base_range[0]).isEmpty() is False
 
 
-def test_projection_surface_builds_reorder_layout_with_width_before_projection(
+def test_projection_surface_keeps_reused_reorder_layouts_at_editor_width(
     widgets: list[QWidget],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Reorder preview layout should never rebuild projection at default 1px width."""
+    """Preview and base-drag layouts should retain the editor's prepared width."""
 
     box = show_prompt_editor(
         widgets,
@@ -232,50 +247,71 @@ def test_projection_surface_builds_reorder_layout_with_width_before_projection(
         dragged_chip_index=1,
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
     )
-    observed_widths: list[float] = []
-    original_one_pass = PromptProjectionLayout.set_projection_and_text_width
-
-    def record_one_pass(
-        self: PromptProjectionLayout,
-        projection_document: PromptProjectionDocument,
-        text_width: float,
-        *,
-        prompt_document_view: PromptDocumentView | None = None,
-    ) -> None:
-        """Record reorder layout widths before preserving production behavior."""
-
-        observed_widths.append(text_width)
-        original_one_pass(
-            self,
-            projection_document,
-            text_width,
-            prompt_document_view=prompt_document_view,
-        )
-
-    def fail_two_step_projection(
-        self: PromptProjectionLayout,
-        projection_document: PromptProjectionDocument,
-        *,
-        prompt_document_view: PromptDocumentView | None = None,
-    ) -> None:
-        """Fail if reorder layout construction regresses to the two-step API."""
-
-        _ = self, projection_document, prompt_document_view
-        raise AssertionError("reorder layout must set width before projection")
-
-    monkeypatch.setattr(
-        PromptProjectionLayout,
-        "set_projection_and_text_width",
-        record_one_pass,
-    )
-    monkeypatch.setattr(
-        PromptProjectionLayout, "set_projection", fail_two_step_projection
-    )
-
     surface.set_reorder_preview_state(preview_state)
 
-    assert len(observed_widths) == 2
-    assert all(width > 16.0 for width in observed_widths)
+    preview_layout = surface._reorder_preview_projection.preview_layout  # noqa: SLF001
+    base_drag_layout = (  # noqa: SLF001
+        surface._reorder_preview_projection.base_drag_layout
+    )
+    assert preview_layout is not None
+    assert base_drag_layout is not None
+    assert preview_layout._text_width > 16.0  # noqa: SLF001
+    assert base_drag_layout._text_width > 16.0  # noqa: SLF001
+
+
+def test_reorder_base_drag_rebuilds_suffix_with_resolvable_semantics(
+    widgets: list[QWidget],
+) -> None:
+    """Base-drag reuse must not retain stale run IDs after blank paragraphs."""
+
+    prompt_text = (
+        "alpha, beta, gamma,\n\n"
+        "delta, epsilon, zeta,\n\n"
+        "eta, theta, iota,\n\n"
+        "kappa, lambda, mu,\n\n"
+        "ordinary text before decoration, (blue:1.35) ribbon, nu, xi, omicron,"
+    )
+    box = show_prompt_editor(widgets, text=prompt_text, width=760)
+    surface = surface_for(box)
+    preview_state = _build_reorder_preview_state(
+        prompt_text,
+        dragged_chip_index=1,
+        drop_target=PromptLineDropTarget(row_index=2, insertion_index=1),
+    )
+    base_drag_snapshot = preview_state.base_drag_snapshot
+    assert base_drag_snapshot is not None
+    surface.set_reorder_preview_state(
+        replace(
+            preview_state,
+            preview_snapshot=base_drag_snapshot,
+            preview_layout_key=preview_state.base_drag_layout_key,
+            active_drop_target_identity=None,
+        )
+    )
+
+    preview_layout = surface._reorder_preview_projection.preview_layout  # noqa: SLF001
+    assert preview_layout is not None
+    unresolved_fragments = tuple(
+        fragment
+        for line in preview_layout._snapshot.lines  # noqa: SLF001
+        for fragment in line.fragments
+        if preview_layout.effective_run_for_paint(fragment.run_id) is None
+        or (
+            fragment.token_id is not None
+            and preview_layout.effective_token_for_paint(fragment.token_id) is None
+        )
+    )
+    assert unresolved_fragments == ()
+    preview_document = (  # noqa: SLF001
+        surface._reorder_preview_projection.preview_document
+    )
+    assert preview_document is not None
+    assert "ordinary text before decoration" in preview_document.source_text
+    incremental_layout_count = surface.reorder_geometry_cache_counters()[
+        "preview_projection_incremental_layout_count"
+    ]
+    assert isinstance(incremental_layout_count, int)
+    assert incremental_layout_count >= 1
 
 
 def test_projection_surface_reuses_stable_reorder_projections(
@@ -748,21 +784,41 @@ def test_projection_surface_reorder_placement_exposes_wrapped_visual_line_target
 def test_projection_surface_excludes_dragged_chip_and_separator_from_preview_region(
     widgets: list[QWidget],
 ) -> None:
-    """Preview drawing should suppress both the dragged chip text and its owned separator."""
+    """Exact drag-proxy snapshots should suppress chip text and its separator."""
 
+    text = "alpha, beta, gamma"
+    drop_target = PromptLineDropTarget(row_index=0, insertion_index=0)
     box = show_prompt_editor(
         widgets,
-        text="alpha, beta, gamma",
+        text=text,
         width=320,
     )
     surface = surface_for(box)
     preview_state = _build_reorder_preview_state(
-        "alpha, beta, gamma",
+        text,
         dragged_chip_index=1,
-        drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
+        drop_target=drop_target,
     )
 
     surface.set_reorder_preview_state(preview_state)
+    document_service = PromptDocumentService()
+    document_view = document_service.build_document_view(text)
+    preview_layout_view = document_service.build_preview_drop_layout_view(
+        document_view,
+        dragged_segment_index=1,
+        drop_target=drop_target,
+    )
+    preview_chip_geometry = surface.reorder_preview_chip_geometry_snapshot(
+        snapshot=preview_state.preview_snapshot,
+        layout_view=preview_layout_view,
+    )
+    paint_snapshots = surface.reorder_preview_chip_projection_paint_snapshots(
+        chip_geometry_snapshot=preview_chip_geometry,
+        chip_owned_ranges_by_index=(
+            preview_state.preview_snapshot.chip_owned_ranges_by_index
+        ),
+    )
+    surface.set_reorder_overlay_suppression_snapshots({1: paint_snapshots[1]})
 
     visible_region = surface._preview_visible_region()  # noqa: SLF001
     assert visible_region is not None
@@ -795,7 +851,24 @@ def test_projection_surface_excludes_overlay_painted_preview_chips(
     )
 
     surface.set_reorder_preview_state(preview_state)
-    surface.set_reorder_overlay_suppressed_chip_indices(frozenset({2}))
+    document_service = PromptDocumentService()
+    document_view = document_service.build_document_view("alpha, beta, gamma")
+    preview_layout_view = document_service.build_preview_drop_layout_view(
+        document_view,
+        dragged_segment_index=1,
+        drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
+    )
+    preview_chip_geometry = surface.reorder_preview_chip_geometry_snapshot(
+        snapshot=preview_state.preview_snapshot,
+        layout_view=preview_layout_view,
+    )
+    preview_paint_snapshots = surface.reorder_preview_chip_projection_paint_snapshots(
+        chip_geometry_snapshot=preview_chip_geometry,
+        chip_owned_ranges_by_index=(
+            preview_state.preview_snapshot.chip_owned_ranges_by_index
+        ),
+    )
+    surface.set_reorder_overlay_suppression_snapshots({2: preview_paint_snapshots[2]})
 
     visible_region = surface._preview_visible_region()  # noqa: SLF001
     assert visible_region is not None
@@ -815,11 +888,58 @@ def test_projection_surface_excludes_overlay_painted_preview_chips(
         for fragment in surface.reorder_preview_fragments(start=start, end=end)
     )
 
-    surface.set_reorder_overlay_suppressed_chip_indices(frozenset())
+    surface.set_reorder_overlay_suppression_snapshots({})
     restored_region = surface._preview_visible_region()  # noqa: SLF001
-    assert restored_region is not None
+    assert restored_region is None
+
+
+def test_projection_surface_keeps_text_visible_for_stale_overlay_snapshot(
+    widgets: list[QWidget],
+) -> None:
+    """A preview generation race must retain surface-owned projection text."""
+
+    text = "alpha, beta, gamma"
+    drop_target = PromptLineDropTarget(row_index=0, insertion_index=0)
+    box = show_prompt_editor(widgets, text=text, width=320)
+    surface = surface_for(box)
+    preview_state = _build_reorder_preview_state(
+        text,
+        dragged_chip_index=1,
+        drop_target=drop_target,
+    )
+    surface.set_reorder_preview_state(preview_state)
+    document_service = PromptDocumentService()
+    document_view = document_service.build_document_view(text)
+    preview_layout_view = document_service.build_preview_drop_layout_view(
+        document_view,
+        dragged_segment_index=1,
+        drop_target=drop_target,
+    )
+    preview_chip_geometry = surface.reorder_preview_chip_geometry_snapshot(
+        snapshot=preview_state.preview_snapshot,
+        layout_view=preview_layout_view,
+    )
+    paint_snapshots = surface.reorder_preview_chip_projection_paint_snapshots(
+        chip_geometry_snapshot=preview_chip_geometry,
+        chip_owned_ranges_by_index=(
+            preview_state.preview_snapshot.chip_owned_ranges_by_index
+        ),
+    )
+    stale_snapshot = paint_snapshots[2]
+    surface.set_reorder_overlay_suppression_snapshots({2: stale_snapshot})
+
+    refreshed_state = _build_reorder_preview_state(
+        text,
+        dragged_chip_index=1,
+        drop_target=drop_target,
+    )
+    surface.set_reorder_preview_state(refreshed_state)
+    visible_region = surface._preview_visible_region()  # noqa: SLF001
+
+    assert visible_region is not None
+    suppressed_ranges = refreshed_state.preview_snapshot.chip_owned_ranges_by_index[2]
     assert any(
-        not restored_region.intersected(QRegion(fragment.toAlignedRect())).isEmpty()
+        not visible_region.intersected(QRegion(fragment.toAlignedRect())).isEmpty()
         for start, end in suppressed_ranges
         for fragment in surface.reorder_preview_fragments(start=start, end=end)
     )
