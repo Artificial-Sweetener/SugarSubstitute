@@ -20,7 +20,7 @@
 
 from pathlib import Path
 
-from tools.pyinstaller_support import resolve_uv_executable
+from tools.pyinstaller_support import build_launcher_data_files
 
 
 launcher_root = Path(SPECPATH)
@@ -34,7 +34,6 @@ app_icon_path = (
     / "app_icons"
     / "app_icon.ico"
 )
-uv_path = resolve_uv_executable()
 manifest_path = release_root / "manifest.json"
 app_payloads = tuple(release_root.glob("SugarSubstitute-app-v*.zip"))
 launcher_payloads = tuple(
@@ -47,8 +46,10 @@ if not manifest_path.is_file() or len(app_payloads) != 1 or len(launcher_payload
     )
 
 launcher_datas = [
-    (str(app_icon_path), "launcher_assets"),
-    (uv_path, "launcher_assets"),
+    *build_launcher_data_files(
+        repo_root=repo_root,
+        app_icon_path=app_icon_path,
+    ),
     (str(manifest_path), "launcher_local_release"),
     (str(app_payloads[0]), "launcher_local_release"),
     (str(launcher_payloads[0]), "launcher_local_release"),

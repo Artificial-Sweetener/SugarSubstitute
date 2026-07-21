@@ -328,18 +328,18 @@ def test_macos_release_requires_no_paid_apple_credentials() -> None:
     assert "stapler" not in workflow_text
 
 
-def test_pyinstaller_specs_share_virtual_environment_uv_discovery() -> None:
-    """Every native launcher build should resolve uv through one owner."""
+def test_pyinstaller_specs_share_launcher_runtime_data_ownership() -> None:
+    """Every native launcher build should use one complete runtime-data owner."""
 
     spec_paths = tuple((PROJECT_ROOT / "launcher").glob("*.spec"))
 
     assert len(spec_paths) == 7
     for spec_path in spec_paths:
         spec_text = spec_path.read_text(encoding="utf-8")
-        assert (
-            "from tools.pyinstaller_support import resolve_uv_executable" in spec_text
+        assert "from tools.pyinstaller_support import build_launcher_data_files" in (
+            spec_text
         )
-        assert "uv_path = resolve_uv_executable()" in spec_text
+        assert "build_launcher_data_files(" in spec_text
         assert "shutil.which" not in spec_text
 
 
