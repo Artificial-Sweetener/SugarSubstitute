@@ -71,7 +71,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     python_executable = prepare_environment(repository_root, workspace)
     ensure_managed_comfy_setup(
         workspace=workspace,
-        force_cpu_mode=True,
         installer_temp_root=workspace.parent / "installer-temp" / "source",
         on_log=log,
     )
@@ -171,7 +170,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     ensure_managed_comfy_setup(
         workspace=workspace,
-        force_cpu_mode=True,
         installer_temp_root=workspace.parent / "installer-temp" / "target",
         on_log=log,
     )
