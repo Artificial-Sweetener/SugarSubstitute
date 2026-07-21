@@ -1726,7 +1726,10 @@ def test_model_picker_field_refresh_metadata_updates_open_popup_items() -> None:
     app.processEvents()
     popup = field._popup
     assert popup is not None
-    popup.set_search_text("refined")
+    surface = field.findChild(_ModelPickerComboSurface, "modelPickerComboSurface")
+    assert surface is not None
+    QTest.keyClicks(surface, "refined")
+    app.processEvents()
     catalog.items = (_item("models/refined.safetensors", "Refined", "v2"),)
 
     field.refresh_metadata()
@@ -1735,6 +1738,8 @@ def test_model_picker_field_refresh_metadata_updates_open_popup_items() -> None:
     current_item = popup.current_item()
     assert popup.isVisible() is True
     assert popup.search_text() == "refined"
+    assert surface.text() == "refined"
+    assert field.currentText() == "models/base.safetensors"
     assert current_item is not None
     assert current_item.title == "Refined"
     assert catalog.refresh_calls == ["checkpoints", "checkpoints"]
@@ -1761,10 +1766,10 @@ def test_model_picker_field_reconciles_new_choice_source_without_ui_reset() -> N
     app.processEvents()
     popup = field._popup
     assert popup is not None
-    popup.set_search_text("only")
-    app.processEvents()
     surface = field.findChild(_ModelPickerComboSurface, "modelPickerComboSurface")
     assert surface is not None
+    QTest.keyClicks(surface, "only")
+    app.processEvents()
     assert surface.search_focus_active() is True
 
     field.reconcile_choice_source(
@@ -1776,6 +1781,7 @@ def test_model_picker_field_reconciles_new_choice_source_without_ui_reset() -> N
     assert field._popup is popup
     assert popup.isVisible() is True
     assert popup.search_text() == "only"
+    assert surface.text() == "only"
     assert surface.search_focus_active() is True
     assert field.currentText() == "models/only.safetensors"
     assert [item.title for item in popup._view.items()] == ["Only Model"]

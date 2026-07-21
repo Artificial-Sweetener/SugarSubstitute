@@ -1485,8 +1485,9 @@ class ModelPickerField(QWidget):
         self._surface.set_closed_banner_display(
             self._closed_banner_display_for_value(self._current_value)
         )
-        self._sync_closed_surface_text()
-        self._request_closed_banner_preload()
+        if self._surface.isReadOnly():
+            self._sync_closed_surface_text()
+            self._request_closed_banner_preload()
         self.updateGeometry()
 
     def _sync_closed_surface_text(self) -> None:
