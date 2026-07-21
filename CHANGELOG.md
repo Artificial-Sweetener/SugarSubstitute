@@ -1,3 +1,30 @@
+# [0.16.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.15.0...v0.16.0) (2026-07-21)
+
+
+### Bug Fixes
+
+* **ci:** install Linux multimedia runtime ([68cf466](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/68cf466c8e163997a6f748a22780ece9d8b5139b))
+* **editor:** render native Comfy workflow widgets safely ([56eb6f3](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/56eb6f378b5708fe56cdb294200da6d9600954b0))
+* **launcher:** bundle localization resources ([247af4f](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/247af4fccc53d9802e29338410b09d94d1eb132d))
+* **model-picker:** preserve search text during refresh ([062b967](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/062b967802099464550a97d4bf12eb578977e2f7))
+* **prompt-editor:** harden abuse-tested editing invariants ([0d50267](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/0d502670e552f78dcd8a9ba5e7d3664897e1e272))
+* **prompt-editor:** harden bounded reflow probes ([531ceb6](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/531ceb695e6abda4b82fb1a46f4d46ec0fd6e63e))
+* **prompt-editor:** harden cross-platform projection behavior ([1e9c155](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/1e9c1557d8bbc9c659c2633b512cbc520ec769dd))
+* **prompt-editor:** keep scene title edits incremental ([fd92392](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/fd92392853ffd1eba105fe21f0a0f535a90f470d))
+* **prompt-editor:** preserve exact reflow and reorder animation ([6355078](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/6355078e08b7e411dce554f91fc8d0f2b9ed27fc))
+* **startup:** wait safely for managed ComfyUI ([9e1ca36](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/9e1ca36869203467c6df287893a2acf2967c3cb8))
+
+
+### Features
+
+* **editor:** integrate localization and node validation ([f56c58c](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f56c58c761b9292aa4dd0d6d6f90789f6df0d501))
+* **integration:** merge localization and prompt editor work ([46b008b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/46b008b610180a05557b103e23f75efd234e703d))
+* **localization:** add Chinese and Japanese support ([367ff0e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/367ff0e149d2ddb793600c7f4510b7f29571ab57))
+* **localization:** add Korean support ([a07c87f](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/a07c87f3b58e9dbe371f124a60614ba26d75b9c8))
+* **prompt-editor:** add structured document semantics ([4d3d91b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/4d3d91b03041d90c5eecbe1b6a79e77ae20eddc8))
+* **prompt-editor:** optimize interactive editing ([3b06226](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/3b06226b02c000cbaa0535ea8987f4ccc8fc974a))
+* **wildcards:** enable full prompt editing workflow ([eba867c](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/eba867cf2ebfa712bfb579fd3b62cc0c5be9956c))
+
 # [0.15.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.14.0...v0.15.0) (2026-07-19)
 
 
