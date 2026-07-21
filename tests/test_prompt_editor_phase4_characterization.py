@@ -50,6 +50,9 @@ from tests.prompt_projection_test_helpers import (
     show_prompt_editor,
     surface_for,
 )
+from tests.prompt_projection_surface_test_helpers import (
+    configure_trailing_word_wrap_boundary,
+)
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
@@ -443,25 +446,7 @@ def test_phase4_projection_scheduling_and_small_repaint_paths_are_scoped(
         rebuild_count += 1
         original_rebuild_projection()
 
-    configured_width: int | None = None
-    for width in range(145, 321, 5):
-        box.setGeometry(20, 20, width, box.height())
-        box.setPlainText("alpha beta bl")
-        process_events(app)
-        initial_line_texts = _projection_line_texts(surface)
-        box.setPlainText("alpha beta blush")
-        process_events(app)
-        expanded_line_texts = _projection_line_texts(surface)
-        if (
-            len(initial_line_texts) == 1
-            and initial_line_texts[0].endswith("bl")
-            and len(expanded_line_texts) > 1
-        ):
-            box.setPlainText("alpha beta bl")
-            process_events(app)
-            configured_width = width
-            break
-    assert configured_width is not None
+    initial_text = configure_trailing_word_wrap_boundary(box, surface)
 
     monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild_projection)
     _delay_projection_update_scheduler(surface)
@@ -493,7 +478,7 @@ def test_phase4_projection_scheduling_and_small_repaint_paths_are_scoped(
 
     assert result in {"bypass_small_cache_miss", "bypass"}
     assert any("blush" in line_text for line_text in _projection_line_texts(surface))
-    assert box.toPlainText() == "alpha beta blush"
+    assert box.toPlainText() == f"{initial_text}ush"
 
 
 def test_phase4_large_prompt_typing_scrolling_and_selection_stay_within_threshold(

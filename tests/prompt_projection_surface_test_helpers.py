@@ -480,6 +480,28 @@ def flush_projection_update_scheduler(surface: PromptProjectionSurface) -> None:
     surface._projection_freshness_controller.update_scheduler.flush_now(reason="test")  # noqa: SLF001
 
 
+def configure_trailing_word_wrap_boundary(
+    box: PromptEditor,
+    surface: PromptProjectionSurface,
+) -> str:
+    """Configure text whose trailing word expansion crosses a visual-line boundary."""
+
+    app = ensure_qapp()
+    for prefix_length in range(1, 513):
+        initial_text = f"{'a' * prefix_length} bl"
+        box.setPlainText(initial_text)
+        process_events(app)
+        initial_line_count = len(surface._layout._snapshot.lines)  # noqa: SLF001
+        box.setPlainText(f"{initial_text}ush")
+        process_events(app)
+        expanded_line_count = len(surface._layout._snapshot.lines)  # noqa: SLF001
+        if expanded_line_count > initial_line_count:
+            box.setPlainText(initial_text)
+            process_events(app)
+            return initial_text
+    raise AssertionError("Could not configure a trailing-word wrap boundary")
+
+
 def flush_semantic_refresh(box: PromptEditor) -> None:
     """Apply queued semantic prompt state without waiting for Qt timers."""
 
