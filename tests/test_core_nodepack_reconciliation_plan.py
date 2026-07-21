@@ -177,7 +177,7 @@ def test_plan_core_nodepack_refresh_route_prioritizes_sources(
 
 @pytest.mark.parametrize(
     (
-        "minimum_satisfied",
+        "required_version_installed",
         "pinned_archive_available",
         "pinned_fallback_already_applied",
         "expected",
@@ -211,7 +211,7 @@ def test_plan_core_nodepack_refresh_route_prioritizes_sources(
 )
 def test_plan_core_nodepack_dependency_refresh_selects_next_action(
     *,
-    minimum_satisfied: bool,
+    required_version_installed: bool,
     pinned_archive_available: bool,
     pinned_fallback_already_applied: bool,
     expected: CoreNodepackDependencyRefreshPlan,
@@ -220,7 +220,7 @@ def test_plan_core_nodepack_dependency_refresh_selects_next_action(
 
     assert (
         plan_core_nodepack_dependency_refresh(
-            minimum_satisfied=minimum_satisfied,
+            required_version_installed=required_version_installed,
             pinned_archive_available=pinned_archive_available,
             pinned_fallback_already_applied=pinned_fallback_already_applied,
         )

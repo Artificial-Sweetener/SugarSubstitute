@@ -170,8 +170,8 @@ def test_startup_runtime_compatibility_probe_runs_assessment_off_request_call() 
         summary="Compatible.",
         installed_backend_version="1.6.2",
         required_backend_version=">=1.6.2,<2.0.0",
-        installed_sugarcubes_version="0.10.0",
-        required_sugarcubes_version=">=0.10.0,<2.0.0",
+        installed_sugarcubes_version="0.11.0",
+        required_sugarcubes_version="0.11.0",
         repairable=False,
     )
 
