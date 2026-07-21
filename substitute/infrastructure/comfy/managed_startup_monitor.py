@@ -23,8 +23,11 @@ from dataclasses import dataclass
 from pathlib import Path
 import time
 
-from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.localization import ApplicationText, app_text
 
+from substitute.application.managed_startup_progress import (
+    managed_startup_progress_text,
+)
 from substitute.application.execution import CancellationToken
 from substitute.application.comfy_startup_diagnostics import (
     ComfyStartupDiagnosticsCollector,
@@ -40,7 +43,7 @@ from substitute.infrastructure.comfy.managed_process_containment import (
 )
 from substitute.infrastructure.comfy.managed_readiness import probe_http_ready
 
-StatusCallback = Callable[[str], None]
+ProgressCallback = Callable[[ApplicationText], None]
 ReadinessProbe = Callable[..., bool]
 
 _POLL_DELAY_SECONDS = 0.25
@@ -53,7 +56,6 @@ class ManagedStartupReadinessResult:
 
     ready: bool
     fatal_incident: ComfyStartupIncident | None = None
-    timed_out: bool = False
     canceled: bool = False
 
 
@@ -63,19 +65,19 @@ def wait_for_managed_startup_ready(
     port: int,
     process: ManagedProcessHandle,
     workspace: Path,
-    timeout: float = 300.0,
-    on_status: StatusCallback | None = None,
+    on_progress: ProgressCallback | None = None,
     cancellation: CancellationToken | None = None,
     diagnostics: ComfyStartupDiagnosticsCollector | None = None,
     probe_ready: ReadinessProbe = probe_http_ready,
     sleep: Callable[[float], None] = time.sleep,
     monotonic: Callable[[], float] = time.monotonic,
 ) -> ManagedStartupReadinessResult:
-    """Poll readiness while treating pre-ready process exit as fatal."""
+    """Wait for readiness until cancellation or process exit resolves startup."""
 
     started_at = monotonic()
-    next_status_at = started_at + _STATUS_INTERVAL_SECONDS
-    while monotonic() - started_at < timeout:
+    next_progress_at = started_at
+    animation_frame = 0
+    while True:
         if cancellation is not None and cancellation.is_cancelled:
             return ManagedStartupReadinessResult(ready=False, canceled=True)
         exit_code = process.poll()
@@ -93,23 +95,18 @@ def wait_for_managed_startup_ready(
             )
         if probe_ready(host=host, port=port):
             return ManagedStartupReadinessResult(ready=True)
-        sleep(_POLL_DELAY_SECONDS)
         current_time = monotonic()
-        if on_status is not None and current_time >= next_status_at:
-            on_status(app_text("Waiting for ComfyUI to become ready..."))
-            while next_status_at <= current_time:
-                next_status_at += _STATUS_INTERVAL_SECONDS
-    return ManagedStartupReadinessResult(
-        ready=False,
-        fatal_incident=_timeout_incident(
-            diagnostics=diagnostics,
-            process=process,
-            host=host,
-            port=port,
-            workspace=workspace,
-        ),
-        timed_out=True,
-    )
+        if on_progress is not None and current_time >= next_progress_at:
+            on_progress(
+                managed_startup_progress_text(
+                    elapsed_seconds=current_time - started_at,
+                    animation_frame=animation_frame,
+                )
+            )
+            animation_frame += 1
+            while next_progress_at <= current_time:
+                next_progress_at += _STATUS_INTERVAL_SECONDS
+        sleep(_POLL_DELAY_SECONDS)
 
 
 def _process_exit_incident(
@@ -157,42 +154,8 @@ def _process_exit_incident(
     )
 
 
-def _timeout_incident(
-    *,
-    diagnostics: ComfyStartupDiagnosticsCollector | None,
-    process: ManagedProcessHandle,
-    host: str,
-    port: int,
-    workspace: Path,
-) -> ComfyStartupIncident:
-    """Return a fatal incident for managed startup readiness timeout."""
-
-    transcript = diagnostics.transcript() if diagnostics is not None else ()
-    message = app_text("ComfyUI did not become ready before the startup timeout.")
-    return ComfyStartupIncident(
-        kind=ComfyStartupIncidentKind.READINESS_TIMEOUT,
-        severity=ComfyStartupIncidentSeverity.FATAL,
-        title=app_text("ComfyUI failed to start"),
-        message=message,
-        source=str(workspace),
-        fingerprint=build_startup_incident_fingerprint(
-            kind=ComfyStartupIncidentKind.READINESS_TIMEOUT,
-            source=str(workspace),
-            exception_type=None,
-            message=message,
-        ),
-        log_excerpt=transcript,
-        remediation=app_text(
-            "Review the startup log, then update or disable the last component "
-            "that was loading before the timeout."
-        ),
-        values={
-            "pid": process.pid,
-            "host": host,
-            "port": port,
-            "workspace": str(workspace),
-        },
-    )
-
-
-__all__ = ["ManagedStartupReadinessResult", "wait_for_managed_startup_ready"]
+__all__ = [
+    "ManagedStartupReadinessResult",
+    "ProgressCallback",
+    "wait_for_managed_startup_ready",
+]

@@ -21,9 +21,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import IO
 
-from substitute.application.execution import CancellationSource
+import pytest
+
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.comfy_startup_diagnostics import (
     ComfyStartupDiagnosticsCollector,
+)
+from substitute.application.execution import CancellationSource
+from substitute.application.managed_startup_progress import (
+    managed_startup_progress_text,
 )
 from substitute.domain.comfy_startup_diagnostics import ComfyStartupIncidentKind
 from substitute.infrastructure.comfy.managed_startup_monitor import (
@@ -131,38 +138,48 @@ def test_cancellation_token_cancels_without_fatal_incident() -> None:
     assert result.fatal_incident is None
 
 
-def test_timeout_returns_fatal_readiness_incident() -> None:
-    """Startup timeout should return a fatal readiness timeout incident."""
+def test_live_process_waits_beyond_five_minutes_until_user_cancels() -> None:
+    """Elapsed time alone should never terminate a live managed Comfy process."""
 
     clock = _FakeClock()
-    status_messages: list[str] = []
+    cancellation = CancellationSource(generation=1)
+    progress_messages: list[str] = []
+
+    def advance_startup(_delay: float) -> None:
+        """Advance one simulated minute and cancel after six minutes."""
+
+        clock.sleep_delays.append(_delay)
+        clock.current += 60.0
+        if clock.current >= 360.0:
+            cancellation.cancel(reason="test")
 
     result = wait_for_managed_startup_ready(
         host="127.0.0.1",
         port=8188,
         process=_FakeProcess((None,)),
         workspace=Path("E:/ComfyUI"),
-        timeout=1.0,
-        on_status=status_messages.append,
+        on_progress=progress_messages.append,
+        cancellation=cancellation,
         probe_ready=lambda *, host, port: False,
-        sleep=clock.sleep,
+        sleep=advance_startup,
         monotonic=clock.monotonic,
     )
 
     assert result.ready is False
-    assert result.timed_out is True
-    assert result.fatal_incident is not None
-    assert result.fatal_incident.kind is ComfyStartupIncidentKind.READINESS_TIMEOUT
-    assert result.fatal_incident.values["host"] == "127.0.0.1"
-    assert clock.sleep_delays == [0.25, 0.25, 0.25, 0.25]
-    assert status_messages == ["Waiting for ComfyUI to become ready..."]
+    assert result.canceled is True
+    assert result.fatal_incident is None
+    assert clock.current == 360.0
+    assert progress_messages[-1] == (
+        "Still waiting—custom nodes, slow storage, or a startup issue may be "
+        "delaying ComfyUI."
+    )
 
 
 def test_startup_monitor_polls_faster_than_status_messages() -> None:
     """Readiness validation should poll quickly without spamming status output."""
 
     clock = _FakeClock()
-    status_messages: list[str] = []
+    progress_messages: list[str] = []
     probe_results = iter((False, False, False, False, True))
 
     result = wait_for_managed_startup_ready(
@@ -170,7 +187,7 @@ def test_startup_monitor_polls_faster_than_status_messages() -> None:
         port=8188,
         process=_FakeProcess((None, None, None, None, None)),
         workspace=Path("E:/ComfyUI"),
-        on_status=status_messages.append,
+        on_progress=progress_messages.append,
         probe_ready=lambda *, host, port: next(probe_results),
         sleep=clock.sleep,
         monotonic=clock.monotonic,
@@ -178,4 +195,36 @@ def test_startup_monitor_polls_faster_than_status_messages() -> None:
 
     assert result.ready is True
     assert clock.sleep_delays == [0.25, 0.25, 0.25, 0.25]
-    assert status_messages == ["Waiting for ComfyUI to become ready..."]
+    assert progress_messages == [
+        managed_startup_progress_text(elapsed_seconds=0.0, animation_frame=0)
+    ]
+
+
+@pytest.mark.parametrize(
+    ("elapsed_seconds", "animation_frame", "expected"),
+    (
+        (0.0, 0, "Waiting for ComfyUI to become ready."),
+        (1.0, 1, "Waiting for ComfyUI to become ready.."),
+        (2.0, 2, "Waiting for ComfyUI to become ready..."),
+        (120.0, 3, "ComfyUI is taking longer than usual…"),
+        (
+            300.0,
+            4,
+            "Still waiting—custom nodes, slow storage, or a startup issue may be "
+            "delaying ComfyUI.",
+        ),
+    ),
+)
+def test_managed_startup_progress_copy_escalates_at_owned_milestones(
+    elapsed_seconds: float,
+    animation_frame: int,
+    expected: str,
+) -> None:
+    """Progress copy should animate concisely before escalating at 120 and 300 seconds."""
+
+    message = managed_startup_progress_text(
+        elapsed_seconds=elapsed_seconds,
+        animation_frame=animation_frame,
+    )
+
+    assert render_source_application_text(message) == expected

@@ -39,7 +39,7 @@ from substitute.app.bootstrap.startup_readiness_policy import (
 from substitute.app.bootstrap.startup_trace import trace_mark
 from substitute.application.backend_compatibility import BackendCompatibilityResult
 from substitute.domain.comfy_startup_diagnostics import ComfyStartupIncident
-from substitute.domain.onboarding import ComfyTargetConfiguration
+from substitute.domain.onboarding import ComfyTargetConfiguration, ComfyTargetMode
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
 _LOGGER = get_logger("app.bootstrap.startup_readiness_controller")
@@ -399,7 +399,10 @@ class StartupReadinessController:
             return
         if not result.ready:
             trace_mark("readiness_timer.http_not_ready", **self._current_trace_fields())
-            if self._state.readiness_attempts >= STARTUP_READINESS_MAX_ATTEMPTS:
+            if (
+                self._state.readiness_attempts >= STARTUP_READINESS_MAX_ATTEMPTS
+                and self._target.mode is not ComfyTargetMode.MANAGED_LOCAL
+            ):
                 readiness_probe.cancel_current()
                 trace_mark("readiness_timer.timeout", **self._current_trace_fields())
                 self._handle_managed_startup_failure(

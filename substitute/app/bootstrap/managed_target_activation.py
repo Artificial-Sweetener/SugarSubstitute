@@ -136,6 +136,12 @@ def activate_target(
                 line=line,
                 on_splash_disposed=detach_splash,
             ),
+            on_progress=lambda line: fan_out_transient_comfy_progress(
+                splash=active_splash,
+                comfy_output_stream=comfy_output_stream,
+                line=line,
+                on_splash_disposed=detach_splash,
+            ),
         )
     return None
 
@@ -202,6 +208,23 @@ def fan_out_splash_and_shell_output(
             "Dropped shell Comfy output line after output stream failure",
             error=error,
         )
+
+
+def fan_out_transient_comfy_progress(
+    *,
+    splash: LaunchSplashClient | None,
+    comfy_output_stream: ComfyOutputStreamProtocol,
+    line: ApplicationText,
+    on_splash_disposed: Callable[[], None] | None = None,
+) -> None:
+    """Render one localized progress message as a replaceable console tail row."""
+
+    fan_out_splash_and_shell_output(
+        splash=splash,
+        comfy_output_stream=comfy_output_stream,
+        line=f"{render_application_text(line)}\r",
+        on_splash_disposed=on_splash_disposed,
+    )
 
 
 def mirror_managed_comfy_output_for_harness(line: str) -> None:
@@ -361,6 +384,7 @@ __all__ = [
     "activate_target",
     "collect_and_fan_out_comfy_output",
     "fan_out_splash_and_shell_output",
+    "fan_out_transient_comfy_progress",
     "mirror_managed_comfy_output_for_harness",
     "mirror_managed_comfy_output_timeline_for_harness",
     "managed_startup_fatal_incident",
