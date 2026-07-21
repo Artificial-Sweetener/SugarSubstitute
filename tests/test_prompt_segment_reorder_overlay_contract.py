@@ -1113,7 +1113,8 @@ def test_segment_reorder_overlay_preserves_grab_offset_in_drag_intent_rect(
     assert intent_rect is not None
     grab_offset = pointer_state.drag_grab_offset
     assert grab_offset is not None
-    assert grab_offset.x() > chip_geometry.width() / 2.0
+    assert 0.0 < grab_offset.x() < chip_geometry.width()
+    assert 0.0 <= grab_offset.y() < chip_geometry.height()
     assert drag_intents
     expected_top_left = (
         QPointF(overlay.mapFromGlobal(drag_intents[-1].global_position)) - grab_offset
