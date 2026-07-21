@@ -56,6 +56,21 @@
       "text_direction": "left-to-right",
       "font_profile": "cjk-jp",
       "release_enabled": true
+    },
+    {
+      "id": "ko",
+      "native_display_name": "한국어",
+      "qt_locale_candidates": ["ko_KR", "ko"],
+      "accepted_system_tags": ["ko", "ko-*"],
+      "comfy_catalog_aliases": ["ko"],
+      "app_qm": "sugarsubstitute_ko_KR.qm",
+      "launcher_qm": "launcher_ko_KR.qm",
+      "qtbase_qm": "qtbase_ko.qm",
+      "fluent_qm": null,
+      "fluent_catalog_source": "none",
+      "text_direction": "left-to-right",
+      "font_profile": "cjk-kr",
+      "release_enabled": true
     }
   ]
 }

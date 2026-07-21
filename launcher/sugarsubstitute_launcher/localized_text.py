@@ -18,13 +18,13 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QCoreApplication
-
 _CONTEXT = "LauncherMainWindow"
 
 
 def launcher_text(source_text: str, *arguments: object) -> str:
     """Translate fixed copy and substitute ordered `%1`-style arguments."""
+
+    from PySide6.QtCore import QCoreApplication
 
     translated = QCoreApplication.translate(_CONTEXT, source_text)
     for index, argument in enumerate(arguments, start=1):

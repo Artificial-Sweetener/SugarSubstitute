@@ -104,3 +104,11 @@ def test_early_splash_fixed_progress_uses_app_catalog_without_qapplication() -> 
         )
         == "SugarSubstitute を起動しています。"
     )
+    assert (
+        translate_early_splash_text(
+            app_root=_PROJECT_ROOT,
+            language_identifier="ko",
+            source_text="Starting SugarSubstitute.",
+        )
+        == "SugarSubstitute를 시작하는 중입니다."
+    )

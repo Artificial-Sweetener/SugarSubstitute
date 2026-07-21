@@ -122,11 +122,11 @@ def test_prompt_ime_commit_replaces_selection_once_and_round_trips_undo(
     surface.set_cursor_positions(cursor_position=10, anchor_position=0)
     QApplication.sendEvent(surface, QInputMethodEvent("nihon", []))
     commit = QInputMethodEvent()
-    commit.setCommitString("中文 日本語 👩‍💻")
+    commit.setCommitString("中文 日本語 한국어 👩‍💻")
 
     QApplication.sendEvent(surface, commit)
 
-    assert surface.toPlainText() == "中文 日本語 👩‍💻"
+    assert surface.toPlainText() == "中文 日本語 한국어 👩‍💻"
     edit_controller = cast(
         PromptEditController[PromptProjectionUndoPayload],
         cast(Any, surface)._phase21_test_edit_controller,

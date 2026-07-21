@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> | <strong>简体中文</strong> | <a href="README.ja.md">日本語</a>
+  <a href="README.md">English</a> | <strong>简体中文</strong> | <a href="README.ja.md">日本語</a> | <a href="README.ko.md">한국어</a>
 </p>
 
 **SugarSubstitute 是面向 [ComfyUI](https://github.com/Comfy-Org/ComfyUI) 的 Qt 前端，写给喜欢节点图的能力、却不想整天埋头理线的人。**
