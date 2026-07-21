@@ -678,6 +678,10 @@ Prömpt prëvïëw:
       <translation>⟦Chëck yöür ïntërnët cönnëctïön. ···⟧</translation>
     </message>
     <message>
+      <source>Checking ComfyUI's Python environment.</source>
+      <translation>⟦Chëckïng CömfyÜÏ's Pythön ënvïrönmënt. ···⟧</translation>
+    </message>
+    <message>
       <source>Checking ComfyUI…</source>
       <translation>⟦Chëckïng CömfyÜÏ… ···⟧</translation>
     </message>
@@ -4826,6 +4830,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦SügàrSübstïtütë prövïdës à föcüsëd PySïdë6 wörkspàcë för CömfyÜÏ, wïth cübë-bàsëd wörkflöw cömpösïtïön, mànàgëd mödël mëtàdàtà, prömpt töölïng, ànd ïntëgràtëd ïmàgë cànvàs wörkflöws. ···⟧</translation>
     </message>
     <message>
+      <source>SugarSubstitute requires ComfyUI %1 or newer. The selected checkout is ComfyUI %2.</source>
+      <translation>⟦SügàrSübstïtütë rëqüïrës CömfyÜÏ %1 ör nëwër. Thë sëlëctëd chëcköüt ïs CömfyÜÏ %2. ···⟧</translation>
+    </message>
+    <message>
       <source>SugarSubstitute requires Python %1 or newer for ComfyUI node packs. The selected environment uses Python %2.</source>
       <translation>⟦SügàrSübstïtütë rëqüïrës Pythön %1 ör nëwër för CömfyÜÏ nödë pàcks. Thë sëlëctëd ënvïrönmënt üsës Pythön %2. ···⟧</translation>
     </message>
@@ -4986,6 +4994,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>The Python keyring package is not installed.</source>
       <translation>⟦Thë Pythön këyrïng pàckàgë ïs nöt ïnstàllëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>The attached ComfyUI environment does not satisfy its updated requirements. Repair that environment before continuing. %1</source>
+      <translation>⟦Thë àttàchëd CömfyÜÏ ënvïrönmënt döës nöt sàtïsfy ïts üpdàtëd rëqüïrëmënts. Rëpàïr thàt ënvïrönmënt bëförë cöntïnüïng. %1 ···⟧</translation>
     </message>
     <message>
       <source>The defaults usually work well for first-time setup.</source>

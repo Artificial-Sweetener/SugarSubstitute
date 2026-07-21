@@ -20,7 +20,11 @@ from __future__ import annotations
 
 import pytest
 
-from tools.ci.comfy_support_matrix import COMFY_SUPPORT_MATRIX, matrix_entry
+from tools.ci.comfy_support_matrix import (
+    COMFY_SUPPORT_MATRIX,
+    COMFY_UPDATE_MATRIX,
+    matrix_entry,
+)
 
 
 def test_comfy_support_matrix_starts_at_explicit_floor_and_ends_at_current() -> None:
@@ -50,3 +54,18 @@ def test_unknown_matrix_tag_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="Unknown ComfyUI matrix tag"):
         matrix_entry("v0.14.0")
+
+
+def test_update_matrix_covers_incremental_and_direct_manager_transitions() -> None:
+    """Keep real update proof anchored at every reviewed Manager pin boundary."""
+
+    assert [(entry.source_tag, entry.target_tag) for entry in COMFY_UPDATE_MATRIX] == [
+        ("v0.15.0", "v0.19.0"),
+        ("v0.19.0", "v0.20.0"),
+        ("v0.20.0", "v0.24.0"),
+        ("v0.24.0", "v0.25.0"),
+        ("v0.25.0", "v0.28.2"),
+        ("v0.15.0", "v0.24.0"),
+    ]
+    assert matrix_entry("v0.24.0").manager_version == "4.2.1"
+    assert matrix_entry("v0.25.0").manager_version == "4.2.2"

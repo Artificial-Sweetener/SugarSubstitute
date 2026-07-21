@@ -127,6 +127,40 @@ def test_run_sugarcubes_baseline_maintenance_builds_sync_check_command(
     assert result.diagnostics == ()
 
 
+def test_run_sugarcubes_baseline_maintenance_supports_packaged_layout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Maintenance should derive the current packaged module from its files."""
+
+    python_path = _write_maintenance_fixture(tmp_path, packaged=True)
+    commands: list[list[str]] = []
+
+    def fake_stream(
+        command: list[str],
+        *,
+        cwd: Path,
+        on_line: object | None,
+        env: Mapping[str, str] | None = None,
+        timeout_seconds: int | None = None,
+    ) -> tuple[int, tuple[str, ...]]:
+        """Record the maintenance command and report readiness."""
+
+        _ = cwd, on_line, env, timeout_seconds
+        commands.append(command)
+        return 0, ('{"schemaVersion": 1, "dependencyReadiness": {"ready": true}}',)
+
+    monkeypatch.setattr(
+        sugarcubes_maintenance_runner,
+        "_stream_command_collecting_output",
+        fake_stream,
+    )
+
+    sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(tmp_path)
+
+    assert commands[0][:3] == [str(python_path), "-m", "sugarcubes.maintenance"]
+
+
 def test_nodepack_reconciliation_facade_exports_sugarcubes_maintenance() -> None:
     """The public reconciliation facade should expose the runner entry point."""
 
@@ -555,17 +589,21 @@ def test_run_sugarcubes_baseline_maintenance_requires_entrypoint(
         sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(tmp_path)
 
 
-def _write_maintenance_fixture(workspace: Path) -> Path:
+def _write_maintenance_fixture(workspace: Path, *, packaged: bool = False) -> Path:
     """Create the minimum workspace files required by maintenance startup."""
 
     python_path = _workspace_python_path(workspace)
     python_path.parent.mkdir(parents=True)
     python_path.write_text("", encoding="utf-8")
-    maintenance_path = (
-        workspace / "custom_nodes" / "SugarCubes" / "backend" / "maintenance.py"
-    )
+    maintenance_package = Path("sugarcubes") if packaged else Path("backend")
+    backend_package = Path("sugarcubes/backend") if packaged else Path("backend")
+    sugarcubes_root = workspace / "custom_nodes" / "SugarCubes"
+    maintenance_path = sugarcubes_root / maintenance_package / "maintenance.py"
     maintenance_path.parent.mkdir(parents=True)
     maintenance_path.write_text("", encoding="utf-8")
+    backend_path = sugarcubes_root / backend_package / "__init__.py"
+    backend_path.parent.mkdir(parents=True, exist_ok=True)
+    backend_path.write_text("", encoding="utf-8")
     return python_path
 
 

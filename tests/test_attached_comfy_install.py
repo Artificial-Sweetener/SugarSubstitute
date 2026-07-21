@@ -30,6 +30,17 @@ from substitute.domain.onboarding import (
 from substitute.infrastructure.comfy import attached_install
 
 
+@pytest.fixture(autouse=True)
+def _satisfy_attached_comfy_requirements(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep dependency ownership outside tests focused on later consumers."""
+
+    monkeypatch.setattr(
+        attached_install,
+        "validate_attached_workspace_dependencies",
+        lambda **kwargs: None,
+    )
+
+
 def test_attached_preparation_rejects_python_below_nodepack_floor_before_mutation(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
