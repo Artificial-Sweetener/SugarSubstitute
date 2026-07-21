@@ -109,6 +109,8 @@ def _use_integrated_manager_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
             workspace=workspace,
             python_executable=python_executable,
             version="test",
+            supports_pygit2=True,
+            uses_pygit2=True,
         )
 
     monkeypatch.setattr(managed_launcher, "detect_workspace_manager_runtime", detect)

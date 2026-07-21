@@ -30,6 +30,43 @@ from substitute.domain.onboarding import (
 from substitute.infrastructure.comfy import attached_install
 
 
+def test_attached_preparation_rejects_python_below_nodepack_floor_before_mutation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Attached setup should reject Python 3.11 before provisioning dependencies."""
+
+    workspace = tmp_path / "ComfyUI"
+    executable = tmp_path / "python.exe"
+    binding = ComfyPythonBinding(
+        executable=executable,
+        version="3.11.9",
+        architecture="AMD64",
+        prefix=executable.parent,
+        base_prefix=executable.parent,
+        source=ComfyPythonSelectionSource.USER_SELECTED,
+    )
+    mutations: list[str] = []
+    monkeypatch.setattr(
+        attached_install,
+        "ensure_attached_workspace_manager",
+        lambda *_args, **_kwargs: mutations.append("manager"),
+    )
+    monkeypatch.setattr(
+        attached_install,
+        "ensure_core_comfy_nodepacks",
+        lambda *_args, **_kwargs: mutations.append("nodepacks"),
+    )
+
+    with pytest.raises(RuntimeError, match=r"Python 3\.12"):
+        attached_install.prepare_verified_attached_comfy_setup(
+            workspace=workspace,
+            python_binding=binding,
+        )
+
+    assert mutations == []
+
+
 def test_attached_preparation_passes_one_verified_python_to_every_consumer(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
