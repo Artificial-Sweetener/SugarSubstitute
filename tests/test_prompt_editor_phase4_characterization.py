@@ -443,17 +443,27 @@ def test_phase4_projection_scheduling_and_small_repaint_paths_are_scoped(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild_projection)
     configured_width: int | None = None
     for width in range(145, 321, 5):
         box.setGeometry(20, 20, width, box.height())
+        box.setPlainText("alpha beta bl")
         process_events(app)
-        line_texts = _projection_line_texts(surface)
-        if len(line_texts) == 1 and line_texts[0].endswith("bl"):
+        initial_line_texts = _projection_line_texts(surface)
+        box.setPlainText("alpha beta blush")
+        process_events(app)
+        expanded_line_texts = _projection_line_texts(surface)
+        if (
+            len(initial_line_texts) == 1
+            and initial_line_texts[0].endswith("bl")
+            and len(expanded_line_texts) > 1
+        ):
+            box.setPlainText("alpha beta bl")
+            process_events(app)
             configured_width = width
             break
     assert configured_width is not None
 
+    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild_projection)
     _delay_projection_update_scheduler(surface)
     source_end = len(box.toPlainText())
     surface.set_cursor_positions(cursor_position=source_end, anchor_position=source_end)

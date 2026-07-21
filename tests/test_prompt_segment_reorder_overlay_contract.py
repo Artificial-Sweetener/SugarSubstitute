@@ -49,6 +49,7 @@ from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionTokenKind,
 )
 from substitute.presentation.editor.prompt_editor.overlays import (
+    PromptReorderDragIntent,
     PromptReorderView,
     SegmentReorderOverlay,
 )
@@ -1091,6 +1092,8 @@ def test_segment_reorder_overlay_preserves_grab_offset_in_drag_intent_rect(
     )
     dragged_chip = _chip_by_segment_index(overlay, 0)
     chip_geometry = dragged_chip.geometry()
+    drag_intents: list[PromptReorderDragIntent] = []
+    overlay.set_drag_handler(drag_intents.append)
     press_pos = QPoint(
         max(1, dragged_chip.rect().right() - 5),
         dragged_chip.rect().center().y(),
@@ -1105,11 +1108,16 @@ def test_segment_reorder_overlay_preserves_grab_offset_in_drag_intent_rect(
     QTest.mouseMove(dragged_chip.overlay, dragged_chip.mapFromGlobal(move_global), 10)
     process_events(app)
 
-    intent_rect = overlay.pointer_reorder_state().last_drag_intent_rect
+    pointer_state = overlay.pointer_reorder_state()
+    intent_rect = pointer_state.last_drag_intent_rect
     assert intent_rect is not None
-    press_overlay_pos = QPointF(press_pos)
-    grabbed_offset = press_overlay_pos - QPointF(chip_geometry.topLeft())
-    expected_top_left = QPointF(overlay.mapFromGlobal(move_global)) - grabbed_offset
+    grab_offset = pointer_state.drag_grab_offset
+    assert grab_offset is not None
+    assert grab_offset.x() > chip_geometry.width() / 2.0
+    assert drag_intents
+    expected_top_left = (
+        QPointF(overlay.mapFromGlobal(drag_intents[-1].global_position)) - grab_offset
+    )
 
     assert abs(intent_rect.topLeft().x() - expected_top_left.x()) < 0.01
     assert abs(intent_rect.topLeft().y() - expected_top_left.y()) < 0.01

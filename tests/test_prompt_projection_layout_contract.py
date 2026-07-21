@@ -880,6 +880,42 @@ def test_projection_layout_reflow_rebuilds_only_the_dirty_line_window() -> None:
     )
 
 
+def test_projection_layout_never_reuses_a_source_limited_terminal_line() -> None:
+    """A probe boundary must not masquerade as deterministic suffix convergence."""
+
+    text = "alpha beta gamma delta epsilon"
+    layout, projection = _layout_for(text, text_width=10_000.0)
+    document_view, _unused_projection = _projection_for(text)
+    metrics = layout._metrics  # noqa: SLF001
+    assert metrics is not None
+    probed_lines: list[PromptProjectionLineSnapshot] = []
+
+    def record_probe(line: PromptProjectionLineSnapshot) -> int:
+        """Record an invalid terminal probe and claim a reusable match."""
+
+        probed_lines.append(line)
+        return 0
+
+    result = layout._line_layout_builder.build_snapshot_until_reusable_suffix(  # noqa: SLF001
+        projection,
+        wrap_width=layout._text_width,  # noqa: SLF001
+        base_font=layout._base_font,  # noqa: SLF001
+        document_margin=layout._document_margin,  # noqa: SLF001
+        content_left_inset=layout._content_left_inset,  # noqa: SLF001
+        prompt_document_view=document_view,
+        metrics=metrics,
+        line_reuse_probe=record_probe,
+        source_start=0,
+        projection_start=0,
+        line_top=metrics.initial_line_top(),
+        source_limit=len("alpha beta"),
+    )
+
+    assert result.source_limited is True
+    assert result.reusable_previous_line_index is None
+    assert probed_lines == []
+
+
 def test_projection_layout_fork_reflows_without_mutating_cached_source() -> None:
     """Copy-on-write preview reflow must preserve the cached source layout."""
 
