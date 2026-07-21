@@ -738,9 +738,19 @@ def test_projection_surface_word_edge_typing_keeps_word_wrap_integrity(
     configured_width: int | None = None
     for width in range(145, 321, 5):
         box.setGeometry(20, 20, width, box.height())
+        box.setPlainText("alpha beta bl")
         process_events(app)
-        line_texts = _projection_line_texts(surface)
-        if len(line_texts) == 1 and line_texts[0].endswith("bl"):
+        initial_line_texts = _projection_line_texts(surface)
+        box.setPlainText("alpha beta blush")
+        process_events(app)
+        expanded_line_texts = _projection_line_texts(surface)
+        if (
+            len(initial_line_texts) == 1
+            and initial_line_texts[0].endswith("bl")
+            and len(expanded_line_texts) > 1
+        ):
+            box.setPlainText("alpha beta bl")
+            process_events(app)
             configured_width = width
             break
     assert configured_width is not None

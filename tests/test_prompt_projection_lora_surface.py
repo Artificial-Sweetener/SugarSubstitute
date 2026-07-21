@@ -704,7 +704,14 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
         lambda **_kwargs: False,
     )
 
-    surface.set_prompt_state(document_view, metadata_render_plan)
+    surface._projection_freshness_controller.schedule_metadata_update(  # noqa: SLF001
+        document_view=document_view,
+        render_plan=metadata_render_plan,
+        source_revision=surface._source_revision,  # noqa: SLF001
+    )
+
+    assert surface.has_pending_projection_update() is True
+
     flush_projection_update_scheduler(surface)
 
     assert rebuild_attempts == 1
@@ -714,8 +721,6 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
     monkeypatch.setattr(surface, "_rebuild_projection", original_rebuild_projection)
     monkeypatch.undo()
     surface.set_prompt_state(document_view, metadata_render_plan)
-
-    assert surface.has_pending_projection_update() is True
 
     flush_projection_update_scheduler(surface)
 
