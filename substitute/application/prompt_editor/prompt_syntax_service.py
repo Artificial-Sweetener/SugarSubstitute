@@ -25,9 +25,11 @@ from collections.abc import Hashable
 from dataclasses import dataclass
 from decimal import Decimal
 import hashlib
+from itertools import count
 import re
 from threading import RLock
 from time import perf_counter
+from weakref import ReferenceType, ref
 
 from substitute.application.ports import (
     PromptWildcardCatalogGateway,
@@ -79,6 +81,8 @@ _RENDER_PLAN_CACHE: OrderedDict[
     "PromptSyntaxRenderPlan",
 ] = OrderedDict()
 _RENDER_PLAN_CACHE_LOCK = RLock()
+_OBJECT_REVISION_SEQUENCE = count(1)
+_OBJECT_REVISION_REFERENCES: dict[int, tuple[ReferenceType[object], int]] = {}
 _LOGGER = get_logger("application.prompt_editor.prompt_syntax_service")
 
 
@@ -798,7 +802,42 @@ def _object_revision(value: object | None) -> str:
         raw_revision = getattr(value, attribute_name, None)
         if isinstance(raw_revision, str | int):
             return str(raw_revision)
-    return f"identity:{id(value)}"
+    return _identity_revision(value)
+
+
+def _identity_revision(value: object) -> str:
+    """Assign a collision-free lifetime identity to an unversioned collaborator."""
+
+    object_id = id(value)
+
+    def release(released_reference: ReferenceType[object]) -> None:
+        """Release this object's registered identity token."""
+
+        _release_identity_revision(object_id, released_reference)
+
+    with _RENDER_PLAN_CACHE_LOCK:
+        existing = _OBJECT_REVISION_REFERENCES.get(object_id)
+        if existing is not None and existing[0]() is value:
+            return f"identity:{existing[1]}"
+        revision = next(_OBJECT_REVISION_SEQUENCE)
+        try:
+            value_reference = ref(value, release)
+        except TypeError:
+            return f"uncacheable:{revision}"
+        _OBJECT_REVISION_REFERENCES[object_id] = (value_reference, revision)
+        return f"identity:{revision}"
+
+
+def _release_identity_revision(
+    object_id: int,
+    released_reference: ReferenceType[object],
+) -> None:
+    """Forget an identity token only when its exact collaborator is released."""
+
+    with _RENDER_PLAN_CACHE_LOCK:
+        existing = _OBJECT_REVISION_REFERENCES.get(object_id)
+        if existing is not None and existing[0] is released_reference:
+            del _OBJECT_REVISION_REFERENCES[object_id]
 
 
 def clear_prompt_syntax_render_plan_cache() -> None:

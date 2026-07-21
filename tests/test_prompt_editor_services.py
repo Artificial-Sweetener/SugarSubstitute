@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import pytest
 
+from substitute.application.prompt_editor import prompt_syntax_service as syntax_module
 from substitute.application.prompt_editor import (
     autocomplete_replacement_text,
     clear_prompt_document_caches,
@@ -2477,6 +2478,53 @@ def test_prompt_syntax_service_invalidates_render_plan_on_lora_revision_change()
     assert third_plan == first_plan
     assert third_plan is not first_plan
     assert lora_catalog.calls == 2
+
+
+def test_prompt_syntax_cache_separates_colliding_unversioned_catalog_identities(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Recycled object addresses must not reuse another catalog's render plan."""
+
+    clear_prompt_syntax_render_plan_cache()
+    document_view = PromptDocumentService().build_document_view("<lora:style:0.8>")
+    profile = PromptSyntaxProfileService().build_profile({"prompt_syntaxes": ["lora"]})
+    wildcard_gateway = _StaticPromptWildcardCatalogGateway({})
+    empty_catalog = _StaticPromptLoraCatalogService(())
+    populated_catalog = _StaticPromptLoraCatalogService(
+        (
+            _lora_item(
+                display_name="Style",
+                basename="style",
+                prompt_name="style",
+            ),
+        )
+    )
+    del empty_catalog.cache_revision
+    del populated_catalog.cache_revision
+    real_id = id
+
+    def colliding_id(value: object) -> int:
+        """Give both unversioned test catalogs the same simulated address."""
+
+        if isinstance(value, _StaticPromptLoraCatalogService):
+            return 1
+        return real_id(value)
+
+    monkeypatch.setattr(syntax_module, "id", colliding_id, raising=False)
+
+    empty_plan = PromptSyntaxService(
+        wildcard_gateway,
+        prompt_lora_catalog_service=empty_catalog,
+    ).build_render_plan(document_view, profile)
+    populated_plan = PromptSyntaxService(
+        wildcard_gateway,
+        prompt_lora_catalog_service=populated_catalog,
+    ).build_render_plan(document_view, profile)
+
+    assert populated_plan is not empty_plan
+    populated_lora_view = populated_plan.renderer_view_for_kind("lora")
+    assert isinstance(populated_lora_view, PromptLoraRendererView)
+    assert populated_lora_view.lora_spans[0].exists is True
 
 
 def test_prompt_syntax_service_lora_render_plan_summary_counts_resolution_states() -> (

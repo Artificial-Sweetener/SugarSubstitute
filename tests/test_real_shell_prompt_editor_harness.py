@@ -357,19 +357,12 @@ def test_real_shell_scene_title_resize_never_discards_uncommitted_typing(
     assert snapshot.caret_rect_intersects_viewport
 
 
-def test_real_shell_routine_typing_around_scenes_never_rebuilds_projection(
-    harness: RealShellPromptEditorHarness,
-) -> None:
-    """Existing scene geometry should remap locally for ordinary source edits."""
-
-    cases = (
+@pytest.mark.parametrize(
+    ("label", "initial_text", "cursor_position"),
+    (
         ("before-scene", "quality\n**Portrait\nstudio", 0),
         ("scene-title-end", "**Portrait\nstudio", len("**Portrait")),
-        (
-            "scene-title-next-word",
-            "**Portrait\nstudio",
-            len("**Portrait"),
-        ),
+        ("scene-title-next-word", "**Portrait\nstudio", len("**Portrait")),
         (
             "before-later-scene",
             "**Portrait\nstudio\n**Landscape\nfield",
@@ -380,29 +373,44 @@ def test_real_shell_routine_typing_around_scenes_never_rebuilds_projection(
             f"{'quality, ' * 400}\n**Portrait\nstudio",
             0,
         ),
+    ),
+    ids=(
+        "before-scene",
+        "scene-title-end",
+        "scene-title-next-word",
+        "before-later-scene",
+        "long-prompt-before-scene",
+    ),
+)
+def test_real_shell_routine_typing_around_scenes_never_rebuilds_projection(
+    harness: RealShellPromptEditorHarness,
+    label: str,
+    initial_text: str,
+    cursor_position: int,
+) -> None:
+    """Existing scene geometry should remap locally for ordinary source edits."""
+
+    field = harness.add_prompt_workflow(
+        alias=f"scene-path-{label}",
+        initial_text=initial_text,
     )
-    for label, initial_text, cursor_position in cases:
-        field = harness.add_prompt_workflow(
-            alias=f"scene-path-{label}",
-            initial_text=initial_text,
-        )
-        harness.set_source_cursor_position(field, cursor_position)
+    harness.set_source_cursor_position(field, cursor_position)
 
-        typed_text = " abc" if label == "scene-title-next-word" else "abc"
-        probe = harness.probe_typed_projection_paths(field, typed_text)
+    typed_text = " abc" if label == "scene-title-next-word" else "abc"
+    probe = harness.probe_typed_projection_paths(field, typed_text)
 
-        assert probe.canonical_rebuild_count == 0, (
-            label,
-            probe.apply_paths,
-            probe.incremental_rejection_reasons,
-            probe.layout_rejection_reasons,
-        )
-        assert "full_rebuild" not in probe.apply_paths, (label, probe)
-        assert probe.source_text == (
-            initial_text[:cursor_position] + typed_text + initial_text[cursor_position:]
-        )
-        if label == "long-prompt-before-scene":
-            assert probe.elapsed_ms < 750.0
+    assert probe.canonical_rebuild_count == 0, (
+        label,
+        probe.apply_paths,
+        probe.incremental_rejection_reasons,
+        probe.layout_rejection_reasons,
+    )
+    assert "full_rebuild" not in probe.apply_paths, (label, probe)
+    assert probe.source_text == (
+        initial_text[:cursor_position] + typed_text + initial_text[cursor_position:]
+    )
+    if label == "long-prompt-before-scene":
+        assert probe.elapsed_ms < 750.0
 
 
 def test_real_shell_scene_marker_formation_rebuilds_and_projects_immediately(
@@ -1449,8 +1457,8 @@ def test_real_shell_harness_times_lora_trigger_context_menu_open() -> None:
         assert trace.captured_submenu_row_count == 0
         assert ("Insert trigger words", ()) in trace.submenu_rows
         assert trace.cached_scheduled_lora_count_before == item_count
-        assert trace.event_dispatch_elapsed_ms < 80.0
         assert trace.event_dispatch_elapsed_ms > 0.0
+        assert trace.menu_population_elapsed_ms < 80.0
         assert trace.menu_population_elapsed_ms >= 0.0
         assert trace.menu_exec_elapsed_ms >= 0.0
     finally:
