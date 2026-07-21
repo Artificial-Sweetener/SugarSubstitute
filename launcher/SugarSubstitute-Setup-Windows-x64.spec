@@ -20,7 +20,7 @@
 
 from pathlib import Path
 
-from tools.pyinstaller_support import resolve_uv_executable
+from tools.pyinstaller_support import build_launcher_data_files
 
 
 launcher_root = Path(SPECPATH)
@@ -33,9 +33,10 @@ app_icon_path = (
     / "app_icons"
     / "app_icon.ico"
 )
-uv_path = resolve_uv_executable()
-launcher_datas = [(str(app_icon_path), "launcher_assets")]
-launcher_datas.append((uv_path, "launcher_assets"))
+launcher_datas = build_launcher_data_files(
+    repo_root=repo_root,
+    app_icon_path=app_icon_path,
+)
 
 a = Analysis(
     [str(launcher_root / "sugarsubstitute_launcher" / "__main__.py")],
