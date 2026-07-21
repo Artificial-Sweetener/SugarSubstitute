@@ -44,13 +44,16 @@ def test_language_manifest_defines_release_languages_as_data() -> None:
         "en",
         "zh-Hans",
         "ja",
+        "ko",
     )
     assert tuple(
         language.native_display_name for language in manifest.release_languages
-    ) == ("English", "简体中文", "日本語")
+    ) == ("English", "简体中文", "日本語", "한국어")
     assert manifest.default_language.identifier == "en"
     assert manifest.language("zh-Hans").comfy_catalog_aliases == ("zh", "zh-CN")
     assert manifest.language("ja").font_profile == "cjk-jp"
+    assert manifest.language("ko").comfy_catalog_aliases == ("ko",)
+    assert manifest.language("ko").font_profile == "cjk-kr"
 
 
 @pytest.mark.parametrize(
@@ -59,6 +62,7 @@ def test_language_manifest_defines_release_languages_as_data() -> None:
         ("EN_us", "en-US"),
         ("zh_hans_cn", "zh-Hans-CN"),
         ("ja-JP", "ja-JP"),
+        ("ko_KR", "ko-KR"),
         ("pt_br", "pt-BR"),
         ("en_US.UTF-8", "en-US"),
         ("", None),
@@ -79,6 +83,8 @@ def test_normalize_locale_tag_canonicalizes_platform_variants(
     ("ui_languages", "expected_language", "expected_formatting_locale"),
     [
         (("ja-JP", "en-US"), "ja", "ja-JP"),
+        (("ko-KR", "en-US"), "ko", "ko-KR"),
+        (("ko",), "ko", "ko-KR"),
         (("zh_CN", "en-US"), "zh-Hans", "zh-CN"),
         (("zh-Hans-SG",), "zh-Hans", "zh-Hans-SG"),
         (("zh",), "zh-Hans", "zh-CN"),
@@ -139,6 +145,7 @@ def test_process_override_precedes_persisted_and_system_languages() -> None:
         ("en-US", "en"),
         ("zh_CN", "zh-Hans"),
         ("ja-JP", "ja"),
+        ("ko_KR", "ko"),
     ],
 )
 def test_locale_override_accepts_only_supported_effective_languages(

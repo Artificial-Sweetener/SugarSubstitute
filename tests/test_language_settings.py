@@ -65,10 +65,11 @@ def test_language_settings_switches_catalogs_and_persists_without_restart(
     assert tuple(
         card.language_combo.itemData(index)
         for index in range(card.language_combo.count())
-    ) == ("system", "en", "zh-Hans", "ja")
+    ) == ("system", "en", "zh-Hans", "ja", "ko")
     assert card.language_combo.itemText(0) == "System default — English"
     assert card.language_combo.itemText(2) == "简体中文"
     assert card.language_combo.itemText(3) == "日本語"
+    assert card.language_combo.itemText(4) == "한국어"
 
     card.language_combo.setCurrentIndex(card.language_combo.findData("zh-Hans"))
     chinese_delegates = runtime.manager.composite_translator.delegates
@@ -87,6 +88,18 @@ def test_language_settings_switches_catalogs_and_persists_without_restart(
     assert card.title_label.text() == "言語"
     assert "変更はすぐに反映されます" in card.description_label.text()
     assert QCoreApplication.translate("LanguageSelector", "Language") == "言語"
+    assert all(
+        delegate not in runtime.manager.composite_translator.delegates
+        for delegate in chinese_delegates
+    )
+
+    card.language_combo.setCurrentIndex(card.language_combo.findData("ko"))
+
+    assert runtime.manager.snapshot.requested == LanguagePreference.explicit("ko")
+    assert store.load() == LanguagePreference.explicit("ko")
+    assert card.title_label.text() == "언어"
+    assert "즉시 적용" in card.description_label.text()
+    assert QCoreApplication.translate("LanguageSelector", "Language") == "언어"
     assert all(
         delegate not in runtime.manager.composite_translator.delegates
         for delegate in chinese_delegates
@@ -175,7 +188,7 @@ def test_translation_manager_exposes_only_release_enabled_manifest_languages(
 
     assert tuple(
         language.identifier for language in runtime.manager.available_languages
-    ) == ("en", "zh-Hans", "ja")
+    ) == ("en", "zh-Hans", "ja", "ko")
     runtime.manager.close()
 
 
