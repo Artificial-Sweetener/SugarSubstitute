@@ -159,7 +159,7 @@ def test_existing_nodepack_below_minimum_refreshes_dependencies(
 
     monkeypatch.setattr(
         core_nodepack_reconciler,
-        "_python_distribution_satisfies_minimum",
+        "_python_distribution_matches_required_version",
         version_satisfied,
     )
     monkeypatch.setattr(
@@ -177,6 +177,60 @@ def test_existing_nodepack_below_minimum_refreshes_dependencies(
 
     sugarcubes = _nodepack(CoreNodepackId.SUGARCUBES)
     assert dependency_installs == [tmp_path / sugarcubes.expected_folder]
+
+
+def test_configured_sugarcubes_checkout_can_precede_pinned_release(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """An explicit development checkout should not require an unpublished tag."""
+
+    python = _prepare_python(tmp_path)
+    _materialize_installed_nodepacks(tmp_path)
+    sugarcubes = _nodepack(CoreNodepackId.SUGARCUBES)
+    sugarcubes_root = (tmp_path / sugarcubes.expected_folder).resolve()
+    env_var = sugarcubes.local_source_environment_variable
+    assert env_var is not None
+    dependency_installs: list[Path] = []
+    version_checks = {
+        "substitute-backend": [True],
+        "SugarCubes": [False, False],
+    }
+
+    def version_satisfied(**kwargs: object) -> bool:
+        """Keep the development checkout below the future release version."""
+
+        name = cast(str, kwargs["distribution_name"])
+        return version_checks[name].pop(0)
+
+    monkeypatch.setattr(
+        core_nodepack_reconciler,
+        "_python_distribution_matches_required_version",
+        version_satisfied,
+    )
+    monkeypatch.setattr(
+        core_nodepack_reconciler,
+        "install_backend_python_dependencies",
+        lambda **kwargs: dependency_installs.append(kwargs["nodepack_root"]),
+    )
+    monkeypatch.setattr(
+        core_nodepack_reconciler,
+        "install_sugarcubes_python_dependencies",
+        lambda **kwargs: dependency_installs.append(kwargs["nodepack_root"]),
+    )
+    monkeypatch.setattr(
+        core_nodepack_reconciler,
+        "_apply_pinned_source_fallback",
+        lambda **_kwargs: pytest.fail("local checkout must not use pinned fallback"),
+    )
+
+    ensure_core_comfy_nodepacks(
+        tmp_path,
+        python_executable=python,
+        env={env_var: str(sugarcubes_root)},
+    )
+
+    assert dependency_installs == [sugarcubes_root]
 
 
 def test_non_git_refresh_uses_pinned_archive_without_manager_cli(
@@ -274,7 +328,7 @@ def _patch_dependency_contracts(
 
     monkeypatch.setattr(
         core_nodepack_reconciler,
-        "_python_distribution_satisfies_minimum",
+        "_python_distribution_matches_required_version",
         lambda **kwargs: True,
     )
     monkeypatch.setattr(

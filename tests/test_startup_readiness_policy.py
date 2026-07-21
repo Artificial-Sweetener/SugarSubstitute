@@ -133,6 +133,6 @@ def _compatibility(status: RuntimeCompatibilityStatus) -> BackendCompatibilityRe
         installed_backend_version="",
         required_backend_version=">=1.6.2,<2.0.0",
         installed_sugarcubes_version="",
-        required_sugarcubes_version=">=0.10.0,<2.0.0",
+        required_sugarcubes_version="0.11.0",
         repairable=False,
     )

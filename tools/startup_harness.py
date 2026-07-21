@@ -718,14 +718,14 @@ def build_app_managed_command(paths: HarnessPaths) -> tuple[str, ...]:
 def build_sugarcubes_maintenance_command(paths: HarnessPaths) -> tuple[str, ...]:
     """Return the SugarCubes offline dependency preflight command."""
 
-    return (
-        str(paths.comfy_python),
-        "-m",
-        "backend.maintenance",
-        "cube-deps",
-        "preflight",
-        "--workspace",
-        str(paths.comfy_root),
+    from substitute.infrastructure.comfy.sugarcubes_installation_contract import (
+        build_sugarcubes_maintenance_command as build_installed_command,
+    )
+
+    return build_installed_command(
+        python_executable=paths.comfy_python,
+        workspace=paths.comfy_root,
+        baseline_only=False,
     )
 
 
@@ -2153,6 +2153,10 @@ def _process_env(overrides: Mapping[str, str]) -> dict[str, str]:
 def _validate_paths(paths: HarnessPaths) -> None:
     """Fail early when required repositories or runtimes are unavailable."""
 
+    from substitute.infrastructure.comfy.sugarcubes_installation_contract import (
+        sugarcubes_maintenance_path_for_root,
+    )
+
     required_paths = (
         paths.sugar_substitute_main,
         paths.sugar_substitute_python,
@@ -2160,7 +2164,7 @@ def _validate_paths(paths: HarnessPaths) -> None:
         paths.comfy_python,
         paths.substitute_backend_root / "__init__.py",
         paths.sugarcubes_root / "__init__.py",
-        paths.sugarcubes_root / "backend" / "maintenance.py",
+        sugarcubes_maintenance_path_for_root(paths.sugarcubes_root),
     )
     missing = [path for path in required_paths if not path.exists()]
     if missing:

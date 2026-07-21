@@ -140,10 +140,10 @@ def checkout_pinned_git_tag(
 
     if (
         nodepack.source_url is None
-        or nodepack.minimum_python_distribution_version is None
+        or nodepack.required_python_distribution_version is None
     ):
         raise RuntimeError(f"{nodepack.display_name} has no pinned git fallback tag.")
-    tag = f"v{nodepack.minimum_python_distribution_version}"
+    tag = f"v{nodepack.required_python_distribution_version}"
     _emit_log(
         on_log,
         f"[ComfyNodepacks] Checking out {nodepack.display_name} tag {tag}.",

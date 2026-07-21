@@ -23,8 +23,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from substitute.domain.comfy_nodepacks import (
-    SUGARCUBES_REQUIRED_MINIMUM_VERSION,
-    SUBSTITUTE_BACKEND_REQUIRED_MINIMUM_VERSION,
+    SUGARCUBES_REQUIRED_VERSION,
+    SUBSTITUTE_BACKEND_REQUIRED_VERSION,
     CoreNodepackId,
 )
 
@@ -32,11 +32,11 @@ CLI_INSTALL_TIMEOUT_SECONDS = 900
 ARCHIVE_DOWNLOAD_TIMEOUT_SECONDS = 120
 SUBSTITUTE_BACKEND_FALLBACK_ARCHIVE_URL = (
     "https://github.com/Artificial-Sweetener/Substitute-BackEnd/archive/refs/tags/"
-    f"v{SUBSTITUTE_BACKEND_REQUIRED_MINIMUM_VERSION}.zip"
+    f"v{SUBSTITUTE_BACKEND_REQUIRED_VERSION}.zip"
 )
 SUGARCUBES_FALLBACK_ARCHIVE_URL = (
     "https://github.com/Artificial-Sweetener/SugarCubes/archive/refs/tags/"
-    f"v{SUGARCUBES_REQUIRED_MINIMUM_VERSION}.zip"
+    f"v{SUGARCUBES_REQUIRED_VERSION}.zip"
 )
 NODEPACK_BACKUP_KEEP_COUNT = 5
 
@@ -55,7 +55,7 @@ class CoreComfyNodepack:
     source_url: str | None = None
     local_source_environment_variable: str | None = None
     python_distribution_name: str | None = None
-    minimum_python_distribution_version: str | None = None
+    required_python_distribution_version: str | None = None
     pinned_source_archive_url: str | None = None
 
 
@@ -115,7 +115,7 @@ CORE_COMFY_NODEPACKS: tuple[CoreComfyNodepack, ...] = (
         source_url="https://github.com/Artificial-Sweetener/Substitute-BackEnd.git",
         local_source_environment_variable="SUGARSUBSTITUTE_BACKEND_SOURCE",
         python_distribution_name="substitute-backend",
-        minimum_python_distribution_version=SUBSTITUTE_BACKEND_REQUIRED_MINIMUM_VERSION,
+        required_python_distribution_version=SUBSTITUTE_BACKEND_REQUIRED_VERSION,
         pinned_source_archive_url=SUBSTITUTE_BACKEND_FALLBACK_ARCHIVE_URL,
     ),
     CoreComfyNodepack(
@@ -127,12 +127,12 @@ CORE_COMFY_NODEPACKS: tuple[CoreComfyNodepack, ...] = (
         expected_folder=Path("custom_nodes") / "SugarCubes",
         sentinel_files=(
             Path("__init__.py"),
-            Path("nodes.py"),
-            Path("backend") / "__init__.py",
+            Path("pyproject.toml"),
         ),
         source_url="https://github.com/Artificial-Sweetener/SugarCubes.git",
+        local_source_environment_variable="SUGARSUBSTITUTE_SUGARCUBES_SOURCE",
         python_distribution_name="SugarCubes",
-        minimum_python_distribution_version=SUGARCUBES_REQUIRED_MINIMUM_VERSION,
+        required_python_distribution_version=SUGARCUBES_REQUIRED_VERSION,
         pinned_source_archive_url=SUGARCUBES_FALLBACK_ARCHIVE_URL,
     ),
 )

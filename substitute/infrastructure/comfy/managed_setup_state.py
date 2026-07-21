@@ -53,6 +53,10 @@ from substitute.infrastructure.comfy.nodepack_manifest import (
     SUGARCUBES_BASE_NODEPACK_INSTALLS,
     SUGARCUBES_COMPANION_NODEPACKS,
 )
+from substitute.infrastructure.comfy.sugarcubes_installation_contract import (
+    sugarcubes_maintenance_path,
+    sugarcubes_root,
+)
 from substitute.infrastructure.version_control import (
     RepositoryOperationError,
     repository_service,
@@ -543,8 +547,8 @@ def _core_nodepack_freshness_key(
         ],
         "source_url": getattr(nodepack, "source_url", None),
         "python_distribution": getattr(nodepack, "python_distribution_name", None),
-        "minimum_version": getattr(
-            nodepack, "minimum_python_distribution_version", None
+        "required_version": getattr(
+            nodepack, "required_python_distribution_version", None
         ),
         "pinned_archive": getattr(nodepack, "pinned_source_archive_url", None),
     }
@@ -553,10 +557,12 @@ def _core_nodepack_freshness_key(
 def _sugarcubes_baseline_freshness_key(workspace: Path) -> dict[str, object]:
     """Return freshness inputs for SugarCubes baseline dependency maintenance."""
 
-    sugarcubes_root = workspace / "custom_nodes" / "SugarCubes"
+    installed_sugarcubes_root = sugarcubes_root(workspace)
     return {
-        "maintenance": _path_signature(sugarcubes_root / "backend" / "maintenance.py"),
-        "backend": _path_signature(sugarcubes_root / "backend" / "__init__.py"),
+        "maintenance": _path_signature(sugarcubes_maintenance_path(workspace)),
+        "host_api": _path_signature(
+            installed_sugarcubes_root / "sugarcubes" / "host_api.py"
+        ),
         "install_mapping": {
             node_id: [
                 {

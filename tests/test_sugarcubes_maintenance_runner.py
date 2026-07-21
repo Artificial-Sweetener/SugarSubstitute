@@ -27,6 +27,7 @@ from pathlib import Path
 import pytest
 
 from substitute.infrastructure.comfy import nodepack_reconciliation
+from substitute.infrastructure.comfy import sugarcubes_dependency_installer
 from substitute.infrastructure.comfy import sugarcubes_maintenance_runner
 from tests.repository_service_test_double import RecordingRepositoryService
 
@@ -115,7 +116,7 @@ def test_run_sugarcubes_baseline_maintenance_builds_sync_check_command(
         [
             str(python_path),
             "-m",
-            "backend.maintenance",
+            "sugarcubes.maintenance",
             "cube-deps",
             "preflight",
             "--workspace",
@@ -329,7 +330,7 @@ def test_run_sugarcubes_baseline_maintenance_installs_reported_nodepacks(
         fake_stream,
     )
     monkeypatch.setattr(
-        sugarcubes_maintenance_runner,
+        sugarcubes_dependency_installer,
         "install_nodepack_requirements",
         lambda **kwargs: None,
     )
@@ -491,7 +492,7 @@ def test_run_sugarcubes_baseline_maintenance_malformed_nonzero_output_blocks(
 def test_sugarcubes_installable_missing_node_ids_filters_readiness_plan() -> None:
     """Install planning should only return missing, installable, uninstalled nodes."""
 
-    assert sugarcubes_maintenance_runner._sugarcubes_installable_missing_node_ids(
+    assert sugarcubes_dependency_installer.sugarcubes_installable_missing_node_ids(
         {
             "dependencyReadiness": {
                 "ready": False,
@@ -526,7 +527,7 @@ def test_sugarcubes_installable_missing_node_ids_filters_readiness_plan() -> Non
 def test_sugarcubes_installable_missing_node_ids_falls_back_to_failed_nodes() -> None:
     """Legacy repair payloads should still identify failed missing node installs."""
 
-    assert sugarcubes_maintenance_runner._sugarcubes_installable_missing_node_ids(
+    assert sugarcubes_dependency_installer.sugarcubes_installable_missing_node_ids(
         {
             "dependencyReadiness": {
                 "ready": False,
@@ -562,7 +563,7 @@ def _write_maintenance_fixture(workspace: Path) -> Path:
     python_path.parent.mkdir(parents=True)
     python_path.write_text("", encoding="utf-8")
     maintenance_path = (
-        workspace / "custom_nodes" / "SugarCubes" / "backend" / "maintenance.py"
+        workspace / "custom_nodes" / "SugarCubes" / "sugarcubes" / "maintenance.py"
     )
     maintenance_path.parent.mkdir(parents=True)
     maintenance_path.write_text("", encoding="utf-8")
