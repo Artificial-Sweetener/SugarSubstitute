@@ -23,6 +23,7 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
 )
 from sugarsubstitute_shared.localization import ApplicationMessage, app_text
 from sugarsubstitute_shared.presentation.localization import apply_application_text
+from sugarsubstitute_shared.windows_long_paths import qt_filesystem_path
 
 from collections.abc import Callable
 
@@ -59,7 +60,7 @@ class DanbooruWikiImageCard(QFrame):
         self._open_url = open_url
         self._caption_text = caption_text
         self._source_pixmap = (
-            QPixmap(str(preview.local_path))
+            QPixmap(qt_filesystem_path(preview.local_path))
             if preview.local_path is not None
             else QPixmap()
         )

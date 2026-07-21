@@ -40,6 +40,10 @@ from substitute.shared.logging.logger import (
     log_info,
     log_warning,
 )
+from sugarsubstitute_shared.windows_long_paths import (
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 _LOGGER = get_logger("app.bootstrap.launch_splash")
 _HELPER_MODULE = "substitute.app.bootstrap.splash_process"
@@ -218,7 +222,11 @@ class LaunchSplashProcessClient:
         """Start the helper process and return a disposable splash client."""
 
         command = [
-            python_executable,
+            (
+                subprocess_path(python_executable)
+                if Path(python_executable).is_absolute()
+                else python_executable
+            ),
             "-m",
             _HELPER_MODULE,
             "--parent-pid",
@@ -233,7 +241,7 @@ class LaunchSplashProcessClient:
         try:
             process = popen(
                 command,
-                cwd=str(cwd) if cwd is not None else None,
+                cwd=subprocess_working_directory(cwd) if cwd is not None else None,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
