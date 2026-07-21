@@ -37,6 +37,10 @@ from substitute.domain.prompt import (
 from substitute.shared.logging.logger import get_logger, log_debug, log_warning
 
 from .prompt_document_projector import PromptDocumentProjector
+from .prompt_document_semantics import (
+    OrdinaryPromptDocumentSemantics,
+    PromptDocumentSemantics,
+)
 from .prompt_document_views import PromptDocumentView
 from .prompt_reorder_projection_service import PromptReorderProjectionService
 from .prompt_reorder_serialization_service import PromptReorderSerializationService
@@ -46,101 +50,28 @@ from .prompt_reorder_views import (
     PromptReorderLayoutView,
     PromptReorderStateView,
 )
+from .prompt_semantic_reorder_services import (
+    PromptSemanticReorderProjectionService,
+    PromptSemanticReorderSerializationService,
+)
+from .prompt_syntax_actions import (
+    PromptAdjustEmphasisAction,
+    PromptAdjustEmphasisContentAction,
+    PromptAdjustLoraWeightAction,
+    PromptAdjustWildcardTagAction,
+    PromptConsumeSyntaxAction,
+    PromptSetEmphasisWeightAction,
+    PromptSetEmphasisWeightContentAction,
+    PromptSetLoraWeightAction,
+    PromptSetWildcardTagAction,
+    PromptSyntaxAction,
+)
+from .prompt_structured_syntax_mutation_adapter import (
+    PromptLogicalSyntaxMutation,
+    PromptStructuredSyntaxMutationAdapter,
+)
 
 _LOGGER = get_logger("application.prompt_editor.prompt_mutation_service")
-
-
-@dataclass(frozen=True, slots=True)
-class PromptSyntaxAction:
-    """Describe one typed syntax-aware editor request emitted by a renderer."""
-
-
-@dataclass(frozen=True, slots=True)
-class PromptConsumeSyntaxAction(PromptSyntaxAction):
-    """Consume one syntax-owned interaction without mutating the prompt text."""
-
-    syntax_kind: str
-
-
-@dataclass(frozen=True, slots=True)
-class PromptAdjustEmphasisAction(PromptSyntaxAction):
-    """Adjust one emphasis shell identified by its exact outer source range."""
-
-    outer_start: int
-    outer_end: int
-    delta: float | Decimal
-    syntax_kind: str = "emphasis"
-
-
-@dataclass(frozen=True, slots=True)
-class PromptAdjustEmphasisContentAction(PromptSyntaxAction):
-    """Adjust emphasis over one visible content range, even when no shell exists."""
-
-    content_start: int
-    content_end: int
-    delta: float | Decimal
-    syntax_kind: str = "emphasis"
-
-
-@dataclass(frozen=True, slots=True)
-class PromptSetEmphasisWeightAction(PromptSyntaxAction):
-    """Set one emphasis shell to an exact weight by its outer source range."""
-
-    outer_start: int
-    outer_end: int
-    weight: float | Decimal
-    syntax_kind: str = "emphasis"
-
-
-@dataclass(frozen=True, slots=True)
-class PromptSetEmphasisWeightContentAction(PromptSyntaxAction):
-    """Set emphasis to one exact weight over a visible content range."""
-
-    content_start: int
-    content_end: int
-    weight: float | Decimal
-    syntax_kind: str = "emphasis"
-
-
-@dataclass(frozen=True, slots=True)
-class PromptAdjustLoraWeightAction(PromptSyntaxAction):
-    """Adjust one LoRA schedule token identified by its exact outer source range."""
-
-    outer_start: int
-    outer_end: int
-    delta: float | Decimal
-    syntax_kind: str = "lora"
-
-
-@dataclass(frozen=True, slots=True)
-class PromptSetLoraWeightAction(PromptSyntaxAction):
-    """Set one LoRA schedule token to an exact first-weight value."""
-
-    outer_start: int
-    outer_end: int
-    weight: float | Decimal
-    syntax_kind: str = "lora"
-
-
-@dataclass(frozen=True, slots=True)
-class PromptSetWildcardTagAction(PromptSyntaxAction):
-    """Set one wildcard placeholder to an exact free-text group tag."""
-
-    outer_start: int
-    outer_end: int
-    tag: str
-    syntax_kind: str = "wildcard"
-
-
-@dataclass(frozen=True, slots=True)
-class PromptAdjustWildcardTagAction(PromptSyntaxAction):
-    """Adjust one wildcard placeholder's numeric display group tag."""
-
-    outer_start: int
-    outer_end: int
-    current_display_tag: str
-    delta: int
-    syntax_kind: str = "wildcard"
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,20 +93,27 @@ class PromptMutationService:
         document_projector: PromptDocumentProjector | None = None,
         reorder_projection_service: PromptReorderProjectionService | None = None,
         reorder_serialization_service: PromptReorderSerializationService | None = None,
+        document_semantics: PromptDocumentSemantics | None = None,
     ) -> None:
         """Store focused prompt document collaborators for mutation projection."""
 
         self._document_projector = document_projector or PromptDocumentProjector()
-        self._reorder_projection_service = (
-            reorder_projection_service
-            or PromptReorderProjectionService(
-                document_projector=self._document_projector
+        self._document_semantics = (
+            document_semantics or OrdinaryPromptDocumentSemantics()
+        )
+        self._structured_syntax_mutations = PromptStructuredSyntaxMutationAdapter(
+            self._document_semantics
+        )
+        self._reorder_projection_service = reorder_projection_service or (
+            PromptSemanticReorderProjectionService(
+                document_projector=self._document_projector,
+                document_semantics=self._document_semantics,
             )
         )
-        self._reorder_serialization_service = (
-            reorder_serialization_service
-            or PromptReorderSerializationService(
-                document_projector=self._document_projector
+        self._reorder_serialization_service = reorder_serialization_service or (
+            PromptSemanticReorderSerializationService(
+                document_projector=self._document_projector,
+                document_semantics=self._document_semantics,
             )
         )
 
@@ -185,6 +123,47 @@ class PromptMutationService:
         action: PromptSyntaxAction,
     ) -> PromptMutation | None:
         """Apply one typed syntax action produced by a syntax-aware renderer."""
+
+        if self._document_semantics.uses_structured_prompt_values:
+            mutation = self._structured_syntax_mutations.apply(
+                text,
+                action,
+                apply_logical_action=self._apply_logical_syntax_action,
+            )
+            if mutation is None:
+                return None
+            return PromptMutation(
+                text=mutation.text,
+                selection_start=mutation.selection_start,
+                selection_end=mutation.selection_end,
+                document_view=self._document_projector.build_document_view(
+                    mutation.text
+                ),
+            )
+        return self._apply_unscoped_syntax_action(text, action)
+
+    def _apply_logical_syntax_action(
+        self,
+        text: str,
+        action: PromptSyntaxAction,
+    ) -> PromptLogicalSyntaxMutation | None:
+        """Return the coordinate fields from one ordinary logical mutation."""
+
+        mutation = self._apply_unscoped_syntax_action(text, action)
+        if mutation is None:
+            return None
+        return PromptLogicalSyntaxMutation(
+            text=mutation.text,
+            selection_start=mutation.selection_start,
+            selection_end=mutation.selection_end,
+        )
+
+    def _apply_unscoped_syntax_action(
+        self,
+        text: str,
+        action: PromptSyntaxAction,
+    ) -> PromptMutation | None:
+        """Apply one syntax action to an ordinary logical prompt string."""
 
         if isinstance(action, PromptAdjustEmphasisAction):
             mutation = self.adjust_emphasis_for_outer_range(

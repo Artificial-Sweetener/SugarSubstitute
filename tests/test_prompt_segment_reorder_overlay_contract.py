@@ -61,6 +61,12 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_preview imp
 )
 from tests.prompt_projection_test_helpers import surface_for
 from tests.execution_test_helpers import immediate_prompt_task_executor_factory
+from tests.prompt_reorder_pointer_test_helpers import (
+    PromptReorderPointerTarget,
+    drag_prompt_reorder_target_to_global,
+    prompt_reorder_pointer_target,
+    prompt_reorder_pointer_targets,
+)
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
@@ -220,38 +226,70 @@ def _create_overlay(
     return editor, overlay
 
 
-def _chip_widgets(overlay: QWidget) -> list[QWidget]:
-    """Return visible reorder chips sorted by their rendered position."""
+def _pointer_regions(overlay: QWidget) -> list[PromptReorderPointerTarget]:
+    """Return visible pointer regions sorted by rendered position."""
 
-    chips = [
-        chip
-        for chip in overlay.findChildren(QWidget, "segmentChip")
-        if chip.isVisible()
-    ]
-    return sorted(
-        chips,
-        key=lambda chip: (
-            chip.mapToGlobal(chip.rect().topLeft()).y(),
-            chip.mapToGlobal(chip.rect().topLeft()).x(),
-        ),
-    )
+    return prompt_reorder_pointer_targets(overlay)
 
 
-def _chip_by_segment_index(overlay: QWidget, segment_index: int) -> QWidget:
-    """Return one rendered chip by its segment index property."""
+def _chip_by_segment_index(
+    overlay: QWidget, segment_index: int
+) -> PromptReorderPointerTarget:
+    """Return one rendered pointer region by its segment index."""
 
-    for chip in overlay.findChildren(QWidget, "segmentChip"):
-        if chip.property("segmentIndex") == segment_index:
-            return chip
-    raise AssertionError(f"Missing chip for segment index {segment_index}.")
+    return prompt_reorder_pointer_target(overlay, segment_index)
 
 
-def _chip_text(chip: QWidget) -> str:
-    """Return the segment label recorded on one reorder hotspot widget."""
+def _chip_text(chip: PromptReorderPointerTarget) -> str:
+    """Return the segment label recorded on one reorder pointer region."""
 
     segment_text = chip.property("segmentText")
     assert isinstance(segment_text, str)
     return segment_text
+
+
+def _chip_segment_index(chip: PromptReorderPointerTarget) -> int:
+    """Return the integer segment index owned by one pointer region."""
+
+    segment_index = chip.property("segmentIndex")
+    assert isinstance(segment_index, int)
+    return segment_index
+
+
+def test_segment_reorder_overlay_materializes_only_viewport_pointer_regions(
+    widgets: list[QWidget],
+) -> None:
+    """Large documents should own logical regions only for visible chip geometry."""
+
+    app = ensure_qapp()
+    segment_count = 200
+    editor, overlay = _create_overlay(
+        widgets,
+        width=240,
+        height=120,
+        text=", ".join(
+            f"segment {index} with a longer description"
+            for index in range(segment_count)
+        ),
+    )
+
+    initial_indices = {_chip_segment_index(chip) for chip in _pointer_regions(overlay)}
+    initial_visual_indices = set(cast(Any, overlay)._visuals_by_index)
+
+    assert initial_indices == initial_visual_indices
+    assert overlay.findChildren(QWidget, "segmentChip") == []
+    assert 0 < len(initial_indices) < segment_count
+
+    editor.verticalScrollBar().setValue(editor.verticalScrollBar().maximum())
+    overlay.refresh_geometry(reason="test_scroll")
+    process_events(app)
+
+    scrolled_indices = {_chip_segment_index(chip) for chip in _pointer_regions(overlay)}
+    scrolled_visual_indices = set(cast(Any, overlay)._visuals_by_index)
+    assert scrolled_indices == scrolled_visual_indices
+    assert overlay.findChildren(QWidget, "segmentChip") == []
+    assert 0 < len(scrolled_indices) < segment_count
+    assert scrolled_indices != initial_indices
 
 
 def _drag_proxy(overlay: QWidget) -> QWidget:
@@ -305,17 +343,13 @@ def _preview_rect(overlay: QWidget, segment_index: int) -> QRect | None:
 
 
 def _drag_chip_to_global(
-    chip: QWidget,
+    chip: PromptReorderPointerTarget,
     *,
     global_target: QPoint,
 ) -> None:
     """Drag one reorder hotspot to the supplied global target point."""
 
-    start = chip.rect().center()
-    target = chip.mapFromGlobal(global_target)
-    QTest.mousePress(chip, Qt.MouseButton.LeftButton, pos=start)
-    QTest.mouseMove(chip, target, 10)
-    QTest.mouseRelease(chip, Qt.MouseButton.LeftButton, pos=target, delay=10)
+    drag_prompt_reorder_target_to_global(chip, global_target=global_target)
 
 
 def _connect_preview_sync(
@@ -512,10 +546,10 @@ def widgets() -> Iterator[list[QWidget]]:
     process_events(app)
 
 
-def test_segment_reorder_overlay_builds_chip_widgets_inside_editor_viewport(
+def test_segment_reorder_overlay_builds_pointer_regions_inside_editor_viewport(
     widgets: list[QWidget],
 ) -> None:
-    """Parsed segment views should become chip widgets inside the editor viewport."""
+    """Parsed segment views should become pointer regions inside the viewport."""
 
     editor, overlay = _create_overlay(
         widgets,
@@ -539,7 +573,7 @@ def test_segment_reorder_overlay_hosts_passive_reorder_view(
 ) -> None:
     """The overlay should host reorder painting in a passive child view."""
 
-    _editor, overlay = _create_overlay(
+    editor, overlay = _create_overlay(
         widgets,
         width=320,
         height=180,
@@ -553,7 +587,10 @@ def test_segment_reorder_overlay_hosts_passive_reorder_view(
     assert view.geometry() == overlay.rect()
     assert view.focusPolicy() == Qt.FocusPolicy.NoFocus
     assert view.testAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-    assert len(view.render_state.live_chips) == 3
+    assert view.render_state.live_chips == ()
+    surface_chrome = cast(Any, editor)._surface._reorder_surface_chrome_snapshot
+    assert surface_chrome is not None
+    assert len(surface_chrome.chips) == 3
     assert view.render_state.preview_active is False
 
 
@@ -575,7 +612,7 @@ def test_segment_reorder_overlay_uses_real_grab_cursors(
     assert dragged_chip.cursor().shape() == Qt.CursorShape.OpenHandCursor
 
     QTest.mousePress(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.rect().center(),
     )
@@ -584,7 +621,7 @@ def test_segment_reorder_overlay_uses_real_grab_cursors(
     assert dragged_chip.cursor().shape() == Qt.CursorShape.ClosedHandCursor
 
     QTest.mouseRelease(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.rect().center(),
         delay=10,
@@ -616,11 +653,11 @@ def test_segment_reorder_overlay_keeps_drag_proxy_above_pointer(
     assert proxy.inherits("QFrame") is True
 
     QTest.mousePress(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.rect().center(),
     )
-    QTest.mouseMove(dragged_chip, dragged_chip.mapFromGlobal(target_global), 10)
+    QTest.mouseMove(dragged_chip.overlay, dragged_chip.mapFromGlobal(target_global), 10)
     process_events(app)
 
     proxy_parent = proxy.parentWidget()
@@ -640,7 +677,7 @@ def test_segment_reorder_overlay_keeps_drag_proxy_above_pointer(
     assert proxy_mask.contains(QPoint(0, 0)) is False
 
     QTest.mouseRelease(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.mapFromGlobal(target_global),
         delay=10,
@@ -669,11 +706,11 @@ def test_segment_reorder_overlay_drag_proxy_can_escape_overlay_bounds(
     )
 
     QTest.mousePress(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.rect().center(),
     )
-    QTest.mouseMove(dragged_chip, dragged_chip.mapFromGlobal(target_global), 10)
+    QTest.mouseMove(dragged_chip.overlay, dragged_chip.mapFromGlobal(target_global), 10)
     process_events(app)
 
     proxy_bottom_global = proxy.mapToGlobal(proxy.rect().bottomLeft()).y()
@@ -684,7 +721,7 @@ def test_segment_reorder_overlay_drag_proxy_can_escape_overlay_bounds(
     assert proxy_bottom_global <= overlay_bottom_global + 20
 
     QTest.mouseRelease(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.mapFromGlobal(target_global),
         delay=10,
@@ -712,11 +749,11 @@ def test_segment_reorder_overlay_cancel_restores_drag_state(
     )
 
     QTest.mousePress(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.rect().center(),
     )
-    QTest.mouseMove(dragged_chip, dragged_chip.mapFromGlobal(target_global), 10)
+    QTest.mouseMove(dragged_chip.overlay, dragged_chip.mapFromGlobal(target_global), 10)
     process_events(app)
 
     assert overlay.dragged_segment_index() == 1
@@ -739,7 +776,7 @@ def test_segment_reorder_overlay_cancel_restores_drag_state(
     assert proxy.isVisible() is False
 
     QTest.mouseRelease(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.mapFromGlobal(target_global),
         delay=10,
@@ -766,11 +803,15 @@ def test_segment_reorder_overlay_uses_projection_engine_for_preview_and_drag_pro
     )
 
     QTest.mousePress(
-        emphasized_chip,
+        emphasized_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=emphasized_chip.rect().center(),
     )
-    QTest.mouseMove(emphasized_chip, emphasized_chip.mapFromGlobal(drag_target), 10)
+    QTest.mouseMove(
+        emphasized_chip.overlay,
+        emphasized_chip.mapFromGlobal(drag_target),
+        10,
+    )
     process_events(app)
 
     preview_projection_document = _preview_projection_document(overlay)
@@ -793,7 +834,7 @@ def test_segment_reorder_overlay_uses_projection_engine_for_preview_and_drag_pro
     )
 
     QTest.mouseRelease(
-        emphasized_chip,
+        emphasized_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=emphasized_chip.mapFromGlobal(drag_target),
         delay=10,
@@ -820,11 +861,11 @@ def test_segment_reorder_overlay_drag_proxy_projects_lora_without_banners(
     )
 
     QTest.mousePress(
-        lora_chip,
+        lora_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=lora_chip.rect().center(),
     )
-    QTest.mouseMove(lora_chip, lora_chip.mapFromGlobal(drag_target), 10)
+    QTest.mouseMove(lora_chip.overlay, lora_chip.mapFromGlobal(drag_target), 10)
     process_events(app)
 
     drag_proxy_projection_document = _drag_proxy_projection_document(overlay)
@@ -844,7 +885,7 @@ def test_segment_reorder_overlay_drag_proxy_projects_lora_without_banners(
     assert cast(bool, getattr(lora_renderer, "_suppress_banners")) is True
 
     QTest.mouseRelease(
-        lora_chip,
+        lora_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=lora_chip.mapFromGlobal(drag_target),
         delay=10,
@@ -864,7 +905,7 @@ def test_segment_reorder_overlay_splits_multi_tag_emphasis_shell_into_multiple_c
         text="(1girl, solo:1.10), blush",
     )
 
-    chips = _chip_widgets(overlay)
+    chips = _pointer_regions(overlay)
 
     assert [_chip_text(chip) for chip in chips] == ["1girl,", "solo,", "blush"]
 
@@ -889,11 +930,11 @@ def test_segment_reorder_overlay_expands_preview_and_drag_proxy_for_split_emphas
     original_chip_width = solo_chip.width()
 
     QTest.mousePress(
-        solo_chip,
+        solo_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=solo_chip.rect().center(),
     )
-    QTest.mouseMove(solo_chip, solo_chip.mapFromGlobal(drag_target), 10)
+    QTest.mouseMove(solo_chip.overlay, solo_chip.mapFromGlobal(drag_target), 10)
     process_events(app)
 
     preview_rect = _preview_rect(overlay, 1)
@@ -905,7 +946,7 @@ def test_segment_reorder_overlay_expands_preview_and_drag_proxy_for_split_emphas
     assert proxy.width() > original_chip_width
 
     QTest.mouseRelease(
-        solo_chip,
+        solo_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=solo_chip.mapFromGlobal(drag_target),
         delay=10,
@@ -932,11 +973,11 @@ def test_segment_reorder_overlay_landing_preview_uses_outline_without_redrawing_
     )
 
     QTest.mousePress(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.rect().center(),
     )
-    QTest.mouseMove(second_chip, second_chip.mapFromGlobal(drag_target), 10)
+    QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(drag_target), 10)
     process_events(app)
 
     painted_text_calls: list[bool] = []
@@ -963,7 +1004,7 @@ def test_segment_reorder_overlay_landing_preview_uses_outline_without_redrawing_
     assert painted_text_calls == []
 
     QTest.mouseRelease(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.mapFromGlobal(drag_target),
         delay=10,
@@ -1000,11 +1041,11 @@ def test_segment_reorder_overlay_keeps_preview_geometry_for_long_drag(
     )
 
     QTest.mousePress(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.rect().center(),
     )
-    QTest.mouseMove(second_chip, second_chip.mapFromGlobal(drag_target), 10)
+    QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(drag_target), 10)
     process_events(app)
 
     assert preview_signal_count >= 2
@@ -1050,20 +1091,23 @@ def test_segment_reorder_overlay_preserves_grab_offset_in_drag_intent_rect(
     )
     dragged_chip = _chip_by_segment_index(overlay, 0)
     chip_geometry = dragged_chip.geometry()
-    press_pos = QPoint(max(1, dragged_chip.width() - 5), dragged_chip.height() // 2)
+    press_pos = QPoint(
+        max(1, dragged_chip.rect().right() - 5),
+        dragged_chip.rect().center().y(),
+    )
     move_global = dragged_chip.mapToGlobal(press_pos + QPoint(48, 0))
 
     QTest.mousePress(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=press_pos,
     )
-    QTest.mouseMove(dragged_chip, dragged_chip.mapFromGlobal(move_global), 10)
+    QTest.mouseMove(dragged_chip.overlay, dragged_chip.mapFromGlobal(move_global), 10)
     process_events(app)
 
     intent_rect = overlay.pointer_reorder_state().last_drag_intent_rect
     assert intent_rect is not None
-    press_overlay_pos = QPointF(dragged_chip.mapTo(overlay, press_pos))
+    press_overlay_pos = QPointF(press_pos)
     grabbed_offset = press_overlay_pos - QPointF(chip_geometry.topLeft())
     expected_top_left = QPointF(overlay.mapFromGlobal(move_global)) - grabbed_offset
 
@@ -1072,7 +1116,7 @@ def test_segment_reorder_overlay_preserves_grab_offset_in_drag_intent_rect(
     assert intent_rect.size().toSize() == chip_geometry.size()
 
     QTest.mouseRelease(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.mapFromGlobal(move_global),
         delay=10,
@@ -1093,7 +1137,7 @@ def test_segment_reorder_overlay_updates_visual_order_across_wrapped_rows(
         text="alpha, beta, gamma, delta",
     )
 
-    chips = _chip_widgets(overlay)
+    chips = _pointer_regions(overlay)
     assert len({chip.geometry().top() for chip in chips}) > 1
 
     dragged_chip = _chip_by_segment_index(overlay, 3)
@@ -1101,7 +1145,7 @@ def test_segment_reorder_overlay_updates_visual_order_across_wrapped_rows(
     _drag_chip_to_global(
         dragged_chip,
         global_target=target_chip.mapToGlobal(
-            QPoint(4, max(4, target_chip.rect().center().y()))
+            QPoint(target_chip.rect().left() + 4, target_chip.rect().center().y())
         ),
     )
     process_events(app)
@@ -1124,7 +1168,7 @@ def test_segment_reorder_overlay_uses_editor_scrollbar_for_long_prompts(
         ),
     )
 
-    chip_rows = {chip.geometry().top() for chip in _chip_widgets(overlay)[:4]}
+    chip_rows = {chip.geometry().top() for chip in _pointer_regions(overlay)[:4]}
 
     assert editor.verticalScrollBar().maximum() > 0
     assert len(chip_rows) > 1
@@ -1147,7 +1191,7 @@ def test_segment_reorder_overlay_reports_no_reorder_when_drag_stays_in_place(
 
     dragged_chip = _chip_by_segment_index(overlay, 1)
     QTest.mouseClick(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.rect().center(),
     )
@@ -1175,15 +1219,17 @@ def test_segment_reorder_overlay_emits_typed_pointer_drop_snapshot(
 
     dragged_chip = _chip_by_segment_index(overlay, 1)
     first_chip = _chip_by_segment_index(overlay, 0)
-    drag_target = first_chip.mapToGlobal(QPoint(4, max(4, first_chip.height() // 2)))
+    drag_target = first_chip.mapToGlobal(
+        QPoint(first_chip.rect().left() + 4, first_chip.rect().center().y())
+    )
     QTest.mousePress(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.rect().center(),
     )
-    QTest.mouseMove(dragged_chip, dragged_chip.mapFromGlobal(drag_target), 10)
+    QTest.mouseMove(dragged_chip.overlay, dragged_chip.mapFromGlobal(drag_target), 10)
     QTest.mouseRelease(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.mapFromGlobal(drag_target),
     )
@@ -1221,12 +1267,12 @@ def test_segment_reorder_overlay_autoscrolls_editor_scrollbar_while_dragging_nea
     dragged_chip = _chip_by_segment_index(overlay, 0)
     initial_scroll_value = scrollbar.value()
     QTest.mousePress(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.rect().center(),
     )
     QTest.mouseMove(
-        dragged_chip,
+        dragged_chip.overlay,
         dragged_chip.mapFromGlobal(
             overlay.mapToGlobal(QPoint(overlay.width() // 2, overlay.height() - 2))
         ),
@@ -1237,7 +1283,7 @@ def test_segment_reorder_overlay_autoscrolls_editor_scrollbar_while_dragging_nea
         lambda: scrollbar.value() > initial_scroll_value,
     )
     QTest.mouseRelease(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.mapFromGlobal(
             overlay.mapToGlobal(QPoint(overlay.width() // 2, overlay.height() - 2))

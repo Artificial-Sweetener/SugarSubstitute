@@ -207,10 +207,10 @@ def test_projection_surface_pulses_emphasis_feedback_without_rebuild(
     assert projection_paint_state_for(box).is_token_decoration_accented(token.token_id)
 
 
-def test_projection_surface_rebuilds_for_changed_emphasis_prompt_state(
+def test_projection_surface_applies_changed_emphasis_prompt_state_incrementally(
     widgets: list[QWidget],
 ) -> None:
-    """Changed emphasis source should rebuild even when its width stays stable."""
+    """Changed emphasis source should publish current token state without full rebuild."""
 
     box = show_prompt_editor(
         widgets,
@@ -237,15 +237,16 @@ def test_projection_surface_rebuilds_for_changed_emphasis_prompt_state(
     )
 
     token = first_emphasis_token(box)
-    assert rebuild_calls == ["rebuild"]
+    assert rebuild_calls == []
     assert surface.toPlainText() == "(cat:1.10), suffix"
+    assert surface.projection_document().source_text == surface.toPlainText()
     assert token.value_text == "1.10"
 
 
-def test_projection_surface_rebuilds_when_emphasis_prompt_state_changes_geometry(
+def test_projection_surface_reflows_when_emphasis_prompt_state_changes_geometry(
     widgets: list[QWidget],
 ) -> None:
-    """Geometry-changing emphasis replacements should keep the full rebuild fallback."""
+    """Geometry-changing emphasis replacements should publish canonical local reflow."""
 
     box = show_prompt_editor(
         widgets,
@@ -265,7 +266,11 @@ def test_projection_surface_rebuilds_when_emphasis_prompt_state_changes_geometry
         render_plan=render_plan,
     )
 
-    assert rebuild_calls == ["rebuild"]
+    token = first_emphasis_token(box)
+    assert rebuild_calls == []
+    assert surface.toPlainText() == "(cat:10.00), suffix"
+    assert surface.projection_document().source_text == surface.toPlainText()
+    assert token.value_text == "10.00"
 
 
 def test_projection_surface_can_project_and_clear_transient_neutral_emphasis(

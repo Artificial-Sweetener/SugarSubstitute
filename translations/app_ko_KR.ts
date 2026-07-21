@@ -35,7 +35,7 @@ Prompt preview:
       <translation>%1 %2.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="419"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="410"></location>
       <source>%1 (%2)</source>
       <translation>%1(%2)</translation>
     </message>
@@ -415,7 +415,7 @@ Prompt preview:
       <translation>사용자 지정 태그를 추가하고 원하지 않는 태그 제안을 숨깁니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="397"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="418"></location>
       <source>Add to dictionary</source>
       <translation>사전에 추가</translation>
     </message>
@@ -505,7 +505,7 @@ Prompt preview:
       <translation>항상 최신 버전 사용</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="928"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="939"></location>
       <source>Ambiguous</source>
       <translation>모호함</translation>
     </message>
@@ -575,7 +575,7 @@ Prompt preview:
       <translation>자동 감지</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="75"></location>
+      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="63"></location>
       <source>Autocomplete Lists</source>
       <translation>자동 완성 목록</translation>
     </message>
@@ -2113,12 +2113,12 @@ Install these nodes now?</source>
       <translation>정의 사용 불가</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="651"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="653"></location>
       <source>Delete</source>
       <translation>삭제</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="716"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="718"></location>
       <source>Delete '%1'?</source>
       <translation>'%1'을(를) 삭제하시겠습니까?</translation>
     </message>
@@ -2128,7 +2128,7 @@ Install these nodes now?</source>
       <translation>%1의 미완성 폴더를 삭제하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="715"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="717"></location>
       <source>Delete wildcard</source>
       <translation>와일드카드 삭제</translation>
     </message>
@@ -2193,7 +2193,7 @@ Install these nodes now?</source>
       <translation>직접 Comfy 워크플로에는 큐브 스택이 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="633"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="635"></location>
       <source>Disable</source>
       <translation>비활성화</translation>
     </message>
@@ -2203,12 +2203,12 @@ Install these nodes now?</source>
       <translation>비활성화됨</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="241"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="240"></location>
       <source>Discard</source>
       <translation>버리기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="311"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="306"></location>
       <source>Discard changes</source>
       <translation>변경 사항 버리기</translation>
     </message>
@@ -2273,7 +2273,7 @@ Install these nodes now?</source>
       <translation>복제</translation>
     </message>
     <message>
-      <location filename="../substitute/application/prompt_editor/prompt_duplicate_segment_diagnostic_provider.py" line="242"></location>
+      <location filename="../substitute/application/prompt_editor/prompt_duplicate_segment_diagnostic_provider.py" line="273"></location>
       <source>Duplicate prompt segment: %1</source>
       <translation>중복 프롬프트 구간: %1</translation>
     </message>
@@ -2313,7 +2313,7 @@ Install these nodes now?</source>
       <translation>강조 가중치</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="426"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="447"></location>
       <source>Emphasize first</source>
       <translation>첫 항목 강조</translation>
     </message>
@@ -2873,7 +2873,7 @@ Install these nodes now?</source>
       <translation>그래도 닫으면 백그라운드 서비스가 계속 실행될 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="433"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="454"></location>
       <source>Ignore duplicate</source>
       <translation>중복 무시</translation>
     </message>
@@ -2883,7 +2883,7 @@ Install these nodes now?</source>
       <translation>선택 항목 무시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="387"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="408"></location>
       <source>Ignore spelling</source>
       <translation>맞춤법 무시</translation>
     </message>
@@ -3563,22 +3563,22 @@ Install these nodes now?</source>
       <translation>동기화한 적 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="80"></location>
+      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="78"></location>
       <source>New CSV</source>
       <translation>새 CSV</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="76"></location>
+      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="74"></location>
       <source>New TXT</source>
       <translation>새 TXT</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="86"></location>
+      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="74"></location>
       <source>New censored list</source>
       <translation>새 검열 목록</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="81"></location>
+      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="69"></location>
       <source>New custom list</source>
       <translation>새 사용자 지정 목록</translation>
     </message>
@@ -3713,7 +3713,7 @@ Install these nodes now?</source>
       <translation>검증된 저장소가 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="498"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="489"></location>
       <source>No selection</source>
       <translation>선택 없음</translation>
     </message>
@@ -3723,7 +3723,7 @@ Install these nodes now?</source>
       <translation>설정을 찾을 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="380"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="401"></location>
       <source>No spelling suggestions</source>
       <translation>맞춤법 제안 없음</translation>
     </message>
@@ -3783,7 +3783,7 @@ Install these nodes now?</source>
       <translation>연결되지 않음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="926"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="937"></location>
       <source>Not found</source>
       <translation>찾을 수 없음</translation>
     </message>
@@ -4518,7 +4518,7 @@ Install these nodes now?</source>
       <translation>우회 제거</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="419"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="440"></location>
       <source>Remove duplicate</source>
       <translation>중복 제거</translation>
     </message>
@@ -4553,7 +4553,7 @@ Install these nodes now?</source>
       <translation>예정된 변경 사항을 제거하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="642"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="644"></location>
       <source>Rename</source>
       <translation>이름 바꾸기</translation>
     </message>
@@ -4927,7 +4927,7 @@ No known extension claimant.</source>
       <translation>저장하고 계속</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="309"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="304"></location>
       <source>Save changes</source>
       <translation>변경 사항 저장</translation>
     </message>
@@ -5015,6 +5015,11 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="482"></location>
       <source>Scene generation requires at least one **scene marker in the first positive prompt.</source>
       <translation>장면 생성에는 첫 번째 긍정 프롬프트에 **장면 마커가 하나 이상 필요합니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/prompt_editor/prompt_unsupported_scene_marker_diagnostic_provider.py" line="32"></location>
+      <source>Scenes aren’t supported in wildcard values.</source>
+      <translation>와일드카드 값에서는 장면을 사용할 수 없습니다.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="735"></location>
@@ -5897,7 +5902,7 @@ No known extension claimant.</source>
       <translation>Substitute에 저장된 폴더 설정을 수정해야 합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2809"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2838"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6592,27 +6597,27 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>다시 시도</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="579"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="581"></location>
       <source>Unable to apply changes</source>
       <translation>변경 사항을 적용할 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="608"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="610"></location>
       <source>Unable to create asset</source>
       <translation>자산을 만들 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="724"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="726"></location>
       <source>Unable to delete asset</source>
       <translation>자산을 삭제할 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="205"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="204"></location>
       <source>Unable to load assets</source>
       <translation>자산을 불러올 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="477"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="468"></location>
       <source>Unable to read asset</source>
       <translation>자산을 읽을 수 없음</translation>
     </message>
@@ -6622,17 +6627,17 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>카탈로그를 새로 고칠 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="679"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="681"></location>
       <source>Unable to rename asset</source>
       <translation>자산의 이름을 바꿀 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="544"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="546"></location>
       <source>Unable to save asset</source>
       <translation>자산을 저장할 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="702"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="704"></location>
       <source>Unable to update asset</source>
       <translation>자산을 업데이트할 수 없음</translation>
     </message>
@@ -7032,7 +7037,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>와일드카드 구문</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="70"></location>
+      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="68"></location>
       <source>Wildcards</source>
       <translation>와일드카드</translation>
     </message>

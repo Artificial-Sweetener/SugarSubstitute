@@ -36,6 +36,16 @@ from substitute.application.prompt_editor import (
     PromptSpellingDiagnosticPayload,
     PromptSpellingSuggestionSet,
 )
+from substitute.application.prompt_editor.prompt_document_semantics import (
+    OrdinaryPromptDocumentSemantics,
+    PromptDocumentSemantics,
+)
+from substitute.application.prompt_editor.prompt_unsupported_scene_marker_diagnostic_provider import (
+    PromptUnsupportedSceneMarkerDiagnosticProvider,
+)
+from substitute.application.prompt_editor.prompt_structured_value_diagnostic_provider import (
+    PromptStructuredValueDiagnosticProvider,
+)
 from substitute.shared.logging.logger import get_logger, log_timing
 
 from ..async_work import (
@@ -158,6 +168,7 @@ class PromptDiagnosticsFeatureController:
         surface: PromptDiagnosticsSurface,
         feature_profile: PromptFeatureProfileController,
         wildcard_feature: PromptWildcardFeatureController,
+        document_semantics: PromptDocumentSemantics | None = None,
         spellcheck_service: PromptSpellcheckService | None = None,
         parent: object | None = None,
         bind_signals: Callable[
@@ -178,6 +189,9 @@ class PromptDiagnosticsFeatureController:
         self._surface = surface
         self._feature_profile = feature_profile
         self._wildcard_feature = wildcard_feature
+        self._document_semantics = (
+            document_semantics or OrdinaryPromptDocumentSemantics()
+        )
         self._spellcheck_service = spellcheck_service
         self._bind_signals = bind_signals
         self._display_policy = display_policy or PromptDiagnosticDisplayPolicy()
@@ -244,7 +258,13 @@ class PromptDiagnosticsFeatureController:
         duplicate_available = (
             self._feature_profile.duplicate_segment_diagnostics_enabled
         )
-        return spellcheck_available or wildcard_available or duplicate_available
+        marker_validation_available = not self._document_semantics.scenes_enabled
+        return (
+            spellcheck_available
+            or wildcard_available
+            or duplicate_available
+            or marker_validation_available
+        )
 
     def schedule_activation(self) -> None:
         """Schedule optional diagnostics activation after construction settles."""
@@ -264,20 +284,7 @@ class PromptDiagnosticsFeatureController:
         if self._activated or not self.can_activate():
             return
         started_at = perf_counter()
-        providers: list[PromptDiagnosticProvider] = []
-        self._spellcheck_provider = None
-        if (
-            self._spellcheck_service is not None
-            and self._feature_profile.spellcheck_enabled
-        ):
-            self._spellcheck_provider = PromptSpellcheckDiagnosticProvider(
-                self._spellcheck_service
-            )
-            providers.append(self._spellcheck_provider)
-        providers.extend(self._wildcard_feature.diagnostic_providers())
-        if self._feature_profile.duplicate_segment_diagnostics_enabled:
-            providers.append(PromptDuplicateSegmentDiagnosticProvider())
-        self._service = PromptDiagnosticsService(tuple(providers))
+        self._service = self._build_service()
         if self._bind_signals is not None:
             self._bind_signals(self)
         self._activated = True
@@ -289,6 +296,49 @@ class PromptDiagnosticsFeatureController:
             level="debug",
         )
 
+    def _build_service(self) -> PromptDiagnosticsService:
+        """Build providers for the active document-semantics capabilities."""
+
+        providers: list[PromptDiagnosticProvider] = []
+        providers.append(
+            PromptUnsupportedSceneMarkerDiagnosticProvider(
+                document_semantics=self._document_semantics
+            )
+        )
+        self._spellcheck_provider = None
+        if (
+            self._spellcheck_service is not None
+            and self._feature_profile.spellcheck_enabled
+        ):
+            self._spellcheck_provider = PromptSpellcheckDiagnosticProvider(
+                self._spellcheck_service
+            )
+            providers.append(self._scoped_provider(self._spellcheck_provider))
+        providers.extend(
+            self._scoped_provider(provider)
+            for provider in self._wildcard_feature.diagnostic_providers()
+        )
+        if self._feature_profile.duplicate_segment_diagnostics_enabled:
+            providers.append(
+                PromptDuplicateSegmentDiagnosticProvider(
+                    document_semantics=self._document_semantics
+                )
+            )
+        return PromptDiagnosticsService(tuple(providers))
+
+    def _scoped_provider(
+        self,
+        provider: PromptDiagnosticProvider,
+    ) -> PromptDiagnosticProvider:
+        """Decode structured values only when active source requires translation."""
+
+        if not self._document_semantics.uses_structured_prompt_values:
+            return provider
+        return PromptStructuredValueDiagnosticProvider(
+            provider=provider,
+            document_semantics=self._document_semantics,
+        )
+
     def handle_text_changed(self) -> None:
         """Schedule a diagnostics refresh for the current prompt text."""
 
@@ -298,6 +348,15 @@ class PromptDiagnosticsFeatureController:
             self.refresh_now,
             reason="diagnostics_text_changed",
         )
+
+    def handle_document_semantics_changed(self) -> None:
+        """Rebind provider translation when source interpretation changes."""
+
+        if not self._activated:
+            return
+        self.clear()
+        self._service = self._build_service()
+        self.refresh_now()
 
     def refresh_now(self) -> None:
         """Refresh diagnostics for the current prompt text."""
@@ -763,6 +822,7 @@ class PromptDiagnosticsFeatureController:
             source_revision=source_revision,
             feature_profile_id=self._feature_profile.identity.feature_profile_id,
             stale=stale,
+            query_identity=("document_semantics", self._document_semantics.identity),
         )
 
     def _async_identity(

@@ -24,9 +24,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from PySide6.QtCore import QPoint, QPointF, QRectF, QSizeF
+from PySide6.QtCore import QPoint, QPointF, QRectF, QSize, QSizeF
 
 from substitute.application.prompt_editor import (
     PromptReorderDropTarget,
@@ -73,16 +73,14 @@ from .reorder_landing_shadow import (
 from .reorder_view import (
     PromptReorderViewRenderInput,
     PromptReorderViewRenderState,
-    prompt_reorder_chip_widget_state,
-    prompt_reorder_chip_widget_states,
+    prompt_reorder_chip_interaction_state,
+    prompt_reorder_chip_interaction_states,
     prompt_reorder_visual_for_chip_geometry,
     prompt_reorder_view_render_state,
 )
 from .reorder_raster_cache import ReorderRasterEntry
+from .reorder_paint_ownership import partition_reorder_paint_ownership
 from .reorder_visual_cache import PromptReorderChipVisualSnapshot
-
-if TYPE_CHECKING:
-    from .reorder_overlay import _SegmentChip
 
 _INSERTION_WIDTH = 10.0
 _SHADOW_ACTUAL_MISMATCH_X = 8.0
@@ -340,9 +338,7 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
                 chip_geometry_context(actual_geometry, prefix="actual_geometry")
             )
         if chip is not None:
-            context.update(
-                reorder_drag_rect_context(QRectF(chip.geometry()), prefix="chip")
-            )
+            context.update(reorder_drag_rect_context(QRectF(chip.rect), prefix="chip"))
         if shadow_visual is not None and actual_visual is not None:
             context.update(
                 self._telemetry.visual_delta_context(
@@ -435,40 +431,31 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
 
     def _capture_drag_intent_context(
         self,
-        chip: _SegmentChip,
+        segment_index: int,
         *,
         global_pos: QPoint,
     ) -> None:
         """Capture logical held-chip geometry for pointer drag target resolution."""
 
-        chip_rect = self._drag_intent_source_rect(chip)
+        chip_rect = self._drag_intent_source_rect(segment_index)
         local_pointer = QPointF(self.mapFromGlobal(global_pos))
         self._gesture.capture_drag_intent_context(
             chip_rect=chip_rect,
             local_pointer=local_pointer,
         )
 
-    def _drag_intent_source_rect(self, chip: _SegmentChip) -> QRectF:
+    def _drag_intent_source_rect(self, segment_index: int) -> QRectF:
         """Return the best available source rect for logical held-chip geometry."""
 
-        chip_rect = QRectF(chip.geometry())
-        if not chip_rect.isEmpty():
-            return chip_rect
+        region = self._chips_by_index.get(segment_index)
+        if region is not None and not region.rect.isEmpty():
+            return QRectF(region.rect)
 
-        visual = self._visuals_by_index.get(chip.segment_index)
+        visual = self._visuals_by_index.get(segment_index)
         if visual is not None and not visual.hotspot_rect.isEmpty():
             return QRectF(visual.hotspot_rect)
 
-        fallback_size = chip.sizeHint()
-        if fallback_size.isEmpty():
-            fallback_size = chip.size()
-        return QRectF(
-            QPointF(chip.pos()),
-            QSizeF(
-                max(1.0, float(fallback_size.width())),
-                max(1.0, float(fallback_size.height())),
-            ),
-        )
+        return QRectF(QPointF(), QSizeF(1.0, 1.0))
 
     def _clear_drag_intent_context(self) -> None:
         """Clear logical held-chip geometry captured for pointer drag targeting."""
@@ -550,7 +537,6 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
         if (
             geometry_key == self._last_live_visual_geometry_key
             and self._visuals_by_index
-            and self._live_visual_snapshots_by_index
         ):
             self._log_interaction_event(
                 "live_visuals.skipped_unchanged_geometry",
@@ -617,14 +603,7 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
             chip_index: prompt_reorder_visual_for_chip_geometry(geometry)
             for chip_index, geometry in snapshot.geometries_by_chip_index.items()
         }
-        self._live_visual_snapshots_by_index = self._chip_visual_snapshots_from_projection(
-            projection_snapshots=self._editor.reorder_live_chip_projection_paint_snapshots(
-                chip_geometry_snapshot=snapshot,
-                chip_owned_ranges_by_index=self._live_chip_owned_ranges_by_index(),
-            ),
-            visuals_by_index=visuals,
-        )
-        self._visual_snapshot_cache.store_all(self._live_visual_snapshots_by_index)
+        self._live_visual_snapshots_by_index = {}
         total_elapsed_ms = self._log_interaction_timing(
             "live_visuals.total",
             started_at=total_started_at,
@@ -745,7 +724,22 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
 
         state = self._reorder_view_render_state()
         self._sync_reorder_overlay_suppression(state)
-        self._view.set_render_state(state)
+        ownership = partition_reorder_paint_ownership(state)
+        self._editor.set_reorder_surface_chrome(
+            mode="preview" if state.preview_active else "live",
+            chips=ownership.surface_chips,
+        )
+        if ownership.unsafe_transient_indices:
+            self._instrumentation_anomaly_count += 1
+            self._log_interaction_event(
+                "paint_ownership.incomplete_transient",
+                gesture_id=self._instrumentation_gesture_id,
+                event_id=self._instrumentation_event_id,
+                reason=reason,
+                segment_indices=ownership.unsafe_transient_indices,
+            )
+        self._view.set_render_state(ownership.overlay_state)
+        self._render_state_sync_revision += 1
 
     def _sync_reorder_overlay_suppression(
         self,
@@ -754,20 +748,43 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
         """Suppress document chips whose preview paint is owned by the overlay."""
 
         if not state.preview_active:
-            self._set_reorder_overlay_suppression(frozenset())
+            self._set_reorder_overlay_suppression({})
             return
-        requested_indices = frozenset(
-            chip.segment_index for chip in state.preview_chips
+        snapshots_by_index = {
+            chip.segment_index: chip.visual_snapshot.projection_snapshot
+            for chip in state.preview_chips
+            if chip.owns_projection_text and chip.visual_snapshot is not None
+        }
+        dragged_segment_index = state.dragged_segment_index
+        dragged_snapshot = (
+            None
+            if dragged_segment_index is None
+            else self._preview_visual_snapshots_by_index.get(dragged_segment_index)
         )
-        self._set_reorder_overlay_suppression(requested_indices)
+        if (
+            dragged_segment_index is not None
+            and dragged_snapshot is not None
+            and dragged_snapshot.projection_snapshot.fragments
+        ):
+            snapshots_by_index[dragged_segment_index] = (
+                dragged_snapshot.projection_snapshot
+            )
+        self._set_reorder_overlay_suppression(snapshots_by_index)
 
-    def _set_reorder_overlay_suppression(self, indices: frozenset[int]) -> None:
-        """Publish suppression only when the raster-backed set changes."""
+    def _set_reorder_overlay_suppression(
+        self,
+        snapshots_by_index: dict[int, PromptReorderProjectionPaintSnapshot],
+    ) -> None:
+        """Publish exact suppression snapshots only when ownership changes."""
 
-        if indices == self._last_suppressed_chip_indices:
+        previous = self._last_suppressed_chip_snapshots_by_index
+        if previous.keys() == snapshots_by_index.keys() and all(
+            previous[index] is snapshot
+            for index, snapshot in snapshots_by_index.items()
+        ):
             return
-        self._last_suppressed_chip_indices = indices
-        self._editor.set_reorder_overlay_suppressed_chip_indices(indices)
+        self._last_suppressed_chip_snapshots_by_index = dict(snapshots_by_index)
+        self._editor.set_reorder_overlay_suppression_snapshots(snapshots_by_index)
 
     def _reorder_view_render_state(self) -> PromptReorderViewRenderState:
         """Delegate passive render-state construction to the reorder view owner."""
@@ -869,7 +886,17 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
                 snapshots_by_index=snapshots_by_index,
                 styles_by_index=styles_by_index,
                 device_pixel_ratio=device_pixel_ratio,
+                build_limit=0,
             )
+            if len(entries) < len(snapshots_by_index):
+                self._raster_warm_scheduler.request(
+                    cache_name,
+                    snapshots_by_index=snapshots_by_index,
+                    styles_by_index=styles_by_index,
+                    device_pixel_ratio=device_pixel_ratio,
+                )
+            else:
+                self._raster_warm_scheduler.cancel(cache_name)
             self._instrumentation_raster_entries_render_cache_miss_count += 1
             self._preview_raster_entries_render_key = render_key
             self._preview_raster_entries_by_index = entries
@@ -882,7 +909,17 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
             snapshots_by_index=snapshots_by_index,
             styles_by_index=styles_by_index,
             device_pixel_ratio=device_pixel_ratio,
+            build_limit=0,
         )
+        if len(entries) < len(snapshots_by_index):
+            self._raster_warm_scheduler.request(
+                cache_name,
+                snapshots_by_index=snapshots_by_index,
+                styles_by_index=styles_by_index,
+                device_pixel_ratio=device_pixel_ratio,
+            )
+        else:
+            self._raster_warm_scheduler.cancel(cache_name)
         self._instrumentation_raster_entries_render_cache_miss_count += 1
         self._live_raster_entries_render_key = render_key
         self._live_raster_entries_by_index = entries
@@ -974,7 +1011,6 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
         self._instrumentation_preview_geometry_full_count += 1
         preview_snapshot = self._preview_snapshot
         previous_preview_visuals = self._preview_visuals_by_index
-        previous_base_drag_visuals = self._base_drag_visuals_by_index
         self._geometry.preview_snapshot = self._preview_snapshot
         self._geometry.base_drag_snapshot = self._base_drag_snapshot
         self._geometry.preview_layout_view = self._preview_layout_view
@@ -1033,71 +1069,15 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
                 ),
             )
 
-        next_base_drag_visuals = (
-            self._base_drag_visuals_by_index
-            if refresh.base_drag_geometry_reused
-            else {}
-        )
-        base_hit_count = 0
-        base_miss_count = 0
         if refresh.base_drag_geometry_reused:
-            base_hit_count = len(next_base_drag_visuals)
             self._instrumentation_base_drag_geometry_reuse_count += 1
         elif refresh.base_drag_chip_snapshot is not None:
-            phase_started_at = reorder_drag_started_at()
-            base_result = self._visuals_from_chip_geometry_snapshot(
-                refresh.base_drag_chip_snapshot,
-                cache_namespace="base_drag",
-                previous_snapshot=refresh.previous_base_drag_chip_snapshot,
-                previous_visuals=previous_base_drag_visuals,
-            )
-            next_base_drag_visuals = base_result.visuals
-            base_hit_count = base_result.cache_hit_count
-            base_miss_count = base_result.cache_miss_count
             self._instrumentation_base_drag_geometry_rebuild_count += 1
-            self._log_interaction_timing(
-                "preview_geometry.base_drag_visuals",
-                started_at=phase_started_at,
-                gesture_id=self._instrumentation_gesture_id,
-                event_id=self._instrumentation_event_id,
-                visual_count=len(next_base_drag_visuals),
-                reused_visual_count=base_hit_count,
-                rebuilt_visual_count=base_miss_count,
-                reuse_rejected_count=base_result.reuse_rejected_count,
-                changed_visual_count=self._changed_visual_count(
-                    previous_base_drag_visuals,
-                    next_base_drag_visuals,
-                ),
-                unchanged_visual_count=self._unchanged_visual_count(
-                    previous_base_drag_visuals,
-                    next_base_drag_visuals,
-                ),
-            )
-            self._base_drag_visuals_by_index = next_base_drag_visuals
 
         self._preview_visuals_by_index = next_preview_visuals
-        self._base_drag_visuals_by_index = next_base_drag_visuals
         self._preview_chip_geometry_snapshot = refresh.preview_chip_snapshot
         self._base_drag_chip_geometry_snapshot = refresh.base_drag_chip_snapshot
-        if refresh.preview_chip_snapshot is not None and preview_snapshot is not None:
-            self._preview_visual_snapshots_by_index = (
-                self._chip_visual_snapshots_from_projection(
-                    projection_snapshots=(
-                        self._editor.reorder_preview_chip_projection_paint_snapshots(
-                            chip_geometry_snapshot=refresh.preview_chip_snapshot,
-                            chip_owned_ranges_by_index=(
-                                preview_snapshot.chip_owned_ranges_by_index
-                            ),
-                        )
-                    ),
-                    visuals_by_index=next_preview_visuals,
-                )
-            )
-            self._visual_snapshot_cache.store_all(
-                self._preview_visual_snapshots_by_index
-            )
-        else:
-            self._preview_visual_snapshots_by_index = {}
+        self._preview_visual_snapshots_by_index = {}
         self._preview_geometry_target_identity = refresh.preview_geometry_identity
         self._placement_snapshot = refresh.placement_snapshot
         self._active_placement = self._geometry.active_placement
@@ -1118,13 +1098,15 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
             gesture_id=self._instrumentation_gesture_id,
             event_id=self._instrumentation_event_id,
             preview_visual_count=len(next_preview_visuals),
-            base_drag_visual_count=len(next_base_drag_visuals),
+            base_drag_geometry_count=(
+                0
+                if refresh.base_drag_chip_snapshot is None
+                else len(refresh.base_drag_chip_snapshot.geometries_by_chip_index)
+            ),
             visual_target_count=len(refresh.drop_target_visuals),
             lane_count=len(refresh.drop_target_lanes),
             preview_reused_visual_count=preview_hit_count,
             preview_rebuilt_visual_count=preview_miss_count,
-            base_reused_visual_count=base_hit_count,
-            base_rebuilt_visual_count=base_miss_count,
             base_drag_geometry_reused=refresh.base_drag_geometry_reused,
         )
         self._log_interaction_event(
@@ -1148,6 +1130,33 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
                 has_preview_snapshot=preview_snapshot is not None,
                 has_base_drag_snapshot=self._base_drag_snapshot is not None,
             )
+
+    def _prepare_preview_visual_snapshots(
+        self,
+        chip_indices: frozenset[int],
+    ) -> None:
+        """Prepare text snapshots only for preview chips that actually move."""
+
+        chip_snapshot = self._preview_chip_geometry_snapshot
+        preview_snapshot = self._preview_snapshot
+        if chip_snapshot is None or preview_snapshot is None or not chip_indices:
+            self._preview_visual_snapshots_by_index = {}
+            return
+        projection_snapshots = (
+            self._editor.reorder_preview_chip_projection_paint_snapshots(
+                chip_geometry_snapshot=chip_snapshot,
+                chip_owned_ranges_by_index=(
+                    preview_snapshot.chip_owned_ranges_by_index
+                ),
+                chip_indices=chip_indices,
+            )
+        )
+        self._preview_visual_snapshots_by_index = (
+            self._chip_visual_snapshots_from_projection(
+                projection_snapshots=projection_snapshots,
+                visuals_by_index=self._preview_visuals_by_index,
+            )
+        )
 
     def _visuals_from_chip_geometry_snapshot(
         self,
@@ -1247,10 +1256,17 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
             return self._current_layout_view
         return None
 
-    def _update_chip_geometry(self) -> None:
-        """Resize and restack transparent hotspots from the latest fragment geometry."""
+    def _update_pointer_region_geometry(self) -> None:
+        """Update logical pointer regions from the latest fragment geometry."""
 
         started_at = reorder_drag_started_at()
+        interactive_indices = set(self._visuals_by_index) | set(
+            self._preview_visuals_by_index
+        )
+        dragged_segment_index = self._gesture.state.dragged_segment_index
+        if dragged_segment_index is not None:
+            interactive_indices.add(dragged_segment_index)
+        self._pointer_regions.sync(interactive_indices)
         preview_positioned_count = 0
         live_positioned_count = 0
         hidden_count = 0
@@ -1261,28 +1277,31 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
                 and preview_visual is not None
                 and segment_index != self._gesture.state.dragged_segment_index
             ):
-                chip.setGeometry(preview_visual.hotspot_rect)
-                chip.show()
-                chip.raise_()
+                preview_rect = preview_visual.hotspot_rect
+                geometry_changed = chip.rect != preview_rect
+                if geometry_changed:
+                    chip.set_geometry(preview_rect)
+                chip.set_visible(True)
                 preview_positioned_count += 1
                 continue
             if segment_index == self._gesture.state.dragged_segment_index:
-                chip.raise_()
                 continue
 
             visual = self._visuals_by_index.get(segment_index)
             if visual is None:
-                chip.hide()
+                chip.set_visible(False)
                 hidden_count += 1
                 continue
-            chip.setGeometry(visual.hotspot_rect)
-            chip.show()
-            chip.raise_()
+            live_rect = visual.hotspot_rect
+            geometry_changed = chip.rect != live_rect
+            if geometry_changed:
+                chip.set_geometry(live_rect)
+            chip.set_visible(True)
             live_positioned_count += 1
         self._drag_proxy.raise_()
         self._update_chip_states()
         self._log_interaction_timing(
-            "chip_geometry.update",
+            "pointer_region_geometry.update",
             started_at=started_at,
             gesture_id=self._instrumentation_gesture_id,
             event_id=self._instrumentation_event_id,
@@ -1297,7 +1316,7 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
         """Push active, hover, and drag state onto the transparent hotspots."""
 
         detailed_states: list[str] = []
-        for chip_state in prompt_reorder_chip_widget_states(
+        for chip_state in prompt_reorder_chip_interaction_states(
             tuple(self._chips_by_index),
             visual_style=self._visual_style,
             dragged_segment_index=self._gesture.state.dragged_segment_index,
@@ -1311,7 +1330,7 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
                 dragging=chip_state.dragging,
                 hovered=chip_state.hovered,
             )
-            chip.setCursor(chip_state.cursor_shape)
+            chip.set_cursor_shape(chip_state.cursor_shape)
             if (
                 chip_state.active
                 or chip_state.dragging
@@ -1542,24 +1561,28 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
         self._gesture.set_last_drag_intent_rect(intent_rect)
         return intent_rect
 
-    def _capture_held_shadow_geometry(self, chip: _SegmentChip) -> None:
+    def _capture_held_shadow_geometry(self, segment_index: int) -> None:
         """Delegate held-chip chrome capture to the landing-shadow presenter."""
 
         base_geometry = None
         if self._base_drag_chip_geometry_snapshot is not None:
             base_geometry = (
                 self._base_drag_chip_geometry_snapshot.geometries_by_chip_index.get(
-                    chip.segment_index
+                    segment_index
                 )
             )
         proxy_size = self._drag_proxy.size()
         self._landing_shadow.capture_held_shadow(
             PromptReorderHeldShadowCaptureInput(
-                chip_index=chip.segment_index,
-                live_geometry=self._chip_geometry_for_segment(chip.segment_index),
+                chip_index=segment_index,
+                live_geometry=self._chip_geometry_for_segment(segment_index),
                 base_drag_geometry=base_geometry,
-                live_visual=self._visuals_by_index.get(chip.segment_index),
-                chip_size=chip.geometry().size(),
+                live_visual=self._visuals_by_index.get(segment_index),
+                chip_size=(
+                    QSize()
+                    if self._chips_by_index.get(segment_index) is None
+                    else self._chips_by_index[segment_index].size()
+                ),
                 proxy_size=proxy_size,
                 proxy_size_hint=self._drag_proxy.sizeHint(),
                 gesture_id=self._instrumentation_gesture_id,
@@ -1665,19 +1688,25 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
     def _ensure_drag_proxy_render_state(self) -> bool:
         """Apply rebuilt drag-proxy render state when render inputs require it."""
 
-        if (
-            self._gesture.state.dragged_segment_index is None
-            or self._document_view is None
-        ):
+        dragged_segment_index = self._gesture.state.dragged_segment_index
+        if dragged_segment_index is None:
+            return False
+        return self._ensure_drag_proxy_render_state_for_segment(dragged_segment_index)
+
+    def _ensure_drag_proxy_render_state_for_segment(
+        self,
+        dragged_segment_index: int,
+    ) -> bool:
+        """Apply cached proxy state for one pressed or actively dragged segment."""
+
+        if self._document_view is None:
             return False
         started_at = reorder_drag_started_at()
-        dragged_segment = self._segments_by_index[
-            self._gesture.state.dragged_segment_index
-        ]
-        chip_state = prompt_reorder_chip_widget_state(
-            self._gesture.state.dragged_segment_index,
+        dragged_segment = self._segments_by_index[dragged_segment_index]
+        chip_state = prompt_reorder_chip_interaction_state(
+            dragged_segment_index,
             visual_style=self._visual_style,
-            dragged_segment_index=self._gesture.state.dragged_segment_index,
+            dragged_segment_index=dragged_segment_index,
             hovered_segment_index=self._gesture.state.hovered_segment_index,
             active_segment_index=self._gesture.state.active_segment_index,
             pressed_segment_index=self._gesture.state.pressed_segment_index,
@@ -1701,7 +1730,7 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
             started_at=started_at,
             gesture_id=self._instrumentation_gesture_id,
             event_id=self._instrumentation_event_id,
-            dragged_segment_index=self._gesture.state.dragged_segment_index,
+            dragged_segment_index=dragged_segment_index,
             segment_text_length=len(dragged_segment.serialized_text),
             proxy_width=self._drag_proxy.width(),
             proxy_height=self._drag_proxy.height(),

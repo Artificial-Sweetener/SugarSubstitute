@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from collections.abc import Mapping
 from dataclasses import dataclass
 import time
@@ -25,11 +26,7 @@ import time
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QPainter, QPixmap
 
-from ..projection.reorder_visual_snapshot import (
-    PromptReorderInlineObjectPaintFragment,
-    PromptReorderTextPaintFragment,
-    paint_reorder_projection_snapshot,
-)
+from ..projection.reorder_visual_snapshot import paint_reorder_projection_snapshot
 from .chip_painter import PromptChipPaintStyle, PromptChipPainter
 from .reorder_visual_cache import (
     PromptReorderChipVisualSnapshot,
@@ -37,6 +34,7 @@ from .reorder_visual_cache import (
 )
 
 _RASTER_PADDING = 3.0
+_RASTER_CACHE_LIMIT = 512
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,8 +66,6 @@ class ReorderRasterEntry:
     pixmap: QPixmap
     logical_rect: QRectF
     raster_rect: QRectF
-    source_ranges: tuple[tuple[int, int], ...]
-    suppression_eligible: bool
 
     def top_left_for_rect(self, rect: QRectF) -> QPointF:
         """Return the pixmap top-left needed to align it to a logical chip rect."""
@@ -114,7 +110,19 @@ class PromptReorderRasterCache:
     def __init__(self) -> None:
         """Initialize an empty reorder raster cache."""
 
-        self._entries_by_index: dict[int, ReorderRasterEntry] = {}
+        self._entries_by_key: OrderedDict[ReorderRasterKey, ReorderRasterEntry] = (
+            OrderedDict()
+        )
+        self._keys_by_segment_index: dict[int, set[ReorderRasterKey]] = {}
+        self._prepared_keys_by_segment_index: dict[
+            int,
+            tuple[
+                PromptReorderChipVisualSnapshot,
+                ReorderRasterStyleKey,
+                float,
+                ReorderRasterKey,
+            ],
+        ] = {}
         self._chip_painter = PromptChipPainter()
         self._hit_count = 0
         self._miss_count = 0
@@ -128,9 +136,11 @@ class PromptReorderRasterCache:
     def clear(self) -> None:
         """Clear all pixmaps and count the invalidation."""
 
-        if self._entries_by_index:
+        if self._entries_by_key:
             self._clear_count += 1
-        self._entries_by_index.clear()
+        self._entries_by_key.clear()
+        self._keys_by_segment_index.clear()
+        self._prepared_keys_by_segment_index.clear()
 
     def entries_for_snapshots(
         self,
@@ -138,25 +148,31 @@ class PromptReorderRasterCache:
         snapshots_by_index: Mapping[int, PromptReorderChipVisualSnapshot],
         styles_by_index: Mapping[int, PromptChipPaintStyle],
         device_pixel_ratio: float,
+        build_limit: int | None = None,
     ) -> dict[int, ReorderRasterEntry]:
-        """Return fresh raster entries, building missing entries off the frame path."""
+        """Return cached entries and build at most the requested number of misses."""
 
         entries: dict[int, ReorderRasterEntry] = {}
+        built_missing_count = 0
         for segment_index, snapshot in snapshots_by_index.items():
             style = styles_by_index.get(segment_index)
             if style is None:
                 continue
             key = self._key_for_snapshot(
+                segment_index=segment_index,
                 snapshot=snapshot,
                 style=style,
                 device_pixel_ratio=device_pixel_ratio,
             )
-            existing = self._entries_by_index.get(segment_index)
-            if existing is not None and existing.key == key:
+            existing = self._entries_by_key.get(key)
+            if existing is not None:
                 self._hit_count += 1
+                self._entries_by_key.move_to_end(key)
                 entries[segment_index] = existing
                 continue
-            if existing is None:
+            if build_limit is not None and built_missing_count >= build_limit:
+                continue
+            if segment_index not in self._keys_by_segment_index:
                 self._miss_count += 1
             else:
                 self._stale_count += 1
@@ -167,11 +183,28 @@ class PromptReorderRasterCache:
                 key=key,
             )
             if entry is None:
+                built_missing_count += 1
                 continue
-            self._entries_by_index[segment_index] = entry
+            built_missing_count += 1
+            self._store_entry(entry)
             self._store_count += 1
             entries[segment_index] = entry
         return entries
+
+    def _store_entry(self, entry: ReorderRasterEntry) -> None:
+        """Store one raster variant and enforce the interaction cache bound."""
+
+        self._entries_by_key[entry.key] = entry
+        self._entries_by_key.move_to_end(entry.key)
+        self._keys_by_segment_index.setdefault(entry.segment_index, set()).add(
+            entry.key
+        )
+        while len(self._entries_by_key) > _RASTER_CACHE_LIMIT:
+            evicted_key, evicted_entry = self._entries_by_key.popitem(last=False)
+            segment_keys = self._keys_by_segment_index[evicted_entry.segment_index]
+            segment_keys.discard(evicted_key)
+            if not segment_keys:
+                del self._keys_by_segment_index[evicted_entry.segment_index]
 
     def counters(self) -> ReorderRasterCacheCounters:
         """Return current cache counters."""
@@ -247,30 +280,45 @@ class PromptReorderRasterCache:
             pixmap=pixmap,
             logical_rect=logical_rect,
             raster_rect=raster_rect,
-            source_ranges=snapshot.source_ranges,
-            suppression_eligible=True,
         )
 
-    @staticmethod
     def _key_for_snapshot(
+        self,
         *,
+        segment_index: int,
         snapshot: PromptReorderChipVisualSnapshot,
         style: PromptChipPaintStyle,
         device_pixel_ratio: float,
     ) -> ReorderRasterKey:
         """Return the cache identity for one snapshot/style/DPR tuple."""
 
-        return ReorderRasterKey(
+        style_key = ReorderRasterStyleKey(
+            fill_rgba=style.fill_color.rgba(),
+            border_rgba=style.border_color.rgba(),
+            outline_only=style.outline_only,
+            outline_width=style.outline_width,
+            opacity=style.opacity,
+        )
+        prepared = self._prepared_keys_by_segment_index.get(segment_index)
+        if (
+            prepared is not None
+            and prepared[0] is snapshot
+            and prepared[1] == style_key
+            and prepared[2] == device_pixel_ratio
+        ):
+            return prepared[3]
+        key = ReorderRasterKey(
             content_key=_snapshot_content_key(snapshot),
             device_pixel_ratio=device_pixel_ratio,
-            style_key=ReorderRasterStyleKey(
-                fill_rgba=style.fill_color.rgba(),
-                border_rgba=style.border_color.rgba(),
-                outline_only=style.outline_only,
-                outline_width=style.outline_width,
-                opacity=style.opacity,
-            ),
+            style_key=style_key,
         )
+        self._prepared_keys_by_segment_index[segment_index] = (
+            snapshot,
+            style_key,
+            device_pixel_ratio,
+            key,
+        )
+        return key
 
 
 def _snapshot_content_key(snapshot: PromptReorderChipVisualSnapshot) -> object:
@@ -280,43 +328,11 @@ def _snapshot_content_key(snapshot: PromptReorderChipVisualSnapshot) -> object:
     origin = QPointF(visual.hotspot_rect.topLeft())
     return (
         snapshot.segment_index,
-        snapshot.source_ranges,
         _rect_size_key(QRectF(visual.hotspot_rect)),
         tuple(_relative_rect_key(rect, origin=origin) for rect in visual.bubble_rects),
         _relative_rect_key(visual.fragment_union_rect, origin=origin),
-        tuple(
-            _fragment_content_key(fragment, origin=origin)
-            for fragment in snapshot.projection_snapshot.fragments
-        ),
+        snapshot.projection_snapshot.content_key,
     )
-
-
-def _fragment_content_key(
-    fragment: object,
-    *,
-    origin: QPointF,
-) -> object:
-    """Return a placement-independent projection fragment identity."""
-
-    if isinstance(fragment, PromptReorderTextPaintFragment):
-        return (
-            "text",
-            fragment.text,
-            fragment.font.toString(),
-            fragment.color.rgba(),
-            _relative_point_key(fragment.baseline, origin=origin),
-            _relative_rect_key(fragment.text_rect, origin=origin),
-        )
-    if isinstance(fragment, PromptReorderInlineObjectPaintFragment):
-        return (
-            "inline",
-            _relative_rect_key(fragment.rect, origin=origin),
-            repr(fragment.run),
-            repr(fragment.token),
-            fragment.base_font.toString(),
-            int(fragment.palette.cacheKey()),
-        )
-    return ("unknown", repr(fragment))
 
 
 def _rect_size_key(rect: QRectF) -> tuple[float, float]:
@@ -338,16 +354,6 @@ def _relative_rect_key(
         _rounded(rect.width()),
         _rounded(rect.height()),
     )
-
-
-def _relative_point_key(
-    point: QPointF,
-    *,
-    origin: QPointF,
-) -> tuple[float, float]:
-    """Return one point normalized to a chip-local coordinate space."""
-
-    return (_rounded(point.x() - origin.x()), _rounded(point.y() - origin.y()))
 
 
 def _rounded(value: float) -> float:
