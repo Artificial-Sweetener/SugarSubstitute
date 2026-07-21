@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 import math
 from time import perf_counter
 from typing import Final
@@ -83,11 +83,13 @@ class PromptDiagnosticPainter:
         self._warm_timer.setInterval(0)
         self._warm_timer.timeout.connect(self._warm_missing_fragments)
         self._warm_requested = False
-        self._diagnostics: tuple[PromptDiagnostic, ...] = ()
+        self._diagnostics: Sequence[PromptDiagnostic] = ()
         self._layout: PromptProjectionLayout | None = None
         self._source_revision = 0
         self._viewport_rect = QRectF()
         self._scroll_offset = 0.0
+        self._warm_index = 0
+        self._warm_context: tuple[int, int, int, int, int, int, int] | None = None
 
     @property
     def layout_revision(self) -> int:
@@ -113,12 +115,14 @@ class PromptDiagnosticPainter:
 
         self._warm_timer.stop()
         self._warm_requested = False
+        self._warm_index = 0
+        self._warm_context = None
 
     def paint(
         self,
         painter: QPainter,
         *,
-        diagnostics: tuple[PromptDiagnostic, ...],
+        diagnostics: Sequence[PromptDiagnostic],
         selection: PromptProjectionSelection,
         layout: PromptProjectionLayout,
         preview_layout: PromptProjectionLayout | None,
@@ -135,7 +139,13 @@ class PromptDiagnosticPainter:
         painter.save()
         try:
             painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-            for diagnostic in diagnostics:
+            visible_diagnostics = _visible_diagnostics(
+                diagnostics,
+                layout=layout,
+                viewport_rect=viewport_rect,
+                scroll_offset=scroll_offset,
+            )
+            for diagnostic in visible_diagnostics:
                 if not selection.is_empty and _ranges_overlap(
                     selection.start,
                     selection.end,
@@ -170,7 +180,7 @@ class PromptDiagnosticPainter:
         if diagnostic_cache_pending_count:
             self.schedule_warm(
                 reason="paint_cache_miss",
-                diagnostics=diagnostics,
+                diagnostics=visible_diagnostics,
                 layout=layout,
                 viewport_rect=viewport_rect,
                 scroll_offset=scroll_offset,
@@ -181,7 +191,7 @@ class PromptDiagnosticPainter:
         self,
         *,
         reason: str,
-        diagnostics: tuple[PromptDiagnostic, ...],
+        diagnostics: Sequence[PromptDiagnostic],
         layout: PromptProjectionLayout,
         viewport_rect: QRectF,
         scroll_offset: float,
@@ -192,15 +202,33 @@ class PromptDiagnosticPainter:
         del reason
         if not self._is_alive():
             return
-        if not diagnostics:
+        visible_diagnostics = _visible_diagnostics(
+            diagnostics,
+            layout=layout,
+            viewport_rect=viewport_rect,
+            scroll_offset=scroll_offset,
+        )
+        if not visible_diagnostics:
             return
-        if self._warm_requested:
+        warm_context = (
+            source_revision,
+            self._layout_revision,
+            _diagnostic_cache_coordinate(viewport_rect.x()),
+            _diagnostic_cache_coordinate(viewport_rect.y()),
+            _diagnostic_cache_coordinate(viewport_rect.width()),
+            _diagnostic_cache_coordinate(viewport_rect.height()),
+            _diagnostic_cache_coordinate(scroll_offset),
+        )
+        if self._warm_requested and self._warm_context == warm_context:
             return
-        self._diagnostics = diagnostics
+        self._warm_timer.stop()
+        self._diagnostics = visible_diagnostics
         self._layout = layout
         self._viewport_rect = QRectF(viewport_rect)
         self._scroll_offset = scroll_offset
         self._source_revision = source_revision
+        self._warm_index = 0
+        self._warm_context = warm_context
         self._warm_requested = True
         self._warm_timer.start(0)
 
@@ -249,7 +277,7 @@ class PromptDiagnosticPainter:
     def preserve_fragment_cache_for_incremental_edit(
         self,
         *,
-        diagnostics: tuple[PromptDiagnostic, ...],
+        diagnostics: Sequence[PromptDiagnostic],
         source_revision: int,
         start: int,
         end: int,
@@ -339,8 +367,9 @@ class PromptDiagnosticPainter:
             return
         started_at = perf_counter()
         warmed_count = 0
-        remaining_count = 0
-        for diagnostic in self._diagnostics:
+        while self._warm_index < len(self._diagnostics):
+            diagnostic = self._diagnostics[self._warm_index]
+            self._warm_index += 1
             cache_key = _diagnostic_fragment_cache_key(
                 diagnostic=diagnostic,
                 source_revision=self._source_revision,
@@ -355,8 +384,8 @@ class PromptDiagnosticPainter:
                 warmed_count >= _DIAGNOSTIC_FRAGMENT_WARM_BATCH_LIMIT
                 or elapsed_ms >= _DIAGNOSTIC_FRAGMENT_WARM_BUDGET_MS
             ):
-                remaining_count += 1
-                continue
+                self._warm_index -= 1
+                break
             self.diagnostic_fragments_for_paint(
                 diagnostic,
                 layout=self._layout,
@@ -367,15 +396,35 @@ class PromptDiagnosticPainter:
             warmed_count += 1
         if warmed_count:
             self._request_update()
-        if remaining_count and self._layout is not None:
-            self.schedule_warm(
-                reason="warm_budget",
-                diagnostics=self._diagnostics,
-                layout=self._layout,
-                viewport_rect=self._viewport_rect,
-                scroll_offset=self._scroll_offset,
-                source_revision=self._source_revision,
-            )
+        if self._warm_index < len(self._diagnostics):
+            self._warm_requested = True
+            self._warm_timer.start(0)
+        else:
+            self._warm_context = None
+
+
+def _visible_diagnostics(
+    diagnostics: Sequence[PromptDiagnostic],
+    *,
+    layout: PromptProjectionLayout,
+    viewport_rect: QRectF,
+    scroll_offset: float,
+) -> tuple[PromptDiagnostic, ...]:
+    """Return diagnostics whose source ranges can intersect the viewport."""
+
+    source_bounds = layout.visible_source_bounds(
+        viewport_rect=viewport_rect,
+        scroll_offset=scroll_offset,
+    )
+    if source_bounds is None:
+        return ()
+    visible_start, visible_end = source_bounds
+    return tuple(
+        diagnostic
+        for diagnostic in diagnostics
+        if diagnostic.source_start < visible_end
+        and diagnostic.source_end > visible_start
+    )
 
 
 def _draw_diagnostic_wave(

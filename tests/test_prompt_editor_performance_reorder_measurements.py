@@ -23,12 +23,14 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from PySide6.QtCore import QRect
 from PySide6.QtWidgets import QWidget
 
 from substitute.devtools.prompt_editor_performance.qt_app import (
     prompt_performance_application,
 )
 from substitute.devtools.prompt_editor_performance.reorder_measurements import (
+    ReorderPointerTarget,
     build_reorder_measurement_state,
     capture_reorder_interaction_counts,
     chip_drop_target_global,
@@ -88,6 +90,15 @@ class _EditorWithCounters:
         }
 
 
+class _PointerOverlay(QWidget):
+    """Expose deterministic logical pointer regions for helper tests."""
+
+    def pointer_region_rects(self) -> dict[int, QRect]:
+        """Return two stable overlay-local target rectangles."""
+
+        return {0: QRect(10, 0, 80, 20), 2: QRect(100, 0, 80, 20)}
+
+
 def test_prompt_editor_performance_reorder_measurements_imports_no_tools() -> None:
     """Reorder measurements may use Qt and presentation, but not tests or tools."""
 
@@ -106,26 +117,19 @@ def test_prompt_editor_performance_reorder_measurements_imports_no_tools() -> No
     assert forbidden_imports == set()
 
 
-def test_overlay_chip_lookup_uses_segment_index_property() -> None:
-    """Overlay chip lookup should select chips by source segment index."""
+def test_overlay_chip_lookup_uses_logical_region_index() -> None:
+    """Overlay target lookup should select logical regions by segment index."""
 
     prompt_performance_application()
-    overlay = QWidget()
-    first_chip = QWidget(overlay)
-    first_chip.setObjectName("segmentChip")
-    first_chip.setProperty("segmentIndex", 0)
-    second_chip = QWidget(overlay)
-    second_chip.setObjectName("segmentChip")
-    second_chip.setProperty("segmentIndex", 2)
+    overlay = _PointerOverlay()
 
     try:
-        assert (
-            overlay_chip_by_segment_index(
-                cast(SegmentReorderOverlay, overlay),
-                2,
-            )
-            is second_chip
+        target = overlay_chip_by_segment_index(
+            cast(SegmentReorderOverlay, overlay),
+            2,
         )
+        assert target.segment_index == 2
+        assert target.overlay is cast(SegmentReorderOverlay, overlay)
         with pytest.raises(RuntimeError, match="Missing reorder chip"):
             overlay_chip_by_segment_index(cast(SegmentReorderOverlay, overlay), 1)
     finally:
@@ -136,16 +140,17 @@ def test_chip_drop_target_global_uses_leading_or_trailing_edge() -> None:
     """Drop-target points should be stable near the requested chip edge."""
 
     prompt_performance_application()
-    chip = QWidget()
-    chip.resize(80, 20)
+    overlay = _PointerOverlay()
+    chip = ReorderPointerTarget(cast(SegmentReorderOverlay, overlay), 0)
 
     try:
-        assert chip.mapFromGlobal(chip_drop_target_global(chip)).x() == 4
+        assert overlay.mapFromGlobal(chip_drop_target_global(chip)).x() == 14
         assert (
-            chip.mapFromGlobal(chip_drop_target_global(chip, trailing=True)).x() == 76
+            overlay.mapFromGlobal(chip_drop_target_global(chip, trailing=True)).x()
+            == 86
         )
     finally:
-        chip.deleteLater()
+        overlay.deleteLater()
 
 
 def test_capture_reorder_interaction_counts_keeps_numeric_values() -> None:

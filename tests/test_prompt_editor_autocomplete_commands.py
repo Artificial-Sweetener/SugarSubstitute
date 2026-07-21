@@ -19,6 +19,12 @@
 from __future__ import annotations
 
 from substitute.application.prompt_editor import PromptSourceNormalizationService
+from substitute.application.managed_text_assets.wildcard_csv_document_semantics import (
+    WildcardCsvDocumentSemantics,
+)
+from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+    PromptStructuredTextMutationService,
+)
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptAcceptLoraAutocompleteCommand,
     PromptAcceptSceneAutocompleteCommand,
@@ -113,6 +119,36 @@ def test_tag_autocomplete_command_escapes_parentheses_and_adds_comma() -> None:
         anchor_position=len(r"xx cat \(animal\), "),
     )
     assert session.can_undo()
+
+
+def test_tag_autocomplete_command_preserves_unquoted_csv_cell_structure() -> None:
+    """Tag acceptance should quote a CSV cell when it adds a prompt comma."""
+
+    source = "Prompt\ncat_"
+    session = _session(source)
+    result = PromptCommandDispatcher(session).execute(
+        PromptAcceptTagAutocompleteCommand(
+            acceptance=PromptTagAutocompleteAcceptance(
+                tag="cat animal",
+                prefix="cat_",
+                word_start=len("Prompt\n"),
+                word_end=len(source),
+                active_tag_end=len(source),
+                add_comma=True,
+                source_identity=_source_identity(session),
+            ),
+            normalizer=PromptSourceNormalizationService(),
+            exact_source=False,
+            undo_snapshot=_undo_snapshot(session),
+            structured_text_mutations=PromptStructuredTextMutationService(
+                WildcardCsvDocumentSemantics()
+            ),
+        )
+    )
+
+    assert result.status == "applied"
+    assert session.source_text == 'Prompt\n"cat animal, "'
+    assert session.cursor_state.cursor_position == len(session.source_text) - 1
 
 
 def test_tag_autocomplete_command_consumes_existing_matching_right_text() -> None:

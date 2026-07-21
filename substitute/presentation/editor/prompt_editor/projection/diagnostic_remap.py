@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
+from collections.abc import Sequence
 
 from substitute.application.prompt_editor import (
     PromptDiagnostic,
@@ -28,22 +28,20 @@ from substitute.application.prompt_editor import (
 
 
 def remap_diagnostics_after_source_edit(
-    diagnostics: tuple[PromptDiagnostic, ...],
+    diagnostics: Sequence[PromptDiagnostic],
     *,
     start: int,
     end: int,
     replacement_text: str,
-) -> tuple[PromptDiagnostic, ...]:
-    """Return diagnostics shifted across one source edit, dropping stale overlaps."""
+) -> Sequence[PromptDiagnostic]:
+    """Drop edit overlaps and shift unchanged downstream diagnostics."""
 
-    if not diagnostics:
-        return diagnostics
     delta = len(replacement_text) - (end - start)
     return tuple(
-        remapped_diagnostic
+        remapped
         for diagnostic in diagnostics
         if (
-            remapped_diagnostic := _remap_diagnostic_after_source_edit(
+            remapped := _remap_diagnostic(
                 diagnostic,
                 start=start,
                 end=end,
@@ -54,109 +52,52 @@ def remap_diagnostics_after_source_edit(
     )
 
 
-def _remap_diagnostic_after_source_edit(
+def _remap_diagnostic(
     diagnostic: PromptDiagnostic,
     *,
     start: int,
     end: int,
     delta: int,
 ) -> PromptDiagnostic | None:
-    """Return a diagnostic shifted across a local edit, dropping stale overlaps."""
+    """Return one shifted diagnostic or drop an edit overlap."""
 
-    if _ranges_overlap(diagnostic.source_start, diagnostic.source_end, start, end):
+    overlaps = (
+        diagnostic.source_start <= start < diagnostic.source_end
+        if start == end
+        else diagnostic.source_start < end and start < diagnostic.source_end
+    )
+    if overlaps:
         return None
-    if start == end and diagnostic.source_start <= start < diagnostic.source_end:
-        return None
-    return replace(
-        diagnostic,
-        source_start=_remap_position_after_source_edit_for_diagnostic(
-            diagnostic.source_start,
-            start=start,
-            end=end,
-            delta=delta,
-        ),
-        source_end=_remap_position_after_source_edit_for_diagnostic(
-            diagnostic.source_end,
-            start=start,
-            end=end,
-            delta=delta,
-        ),
-        payload=_remap_diagnostic_payload_after_source_edit(
-            diagnostic.payload,
-            start=start,
-            end=end,
-            delta=delta,
-        ),
+    if diagnostic.source_end <= start:
+        return diagnostic
+
+    return PromptDiagnostic(
+        diagnostic_id=diagnostic.diagnostic_id,
+        kind=diagnostic.kind,
+        severity=diagnostic.severity,
+        source_start=diagnostic.source_start + delta,
+        source_end=diagnostic.source_end + delta,
+        message=diagnostic.message,
+        payload=_shift_diagnostic_payload(diagnostic.payload, delta=delta),
     )
 
 
-def _remap_diagnostic_payload_after_source_edit(
+def _shift_diagnostic_payload(
     payload: PromptDiagnosticPayload,
     *,
-    start: int,
-    end: int,
     delta: int,
 ) -> PromptDiagnosticPayload:
-    """Return diagnostic payload ranges shifted across a local edit."""
+    """Return diagnostic payload ranges shifted by a uniform source delta."""
 
     if isinstance(payload, PromptDuplicateSegmentDiagnosticPayload):
-        return replace(
-            payload,
-            first_source_start=_remap_position_after_source_edit_for_diagnostic(
-                payload.first_source_start,
-                start=start,
-                end=end,
-                delta=delta,
-            ),
-            first_source_end=_remap_position_after_source_edit_for_diagnostic(
-                payload.first_source_end,
-                start=start,
-                end=end,
-                delta=delta,
-            ),
-            duplicate_source_start=_remap_position_after_source_edit_for_diagnostic(
-                payload.duplicate_source_start,
-                start=start,
-                end=end,
-                delta=delta,
-            ),
-            duplicate_source_end=_remap_position_after_source_edit_for_diagnostic(
-                payload.duplicate_source_end,
-                start=start,
-                end=end,
-                delta=delta,
-            ),
+        return PromptDuplicateSegmentDiagnosticPayload(
+            normalized_segment=payload.normalized_segment,
+            first_source_start=payload.first_source_start + delta,
+            first_source_end=payload.first_source_end + delta,
+            duplicate_source_start=payload.duplicate_source_start + delta,
+            duplicate_source_end=payload.duplicate_source_end + delta,
         )
     return payload
-
-
-def _remap_position_after_source_edit_for_diagnostic(
-    position: int,
-    *,
-    start: int,
-    end: int,
-    delta: int,
-) -> int:
-    """Return a diagnostic source position shifted across a non-overlapping edit."""
-
-    if start == end:
-        return position + delta if position >= start else position
-    if position >= end:
-        return position + delta
-    if position > start:
-        return start
-    return position
-
-
-def _ranges_overlap(
-    first_start: int,
-    first_end: int,
-    second_start: int,
-    second_end: int,
-) -> bool:
-    """Return whether two half-open source ranges overlap."""
-
-    return first_start < second_end and second_start < first_end
 
 
 __all__ = ["remap_diagnostics_after_source_edit"]

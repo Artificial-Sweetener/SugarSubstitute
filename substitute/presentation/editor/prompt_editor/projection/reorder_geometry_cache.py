@@ -105,6 +105,10 @@ class PromptReorderGeometryCache:
         """Initialize empty reorder geometry caches with bounded LRU capacity."""
 
         self._preview_chip_cache_limit = preview_chip_cache_limit
+        self._live_chip_geometry_cache_key: PromptReorderChipGeometryCacheKey | None = (
+            None
+        )
+        self._live_chip_geometry_cache: PromptReorderChipGeometrySnapshot | None = None
         self._base_drag_chip_geometry_cache_key: (
             PromptReorderChipGeometryCacheKey | None
         ) = None
@@ -126,13 +130,19 @@ class PromptReorderGeometryCache:
 
         self._base_drag_chip_geometry_cache_hit_count = 0
         self._base_drag_chip_geometry_cache_miss_count = 0
+        self._base_drag_chip_geometry_preview_reuse_count = 0
         self._base_drag_placement_cache_hit_count = 0
         self._base_drag_placement_cache_miss_count = 0
         self._preview_chip_geometry_cache_hit_count = 0
         self._preview_chip_geometry_cache_miss_count = 0
+        self._preview_chip_geometry_live_reuse_count = 0
         self._preview_chip_geometry_reused_chip_count = 0
         self._preview_chip_geometry_rebuilt_chip_count = 0
         self._preview_chip_geometry_reuse_rejected_count = 0
+        self._scroll_translated_chip_geometry_count = 0
+        self._scroll_rebuilt_chip_geometry_count = 0
+        self._live_chip_geometry_cache_hit_count = 0
+        self._live_chip_geometry_cache_miss_count = 0
         self._max_base_drag_chip_geometry_ms = 0.0
         self._max_base_drag_placement_ms = 0.0
         self._max_preview_chip_geometry_ms = 0.0
@@ -147,6 +157,9 @@ class PromptReorderGeometryCache:
             "base_chip_geometry_cache_miss_count": (
                 self._base_drag_chip_geometry_cache_miss_count
             ),
+            "base_chip_geometry_preview_reuse_count": (
+                self._base_drag_chip_geometry_preview_reuse_count
+            ),
             "base_placement_cache_hit_count": (
                 self._base_drag_placement_cache_hit_count
             ),
@@ -159,6 +172,9 @@ class PromptReorderGeometryCache:
             "preview_chip_geometry_cache_miss_count": (
                 self._preview_chip_geometry_cache_miss_count
             ),
+            "preview_chip_geometry_live_reuse_count": (
+                self._preview_chip_geometry_live_reuse_count
+            ),
             "preview_chip_geometry_reused_chip_count": (
                 self._preview_chip_geometry_reused_chip_count
             ),
@@ -167,6 +183,18 @@ class PromptReorderGeometryCache:
             ),
             "preview_chip_geometry_reuse_rejected_count": (
                 self._preview_chip_geometry_reuse_rejected_count
+            ),
+            "scroll_translated_chip_geometry_count": (
+                self._scroll_translated_chip_geometry_count
+            ),
+            "scroll_rebuilt_chip_geometry_count": (
+                self._scroll_rebuilt_chip_geometry_count
+            ),
+            "live_chip_geometry_cache_hit_count": (
+                self._live_chip_geometry_cache_hit_count
+            ),
+            "live_chip_geometry_cache_miss_count": (
+                self._live_chip_geometry_cache_miss_count
             ),
             "max_base_chip_geometry_ms": (
                 f"{self._max_base_drag_chip_geometry_ms:.3f}"
@@ -197,6 +225,18 @@ class PromptReorderGeometryCache:
                 reason=reason,
             )
 
+    def clear_live_chip_geometry_cache(self, *, reason: str) -> None:
+        """Invalidate stable live chip geometry after layout-affecting changes."""
+
+        had_cache = self._live_chip_geometry_cache is not None
+        self._live_chip_geometry_cache_key = None
+        self._live_chip_geometry_cache = None
+        if had_cache:
+            log_reorder_drag_event(
+                "cache.live_chip_geometry.invalidate",
+                reason=reason,
+            )
+
     def clear_preview_chip_geometry_cache(self, *, reason: str) -> None:
         """Invalidate cached preview chip geometry snapshots."""
 
@@ -212,6 +252,7 @@ class PromptReorderGeometryCache:
     def clear_all(self, *, reason: str) -> None:
         """Invalidate all reorder geometry caches."""
 
+        self.clear_live_chip_geometry_cache(reason=reason)
         self.clear_base_drag_geometry_caches(reason=reason)
         self.clear_preview_chip_geometry_cache(reason=reason)
 
@@ -228,7 +269,7 @@ class PromptReorderGeometryCache:
         """Return the full identity for a reorder chip geometry snapshot."""
 
         return PromptReorderChipGeometryCacheKey(
-            snapshot=reorder_snapshot_geometry_key(snapshot),
+            snapshot=reorder_chip_snapshot_geometry_key(snapshot),
             layout=reorder_layout_geometry_key(
                 layout_view,
                 projection_layout_identity=projection_layout_identity,
@@ -239,6 +280,83 @@ class PromptReorderGeometryCache:
                 layout_width=layout_width,
             ),
         )
+
+    def live_chip_geometry_cache_key(
+        self,
+        *,
+        source_text: str,
+        chip_rendered_ranges_by_index: dict[int, tuple[int, int]],
+        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
+        layout_view: PromptReorderLayoutView,
+        projection_layout_identity: int,
+        viewport_rect: QRectF,
+        scroll_offset: float,
+        layout_width: float,
+    ) -> PromptReorderChipGeometryCacheKey:
+        """Return the full identity for stable live projection chip geometry."""
+
+        snapshot_key = reorder_chip_snapshot_geometry_key_from_parts(
+            source_text=source_text,
+            chip_rendered_ranges_by_index=chip_rendered_ranges_by_index,
+            chip_owned_ranges_by_index=chip_owned_ranges_by_index,
+        )
+        return PromptReorderChipGeometryCacheKey(
+            snapshot=snapshot_key,
+            layout=reorder_layout_geometry_key(
+                layout_view,
+                projection_layout_identity=projection_layout_identity,
+            ),
+            viewport=reorder_geometry_viewport_key(
+                viewport_rect=viewport_rect,
+                scroll_offset=scroll_offset,
+                layout_width=layout_width,
+            ),
+        )
+
+    def live_chip_snapshot(
+        self,
+        key: PromptReorderChipGeometryCacheKey,
+    ) -> PromptReorderChipGeometrySnapshot | None:
+        """Return stable live chip geometry for one exact viewport identity."""
+
+        if (
+            self._live_chip_geometry_cache_key == key
+            and self._live_chip_geometry_cache is not None
+        ):
+            self._live_chip_geometry_cache_hit_count += 1
+            return self._live_chip_geometry_cache
+        self._live_chip_geometry_cache_miss_count += 1
+        return None
+
+    def live_chip_scroll_candidate(
+        self,
+        key: PromptReorderChipGeometryCacheKey,
+    ) -> (
+        tuple[PromptReorderChipGeometryCacheKey, PromptReorderChipGeometrySnapshot]
+        | None
+    ):
+        """Return live geometry when only the scroll offset changed."""
+
+        cached_key = self._live_chip_geometry_cache_key
+        cached_snapshot = self._live_chip_geometry_cache
+        if (
+            cached_key is None
+            or cached_snapshot is None
+            or not _same_geometry_inputs_except_scroll(cached_key, key)
+        ):
+            return None
+        return cached_key, cached_snapshot
+
+    def remember_live_chip_snapshot(
+        self,
+        *,
+        key: PromptReorderChipGeometryCacheKey,
+        snapshot: PromptReorderChipGeometrySnapshot,
+    ) -> None:
+        """Store the newest live chip geometry snapshot."""
+
+        self._live_chip_geometry_cache_key = key
+        self._live_chip_geometry_cache = snapshot
 
     def placement_geometry_cache_key(
         self,
@@ -284,6 +402,13 @@ class PromptReorderGeometryCache:
         """Return and refresh one cached preview chip geometry snapshot."""
 
         cached_snapshot = self._preview_chip_geometry_cache.get(key)
+        if (
+            cached_snapshot is None
+            and self._live_chip_geometry_cache_key == key
+            and self._live_chip_geometry_cache is not None
+        ):
+            cached_snapshot = self._live_chip_geometry_cache
+            self._preview_chip_geometry_live_reuse_count += 1
         if cached_snapshot is None:
             self._preview_chip_geometry_cache_miss_count += 1
             return None
@@ -291,8 +416,23 @@ class PromptReorderGeometryCache:
         self._preview_chip_geometry_reused_chip_count += len(
             cached_snapshot.geometries_by_chip_index
         )
-        self._preview_chip_geometry_cache.move_to_end(key)
+        if key in self._preview_chip_geometry_cache:
+            self._preview_chip_geometry_cache.move_to_end(key)
         return cached_snapshot
+
+    def preview_chip_scroll_candidate(
+        self,
+        key: PromptReorderChipGeometryCacheKey,
+    ) -> (
+        tuple[PromptReorderChipGeometryCacheKey, PromptReorderChipGeometrySnapshot]
+        | None
+    ):
+        """Return the newest matching preview geometry from another scroll offset."""
+
+        for cached_key in reversed(self._preview_chip_geometry_cache):
+            if _same_geometry_inputs_except_scroll(cached_key, key):
+                return cached_key, self._preview_chip_geometry_cache[cached_key]
+        return None
 
     def remember_preview_chip_snapshot(
         self,
@@ -381,8 +521,45 @@ class PromptReorderGeometryCache:
         ):
             self._base_drag_chip_geometry_cache_hit_count += 1
             return self._base_drag_chip_geometry_cache
+        preview_snapshot = self._preview_chip_geometry_cache.get(key)
+        if preview_snapshot is not None:
+            self._base_drag_chip_geometry_cache_key = key
+            self._base_drag_chip_geometry_cache = preview_snapshot
+            self._base_drag_chip_geometry_cache_hit_count += 1
+            self._base_drag_chip_geometry_preview_reuse_count += 1
+            return preview_snapshot
         self._base_drag_chip_geometry_cache_miss_count += 1
         return None
+
+    def base_drag_chip_scroll_candidate(
+        self,
+        key: PromptReorderChipGeometryCacheKey,
+    ) -> (
+        tuple[PromptReorderChipGeometryCacheKey, PromptReorderChipGeometrySnapshot]
+        | None
+    ):
+        """Return stable base geometry when only the scroll offset changed."""
+
+        cached_key = self._base_drag_chip_geometry_cache_key
+        cached_snapshot = self._base_drag_chip_geometry_cache
+        if (
+            cached_key is None
+            or cached_snapshot is None
+            or not _same_geometry_inputs_except_scroll(cached_key, key)
+        ):
+            return None
+        return cached_key, cached_snapshot
+
+    def record_scroll_geometry_reuse(
+        self,
+        *,
+        translated_chip_count: int,
+        rebuilt_chip_count: int,
+    ) -> None:
+        """Record bounded scroll-translation work for abuse diagnostics."""
+
+        self._scroll_translated_chip_geometry_count += translated_chip_count
+        self._scroll_rebuilt_chip_geometry_count += rebuilt_chip_count
 
     def remember_base_drag_chip_snapshot(
         self,
@@ -464,6 +641,39 @@ def reorder_geometry_viewport_key(
     )
 
 
+def reorder_geometry_viewport_rect(
+    viewport_key: PromptReorderGeometryViewportKey,
+) -> QRectF:
+    """Restore the viewport rectangle represented by one geometry cache key."""
+
+    return QRectF(
+        viewport_key.viewport_left,
+        viewport_key.viewport_top,
+        viewport_key.viewport_width,
+        viewport_key.viewport_height,
+    )
+
+
+def _same_geometry_inputs_except_scroll(
+    first: PromptReorderChipGeometryCacheKey,
+    second: PromptReorderChipGeometryCacheKey,
+) -> bool:
+    """Return whether two chip keys differ only by vertical scroll offset."""
+
+    first_viewport = first.viewport
+    second_viewport = second.viewport
+    return (
+        first.snapshot == second.snapshot
+        and first.layout == second.layout
+        and first_viewport.viewport_left == second_viewport.viewport_left
+        and first_viewport.viewport_top == second_viewport.viewport_top
+        and first_viewport.viewport_width == second_viewport.viewport_width
+        and first_viewport.viewport_height == second_viewport.viewport_height
+        and first_viewport.layout_width_x100 == second_viewport.layout_width_x100
+        and first_viewport.scroll_offset != second_viewport.scroll_offset
+    )
+
+
 def reorder_snapshot_geometry_key(
     snapshot: ReorderGeometrySnapshot,
 ) -> PromptReorderSnapshotGeometryKey:
@@ -494,6 +704,47 @@ def reorder_snapshot_geometry_key(
             )
         ),
         gap_ranges=_sorted_ranges(snapshot.gap_ranges_by_index),
+    )
+
+
+def reorder_chip_snapshot_geometry_key(
+    snapshot: ReorderGeometrySnapshot,
+) -> PromptReorderSnapshotGeometryKey:
+    """Return only snapshot inputs that affect chip geometry."""
+
+    return reorder_chip_snapshot_geometry_key_from_parts(
+        source_text=_snapshot_text(snapshot),
+        chip_rendered_ranges_by_index=snapshot.chip_rendered_ranges_by_index,
+        chip_owned_ranges_by_index=snapshot.chip_owned_ranges_by_index,
+    )
+
+
+def reorder_chip_snapshot_geometry_key_from_parts(
+    *,
+    source_text: str,
+    chip_rendered_ranges_by_index: dict[int, tuple[int, int]],
+    chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
+) -> PromptReorderSnapshotGeometryKey:
+    """Return chip geometry identity without unrelated placement gap ranges."""
+
+    return PromptReorderSnapshotGeometryKey(
+        text=source_text,
+        chip_rendered_ranges=tuple(
+            sorted(
+                (chip_index, range_start, range_end)
+                for chip_index, (
+                    range_start,
+                    range_end,
+                ) in chip_rendered_ranges_by_index.items()
+            )
+        ),
+        chip_owned_ranges=tuple(
+            sorted(
+                (chip_index, tuple(sorted(owned_ranges)))
+                for chip_index, owned_ranges in chip_owned_ranges_by_index.items()
+            )
+        ),
+        gap_ranges=(),
     )
 
 
@@ -624,6 +875,7 @@ __all__ = [
     "chip_geometry_visual_reuse_key",
     "reorder_geometry_cache_context",
     "reorder_geometry_viewport_key",
+    "reorder_geometry_viewport_rect",
     "reorder_layout_geometry_key",
     "reorder_snapshot_geometry_key",
 ]

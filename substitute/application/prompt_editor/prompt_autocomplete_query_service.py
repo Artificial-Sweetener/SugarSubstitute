@@ -32,10 +32,18 @@ from .prompt_autocomplete_queries import (
 )
 from .prompt_autocomplete_tag_ranges import autocomplete_tag_range_at_cursor
 from .prompt_document_projector import PromptDocumentProjector
+from .prompt_document_semantics import (
+    OrdinaryPromptDocumentSemantics,
+    PromptDocumentSemantics,
+)
 from .prompt_document_selection_service import PromptDocumentSelectionService
 from .prompt_document_view_mapper import unescape_literal_parentheses_for_display
 from .prompt_document_views import PromptDocumentView
 from .prompt_lora_autocomplete_service import PromptLoraAutocompleteQuery
+from .prompt_structured_autocomplete_mapper import (
+    PromptStructuredAutocompleteContext,
+    structured_autocomplete_context_at_cursor,
+)
 from .prompt_text_ranges import (
     line_end_within_bounds,
     line_start_within_bounds,
@@ -89,11 +97,15 @@ class PromptAutocompleteQueryService:
         *,
         document_projector: PromptDocumentProjector | None = None,
         selection_service: PromptDocumentSelectionService | None = None,
+        document_semantics: PromptDocumentSemantics | None = None,
     ) -> None:
         """Store document and selection collaborators used by query resolution."""
 
         self._document_projector = document_projector or PromptDocumentProjector()
         self._selection_service = selection_service or PromptDocumentSelectionService()
+        self._document_semantics = (
+            document_semantics or OrdinaryPromptDocumentSemantics()
+        )
 
     def autocomplete_query_at_cursor(
         self,
@@ -117,10 +129,19 @@ class PromptAutocompleteQueryService:
                 matched=False,
             )
             return None
-
-        current_document_view = document_view
-        if current_document_view.source_text != text:
+        structured_context = self._structured_context(text, cursor_position)
+        if self._document_semantics.uses_structured_prompt_values:
+            if structured_context is None:
+                return None
+            text = structured_context.mapping.logical_text
+            cursor_position = structured_context.logical_cursor_position
             current_document_view = self._document_projector.build_document_view(text)
+        else:
+            current_document_view = document_view
+            if current_document_view.source_text != text:
+                current_document_view = self._document_projector.build_document_view(
+                    text
+                )
 
         segment = self._selection_service.segment_at_position(
             current_document_view,
@@ -155,7 +176,6 @@ class PromptAutocompleteQueryService:
                 matched=False,
             )
             return None
-
         query = PromptAutocompleteQuery(
             prefix=tag_range.prefix,
             word_start=tag_range.replacement_start,
@@ -173,7 +193,11 @@ class PromptAutocompleteQueryService:
             matched=True,
             result_type="plain",
         )
-        return query
+        return (
+            query
+            if structured_context is None
+            else structured_context.map_plain_query(query)
+        )
 
     def wildcard_autocomplete_query_at_cursor(
         self,
@@ -195,7 +219,12 @@ class PromptAutocompleteQueryService:
                 matched=False,
             )
             return None
-
+        structured_context = self._structured_context(text, cursor_position)
+        if self._document_semantics.uses_structured_prompt_values:
+            if structured_context is None:
+                return None
+            text = structured_context.mapping.logical_text
+            cursor_position = structured_context.logical_cursor_position
         line_start = line_start_within_bounds(
             text,
             lower_bound=0,
@@ -261,7 +290,11 @@ class PromptAutocompleteQueryService:
             matched=True,
             result_type="wildcard",
         )
-        return query
+        return (
+            query
+            if structured_context is None
+            else structured_context.map_wildcard_query(query)
+        )
 
     def scene_autocomplete_query_at_cursor(
         self,
@@ -273,6 +306,8 @@ class PromptAutocompleteQueryService:
         """Resolve a line-start scene autocomplete query from the caret state."""
 
         started_at = time.perf_counter()
+        if not self._document_semantics.scenes_enabled:
+            return None
         if has_selection or cursor_position < 0 or cursor_position > len(text):
             _log_autocomplete_resolution(
                 "scene_autocomplete_query_at_cursor",
@@ -362,7 +397,12 @@ class PromptAutocompleteQueryService:
                 matched=False,
             )
             return None
-
+        structured_context = self._structured_context(text, cursor_position)
+        if self._document_semantics.uses_structured_prompt_values:
+            if structured_context is None:
+                return None
+            text = structured_context.mapping.logical_text
+            cursor_position = structured_context.logical_cursor_position
         token_start = text.casefold().rfind("<lora:", 0, cursor_position + 1)
         if token_start < 0 or ">" in text[token_start:cursor_position]:
             _log_autocomplete_resolution(
@@ -450,7 +490,26 @@ class PromptAutocompleteQueryService:
             matched=True,
             result_type="lora",
         )
-        return query
+        return (
+            query
+            if structured_context is None
+            else structured_context.map_lora_query(query)
+        )
+
+    def _structured_context(
+        self,
+        text: str,
+        cursor_position: int,
+    ) -> PromptStructuredAutocompleteContext | None:
+        """Return decoded value context when active source is structured."""
+
+        if not self._document_semantics.uses_structured_prompt_values:
+            return None
+        return structured_autocomplete_context_at_cursor(
+            self._document_semantics,
+            source_text=text,
+            source_cursor_position=cursor_position,
+        )
 
 
 def _normalize_autocomplete_comparison_text(text: str) -> str:
@@ -471,11 +530,17 @@ def _is_wildcard_autocomplete_content(text: str) -> bool:
     return not any(character.isspace() for character in text)
 
 
-def _unterminated_lora_token_end(text: str, cursor_position: int) -> int:
+def _unterminated_lora_token_end(
+    text: str,
+    cursor_position: int,
+    *,
+    upper_bound: int | None = None,
+) -> int:
     """Return a conservative replacement end for an unterminated LoRA token."""
 
     index = cursor_position
-    while index < len(text) and text[index] not in ",\r\n\t ":
+    token_limit = len(text) if upper_bound is None else min(len(text), upper_bound)
+    while index < token_limit and text[index] not in ",\r\n\t ":
         index += 1
     return index
 
@@ -485,10 +550,12 @@ def _lora_closing_index_for_autocomplete(
     *,
     token_start: int,
     name_start: int,
+    upper_bound: int | None = None,
 ) -> int:
     """Return the current LoRA closer without crossing into a later token."""
 
-    closing_index = text.find(">", name_start)
+    search_end = len(text) if upper_bound is None else upper_bound
+    closing_index = text.find(">", name_start, search_end)
     if closing_index < 0:
         return -1
     nested_opener = text.find("<", token_start + 1, closing_index)

@@ -35,6 +35,7 @@ htmlcov/
 *.tmp
 artifacts/workflow_tab_profile/live_tab_switches.jsonl
 artifacts/prompt_editor_harness/
+artifacts/prompt_editor_abuse/
 artifacts/prompt_editor_harness_abuse_sweep/
 artifacts/prompt_editor_harness_abuse_sweep_large/
 artifacts/prompt_editor_harness_panel_abuse/

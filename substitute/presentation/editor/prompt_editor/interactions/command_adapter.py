@@ -28,6 +28,10 @@ from substitute.application.prompt_editor import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
+from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+    PromptStructuredTextMutationService,
+)
+from substitute.domain.prompt import SourceRange
 
 from ..commands import (
     PromptAutocompleteAcceptance,
@@ -184,6 +188,8 @@ class PromptEditorCommandAdapter:
         cursor_provider: Callable[[], PromptCommandCursor],
         context_insert_state_provider: Callable[[], PromptCommandContextInsertState],
         focus_restorer: Callable[[], None],
+        source_text_provider: Callable[[], str] | None = None,
+        structured_text_mutations: PromptStructuredTextMutationService | None = None,
     ) -> None:
         """Store command collaborators without taking over command construction."""
 
@@ -192,6 +198,8 @@ class PromptEditorCommandAdapter:
         self._cursor_provider = cursor_provider
         self._context_insert_state_provider = context_insert_state_provider
         self._focus_restorer = focus_restorer
+        self._source_text_provider = source_text_provider
+        self._structured_text_mutations = structured_text_mutations
 
     def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
         """Return the current source identity for prepared prompt commands."""
@@ -352,13 +360,41 @@ class PromptEditorCommandAdapter:
         cursor = self._cursor_provider()
         insert_state = self._context_insert_state_provider()
         source_range = self._context_menu_insertion_range(cursor, insert_state)
+        replacement_text = insertion_text
+        exact_source = False
+        cursor_position: int | None = None
+        if (
+            self._source_text_provider is not None
+            and self._structured_text_mutations is not None
+        ):
+            structured_replacement = (
+                self._structured_text_mutations.replacement_for_range(
+                    self._source_text_provider(),
+                    SourceRange(source_range.start, source_range.end),
+                    insertion_text,
+                )
+            )
+            if structured_replacement is None:
+                self._focus_restorer()
+                return PromptCommandResult.rejected(
+                    command_name,
+                    reason="prompt_value_unavailable",
+                )
+            source_range = PromptCommandSourceRange(
+                structured_replacement.source_range.start,
+                structured_replacement.source_range.end,
+            )
+            replacement_text = structured_replacement.replacement_text
+            exact_source = structured_replacement.exact_source
+            cursor_position = structured_replacement.cursor_position
         result = self.execute_source_replacement(
             PromptCommandTextReplacement(
                 source_range=source_range,
-                replacement_text=insertion_text,
+                replacement_text=replacement_text,
                 origin=PromptSourceEditOrigin.PROGRAMMATIC,
-                exact_source=False,
+                exact_source=exact_source,
                 record_undo=True,
+                cursor_position=cursor_position,
             ),
             command_name=command_name,
         )

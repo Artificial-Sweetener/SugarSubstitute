@@ -28,7 +28,6 @@ _PROMPT_INTERACTION_ANCESTOR_NAMES = frozenset(
     {
         "PromptEditor",
         "SegmentReorderOverlay",
-        "_SegmentChip",
         "PromptReorderDragProxyWidget",
     }
 )

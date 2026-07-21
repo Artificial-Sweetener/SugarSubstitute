@@ -21,8 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, cast
 
-from PySide6.QtCore import QPoint
-from PySide6.QtWidgets import QWidget
+from PySide6.QtCore import QPoint, QRect
 
 from substitute.application.ports import PromptWildcardCatalogGateway
 from substitute.application.prompt_editor import (
@@ -65,6 +64,19 @@ class ReorderMeasurementState:
     base_drag_layout_view: PromptReorderLayoutView
 
 
+@dataclass(frozen=True, slots=True)
+class ReorderPointerTarget:
+    """Identify one logical chip target on the production overlay surface."""
+
+    overlay: SegmentReorderOverlay
+    segment_index: int
+
+    def rect(self) -> QRect:
+        """Return overlay-local bounds for this logical target."""
+
+        return self.overlay.pointer_region_rects()[self.segment_index]
+
+
 def current_reorder_overlay(editor: PromptEditor) -> SegmentReorderOverlay:
     """Return the active reorder overlay created by the real editor."""
 
@@ -77,21 +89,22 @@ def current_reorder_overlay(editor: PromptEditor) -> SegmentReorderOverlay:
 def overlay_chip_by_segment_index(
     overlay: SegmentReorderOverlay,
     segment_index: int,
-) -> QWidget:
-    """Return one reorder chip hotspot by source segment index."""
+) -> ReorderPointerTarget:
+    """Return one logical reorder target by source segment index."""
 
-    for chip in overlay.findChildren(QWidget, "segmentChip"):
-        if chip.property("segmentIndex") == segment_index:
-            return chip
-    raise RuntimeError(f"Missing reorder chip for segment {segment_index}.")
+    if segment_index not in overlay.pointer_region_rects():
+        raise RuntimeError(f"Missing reorder chip for segment {segment_index}.")
+    return ReorderPointerTarget(overlay, segment_index)
 
 
-def chip_drop_target_global(chip: QWidget, *, trailing: bool = False) -> QPoint:
+def chip_drop_target_global(
+    chip: ReorderPointerTarget, *, trailing: bool = False
+) -> QPoint:
     """Return a stable global point near the chip edge used for drop targeting."""
 
-    x = chip.width() - 4 if trailing else 4
-    y = max(4, chip.rect().center().y())
-    return chip.mapToGlobal(QPoint(x, y))
+    rect = chip.rect()
+    x = rect.right() - 3 if trailing else rect.left() + 4
+    return chip.overlay.mapToGlobal(QPoint(x, rect.center().y()))
 
 
 def capture_reorder_interaction_counts(

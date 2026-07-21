@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from functools import lru_cache
 from itertools import count
 import time
 
@@ -328,6 +329,7 @@ def _validated_projection_context_fields(
     return validated
 
 
+@lru_cache(maxsize=None)
 def _require_prompt_safe_projection_event_name(event: str) -> None:
     """Reject blank or content-bearing projection event names before logging."""
 
@@ -340,6 +342,7 @@ def _require_prompt_safe_projection_event_name(event: str) -> None:
         raise ValueError(f"projection log event is not prompt-safe: {event}")
 
 
+@lru_cache(maxsize=None)
 def _require_prompt_safe_projection_field_name(field_name: str) -> None:
     """Reject projection context fields that may carry prompt content or secrets."""
 
@@ -358,6 +361,7 @@ def _require_prompt_safe_projection_field_name(field_name: str) -> None:
         raise ValueError(f"projection log field is not prompt-safe: {field_name}")
 
 
+@lru_cache(maxsize=None)
 def _require_prompt_safe_event_name(event: str) -> None:
     """Reject blank or content-bearing reorder event names before logging."""
 
@@ -370,6 +374,7 @@ def _require_prompt_safe_event_name(event: str) -> None:
         raise ValueError(f"reorder log event is not prompt-safe: {event}")
 
 
+@lru_cache(maxsize=None)
 def _require_prompt_safe_field_name(field_name: str) -> None:
     """Reject reorder context fields that may carry prompt content or secrets."""
 

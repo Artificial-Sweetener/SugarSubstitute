@@ -38,7 +38,7 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_state impor
     PromptReorderPreviewTargetIdentity,
     PromptReorderPreviewTargetState,
     reorder_base_drag_geometry_key,
-    reorder_chip_widget_geometry_key,
+    reorder_pointer_region_geometry_key,
     reorder_live_visual_geometry_key,
     reorder_overlay_position_geometry_key,
     reorder_overlay_refresh_geometry_key,
@@ -288,29 +288,29 @@ def test_overlay_refresh_geometry_key_uses_prompt_safe_source_identity() -> None
     assert key != changed_target_key
 
 
-def test_chip_widget_geometry_key_tracks_preview_and_live_rects() -> None:
-    """Chip widget placement identity should distinguish preview/live rect changes."""
+def test_pointer_region_geometry_key_tracks_preview_and_live_rects() -> None:
+    """Pointer-region identity should distinguish preview and live rect changes."""
 
-    first = reorder_chip_widget_geometry_key(
+    first = reorder_pointer_region_geometry_key(
         dragged_segment_index=1,
         preview_mode_active=True,
         preview_rects=((1, 10.0, 20.0, 30.0, 12.0),),
         live_rects=((0, 0.0, 20.0, 30.0, 12.0),),
     )
-    same_unsorted = reorder_chip_widget_geometry_key(
+    same_unsorted = reorder_pointer_region_geometry_key(
         dragged_segment_index=1,
         preview_mode_active=True,
         preview_rects=((2, 40.0, 20.0, 30.0, 12.0), (1, 10.0, 20.0, 30.0, 12.0)),
         live_rects=((0, 0.0, 20.0, 30.0, 12.0),),
     )
-    changed_live = reorder_chip_widget_geometry_key(
+    changed_live = reorder_pointer_region_geometry_key(
         dragged_segment_index=1,
         preview_mode_active=True,
         preview_rects=((1, 10.0, 20.0, 30.0, 12.0),),
         live_rects=((0, 2.0, 20.0, 30.0, 12.0),),
     )
 
-    assert first == reorder_chip_widget_geometry_key(
+    assert first == reorder_pointer_region_geometry_key(
         dragged_segment_index=1,
         preview_mode_active=True,
         preview_rects=((1, 10.0, 20.0, 30.0, 12.0),),
