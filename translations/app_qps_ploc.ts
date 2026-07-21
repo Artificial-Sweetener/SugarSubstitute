@@ -4826,6 +4826,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦SügàrSübstïtütë prövïdës à föcüsëd PySïdë6 wörkspàcë för CömfyÜÏ, wïth cübë-bàsëd wörkflöw cömpösïtïön, mànàgëd mödël mëtàdàtà, prömpt töölïng, ànd ïntëgràtëd ïmàgë cànvàs wörkflöws. ···⟧</translation>
     </message>
     <message>
+      <source>SugarSubstitute requires Python %1 or newer for ComfyUI node packs. The selected environment uses Python %2.</source>
+      <translation>⟦SügàrSübstïtütë rëqüïrës Pythön %1 ör nëwër för CömfyÜÏ nödë pàcks. Thë sëlëctëd ënvïrönmënt üsës Pythön %2. ···⟧</translation>
+    </message>
+    <message>
       <source>Suggest LoRA names from the model catalog while editing prompts.</source>
       <translation>⟦Süggëst LöRÅ nàmës fröm thë mödël càtàlög whïlë ëdïtïng prömpts. ···⟧</translation>
     </message>

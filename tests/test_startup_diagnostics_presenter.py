@@ -333,11 +333,24 @@ def test_start_startup_diagnostics_preparation_skips_apply_after_cancel() -> Non
 
 
 def test_startup_extension_metadata_providers_includes_local_git_provider(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """Local custom-node metadata should be available when the directory exists."""
 
     (tmp_path / "ComfyUI" / "custom_nodes").mkdir(parents=True)
+    from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
+    from substitute.infrastructure.comfy import manager_runtime_probe
+
+    monkeypatch.setattr(
+        manager_runtime_probe,
+        "detect_workspace_manager_runtime",
+        lambda workspace, **_kwargs: ComfyManagerRuntime(
+            kind=ComfyManagerKind.INTEGRATED,
+            workspace=workspace,
+            python_executable=tmp_path / "python",
+        ),
+    )
 
     providers = startup_diagnostics_presenter.startup_extension_metadata_providers(
         _context(tmp_path)
@@ -346,6 +359,41 @@ def test_startup_extension_metadata_providers_includes_local_git_provider(
     provider_types = {type(provider).__name__ for provider in providers}
     assert "ComfyManagerExtensionMetadataProvider" in provider_types
     assert "LocalCustomNodeGitMetadataProvider" in provider_types
+
+
+def test_remote_startup_metadata_does_not_probe_unrelated_local_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Remote Manager route discovery should use its live HTTP server."""
+
+    from substitute.infrastructure.comfy import manager_runtime_probe
+
+    monkeypatch.setattr(
+        manager_runtime_probe,
+        "detect_workspace_manager_runtime",
+        lambda *_args, **_kwargs: pytest.fail("unexpected local Manager probe"),
+    )
+    context = _context(tmp_path)
+    context = InstallationContext(
+        installation=context.installation,
+        runtime=context.runtime,
+        comfy_target=ComfyTargetConfiguration(
+            mode=ComfyTargetMode.REMOTE,
+            endpoint=ComfyEndpoint(host="remote-box", port=8188),
+            workspace_path=None,
+            install_owned=False,
+            launch_owned=False,
+        ),
+    )
+
+    providers = startup_diagnostics_presenter.startup_extension_metadata_providers(
+        context
+    )
+
+    assert [type(provider).__name__ for provider in providers] == [
+        "ComfyManagerExtensionMetadataProvider"
+    ]
 
 
 def test_startup_diagnostics_presenter_imports_no_forbidden_boundaries() -> None:

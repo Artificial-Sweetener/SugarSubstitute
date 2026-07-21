@@ -116,7 +116,7 @@ def test_strategy_matrices_use_literal_toolchain_versions() -> None:
                 assert "${{" not in entry["python-version"]
                 observed_entries += 1
 
-    assert observed_entries == 12
+    assert observed_entries == 18
 
 
 def test_ci_actions_use_immutable_verified_revisions() -> None:

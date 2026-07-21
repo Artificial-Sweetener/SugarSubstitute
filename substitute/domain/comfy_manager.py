@@ -57,6 +57,8 @@ class ComfyManagerRuntime:
     python_executable: Path
     version: str | None = None
     legacy_cli_path: Path | None = None
+    supports_pygit2: bool = False
+    uses_pygit2: bool = False
 
     @property
     def launch_arguments(self) -> tuple[str, ...]:

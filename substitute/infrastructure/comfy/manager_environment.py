@@ -34,17 +34,23 @@ def manager_environment(
     environment["COMFYUI_PATH"] = str(workspace)
     environment.setdefault("PYTHONUTF8", "1")
     environment.setdefault("PYTHONIOENCODING", "utf-8:replace")
+    environment.pop("CM_USE_PYGIT2", None)
     return environment
 
 
-def integrated_manager_environment(
+def manager_runtime_environment(
     workspace: Path,
     base: Mapping[str, str] | None = None,
+    *,
+    use_pygit2: bool,
 ) -> dict[str, str]:
-    """Force integrated Manager to use its libgit2-compatible backend."""
+    """Build a Manager environment with only validated optional capabilities."""
 
     environment = manager_environment(workspace, base)
-    environment["CM_USE_PYGIT2"] = "1"
+    if use_pygit2:
+        environment["CM_USE_PYGIT2"] = "1"
+    else:
+        environment.pop("CM_USE_PYGIT2", None)
     return environment
 
 
@@ -55,7 +61,7 @@ def integrated_manager_pygit2_requirement() -> str:
 
 
 __all__ = [
-    "integrated_manager_environment",
     "integrated_manager_pygit2_requirement",
     "manager_environment",
+    "manager_runtime_environment",
 ]
