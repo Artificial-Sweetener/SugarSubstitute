@@ -51,7 +51,7 @@ class CoreComfyNodepack:
     display_name: str
     publisher: str
     expected_folder: Path
-    sentinel_files: tuple[Path, ...]
+    sentinel_layouts: tuple[tuple[Path, ...], ...]
     source_url: str | None = None
     local_source_environment_variable: str | None = None
     python_distribution_name: str | None = None
@@ -108,9 +108,11 @@ CORE_COMFY_NODEPACKS: tuple[CoreComfyNodepack, ...] = (
         display_name="Substitute BackEnd",
         publisher="artificialsweetener",
         expected_folder=Path("custom_nodes") / "Substitute-BackEnd",
-        sentinel_files=(
-            Path("__init__.py"),
-            Path("substitute_backend") / "__init__.py",
+        sentinel_layouts=(
+            (
+                Path("__init__.py"),
+                Path("substitute_backend") / "__init__.py",
+            ),
         ),
         source_url="https://github.com/Artificial-Sweetener/Substitute-BackEnd.git",
         local_source_environment_variable="SUGARSUBSTITUTE_BACKEND_SOURCE",
@@ -125,10 +127,17 @@ CORE_COMFY_NODEPACKS: tuple[CoreComfyNodepack, ...] = (
         display_name="SugarCubes",
         publisher="artificialsweetener",
         expected_folder=Path("custom_nodes") / "SugarCubes",
-        sentinel_files=(
-            Path("__init__.py"),
-            Path("nodes.py"),
-            Path("backend") / "__init__.py",
+        sentinel_layouts=(
+            (
+                Path("__init__.py"),
+                Path("nodes.py"),
+                Path("backend") / "__init__.py",
+            ),
+            (
+                Path("__init__.py"),
+                Path("sugarcubes") / "nodes.py",
+                Path("sugarcubes") / "backend" / "__init__.py",
+            ),
         ),
         source_url="https://github.com/Artificial-Sweetener/SugarCubes.git",
         python_distribution_name="SugarCubes",

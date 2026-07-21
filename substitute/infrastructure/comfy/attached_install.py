@@ -44,6 +44,9 @@ from substitute.infrastructure.comfy.sugarcubes_maintenance_runner import (
 from substitute.infrastructure.comfy.workspace_python_discovery import (
     resolve_attached_comfy_python,
 )
+from substitute.infrastructure.comfy.workspace_dependency_reconciler import (
+    validate_attached_workspace_dependencies,
+)
 
 StatusCallback = Callable[[str], None]
 LogCallback = Callable[[str], None]
@@ -89,6 +92,10 @@ def prepare_verified_attached_comfy_setup(
 
     binding = python_binding
     COMFY_COMPATIBILITY_POLICY.require_supported_python(binding.version)
+    validate_attached_workspace_dependencies(
+        workspace=workspace,
+        python_executable=binding.executable,
+    )
     if on_log is not None:
         on_log(
             app_text(

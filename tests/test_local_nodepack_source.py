@@ -143,7 +143,7 @@ def test_resolve_local_nodepack_source_uses_valid_configured_path(
     nodepack = CORE_COMFY_NODEPACKS[0]
     env_var = nodepack.local_source_environment_variable
     assert env_var is not None
-    for sentinel in nodepack.sentinel_files:
+    for sentinel in nodepack.sentinel_layouts[0]:
         _write_file(tmp_path / "source" / sentinel, "")
     monkeypatch.setenv(env_var, str(tmp_path / "source"))
 

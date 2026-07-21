@@ -43,6 +43,10 @@ from substitute.infrastructure.comfy.manager_runtime_probe import (
 from substitute.infrastructure.comfy.manager_requirements_installer import (
     ComfyManagerRequirementsInstaller,
 )
+from substitute.infrastructure.comfy.python_requirements_probe import (
+    PythonRequirementIssue,
+    PythonRequirementsAssessment,
+)
 from tests.repository_service_test_double import RecordingRepositoryService
 
 
@@ -135,6 +139,32 @@ class _RecordingInstaller(ComfyManagerRequirementsInstaller):
 
         del workspace, python_executable, on_log, env
         self.calls.append(("pygit2", None))
+
+
+class _RecordingRequirementsProbe:
+    """Return ordered Manager requirement assessments."""
+
+    def __init__(self, *assessments: PythonRequirementsAssessment) -> None:
+        """Store assessment evidence or default to satisfied."""
+
+        self.assessments = list(assessments)
+        self.calls = 0
+
+    def assess(
+        self,
+        *,
+        requirements_path: Path,
+        python_executable: Path,
+        workspace: Path,
+        env: Mapping[str, str] | None = None,
+    ) -> PythonRequirementsAssessment:
+        """Return the next configured assessment."""
+
+        del requirements_path, python_executable, workspace, env
+        self.calls += 1
+        if self.assessments:
+            return self.assessments.pop(0)
+        return PythonRequirementsAssessment()
 
 
 @pytest.mark.parametrize(
@@ -280,6 +310,74 @@ def test_managed_manager_installs_missing_supported_pygit2_backend(
 
     assert result.uses_pygit2 is True
     assert installer.calls == [("pygit2", None)]
+
+
+def test_managed_manager_replaces_healthy_but_stale_distribution(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Checkout requirements should outrank an importable older Manager."""
+
+    python = _prepare_integrated_contract(tmp_path, "comfyui_manager==4.2.1")
+    stale = _integrated_runtime(tmp_path, python, version="4.1")
+    current = _integrated_runtime(tmp_path, python, version="4.2.1", supports=True)
+    probe = _RecordingProbe(integrated=[stale, current], pygit2=current)
+    installer = _RecordingInstaller()
+    requirements_probe = _RecordingRequirementsProbe(
+        _manager_version_mismatch("4.1", "4.2.1"),
+        PythonRequirementsAssessment(),
+    )
+    _install_doubles(monkeypatch, probe, installer, requirements_probe)
+
+    result = manager_provisioner.ensure_managed_workspace_manager(
+        tmp_path,
+        python_executable=python,
+    )
+
+    assert result.version == "4.2.1"
+    assert installer.calls == [
+        ("requirements", ComfyManagerContract(tmp_path).integrated_requirements_path)
+    ]
+    assert requirements_probe.calls == 2
+
+
+def test_attached_manager_replaces_stale_integrated_without_touching_legacy(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Attached setup should reconcile owned Manager packages, not repository data."""
+
+    python = _prepare_integrated_contract(tmp_path, "comfyui_manager==4.2.1")
+    contract = ComfyManagerContract(tmp_path)
+    contract.legacy_cli_path.parent.mkdir(parents=True)
+    marker = contract.legacy_directory / "user-data.json"
+    marker.write_text("preserve", encoding="utf-8")
+    stale = _integrated_runtime(tmp_path, python, version="4.1")
+    current = _integrated_runtime(tmp_path, python, version="4.2.1", supports=True)
+    probe = _RecordingProbe(
+        integrated=[stale, current],
+        legacy=[_legacy_runtime(tmp_path, python)],
+        pygit2=current,
+    )
+    installer = _RecordingInstaller()
+    _install_doubles(
+        monkeypatch,
+        probe,
+        installer,
+        _RecordingRequirementsProbe(
+            _manager_version_mismatch("4.1", "4.2.1"),
+            PythonRequirementsAssessment(),
+        ),
+    )
+
+    result = manager_provisioner.ensure_attached_workspace_manager(
+        tmp_path,
+        python_executable=python,
+    )
+
+    assert result.version == "4.2.1"
+    assert installer.calls == [("requirements", contract.integrated_requirements_path)]
+    assert marker.read_text(encoding="utf-8") == "preserve"
 
 
 def test_managed_manager_preserves_legacy_until_replacement_validates(
@@ -430,6 +528,7 @@ def _install_doubles(
     monkeypatch: pytest.MonkeyPatch,
     probe: _RecordingProbe,
     installer: _RecordingInstaller,
+    requirements_probe: _RecordingRequirementsProbe | None = None,
 ) -> None:
     """Install provisioning collaborators at their construction boundary."""
 
@@ -438,6 +537,11 @@ def _install_doubles(
         manager_provisioner,
         "ComfyManagerRequirementsInstaller",
         lambda: installer,
+    )
+    monkeypatch.setattr(
+        manager_provisioner,
+        "PythonRequirementsProbe",
+        lambda: requirements_probe or _RecordingRequirementsProbe(),
     )
     monkeypatch.setattr(
         manager_provisioner,
@@ -502,5 +606,23 @@ def _legacy_runtime(workspace: Path, python: Path) -> ComfyManagerProbeResult:
             workspace=workspace,
             python_executable=python,
             legacy_cli_path=ComfyManagerContract(workspace).legacy_cli_path,
+        )
+    )
+
+
+def _manager_version_mismatch(
+    installed: str,
+    expected: str,
+) -> PythonRequirementsAssessment:
+    """Return stale but importable integrated Manager evidence."""
+
+    return PythonRequirementsAssessment(
+        (
+            PythonRequirementIssue(
+                f"comfyui_manager=={expected}",
+                installed,
+                "version_mismatch",
+                1,
+            ),
         )
     )

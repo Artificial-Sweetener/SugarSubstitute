@@ -24,22 +24,27 @@ from substitute.infrastructure.comfy.nodepack_manifest import CoreComfyNodepack
 
 
 def core_nodepack_installed(workspace: Path, nodepack: CoreComfyNodepack) -> bool:
-    """Return whether a required core nodepack has all sentinel files."""
+    """Return whether a required core nodepack matches one supported layout."""
 
     root = workspace / nodepack.expected_folder
-    return root.is_dir() and all(
-        (root / sentinel).exists() for sentinel in nodepack.sentinel_files
-    )
+    return root.is_dir() and _contains_supported_layout(root, nodepack)
 
 
 def source_contains_sentinels(
     source_path: Path,
     nodepack: CoreComfyNodepack,
 ) -> bool:
-    """Return whether a source checkout contains the nodepack's sentinel files."""
+    """Return whether source contains one supported nodepack layout."""
 
-    return source_path.is_dir() and all(
-        (source_path / sentinel).exists() for sentinel in nodepack.sentinel_files
+    return source_path.is_dir() and _contains_supported_layout(source_path, nodepack)
+
+
+def _contains_supported_layout(root: Path, nodepack: CoreComfyNodepack) -> bool:
+    """Return whether every sentinel in at least one declared layout exists."""
+
+    return any(
+        all((root / sentinel).exists() for sentinel in layout)
+        for layout in nodepack.sentinel_layouts
     )
 
 

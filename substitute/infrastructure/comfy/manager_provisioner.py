@@ -39,6 +39,10 @@ from substitute.infrastructure.comfy.manager_runtime_probe import (
     ComfyManagerRuntimeProbe,
     validation_failure_message,
 )
+from substitute.infrastructure.comfy.python_requirements_probe import (
+    PythonRequirementsAssessment,
+    PythonRequirementsProbe,
+)
 from substitute.infrastructure.comfy.workspace_python_resolver import (
     resolve_workspace_python,
 )
@@ -74,6 +78,7 @@ def ensure_managed_workspace_manager(
         python_executable=resolved_python,
         on_log=on_log,
         env=env,
+        requirements_probe=PythonRequirementsProbe(),
     )
     if contract.legacy_directory.exists():
         _emit_log(
@@ -99,6 +104,7 @@ def ensure_attached_workspace_manager(
     resolved_python = python_executable or resolve_workspace_python(workspace)
     contract = ComfyManagerContract(workspace)
     probe = ComfyManagerRuntimeProbe()
+    requirements_probe = PythonRequirementsProbe()
     integrated = probe.integrated(
         workspace=workspace,
         python_executable=resolved_python,
@@ -109,6 +115,31 @@ def ensure_attached_workspace_manager(
         python_executable=resolved_python,
         env=env,
     )
+    integrated_requirements = (
+        _assess_integrated_requirements(
+            contract=contract,
+            python_executable=resolved_python,
+            requirements_probe=requirements_probe,
+            env=env,
+        )
+        if contract.supports_integrated_manager
+        else PythonRequirementsAssessment()
+    )
+    if integrated.runtime is not None and not integrated_requirements.satisfied:
+        _emit_log(
+            on_log,
+            "[Manager] Reconciling the attached checkout's integrated Manager "
+            "requirements.",
+        )
+        return _install_integrated_runtime(
+            contract=contract,
+            python_executable=resolved_python,
+            on_log=on_log,
+            env=env,
+            probe=probe,
+            installer=ComfyManagerRequirementsInstaller(),
+            requirements_probe=requirements_probe,
+        )
     action = select_attached_manager_action(
         ComfyManagerCapabilities(
             supports_integrated=contract.supports_integrated_manager,
@@ -138,6 +169,7 @@ def ensure_attached_workspace_manager(
             env=env,
             probe=probe,
             installer=ComfyManagerRequirementsInstaller(),
+            requirements_probe=requirements_probe,
         )
     return LegacyComfyManagerInstaller(
         repositories=repositories or repository_service()
@@ -157,6 +189,7 @@ def _ensure_integrated_runtime(
     python_executable: Path,
     on_log: LogCallback | None,
     env: Mapping[str, str] | None,
+    requirements_probe: PythonRequirementsProbe,
 ) -> ComfyManagerRuntime:
     """Install missing integrated dependencies and validate optional backends."""
 
@@ -167,7 +200,13 @@ def _ensure_integrated_runtime(
         python_executable=python_executable,
         env=env,
     )
-    if integrated.runtime is None:
+    requirements = _assess_integrated_requirements(
+        contract=contract,
+        python_executable=python_executable,
+        requirements_probe=requirements_probe,
+        env=env,
+    )
+    if integrated.runtime is None or not requirements.satisfied:
         return _install_integrated_runtime(
             contract=contract,
             python_executable=python_executable,
@@ -175,6 +214,7 @@ def _ensure_integrated_runtime(
             env=env,
             probe=probe,
             installer=installer,
+            requirements_probe=requirements_probe,
         )
     return _ensure_optional_pygit2_backend(
         integrated.runtime,
@@ -193,6 +233,7 @@ def _install_integrated_runtime(
     env: Mapping[str, str] | None,
     probe: ComfyManagerRuntimeProbe,
     installer: ComfyManagerRequirementsInstaller,
+    requirements_probe: PythonRequirementsProbe,
 ) -> ComfyManagerRuntime:
     """Install the checkout's exact Manager requirements and validate them."""
 
@@ -204,6 +245,17 @@ def _install_integrated_runtime(
         on_log=on_log,
         env=env,
     )
+    requirements = _assess_integrated_requirements(
+        contract=contract,
+        python_executable=python_executable,
+        requirements_probe=requirements_probe,
+        env=env,
+    )
+    if not requirements.satisfied:
+        raise RuntimeError(
+            "ComfyUI Manager requirements remain unsatisfied after repair. "
+            + requirements.summary
+        )
     integrated = probe.integrated(
         workspace=contract.workspace,
         python_executable=python_executable,
@@ -216,6 +268,23 @@ def _install_integrated_runtime(
         probe=probe,
         installer=installer,
         on_log=on_log,
+        env=env,
+    )
+
+
+def _assess_integrated_requirements(
+    *,
+    contract: ComfyManagerContract,
+    python_executable: Path,
+    requirements_probe: PythonRequirementsProbe,
+    env: Mapping[str, str] | None,
+) -> PythonRequirementsAssessment:
+    """Assess the checkout-owned Manager requirements in its target Python."""
+
+    return requirements_probe.assess(
+        requirements_path=contract.integrated_requirements_path,
+        python_executable=python_executable,
+        workspace=contract.workspace,
         env=env,
     )
 

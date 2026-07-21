@@ -22,6 +22,7 @@ import pytest
 
 from substitute.domain.comfy_compatibility import (
     COMFY_COMPATIBILITY_POLICY,
+    UnsupportedComfyVersionError,
     UnsupportedComfyPythonError,
 )
 
@@ -30,6 +31,23 @@ def test_comfyui_support_floor_is_explicitly_0_15_0() -> None:
     """Installer compatibility should have one authoritative public floor."""
 
     assert COMFY_COMPATIBILITY_POLICY.minimum_comfyui_label == "0.15.0"
+
+
+@pytest.mark.parametrize(
+    ("version", "supported"),
+    (("0.14.2", False), ("0.15.0", True), ("v0.24.0", True), ("0.28.2", True)),
+)
+def test_comfyui_version_floor(version: str, supported: bool) -> None:
+    """ComfyUI 0.15.0 should be the exact checkout compatibility boundary."""
+
+    assert COMFY_COMPATIBILITY_POLICY.supports_comfyui(version) is supported
+
+
+def test_unsupported_comfyui_error_reports_required_and_actual_versions() -> None:
+    """Checkout preflight should identify an unsupported ComfyUI version."""
+
+    with pytest.raises(UnsupportedComfyVersionError, match=r"0\.15\.0.*0\.14\.2"):
+        COMFY_COMPATIBILITY_POLICY.require_supported_comfyui("0.14.2")
 
 
 @pytest.mark.parametrize(

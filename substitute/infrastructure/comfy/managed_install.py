@@ -32,6 +32,7 @@ from substitute.domain.onboarding import ManagedRuntimeValidationStatus
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.infrastructure.comfy.hardware_detection import detect_hardware
+from substitute.infrastructure.comfy.hardware_models import HardwareDetectionResult
 from substitute.infrastructure.comfy.backend_model_root_configurator import (
     configure_backend_model_root,
 )
@@ -56,15 +57,7 @@ from substitute.infrastructure.comfy.managed_install_scratch import (
     default_installer_temp_root,
 )
 from substitute.infrastructure.comfy.managed_setup_state import (
-    _fresh_installed_setup_record_without_hardware_probe,
-    _installed_setup_freshness_is_current,
-    _installed_setup_freshness_key,
-    _installed_setup_freshness_request,
-    _load_installed_setup_freshness,
     _managed_runtime_configuration_from_strategy,
-    _record_cached_installed_setup_success,
-    _validation_from_installed_setup_record,
-    _write_installed_setup_freshness,
 )
 from substitute.infrastructure.comfy.managed_workspace_operations import (
     migrate_nested_workspace_layout,
@@ -75,8 +68,17 @@ from substitute.infrastructure.comfy.managed_environment_validator import (
     ManagedEnvironmentValidationResult,
     validate_managed_environment,
 )
+from substitute.infrastructure.comfy.managed_existing_setup import (
+    ExistingManagedSetupOperations,
+    ExistingManagedSetupRequest,
+    ResolvedTorchBackendContract,
+    reconcile_existing_managed_setup,
+)
 from substitute.infrastructure.comfy.manager_provisioner import (
     ensure_managed_workspace_manager,
+)
+from substitute.infrastructure.comfy.workspace_dependency_reconciler import (
+    reconcile_managed_workspace_dependencies,
 )
 from substitute.infrastructure.comfy.nodepack_reconciliation import (
     ensure_core_comfy_nodepacks,
@@ -117,6 +119,153 @@ class ResolvedTorchBackend:
     release_channel: TorchReleaseChannel
     selection_reason: str
     fallback_used: bool
+
+
+class _ManagedExistingSetupOperations(ExistingManagedSetupOperations):
+    """Adapt managed installer boundaries to the existing-setup transaction."""
+
+    def __init__(
+        self,
+        *,
+        on_status: StatusCallback | None,
+        on_log: LogCallback | None,
+    ) -> None:
+        """Capture reporting boundaries shared by setup operations."""
+
+        self._on_status = on_status
+        self._on_log = on_log
+
+    def emit_status(self, message: str) -> None:
+        """Publish one existing-workspace status message."""
+
+        emit_status(self._on_status, message)
+
+    def reconcile_dependencies(
+        self,
+        workspace: Path,
+        python_executable: Path,
+        env: Mapping[str, str],
+    ) -> None:
+        """Converge ComfyUI requirements through the infrastructure owner."""
+
+        reconcile_managed_workspace_dependencies(
+            workspace=workspace,
+            python_executable=python_executable,
+            on_log=self._on_log,
+            env=env,
+        )
+
+    def provision_manager(self, workspace: Path, env: Mapping[str, str]) -> None:
+        """Converge the Manager runtime through the public provisioning facade."""
+
+        provision_workspace_manager(workspace, on_log=self._on_log, env=dict(env))
+
+    def configure_model_root(
+        self,
+        workspace: Path,
+        python_executable: Path,
+        model_root: Path | None,
+    ) -> None:
+        """Apply the configured model root through its adapter."""
+
+        configure_backend_model_root(
+            workspace=workspace,
+            python_executable=python_executable,
+            model_root=model_root,
+        )
+
+    def detect_hardware(self) -> HardwareDetectionResult:
+        """Detect normalized host hardware."""
+
+        return detect_hardware()
+
+    def select_strategy(
+        self,
+        detection: HardwareDetectionResult,
+        *,
+        force_cpu: bool,
+        prefer_edge_torch: bool,
+        prefer_edge_comfy: bool,
+    ) -> ManagedInstallStrategy:
+        """Select the current managed install strategy."""
+
+        return select_install_strategy(
+            detection=detection,
+            force_cpu=force_cpu,
+            prefer_edge_torch=prefer_edge_torch,
+            prefer_edge_comfy=prefer_edge_comfy,
+        )
+
+    def ensure_nodepacks(
+        self,
+        workspace: Path,
+        refresh_nodepacks: Collection[CoreNodepackId],
+        env: Mapping[str, str],
+    ) -> None:
+        """Converge required nodepacks through their reconciliation owner."""
+
+        ensure_core_comfy_nodepacks(
+            workspace,
+            refresh_nodepacks=refresh_nodepacks,
+            on_log=self._on_log,
+            env=env,
+        )
+
+    def prepare_sugarcubes(self, workspace: Path, env: Mapping[str, str]) -> None:
+        """Converge SugarCubes baseline dependencies."""
+
+        run_sugarcubes_baseline_maintenance(
+            workspace,
+            on_log=self._on_log,
+            env=env,
+        )
+
+    def validate_torch(
+        self,
+        workspace: Path,
+        policy: TorchBackendPolicy,
+    ) -> tuple[ResolvedTorchBackendContract, ManagedEnvironmentValidationResult]:
+        """Validate the existing torch backend."""
+
+        return validate_existing_torch_backend(
+            workspace=workspace,
+            policy=policy,
+            on_log=self._on_log,
+        )
+
+    def install_and_validate_torch(
+        self,
+        python_executable: Path,
+        workspace: Path,
+        policy: TorchBackendPolicy,
+        env: Mapping[str, str],
+    ) -> tuple[ResolvedTorchBackendContract, ManagedEnvironmentValidationResult]:
+        """Repair and validate the selected torch backend."""
+
+        return install_and_validate_selected_torch_backend(
+            python_executable=python_executable,
+            workspace=workspace,
+            policy=policy,
+            on_status=self._on_status,
+            on_log=self._on_log,
+            env=dict(env),
+        )
+
+    def reconcile_acceleration(
+        self,
+        workspace: Path,
+        detection: HardwareDetectionResult,
+        env: Mapping[str, str],
+    ) -> None:
+        """Converge optional acceleration artifacts."""
+
+        reconcile_managed_acceleration_stack(
+            workspace=workspace,
+            detection=detection,
+            on_status=self._on_status,
+            on_log=self._on_log,
+            env=env,
+        )
 
 
 def emit_status(callback: StatusCallback | None, message: str) -> None:
@@ -484,172 +633,30 @@ def _ensure_managed_comfy_setup(
         emit_log(on_log, f"Migrated legacy nested ComfyUI layout in {workspace}.")
     force_install = os.getenv("SUGARSUB_FORCE_COMFY_INSTALL") == "1"
     venv_python = workspace_python_path(workspace)
-    setup_freshness_request = _installed_setup_freshness_request(
-        force_cpu_mode=force_cpu_mode,
-        prefer_edge_torch=prefer_edge_torch,
-        prefer_edge_comfy_channel=prefer_edge_comfy_channel,
-    )
     if (
         venv_python.exists()
         and workspace.exists()
         and workspace_main_path(workspace).exists()
         and not force_install
     ):
-        emit_status(on_status, "Provisioning ComfyUI-Manager.")
-        with trace_span("managed_setup.existing.provision_manager"):
-            provision_workspace_manager(
-                workspace,
-                on_log=on_log,
-                env=managed_env,
-            )
-        if configure_model_root:
-            with trace_span("managed_setup.existing.configure_model_root"):
-                configure_backend_model_root(
-                    workspace=workspace,
-                    python_executable=venv_python,
-                    model_root=managed_model_root,
-                )
-        fast_freshness_record = _fresh_installed_setup_record_without_hardware_probe(
-            workspace=workspace,
-            request=setup_freshness_request,
-            refresh_core_nodepacks=refresh_core_nodepacks,
-        )
-        if fast_freshness_record is not None:
-            _record_cached_installed_setup_success(
-                runtime_recorder=runtime_recorder,
-                record=fast_freshness_record,
-            )
-            emit_status(on_status, "Managed ComfyUI setup is current.")
-            return venv_python
-        with trace_span("managed_setup.detect_hardware"):
-            detection = detect_hardware()
-        with trace_span("managed_setup.select_install_strategy"):
-            strategy = select_install_strategy(
-                detection=detection,
-                force_cpu=force_cpu_mode,
-                prefer_edge_torch=prefer_edge_torch,
-                prefer_edge_comfy=prefer_edge_comfy_channel,
-            )
-        runtime_configuration = _managed_runtime_configuration_from_strategy(
-            workspace=workspace,
-            detection=detection,
-            strategy=strategy,
-            force_cpu_mode=force_cpu_mode,
-            prefer_edge_torch=prefer_edge_torch,
-            prefer_edge_comfy_channel=prefer_edge_comfy_channel,
-        )
-        runtime_recorder.record_selection(runtime_configuration)
-        setup_freshness_key = _installed_setup_freshness_key(
-            workspace=workspace,
-            strategy=strategy,
-        )
-        if _installed_setup_freshness_is_current(
-            workspace=workspace,
-            key=setup_freshness_key,
-            refresh_core_nodepacks=refresh_core_nodepacks,
-        ):
-            existing_record = _load_installed_setup_freshness(workspace)
-            existing_validation = (
-                _validation_from_installed_setup_record(existing_record)
-                if existing_record is not None
-                else None
-            )
-            if existing_validation is not None:
-                _write_installed_setup_freshness(
-                    workspace=workspace,
-                    key=setup_freshness_key,
-                    request=setup_freshness_request,
-                    runtime_configuration=runtime_configuration,
-                    validation=existing_validation,
-                )
-            emit_status(on_status, "Managed ComfyUI setup is current.")
-            return venv_python
-        emit_status(on_status, "Installing Substitute Comfy nodepacks.")
-        with trace_span("managed_setup.existing.ensure_nodepacks"):
-            ensure_core_comfy_nodepacks(
-                workspace,
-                refresh_nodepacks=refresh_core_nodepacks,
-                on_log=on_log,
-                env=managed_env,
-            )
-            if configure_model_root:
-                configure_backend_model_root(
-                    workspace=workspace,
-                    python_executable=venv_python,
-                    model_root=managed_model_root,
-                )
-        emit_status(on_status, "Preparing Base-Cubes dependencies.")
-        with trace_span("managed_setup.existing.sugarcubes_baseline"):
-            run_sugarcubes_baseline_maintenance(
-                workspace,
-                on_log=on_log,
-                env=managed_env,
-            )
-        with trace_span("managed_setup.existing.validate_torch"):
-            resolved_backend, validation = validate_existing_torch_backend(
+        return reconcile_existing_managed_setup(
+            ExistingManagedSetupRequest(
                 workspace=workspace,
-                policy=strategy.torch_policy,
-                on_log=on_log,
-            )
-        runtime_recorder.record_torch_resolution(
-            backend_policy=resolved_backend.backend_key,
-            torch_release_channel=resolved_backend.release_channel.value,
-            torch_selection_reason=resolved_backend.selection_reason,
-            torch_fallback_used=resolved_backend.fallback_used,
-        )
-        runtime_recorder.record_validation(
-            status=(
-                ManagedRuntimeValidationStatus.VALID
-                if validation.success
-                else ManagedRuntimeValidationStatus.INVALID_BACKEND
-            ),
-            detail=validation.detail,
-        )
-        if not validation.success:
-            resolved_backend, validation = install_and_validate_selected_torch_backend(
                 python_executable=venv_python,
-                workspace=workspace,
-                policy=strategy.torch_policy,
+                managed_model_root=managed_model_root,
+                configure_model_root=configure_model_root,
+                force_cpu_mode=force_cpu_mode,
+                prefer_edge_torch=prefer_edge_torch,
+                prefer_edge_comfy_channel=prefer_edge_comfy_channel,
+                refresh_core_nodepacks=refresh_core_nodepacks,
+                runtime_recorder=runtime_recorder,
+                managed_env=managed_env,
+            ),
+            _ManagedExistingSetupOperations(
                 on_status=on_status,
                 on_log=on_log,
-                env=managed_env,
-            )
-            runtime_recorder.record_torch_resolution(
-                backend_policy=resolved_backend.backend_key,
-                torch_release_channel=resolved_backend.release_channel.value,
-                torch_selection_reason=resolved_backend.selection_reason,
-                torch_fallback_used=resolved_backend.fallback_used,
-            )
-            runtime_recorder.record_validation(
-                status=(
-                    ManagedRuntimeValidationStatus.VALID
-                    if validation.success
-                    else ManagedRuntimeValidationStatus.INVALID_BACKEND
-                ),
-                detail=validation.detail,
-            )
-        if not validation.success:
-            raise RuntimeError(validation.detail)
-        with trace_span("managed_setup.existing.acceleration"):
-            reconcile_managed_acceleration_stack(
-                workspace=workspace,
-                detection=detection,
-                on_status=on_status,
-                on_log=on_log,
-                env=managed_env,
-            )
-        setup_freshness_key = _installed_setup_freshness_key(
-            workspace=workspace,
-            strategy=strategy,
+            ),
         )
-        _write_installed_setup_freshness(
-            workspace=workspace,
-            key=setup_freshness_key,
-            request=setup_freshness_request,
-            runtime_configuration=runtime_configuration,
-            validation=validation,
-        )
-        return venv_python
 
     with trace_span("managed_setup.detect_hardware"):
         detection = detect_hardware()
