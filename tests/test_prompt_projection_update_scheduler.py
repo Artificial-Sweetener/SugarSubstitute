@@ -662,11 +662,11 @@ def test_projection_surface_refresh_geometry_does_not_emit_stale_safe_height(
 
 
 @pytest.mark.usefixtures("_projection_surface_scheduler_scope")
-def test_projection_surface_rebuilds_immediately_for_syntax_sensitive_typing(
+def test_projection_surface_schedules_semantics_after_syntax_sensitive_typing(
     widgets: list[QWidget],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Token syntax edits should not use the deferred plain-character lane."""
+    """Token syntax edits should paint immediately and coalesce semantic catch-up."""
 
     box = show_prompt_editor(
         widgets,
@@ -695,8 +695,11 @@ def test_projection_surface_rebuilds_immediately_for_syntax_sensitive_typing(
     QTest.keyClicks(box, "(")
 
     assert box.toPlainText() == "alpha("
-    assert rebuild_count >= 1
+    assert rebuild_count == 0
+    assert surface.projection_document().source_text == "alpha("
     assert surface.has_pending_projection_update() is False
+    assert surface.has_stale_projection_geometry() is False
+    assert surface.cursor_position == len("alpha(")
 
 
 @pytest.mark.usefixtures("_projection_surface_scheduler_scope")
@@ -778,7 +781,9 @@ def test_projection_surface_rebuilds_immediately_for_comma_inside_active_token(
     QTest.keyClicks(box, ",")
 
     assert box.toPlainText() == "(c,at:1.05)"
-    assert rebuild_count >= 1
+    assert rebuild_count == 0
+    assert surface.projection_document().source_text == box.toPlainText()
+    assert surface.cursor_position == 3
     assert surface.has_pending_projection_update() is False
 
 

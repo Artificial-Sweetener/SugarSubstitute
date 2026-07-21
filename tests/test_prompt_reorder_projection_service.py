@@ -108,7 +108,44 @@ def test_reorder_projection_service_reuses_active_preview_projection(
 
     counters = service.counters()
     assert counters["projection_snapshot_rebuild_count"] == 2
+    assert counters["preview_projection_full_layout_count"] == 1
+    assert counters["preview_projection_incremental_layout_count"] == 1
+    assert counters["preview_projection_exact_layout_reuse_count"] == 0
     assert counters["preview_projection_active_cache_hit_count"] == 1
+
+
+def test_reorder_projection_service_reuses_identical_base_layout(
+    app: QApplication,
+) -> None:
+    """An unchanged base snapshot should share the immutable preview layout."""
+
+    _ = app
+    service = _service()
+    preview_state = _build_reorder_preview_state(
+        "alpha, beta, gamma",
+        dragged_chip_index=1,
+        drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
+    )
+    preview_state = replace(
+        preview_state,
+        base_drag_snapshot=preview_state.preview_snapshot,
+    )
+
+    service.set_preview_state(
+        preview_state,
+        context=_context(),
+        font=QFont(),
+        palette=QPalette(),
+        semantic_palette=semantic_palette_from_theme(),
+    )
+
+    counters = service.counters()
+    assert counters["projection_snapshot_rebuild_count"] == 1
+    assert counters["preview_projection_full_layout_count"] == 1
+    assert counters["preview_projection_incremental_layout_count"] == 0
+    assert counters["preview_projection_exact_layout_reuse_count"] == 1
+    assert service.base_drag_document is service.preview_document
+    assert service.base_drag_layout is service.preview_layout
 
 
 def test_reorder_projection_service_clears_preview_only_state(
@@ -148,10 +185,10 @@ def test_reorder_projection_service_clears_preview_only_state(
     assert not service.is_active()
 
 
-def test_reorder_projection_service_lru_hit_does_not_rebuild_projection(
+def test_reorder_projection_service_incremental_target_preserves_lru_revisit(
     app: QApplication,
 ) -> None:
-    """Revisiting a cached preview target should reuse the service LRU entry."""
+    """Target changes reflow locally while cached targets remain reusable."""
 
     _ = app
     service = _service()
@@ -173,6 +210,7 @@ def test_reorder_projection_service_lru_hit_does_not_rebuild_projection(
         palette=QPalette(),
         semantic_palette=semantic_palette_from_theme(),
     )
+    after_first_target = service.counters()
     service.set_preview_state(
         preview_state_b,
         context=_context(active_drop_target_identity=("line", 0, 2)),
@@ -181,6 +219,20 @@ def test_reorder_projection_service_lru_hit_does_not_rebuild_projection(
         semantic_palette=semantic_palette_from_theme(),
     )
     before_revisit = service.counters()
+    assert (
+        before_revisit["preview_projection_full_layout_count"]
+        == (after_first_target["preview_projection_full_layout_count"])
+    )
+    assert _counter(
+        before_revisit,
+        "preview_projection_incremental_layout_count",
+    ) == (
+        _counter(
+            after_first_target,
+            "preview_projection_incremental_layout_count",
+        )
+        + 1
+    )
     service.set_preview_state(
         preview_state_a,
         context=_context(active_drop_target_identity=("line", 0, 0)),
@@ -192,7 +244,11 @@ def test_reorder_projection_service_lru_hit_does_not_rebuild_projection(
 
     assert (
         after_revisit["projection_snapshot_rebuild_count"]
-        == before_revisit["projection_snapshot_rebuild_count"]
+        == (before_revisit["projection_snapshot_rebuild_count"])
+    )
+    assert (
+        after_revisit["preview_projection_full_layout_count"]
+        == (before_revisit["preview_projection_full_layout_count"])
     )
     assert _counter(after_revisit, "preview_projection_lru_cache_hit_count") == (
         _counter(before_revisit, "preview_projection_lru_cache_hit_count") + 1
@@ -204,7 +260,6 @@ def test_reorder_projection_service_lru_hit_does_not_rebuild_projection(
     [
         ("source_revision", 2),
         ("viewport_width", 481),
-        ("scroll_offset", 12),
         ("preview_layout_key", ("layout", "changed")),
         ("base_drag_layout_key", ("base-layout", "changed")),
         ("active_drop_target_identity", ("line", 0, 2)),
@@ -377,7 +432,6 @@ def _context(
     *,
     source_revision: int = 1,
     viewport_width: int = 480,
-    scroll_offset: int = 0,
     preview_layout_key: tuple[object, ...] | None = ("preview", 1),
     base_drag_layout_key: tuple[object, ...] | None = ("base", 1),
     active_drop_target_identity: tuple[object, ...] | None = ("line", 0, 0),
@@ -388,7 +442,6 @@ def _context(
         source_revision=source_revision,
         layout_width=320.0,
         viewport_width=viewport_width,
-        scroll_offset=scroll_offset,
         preview_layout_key=preview_layout_key,
         base_drag_layout_key=base_drag_layout_key,
         active_drop_target_identity=active_drop_target_identity,
@@ -407,7 +460,6 @@ def _changed_context(
             source_revision=cast(int, field_value),
             layout_width=context.layout_width,
             viewport_width=context.viewport_width,
-            scroll_offset=context.scroll_offset,
             preview_layout_key=context.preview_layout_key,
             base_drag_layout_key=context.base_drag_layout_key,
             active_drop_target_identity=context.active_drop_target_identity,
@@ -417,17 +469,6 @@ def _changed_context(
             source_revision=context.source_revision,
             layout_width=context.layout_width,
             viewport_width=cast(int, field_value),
-            scroll_offset=context.scroll_offset,
-            preview_layout_key=context.preview_layout_key,
-            base_drag_layout_key=context.base_drag_layout_key,
-            active_drop_target_identity=context.active_drop_target_identity,
-        )
-    if field_name == "scroll_offset":
-        return PromptReorderPreviewProjectionContext(
-            source_revision=context.source_revision,
-            layout_width=context.layout_width,
-            viewport_width=context.viewport_width,
-            scroll_offset=cast(int, field_value),
             preview_layout_key=context.preview_layout_key,
             base_drag_layout_key=context.base_drag_layout_key,
             active_drop_target_identity=context.active_drop_target_identity,
@@ -437,7 +478,6 @@ def _changed_context(
             source_revision=context.source_revision,
             layout_width=context.layout_width,
             viewport_width=context.viewport_width,
-            scroll_offset=context.scroll_offset,
             preview_layout_key=cast(tuple[object, ...], field_value),
             base_drag_layout_key=context.base_drag_layout_key,
             active_drop_target_identity=context.active_drop_target_identity,
@@ -447,7 +487,6 @@ def _changed_context(
             source_revision=context.source_revision,
             layout_width=context.layout_width,
             viewport_width=context.viewport_width,
-            scroll_offset=context.scroll_offset,
             preview_layout_key=context.preview_layout_key,
             base_drag_layout_key=cast(tuple[object, ...], field_value),
             active_drop_target_identity=context.active_drop_target_identity,
@@ -457,7 +496,6 @@ def _changed_context(
             source_revision=context.source_revision,
             layout_width=context.layout_width,
             viewport_width=context.viewport_width,
-            scroll_offset=context.scroll_offset,
             preview_layout_key=context.preview_layout_key,
             base_drag_layout_key=context.base_drag_layout_key,
             active_drop_target_identity=cast(tuple[object, ...], field_value),

@@ -173,6 +173,22 @@ def _line_texts(layout: PromptProjectionLayout) -> tuple[str, ...]:
     return tuple(line_texts)
 
 
+def _assert_line_fragments_match_current_runs(
+    layout: PromptProjectionLayout,
+    line: PromptProjectionLineSnapshot,
+) -> None:
+    """Assert every fragment on one line resolves to its current run slice."""
+
+    for fragment in line.fragments:
+        run = layout.effective_run_for_paint(fragment.run_id)
+        assert run is not None
+        if not isinstance(fragment, PromptProjectionTextFragment):
+            continue
+        local_start = fragment.projection_start - run.projection_start
+        local_end = fragment.projection_end - run.projection_start
+        assert run.display_text[local_start:local_end] == fragment.text
+
+
 def _blank_line_break_ranges(prompt: str) -> tuple[tuple[int, int], ...]:
     """Return newline ranges that own visual blank rows in consecutive breaks."""
 
@@ -838,6 +854,275 @@ def test_projection_layout_incremental_plain_edit_matches_full_rebuild_geometry(
     )
 
 
+def test_projection_layout_reflow_rebuilds_only_the_dirty_line_window() -> None:
+    """Wrap-changing middle edits should preserve prefix lines and exact geometry."""
+
+    previous_text = ", ".join(f"tag {index} value" for index in range(240))
+    edit_start = previous_text.index("tag 120") + len("tag 120")
+    next_text = f"{previous_text[:edit_start]} extended{previous_text[edit_start:]}"
+    incremental_layout, _ = _layout_for(previous_text, text_width=180.0)
+    previous_first_line = incremental_layout._snapshot.lines[0]  # noqa: SLF001
+    next_document_view, next_projection = _projection_for(next_text)
+    full_layout, _ = _layout_for(next_text, text_width=180.0)
+
+    result = incremental_layout.set_projection_after_source_edit(
+        next_projection,
+        prompt_document_view=next_document_view,
+        edit_start=edit_start,
+        edit_end=edit_start,
+        replacement_text=" extended",
+    )
+
+    assert result.first_reflowed_line_index > 0
+    assert incremental_layout._snapshot.lines[0] is previous_first_line  # noqa: SLF001
+    assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
+        full_layout
+    )
+
+
+def test_projection_layout_fork_reflows_without_mutating_cached_source() -> None:
+    """Copy-on-write preview reflow must preserve the cached source layout."""
+
+    previous_text = "alpha\nbeta\ngamma"
+    next_text = "beta\nalpha\ngamma"
+    source_layout, _ = _layout_for(previous_text, text_width=180.0)
+    source_signature = _layout_geometry_signature(source_layout)
+    fork = source_layout.fork_for_incremental_reflow()
+    next_document_view, next_projection = _projection_for(next_text)
+    full_layout, _ = _layout_for(next_text, text_width=180.0)
+
+    fork.set_projection_after_source_edit(
+        next_projection,
+        prompt_document_view=next_document_view,
+        edit_start=0,
+        edit_end=len("alpha\nbeta"),
+        replacement_text="beta\nalpha",
+    )
+
+    assert source_layout.projection_document.source_text == previous_text
+    assert _layout_geometry_signature(source_layout) == source_signature
+    assert _layout_geometry_signature(fork) == _layout_geometry_signature(full_layout)
+
+
+def test_zero_delta_reused_suffix_rebinds_changed_projection_run_ids() -> None:
+    """Same-size reorder previews must retain paintable suffix semantics."""
+
+    suffix = "pink hair, long hair, twintails, (blue:1.35) ribbon"
+    previous_text = f"alpha,\n\n(beta:1.20), gamma,\n\n{suffix}"
+    replacement_text = "gamma, (beta:1.20),"
+    edit_start = previous_text.index("(beta:1.20)")
+    edit_end = edit_start + len("(beta:1.20), gamma,")
+    next_text = previous_text[:edit_start] + replacement_text + previous_text[edit_end:]
+    incremental_layout, previous_projection = _layout_for(
+        previous_text,
+        text_width=1000.0,
+    )
+    next_document_view, next_projection = _projection_for(next_text)
+    full_layout, _ = _layout_for(next_text, text_width=1000.0)
+
+    assert len(replacement_text) == edit_end - edit_start
+    assert (
+        next_projection.mapping.projection_length
+        == previous_projection.mapping.projection_length
+    )
+    incremental_layout.set_projection_after_source_edit(
+        next_projection,
+        prompt_document_view=next_document_view,
+        edit_start=edit_start,
+        edit_end=edit_end,
+        replacement_text=replacement_text,
+    )
+
+    unresolved_fragments = tuple(
+        fragment
+        for line in incremental_layout._snapshot.lines  # noqa: SLF001
+        for fragment in line.fragments
+        if incremental_layout.effective_run_for_paint(fragment.run_id) is None
+        or (
+            fragment.token_id is not None
+            and incremental_layout.effective_token_for_paint(fragment.token_id) is None
+        )
+    )
+    assert unresolved_fragments == ()
+    assert _line_texts(incremental_layout) == _line_texts(full_layout)
+
+
+def test_same_line_typing_refreshes_reused_suffix_fragment_semantics() -> None:
+    """Typing after suffix reuse must keep every visible fragment paintable."""
+
+    suffix = "pink hair, long hair, twintails, (blue:1.35) ribbon"
+    previous_text = f"alpha,\n\n(beta:1.20), gamma,\n\n{suffix}"
+    reordered_text = f"alpha,\n\ngamma, (beta:1.20),\n\n{suffix}"
+    edit_start = previous_text.index("(beta:1.20)")
+    edit_end = edit_start + len("(beta:1.20), gamma,")
+    layout, _ = _layout_for(previous_text, text_width=1000.0)
+    reordered_view, reordered_projection = _projection_for(reordered_text)
+
+    layout.set_projection_after_source_edit(
+        reordered_projection,
+        prompt_document_view=reordered_view,
+        edit_start=edit_start,
+        edit_end=edit_end,
+        replacement_text="gamma, (beta:1.20),",
+    )
+
+    typing_position = reordered_text.index("gamma") + len("gamma")
+    typed_text = (
+        f"{reordered_text[:typing_position]}X{reordered_text[typing_position:]}"
+    )
+    typed_view, typed_projection = _projection_for(typed_text)
+    result = layout.try_apply_same_line_plain_text_edit(
+        typed_projection,
+        prompt_document_view=typed_view,
+        edit_start=typing_position,
+        edit_end=typing_position,
+        replacement_text="X",
+        first_dirty_projection_position=typing_position,
+    )
+
+    assert result is not None
+    _assert_line_fragments_match_current_runs(
+        layout,
+        layout._snapshot.lines[-1],  # noqa: SLF001
+    )
+
+
+def test_enter_refreshes_reused_suffix_fragment_semantics() -> None:
+    """Enter after suffix reuse must keep downstream fragments paintable."""
+
+    suffix = "pink hair, long hair, twintails, (blue:1.35) ribbon"
+    previous_text = f"header text\nalpha,\n\n(beta:1.20), gamma,\n\n{suffix}"
+    reordered_text = f"header text\nalpha,\n\ngamma, (beta:1.20),\n\n{suffix}"
+    edit_start = previous_text.index("(beta:1.20)")
+    edit_end = edit_start + len("(beta:1.20), gamma,")
+    layout, _ = _layout_for(previous_text, text_width=1000.0)
+    reordered_view, reordered_projection = _projection_for(reordered_text)
+    layout.set_projection_after_source_edit(
+        reordered_projection,
+        prompt_document_view=reordered_view,
+        edit_start=edit_start,
+        edit_end=edit_end,
+        replacement_text="gamma, (beta:1.20),",
+    )
+
+    enter_position = len("header")
+    entered_text = (
+        f"{reordered_text[:enter_position]}\n{reordered_text[enter_position:]}"
+    )
+    entered_view, entered_projection = _projection_for(entered_text)
+    result = layout.try_apply_hard_line_break_edit(
+        entered_projection,
+        prompt_document_view=entered_view,
+        edit_start=enter_position,
+        edit_end=enter_position,
+        replacement_text="\n",
+        first_dirty_projection_position=enter_position,
+    )
+
+    assert result is not None
+    _assert_line_fragments_match_current_runs(
+        layout,
+        layout._snapshot.lines[-1],  # noqa: SLF001
+    )
+
+
+def test_scene_title_remains_paintable_after_same_length_scene_body_reorder() -> None:
+    """A body-only reorder must preserve the unchanged scene-title paint owner."""
+
+    previous_text = "alpha, beta,\n\n**scene marker\ntest, test test, 1girl, fiksla"
+    previous_body = "test, test test, 1girl, fiksla"
+    replacement_text = "test, 1girl, fiksla, test test"
+    edit_start = previous_text.index(previous_body)
+    edit_end = edit_start + len(previous_body)
+    next_text = previous_text[:edit_start] + replacement_text
+    incremental_layout, _ = _layout_for(previous_text, text_width=1000.0)
+    next_document_view, next_projection = _projection_for(next_text)
+    full_layout, _ = _layout_for(next_text, text_width=1000.0)
+
+    assert len(replacement_text) == edit_end - edit_start
+    incremental_layout.set_projection_after_source_edit(
+        next_projection,
+        prompt_document_view=next_document_view,
+        edit_start=edit_start,
+        edit_end=edit_end,
+        replacement_text=replacement_text,
+    )
+
+    scene_fragments = tuple(
+        fragment
+        for line in incremental_layout._snapshot.lines  # noqa: SLF001
+        for fragment in line.fragments
+        if isinstance(fragment, PromptProjectionTextFragment)
+        and fragment.text == "scene marker"
+    )
+    assert len(scene_fragments) == 1
+    assert (
+        incremental_layout.effective_run_for_paint(scene_fragments[0].run_id)
+        is not None
+    )
+    assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
+        full_layout
+    )
+
+
+def test_projection_layout_history_checkpoint_restores_only_matching_geometry() -> None:
+    """History should restore shared layout exactly and reject stale width geometry."""
+
+    initial_text = "alpha, (beta:1.20), gamma, delta"
+    layout, _ = _layout_for(initial_text, text_width=180.0)
+    initial_signature = _layout_geometry_signature(layout)
+    checkpoint = layout.create_history_checkpoint()
+    assert checkpoint is not None
+    next_text = "alpha, inserted, (beta:1.20), gamma, delta"
+    next_document_view, next_projection = _projection_for(next_text)
+    layout.set_projection(next_projection, prompt_document_view=next_document_view)
+
+    assert layout.try_restore_history_checkpoint(checkpoint)
+    assert layout.projection_document.source_text == initial_text
+    assert _layout_geometry_signature(layout) == initial_signature
+
+    layout.set_text_width(240.0)
+
+    assert not layout.try_restore_history_checkpoint(checkpoint)
+    assert layout.projection_document.source_text == initial_text
+
+
+@pytest.mark.parametrize(
+    ("previous_text", "edit_start"),
+    (
+        ("alpha, (decorated:1.20), omega", len("alpha")),
+        (
+            "(decorated:1.20), alpha omega",
+            len("(decorated:1.20), alpha"),
+        ),
+    ),
+)
+def test_projection_layout_incremental_plain_edit_preserves_inline_object_geometry(
+    previous_text: str,
+    edit_start: int,
+) -> None:
+    """Local text edits should remap an adjacent inline object exactly."""
+
+    next_text = previous_text[:edit_start] + "x" + previous_text[edit_start:]
+    incremental_layout, _ = _layout_for(previous_text, text_width=1000.0)
+    next_document_view, next_projection = _projection_for(next_text)
+    full_layout, _ = _layout_for(next_text, text_width=1000.0)
+
+    result = incremental_layout.try_apply_same_line_plain_text_edit(
+        next_projection,
+        prompt_document_view=next_document_view,
+        edit_start=edit_start,
+        edit_end=edit_start,
+        replacement_text="x",
+        first_dirty_projection_position=edit_start,
+    )
+
+    assert result is not None
+    assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
+        full_layout
+    )
+
+
 def test_projection_layout_applies_same_line_plain_selection_delete_incrementally() -> (
     None
 ):
@@ -1008,6 +1293,49 @@ def test_projection_layout_middle_newline_insert_uses_incremental_layout() -> No
     assert second_line.source_start == edit_start + 1
 
 
+def test_projection_layout_consecutive_middle_newlines_preserve_fragment_height() -> (
+    None
+):
+    """Consecutive line splits should translate fragments without collapsing them."""
+
+    initial_text = "alpha beta"
+    first_edit_start = len("alpha")
+    first_text = "alpha\n beta"
+    layout, _ = _layout_for(initial_text, text_width=1000.0)
+    first_document_view, first_projection = _projection_for(first_text)
+
+    first_result = layout.try_apply_hard_line_break_edit(
+        first_projection,
+        prompt_document_view=first_document_view,
+        edit_start=first_edit_start,
+        edit_end=first_edit_start,
+        replacement_text="\n",
+        first_dirty_projection_position=first_edit_start,
+    )
+
+    assert first_result is not None
+    second_edit_start = first_edit_start + 1
+    second_text = "alpha\n\n beta"
+    second_document_view, second_projection = _projection_for(second_text)
+    second_result = layout.try_apply_hard_line_break_edit(
+        second_projection,
+        prompt_document_view=second_document_view,
+        edit_start=second_edit_start,
+        edit_end=second_edit_start,
+        replacement_text="\n",
+        first_dirty_projection_position=second_edit_start,
+    )
+
+    assert second_result is not None
+    assert _line_texts(layout) == ("alpha", "", " beta")
+    assert all(
+        fragment.rect.height() == line.height
+        for line in layout._snapshot.lines  # noqa: SLF001
+        for fragment in line.fragments
+        if isinstance(fragment, PromptProjectionTextFragment)
+    )
+
+
 def test_projection_layout_middle_newline_insert_keeps_downstream_lines_lazy() -> None:
     """Middle newline insert should not materialize every downstream visual line."""
 
@@ -1067,6 +1395,56 @@ def test_projection_layout_middle_newline_delete_uses_incremental_layout() -> No
     joined_line = layout._snapshot.lines[0]  # noqa: SLF001
     assert joined_line.line_break_start is None
     assert joined_line.line_break_end is None
+
+
+def test_projection_layout_newline_insert_delete_preserves_downstream_inline_rows() -> (
+    None
+):
+    """Hard-line toggles should preserve downstream decorated row ownership."""
+
+    previous_text = "scene\nbody\n(sharp eyes:1.25)"
+    edit_start = len("scene")
+    inserted_text = f"{previous_text[:edit_start]}\n{previous_text[edit_start:]}"
+    layout, _ = _layout_for(previous_text, text_width=1000.0)
+    inserted_document_view, inserted_projection = _projection_for(inserted_text)
+
+    insert_result = layout.try_apply_hard_line_break_edit(
+        inserted_projection,
+        prompt_document_view=inserted_document_view,
+        edit_start=edit_start,
+        edit_end=edit_start,
+        replacement_text="\n",
+        first_dirty_projection_position=edit_start,
+    )
+
+    assert insert_result is not None
+    inserted_inline_line = layout._snapshot.lines[-1]  # noqa: SLF001
+    assert inserted_inline_line.fragments
+    assert layout._snapshot.inline_object_fragments  # noqa: SLF001
+
+    restored_document_view, restored_projection = _projection_for(previous_text)
+    delete_result = layout.try_apply_hard_line_break_edit(
+        restored_projection,
+        prompt_document_view=restored_document_view,
+        edit_start=edit_start,
+        edit_end=edit_start + 1,
+        replacement_text="",
+        first_dirty_projection_position=edit_start,
+    )
+
+    assert delete_result is not None
+    restored_inline_line = layout._snapshot.lines[-1]  # noqa: SLF001
+    assert restored_inline_line.fragments
+    assert layout._snapshot.inline_object_fragments  # noqa: SLF001
+    fresh_layout, _ = _layout_for(previous_text, text_width=1000.0)
+    assert _line_texts(layout)[-1] == _line_texts(fresh_layout)[-1]
+    assert tuple(
+        isinstance(fragment, PromptProjectionTextFragment)
+        for fragment in restored_inline_line.fragments
+    ) == tuple(
+        isinstance(fragment, PromptProjectionTextFragment)
+        for fragment in fresh_layout._snapshot.lines[-1].fragments  # noqa: SLF001
+    )
 
 
 def test_projection_layout_measures_projected_emphasis_from_visible_content_not_raw_syntax() -> (
@@ -1377,6 +1755,38 @@ def test_projection_layout_source_range_fragments_do_not_include_empty_line_sele
     assert fragments
     assert all(abs(rect.top() - blank_line.top) >= 1.0 for rect in fragments)
     assert len(fragments) == 1
+
+
+def test_projection_layout_reuses_source_line_rects_until_viewport_geometry_changes() -> (
+    None
+):
+    """Repeated paint consumers should share source-line geometry for one frame."""
+
+    prompt_text = "\n".join(f"line {index}, alpha beta gamma" for index in range(30))
+    layout, _ = _layout_for(prompt_text, text_width=180.0)
+    viewport_rect = QRectF(0.0, 0.0, 180.0, 160.0)
+
+    initial_rects = layout.source_line_rects(
+        viewport_rect=viewport_rect,
+        scroll_offset=0.0,
+    )
+    repeated_rects = layout.source_line_rects(
+        viewport_rect=viewport_rect,
+        scroll_offset=0.0,
+    )
+    scrolled_rects = layout.source_line_rects(
+        viewport_rect=viewport_rect,
+        scroll_offset=24.0,
+    )
+    repeated_scrolled_rects = layout.source_line_rects(
+        viewport_rect=viewport_rect,
+        scroll_offset=24.0,
+    )
+
+    assert repeated_rects is initial_rects
+    assert repeated_scrolled_rects is scrolled_rects
+    assert scrolled_rects is not initial_rects
+    assert scrolled_rects[0].rect.top() < initial_rects[0].rect.top()
 
 
 def test_projection_layout_builds_one_reorder_chip_geometry_for_escaped_weight_text() -> (

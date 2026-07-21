@@ -55,13 +55,13 @@ type ReorderLiveVisualGeometryKey = tuple[
     int,
 ]
 
-type ReorderChipWidgetVisualRectKey = tuple[int, float, float, float, float]
+type ReorderPointerRegionVisualRectKey = tuple[int, float, float, float, float]
 
-type ReorderChipWidgetGeometryKey = tuple[
+type ReorderPointerRegionGeometryKey = tuple[
     int | None,
     bool,
-    tuple[ReorderChipWidgetVisualRectKey, ...],
-    tuple[ReorderChipWidgetVisualRectKey, ...],
+    tuple[ReorderPointerRegionVisualRectKey, ...],
+    tuple[ReorderPointerRegionVisualRectKey, ...],
 ]
 
 
@@ -378,14 +378,14 @@ def reorder_overlay_refresh_geometry_key(
     )
 
 
-def reorder_chip_widget_geometry_key(
+def reorder_pointer_region_geometry_key(
     *,
     dragged_segment_index: int | None,
     preview_mode_active: bool,
-    preview_rects: tuple[ReorderChipWidgetVisualRectKey, ...],
-    live_rects: tuple[ReorderChipWidgetVisualRectKey, ...],
-) -> ReorderChipWidgetGeometryKey:
-    """Return the projection-owned identity for transparent chip widget placement."""
+    preview_rects: tuple[ReorderPointerRegionVisualRectKey, ...],
+    live_rects: tuple[ReorderPointerRegionVisualRectKey, ...],
+) -> ReorderPointerRegionGeometryKey:
+    """Return the projection-owned identity for logical pointer-region placement."""
 
     return (
         dragged_segment_index,
@@ -425,14 +425,14 @@ __all__ = [
     "PromptReorderPreviewTargetIdentity",
     "PromptReorderPreviewTargetState",
     "ReorderBaseDragGeometryKey",
-    "ReorderChipWidgetGeometryKey",
-    "ReorderChipWidgetVisualRectKey",
+    "ReorderPointerRegionGeometryKey",
+    "ReorderPointerRegionVisualRectKey",
     "ReorderLayoutViewKey",
     "ReorderLiveVisualGeometryKey",
     "ReorderPreviewSnapshotKey",
     "ReorderSourceFingerprint",
     "reorder_base_drag_geometry_key",
-    "reorder_chip_widget_geometry_key",
+    "reorder_pointer_region_geometry_key",
     "reorder_live_visual_geometry_key",
     "reorder_overlay_position_geometry_key",
     "reorder_overlay_refresh_geometry_key",

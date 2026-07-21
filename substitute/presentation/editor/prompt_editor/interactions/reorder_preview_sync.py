@@ -442,20 +442,6 @@ class PromptReorderPreviewSyncController:
             )
             self.flush_pending(reason="drag_reorder_prepare", forced=True)
             return
-        if context.requires_initial_landing_shadow:
-            record_decision(True)
-            log_reorder_drag_timing(
-                "interaction.schedule_preview_sync.immediate",
-                started_at=started_at,
-                gesture_id=context.gesture_id,
-                event_id=context.event_id,
-                reason="initial_shadow_missing",
-                pending_reason=reason,
-                revision=self._revision,
-                dragged_segment_index=context.dragged_segment_index,
-            )
-            self.flush_pending(reason="initial_shadow_missing", forced=True)
-            return
         record_decision(False)
         self._scheduler.request(
             revision=self._revision,

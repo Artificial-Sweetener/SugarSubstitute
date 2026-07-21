@@ -80,6 +80,12 @@ from tests.prompt_projection_test_helpers import (
     process_events,
     surface_for,
 )
+from tests.prompt_reorder_pointer_test_helpers import (
+    PromptReorderPointerTarget,
+    drag_prompt_reorder_target_to_global,
+    prompt_reorder_pointer_target,
+    prompt_reorder_pointer_targets,
+)
 
 TResult = TypeVar("TResult")
 
@@ -706,12 +712,9 @@ def test_phase3_reorder_entry_exposes_chip_identity_and_source_metadata(
     box = _show_phase3_editor(widgets, text=text)
 
     overlay = _enter_reorder_mode(box)
-    chips = _overlay_chip_widgets(overlay)
+    chips = _overlay_pointer_regions(overlay)
     chips_by_index = {cast(int, chip.property("segmentIndex")): chip for chip in chips}
-    segments_by_index = {
-        index: cast(Any, chip)._segment  # noqa: SLF001
-        for index, chip in chips_by_index.items()
-    }
+    segments_by_index = cast(Any, overlay)._segments_by_index
 
     assert sorted(chips_by_index) == [0, 1, 2, 3]
     assert [chips_by_index[index].property("segmentText") for index in range(4)] == [
@@ -755,9 +758,7 @@ def test_phase3_reorder_escape_exits_without_source_mutation(
     overlay = _enter_reorder_mode(box)
     _drag_reorder_chip_to_global(
         _overlay_chip_by_segment_index(overlay, 1),
-        global_target=_overlay_chip_by_segment_index(overlay, 0).mapToGlobal(
-            QPoint(4, _overlay_chip_by_segment_index(overlay, 0).rect().center().y())
-        ),
+        global_target=_overlay_chip_by_segment_index(overlay, 0).leading_global_point(),
     )
     process_events(ensure_qapp(), cycles=20)
     assert cast(Any, overlay).ordered_chip_indices() == [1, 0, 2]
@@ -780,9 +781,7 @@ def test_phase3_reorder_duplicate_tokens_preserve_identity_through_commit(
     overlay = _enter_reorder_mode(box)
     _drag_reorder_chip_to_global(
         _overlay_chip_by_segment_index(overlay, 2),
-        global_target=_overlay_chip_by_segment_index(overlay, 1).mapToGlobal(
-            QPoint(4, _overlay_chip_by_segment_index(overlay, 1).rect().center().y())
-        ),
+        global_target=_overlay_chip_by_segment_index(overlay, 1).leading_global_point(),
     )
     process_events(ensure_qapp(), cycles=20)
 
@@ -808,9 +807,7 @@ def test_phase3_reorder_preview_does_not_mutate_source_until_commit(
     overlay = _enter_reorder_mode(box)
     _drag_reorder_chip_to_global(
         _overlay_chip_by_segment_index(overlay, 2),
-        global_target=_overlay_chip_by_segment_index(overlay, 0).mapToGlobal(
-            QPoint(4, _overlay_chip_by_segment_index(overlay, 0).rect().center().y())
-        ),
+        global_target=_overlay_chip_by_segment_index(overlay, 0).leading_global_point(),
     )
     process_events(ensure_qapp(), cycles=20)
 
@@ -932,40 +929,26 @@ def _enter_reorder_mode(box: PromptEditor) -> QWidget:
     return overlay
 
 
-def _overlay_chip_widgets(overlay: QWidget) -> list[QWidget]:
-    """Return visible reorder chips sorted by rendered position."""
+def _overlay_pointer_regions(overlay: QWidget) -> list[PromptReorderPointerTarget]:
+    """Return visible logical reorder targets in rendered order."""
 
-    chips = [
-        chip
-        for chip in overlay.findChildren(QWidget, "segmentChip")
-        if chip.isVisible()
-    ]
-    return sorted(
-        chips,
-        key=lambda chip: (
-            chip.mapToGlobal(chip.rect().topLeft()).y(),
-            chip.mapToGlobal(chip.rect().topLeft()).x(),
-        ),
-    )
+    return prompt_reorder_pointer_targets(overlay)
 
 
-def _overlay_chip_by_segment_index(overlay: QWidget, segment_index: int) -> QWidget:
-    """Return one visible reorder chip by segment identity."""
+def _overlay_chip_by_segment_index(
+    overlay: QWidget, segment_index: int
+) -> PromptReorderPointerTarget:
+    """Return one visible logical reorder target by segment identity."""
 
-    for chip in overlay.findChildren(QWidget, "segmentChip"):
-        if chip.property("segmentIndex") == segment_index:
-            return chip
-    raise AssertionError(f"Missing segment chip for index {segment_index}.")
+    return prompt_reorder_pointer_target(overlay, segment_index)
 
 
-def _drag_reorder_chip_to_global(chip: QWidget, *, global_target: QPoint) -> None:
+def _drag_reorder_chip_to_global(
+    chip: PromptReorderPointerTarget, *, global_target: QPoint
+) -> None:
     """Drag one reorder chip to a target global point."""
 
-    start = chip.rect().center()
-    target = chip.mapFromGlobal(global_target)
-    QTest.mousePress(chip, Qt.MouseButton.LeftButton, pos=start)
-    QTest.mouseMove(chip, target, 10)
-    QTest.mouseRelease(chip, Qt.MouseButton.LeftButton, pos=target, delay=10)
+    drag_prompt_reorder_target_to_global(chip, global_target=global_target)
 
 
 def _editor_reorder_preview_text(box: PromptEditor) -> str:

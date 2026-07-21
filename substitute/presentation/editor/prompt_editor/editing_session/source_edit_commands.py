@@ -416,6 +416,8 @@ def _normalize_range_edit(
             end=replacement_end,
         )
     if origin is PromptSourceEditOrigin.TYPED:
+        if original_end != start:
+            return _identity_source_normalization(updated_text)
         if any(
             intent.contains_edit(start, original_end) for intent in protected_intents
         ):
@@ -511,6 +513,8 @@ def _remap_generated_emphases_for_edit(
 ) -> tuple[PromptGeneratedEmphasis, ...]:
     """Remap generated-weight provenance while treating weight edits as authored."""
 
+    if not existing:
+        return ()
     delta = len(replacement_text) - (end - start)
     content_ranges = {
         (span.outer_range.start, span.outer_range.end): span.content_range

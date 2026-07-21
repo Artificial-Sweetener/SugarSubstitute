@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import QRectF
+from PySide6.QtCore import QRect, QRectF
 
 from ..projection.reorder_animation import PromptReorderAnimationPlan
 from ..projection.reorder_state import PromptReorderAnimationGenerationState
@@ -55,12 +55,12 @@ class PromptReorderOverlayAnimationMixin(_OverlayShellAccess):
         )
 
     def apply_animation_plan(self, plan: PromptReorderAnimationPlan) -> None:
-        """Animate chip widgets using projection-owned target geometry."""
+        """Animate chip paint geometry using projection-owned targets."""
 
         self._begin_animation_frame_batch()
         try:
             self._apply_held_chip_animation(plan)
-            self._animation_presenter.apply_plan(plan, self._chips_by_index)
+            self._animation_presenter.apply_plan(plan)
         finally:
             self._end_animation_frame_batch()
 
@@ -115,7 +115,27 @@ class PromptReorderOverlayAnimationMixin(_OverlayShellAccess):
         if self._animation_frame_batch_depth > 0:
             self._animation_frame_sync_pending = True
             return
+        self._sync_animated_pointer_regions()
         self._sync_reorder_view_state(reason="animation_frame")
+
+    def _sync_animated_pointer_regions(self) -> None:
+        """Keep hit regions aligned with the chrome users currently see moving."""
+
+        paint_rects = self._animation_presenter.paint_rect_overrides()
+        paint_rects.update(self._held_chip_presenter.paint_rect_overrides())
+        current_indices = set(paint_rects)
+        for segment_index in self._animated_pointer_region_indices | current_indices:
+            region = self._chips_by_index.get(segment_index)
+            if region is None:
+                continue
+            painted_rect = paint_rects.get(segment_index)
+            if painted_rect is None:
+                visual = self._visible_visual_for_segment(segment_index)
+                if visual is None:
+                    continue
+                painted_rect = QRectF(visual.hotspot_rect)
+            region.set_geometry(_pointer_region_rect(painted_rect))
+        self._animated_pointer_region_indices = current_indices
 
     def _current_visible_chip_rects_for_animation(self) -> dict[int, QRectF]:
         """Return current painted chip rects only when animation is pending."""
@@ -226,3 +246,14 @@ class PromptReorderOverlayAnimationMixin(_OverlayShellAccess):
 
 
 __all__ = ["PromptReorderOverlayAnimationMixin"]
+
+
+def _pointer_region_rect(rect: QRectF) -> QRect:
+    """Return integer hit bounds matching a painted animation rectangle."""
+
+    return QRect(
+        round(rect.left()),
+        round(rect.top()),
+        round(rect.width()),
+        round(rect.height()),
+    )

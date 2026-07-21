@@ -336,6 +336,7 @@ class PromptReorderController:
         self._interaction_mode = PromptEditorInteractionMode.TEXT_EDITING
         self._session_controller = PromptReorderSessionController()
         self._segment_overlay: PromptReorderOverlayPort | None = None
+        self._publishing_preview_state = False
         self._preview_sync = PromptReorderPreviewSyncController(
             interval_ms=self._REORDER_PREVIEW_SYNC_INTERVAL_MS,
             run_sync=lambda: self._sync_reorder_preview_from_overlay(),
@@ -718,8 +719,9 @@ class PromptReorderController:
         )
         assert current_result is not None
         assert base_drag_result is not None
-        self._editor.set_reorder_preview_state(
-            PromptReorderPreviewState(
+        self._publish_reorder_preview_state(
+            overlay,
+            preview_state=PromptReorderPreviewState(
                 preview_snapshot=current_result.projection_snapshot,
                 base_drag_snapshot=base_drag_result.projection_snapshot,
                 ordered_chip_indices=ordered_chip_indices,
@@ -730,10 +732,8 @@ class PromptReorderController:
                 instrumentation_gesture_id=gesture_id,
                 instrumentation_event_id=event_id,
                 instrumentation_reason=self._preview_sync.active_reason or "",
-            )
-        )
-        overlay.set_preview_snapshot(
-            None,
+            ),
+            preview_snapshot=None,
             base_drag_snapshot=base_drag_result.preview_snapshot,
             ordered_chip_indices=ordered_chip_indices,
         )
@@ -762,9 +762,10 @@ class PromptReorderController:
         active_drop_target_identity = self._active_drop_target_identity(
             self._overlay_drop_target(overlay)
         )
+        preview_reorder_state = overlay.preview_reorder_state()
         preview_result = self._build_reorder_preview_projection_result(
             preview_layout_view,
-            reorder_state=overlay.preview_reorder_state(),
+            reorder_state=preview_reorder_state,
             cache_namespace="preview",
             layout_key=layout_view_key(preview_layout_view),
             active_drop_target_identity=active_drop_target_identity,
@@ -783,15 +784,31 @@ class PromptReorderController:
             target_kind=reorder_drag_target_kind(self._overlay_drop_target(overlay)),
         )
         phase_started_at = reorder_drag_started_at()
-        base_drag_result = self._build_reorder_preview_projection_result(
-            base_drag_layout_view,
-            reorder_state=overlay.base_drag_reorder_state(),
-            cache_namespace="base_drag",
-            layout_key=layout_view_key(base_drag_layout_view),
-            active_drop_target_identity=None,
-            gesture_id=gesture_id,
-            event_id=event_id,
-        )
+        base_drag_reorder_state = overlay.base_drag_reorder_state()
+        if (
+            base_drag_layout_view is not None
+            and base_drag_layout_view == preview_layout_view
+            and base_drag_reorder_state == preview_reorder_state
+        ):
+            base_drag_result = preview_result
+            log_reorder_drag_event(
+                "interaction.sync_preview.base_drag_result_exact_reuse",
+                gesture_id=gesture_id,
+                event_id=event_id,
+                reason=self._preview_sync.active_reason,
+                row_count=len(base_drag_layout_view.rows),
+                gap_count=len(base_drag_layout_view.gaps),
+            )
+        else:
+            base_drag_result = self._build_reorder_preview_projection_result(
+                base_drag_layout_view,
+                reorder_state=base_drag_reorder_state,
+                cache_namespace="base_drag",
+                layout_key=layout_view_key(base_drag_layout_view),
+                active_drop_target_identity=None,
+                gesture_id=gesture_id,
+                event_id=event_id,
+            )
         base_elapsed_ms = log_reorder_drag_timing(
             "interaction.sync_preview.base_drag_projection_snapshot",
             started_at=phase_started_at,
@@ -807,8 +824,9 @@ class PromptReorderController:
         )
         assert preview_result is not None
         ordered_chip_indices = overlay.commit_snapshot().ordered_chip_indices
-        self._editor.set_reorder_preview_state(
-            PromptReorderPreviewState(
+        self._publish_reorder_preview_state(
+            overlay,
+            preview_state=PromptReorderPreviewState(
                 preview_snapshot=preview_result.projection_snapshot,
                 base_drag_snapshot=(
                     None
@@ -823,10 +841,8 @@ class PromptReorderController:
                 instrumentation_gesture_id=gesture_id,
                 instrumentation_event_id=event_id,
                 instrumentation_reason=self._preview_sync.active_reason or "",
-            )
-        )
-        overlay.set_preview_snapshot(
-            preview_result.preview_snapshot,
+            ),
+            preview_snapshot=preview_result.preview_snapshot,
             base_drag_snapshot=(
                 None if base_drag_result is None else base_drag_result.preview_snapshot
             ),
@@ -844,6 +860,28 @@ class PromptReorderController:
             preview_elapsed_ms=f"{preview_elapsed_ms:.3f}",
             base_elapsed_ms=f"{base_elapsed_ms:.3f}",
         )
+
+    def _publish_reorder_preview_state(
+        self,
+        overlay: PromptReorderOverlayPort,
+        *,
+        preview_state: PromptReorderPreviewState,
+        preview_snapshot: PromptReorderPreviewSnapshot | None,
+        base_drag_snapshot: PromptReorderPreviewSnapshot | None,
+        ordered_chip_indices: tuple[int, ...],
+    ) -> None:
+        """Publish surface and overlay preview state as one geometry transaction."""
+
+        self._publishing_preview_state = True
+        try:
+            self._editor.set_reorder_preview_state(preview_state)
+            overlay.set_preview_snapshot(
+                preview_snapshot,
+                base_drag_snapshot=base_drag_snapshot,
+                ordered_chip_indices=ordered_chip_indices,
+            )
+        finally:
+            self._publishing_preview_state = False
 
     def _build_reorder_preview_projection_result(
         self,
@@ -871,7 +909,6 @@ class PromptReorderController:
             cache_namespace=cache_namespace,
             source_revision=self._current_source_revision() or 0,
             viewport_width=self._current_preview_viewport_width(),
-            scroll_position=self._current_preview_scroll_position(),
             layout_key=layout_key,
             active_drop_target_identity=active_drop_target_identity,
             gesture_id=gesture_id,
@@ -892,19 +929,6 @@ class PromptReorderController:
             return 0
         width = cast(Callable[[], object], width_method)()
         return width if isinstance(width, int) else 0
-
-    def _current_preview_scroll_position(self) -> int:
-        """Return scroll position used by projection-owned preview cache keys."""
-
-        scrollbar_method = getattr(self._editor, "verticalScrollBar", None)
-        if not callable(scrollbar_method):
-            return 0
-        scrollbar = cast(Callable[[], object], scrollbar_method)()
-        value_method = getattr(scrollbar, "value", None)
-        if not callable(value_method):
-            return 0
-        value = cast(Callable[[], object], value_method)()
-        return value if isinstance(value, int) else 0
 
     def _preview_sync_context(
         self,
@@ -1126,13 +1150,14 @@ class PromptReorderController:
             "interaction.show_segment_overlay.clear_transient_state",
             started_at=phase_started_at,
         )
-        active_segment_index = self._active_segment_index_for_reorder()
+        active_segment_index = self._active_segment_index_for_reorder(chips)
         selection_start, selection_end = self._segment_reorder_selection_bounds()
         (
             selection_start_offset_within_active_chip,
             selection_end_offset_within_active_chip,
         ) = self._segment_reorder_selection_offsets_within_active_chip(
-            active_segment_index
+            active_segment_index,
+            chips=chips,
         )
         ordered_indices = tuple(chip.index for chip in chips)
         self._session_controller.start(
@@ -1168,6 +1193,12 @@ class PromptReorderController:
             lambda: self.schedule_reorder_preview_sync(reason="overlay_preview_changed")
         )
         phase_started_at = reorder_drag_started_at()
+        self._segment_overlay.show()
+        overlay_prepare_elapsed_ms = log_reorder_drag_timing(
+            "interaction.show_segment_overlay.prepare",
+            started_at=phase_started_at,
+        )
+        phase_started_at = reorder_drag_started_at()
         self._segment_overlay.set_chips(
             document_view,
             reorder_layout_view,
@@ -1184,8 +1215,6 @@ class PromptReorderController:
             gap_count=len(reorder_layout_view.gaps),
         )
         phase_started_at = reorder_drag_started_at()
-        self._position_segment_overlay()
-        self._segment_overlay.show()
         self._editor.setFocus()
         show_elapsed_ms = log_reorder_drag_timing(
             "interaction.show_segment_overlay.show",
@@ -1201,6 +1230,7 @@ class PromptReorderController:
             session_view_elapsed_ms=f"{session_view_elapsed_ms:.3f}",
             clear_elapsed_ms=f"{clear_elapsed_ms:.3f}",
             overlay_init_elapsed_ms=f"{overlay_init_elapsed_ms:.3f}",
+            overlay_prepare_elapsed_ms=f"{overlay_prepare_elapsed_ms:.3f}",
             set_chips_elapsed_ms=f"{set_chips_elapsed_ms:.3f}",
             show_elapsed_ms=f"{show_elapsed_ms:.3f}",
         )
@@ -1214,7 +1244,7 @@ class PromptReorderController:
     def _position_segment_overlay(self) -> None:
         """Align the segment overlay with the visible editor viewport."""
 
-        if self._segment_overlay is None:
+        if self._segment_overlay is None or self._publishing_preview_state:
             return
         needs_position_refresh = getattr(
             self._segment_overlay,
@@ -1229,7 +1259,10 @@ class PromptReorderController:
             return
         self._segment_overlay.refresh_geometry(reason="interaction_position_overlay")
 
-    def _active_segment_index_for_reorder(self) -> int | None:
+    def _active_segment_index_for_reorder(
+        self,
+        chips: tuple[PromptReorderChipView, ...],
+    ) -> int | None:
         """Resolve the segment that should stay active through one reorder session."""
 
         cursor = self._editor.textCursor()
@@ -1241,12 +1274,14 @@ class PromptReorderController:
             selection_end = max(selection_start, cursor.selectionEnd() - 1)
             candidate_positions = [selection_start, selection_end]
 
-        document_view = self._host.current_reorder_document_view()
-        chips = self._document_service.reorder_chips(document_view)
         for position in candidate_positions:
-            chip = self._document_service.reorder_chip_at_position(
-                document_view,
-                position,
+            chip = next(
+                (
+                    candidate
+                    for candidate in chips
+                    if self._position_within_reorder_chip(position, candidate)
+                ),
+                None,
             )
             if chip is not None:
                 return chip.index
@@ -1284,13 +1319,18 @@ class PromptReorderController:
     def _segment_reorder_selection_offsets_within_active_chip(
         self,
         active_segment_index: int | None,
+        *,
+        chips: tuple[PromptReorderChipView, ...],
     ) -> tuple[int | None, int | None]:
         """Capture selection offsets relative to the active chip when self-contained."""
 
         if active_segment_index is None:
             return None, None
 
-        active_chip = self._reorder_chip_by_index(active_segment_index)
+        active_chip = next(
+            (chip for chip in chips if chip.index == active_segment_index),
+            None,
+        )
         if active_chip is None:
             return None, None
 
@@ -1305,18 +1345,6 @@ class PromptReorderController:
 
         chip_start = active_chip.selection_start
         return selection_start - chip_start, selection_end - chip_start
-
-    def _reorder_chip_by_index(
-        self,
-        chip_index: int,
-    ) -> PromptReorderChipView | None:
-        """Return the cached reorder chip matching one active chip index."""
-
-        document_view = self._host.current_reorder_document_view()
-        for chip in self._document_service.reorder_chips(document_view):
-            if chip.index == chip_index:
-                return chip
-        return None
 
     @staticmethod
     def _position_within_reorder_chip(
@@ -1387,10 +1415,10 @@ class PromptReorderController:
         self.close_reorder_preview(reason="overlay_close")
         overlay = self._segment_overlay
         if overlay is not None:
-            self._editor.clear_reorder_preview_state()
             overlay.close()
             overlay.deleteLater()
             self._segment_overlay = None
+        self._editor.clear_reorder_preview_state()
 
         if restore_selection:
             self._restore_segment_reorder_selection()

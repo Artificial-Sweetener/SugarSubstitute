@@ -90,7 +90,7 @@ Prompt preview:
       <translation>%1：%2。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="419"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="410"></location>
       <source>%1 (%2)</source>
       <translation>%1（%2）</translation>
     </message>
@@ -470,7 +470,7 @@ Prompt preview:
       <translation>カスタムタグを追加し、不要なタグ候補を非表示にします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="397"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="418"></location>
       <source>Add to dictionary</source>
       <translation>辞書に追加</translation>
     </message>
@@ -560,7 +560,7 @@ Prompt preview:
       <translation>常に最新バージョンを使用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="928"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="939"></location>
       <source>Ambiguous</source>
       <translation>候補を特定できません</translation>
     </message>
@@ -630,7 +630,7 @@ Prompt preview:
       <translation>自動検出</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="75"></location>
+      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="63"></location>
       <source>Autocomplete Lists</source>
       <translation>自動補完リスト</translation>
     </message>
@@ -2168,12 +2168,12 @@ Install these nodes now?</source>
       <translation>定義を利用できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="651"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="653"></location>
       <source>Delete</source>
       <translation>削除</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="716"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="718"></location>
       <source>Delete '%1'?</source>
       <translation>「%1」を削除しますか？</translation>
     </message>
@@ -2183,7 +2183,7 @@ Install these nodes now?</source>
       <translation>%1 にある未完成のフォルダーを削除してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="715"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="717"></location>
       <source>Delete wildcard</source>
       <translation>ワイルドカードを削除</translation>
     </message>
@@ -2248,7 +2248,7 @@ Install these nodes now?</source>
       <translation>直接読み込んだ Comfy ワークフローには Cube スタックがありません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="633"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="635"></location>
       <source>Disable</source>
       <translation>無効にする</translation>
     </message>
@@ -2258,12 +2258,12 @@ Install these nodes now?</source>
       <translation>無効</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="241"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="240"></location>
       <source>Discard</source>
       <translation>破棄</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="311"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="306"></location>
       <source>Discard changes</source>
       <translation>変更を破棄</translation>
     </message>
@@ -2328,7 +2328,7 @@ Install these nodes now?</source>
       <translation>複製</translation>
     </message>
     <message>
-      <location filename="../substitute/application/prompt_editor/prompt_duplicate_segment_diagnostic_provider.py" line="242"></location>
+      <location filename="../substitute/application/prompt_editor/prompt_duplicate_segment_diagnostic_provider.py" line="273"></location>
       <source>Duplicate prompt segment: %1</source>
       <translation>重複しているプロンプト部分：%1</translation>
     </message>
@@ -2368,7 +2368,7 @@ Install these nodes now?</source>
       <translation>強調の重み</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="426"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="447"></location>
       <source>Emphasize first</source>
       <translation>先頭を強調</translation>
     </message>
@@ -2928,7 +2928,7 @@ Install these nodes now?</source>
       <translation>強制終了すると、バックグラウンドサービスが動作し続ける可能性があります。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="433"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="454"></location>
       <source>Ignore duplicate</source>
       <translation>重複を無視</translation>
     </message>
@@ -2938,7 +2938,7 @@ Install these nodes now?</source>
       <translation>選択項目を無視</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="387"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="408"></location>
       <source>Ignore spelling</source>
       <translation>スペルを無視</translation>
     </message>
@@ -3618,22 +3618,22 @@ Install these nodes now?</source>
       <translation>未同期</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="80"></location>
+      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="78"></location>
       <source>New CSV</source>
       <translation>新規 CSV</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="76"></location>
+      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="74"></location>
       <source>New TXT</source>
       <translation>新規 TXT</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="86"></location>
+      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="74"></location>
       <source>New censored list</source>
       <translation>新規除外リスト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="81"></location>
+      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="69"></location>
       <source>New custom list</source>
       <translation>新規カスタムリスト</translation>
     </message>
@@ -3768,7 +3768,7 @@ Install these nodes now?</source>
       <translation>検証済みのリポジトリはありません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="498"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="489"></location>
       <source>No selection</source>
       <translation>未選択</translation>
     </message>
@@ -3778,7 +3778,7 @@ Install these nodes now?</source>
       <translation>設定が見つかりません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="380"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="401"></location>
       <source>No spelling suggestions</source>
       <translation>スペルの候補はありません</translation>
     </message>
@@ -3838,7 +3838,7 @@ Install these nodes now?</source>
       <translation>未接続</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="926"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="937"></location>
       <source>Not found</source>
       <translation>見つかりません</translation>
     </message>
@@ -4573,7 +4573,7 @@ Install these nodes now?</source>
       <translation>バイパスを解除</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="419"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="440"></location>
       <source>Remove duplicate</source>
       <translation>重複を削除</translation>
     </message>
@@ -4608,7 +4608,7 @@ Install these nodes now?</source>
       <translation>予定されている変更を削除しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="642"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="644"></location>
       <source>Rename</source>
       <translation>名前を変更</translation>
     </message>
@@ -4982,7 +4982,7 @@ No known extension claimant.</source>
       <translation>保存して続行</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="309"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="304"></location>
       <source>Save changes</source>
       <translation>変更を保存</translation>
     </message>
@@ -5070,6 +5070,11 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="482"></location>
       <source>Scene generation requires at least one **scene marker in the first positive prompt.</source>
       <translation>シーンの生成には、最初のポジティブプロンプトに **scene マーカーが 1 つ以上必要です。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/prompt_editor/prompt_unsupported_scene_marker_diagnostic_provider.py" line="32"></location>
+      <source>Scenes aren’t supported in wildcard values.</source>
+      <translation>ワイルドカード値ではシーンを使用できません。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="735"></location>
@@ -5952,7 +5957,7 @@ No known extension claimant.</source>
       <translation>Substitute に保存されたフォルダー設定を修正する必要があります</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2809"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2838"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6647,27 +6652,27 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>再試行</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="579"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="581"></location>
       <source>Unable to apply changes</source>
       <translation>変更を適用できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="608"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="610"></location>
       <source>Unable to create asset</source>
       <translation>素材を作成できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="724"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="726"></location>
       <source>Unable to delete asset</source>
       <translation>素材を削除できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="205"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="204"></location>
       <source>Unable to load assets</source>
       <translation>素材を読み込めません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="477"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="468"></location>
       <source>Unable to read asset</source>
       <translation>素材を読み取れません</translation>
     </message>
@@ -6677,17 +6682,17 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>カタログを更新できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="679"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="681"></location>
       <source>Unable to rename asset</source>
       <translation>素材の名前を変更できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="544"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="546"></location>
       <source>Unable to save asset</source>
       <translation>素材を保存できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="702"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="704"></location>
       <source>Unable to update asset</source>
       <translation>素材を更新できません</translation>
     </message>
@@ -7087,7 +7092,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ワイルドカードの構文</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="70"></location>
+      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="68"></location>
       <source>Wildcards</source>
       <translation>ワイルドカード</translation>
     </message>

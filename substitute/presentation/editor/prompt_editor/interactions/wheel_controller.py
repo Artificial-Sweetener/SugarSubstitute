@@ -212,9 +212,6 @@ class PromptSurfaceWheelHost(Protocol):
     def viewport(self) -> QWidget:
         """Return the viewport widget that should repaint after scroll changes."""
 
-    def _clear_reorder_geometry_caches(self, *, reason: str) -> None:
-        """Invalidate reorder geometry after a viewport scroll offset change."""
-
     def _sync_layout_state(self) -> None:
         """Synchronize scrollbar range and projection layout state."""
 
@@ -244,7 +241,6 @@ class PromptSurfaceWheelHandler:
     def refresh_scroll(self) -> None:
         """Repaint after the host scrollbar moves the visible projection window."""
 
-        self._host._clear_reorder_geometry_caches(reason="scroll")
         self._host.viewport().update()
 
     def set_wheel_scroll_permission(
@@ -399,7 +395,6 @@ class PromptSurfaceWheelHandler:
 
         scroll_bar = self._host.verticalScrollBar()
         scroll_bar.setValue(value)
-        self._host._clear_reorder_geometry_caches(reason="external_scroll")
         self._host.viewport().update()
 
     def _handle_external_scroll_bar_destroyed(self) -> None:

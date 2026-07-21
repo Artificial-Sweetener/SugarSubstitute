@@ -742,6 +742,23 @@ class PromptInteractionController:
         text = self._editor.toPlainText()
         self._handle_text_changed_measured(text)
 
+    def handle_document_semantics_changed(self) -> None:
+        """Rebuild prompt state when source interpretation changes in place."""
+
+        if (
+            self._reorder.interaction_mode
+            is PromptEditorInteractionMode.SEGMENT_REORDER
+        ):
+            self._reorder.cancel_segment_reorder_mode(restore_selection=False)
+        self._autocomplete_timing_controller.clear_for_non_text_interaction()
+        self._emphasis.clear_emphasis_adjustment_session(clear_transient_neutral=True)
+        self._syntax_state.clear_transient_state()
+        self._semantic_refresh.queue_source_changed(
+            self._editor.toPlainText(),
+            reason="document_semantics_changed",
+        )
+        self._semantic_refresh.flush(reason="document_semantics_changed")
+
     def _handle_text_changed_measured(self, text: str) -> None:
         """Queue prompt semantics after handle_text_changed starts probe timing."""
 

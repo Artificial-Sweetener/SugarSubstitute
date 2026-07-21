@@ -37,6 +37,10 @@ from .prompt_diagnostics_models import (
     PromptDuplicateSegmentDiagnosticPayload,
 )
 from .prompt_diagnostics_service import PromptDiagnosticProviderResult
+from .prompt_document_semantics import (
+    OrdinaryPromptDocumentSemantics,
+    PromptDocumentSemantics,
+)
 from .prompt_document_projector import PromptDocumentProjector
 from .prompt_document_views import PromptDocumentView
 from .prompt_scene_projection_service import parse_prompt_scene_projection_document
@@ -61,15 +65,23 @@ class PromptDuplicateSegmentDiagnosticProvider:
         self,
         *,
         document_projector: PromptDocumentProjector | None = None,
+        document_semantics: PromptDocumentSemantics | None = None,
     ) -> None:
         """Store prompt parsing collaborators."""
 
         self._document_projector = document_projector or PromptDocumentProjector()
+        self._document_semantics = (
+            document_semantics or OrdinaryPromptDocumentSemantics()
+        )
 
     def diagnostics_for_text(self, text: str) -> PromptDiagnosticProviderResult:
         """Return duplicate-segment diagnostics for one prompt source string."""
 
         document_view = self._document_projector.build_document_view(text)
+        if self._document_semantics.isolates_duplicate_diagnostics_by_value:
+            return PromptDiagnosticProviderResult(
+                diagnostics=self._diagnostics_for_document_values(document_view)
+            )
         scene_document = parse_prompt_scene_projection_document(text)
         diagnostics = (
             self._diagnostics_without_scenes(document_view)
@@ -77,6 +89,25 @@ class PromptDuplicateSegmentDiagnosticProvider:
             else self._diagnostics_for_scene_document(document_view, scene_document)
         )
         return PromptDiagnosticProviderResult(diagnostics=diagnostics)
+
+    def _diagnostics_for_document_values(
+        self,
+        document_view: PromptDocumentView,
+    ) -> tuple[PromptDiagnostic, ...]:
+        """Return diagnostics independently within each wildcard value."""
+
+        diagnostics: list[PromptDiagnostic] = []
+        for mapping in self._document_semantics.value_mappings_for_text(
+            document_view.source_text
+        ):
+            occurrences = self._occurrences_in_range(
+                document_view,
+                mapping.source_range,
+            )
+            diagnostics.extend(
+                _diagnostics_for_occurrences(occurrences, first_occurrences={})
+            )
+        return tuple(diagnostics)
 
     def _diagnostics_without_scenes(
         self,

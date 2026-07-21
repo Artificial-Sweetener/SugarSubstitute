@@ -23,7 +23,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from PySide6.QtCore import QPoint
 
@@ -40,9 +40,7 @@ from .reorder_gesture_controller import (
     PromptReorderDragIntent,
 )
 from .reorder_displacement_intent import ReorderDisplacementIntent
-
-if TYPE_CHECKING:
-    from .reorder_overlay import _SegmentChip
+from .reorder_live_placement import live_gap_ranges_for_layout
 
 _SLOW_DRAG_MOVE_MS = 16.0
 
@@ -58,6 +56,14 @@ class _OverlayShellAccess:
 
 class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
     """Own overlay gesture orchestration while delegating policy to collaborators."""
+
+    def prepare_drag(self, segment_index: int) -> None:
+        """Build immutable proxy state before threshold crossing blocks a move."""
+
+        self._settle_chip_animations(reason="pointer_press")
+        self._drag_proxy_state_factory.reset_drag_session()
+        self._ensure_drag_proxy_render_state_for_segment(segment_index)
+        self._prepared_drag_proxy_segment_index = segment_index
 
     def move_active_chip_left(self) -> bool:
         """Move the active chip to the previous visible populated-row slot."""
@@ -81,7 +87,7 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
 
     def start_drag(
         self,
-        chip: _SegmentChip,
+        segment_index: int,
         *,
         global_pos: QPoint,
         press_global_pos: QPoint,
@@ -95,10 +101,16 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
         document_view = self._document_view
         if current_layout_view is None or document_view is None:
             return
+        painted_chip_geometry_snapshot = (
+            self._preview_chip_geometry_snapshot
+            if self._preview_mode_active()
+            and self._preview_chip_geometry_snapshot is not None
+            else self._chip_geometry_snapshot
+        )
         self._emit_drag_intent(
             PromptReorderDragIntent(
                 phase="start",
-                segment_index=chip.segment_index,
+                segment_index=segment_index,
                 global_position=global_pos,
             )
         )
@@ -148,7 +160,9 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
         self._instrumentation_max_preview_sync_ms = 0.0
         self._instrumentation_max_render_plan_ms = 0.0
         self._editor.reset_reorder_geometry_cache_counters()
-        self._drag_proxy_state_factory.reset_drag_session()
+        if getattr(self, "_prepared_drag_proxy_segment_index", None) != segment_index:
+            self._drag_proxy_state_factory.reset_drag_session()
+        self._prepared_drag_proxy_segment_index = None
         self._autoscroll.reset_counters()
         self._clear_pending_autoscroll_invalidation()
         total_started_at = reorder_drag_started_at()
@@ -156,19 +170,19 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
             "start",
             gesture_id=gesture_id,
             event_id=event_id,
-            dragged_segment_index=chip.segment_index,
+            dragged_segment_index=segment_index,
             segment_count=len(self._segments_by_index),
             row_count=len(current_layout_view.rows),
             gap_count=len(current_layout_view.gaps),
             ordered_count=len(self._ordered_segment_indices),
         )
         self._gesture.begin_pointer_drag(
-            segment_index=chip.segment_index,
+            segment_index=segment_index,
             global_position=global_pos,
         )
         phase_started_at = reorder_drag_started_at()
         self._base_drag_layout_view = self._geometry.begin_drag(
-            dragged_segment_index=chip.segment_index,
+            dragged_segment_index=segment_index,
             gesture_id=gesture_id,
             event_id=event_id,
         )
@@ -191,8 +205,8 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
         self._landing_shadow.reset_drag_state()
         self._clear_last_drop_commit_context()
         phase_started_at = reorder_drag_started_at()
-        self._capture_drag_intent_context(chip, global_pos=press_global_pos)
-        self._capture_held_shadow_geometry(chip)
+        self._capture_drag_intent_context(segment_index, global_pos=press_global_pos)
+        self._capture_held_shadow_geometry(segment_index)
         self._ensure_drag_proxy_render_state()
         self._log_interaction_timing(
             "start.capture_intent",
@@ -220,14 +234,39 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
                 else f"{self._gesture.state.drag_intent_size.height():.2f}"
             ),
         )
+        live_gap_ranges = live_gap_ranges_for_layout(
+            document_view.source_text,
+            self._base_drag_layout_view,
+            self._segments_by_index,
+        )
+        if (
+            live_gap_ranges is not None
+            and painted_chip_geometry_snapshot is not None
+            and (
+                self._geometry.prime_base_drag_placement_from_painted_projection(
+                    chip_geometry_snapshot=painted_chip_geometry_snapshot,
+                    gap_ranges_by_index=live_gap_ranges,
+                    gesture_id=gesture_id,
+                    event_id=event_id,
+                )
+            )
+        ):
+            self._placement_snapshot = self._geometry.placement_snapshot
+            self._drop_target_visuals = self._geometry.drop_target_visuals
+            self._drop_target_lanes = self._geometry.drop_target_lanes
         self._update_preview_layout()
         self._emit_preview_layout_changed()
+        render_state_revision = self._render_state_sync_revision
         self._update_drop_target_from_global_position(global_pos)
-        self._update_chip_geometry()
+        preview_sync_applied = self._render_state_sync_revision != render_state_revision
+        if not preview_sync_applied:
+            self._update_pointer_region_geometry()
         self._drag_proxy.show()
         self._move_drag_proxy(global_pos)
-        self._update_chip_states()
-        self._sync_reorder_view_state(reason="drag_started")
+        self._autoscroll.update_for_pointer(global_pos)
+        if not preview_sync_applied:
+            self._update_chip_states()
+            self._sync_reorder_view_state(reason="drag_started")
         self._log_interaction_timing(
             "start.total",
             started_at=total_started_at,
@@ -240,15 +279,15 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
             visual_target_count=len(self._drop_target_visuals),
         )
 
-    def drag_move(self, chip: _SegmentChip, global_pos: QPoint) -> None:
+    def drag_move(self, segment_index: int, global_pos: QPoint) -> None:
         """Update insertion preview while the user drags one segment."""
 
-        if self._gesture.state.dragged_segment_index != chip.segment_index:
+        if self._gesture.state.dragged_segment_index != segment_index:
             return
         self._emit_drag_intent(
             PromptReorderDragIntent(
                 phase="move",
-                segment_index=chip.segment_index,
+                segment_index=segment_index,
                 global_position=global_pos,
             )
         )
@@ -270,7 +309,7 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
                 event_id=event_id,
                 work_unit_id=work_unit_id,
                 move_count=self._instrumentation_drag_move_count,
-                dragged_segment_index=chip.segment_index,
+                dragged_segment_index=segment_index,
             )
         try:
             phase_started_at = reorder_drag_started_at()
@@ -336,7 +375,7 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
                 event_id=event_id,
                 work_unit_id=work_unit_id,
                 move_count=self._instrumentation_drag_move_count,
-                dragged_segment_index=chip.segment_index,
+                dragged_segment_index=segment_index,
                 active_target_kind=reorder_drag_target_kind(
                     self._gesture.state.active_drop_target
                 ),
@@ -382,16 +421,16 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
             ),
         )
 
-    def end_drag(self, chip: _SegmentChip) -> None:
+    def end_drag(self, segment_index: int) -> None:
         """Finish the current drag while preserving the reordered index state."""
 
-        if self._gesture.state.dragged_segment_index != chip.segment_index:
+        if self._gesture.state.dragged_segment_index != segment_index:
             return
         last_drag_global_position = self._gesture.state.last_drag_global_position
         self._emit_drag_intent(
             PromptReorderDragIntent(
                 phase="end",
-                segment_index=chip.segment_index,
+                segment_index=segment_index,
                 global_position=last_drag_global_position or QPoint(),
             )
         )
@@ -403,7 +442,7 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
         self._settle_chip_animations(reason="pointer_drop")
         ending_target = self._gesture.state.active_drop_target
         self._log_drop_release_snapshot(
-            dragged_segment_index=chip.segment_index,
+            dragged_segment_index=segment_index,
             ending_target=ending_target,
         )
         if (
@@ -419,7 +458,7 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
                 self._geometry.ordered_indices_for_layout(self._current_layout_view)
             )
             self._geometry.ordered_segment_indices = list(self._ordered_segment_indices)
-            self._gesture.set_committed_dragged_segment(chip.segment_index)
+            self._gesture.set_committed_dragged_segment(segment_index)
             self._last_drop_commit_visual = (
                 self._landing_shadow.last_landing_preview_visual
             )
@@ -428,7 +467,7 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
             )
             self._last_drop_commit_target = ending_target
             self._last_drop_commit_placement = self._active_placement
-            self._last_drop_commit_segment_index = chip.segment_index
+            self._last_drop_commit_segment_index = segment_index
             self._last_drop_commit_gesture_id = self._instrumentation_gesture_id
             self._last_drop_commit_event_id = event_id
         else:
@@ -456,10 +495,10 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
         self._autoscroll.stop()
         self._clear_pending_autoscroll_invalidation()
         self._update_preview_layout()
-        self._update_chip_geometry()
+        self._update_pointer_region_geometry()
         self._log_post_drop_geometry_checkpoint(
             checkpoint="end_drag.after_geometry_update",
-            segment_index=chip.segment_index,
+            segment_index=segment_index,
         )
         self._update_chip_states()
         self._sync_reorder_view_state(reason="drag_ended")
@@ -475,7 +514,7 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
             started_at=total_started_at,
             gesture_id=self._instrumentation_gesture_id,
             event_id=event_id,
-            dragged_segment_index=chip.segment_index,
+            dragged_segment_index=segment_index,
             committed_target_kind=reorder_drag_target_kind(ending_target),
             has_reordered=self.has_reordered(),
             ordered_count=len(self._ordered_segment_indices),
@@ -511,7 +550,7 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
         self._autoscroll.stop()
         self._clear_pending_autoscroll_invalidation()
         self._update_preview_layout()
-        self._update_chip_geometry()
+        self._update_pointer_region_geometry()
         self._update_chip_states()
         self._sync_reorder_view_state(reason="drag_cancelled")
         self._emit_preview_layout_changed()
@@ -684,7 +723,6 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
         self._base_drag_layout_view = None
         self._base_drag_reorder_state = None
         self._base_drag_chip_geometry_snapshot = None
-        self._base_drag_visuals_by_index = {}
         self._landing_shadow.clear_held_shadow()
         self._gesture.clear_keyboard_preferred_x()
 
@@ -1053,7 +1091,7 @@ class PromptReorderOverlayInteractionMixin(_OverlayShellAccess):
         self._held_chip_presenter.cancel(reason=reason)
 
     def _settle_chip_animations(self, *, reason: str) -> None:
-        """Place animated chip widgets at their latest presenter targets."""
+        """Settle animated paint geometry at the latest presenter targets."""
 
         self._animation_presenter.settle(reason=reason)
         self._held_chip_presenter.settle(reason=reason)

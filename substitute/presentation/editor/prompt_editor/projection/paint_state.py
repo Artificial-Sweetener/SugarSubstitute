@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from .model import (
@@ -108,7 +109,15 @@ class PromptProjectionPaintStateBuilder:
     ) -> PromptProjectionPaintState:
         """Return paint-only state keyed to existing token and run identifiers."""
 
-        _ = session
+        if (
+            active_span_range is None
+            and not decoration_accent_ranges
+            and not scene_error_keys
+            and focused_token_id is None
+            and hovered_token_id is None
+            and session.autocomplete_preview is None
+        ):
+            return empty_projection_paint_state()
         active_token_ids = _active_token_ids(document.tokens, active_span_range)
         decoration_accented_token_ids = _decoration_accented_token_ids(
             document.tokens,
@@ -142,7 +151,7 @@ def empty_projection_paint_state() -> PromptProjectionPaintState:
 
 
 def _active_token_ids(
-    tokens: tuple[PromptProjectionToken, ...],
+    tokens: Sequence[PromptProjectionToken],
     active_span_range: tuple[int, int] | None,
 ) -> frozenset[str]:
     """Return token ids covered by the active syntax span."""
@@ -157,7 +166,7 @@ def _active_token_ids(
 
 
 def _decoration_accented_token_ids(
-    tokens: tuple[PromptProjectionToken, ...],
+    tokens: Sequence[PromptProjectionToken],
     decoration_accent_ranges: tuple[tuple[int, int], ...],
 ) -> frozenset[str]:
     """Return token ids whose decorations should paint with accent color."""
@@ -171,7 +180,7 @@ def _decoration_accented_token_ids(
 
 
 def _run_ids_for_tokens(
-    runs: tuple[PromptProjectionRun, ...],
+    runs: Sequence[PromptProjectionRun],
     token_ids: frozenset[str],
 ) -> frozenset[str]:
     """Return run ids belonging to the supplied tokens."""
@@ -184,8 +193,8 @@ def _run_ids_for_tokens(
 
 
 def _scene_error_run_ids(
-    tokens: tuple[PromptProjectionToken, ...],
-    runs: tuple[PromptProjectionRun, ...],
+    tokens: Sequence[PromptProjectionToken],
+    runs: Sequence[PromptProjectionRun],
     scene_error_keys: frozenset[str],
 ) -> frozenset[str]:
     """Return scene title run ids that should paint with error styling."""

@@ -31,6 +31,7 @@ from substitute.application.prompt_editor import (
 )
 
 from .applicator import PromptProjectionApplicator
+from .canonical_edit_reflow import PromptProjectionCanonicalEditReflow
 from .freshness_controller import (
     ProjectionFreshness,
     PromptProjectionFreshnessBlockers,
@@ -40,6 +41,7 @@ from .incremental_editor import (
     PromptProjectionIncrementalEdit,
     PromptProjectionIncrementalEditor,
     PromptProjectionPlainTextApplyStatus,
+    PromptProjectionPlainTextApplyResult,
     projection_affecting_render_plan_ranges,
     render_plan_ranges_match_after_source_edit,
     single_source_text_edit,
@@ -48,6 +50,7 @@ from .layout_engine import (
     PromptProjectionIncrementalLayoutResult,
     PromptProjectionLayout,
 )
+from .layout_checkpoint import PromptProjectionLayoutCheckpoint
 from .diagnostics_painter import PromptDiagnosticPainter
 from .model import (
     PromptProjectionCaretState,
@@ -59,6 +62,7 @@ from .observability import (
     projection_observability_started_at,
 )
 from .session import PromptProjectionSession
+from .semantic_transition import semantic_projection_change_range
 from .transient_edit_overlays import (
     PromptProjectionTransientCaretGeometry,
     PromptProjectionTransientDeletionOverlay,
@@ -74,6 +78,8 @@ class PromptProjectionApplyPath(Enum):
     SCHEDULED = "scheduled"
     FAST_TRAILING = "fast_trailing"
     INCREMENTAL = "incremental"
+    REFLOW = "reflow"
+    CHECKPOINT_RESTORE = "checkpoint_restore"
     DEFERRED_WRAP = "deferred_wrap"
     FULL_REBUILD = "full_rebuild"
     DROPPED_STALE = "dropped_stale"
@@ -83,11 +89,9 @@ class PromptProjectionApplyPath(Enum):
 _WRAP_REFLOW_DEFERRABLE_REASONS = frozenset(
     (
         "plain_single_character",
-        "plain_single_character_requires_layout",
         "plain_single_character_delete",
         "plain_single_character_delete_requires_layout",
         "syntax_sensitive_autocomplete_prefix",
-        "syntax_sensitive_autocomplete_prefix_requires_layout",
     )
 )
 
@@ -109,6 +113,7 @@ class PromptProjectionSourceChangeApplyRequest:
     next_anchor_state: PromptProjectionCaretState
     can_preserve_diagnostic_fragment_cache: bool
     projection_deferral_reason: str
+    restore_checkpoint: PromptProjectionLayoutCheckpoint | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -280,6 +285,9 @@ class PromptProjectionIncrementalApplyController:
 
         self._host = host
         self._incremental_editor = PromptProjectionIncrementalEditor()
+        self._canonical_edit_reflow = PromptProjectionCanonicalEditReflow(
+            host._projection_applicator
+        )
 
     def try_apply_source_changed_prompt_state_without_geometry_rebuild(
         self,
@@ -291,6 +299,40 @@ class PromptProjectionIncrementalApplyController:
         _ = previous_source_text
         return False
 
+    def try_restore_history_layout_checkpoint(
+        self,
+        checkpoint: PromptProjectionLayoutCheckpoint | None,
+    ) -> bool:
+        """Restore exact history geometry and publish its canonical projection."""
+
+        if checkpoint is None:
+            return False
+        host = self._host
+        blockers = host._projection_freshness_blockers()
+        if (
+            blockers.display_mode is not PromptProjectionDisplayMode.PROJECTED
+            or blockers.reorder_preview_active
+            or blockers.autocomplete_preview_active
+            or blockers.exact_weight_edit_active
+            or blockers.expanded_source_range_active
+            or checkpoint.projection_document.source_text
+            != host._document_view.source_text
+            or not host._layout.try_restore_history_checkpoint(checkpoint)
+        ):
+            return False
+        host._projection_document = checkpoint.projection_document
+        host._last_rendered_active_span_range = host._active_span_range()
+        host._diagnostic_painter.advance_layout_revision(
+            reason="projection_history_checkpoint_restore"
+        )
+        host._clear_diagnostic_fragment_cache(
+            reason="projection_history_checkpoint_restore"
+        )
+        host._rebuild_active_projection(commit_projection=True)
+        host._clear_transient_caret_geometry()
+        host.viewport().update()
+        return True
+
     def can_apply_fast_trailing_insert_for_prompt_state(
         self,
         render_plan: PromptSyntaxRenderPlan,
@@ -299,6 +341,11 @@ class PromptProjectionIncrementalApplyController:
     ) -> bool:
         """Return whether semantic apply may reuse trailing insert geometry."""
 
+        if (
+            render_plan.document_semantics_identity
+            != previous_render_plan.document_semantics_identity
+        ):
+            return False
         render_ranges = projection_affecting_render_plan_ranges(render_plan)
         previous_render_ranges = projection_affecting_render_plan_ranges(
             previous_render_plan
@@ -323,23 +370,98 @@ class PromptProjectionIncrementalApplyController:
         next_text = document_view.source_text
         edit = single_source_text_edit(previous_text, next_text)
         if edit is None:
-            return False
+            if previous_text != next_text:
+                return False
+            return self.try_apply_local_semantic_projection_transition(
+                document_view=document_view,
+                render_plan=render_plan,
+                previous_render_plan=previous_render_plan,
+            )
         if not render_plan_ranges_match_after_source_edit(
             previous_render_plan,
             render_plan,
             edit=edit,
         ):
             return False
-        return (
-            self.try_apply_incremental_plain_text_projection(
-                previous_text=previous_text,
-                next_text=next_text,
-                start=edit.start,
-                end=edit.end,
-                replacement_text=edit.replacement_text,
-            )
-            is PromptProjectionPlainTextApplyStatus.APPLIED
+        result = self.try_apply_incremental_plain_text_projection(
+            previous_text=previous_text,
+            next_text=next_text,
+            start=edit.start,
+            end=edit.end,
+            replacement_text=edit.replacement_text,
         )
+        return result.status in {
+            PromptProjectionPlainTextApplyStatus.APPLIED,
+            PromptProjectionPlainTextApplyStatus.APPLIED_REFLOW,
+        }
+
+    def try_apply_local_semantic_projection_transition(
+        self,
+        *,
+        document_view: PromptDocumentView,
+        render_plan: PromptSyntaxRenderPlan,
+        previous_render_plan: PromptSyntaxRenderPlan,
+    ) -> bool:
+        """Apply one bounded token-topology transition through local reflow."""
+
+        host = self._host
+        blockers = host._projection_freshness_blockers()
+        if (
+            blockers.display_mode is not PromptProjectionDisplayMode.PROJECTED
+            or blockers.reorder_preview_active
+            or blockers.autocomplete_preview_active
+            or blockers.exact_weight_edit_active
+            or blockers.expanded_source_range_active
+            or host._projection_document.source_text != document_view.source_text
+        ):
+            return False
+        changed_range = semantic_projection_change_range(
+            previous_render_plan,
+            render_plan,
+        )
+        if changed_range is None:
+            return False
+        start, end = changed_range
+        if not 0 <= start < end <= len(document_view.source_text):
+            return False
+
+        projection_document = host._projection_applicator.build_projection(
+            document_view,
+            render_plan,
+            display_mode=host._display_mode,
+            session=host._session,
+            active_span_range=None,
+            decoration_accent_ranges=host._decoration_accent_ranges(),
+            scene_error_keys=host._scene_error_keys,
+        )
+        previous_cursor_state = host._cursor_state
+        previous_anchor_state = host._anchor_state
+        layout_result = host._layout.set_projection_after_source_edit(
+            projection_document,
+            prompt_document_view=document_view,
+            edit_start=start,
+            edit_end=end,
+            replacement_text=document_view.source_text[start:end],
+        )
+        host._projection_document = projection_document
+        host._last_rendered_active_span_range = host._active_span_range()
+        host._diagnostic_painter.advance_layout_revision(
+            reason="projection_local_semantic_transition"
+        )
+        host._clear_diagnostic_fragment_cache(
+            reason="projection_local_semantic_transition"
+        )
+        host._cursor_state = projection_document.caret_map.resolve_state(
+            previous_cursor_state
+        )
+        host._anchor_state = projection_document.caret_map.resolve_state(
+            previous_anchor_state
+        )
+        host._sync_editing_session_to_caret_states()
+        host._rebuild_active_projection(commit_projection=True)
+        host._clear_transient_caret_geometry()
+        host._update_incremental_plain_text_projection_paint(layout_result)
+        return True
 
     def try_apply_fast_trailing_plain_insert_projection(
         self,
@@ -350,6 +472,14 @@ class PromptProjectionIncrementalApplyController:
         """Apply a trailing plain-text insertion without full relayout."""
 
         host = self._host
+        previous_text = host._projection_document.source_text
+        if host._projection_applicator.source_edit_requires_canonical_rebuild(
+            previous_text,
+            document_view.source_text,
+            start=len(previous_text),
+            end=len(previous_text),
+        ):
+            return False
         next_document = self._incremental_editor.fast_trailing_plain_insert_document(
             previous_document=host._projection_document,
             next_text=document_view.source_text,
@@ -396,6 +526,13 @@ class PromptProjectionIncrementalApplyController:
         """Apply a trailing hard-line insertion without full relayout."""
 
         host = self._host
+        if host._projection_applicator.source_edit_requires_canonical_rebuild(
+            previous_text,
+            document_view.source_text,
+            start=start,
+            end=end,
+        ):
+            return False
         next_document = self._incremental_editor.fast_trailing_newline_insert_document(
             previous_document=host._projection_document,
             previous_text=previous_text,
@@ -444,6 +581,13 @@ class PromptProjectionIncrementalApplyController:
         """Apply a trailing plain-text deletion without full relayout."""
 
         host = self._host
+        if host._projection_applicator.source_edit_requires_canonical_rebuild(
+            previous_text,
+            next_text,
+            start=start,
+            end=end,
+        ):
+            return False
         next_document = self._incremental_editor.fast_trailing_plain_delete_document(
             previous_document=host._projection_document,
             previous_text=previous_text,
@@ -488,6 +632,13 @@ class PromptProjectionIncrementalApplyController:
         """Apply a trailing hard-line deletion without full relayout."""
 
         host = self._host
+        if host._projection_applicator.source_edit_requires_canonical_rebuild(
+            previous_text,
+            next_text,
+            start=start,
+            end=end,
+        ):
+            return False
         next_document = self._incremental_editor.fast_trailing_newline_delete_document(
             previous_document=host._projection_document,
             previous_text=previous_text,
@@ -522,10 +673,19 @@ class PromptProjectionIncrementalApplyController:
         start: int,
         end: int,
         replacement_text: str,
-    ) -> PromptProjectionPlainTextApplyStatus:
+    ) -> PromptProjectionPlainTextApplyResult:
         """Apply a supported middle plain edit without full relayout."""
 
         host = self._host
+        if host._projection_applicator.source_edit_requires_canonical_rebuild(
+            previous_text,
+            next_text,
+            start=start,
+            end=end,
+        ):
+            return PromptProjectionPlainTextApplyResult(
+                status=PromptProjectionPlainTextApplyStatus.REJECTED
+            )
         edit = PromptProjectionIncrementalEdit(
             start=start,
             end=end,
@@ -533,21 +693,6 @@ class PromptProjectionIncrementalApplyController:
             previous_source_text=previous_text,
             next_source_text=next_text,
         )
-        if (
-            replacement_text
-            and host._typed_character_requires_immediate_projection(
-                replacement_text,
-                start=start,
-                end=end,
-            )
-            and not host._can_defer_syntax_sensitive_autocomplete_prefix(
-                start=start,
-                end=end,
-                replacement_text=replacement_text,
-                normalized_text=next_text,
-            )
-        ):
-            return PromptProjectionPlainTextApplyStatus.REJECTED
         host._layout.content_size().height()
         apply_result = self._incremental_editor.try_apply_plain_text_layout_edit(
             edit,
@@ -561,13 +706,29 @@ class PromptProjectionIncrementalApplyController:
             decoration_accent_ranges=host._decoration_accent_ranges(),
             scene_error_keys=host._scene_error_keys,
         )
+        if (
+            apply_result.status is PromptProjectionPlainTextApplyStatus.REJECTED
+            and apply_result.projection_document is not None
+        ):
+            self._apply_prebuilt_source_edit_reflow(
+                apply_result.projection_document,
+                start=start,
+                end=end,
+                replacement_text=replacement_text,
+            )
+            return PromptProjectionPlainTextApplyResult(
+                status=PromptProjectionPlainTextApplyStatus.APPLIED_REFLOW,
+                projection_document=apply_result.projection_document,
+            )
         if apply_result.status is not PromptProjectionPlainTextApplyStatus.APPLIED:
-            return apply_result.status
+            return apply_result
         if (
             apply_result.projection_document is None
             or apply_result.layout_result is None
         ):
-            return PromptProjectionPlainTextApplyStatus.REJECTED
+            return PromptProjectionPlainTextApplyResult(
+                status=PromptProjectionPlainTextApplyStatus.REJECTED
+            )
 
         host._projection_document = apply_result.projection_document
         host._last_rendered_active_span_range = host._active_span_range()
@@ -590,7 +751,35 @@ class PromptProjectionIncrementalApplyController:
         host._rebuild_active_projection(commit_projection=True)
         host._clear_transient_caret_geometry()
         host._update_incremental_plain_text_projection_paint(apply_result.layout_result)
-        return PromptProjectionPlainTextApplyStatus.APPLIED
+        return apply_result
+
+    def _apply_prebuilt_source_edit_reflow(
+        self,
+        projection_document: PromptProjectionDocument,
+        *,
+        start: int,
+        end: int,
+        replacement_text: str,
+    ) -> None:
+        """Relayout an already-validated canonical projection document."""
+
+        host = self._host
+        layout_result = host._layout.set_projection_after_source_edit(
+            projection_document,
+            prompt_document_view=host._document_view,
+            edit_start=start,
+            edit_end=end,
+            replacement_text=replacement_text,
+        )
+        host._projection_document = projection_document
+        host._last_rendered_active_span_range = host._active_span_range()
+        host._diagnostic_painter.advance_layout_revision(
+            reason="projection_prebuilt_reflow"
+        )
+        host._clear_diagnostic_fragment_cache(reason="projection_prebuilt_reflow")
+        host._rebuild_active_projection(commit_projection=True)
+        host._clear_transient_caret_geometry()
+        host._update_incremental_plain_text_projection_paint(layout_result)
 
     def defer_wrap_reflow_projection_update(
         self,
@@ -697,17 +886,25 @@ class PromptProjectionIncrementalApplyController:
         fast_projection_applied = False
         wrap_reflow_deferred = False
         incremental_plain_edit_attempted = False
+        plain_apply_result: PromptProjectionPlainTextApplyResult | None = None
 
         apply_started_at = projection_observability_started_at()
-        fast_projection_applied = (
+        checkpoint_restored = self.try_restore_history_layout_checkpoint(
+            request.restore_checkpoint
+        )
+        fast_projection_applied = checkpoint_restored or (
             self.try_apply_source_changed_prompt_state_without_geometry_rebuild(
                 previous_source_text=request.previous_source_text
             )
         )
         apply_path = (
-            PromptProjectionApplyPath.PAINT_ONLY
-            if fast_projection_applied
-            else PromptProjectionApplyPath.FULL_REBUILD
+            PromptProjectionApplyPath.CHECKPOINT_RESTORE
+            if checkpoint_restored
+            else (
+                PromptProjectionApplyPath.PAINT_ONLY
+                if fast_projection_applied
+                else PromptProjectionApplyPath.FULL_REBUILD
+            )
         )
         if (
             not fast_projection_applied
@@ -795,14 +992,19 @@ class PromptProjectionIncrementalApplyController:
                             ),
                         )
                     )
-                    fast_projection_applied = (
-                        plain_apply_result
-                        is PromptProjectionPlainTextApplyStatus.APPLIED
-                    )
+                    fast_projection_applied = plain_apply_result.status in {
+                        PromptProjectionPlainTextApplyStatus.APPLIED,
+                        PromptProjectionPlainTextApplyStatus.APPLIED_REFLOW,
+                    }
                     if fast_projection_applied:
-                        apply_path = PromptProjectionApplyPath.INCREMENTAL
+                        apply_path = (
+                            PromptProjectionApplyPath.REFLOW
+                            if plain_apply_result.status
+                            is PromptProjectionPlainTextApplyStatus.APPLIED_REFLOW
+                            else PromptProjectionApplyPath.INCREMENTAL
+                        )
                     if (
-                        plain_apply_result
+                        plain_apply_result.status
                         is PromptProjectionPlainTextApplyStatus.DEFERRED_WRAP_REFLOW
                         and _can_defer_wrap_reflow_for_reason(
                             request.projection_deferral_reason
@@ -826,13 +1028,19 @@ class PromptProjectionIncrementalApplyController:
                     end=request.source_edit_end,
                     replacement_text=request.source_edit_replacement_text or "",
                 )
-                fast_projection_applied = (
-                    plain_apply_result is PromptProjectionPlainTextApplyStatus.APPLIED
-                )
+                fast_projection_applied = plain_apply_result.status in {
+                    PromptProjectionPlainTextApplyStatus.APPLIED,
+                    PromptProjectionPlainTextApplyStatus.APPLIED_REFLOW,
+                }
                 if fast_projection_applied:
-                    apply_path = PromptProjectionApplyPath.INCREMENTAL
+                    apply_path = (
+                        PromptProjectionApplyPath.REFLOW
+                        if plain_apply_result.status
+                        is PromptProjectionPlainTextApplyStatus.APPLIED_REFLOW
+                        else PromptProjectionApplyPath.INCREMENTAL
+                    )
                 if (
-                    plain_apply_result
+                    plain_apply_result.status
                     is PromptProjectionPlainTextApplyStatus.DEFERRED_WRAP_REFLOW
                     and _can_defer_wrap_reflow_for_reason(
                         request.projection_deferral_reason
@@ -861,8 +1069,56 @@ class PromptProjectionIncrementalApplyController:
             if wrap_reflow_deferred:
                 apply_path = PromptProjectionApplyPath.DEFERRED_WRAP
         if not fast_projection_applied and not wrap_reflow_deferred:
-            host._rebuild_projection()
-            apply_path = PromptProjectionApplyPath.FULL_REBUILD
+            if (
+                plain_apply_result is not None
+                and plain_apply_result.projection_document is not None
+            ):
+                assert request.source_edit_start is not None
+                assert request.source_edit_end is not None
+                self._apply_prebuilt_source_edit_reflow(
+                    plain_apply_result.projection_document,
+                    start=request.source_edit_start,
+                    end=request.source_edit_end,
+                    replacement_text=request.source_edit_replacement_text or "",
+                )
+                fast_projection_applied = True
+                apply_path = PromptProjectionApplyPath.REFLOW
+            elif (
+                request.source_edit_start is not None
+                and request.source_edit_end is not None
+                and request.previous_source_text is not None
+                and (
+                    canonical_document := (
+                        self._canonical_edit_reflow.try_build_document(
+                            previous_document=host._projection_document,
+                            previous_source_text=request.previous_source_text,
+                            document_view=host._document_view,
+                            render_plan=host._render_plan,
+                            start=request.source_edit_start,
+                            end=request.source_edit_end,
+                            replacement_text=(
+                                request.source_edit_replacement_text or ""
+                            ),
+                            blockers=host._projection_freshness_blockers(),
+                            session=host._session,
+                            decoration_accent_ranges=(host._decoration_accent_ranges()),
+                            scene_error_keys=host._scene_error_keys,
+                        )
+                    )
+                )
+                is not None
+            ):
+                self._apply_prebuilt_source_edit_reflow(
+                    canonical_document,
+                    start=request.source_edit_start,
+                    end=request.source_edit_end,
+                    replacement_text=request.source_edit_replacement_text or "",
+                )
+                fast_projection_applied = True
+                apply_path = PromptProjectionApplyPath.REFLOW
+            else:
+                host._rebuild_projection()
+                apply_path = PromptProjectionApplyPath.FULL_REBUILD
         if (
             request.can_preserve_diagnostic_fragment_cache
             and wrap_reflow_deferred

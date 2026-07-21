@@ -20,9 +20,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
-from PySide6.QtCore import QPoint, QRect
+from PySide6.QtCore import QRect
 from PySide6.QtGui import QTextDocument
 from PySide6.QtWidgets import QScrollBar, QWidget
 
@@ -32,8 +32,10 @@ from substitute.application.prompt_editor import (
 )
 
 from ..projection.reorder_chip_geometry import PromptReorderChipGeometrySnapshot
+from ..projection.reorder_placement_geometry import PromptReorderPlacementSnapshot
 from ..projection.reorder_interaction_geometry import PromptReorderGeometryHost
 from ..projection.reorder_visual_snapshot import PromptReorderProjectionPaintSnapshot
+from ..projection.reorder_surface_chrome import PromptReorderSurfaceChromeChip
 from ..reorder_drag_proxy_state import (
     PromptReorderDragProxyRenderInputs,
     PromptReorderDragProxyRenderStateSync,
@@ -49,9 +51,6 @@ from .reorder_gesture_controller import (
     PromptReorderDragIntent,
 )
 from .reorder_view import PromptReorderView
-
-if TYPE_CHECKING:
-    from .reorder_overlay import _SegmentChip
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,6 +165,15 @@ class PromptReorderEditor(PromptReorderGeometryHost, Protocol):
     ) -> PromptReorderChipGeometrySnapshot:
         """Return projection-owned live chip geometry for the supplied layout."""
 
+    def reorder_live_placement_snapshot(
+        self,
+        *,
+        layout_view: PromptReorderLayoutView,
+        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
+        gap_ranges_by_index: dict[int, tuple[int, int]],
+    ) -> PromptReorderPlacementSnapshot:
+        """Return provisional placements from the current live projection."""
+
     def reorder_preview_chip_geometry_snapshot(
         self,
         *,
@@ -193,48 +201,23 @@ class PromptReorderEditor(PromptReorderGeometryHost, Protocol):
         *,
         chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
         chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
+        chip_indices: frozenset[int] | None = None,
     ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
         """Return projection-owned preview paint snapshots for visible reorder chips."""
 
-    def set_reorder_overlay_suppressed_chip_indices(
+    def set_reorder_overlay_suppression_snapshots(
         self,
-        chip_indices: frozenset[int],
+        snapshots_by_index: dict[int, PromptReorderProjectionPaintSnapshot],
     ) -> None:
-        """Suppress live projection painting for chips owned by the overlay."""
+        """Suppress projection fragments owned by exact overlay snapshots."""
 
-
-class SegmentChipDragController(Protocol):
-    """Receive pointer and focus events emitted by concrete segment chip widgets."""
-
-    def set_hovered_segment(self, segment_index: int | None) -> None:
-        """Track the segment currently under the pointer."""
-
-    def activate_chip(self, chip: _SegmentChip) -> None:
-        """Track the segment that should retain selection on commit."""
-
-    def set_pressed_segment(self, segment_index: int | None) -> None:
-        """Track the segment currently held by the pointer."""
-
-    def start_drag(
+    def set_reorder_surface_chrome(
         self,
-        chip: _SegmentChip,
         *,
-        global_pos: QPoint,
-        press_global_pos: QPoint,
+        mode: str,
+        chips: tuple[PromptReorderSurfaceChromeChip, ...],
     ) -> None:
-        """Begin dragging the supplied chip widget."""
-
-    def drag_move(self, chip: _SegmentChip, global_pos: QPoint) -> None:
-        """Update the active drag with one global pointer position."""
-
-    def end_drag(self, chip: _SegmentChip) -> None:
-        """Finish the active drag for the supplied chip widget."""
-
-    def retain_editor_focus(self) -> None:
-        """Keep real keyboard focus on the host editor during chip interaction."""
-
-    def log_interaction_event(self, event: str, **context: object) -> None:
-        """Log prompt-safe chip interaction telemetry without breaking gestures."""
+        """Paint stationary reorder chrome below projection-owned text."""
 
 
 __all__ = [
@@ -244,5 +227,4 @@ __all__ = [
     "PromptReorderOverlay",
     "PromptReorderOverlayRenderState",
     "PromptReorderViewFactory",
-    "SegmentChipDragController",
 ]

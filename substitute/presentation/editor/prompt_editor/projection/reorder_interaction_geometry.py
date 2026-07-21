@@ -97,13 +97,21 @@ class PromptReorderGeometryHost(Protocol):
     ) -> PromptReorderPlacementSnapshot:
         """Return projection-owned base-drag placement geometry."""
 
+    def reorder_live_placement_snapshot(
+        self,
+        *,
+        layout_view: PromptReorderLayoutView,
+        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
+        gap_ranges_by_index: dict[int, tuple[int, int]],
+    ) -> PromptReorderPlacementSnapshot:
+        """Return provisional placements from the already-current projection."""
+
 
 @dataclass(frozen=True, slots=True)
 class PromptReorderGeometryRefresh:
     """Carry projection snapshot changes produced by one geometry refresh."""
 
     previous_preview_chip_snapshot: PromptReorderChipGeometrySnapshot | None
-    previous_base_drag_chip_snapshot: PromptReorderChipGeometrySnapshot | None
     preview_chip_snapshot: PromptReorderChipGeometrySnapshot | None
     base_drag_chip_snapshot: PromptReorderChipGeometrySnapshot | None
     placement_snapshot: PromptReorderPlacementSnapshot | None
@@ -265,6 +273,44 @@ class PromptReorderInteractionGeometry:
             gap_count=len(self.base_drag_layout_view.gaps),
         )
         return self.base_drag_layout_view
+
+    def prime_base_drag_placement_from_painted_projection(
+        self,
+        *,
+        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
+        gap_ranges_by_index: dict[int, tuple[int, int]],
+        gesture_id: int | None,
+        event_id: int | None,
+    ) -> bool:
+        """Prime pointer hit testing from geometry matching the painted layout."""
+
+        if self.base_drag_layout_view is None:
+            return False
+        started_at = reorder_drag_started_at()
+        placement_snapshot = self._geometry_host.reorder_live_placement_snapshot(
+            layout_view=self.base_drag_layout_view,
+            chip_geometry_snapshot=chip_geometry_snapshot,
+            gap_ranges_by_index=gap_ranges_by_index,
+        )
+        if not placement_snapshot.placements:
+            return False
+        drop_target_visuals, drop_target_lanes = self.drop_geometry_from_placements(
+            placement_snapshot,
+            gesture_id=gesture_id,
+            event_id=event_id,
+        )
+        self.placement_snapshot = placement_snapshot
+        self.drop_target_visuals = drop_target_visuals
+        self.drop_target_lanes = drop_target_lanes
+        log_reorder_drag_timing(
+            "start.live_placement_prime",
+            started_at=started_at,
+            gesture_id=gesture_id,
+            event_id=event_id,
+            placement_count=len(placement_snapshot.placements),
+            lane_count=len(drop_target_lanes),
+        )
+        return True
 
     def ensure_keyboard_context(
         self,
@@ -465,7 +511,6 @@ class PromptReorderInteractionGeometry:
 
         self._last_viewport_identity = viewport_identity
         previous_preview_chip_snapshot = self.preview_chip_geometry_snapshot
-        previous_base_drag_chip_snapshot = self.base_drag_chip_geometry_snapshot
         next_preview_chip_snapshot: PromptReorderChipGeometrySnapshot | None = None
         next_preview_geometry_identity: PromptReorderPreviewTargetIdentity | None = None
         preview_layout = self.layout_for_painted_preview(
@@ -568,7 +613,6 @@ class PromptReorderInteractionGeometry:
         self.drop_target_lanes = next_drop_target_lanes
         return PromptReorderGeometryRefresh(
             previous_preview_chip_snapshot=previous_preview_chip_snapshot,
-            previous_base_drag_chip_snapshot=previous_base_drag_chip_snapshot,
             preview_chip_snapshot=next_preview_chip_snapshot,
             base_drag_chip_snapshot=next_base_drag_chip_snapshot,
             placement_snapshot=next_placement_snapshot,

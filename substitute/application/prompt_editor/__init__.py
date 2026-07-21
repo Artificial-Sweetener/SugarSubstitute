@@ -125,13 +125,15 @@ if TYPE_CHECKING:
         PromptLoraScheduleService,
     )
     from substitute.application.prompt_editor.prompt_mutation_service import (
+        PromptMutation,
+        PromptMutationService,
+    )
+    from substitute.application.prompt_editor.prompt_syntax_actions import (
         PromptAdjustEmphasisAction,
         PromptAdjustEmphasisContentAction,
         PromptAdjustLoraWeightAction,
         PromptAdjustWildcardTagAction,
         PromptConsumeSyntaxAction,
-        PromptMutation,
-        PromptMutationService,
         PromptSetEmphasisWeightAction,
         PromptSetEmphasisWeightContentAction,
         PromptSetLoraWeightAction,
@@ -223,16 +225,16 @@ if TYPE_CHECKING:
 
 _LAZY_EXPORTS = {
     "PromptAdjustEmphasisAction": (
-        "substitute.application.prompt_editor.prompt_mutation_service"
+        "substitute.application.prompt_editor.prompt_syntax_actions"
     ),
     "PromptAdjustEmphasisContentAction": (
-        "substitute.application.prompt_editor.prompt_mutation_service"
+        "substitute.application.prompt_editor.prompt_syntax_actions"
     ),
     "PromptAdjustLoraWeightAction": (
-        "substitute.application.prompt_editor.prompt_mutation_service"
+        "substitute.application.prompt_editor.prompt_syntax_actions"
     ),
     "PromptAdjustWildcardTagAction": (
-        "substitute.application.prompt_editor.prompt_mutation_service"
+        "substitute.application.prompt_editor.prompt_syntax_actions"
     ),
     "autocomplete_replacement_text": (
         "substitute.application.prompt_editor.prompt_autocomplete_query_service"
@@ -277,7 +279,7 @@ _LAZY_EXPORTS = {
         "substitute.application.prompt_editor.prompt_autocomplete_queries"
     ),
     "PromptConsumeSyntaxAction": (
-        "substitute.application.prompt_editor.prompt_mutation_service"
+        "substitute.application.prompt_editor.prompt_syntax_actions"
     ),
     "PromptDiagnostic": (
         "substitute.application.prompt_editor.prompt_diagnostics_models"
@@ -420,16 +422,16 @@ _LAZY_EXPORTS = {
         "substitute.application.prompt_editor.prompt_scene_analysis_service"
     ),
     "PromptSetEmphasisWeightAction": (
-        "substitute.application.prompt_editor.prompt_mutation_service"
+        "substitute.application.prompt_editor.prompt_syntax_actions"
     ),
     "PromptSetEmphasisWeightContentAction": (
-        "substitute.application.prompt_editor.prompt_mutation_service"
+        "substitute.application.prompt_editor.prompt_syntax_actions"
     ),
     "PromptSetLoraWeightAction": (
-        "substitute.application.prompt_editor.prompt_mutation_service"
+        "substitute.application.prompt_editor.prompt_syntax_actions"
     ),
     "PromptSetWildcardTagAction": (
-        "substitute.application.prompt_editor.prompt_mutation_service"
+        "substitute.application.prompt_editor.prompt_syntax_actions"
     ),
     "PromptSourceNormalization": (
         "substitute.application.prompt_editor.prompt_source_normalization_service"
@@ -493,7 +495,7 @@ _LAZY_EXPORTS = {
         "substitute.application.prompt_editor.prompt_spellcheck_models"
     ),
     "PromptSyntaxAction": (
-        "substitute.application.prompt_editor.prompt_mutation_service"
+        "substitute.application.prompt_editor.prompt_syntax_actions"
     ),
     "PromptSyntaxRenderPlan": (
         "substitute.application.prompt_editor.prompt_syntax_service"

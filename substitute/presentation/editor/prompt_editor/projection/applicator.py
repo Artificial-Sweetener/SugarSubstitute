@@ -81,6 +81,23 @@ class PromptProjectionApplicator:
         self._builder = builder
         self._paint_state_builder = PromptProjectionPaintStateBuilder()
 
+    def source_edit_requires_canonical_rebuild(
+        self,
+        previous_source_text: str,
+        next_source_text: str,
+        *,
+        start: int,
+        end: int,
+    ) -> bool:
+        """Return whether a source-local edit changes canonical scene topology."""
+
+        return self._builder.source_edit_requires_canonical_rebuild(
+            previous_source_text,
+            next_source_text,
+            start=start,
+            end=end,
+        )
+
     def apply_prompt_state_without_geometry_rebuild(
         self,
         document_view: PromptDocumentView,

@@ -21,17 +21,22 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import replace
 import os
+from pathlib import Path
 from typing import Any, cast
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QTextCursor
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QApplication, QWidget
 import pytest
 
 from sugarsubstitute_shared.presentation.localization import render_application_text
 
 from substitute.application.model_metadata import ModelCatalogItem, ModelCatalogSnapshot
+from substitute.application.managed_text_assets.wildcard_text_document_semantics import (
+    WildcardTextDocumentSemantics,
+)
+from substitute.application.prompt_editor import PromptDiagnosticKind
 from substitute.application.user_presets import UserPresetService
 from substitute.domain.user_presets import UserPreset
 from substitute.presentation.editor.catalog.snapshots import CatalogSnapshotReadiness
@@ -50,8 +55,11 @@ from tests.real_shell_prompt_editor_harness import (
 from tests.prompt_projection_surface_test_helpers import (
     RecordingThumbnailAssetRepository,
     StaticPromptLoraCatalog,
+    delay_projection_update_scheduler,
     lora_catalog_item_with_banner,
 )
+from tools.prompt_editor_abuse.models import PromptAbuseAction, PromptAbuseScenario
+from tools.prompt_editor_abuse.real_shell_driver import run_real_shell_scenario
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
@@ -110,6 +118,403 @@ def test_real_shell_harness_edits_update_cube_buffer_through_field_wiring(
     assert field.workflow.cube_state.dirty is True
 
 
+def test_real_shell_typed_selection_replacement_preserves_exact_keys(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """A closing parenthesis must replace selected text without rewriting context."""
+
+    source_text = "open (, alpha, {lighting/day}, omega"
+    selection_start = source_text.index(",", source_text.index("{"))
+    field = harness.add_prompt_workflow(initial_text=source_text)
+    cursor = field.editor.textCursor()
+    cursor.setPosition(selection_start)
+    cursor.setPosition(selection_start + 2, QTextCursor.MoveMode.KeepAnchor)
+    field.editor.setTextCursor(cursor)
+    target = harness.focus_editor(field)
+
+    QTest.keyClicks(target, ") ")
+
+    assert field.editor.toPlainText() == ("open (, alpha, {lighting/day}) omega")
+    assert field.editor.textCursor().position() == selection_start + 2
+
+
+def test_real_shell_typed_scene_marker_projects_on_first_title_character(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Scene syntax should project synchronously once a marker has a title."""
+
+    field = harness.add_prompt_workflow(initial_text="")
+
+    timeline = harness.probe_typed_scene_projection(field)
+
+    first_title_sample = next(
+        sample for sample in timeline if sample.label == "character-2:S"
+    )
+    first_asterisk_sample = timeline[0]
+    second_asterisk_sample = timeline[1]
+    settled_sample = timeline[-1]
+    assert first_asterisk_sample.source_text == "*"
+    assert first_asterisk_sample.scene_titles == ()
+    assert second_asterisk_sample.source_text == "**"
+    assert second_asterisk_sample.scene_titles == ()
+    assert first_title_sample.source_text == "**S"
+    assert first_title_sample.scene_titles == ("S",)
+    assert first_title_sample.projection_text == "S"
+    assert all(
+        sample.projection_text != "**Scene"
+        for sample in timeline
+        if sample.source_text == "**Scene"
+    )
+    assert settled_sample.document_view_source_text == "**Scene"
+    assert settled_sample.scene_titles == ("Scene",)
+    assert settled_sample.projection_has_pending_update is False
+    assert settled_sample.semantic_refresh_pending is False
+    assert settled_sample.semantic_refresh_active is False
+    assert settled_sample.cursor_position == len("**Scene")
+    assert settled_sample.focus_active is True
+
+
+def test_real_shell_typed_scene_marker_projects_after_existing_prompt_line(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Rapid scene typing should project at a multiline prompt boundary."""
+
+    initial_text = "quality\n"
+    field = harness.add_prompt_workflow(initial_text=initial_text)
+    harness.set_source_cursor_position(field, len(initial_text))
+
+    timeline = harness.probe_typed_scene_projection(field)
+
+    first_title_sample = next(
+        sample for sample in timeline if sample.label == "character-2:S"
+    )
+    settled_sample = timeline[-1]
+    assert first_title_sample.source_text == "quality\n**S"
+    assert first_title_sample.scene_titles == ("S",)
+    assert "**S" not in first_title_sample.projection_text
+    assert settled_sample.source_text == "quality\n**Scene"
+    assert settled_sample.scene_titles == ("Scene",)
+    assert settled_sample.projection_has_pending_update is False
+    assert settled_sample.semantic_refresh_pending is False
+    assert settled_sample.semantic_refresh_active is False
+    assert settled_sample.cursor_position == len(settled_sample.source_text)
+    assert settled_sample.focus_active is True
+
+
+def test_real_shell_scene_marker_typing_preserves_unmapped_source_caret(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Syntax formation must not move the logical caret behind typed marker text."""
+
+    initial_text = "quality\n**Landscape\nfield"
+    marker_start = initial_text.index("**Landscape")
+    field = harness.add_prompt_workflow(initial_text=initial_text)
+    harness.set_source_cursor_position(field, marker_start)
+    target = harness.focus_editor(field)
+
+    QTest.keyClick(target, Qt.Key.Key_Return)
+    expected_text = "quality\n\n**Landscape\nfield"
+    expected_cursor = marker_start + 1
+    assert field.editor.toPlainText() == expected_text
+    assert field.editor.textCursor().position() == expected_cursor
+
+    for character in "**Burst Scene":
+        expected_text = (
+            expected_text[:expected_cursor]
+            + character
+            + expected_text[expected_cursor:]
+        )
+        expected_cursor += 1
+        QTest.keyClicks(target, character)
+
+        assert field.editor.toPlainText() == expected_text
+        assert field.editor.textCursor().position() == expected_cursor
+
+    QTest.keyClick(target, Qt.Key.Key_Return)
+    expected_text = (
+        expected_text[:expected_cursor] + "\n" + expected_text[expected_cursor:]
+    )
+    harness.process_events(cycles=8)
+
+    assert field.editor.toPlainText() == expected_text
+    assert tuple(
+        token.display_text
+        for token in field.editor._surface.projection_document().tokens  # noqa: SLF001
+        if token.kind.value == "scene"
+    ) == ("Burst Scene", "Landscape")
+
+
+def test_real_shell_enter_after_scene_title_enters_editable_scene_body(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Enter after a scene title must move every caret owner into its body."""
+
+    title = "**Scene"
+    field = harness.add_prompt_workflow(initial_text=title)
+    harness.set_source_cursor_position(field, len(title))
+
+    enter_route = harness.press_key(field, Qt.Key.Key_Return, text="\n")
+    entered = harness.capture_state_snapshot(field, label="entered-scene-body")
+
+    assert enter_route.source_after == f"{title}\n"
+    assert enter_route.cursor_after == len(title) + 1
+    assert entered.cursor_position == len(title) + 1
+    assert entered.editing_session_cursor_position == len(title) + 1
+    assert entered.editing_session_anchor_position == len(title) + 1
+    assert entered.caret_state_source_position == len(title) + 1
+    assert entered.anchor_state_source_position == len(title) + 1
+    assert entered.caret_map_source_length == len(title) + 1
+    assert entered.layout_line_count == 2
+    assert entered.caret_rect_intersects_viewport
+
+    harness.type_text(field, "x")
+    typed = harness.capture_state_snapshot(field, label="typed-scene-body")
+
+    assert typed.source_text == f"{title}\nx"
+    assert typed.cursor_position == len(title) + 2
+    assert typed.editing_session_cursor_position == len(title) + 2
+    assert typed.caret_state_source_position == len(title) + 2
+    assert typed.layout_line_count == 2
+    assert typed.caret_rect_intersects_viewport
+
+    harness.undo(field)
+    undone = harness.capture_state_snapshot(field, label="undone-scene-body-text")
+    assert undone.source_text == f"{title}\n"
+    assert undone.cursor_position == len(title) + 1
+    assert undone.caret_state_source_position == len(title) + 1
+
+
+def test_real_shell_scene_line_break_toggle_preserves_decorated_row_metrics(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Enter and Backspace at a scene boundary must retain decorated row ownership."""
+
+    source = "**scene\nbody, (sharp eyes:1.25), <lora:detail_booster:1.00>"
+    scene_title_end = len("**scene")
+    field = harness.add_prompt_workflow(initial_text=source)
+    harness.set_source_cursor_position(field, scene_title_end)
+
+    entered = harness.press_key(field, Qt.Key.Key_Return, text="\n")
+    assert (
+        entered.source_after
+        == f"{source[:scene_title_end]}\n{source[scene_title_end:]}"
+    )
+    assert entered.cursor_after == scene_title_end + 1
+
+    restored = harness.press_key(field, Qt.Key.Key_Backspace)
+    snapshot = harness.capture_state_snapshot(field, label="scene-break-restored")
+
+    assert restored.source_after == source
+    assert restored.cursor_after == scene_title_end
+    assert not harness.invariant_violations(snapshot)
+
+
+def test_real_shell_scene_title_space_advances_visible_caret(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """A trailing title space must immediately own a distinct visible caret stop."""
+
+    title = "**scene"
+    field = harness.add_prompt_workflow(initial_text=title)
+    harness.set_source_cursor_position(field, len(title))
+    target = harness.focus_editor(field)
+    before = harness.capture_state_snapshot(field, label="before-title-space")
+
+    QTest.keyClicks(target, " ")
+    after = harness.capture_state_snapshot(field, label="after-title-space")
+
+    assert after.source_text == f"{title} "
+    assert after.cursor_position == len(title) + 1
+    assert after.caret_state_source_position == len(title) + 1
+    assert after.projection_text == "scene "
+    assert before.caret_rect is not None
+    assert after.caret_rect is not None
+    assert after.caret_rect[0] > before.caret_rect[0]
+
+
+def test_real_shell_scene_title_resize_never_discards_uncommitted_typing(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """A shell relayout must retain transient scene text until projection catches up."""
+
+    title = "**scene with a deliberately long title and many spaced words"
+    field = harness.add_prompt_workflow(initial_text="**scene ")
+    field.editor.resize(430, 260)
+    harness.set_source_cursor_position(field, len("**scene "))
+    harness.type_text(field, title[len("**scene ") :])
+
+    field.editor.resize(429, 260)
+    QApplication.processEvents()
+    QApplication.processEvents()
+    snapshot = harness.capture_state_snapshot(field, label="scene-title-after-resize")
+
+    assert snapshot.source_text == title
+    assert snapshot.cursor_position == len(title)
+    assert (
+        snapshot.projection_document_source_text == title
+        or snapshot.transient_insertion_overlay_valid
+    )
+    assert snapshot.caret_rect_intersects_viewport
+
+
+def test_real_shell_routine_typing_around_scenes_never_rebuilds_projection(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Existing scene geometry should remap locally for ordinary source edits."""
+
+    cases = (
+        ("before-scene", "quality\n**Portrait\nstudio", 0),
+        ("scene-title-end", "**Portrait\nstudio", len("**Portrait")),
+        (
+            "scene-title-next-word",
+            "**Portrait\nstudio",
+            len("**Portrait"),
+        ),
+        (
+            "before-later-scene",
+            "**Portrait\nstudio\n**Landscape\nfield",
+            len("**Portrait\nstudio"),
+        ),
+        (
+            "long-prompt-before-scene",
+            f"{'quality, ' * 400}\n**Portrait\nstudio",
+            0,
+        ),
+    )
+    for label, initial_text, cursor_position in cases:
+        field = harness.add_prompt_workflow(
+            alias=f"scene-path-{label}",
+            initial_text=initial_text,
+        )
+        harness.set_source_cursor_position(field, cursor_position)
+
+        typed_text = " abc" if label == "scene-title-next-word" else "abc"
+        probe = harness.probe_typed_projection_paths(field, typed_text)
+
+        assert probe.canonical_rebuild_count == 0, (
+            label,
+            probe.apply_paths,
+            probe.incremental_rejection_reasons,
+            probe.layout_rejection_reasons,
+        )
+        assert "full_rebuild" not in probe.apply_paths, (label, probe)
+        assert probe.source_text == (
+            initial_text[:cursor_position] + typed_text + initial_text[cursor_position:]
+        )
+        if label == "long-prompt-before-scene":
+            assert probe.elapsed_ms < 750.0
+
+
+def test_real_shell_scene_marker_formation_rebuilds_and_projects_immediately(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """A genuine scene-topology transition should take the canonical path."""
+
+    field = harness.add_prompt_workflow(initial_text="")
+
+    probe = harness.probe_typed_projection_paths(field, "**S")
+
+    assert probe.canonical_rebuild_count >= 1
+    assert "full_rebuild" in probe.apply_paths
+    assert probe.scene_titles == ("S",)
+    assert probe.projection_text == "S"
+
+
+def test_real_shell_scene_typing_coalesces_against_live_previous_source(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Deferred scene-document typing must not compare against stale projection text."""
+
+    initial_text = "quality\n**Portrait\nstudio"
+    field = harness.add_prompt_workflow(initial_text=initial_text)
+    surface = cast(Any, field.editor)._surface
+    delay_projection_update_scheduler(surface)
+    harness.set_source_cursor_position(field, 0)
+
+    probe = harness.probe_typed_projection_paths(field, "abc")
+
+    assert probe.canonical_rebuild_count == 0
+    assert "full_rebuild" not in probe.apply_paths
+    assert probe.source_text == f"abc{initial_text}"
+    assert surface.projection_document().source_text == f"abc{initial_text}"
+
+
+def test_real_shell_scene_deletion_uses_local_path_until_topology_changes(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Scene text deletion should stay local except when it removes the marker."""
+
+    title_field = harness.add_prompt_workflow(
+        alias="scene-title-delete",
+        initial_text="**Scene\nbody",
+    )
+    harness.set_source_cursor_position(title_field, len("**Scene"))
+
+    title_probe = harness.probe_projection_key_path(
+        title_field,
+        key=Qt.Key.Key_Backspace,
+        label="backspace",
+    )
+
+    assert title_probe.canonical_rebuild_count == 0
+    assert title_probe.scene_titles == ("Scen",)
+    assert "full_rebuild" not in title_probe.apply_paths
+
+    topology_field = harness.add_prompt_workflow(
+        alias="scene-topology-delete",
+        initial_text="**S\nbody",
+    )
+    harness.set_source_cursor_position(topology_field, len("**S"))
+
+    topology_probe = harness.probe_projection_key_path(
+        topology_field,
+        key=Qt.Key.Key_Backspace,
+        label="backspace",
+    )
+
+    assert topology_probe.canonical_rebuild_count >= 1
+    assert "full_rebuild" in topology_probe.apply_paths
+    assert topology_probe.scene_titles == ()
+    assert topology_probe.projection_text == "**\nbody"
+
+
+def test_real_shell_decorated_middle_paste_uses_bounded_canonical_reflow(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """A syntax-bearing paste should rebuild semantics without relaying all layout."""
+
+    initial_text = "alpha, (beta:1.20), gamma, delta"
+    pasted_text = "pasted, (weighted:1.30), <lora:model:0.80>, "
+    cursor_position = initial_text.index("gamma")
+    field = harness.add_prompt_workflow(
+        alias="decorated-middle-paste",
+        initial_text=initial_text,
+    )
+    harness.set_source_cursor_position(field, cursor_position)
+
+    probe = harness.probe_paste_projection_paths(field, pasted_text)
+
+    expected_text = (
+        initial_text[:cursor_position] + pasted_text + initial_text[cursor_position:]
+    )
+    assert probe.source_text == expected_text
+    assert probe.canonical_rebuild_count == 0
+    assert probe.apply_paths == ("reflow",)
+    assert probe.projection_text
+
+    undo_probe = harness.probe_undo_projection_paths(field)
+
+    assert undo_probe.source_text == initial_text
+    assert undo_probe.canonical_rebuild_count == 0
+    assert undo_probe.apply_paths == ("checkpoint_restore",)
+
+    redo_probe = harness.probe_redo_projection_paths(field)
+
+    assert redo_probe.source_text == expected_text
+    assert redo_probe.canonical_rebuild_count == 0
+    assert redo_probe.apply_paths == ("checkpoint_restore",)
+
+
 def test_real_shell_harness_uses_real_prompt_editor_composition(
     harness: RealShellPromptEditorHarness,
 ) -> None:
@@ -127,6 +532,48 @@ def test_real_shell_harness_uses_real_prompt_editor_composition(
 
     assert harness.autocomplete_gateway.calls[-1][0] == "re"
     assert getattr(editor, "_autocomplete_panel", None) is not None
+
+
+def test_real_shell_same_source_semantics_switch_rebuilds_scene_state(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """A same-text semantics switch should remove scenes and publish marker errors."""
+
+    source = "**portrait\n{missing}"
+    field = harness.add_prompt_workflow(initial_text=source)
+    editor = cast(Any, field.editor)
+    harness.wait_until(
+        lambda: any(
+            token.kind.value == "scene"
+            for token in editor._surface.projection_document().tokens
+        )
+    )
+
+    editor.replaceBaselineSourceDocument(source, WildcardTextDocumentSemantics())
+    editor._diagnostics_feature_controller.refresh_now()
+    harness.wait_until(
+        lambda: all(
+            token.kind.value != "scene"
+            for token in editor._surface.projection_document().tokens
+        )
+    )
+    harness.wait_until(
+        lambda: any(
+            diagnostic.kind is PromptDiagnosticKind.UNSUPPORTED_SCENE_MARKER
+            for diagnostic in editor._diagnostics_feature_controller.snapshot.diagnostics
+        )
+    )
+
+    assert editor.toPlainText() == source
+    assert editor._scene_feature_controller.scene_key_for_source_position(0) is None
+    assert (
+        editor._document_service.scene_autocomplete_query_at_cursor(
+            text=source,
+            cursor_position=2,
+            has_selection=False,
+        )
+        is None
+    )
 
 
 def test_real_shell_select_all_highlights_blank_rows_between_projected_paragraphs(
@@ -1025,6 +1472,166 @@ def test_real_shell_harness_captures_headless_editor_and_popup_state(
     assert snapshot.popup_state_visible
     assert snapshot.popup_visual_visible
     assert snapshot.autocomplete_gateway_calls
+
+
+def test_real_shell_harness_can_disable_hot_path_owner_tracing() -> None:
+    """Primary performance probes should avoid deep per-owner trace overhead."""
+
+    harness = RealShellPromptEditorHarness(observe_owner_calls=False)
+    try:
+        field = harness.add_prompt_workflow(initial_text="")
+        harness.type_text(field, "fast exact input")
+        snapshot = harness.capture_state_snapshot(field, label="untraced")
+
+        assert snapshot.source_text == "fast exact input"
+        assert snapshot.recent_observed_events == ()
+        assert snapshot.observed_event_end_index == 0
+        assert not harness.invariant_violations(snapshot)
+    finally:
+        harness.close()
+
+
+def test_real_shell_abuse_driver_measures_exact_untraced_input(tmp_path: Path) -> None:
+    """The low-overhead driver should measure the production-mounted key route."""
+
+    result = run_real_shell_scenario(
+        PromptAbuseScenario(
+            "driver-smoke",
+            "alpha, ",
+            (
+                PromptAbuseAction(
+                    "type",
+                    value="xyz",
+                    expected_source="alpha, xyz",
+                    expected_cursor_position=len("alpha, xyz"),
+                ),
+            ),
+            "alpha, xyz",
+            cursor_position=len("alpha, "),
+        ),
+        repetition=0,
+        artifact_root=tmp_path,
+    )
+
+    assert result.correct
+    assert len(result.dispatch_samples) == 3
+    assert all(sample.source_exact for sample in result.dispatch_samples)
+    assert all(
+        sample.visible_source_current_after_dispatch is True
+        for sample in result.dispatch_samples
+    )
+    assert all(
+        sample.visible_caret_current_after_dispatch is True
+        for sample in result.dispatch_samples
+    )
+    assert result.latency.maximum_ms > 0.0
+    assert result.deep_trace_enabled is False
+
+
+def test_real_shell_abuse_driver_measures_each_lifecycle_transition(
+    tmp_path: Path,
+) -> None:
+    """Round-trip torture should budget each visible switch as one operation."""
+
+    result = run_real_shell_scenario(
+        PromptAbuseScenario(
+            "lifecycle-step-timing",
+            "alpha",
+            (
+                PromptAbuseAction(
+                    "workflow_round_trip",
+                    expected_source="alpha",
+                    expected_cursor_position=0,
+                ),
+                PromptAbuseAction(
+                    "canvas_round_trip",
+                    expected_source="alpha",
+                    expected_cursor_position=0,
+                ),
+            ),
+            "alpha",
+        ),
+        repetition=0,
+        artifact_root=tmp_path,
+    )
+
+    assert result.correct
+    assert [sample.label for sample in result.dispatch_samples] == [
+        "workflow:switch-away",
+        "workflow:return",
+        "canvas:switch-away",
+        "canvas:return",
+    ]
+    assert all(sample.dispatch_ms > 0.0 for sample in result.dispatch_samples)
+
+
+def test_real_shell_abuse_driver_checks_projection_ownership_after_each_action(
+    tmp_path: Path,
+) -> None:
+    """A single mode switch should immediately retain canonical owner agreement."""
+
+    source = "(cat:1.05), suffix"
+    result = run_real_shell_scenario(
+        PromptAbuseScenario(
+            "single-raw-mode-owner-check",
+            source,
+            (
+                PromptAbuseAction(
+                    "display_mode",
+                    value="raw",
+                    expected_source=source,
+                    expected_cursor_position=len(source),
+                ),
+            ),
+            source,
+            cursor_position=len(source),
+        ),
+        repetition=0,
+        artifact_root=tmp_path,
+    )
+
+    assert result.correct
+    assert len(result.dispatch_samples) == 1
+    sample = result.dispatch_samples[0]
+    assert sample.active_projection_ownership_valid is True
+    assert sample.layout_projection_ownership_valid is True
+
+
+def test_real_shell_abuse_driver_keeps_every_wrapping_keystroke_visible(
+    tmp_path: Path,
+) -> None:
+    """A wrap transition must never leave live source without a visual owner."""
+
+    typed_text = "sfhjaklfhj jasfklaj flaosjufioewjflafiws"
+    result = run_real_shell_scenario(
+        PromptAbuseScenario(
+            "wrapping-visual-owner",
+            "",
+            (
+                PromptAbuseAction(
+                    "type",
+                    value=typed_text,
+                    expected_source=typed_text,
+                    expected_cursor_position=len(typed_text),
+                ),
+            ),
+            typed_text,
+            cursor_position=0,
+            viewport_size=(120, 240),
+        ),
+        repetition=0,
+        artifact_root=tmp_path,
+    )
+
+    assert result.correct
+    assert all(
+        sample.visible_source_current_after_dispatch is True
+        for sample in result.dispatch_samples
+    )
+    assert all(
+        sample.visible_caret_current_after_dispatch is True
+        for sample in result.dispatch_samples
+    )
 
 
 def test_real_shell_harness_reports_stale_visible_ghost_owner_state(

@@ -1622,6 +1622,12 @@ def _build_main_window_dependencies(
         AutocompleteListManagementOpener,
         WildcardManagementOpener,
     )
+    from substitute.presentation.managed_text_assets.library_prompt_segment_preset_source import (
+        LibraryPromptSegmentPresetSource,
+    )
+    from substitute.presentation.editor.prompt_editor.runtime_services import (
+        PromptEditorRuntimeServices,
+    )
     from substitute.presentation.shell.workspace_generation_controller import (
         GenerationPreparationExecutor,
         WorkspaceGenerationController,
@@ -2102,28 +2108,6 @@ def _build_main_window_dependencies(
     editor_panel_execution_factories = create_editor_panel_execution_factories(
         runtime_services.execution_runtime
     )
-    open_wildcard_management_modal = WildcardManagementOpener(
-        wildcard_file_management_service=prompt_wildcard_file_management_service,
-        prompt_autocomplete_gateway=prompt_autocomplete_gateway,
-        prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
-        editor_panel_execution_factories=editor_panel_execution_factories,
-        prompt_wheel_adjustment_mode=(
-            lambda: (
-                prompt_editor_preference_service.load_preferences().wheel_adjustment_mode
-            )
-        ),
-    )
-    open_autocomplete_list_management_modal = AutocompleteListManagementOpener(
-        list_service=prompt_autocomplete_list_service,
-        prompt_autocomplete_gateway=prompt_autocomplete_gateway,
-        prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
-        editor_panel_execution_factories=editor_panel_execution_factories,
-        prompt_wheel_adjustment_mode=(
-            lambda: (
-                prompt_editor_preference_service.load_preferences().wheel_adjustment_mode
-            )
-        ),
-    )
     prompt_spellcheck_language_tag = default_spellcheck_language_tag()
     prompt_spellcheck_gateway = build_spellcheck_gateway(
         enabled=prompt_editor_preference_service.load_preferences().user_allows(
@@ -2383,6 +2367,51 @@ def _build_main_window_dependencies(
         model_metadata_context_action_handler.shutdown,
     )
     record_dependency_phase("manual_model_metadata_services")
+    prompt_editor_runtime_services = PromptEditorRuntimeServices(
+        autocomplete_gateway=prompt_autocomplete_gateway,
+        wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+        danbooru_url_import_service=cast(
+            "DanbooruUrlImportService", danbooru_url_import_service
+        ),
+        danbooru_wiki_service=cast("DanbooruWikiContentService", danbooru_wiki_service),
+        danbooru_image_preview_service=cast(
+            "DanbooruImagePreviewService", danbooru_image_preview_service
+        ),
+        danbooru_recent_posts_service=cast(
+            "DanbooruRecentPostsService", danbooru_recent_posts_service
+        ),
+        lora_catalog_service=prompt_lora_catalog_service,
+        scheduled_lora_service=prompt_scheduled_lora_service,
+        spellcheck_service=prompt_spellcheck_service,
+        thumbnail_asset_repository=model_metadata_store,
+        model_metadata_action_handler=model_metadata_context_action_handler,
+        segment_preset_source=LibraryPromptSegmentPresetSource(user_preset_service),
+        prompt_task_executor_factory=(
+            editor_panel_execution_factories.prompt_task_executor_factory
+        ),
+        danbooru_lookup_dispatcher_factory=(
+            editor_panel_execution_factories.danbooru_lookup_dispatcher_factory
+        ),
+    )
+    open_wildcard_management_modal = WildcardManagementOpener(
+        wildcard_file_management_service=prompt_wildcard_file_management_service,
+        prompt_runtime_services=prompt_editor_runtime_services,
+        prompt_wheel_adjustment_mode=(
+            lambda: (
+                prompt_editor_preference_service.load_preferences().wheel_adjustment_mode
+            )
+        ),
+        prompt_feature_profile=prompt_feature_profile_service.build_library_profile,
+    )
+    open_autocomplete_list_management_modal = AutocompleteListManagementOpener(
+        list_service=prompt_autocomplete_list_service,
+        prompt_runtime_services=prompt_editor_runtime_services,
+        prompt_wheel_adjustment_mode=(
+            lambda: (
+                prompt_editor_preference_service.load_preferences().wheel_adjustment_mode
+            )
+        ),
+    )
 
     def configure_output_thumbnail_context(
         image_registry: Any,

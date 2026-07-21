@@ -318,15 +318,21 @@ class _FakeQueryController:
 class _AutocompleteTarget:
     """Record query-refresh routing into the autocomplete coordinator API."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, active_session: bool = False) -> None:
         """Initialize call accounting."""
 
+        self.active_session = active_session
         self.tag_calls: list[tuple[PromptAutocompleteQuery | None, str]] = []
         self.lora_calls: list[PromptLoraAutocompleteQuery] = []
         self.wildcard_calls: list[PromptWildcardAutocompleteQuery] = []
         self.scene_calls: list[PromptSceneAutocompleteQuery] = []
         self.retargeted_states: list[PromptAutocompleteQueryState] = []
         self.dismiss_reasons: list[str] = []
+
+    def has_active_session(self) -> bool:
+        """Return whether retargeting has an active autocomplete consumer."""
+
+        return self.active_session
 
     def refresh_for_query(
         self,
@@ -845,6 +851,43 @@ def test_query_refresh_routes_lora_before_tag_autocomplete() -> None:
     assert query_controller.snapshots == [source_snapshot]
     assert target.lora_calls == [lora_query]
     assert target.tag_calls == []
+
+
+def test_query_retarget_skips_query_construction_without_active_session() -> None:
+    """Dormant autocomplete should stay out of the synchronous edit path."""
+
+    target = _AutocompleteTarget(active_session=False)
+    source_snapshot = object()
+    query_controller = _FakeQueryController(_query_state())
+    query_refresh = PromptAutocompleteQueryRefreshController(
+        autocomplete=cast(Any, target),
+        query_controller=cast(Any, query_controller),
+    )
+
+    retargeted = query_refresh.retarget_from_source_snapshot(cast(Any, source_snapshot))
+
+    assert retargeted is False
+    assert query_controller.snapshots == []
+    assert target.retargeted_states == []
+
+
+def test_query_retarget_builds_query_for_active_session() -> None:
+    """Active autocomplete should still retarget on each compatible source edit."""
+
+    target = _AutocompleteTarget(active_session=True)
+    source_snapshot = object()
+    query_state = _query_state()
+    query_controller = _FakeQueryController(query_state)
+    query_refresh = PromptAutocompleteQueryRefreshController(
+        autocomplete=cast(Any, target),
+        query_controller=cast(Any, query_controller),
+    )
+
+    retargeted = query_refresh.retarget_from_source_snapshot(cast(Any, source_snapshot))
+
+    assert retargeted is True
+    assert query_controller.snapshots == [source_snapshot]
+    assert target.retargeted_states == [query_state]
 
 
 def test_query_refresh_routes_wildcard_before_tag_autocomplete() -> None:

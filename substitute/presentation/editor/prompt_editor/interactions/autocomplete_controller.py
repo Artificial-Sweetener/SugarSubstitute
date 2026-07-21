@@ -993,6 +993,11 @@ class PromptAutocompleteCoordinator:
 
         return self._sessions.has_active_session()
 
+    def has_active_session(self) -> bool:
+        """Return whether source edits have an autocomplete session to retarget."""
+
+        return self._has_active_session()
+
 
 class PromptAutocompleteController(Protocol):
     """Describe the autocomplete controller used by interaction orchestration."""
@@ -1064,6 +1069,9 @@ class PromptAutocompleteController(Protocol):
     ) -> bool:
         """Retarget active autocomplete surfaces to one compatible source edit."""
 
+    def has_active_session(self) -> bool:
+        """Return whether source edits have an autocomplete session to retarget."""
+
     def accept_selection(self, *, add_comma: bool) -> None:
         """Accept the selected autocomplete suggestion."""
 
@@ -1119,6 +1127,8 @@ class PromptAutocompleteQueryRefreshController:
     ) -> bool:
         """Retarget active autocomplete state from one prepared source snapshot."""
 
+        if not self._autocomplete.has_active_session():
+            return False
         query_state = self._query_controller.query_state_from_source_snapshot(snapshot)
         self._latest_query_state = query_state
         return self._autocomplete.retarget_from_query_state(query_state)

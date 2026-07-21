@@ -162,7 +162,12 @@ def test_show_segment_overlay_clears_autocomplete_before_entering_reorder_mode()
         entry[0] == "set_chips" and entry[1] == (0, 1) and entry[3] == 1
         for entry in call_order
     )
-    assert ("refresh_geometry", "interaction_position_overlay") in call_order
+    assert ("refresh_geometry", "interaction_position_overlay") not in call_order
+    assert call_order.index("show") < next(
+        index
+        for index, entry in enumerate(call_order)
+        if isinstance(entry, tuple) and entry[0] == "set_chips"
+    )
     assert controller._reorder.segment_reorder_session.is_active is True
     assert controller._reorder.segment_reorder_session.original_ordered_indices == (
         0,
@@ -227,6 +232,50 @@ def test_show_segment_overlay_syncs_preview_state_through_editor_surface() -> No
     controller._reorder._close_segment_overlay(restore_selection=False)
 
     assert editor.clear_reorder_preview_state_calls == 2
+
+
+def test_close_segment_overlay_restores_live_paint_after_overlay_is_hidden() -> None:
+    """Final live-paint invalidation must run after the covering overlay closes."""
+
+    call_order: list[str] = []
+
+    class _Editor(ControllerEditorDouble):
+        """Record when live projection painting is restored."""
+
+        def clear_reorder_preview_state(self) -> None:
+            super().clear_reorder_preview_state()
+            call_order.append("clear_preview")
+
+    class _Overlay(OverlayDouble):
+        """Record when the viewport-covering overlay is hidden."""
+
+        def close(self) -> bool:
+            call_order.append("close_overlay")
+            return super().close()
+
+    overlay = _Overlay([0, 1])
+    editor = _Editor(
+        clicked_cursor=MenuCursorDouble(text="alpha, beta", position=7),
+        current_cursor=MenuCursorDouble(text="alpha, beta", position=7),
+        text="alpha, beta",
+    )
+    controller = prompt_interaction_controller(
+        editor,
+        autocomplete=autocomplete_double(),
+        semantic_refresh_controller=semantic_refresh_controller_double(),
+        syntax_renderers=syntax_renderer_double(),
+        document_service=PromptDocumentService(),
+        mutation_service=PromptMutationService(),
+        syntax_service_=syntax_service(),
+        syntax_profile=prompt_syntax_profile("emphasis", "wildcard"),
+        reorder_overlay_factory=OverlayFactoryDouble(overlay),
+    )
+    controller._reorder._segment_overlay = overlay
+
+    controller._reorder._close_segment_overlay(restore_selection=False)
+
+    assert call_order == ["close_overlay", "clear_preview"]
+    assert controller.segment_overlay is None
 
 
 def test_overlay_pointer_drop_updates_commit_snapshot_without_source_mutation() -> None:

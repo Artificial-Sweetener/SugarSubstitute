@@ -19,6 +19,12 @@
 from __future__ import annotations
 
 from substitute.application.prompt_editor import PromptSourceNormalizationService
+from substitute.application.managed_text_assets.wildcard_csv_document_semantics import (
+    WildcardCsvDocumentSemantics,
+)
+from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+    PromptStructuredTextMutationService,
+)
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandDispatcher,
     PromptCommandSourceIdentity,
@@ -163,3 +169,36 @@ def test_trigger_word_command_is_one_undo_safe_source_change() -> None:
     assert session.source_text == "portrait, imp princess, twili helmet"
     assert session.source_revision == 1
     assert session.can_undo() is True
+
+
+def test_trigger_word_command_uses_quoted_csv_value_boundary() -> None:
+    """Trigger words should append inside a quoted cell and preserve its quotes."""
+
+    source = 'Prompt\n"portrait"'
+    insertion_position = source.rindex('"')
+    session: PromptEditingSession[str] = PromptEditingSession(
+        source_text=source,
+        source_revision=0,
+        cursor_state=PromptCursorState(insertion_position, insertion_position),
+        max_undo_states=8,
+        max_redo_states=8,
+    )
+    command = build_trigger_word_insertion_command(
+        _request(source_text=source, insert_position=insertion_position),
+        normalizer=PromptSourceNormalizationService(),
+        exact_source=False,
+        undo_snapshot=PromptUndoSnapshot(
+            source_text=source,
+            cursor_state=session.cursor_state,
+            restoration_payload=source,
+        ),
+        structured_text_mutations=PromptStructuredTextMutationService(
+            WildcardCsvDocumentSemantics()
+        ),
+    )
+
+    result = PromptCommandDispatcher(session).execute(command)
+
+    assert result.status == "applied"
+    assert session.source_text == ('Prompt\n"portrait, imp princess, twili helmet"')
+    assert session.cursor_state.cursor_position == len(session.source_text) - 1

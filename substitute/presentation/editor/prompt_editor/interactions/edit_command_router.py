@@ -29,6 +29,9 @@ from substitute.application.prompt_editor import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
+from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+    PromptStructuredTextMutationService,
+)
 
 from ..commands import (
     PromptAutocompleteAcceptance,
@@ -98,6 +101,7 @@ class PromptEditCommandRouter(Generic[TPayload]):
         cursor_position_provider: Callable[[], int],
         anchor_position_provider: Callable[[], int],
         exact_source_provider: Callable[[], bool],
+        structured_text_mutations: PromptStructuredTextMutationService | None = None,
     ) -> None:
         """Bind command construction to editing-session and projection boundaries."""
 
@@ -108,6 +112,7 @@ class PromptEditCommandRouter(Generic[TPayload]):
         self._cursor_position_provider = cursor_position_provider
         self._anchor_position_provider = anchor_position_provider
         self._exact_source_provider = exact_source_provider
+        self._structured_text_mutations = structured_text_mutations
 
     def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
         """Return the current source identity for prepared commands."""
@@ -239,6 +244,7 @@ class PromptEditCommandRouter(Generic[TPayload]):
             normalizer=self._normalizer,
             exact_source=self._source_state().exact_source,
             undo_snapshot=self._edit_controller.current_undo_snapshot(),
+            structured_text_mutations=self._structured_text_mutations,
         )
         return self._dispatch_source_replacement_command(
             command,
@@ -355,6 +361,7 @@ class PromptEditCommandRouter(Generic[TPayload]):
             exact_source=self._source_state().exact_source,
             record_undo=True,
             undo_snapshot=self._edit_controller.current_undo_snapshot(),
+            structured_text_mutations=self._structured_text_mutations,
         )
         self._edit_controller.finish_pending_key_edit_block(
             reason="danbooru_import_result"
@@ -399,6 +406,7 @@ class PromptEditCommandRouter(Generic[TPayload]):
             normalizer=self._normalizer,
             exact_source=self._source_state().exact_source,
             undo_snapshot=self._edit_controller.current_undo_snapshot(),
+            structured_text_mutations=self._structured_text_mutations,
         )
         return self._dispatch_source_replacement_command(
             command,

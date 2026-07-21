@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Generic, Protocol, TypeVar, cast
@@ -56,7 +57,9 @@ from .incremental_apply_controller import (
     PromptProjectionIncrementalApplyController,
     PromptProjectionSourceChangeApplyRequest,
 )
+from .incremental_editor import single_source_text_edit
 from .layout_engine import PromptProjectionLayout
+from .layout_checkpoint import PromptProjectionLayoutCheckpoint
 from .model import (
     PromptProjectionCaretState,
     PromptProjectionDocument,
@@ -229,6 +232,7 @@ class PromptProjectionRestorePayload(Protocol):
     expanded_source_range: tuple[int, int] | None
     document_view: PromptDocumentView
     render_plan: PromptSyntaxRenderPlan
+    layout_checkpoint: PromptProjectionLayoutCheckpoint | None
 
 
 class PromptProjectionNoArgSignal(Protocol):
@@ -289,11 +293,11 @@ class PromptProjectionSourceChangeMouseHandler(Protocol):
 class PromptProjectionSourceChangeSession(Protocol):
     """Expose session state touched by committed source-change application."""
 
-    diagnostics: tuple[PromptDiagnostic, ...]
+    diagnostics: Sequence[PromptDiagnostic]
     autocomplete_preview: object | None
     expanded_source_range: tuple[int, int] | None
 
-    def set_diagnostics(self, diagnostics: tuple[PromptDiagnostic, ...]) -> None:
+    def set_diagnostics(self, diagnostics: Sequence[PromptDiagnostic]) -> None:
         """Replace visible diagnostics."""
 
     def set_pending_auto_exact_weight_edit(
@@ -389,6 +393,16 @@ class PromptProjectionSourceChangeHost(Protocol):
     ) -> bool:
         """Return whether one source range intersects projected token syntax."""
 
+    def _source_edit_requires_canonical_rebuild(
+        self,
+        previous_source_text: str,
+        next_source_text: str,
+        *,
+        start: int,
+        end: int,
+    ) -> bool:
+        """Return whether one source-local edit changes canonical projection topology."""
+
     def _current_caret_document_rect(self) -> QRectF:
         """Return the current document-local caret rectangle."""
 
@@ -421,6 +435,7 @@ class PromptProjectionSourceChangeHost(Protocol):
         caret_rect_override: QRectF | None = None,
         collapse_expanded_token: bool = True,
         reason: str = "generic",
+        preserve_unmapped_source_positions: bool = False,
     ) -> None:
         """Set committed caret states."""
 
@@ -697,6 +712,9 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             host._render_plan = PromptSyntaxRenderPlan(
                 syntax_spans=(),
                 renderer_views=(),
+                document_semantics_identity=(
+                    host._render_plan.document_semantics_identity
+                ),
             )
         else:
             host._document_view, host._render_plan = optimistic_prompt_state
@@ -802,6 +820,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         next_anchor_state: PromptProjectionCaretState,
         can_preserve_diagnostic_fragment_cache: bool,
         projection_deferral_reason: str,
+        restore_checkpoint: PromptProjectionLayoutCheckpoint | None = None,
     ) -> None:
         """Apply immediate projection refresh, preserving the existing ordering."""
 
@@ -824,6 +843,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                     can_preserve_diagnostic_fragment_cache
                 ),
                 projection_deferral_reason=projection_deferral_reason,
+                restore_checkpoint=restore_checkpoint,
             )
         )
         log_projection_timing(
@@ -844,6 +864,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                 cursor_state=next_cursor_state,
                 anchor_state=next_anchor_state,
                 collapse_expanded_token=not outcome.fast_projection_applied,
+                preserve_unmapped_source_positions=True,
                 reason=(
                     "fast_source_replace"
                     if outcome.fast_projection_applied
@@ -913,12 +934,20 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         replaced_text: str,
         replacement_text: str,
         origin: PromptSourceEditOrigin,
+        previous_source_text: str,
         updated_text: str,
         normalized_text: str,
     ) -> tuple[bool, str]:
         """Return whether one edit can wait for controller-owned prompt state."""
 
         host = self._host
+        if host._source_edit_requires_canonical_rebuild(
+            previous_source_text,
+            normalized_text,
+            start=start,
+            end=end,
+        ):
+            return False, "source_projection_topology_changed"
         return host._projection_freshness_controller.can_defer_source_rebuild_for_edit(
             blockers=host._projection_freshness_blockers(),
             start=start,
@@ -1160,6 +1189,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             replaced_text=previous_text[start:end],
             replacement_text=replacement_text,
             origin=origin,
+            previous_source_text=previous_text,
             updated_text=updated_text,
             normalized_text=result.next_snapshot.source_text,
         )
@@ -1256,6 +1286,12 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         host = self._host
         state = restore_result.snapshot
         payload = cast(PromptProjectionRestorePayload | None, state.restoration_payload)
+        previous_source_text = host._projection_document.source_text
+        previous_document_view = host._document_view
+        previous_render_plan = host._render_plan
+        previous_projection_freshness = host._projection_freshness_controller.freshness
+        previous_deletion_overlay = self._valid_transient_deletion_overlay()
+        source_edit = single_source_text_edit(previous_source_text, state.source_text)
         if (
             payload is not None
             and payload.document_view.source_text == state.source_text
@@ -1275,6 +1311,9 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             host._render_plan = PromptSyntaxRenderPlan(
                 syntax_spans=(),
                 renderer_views=(),
+                document_semantics_identity=(
+                    host._render_plan.document_semantics_identity
+                ),
             )
         if payload is not None:
             host._cursor_state = payload.cursor_state
@@ -1298,7 +1337,24 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             deferrable_projection=False,
             source_revision=restore_result.source_snapshot.source_revision,
         )
-        host._rebuild_projection()
+        self._apply_immediate_projection(
+            text=state.source_text,
+            previous_source_text=previous_source_text,
+            source_edit_start=None if source_edit is None else source_edit.start,
+            source_edit_end=None if source_edit is None else source_edit.end,
+            source_edit_replacement_text=(
+                None if source_edit is None else source_edit.replacement_text
+            ),
+            previous_projection_freshness=previous_projection_freshness,
+            previous_document_view=previous_document_view,
+            previous_render_plan=previous_render_plan,
+            previous_deletion_overlay=previous_deletion_overlay,
+            next_cursor_state=host._cursor_state,
+            next_anchor_state=host._anchor_state,
+            can_preserve_diagnostic_fragment_cache=False,
+            projection_deferral_reason="history_restore",
+            restore_checkpoint=(None if payload is None else payload.layout_checkpoint),
+        )
         host._ensure_caret_visible()
         host._restart_caret_blink_cycle()
         host.textChanged.emit()

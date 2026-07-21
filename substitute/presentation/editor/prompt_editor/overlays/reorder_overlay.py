@@ -24,12 +24,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-import time
 from typing import cast
 
 from PySide6.QtCore import (
     QEvent,
-    QPoint,
     QRect,
     Qt,
     Signal,
@@ -41,7 +39,7 @@ from PySide6.QtGui import (
     QResizeEvent,
     QShowEvent,
 )
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor import (
     PromptDocumentView,
@@ -80,6 +78,7 @@ from ..projection.reorder_placement_geometry import (
     PromptReorderPlacementGeometry,
     PromptReorderPlacementSnapshot,
 )
+from ..projection.reorder_visual_snapshot import PromptReorderProjectionPaintSnapshot
 from ..projection.reorder_animation import PromptReorderAnimationPlanner
 from ..projection.reorder_state import (
     PromptReorderGeometryGenerationState,
@@ -89,11 +88,11 @@ from ..projection.reorder_state import (
     PromptReorderPointerState,
     PromptReorderPreviewTargetIdentity as _PreviewTargetIdentity,
     PromptReorderPreviewTargetState,
-    ReorderChipWidgetGeometryKey as _ChipWidgetGeometryKey,
+    ReorderPointerRegionGeometryKey as _PointerRegionGeometryKey,
     ReorderLayoutViewKey as _ReorderLayoutViewKey,
     ReorderLiveVisualGeometryKey as _LiveVisualGeometryKey,
     ReorderPreviewSnapshotKey as _ReorderPreviewSnapshotKey,
-    reorder_chip_widget_geometry_key,
+    reorder_pointer_region_geometry_key,
     reorder_overlay_position_geometry_key,
     reorder_overlay_refresh_geometry_key,
 )
@@ -119,6 +118,11 @@ from .reorder_landing_shadow import (
 from .reorder_animation_presenter import PromptReorderAnimationPresenter
 from .reorder_displacement_session import ReorderDisplacementSession
 from .reorder_held_chip_presenter import PromptReorderHeldChipPresenter
+from .reorder_pointer_regions import (
+    PromptReorderPointerInput,
+    PromptReorderPointerRegion,
+    PromptReorderPointerRegions,
+)
 from .reorder_overlay_animation import PromptReorderOverlayAnimationMixin
 from .reorder_overlay_geometry import PromptReorderOverlayGeometryMixin
 from .reorder_overlay_interaction import PromptReorderOverlayInteractionMixin
@@ -129,9 +133,10 @@ from .reorder_overlay_ports import (
     PromptReorderOverlay,
     PromptReorderOverlayRenderState,
     PromptReorderViewFactory,
-    SegmentChipDragController,
 )
+from .reorder_paint_ownership import animation_plan_with_complete_paint_ownership
 from .reorder_raster_cache import PromptReorderRasterCache, ReorderRasterEntry
+from .reorder_raster_warm_scheduler import PromptReorderRasterWarmScheduler
 from .reorder_visual_cache import (
     PromptReorderChipVisualSnapshot,
     PromptReorderVisualSnapshotCache,
@@ -142,176 +147,6 @@ _SHADOW_ACTUAL_MISMATCH_X = 8.0
 _SHADOW_ACTUAL_MISMATCH_Y = 8.0
 _SLOW_DRAG_MOVE_MS = 16.0
 _SLOW_LIVE_VISUALS_MS = 8.0
-
-
-class _SegmentChip(QWidget):
-    """Capture hover and drag input for one prompt segment without reflowing text."""
-
-    def __init__(
-        self,
-        segment: PromptReorderChipView,
-        *,
-        controller: SegmentChipDragController,
-        parent: QWidget | None = None,
-    ) -> None:
-        """Initialize one transparent hotspot for the supplied prompt segment."""
-
-        super().__init__(parent)
-        self.segment_index = segment.index
-        self._segment = segment
-        self._controller = controller
-        self._press_global_pos: QPoint | None = None
-        self._drag_started = False
-        self._last_mouse_event_at: float | None = None
-        self.setObjectName("segmentChip")
-        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
-        self.setMouseTracking(True)
-        self.setCursor(Qt.CursorShape.OpenHandCursor)
-        self.setProperty("segmentIndex", segment.index)
-        self.setProperty("segmentText", self.drag_proxy_text())
-        self.setProperty("active", False)
-        self.setProperty("dragging", False)
-        self.setProperty("hovered", False)
-
-    def drag_proxy_text(self) -> str:
-        """Return the segment label used by the floating drag proxy."""
-
-        if self._segment.has_separator_after:
-            return f"{self._segment.display_text},"
-        return self._segment.display_text
-
-    def set_visual_state(self, *, active: bool, dragging: bool, hovered: bool) -> None:
-        """Expose test-visible state on the transparent hotspot widget."""
-
-        self.setProperty("active", active)
-        self.setProperty("dragging", dragging)
-        self.setProperty("hovered", hovered)
-
-    def enterEvent(self, event: QEnterEvent) -> None:
-        """Report hover entry so the overlay can repaint the hovered segment."""
-
-        self._controller.set_hovered_segment(self.segment_index)
-        super().enterEvent(event)
-
-    def leaveEvent(self, event: QEvent) -> None:
-        """Clear hover state when the pointer leaves this hotspot."""
-
-        self._controller.set_hovered_segment(None)
-        super().leaveEvent(event)
-
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        """Prime one drag gesture when the user presses the hotspot."""
-
-        self._log_mouse_event("mouse.press", event)
-        if event.button() != Qt.MouseButton.LeftButton:
-            super().mousePressEvent(event)
-            return
-
-        self._controller.retain_editor_focus()
-        self._controller.activate_chip(self)
-        self._controller.set_pressed_segment(self.segment_index)
-        self._press_global_pos = event.globalPosition().toPoint()
-        self._drag_started = False
-        self.setCursor(Qt.CursorShape.ClosedHandCursor)
-        event.accept()
-
-    def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        """Start or continue one drag gesture while the left button stays down."""
-
-        self._log_mouse_event("mouse.move", event)
-        if not (event.buttons() & Qt.MouseButton.LeftButton):
-            super().mouseMoveEvent(event)
-            return
-
-        self._controller.retain_editor_focus()
-        global_pos = event.globalPosition().toPoint()
-        drag_distance = (
-            0
-            if self._press_global_pos is None
-            else (global_pos - self._press_global_pos).manhattanLength()
-        )
-        if (
-            not self._drag_started
-            and self._press_global_pos is not None
-            and drag_distance >= QApplication.startDragDistance()
-        ):
-            self._drag_started = True
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
-            self._log_interaction_event(
-                "mouse.drag_threshold_crossed",
-                segment_index=self.segment_index,
-                global_x=global_pos.x(),
-                global_y=global_pos.y(),
-                drag_distance=drag_distance,
-                threshold=QApplication.startDragDistance(),
-            )
-            self._controller.start_drag(
-                self,
-                global_pos=global_pos,
-                press_global_pos=self._press_global_pos,
-            )
-
-        if self._drag_started:
-            self._controller.drag_move(self, global_pos)
-            event.accept()
-            return
-
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        """End one drag gesture or clear the primed click state."""
-
-        self._log_mouse_event("mouse.release", event)
-        self._press_global_pos = None
-
-        if self._drag_started and event.button() == Qt.MouseButton.LeftButton:
-            self._controller.retain_editor_focus()
-            self._drag_started = False
-            self._controller.end_drag(self)
-            event.accept()
-            return
-
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._controller.retain_editor_focus()
-            self._controller.set_pressed_segment(None)
-            self.setCursor(Qt.CursorShape.OpenHandCursor)
-            event.accept()
-            return
-        super().mouseReleaseEvent(event)
-
-    def _log_mouse_event(self, event_name: str, event: QMouseEvent) -> None:
-        """Record raw mouse ingress for drag performance attribution."""
-
-        now = time.perf_counter()
-        elapsed_since_previous_ms = (
-            None
-            if self._last_mouse_event_at is None
-            else (now - self._last_mouse_event_at) * 1000.0
-        )
-        self._last_mouse_event_at = now
-        global_pos = event.globalPosition().toPoint()
-        drag_distance = (
-            None
-            if self._press_global_pos is None
-            else (global_pos - self._press_global_pos).manhattanLength()
-        )
-        self._log_interaction_event(
-            event_name,
-            segment_index=self.segment_index,
-            button=str(event.button()),
-            buttons=str(event.buttons()),
-            global_x=global_pos.x(),
-            global_y=global_pos.y(),
-            drag_started=self._drag_started,
-            drag_distance=drag_distance,
-            elapsed_since_previous_ms=elapsed_since_previous_ms,
-        )
-
-    def _log_interaction_event(self, event: str, **context: object) -> None:
-        """Delegate chip telemetry to the overlay interaction wrapper."""
-
-        self._controller.log_interaction_event(event, **context)
 
 
 class SegmentReorderOverlay(
@@ -358,6 +193,11 @@ class SegmentReorderOverlay(
             frame_callback=self._sync_reorder_animation_frame,
         )
         self._raster_cache = PromptReorderRasterCache()
+        self._raster_warm_scheduler = PromptReorderRasterWarmScheduler(
+            parent=self,
+            cache=self._raster_cache,
+            entries_changed=self._publish_warmed_reorder_rasters,
+        )
         self._live_raster_entries_render_key: tuple[object, ...] | None = None
         self._live_raster_entries_by_index: dict[int, ReorderRasterEntry] = {}
         self._preview_raster_entries_render_key: tuple[object, ...] | None = None
@@ -393,7 +233,6 @@ class SegmentReorderOverlay(
         self._segments_by_index: dict[int, PromptReorderChipView] = {}
         self._visuals_by_index: dict[int, PromptChipVisual] = {}
         self._preview_visuals_by_index: dict[int, PromptChipVisual] = {}
-        self._base_drag_visuals_by_index: dict[int, PromptChipVisual] = {}
         self._live_visual_snapshots_by_index: dict[
             int, PromptReorderChipVisualSnapshot
         ] = {}
@@ -415,11 +254,17 @@ class SegmentReorderOverlay(
         self._last_overlay_refresh_geometry_key: (
             PromptReorderOverlayRefreshGeometryKey | None
         ) = None
-        self._last_chip_widget_geometry_key: _ChipWidgetGeometryKey | None = None
+        self._last_pointer_region_geometry_key: _PointerRegionGeometryKey | None = None
+        self._render_state_sync_revision = 0
         self._pending_autoscroll_invalidation: (
             PromptReorderAutoscrollInvalidation | None
         ) = None
-        self._chips_by_index: dict[int, _SegmentChip] = {}
+        self._pointer_regions = PromptReorderPointerRegions()
+        self._pointer_input = PromptReorderPointerInput(
+            regions=self._pointer_regions,
+            controller=self,
+        )
+        self._chips_by_index = self._pointer_regions.regions_by_index
         self._initial_ordered_indices: tuple[int, ...] = ()
         self._ordered_segment_indices: list[int] = []
         self._gesture = gesture_controller
@@ -479,7 +324,11 @@ class SegmentReorderOverlay(
         self._animation_generation_id = 0
         self._animation_frame_batch_depth = 0
         self._animation_frame_sync_pending = False
-        self._last_suppressed_chip_indices: frozenset[int] = frozenset()
+        self._animated_pointer_region_indices: set[int] = set()
+        self._last_suppressed_chip_snapshots_by_index: dict[
+            int,
+            PromptReorderProjectionPaintSnapshot,
+        ] = {}
         self._pointer_loop_depth = 0
         self._instrumentation_max_drag_move_ms = 0.0
         self._instrumentation_max_live_visuals_ms = 0.0
@@ -538,6 +387,10 @@ class SegmentReorderOverlay(
         """Refresh chip geometry after the overlay becomes visible to Qt."""
 
         super().showEvent(event)
+        if self._document_view is None:
+            self._refresh_overlay_rect()
+            self._view.setGeometry(self.rect())
+            return
         self.refresh_geometry(reason="overlay_show")
 
     def closeEvent(self, event: QCloseEvent) -> None:
@@ -550,22 +403,41 @@ class SegmentReorderOverlay(
         super().closeEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        """Consume non-segment presses so text selection cannot start underneath."""
+        """Route a press through overlay-owned semantic chip hit testing."""
 
-        self.retain_editor_focus()
-        event.accept()
+        self._pointer_input.press(
+            event,
+            ordered_indices=tuple(self._ordered_segment_indices),
+        )
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        """Consume non-segment moves so the editor I-beam does not win."""
+        """Route hover and drag motion through one bounded input surface."""
 
-        self.retain_editor_focus()
-        event.accept()
+        self._pointer_input.move(
+            event,
+            ordered_indices=tuple(self._ordered_segment_indices),
+        )
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        """Consume non-segment releases while reorder mode is active."""
+        """Release the semantic chip gesture owned by the overlay surface."""
 
-        self.retain_editor_focus()
-        event.accept()
+        self._pointer_input.release(event)
+
+    def enterEvent(self, event: QEnterEvent) -> None:
+        """Refresh hover immediately when the pointer enters reorder mode."""
+
+        region = self._pointer_regions.hit_test(
+            event.position(),
+            ordered_indices=tuple(self._ordered_segment_indices),
+        )
+        self.set_hovered_segment(None if region is None else region.segment_index)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event: QEvent) -> None:
+        """Clear hover when no pressed gesture retains overlay ownership."""
+
+        self._pointer_input.leave()
+        super().leaveEvent(event)
 
     def set_chips(
         self,
@@ -582,7 +454,9 @@ class SegmentReorderOverlay(
         started_at = reorder_drag_started_at()
         self._cancel_chip_animations(reason="set_chips")
         self._clear_reorder_visual_snapshots(reason="set_chips")
-        self.cancel_drag()
+        self._drag_proxy.hide()
+        self._autoscroll.stop()
+        self._clear_pending_autoscroll_invalidation()
         self._delete_existing_chips()
         self._document_view = document_view
         self._source_revision = source_revision
@@ -604,7 +478,7 @@ class SegmentReorderOverlay(
         self._last_live_visual_geometry_key = None
         self._last_overlay_position_geometry_key = None
         self._last_overlay_refresh_geometry_key = None
-        self._last_chip_widget_geometry_key = None
+        self._last_pointer_region_geometry_key = None
         segments = chips
         self._segments_by_index = {segment.index: segment for segment in segments}
         self._initial_ordered_indices = tuple(segment.index for segment in segments)
@@ -622,10 +496,8 @@ class SegmentReorderOverlay(
         self._preview_snapshot = None
         self._base_drag_snapshot = None
         self._landing_shadow.reset_session_state()
-        self._chips_by_index = {
-            segment.index: _SegmentChip(segment, controller=self, parent=self)
-            for segment in segments
-        }
+        self._pointer_regions.set_segments(segments)
+        self._pointer_input.reset()
         self._view.lower()
         self.refresh_geometry(reason="set_chips")
         self._log_interaction_timing(
@@ -686,15 +558,18 @@ class SegmentReorderOverlay(
     def _clear_reorder_visual_snapshots(self, *, reason: str) -> None:
         """Clear cached full-chip visual snapshots and document suppression."""
 
+        self._settle_chip_animations(reason=f"{reason}_snapshot_clear")
         self._live_visual_snapshots_by_index = {}
         self._preview_visual_snapshots_by_index = {}
         self._visual_snapshot_cache.clear()
+        self._raster_warm_scheduler.clear()
         self._raster_cache.clear()
         self._clear_reorder_raster_entry_cache()
         self._last_live_visual_geometry_key = None
         self._last_overlay_refresh_geometry_key = None
         self._displacement_session.bump_raster_generation()
-        self._set_reorder_overlay_suppression(frozenset())
+        self._set_reorder_overlay_suppression({})
+        self._editor.set_reorder_surface_chrome(mode="live", chips=())
 
     def _clear_reorder_raster_entry_cache(self) -> None:
         """Clear render-state memoization that wraps the raster cache."""
@@ -703,6 +578,13 @@ class SegmentReorderOverlay(
         self._live_raster_entries_by_index = {}
         self._preview_raster_entries_render_key = None
         self._preview_raster_entries_by_index = {}
+
+    def _publish_warmed_reorder_rasters(self) -> None:
+        """Publish one idle-built raster batch through the passive view owner."""
+
+        self._clear_reorder_raster_entry_cache()
+        if self.isVisible():
+            self._sync_reorder_view_state(reason="raster_warm_batch")
 
     def set_preview_snapshot(
         self,
@@ -715,6 +597,7 @@ class SegmentReorderOverlay(
 
         started_at = reorder_drag_started_at()
         animation_start_rects = self._current_visible_chip_rects_for_animation()
+        self._cancel_chip_animations(reason="preview_snapshot_refresh")
         self._geometry.set_preview_snapshots(
             snapshot,
             base_drag_snapshot=base_drag_snapshot,
@@ -736,11 +619,29 @@ class SegmentReorderOverlay(
         animation_plan = self._build_reorder_animation_plan_if_ready(
             current_visuals=animation_start_rects
         )
-        self._update_chip_geometry()
+        snapshot_indices = (
+            frozenset()
+            if animation_plan is None
+            else frozenset(
+                target.segment_index for target in animation_plan.changed_targets
+            )
+        )
+        dragged_segment_index = self._gesture.state.dragged_segment_index
+        if dragged_segment_index is not None:
+            snapshot_indices = snapshot_indices | {dragged_segment_index}
+        self._prepare_preview_visual_snapshots(snapshot_indices)
+        if animation_plan is not None:
+            animation_plan = animation_plan_with_complete_paint_ownership(
+                animation_plan,
+                snapshot_indices=frozenset(self._preview_visual_snapshots_by_index),
+            )
+        self._update_pointer_region_geometry()
         if animation_plan is not None:
             self.apply_animation_plan(animation_plan)
         else:
             self._sync_reorder_view_state(reason="set_preview_snapshot")
+        self._last_overlay_refresh_geometry_key = self._overlay_refresh_geometry_key()
+        self._last_overlay_position_geometry_key = self._overlay_position_geometry_key()
         if self._gesture.state.active_drop_target is None:
             self._log_interaction_event(
                 "preview_state.fresh",
@@ -775,7 +676,6 @@ class SegmentReorderOverlay(
             has_base_drag_snapshot=base_drag_snapshot is not None,
             ordered_count=len(self._ordered_segment_indices),
             preview_visual_count=len(self._preview_visuals_by_index),
-            base_drag_visual_count=len(self._base_drag_visuals_by_index),
             lane_count=len(self._drop_target_lanes),
         )
 
@@ -868,10 +768,18 @@ class SegmentReorderOverlay(
 
         live_changed = self._refresh_live_chip_geometry_if_needed(reason=reason)
         preview_changed = self._refresh_preview_geometry_if_needed(reason=reason)
-        chip_geometry_changed = self._sync_chip_widget_geometry_if_needed(reason=reason)
+        chip_geometry_changed = self._sync_pointer_region_geometry_if_needed(
+            reason=reason
+        )
         proxy_changed = self._sync_drag_proxy_geometry_if_needed(reason=reason)
         self._last_overlay_refresh_geometry_key = next_key
-        if live_changed or preview_changed or chip_geometry_changed or proxy_changed:
+        if (
+            key_changed
+            or live_changed
+            or preview_changed
+            or chip_geometry_changed
+            or proxy_changed
+        ):
             self._sync_reorder_view_state(reason=reason)
             if self._pointer_loop_depth > 0:
                 self.record_pointer_unexpected_work("paint_request", reason=reason)
@@ -996,45 +904,40 @@ class SegmentReorderOverlay(
         """Refresh live chip geometry when live geometry identity changed."""
 
         previous_visuals = self._visuals_by_index
-        previous_visual_snapshots = self._live_visual_snapshots_by_index
         self._visuals_by_index = self._build_visuals_if_needed(reason=reason)
-        return (
-            self._visuals_by_index != previous_visuals
-            or self._live_visual_snapshots_by_index != previous_visual_snapshots
-        )
+        return self._visuals_by_index != previous_visuals
 
     def _refresh_preview_geometry_if_needed(self, *, reason: str) -> bool:
         """Refresh preview and base geometry when preview identity changed."""
 
+        self._settle_chip_animations(reason=f"{reason}_preview_geometry_refresh")
         previous_preview_visuals = self._preview_visuals_by_index
-        previous_base_visuals = self._base_drag_visuals_by_index
         previous_lane_count = len(self._drop_target_lanes)
         self._update_preview_layout()
         self._refresh_preview_geometry()
         changed = (
             previous_preview_visuals != self._preview_visuals_by_index
-            or previous_base_visuals != self._base_drag_visuals_by_index
             or previous_lane_count != len(self._drop_target_lanes)
         )
         if changed and self._pointer_loop_depth > 0:
             self.record_pointer_unexpected_work("preview_rebuild", reason=reason)
         return changed
 
-    def _sync_chip_widget_geometry_if_needed(self, *, reason: str) -> bool:
-        """Move chip widgets when visual geometry identity changed."""
+    def _sync_pointer_region_geometry_if_needed(self, *, reason: str) -> bool:
+        """Move logical pointer regions when visual geometry identity changed."""
 
-        next_key = self._chip_widget_geometry_key()
-        if next_key == self._last_chip_widget_geometry_key:
+        next_key = self._pointer_region_geometry_key()
+        if next_key == self._last_pointer_region_geometry_key:
             self._log_interaction_event(
-                "chip_geometry.update_skipped_unchanged",
+                "pointer_region_geometry.update_skipped_unchanged",
                 gesture_id=self._instrumentation_gesture_id,
                 event_id=self._instrumentation_event_id,
                 reason=reason,
                 chip_count=len(self._chips_by_index),
             )
             return False
-        self._last_chip_widget_geometry_key = next_key
-        self._update_chip_geometry()
+        self._last_pointer_region_geometry_key = next_key
+        self._update_pointer_region_geometry()
         return True
 
     def _sync_drag_proxy_geometry_if_needed(self, *, reason: str) -> bool:
@@ -1105,8 +1008,8 @@ class SegmentReorderOverlay(
             active_target=self._gesture.state.active_drop_target,
         )
 
-    def _chip_widget_geometry_key(self) -> _ChipWidgetGeometryKey:
-        """Return the current visual identity used to place transparent chip widgets."""
+    def _pointer_region_geometry_key(self) -> _PointerRegionGeometryKey:
+        """Return the current visual identity used to place pointer regions."""
 
         preview_rects = tuple(
             sorted(
@@ -1132,7 +1035,7 @@ class SegmentReorderOverlay(
                 for segment_index, visual in self._visuals_by_index.items()
             )
         )
-        return reorder_chip_widget_geometry_key(
+        return reorder_pointer_region_geometry_key(
             dragged_segment_index=self._gesture.state.dragged_segment_index,
             preview_mode_active=self._preview_mode_active(),
             preview_rects=preview_rects,
@@ -1376,12 +1279,35 @@ class SegmentReorderOverlay(
         self._update_chip_states()
         self._sync_reorder_view_state(reason="hovered_segment_changed")
 
-    def activate_chip(self, chip: _SegmentChip) -> None:
+    def activate_segment(self, segment_index: int) -> None:
         """Track the segment that should retain selection if a commit happens."""
 
-        self._gesture.activate_segment(chip.segment_index)
+        self._gesture.activate_segment(segment_index)
         self._update_chip_states()
         self._sync_reorder_view_state(reason="active_segment_changed")
+
+    def set_pointer_cursor(self, cursor_shape: Qt.CursorShape) -> None:
+        """Apply the cursor selected by the overlay's logical pointer owner."""
+
+        if self.cursor().shape() != cursor_shape:
+            self.setCursor(cursor_shape)
+
+    def pointer_region_rects(self) -> dict[int, QRect]:
+        """Return visible overlay-local chip regions for harness interaction."""
+
+        return {
+            segment_index: QRect(region.rect)
+            for segment_index, region in self._chips_by_index.items()
+            if region.visible
+        }
+
+    def pointer_region(self, segment_index: int) -> PromptReorderPointerRegion:
+        """Return one logical chip region for focused diagnostics."""
+
+        region = self._chips_by_index.get(segment_index)
+        if region is None or not region.visible:
+            raise KeyError(segment_index)
+        return region
 
     def set_pressed_segment(self, segment_index: int | None) -> None:
         """Track which segment pointer press is currently held down."""
@@ -1393,15 +1319,14 @@ class SegmentReorderOverlay(
         """Dispose any existing hotspots before repopulating the overlay."""
 
         self._cancel_chip_animations(reason="delete_existing_chips")
-        for chip in self._chips_by_index.values():
-            chip.deleteLater()
-        self._chips_by_index = {}
+        self._pointer_input.reset()
+        self._pointer_regions.clear()
+        self._animated_pointer_region_indices.clear()
         self._drop_target_visuals = ()
         self._drop_target_lanes = ()
         self._placement_snapshot = None
         self._active_placement = None
         self._preview_visuals_by_index = {}
-        self._base_drag_visuals_by_index = {}
         self._landing_shadow.clear_held_shadow()
         self._last_live_visual_geometry_key = None
         self._preview_snapshot = None

@@ -72,8 +72,6 @@ from tests.prompt_projection_test_helpers import (
     StaticPromptWildcardCatalogGateway,
     ensure_qapp,
     process_events,
-    show_prompt_editor,
-    surface_for,
 )
 from tests.execution_test_helpers import immediate_prompt_task_executor_factory
 from tests.prompt_projection_surface_test_helpers import (
@@ -598,12 +596,30 @@ def test_projection_surface_schedules_metadata_only_prompt_state(
 ) -> None:
     """Unchanged-source metadata refreshes should use the projection scheduler."""
 
-    box = show_prompt_editor(
-        widgets,
-        text="<lora:midna:1>",
-        width=240,
+    ensure_qapp()
+    text = "<lora:midna:1>"
+    surface = new_projection_surface()
+    surface.resize(240, 180)
+    widgets.append(surface)
+    surface_router(surface).set_source_text(text)
+    document_view = PromptDocumentService().build_document_view(text)
+    syntax_profile = prompt_syntax_profile("lora")
+    initial_render_plan = PromptSyntaxService(
+        StaticPromptWildcardCatalogGateway({}),
+        prompt_lora_catalog_service=StaticPromptLoraCatalog(()),
+    ).build_render_plan(document_view, syntax_profile)
+    metadata_render_plan = PromptSyntaxService(
+        StaticPromptWildcardCatalogGateway({}),
+        prompt_lora_catalog_service=StaticPromptLoraCatalog(
+            (lora_catalog_item_with_banner(),)
+        ),
+    ).build_render_plan(document_view, syntax_profile)
+    surface.set_prompt_state(document_view, initial_render_plan)
+    surface.flush_pending_projection_update(reason="test_initial_metadata_state")
+    surface.set_cursor_positions(
+        cursor_position=len(text),
+        anchor_position=len(text),
     )
-    surface = surface_for(box)
     delay_projection_update_scheduler(surface)
     original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
     rebuild_count = 0
@@ -616,20 +632,23 @@ def test_projection_surface_schedules_metadata_only_prompt_state(
         original_rebuild_projection()
 
     monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
-    document_view = PromptDocumentService().build_document_view(box.toPlainText())
-    render_plan = PromptSyntaxRenderPlan(
-        syntax_spans=document_view.syntax_spans,
-        renderer_views=(),
-    )
-
-    surface.set_prompt_state(document_view, render_plan)
+    surface.set_prompt_state(document_view, metadata_render_plan)
 
     assert rebuild_count == 0
     assert surface.has_pending_projection_update() is True
 
-    assert not box.cursorRect().isNull()
+    assert not surface.cursorRect().isNull()
     assert rebuild_count == 1
     assert surface.has_pending_projection_update() is False
+
+    token = next(
+        token
+        for token in surface.projection_document().tokens
+        if token.kind is PromptProjectionTokenKind.LORA
+    )
+    assert rebuild_count == 1
+    assert surface.has_pending_projection_update() is False
+    assert token.thumbnail_variants
 
 
 def test_projection_surface_scheduled_metadata_failure_remains_retryable(
@@ -638,21 +657,32 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
 ) -> None:
     """Failed scheduled metadata applies should not mark the failed plan current."""
 
-    box = show_prompt_editor(
-        widgets,
-        text="<lora:midna:1>",
-        width=240,
+    ensure_qapp()
+    text = "<lora:midna:1>, tail"
+    surface = new_projection_surface()
+    surface.resize(240, 180)
+    widgets.append(surface)
+    surface_router(surface).set_source_text(text)
+    document_view = PromptDocumentService().build_document_view(text)
+    syntax_profile = prompt_syntax_profile("lora")
+    original_render_plan = PromptSyntaxService(
+        StaticPromptWildcardCatalogGateway({}),
+        prompt_lora_catalog_service=StaticPromptLoraCatalog(()),
+    ).build_render_plan(document_view, syntax_profile)
+    metadata_render_plan = PromptSyntaxService(
+        StaticPromptWildcardCatalogGateway({}),
+        prompt_lora_catalog_service=StaticPromptLoraCatalog(
+            (lora_catalog_item_with_banner(),)
+        ),
+    ).build_render_plan(document_view, syntax_profile)
+    surface.set_prompt_state(document_view, original_render_plan)
+    surface.flush_pending_projection_update(reason="test_initial_metadata_state")
+    surface.set_cursor_positions(
+        cursor_position=len(text),
+        anchor_position=len(text),
     )
-    surface = surface_for(box)
     delay_projection_update_scheduler(surface)
     original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
-    original_render_plan = surface._render_plan  # noqa: SLF001
-
-    document_view = PromptDocumentService().build_document_view(box.toPlainText())
-    metadata_render_plan = PromptSyntaxRenderPlan(
-        syntax_spans=document_view.syntax_spans,
-        renderer_views=(),
-    )
     rebuild_attempts = 0
 
     def fail_rebuild() -> None:
@@ -663,6 +693,16 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
         raise RuntimeError("projection rebuild failed")
 
     monkeypatch.setattr(surface, "_rebuild_projection", fail_rebuild)
+    monkeypatch.setattr(
+        cast(Any, surface)._incremental_apply_controller,
+        "can_apply_fast_trailing_insert_for_prompt_state",
+        lambda *_args, **_kwargs: False,
+    )
+    monkeypatch.setattr(
+        cast(Any, surface)._incremental_apply_controller,
+        "try_apply_scheduled_incremental_prompt_state_projection",
+        lambda **_kwargs: False,
+    )
 
     surface.set_prompt_state(document_view, metadata_render_plan)
     flush_projection_update_scheduler(surface)
@@ -672,6 +712,7 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
     assert surface.has_pending_projection_update() is False
 
     monkeypatch.setattr(surface, "_rebuild_projection", original_rebuild_projection)
+    monkeypatch.undo()
     surface.set_prompt_state(document_view, metadata_render_plan)
 
     assert surface.has_pending_projection_update() is True

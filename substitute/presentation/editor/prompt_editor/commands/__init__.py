@@ -105,6 +105,8 @@ class PromptCommandTextReplacement:
     origin: PromptSourceEditOrigin
     exact_source: bool = False
     record_undo: bool = True
+    cursor_position: int | None = None
+    anchor_position: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

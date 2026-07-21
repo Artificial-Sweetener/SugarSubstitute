@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, Literal, Protocol, cast
 
 from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, Qt, Signal
@@ -79,7 +79,7 @@ class _ProjectionSnapshotLike(Protocol):
         ...
 
     @property
-    def tokens(self) -> tuple[PromptProjectionToken, ...]:
+    def tokens(self) -> Sequence[PromptProjectionToken]:
         """Return the prepared projection tokens available to overlays."""
         ...
 
@@ -292,11 +292,16 @@ class PromptTokenWeightControls(QWidget):
 
         if not self._runtime_widgets_are_valid():
             return
-        self._refresh_geometry_snapshot()
         if self._surface.projection_document().display_mode.value == "raw":
+            self._geometry_snapshot = PromptTokenWeightGeometrySnapshot()
             self._gestures.stop_hide_linger()
             self._hide_controls()
             return
+        if self._controls_are_dormant():
+            self._geometry_snapshot = PromptTokenWeightGeometrySnapshot()
+            self._hide_controls()
+            return
+        self._refresh_geometry_snapshot()
         if self._exact_edit_host.exact_weight_edit_active():
             self._gestures.stop_hide_linger()
             self._clear_weight_preview()
@@ -342,6 +347,18 @@ class PromptTokenWeightControls(QWidget):
         if not keep_hide_linger:
             self._gestures.stop_hide_linger()
         self._apply_geometry(geometry)
+
+    def _controls_are_dormant(self) -> bool:
+        """Return whether no interaction state can consume prepared geometry."""
+
+        return (
+            not self._exact_edit_host.exact_weight_edit_active()
+            and self._gestures.pointer_host_position is None
+            and self._visible_token is None
+            and self._gestures.pressed_control is None
+            and not self._gestures.action_in_progress
+            and not self._gestures.hide_timeout.isActive()
+        )
 
     def _refresh_geometry_snapshot(self) -> None:
         """Publish the latest prepared token-control geometry snapshot."""

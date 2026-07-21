@@ -41,6 +41,14 @@ class PromptReorderChipGeometryId:
 
 
 @dataclass(frozen=True, slots=True)
+class PromptReorderChipFragment:
+    """Carry one chip fragment with its authoritative visual-line identity."""
+
+    visual_line_index: int
+    rect: QRectF
+
+
+@dataclass(frozen=True, slots=True)
 class PromptReorderChipLineGeometry:
     """Describe one visual-line contribution to a semantic reorder chip."""
 
@@ -198,6 +206,7 @@ __all__ = [
     "PromptReorderChipGeometry",
     "PromptReorderChipGeometryId",
     "PromptReorderChipGeometrySnapshot",
+    "PromptReorderChipFragment",
     "PromptReorderChipLineGeometry",
     "PROMPT_REORDER_CHIP_BUBBLE_PADDING_X",
     "PROMPT_REORDER_CHIP_BUBBLE_PADDING_Y",

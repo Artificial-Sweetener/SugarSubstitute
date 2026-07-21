@@ -72,6 +72,9 @@ from substitute.presentation.editor.prompt_editor.projection.metrics import (
     PromptProjectionMetrics,
     PromptProjectionMetricsFactory,
 )
+from substitute.presentation.editor.prompt_editor.projection.layout_checkpoint import (
+    PromptProjectionLayoutCheckpoint,
+)
 from substitute.presentation.editor.prompt_editor.projection.transient_edit_overlays import (
     PromptProjectionTransientDeletionOverlay,
     PromptProjectionTransientEditOverlayController,
@@ -88,6 +91,7 @@ class _ProjectionPayload:
     expanded_source_range: tuple[int, int] | None
     document_view: PromptDocumentView
     render_plan: PromptSyntaxRenderPlan
+    layout_checkpoint: PromptProjectionLayoutCheckpoint | None = None
 
 
 def _ensure_qapp() -> QApplication:
@@ -396,6 +400,8 @@ class _SourceChangeHost:
         self.caret_visibility_checks = 0
         self.caret_blink_restarts = 0
         self.implicit_parenthesis_depth = 0
+        self.source_edit_requires_canonical_rebuild = False
+        self.source_topology_checks: list[tuple[str, str, int, int]] = []
 
     def emit_undo_available_changed(self, available: bool) -> None:
         """Record undo availability emission."""
@@ -503,6 +509,21 @@ class _SourceChangeHost:
         _ = end
         return False
 
+    def _source_edit_requires_canonical_rebuild(
+        self,
+        previous_source_text: str,
+        next_source_text: str,
+        *,
+        start: int,
+        end: int,
+    ) -> bool:
+        """Return configured source-local projection topology safety."""
+
+        self.source_topology_checks.append(
+            (previous_source_text, next_source_text, start, end)
+        )
+        return self.source_edit_requires_canonical_rebuild
+
     def _current_caret_document_rect(self) -> QRectF:
         """Return stable caret geometry for transient overlay tests."""
 
@@ -551,6 +572,7 @@ class _SourceChangeHost:
         reset_preferred_x: bool = True,
         caret_rect_override: QRectF | None = None,
         collapse_expanded_token: bool = True,
+        preserve_unmapped_source_positions: bool = False,
         reason: str = "generic",
     ) -> None:
         """Record caret state updates."""
@@ -558,6 +580,7 @@ class _SourceChangeHost:
         _ = reset_preferred_x
         _ = caret_rect_override
         _ = collapse_expanded_token
+        _ = preserve_unmapped_source_positions
         self.caret_state_updates.append(
             (cursor_state.source_position, anchor_state.source_position, reason)
         )
@@ -822,6 +845,43 @@ def test_source_change_applier_uses_semantic_remapper_for_optimistic_state() -> 
     assert host._session.expanded_source_range == (0, 6)
 
 
+def test_source_change_applier_rebuilds_source_derived_projection_structure() -> None:
+    """Scene-like structure changes should bypass stale-safe text deferral."""
+
+    session = _projection_session("alpha")
+    source_change = session.replace_source_range(
+        start=5,
+        end=5,
+        replacement_text="x",
+        normalizer=PromptSourceNormalizationService(),
+        origin=PromptSourceEditOrigin.TYPED,
+        exact_source=True,
+        record_undo=True,
+        undo_snapshot=_projection_undo_snapshot("alpha"),
+    )
+    application = PromptProjectionSourceChangeApplication(
+        source_change=source_change,
+        previous_source_text="alpha",
+        origin=PromptSourceEditOrigin.TYPED,
+        signal_intent=PromptMutationSignalIntent(emit_text_changed=True),
+    )
+    host = _SourceChangeHost()
+    host._projection_freshness_controller.can_defer_projection = True
+    host.source_edit_requires_canonical_rebuild = True
+    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+
+    applier.apply_source_change_application(application)
+
+    request = host._incremental_apply_controller.requests[-1]
+    assert request.projection_deferral_reason == "source_projection_topology_changed"
+    assert host.source_topology_checks[-1] == ("alpha", "alphax", 5, 5)
+    assert host.marked_source_changes[-1] == (
+        False,
+        source_change.next_snapshot.source_revision,
+    )
+    assert host._document_view.source_text == "alphax"
+
+
 def test_source_change_applier_preserves_no_op_source_change_as_cursor_update() -> None:
     """No-op source replacements should not mirror text or emit source signals."""
 
@@ -967,7 +1027,7 @@ def test_source_change_applier_rebuilds_whitespace_replacements() -> None:
 
 
 def test_source_change_applier_restores_undo_state_through_ports() -> None:
-    """Restore applications should rebuild projection and restore mirror/caret state."""
+    """Restore applications should route exact history state through projection ports."""
 
     session = _projection_session("alpha")
     session.replace_source_range(
@@ -997,7 +1057,12 @@ def test_source_change_applier_restores_undo_state_through_ports() -> None:
     assert host._document_view.source_text == "alpha"
     assert host._session.expanded_source_range == (0, 5)
     assert host.marked_source_changes == [(False, 9)]
-    assert host.rebuilds == 1
+    assert host.rebuilds == 0
+    assert len(host._incremental_apply_controller.requests) == 1
+    projection_request = host._incremental_apply_controller.requests[0]
+    assert projection_request.previous_source_text == "alpha"
+    assert projection_request.text == "alpha"
+    assert projection_request.projection_deferral_reason == "history_restore"
     assert host.caret_visibility_checks == 1
     assert host.caret_blink_restarts == 1
     assert host.textChanged.count == 1

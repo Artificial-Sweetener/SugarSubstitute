@@ -2513,7 +2513,7 @@ def test_prompt_syntax_service_lora_render_plan_summary_counts_resolution_states
         active_lora_syntax_spans=tuple(
             span for span in render_plan.syntax_spans if span.kind == "lora"
         ),
-        lora_renderer_spans=lora_view.lora_spans,
+        lora_renderer_spans=tuple(lora_view.lora_spans),
         cache_revision=str(lora_catalog.cache_revision),
     )
 
@@ -2547,7 +2547,7 @@ def test_prompt_syntax_service_lora_summary_counts_bootstrap_unresolved() -> Non
         active_lora_syntax_spans=tuple(
             span for span in render_plan.syntax_spans if span.kind == "lora"
         ),
-        lora_renderer_spans=lora_view.lora_spans,
+        lora_renderer_spans=tuple(lora_view.lora_spans),
         cache_revision=str(lora_catalog.cache_revision),
     )
 

@@ -35,6 +35,7 @@ from substitute.presentation.localization import (
 )
 
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import cast
 
 from PySide6.QtCore import QEvent, QObject, Qt, Signal
@@ -68,25 +69,22 @@ from substitute.application.managed_text_assets import (
     ManagedTextAssetService,
     RenameManagedTextAssetRequest,
 )
-from substitute.application.ports import (
-    PromptAutocompleteGateway,
-    PromptWildcardCatalogGateway,
-)
 from substitute.presentation.widgets.menu_model import MenuItem, MenuModel
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
 from substitute.application.prompt_editor import (
     PromptEditorFeatureProfile,
-    PromptSpellcheckService,
     PromptWheelAdjustmentMode,
+)
+from substitute.application.prompt_editor.prompt_document_semantics import (
+    PromptDocumentSemantics,
 )
 from substitute.application.errors import SubstituteOperationContext
 from substitute.presentation.errors import (
     ErrorPresenter,
     ErrorReportPresenterProtocol,
 )
-from substitute.presentation.editor.prompt_editor.composition import (
-    DanbooruWikiLookupDispatcherFactory,
-    PromptEditorTaskExecutorFactory,
+from substitute.presentation.editor.prompt_editor.runtime_services import (
+    PromptEditorRuntimeServices,
 )
 from substitute.presentation.managed_text_assets.numbered_prompt_editor_frame import (
     NumberedPromptEditorFrame,
@@ -100,6 +98,9 @@ from substitute.presentation.managed_text_assets.managed_text_asset_list import 
     AssetRow,
     group_assets,
     muted_text_color,
+)
+from substitute.presentation.managed_text_assets.modal_shadow import (
+    ManagedTextAssetModalShadow,
 )
 from substitute.shared.logging.logger import get_logger, log_exception
 from sugarsubstitute_shared.presentation.localization import (
@@ -139,13 +140,10 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         empty_text: str,
         service: ManagedTextAssetService,
         create_actions: tuple[ManagedTextAssetCreateAction, ...],
-        prompt_autocomplete_gateway: PromptAutocompleteGateway,
-        prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
+        prompt_runtime_services: PromptEditorRuntimeServices,
         prompt_feature_profile: PromptEditorFeatureProfile,
-        prompt_spellcheck_service: PromptSpellcheckService | None = None,
-        prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None,
-        danbooru_lookup_dispatcher_factory: (
-            DanbooruWikiLookupDispatcherFactory | None
+        document_semantics_for_asset: (
+            Callable[[ManagedTextAsset], PromptDocumentSemantics] | None
         ) = None,
         wheel_adjustment_mode: PromptWheelAdjustmentMode = (
             PromptWheelAdjustmentMode.HOVER_DWELL
@@ -156,6 +154,10 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         """Build the managed text asset modal."""
 
         super().__init__(parent or _fallback_parent())
+        self._static_shadow = ManagedTextAssetModalShadow(
+            modal=self,
+            center_widget=self.widget,
+        )
         self._service = service
         self._asset_title = asset_title
         self._empty_text = empty_text
@@ -169,6 +171,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         self._pending_selection_id: str | None = None
         self._size_owner_window: QWidget | None = None
         self._error_presenter = error_presenter
+        self._document_semantics_for_asset = document_semantics_for_asset
 
         self.setClosableOnMaskClicked(False)
         self.setModal(True)
@@ -181,12 +184,8 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
 
         self._build_header(title)
         self._build_body(
-            prompt_autocomplete_gateway=prompt_autocomplete_gateway,
-            prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+            prompt_runtime_services=prompt_runtime_services,
             prompt_feature_profile=prompt_feature_profile,
-            prompt_spellcheck_service=prompt_spellcheck_service,
-            prompt_task_executor_factory=prompt_task_executor_factory,
-            danbooru_lookup_dispatcher_factory=danbooru_lookup_dispatcher_factory,
             wheel_adjustment_mode=wheel_adjustment_mode,
         )
         self._connect_signals()
@@ -246,12 +245,8 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
     def _build_body(
         self,
         *,
-        prompt_autocomplete_gateway: PromptAutocompleteGateway,
-        prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
+        prompt_runtime_services: PromptEditorRuntimeServices,
         prompt_feature_profile: PromptEditorFeatureProfile,
-        prompt_spellcheck_service: PromptSpellcheckService | None,
-        prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None,
-        danbooru_lookup_dispatcher_factory: DanbooruWikiLookupDispatcherFactory | None,
         wheel_adjustment_mode: PromptWheelAdjustmentMode,
     ) -> None:
         """Create the two-pane asset picker and editor body."""
@@ -313,12 +308,8 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         inspector_layout.addWidget(self._revert_button)
         right_layout.addWidget(inspector_header)
         self._editor = NumberedPromptEditorFrame(
-            prompt_autocomplete_gateway=prompt_autocomplete_gateway,
-            prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+            prompt_runtime_services=prompt_runtime_services,
             prompt_feature_profile=prompt_feature_profile,
-            prompt_spellcheck_service=prompt_spellcheck_service,
-            prompt_task_executor_factory=prompt_task_executor_factory,
-            danbooru_lookup_dispatcher_factory=danbooru_lookup_dispatcher_factory,
             wheel_adjustment_mode=wheel_adjustment_mode,
             parent=right_card,
         )
@@ -506,7 +497,18 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
 
         self._updating_editor = True
         try:
-            self._editor.replaceBaselineSourceText(text)
+            asset = (
+                None
+                if self._current_asset_id is None
+                else self._assets.get(self._current_asset_id)
+            )
+            if asset is None or self._document_semantics_for_asset is None:
+                self._editor.replaceBaselineSourceText(text)
+            else:
+                self._editor.replaceBaselineSourceDocument(
+                    text,
+                    self._document_semantics_for_asset(asset),
+                )
         finally:
             self._updating_editor = False
 

@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Generic, TypeAlias, TypeVar
 
 from substitute.application.prompt_editor.prompt_autocomplete_query_service import (
@@ -29,6 +29,10 @@ from substitute.application.prompt_editor.prompt_autocomplete_text import (
     autocomplete_completion_suffix,
     autocomplete_suffix_without_existing_right_text,
 )
+from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+    PromptStructuredTextMutationService,
+)
+from substitute.domain.prompt import SourceRange
 from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptEditingSession,
     PromptSourceEditOrigin,
@@ -112,6 +116,7 @@ class PromptAcceptTagAutocompleteCommand(Generic[TPayload]):
     normalizer: PromptSourceNormalizer
     exact_source: bool
     undo_snapshot: PromptUndoSnapshot[TPayload]
+    structured_text_mutations: PromptStructuredTextMutationService | None = None
     name: str = "accept_tag_autocomplete"
 
     def execute(
@@ -132,6 +137,7 @@ class PromptAcceptTagAutocompleteCommand(Generic[TPayload]):
             normalizer=self.normalizer,
             exact_source=self.exact_source,
             undo_snapshot=self.undo_snapshot,
+            structured_text_mutations=self.structured_text_mutations,
         )
 
 
@@ -143,6 +149,7 @@ class PromptAcceptSceneAutocompleteCommand(Generic[TPayload]):
     normalizer: PromptSourceNormalizer
     exact_source: bool
     undo_snapshot: PromptUndoSnapshot[TPayload]
+    structured_text_mutations: PromptStructuredTextMutationService | None = None
     name: str = "accept_scene_autocomplete"
 
     def execute(
@@ -164,6 +171,7 @@ class PromptAcceptSceneAutocompleteCommand(Generic[TPayload]):
             normalizer=self.normalizer,
             exact_source=self.exact_source,
             undo_snapshot=self.undo_snapshot,
+            structured_text_mutations=self.structured_text_mutations,
         )
 
 
@@ -175,6 +183,7 @@ class PromptAcceptWildcardAutocompleteCommand(Generic[TPayload]):
     normalizer: PromptSourceNormalizer
     exact_source: bool
     undo_snapshot: PromptUndoSnapshot[TPayload]
+    structured_text_mutations: PromptStructuredTextMutationService | None = None
     name: str = "accept_wildcard_autocomplete"
 
     def execute(
@@ -196,6 +205,7 @@ class PromptAcceptWildcardAutocompleteCommand(Generic[TPayload]):
             normalizer=self.normalizer,
             exact_source=self.exact_source,
             undo_snapshot=self.undo_snapshot,
+            structured_text_mutations=self.structured_text_mutations,
         )
 
 
@@ -207,6 +217,7 @@ class PromptAcceptLoraAutocompleteCommand(Generic[TPayload]):
     normalizer: PromptSourceNormalizer
     exact_source: bool
     undo_snapshot: PromptUndoSnapshot[TPayload]
+    structured_text_mutations: PromptStructuredTextMutationService | None = None
     name: str = "accept_lora_autocomplete"
 
     def execute(
@@ -228,6 +239,7 @@ class PromptAcceptLoraAutocompleteCommand(Generic[TPayload]):
             normalizer=self.normalizer,
             exact_source=self.exact_source,
             undo_snapshot=self.undo_snapshot,
+            structured_text_mutations=self.structured_text_mutations,
         )
 
 
@@ -237,6 +249,7 @@ def build_autocomplete_acceptance_command(
     normalizer: PromptSourceNormalizer,
     exact_source: bool,
     undo_snapshot: PromptUndoSnapshot[TPayload],
+    structured_text_mutations: PromptStructuredTextMutationService | None = None,
 ) -> (
     PromptAcceptTagAutocompleteCommand[TPayload]
     | PromptAcceptSceneAutocompleteCommand[TPayload]
@@ -251,6 +264,7 @@ def build_autocomplete_acceptance_command(
             normalizer=normalizer,
             exact_source=exact_source,
             undo_snapshot=undo_snapshot,
+            structured_text_mutations=structured_text_mutations,
         )
     if isinstance(acceptance, PromptSceneAutocompleteAcceptance):
         return PromptAcceptSceneAutocompleteCommand(
@@ -258,6 +272,7 @@ def build_autocomplete_acceptance_command(
             normalizer=normalizer,
             exact_source=exact_source,
             undo_snapshot=undo_snapshot,
+            structured_text_mutations=structured_text_mutations,
         )
     if isinstance(acceptance, PromptWildcardAutocompleteAcceptance):
         return PromptAcceptWildcardAutocompleteCommand(
@@ -265,12 +280,14 @@ def build_autocomplete_acceptance_command(
             normalizer=normalizer,
             exact_source=exact_source,
             undo_snapshot=undo_snapshot,
+            structured_text_mutations=structured_text_mutations,
         )
     return PromptAcceptLoraAutocompleteCommand(
         acceptance=acceptance,
         normalizer=normalizer,
         exact_source=exact_source,
         undo_snapshot=undo_snapshot,
+        structured_text_mutations=structured_text_mutations,
     )
 
 
@@ -283,6 +300,7 @@ def _execute_autocomplete_replacement(
     normalizer: PromptSourceNormalizer,
     exact_source: bool,
     undo_snapshot: PromptUndoSnapshot[TPayload],
+    structured_text_mutations: PromptStructuredTextMutationService | None,
 ) -> PromptCommandResult[TPayload]:
     """Validate and apply one autocomplete replacement."""
 
@@ -298,6 +316,26 @@ def _execute_autocomplete_replacement(
     ):
         return PromptCommandResult.rejected(command_name, reason="invalid_source_range")
 
+    cursor_position: int | None = None
+    if structured_text_mutations is not None:
+        structured_replacement = structured_text_mutations.replacement_for_range(
+            session.source_text,
+            SourceRange(replacement.start, replacement.end),
+            replacement.replacement_text,
+        )
+        if structured_replacement is None:
+            return PromptCommandResult.rejected(
+                command_name,
+                reason="prompt_value_unavailable",
+            )
+        replacement = _SourceReplacement(
+            start=structured_replacement.source_range.start,
+            end=structured_replacement.source_range.end,
+            replacement_text=structured_replacement.replacement_text,
+        )
+        exact_source = structured_replacement.exact_source
+        cursor_position = structured_replacement.cursor_position
+
     source_change = session.replace_source_range(
         start=replacement.start,
         end=replacement.end,
@@ -308,6 +346,12 @@ def _execute_autocomplete_replacement(
         record_undo=True,
         undo_snapshot=undo_snapshot,
     )
+    if cursor_position is not None:
+        cursor_state = session.set_cursor_positions(
+            cursor_position=cursor_position,
+            anchor_position=cursor_position,
+        )
+        source_change = replace(source_change, cursor_state=cursor_state)
     return PromptCommandResult.from_source_change(command_name, source_change)
 
 

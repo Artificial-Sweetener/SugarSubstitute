@@ -312,6 +312,47 @@ def test_semantic_remapper_preserves_insertion_at_range_boundaries() -> None:
     assert next_document_view.segments[0].selection_end == 18
 
 
+def test_semantic_remapper_reuses_objects_strictly_before_an_edit() -> None:
+    """Optimistic edits should not reconstruct unaffected semantic prefix objects."""
+
+    previous_text = "a" * 90
+    next_text = previous_text[:80] + "!" + previous_text[80:]
+    document_view, render_plan = _prompt_state(previous_text)
+
+    result = PromptProjectionSemanticRemapper().optimistic_prompt_state_for_edit(
+        current_document_view=document_view,
+        current_render_plan=render_plan,
+        previous_text=previous_text,
+        next_text=next_text,
+        start=80,
+        end=80,
+        replacement_text="!",
+    )
+
+    assert result is not None
+    next_document_view, next_render_plan = result
+    assert next_document_view.segments[0] is document_view.segments[0]
+    assert next_document_view.syntax_spans[0] is document_view.syntax_spans[0]
+    assert next_document_view.emphasis_spans[0] is document_view.emphasis_spans[0]
+    assert next_document_view.wildcard_spans[0] is document_view.wildcard_spans[0]
+    assert next_document_view.lora_spans[0] is document_view.lora_spans[0]
+    assert (
+        next_render_plan.renderer_views[1].syntax_spans[0]
+        is render_plan.renderer_views[1].syntax_spans[0]
+    )
+
+    diagnostic = _diagnostic(start=10, end=14)
+    remapped_diagnostics = (
+        PromptProjectionSemanticRemapper().remap_diagnostics_for_edit(
+            (diagnostic,),
+            start=80,
+            end=80,
+            replacement_text="!",
+        )
+    )
+    assert remapped_diagnostics[0] is diagnostic
+
+
 def test_semantic_remapper_rejects_mismatched_source_metadata() -> None:
     """Optimistic remap is unavailable when source identity is not exact."""
 

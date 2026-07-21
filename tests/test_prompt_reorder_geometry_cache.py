@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from PySide6.QtCore import QPointF, QRect, QRectF
 from PySide6.QtGui import QPainterPath
 
@@ -35,6 +37,7 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_chip_geomet
     PromptReorderChipLineGeometry,
 )
 from substitute.presentation.editor.prompt_editor.projection.reorder_geometry_cache import (
+    PromptReorderChipGeometryCacheKey,
     PromptReorderGeometryCache,
     chip_geometry_visual_reuse_key,
     reorder_geometry_cache_context,
@@ -181,8 +184,8 @@ def test_reorder_geometry_cache_context_does_not_log_prompt_text() -> None:
     )
 
 
-def test_reorder_cache_full_keys_include_chip_and_placement_inputs() -> None:
-    """Cache owner should build chip and placement keys from the same inputs."""
+def test_reorder_cache_keys_exclude_placement_gaps_from_chip_geometry() -> None:
+    """Placement gaps should not invalidate otherwise exact chip geometry."""
 
     cache = PromptReorderGeometryCache()
     snapshot = _snapshot()
@@ -206,7 +209,28 @@ def test_reorder_cache_full_keys_include_chip_and_placement_inputs() -> None:
         layout_width=100.0,
     )
 
-    assert chip_key.snapshot == placement_key.snapshot
+    changed_gaps = replace(snapshot, gap_ranges_by_index={9: (20, 21)})
+    changed_chip_key = cache.chip_geometry_cache_key(
+        snapshot=changed_gaps,
+        layout_view=layout_view,
+        projection_layout_identity=1,
+        viewport_rect=viewport_rect,
+        scroll_offset=0.0,
+        layout_width=100.0,
+    )
+    changed_placement_key = cache.placement_geometry_cache_key(
+        snapshot=changed_gaps,
+        layout_view=layout_view,
+        projection_layout_identity=1,
+        viewport_rect=viewport_rect,
+        scroll_offset=0.0,
+        layout_width=100.0,
+    )
+
+    assert chip_key.snapshot.gap_ranges == ()
+    assert placement_key.snapshot.gap_ranges == ((2, 12, 13),)
+    assert changed_chip_key == chip_key
+    assert changed_placement_key != placement_key
     assert chip_key.layout == placement_key.layout
     assert chip_key.viewport == placement_key.viewport
     assert chip_key != cache.chip_geometry_cache_key(
@@ -277,3 +301,143 @@ def test_reorder_cache_reuses_preview_chip_geometry_by_visual_identity() -> None
     assert reused_count == 1
     assert rebuilt_count == 0
     assert rejected_count == 0
+
+
+def test_reorder_cache_reuses_live_geometry_for_exact_viewport() -> None:
+    """Live geometry should remain authoritative while its full key is unchanged."""
+
+    cache = PromptReorderGeometryCache()
+    key = cache.live_chip_geometry_cache_key(
+        source_text="alpha, beta",
+        chip_rendered_ranges_by_index={0: (0, 6), 1: (7, 11)},
+        chip_owned_ranges_by_index={0: ((0, 6),), 1: ((7, 11),)},
+        layout_view=_layout_view(),
+        projection_layout_identity=1,
+        viewport_rect=QRectF(0.0, 0.0, 100.0, 50.0),
+        scroll_offset=0.0,
+        layout_width=100.0,
+    )
+    snapshot = PromptReorderChipGeometrySnapshot(
+        geometries_by_chip_index={0: _chip_geometry()},
+        ordered_chip_indices=(0,),
+        visual_line_count=1,
+        layout_width=100.0,
+        content_height=24.0,
+        scroll_offset=0.0,
+    )
+
+    cache.remember_live_chip_snapshot(key=key, snapshot=snapshot)
+
+    assert cache.live_chip_snapshot(key) is snapshot
+    assert cache.counters()["live_chip_geometry_cache_hit_count"] == 1
+
+
+def test_reorder_cache_shares_exact_live_geometry_with_initial_preview() -> None:
+    """An unchanged initial preview should not rebuild authoritative live geometry."""
+
+    cache = PromptReorderGeometryCache()
+    snapshot = _snapshot()
+    viewport_rect = QRectF(0.0, 0.0, 100.0, 50.0)
+    live_key = cache.live_chip_geometry_cache_key(
+        source_text=snapshot.text,
+        chip_rendered_ranges_by_index=snapshot.chip_rendered_ranges_by_index,
+        chip_owned_ranges_by_index=snapshot.chip_owned_ranges_by_index,
+        layout_view=_layout_view(),
+        projection_layout_identity=1,
+        viewport_rect=viewport_rect,
+        scroll_offset=0.0,
+        layout_width=100.0,
+    )
+    preview_key = cache.chip_geometry_cache_key(
+        snapshot=snapshot,
+        layout_view=_layout_view(),
+        projection_layout_identity=1,
+        viewport_rect=viewport_rect,
+        scroll_offset=0.0,
+        layout_width=100.0,
+    )
+    geometry_snapshot = PromptReorderChipGeometrySnapshot(
+        geometries_by_chip_index={0: _chip_geometry()},
+        ordered_chip_indices=(0,),
+        visual_line_count=1,
+        layout_width=100.0,
+        content_height=24.0,
+        scroll_offset=0.0,
+    )
+
+    cache.remember_live_chip_snapshot(key=live_key, snapshot=geometry_snapshot)
+
+    assert preview_key == live_key
+    assert cache.preview_chip_snapshot(preview_key) is geometry_snapshot
+    assert cache.counters()["preview_chip_geometry_live_reuse_count"] == 1
+
+
+def test_reorder_cache_shares_exact_preview_geometry_with_drag_base() -> None:
+    """Equal preview and base projections should own one chip geometry snapshot."""
+
+    cache = PromptReorderGeometryCache()
+    key = cache.chip_geometry_cache_key(
+        snapshot=_snapshot(),
+        layout_view=_layout_view(),
+        projection_layout_identity=1,
+        viewport_rect=QRectF(0.0, 0.0, 100.0, 50.0),
+        scroll_offset=0.0,
+        layout_width=100.0,
+    )
+    geometry_snapshot = PromptReorderChipGeometrySnapshot(
+        geometries_by_chip_index={0: _chip_geometry()},
+        ordered_chip_indices=(0,),
+        visual_line_count=1,
+        layout_width=100.0,
+        content_height=24.0,
+        scroll_offset=0.0,
+    )
+
+    cache.remember_preview_chip_snapshot(key=key, snapshot=geometry_snapshot)
+
+    assert cache.base_drag_chip_snapshot(key) is geometry_snapshot
+    cache.clear_preview_chip_geometry_cache(reason="test")
+    assert cache.base_drag_chip_snapshot(key) is geometry_snapshot
+    counters = cache.counters()
+    assert counters["base_chip_geometry_cache_hit_count"] == 2
+    assert counters["base_chip_geometry_preview_reuse_count"] == 1
+    assert counters["base_chip_geometry_cache_miss_count"] == 0
+
+
+def test_reorder_cache_offers_live_geometry_when_only_scroll_changes() -> None:
+    """Live scroll reuse should reject semantic changes but accept a new offset."""
+
+    cache = PromptReorderGeometryCache()
+
+    def cache_key(
+        *, source_text: str, scroll_offset: float
+    ) -> PromptReorderChipGeometryCacheKey:
+        """Build one live cache key for this policy test."""
+
+        return cache.live_chip_geometry_cache_key(
+            source_text=source_text,
+            chip_rendered_ranges_by_index={0: (0, 6), 1: (7, 11)},
+            chip_owned_ranges_by_index={0: ((0, 6),), 1: ((7, 11),)},
+            layout_view=_layout_view(),
+            projection_layout_identity=1,
+            viewport_rect=QRectF(0.0, 0.0, 100.0, 50.0),
+            scroll_offset=scroll_offset,
+            layout_width=100.0,
+        )
+
+    initial_key = cache_key(source_text="alpha, beta", scroll_offset=0.0)
+    snapshot = PromptReorderChipGeometrySnapshot(
+        geometries_by_chip_index={0: _chip_geometry()},
+        ordered_chip_indices=(0,),
+        visual_line_count=1,
+        layout_width=100.0,
+        content_height=24.0,
+        scroll_offset=0.0,
+    )
+    cache.remember_live_chip_snapshot(key=initial_key, snapshot=snapshot)
+
+    scrolled_key = cache_key(source_text="alpha, beta", scroll_offset=24.0)
+    changed_key = cache_key(source_text="alpha, gamma", scroll_offset=24.0)
+
+    assert cache.live_chip_scroll_candidate(scrolled_key) == (initial_key, snapshot)
+    assert cache.live_chip_scroll_candidate(changed_key) is None
