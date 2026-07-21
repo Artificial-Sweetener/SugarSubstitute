@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from bisect import bisect_left
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
@@ -59,6 +60,7 @@ from .model import (
 )
 from .session import PromptProjectionSession
 from .scene_projection import PromptSceneProjectionPlanner
+from .scene_title_projection import build_scene_title_projection_run
 
 _EMPHASIS_KIND = "emphasis"
 _EMPHASIS_PREFIX_RENDERER_KEY = "emphasis_prefix"
@@ -261,6 +263,7 @@ class PromptProjectionBuilder:
 
             candidate_runs = self._projected_token_runs(
                 candidate.token,
+                source_text=source_text,
                 run_index=run_index,
                 projection_position=projection_position,
             )
@@ -371,6 +374,7 @@ class PromptProjectionBuilder:
         self,
         token: PromptProjectionToken,
         *,
+        source_text: str,
         run_index: int,
         projection_position: int,
     ) -> tuple[PromptProjectionRun, ...]:
@@ -378,6 +382,7 @@ class PromptProjectionBuilder:
 
         return self._projected_token_runs_uninstrumented(
             token,
+            source_text=source_text,
             run_index=run_index,
             projection_position=projection_position,
         )
@@ -386,6 +391,7 @@ class PromptProjectionBuilder:
         self,
         token: PromptProjectionToken,
         *,
+        source_text: str,
         run_index: int,
         projection_position: int,
     ) -> tuple[PromptProjectionRun, ...]:
@@ -439,23 +445,11 @@ class PromptProjectionBuilder:
             return (prefix_run, content_run, suffix_run)
 
         if token.kind is PromptProjectionTokenKind.SCENE:
-            assert token.content_start is not None
-            assert token.content_end is not None
             return (
-                PromptProjectionRun(
-                    run_id=f"scene-title:{token.token_id}",
-                    kind=PromptProjectionRunKind.TEXT,
-                    source_start=token.content_start,
-                    source_end=token.content_end,
-                    display_text=token.display_text,
-                    source_positions=tuple(
-                        range(token.content_start, token.content_end + 1)
-                    ),
-                    projection_start=projection_position,
-                    projection_end=projection_position + len(token.display_text),
-                    token_id=token.token_id,
-                    active=token.active,
-                    text_style_variant=token.style_variant,
+                build_scene_title_projection_run(
+                    token,
+                    source_text=source_text,
+                    projection_position=projection_position,
                 ),
             )
 
@@ -507,7 +501,7 @@ class PromptProjectionBuilder:
         lora_view = _lora_renderer_view_for_plan(render_plan)
         wildcard_view = _wildcard_renderer_view_for_plan(render_plan)
         all_supported_ranges = tuple(
-            (span.start, span.end) for span in render_plan.syntax_spans
+            sorted((span.start, span.end) for span in render_plan.syntax_spans)
         )
         accent_range_set = frozenset(decoration_accent_ranges)
         lora_candidate_count = 0
@@ -950,12 +944,14 @@ def _contains_nested_supported_range(
 ) -> bool:
     """Return whether one syntax span contains another supported syntax span."""
 
-    return any(
-        other_start >= token_range[0]
-        and other_end <= token_range[1]
-        and (other_start, other_end) != token_range
-        for other_start, other_end in supported_ranges
-    )
+    token_start, token_end = token_range
+    candidate_index = bisect_left(supported_ranges, (token_start, -1))
+    for other_start, other_end in supported_ranges[candidate_index:]:
+        if other_start >= token_end:
+            return False
+        if other_end <= token_end and (other_start, other_end) != token_range:
+            return True
+    return False
 
 
 def _exact_weight_edit_for_emphasis_token(

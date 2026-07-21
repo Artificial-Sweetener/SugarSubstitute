@@ -57,6 +57,9 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_preview imp
     PromptReorderPreviewState,
     PromptReorderProjectionSnapshot,
 )
+from substitute.presentation.editor.prompt_editor.projection.reorder_visual_snapshot import (
+    PromptReorderProjectionPaintSnapshot,
+)
 from tests.prompt_autocomplete_test_helpers import prompt_syntax_profile
 from tests.execution_test_helpers import immediate_prompt_task_executor_factory
 
@@ -66,6 +69,10 @@ if os.environ.get("PYTEST_XDIST_WORKER"):
         allow_module_level=True,
     )
 from tests.prompt_projection_test_helpers import surface_for
+from tests.prompt_reorder_pointer_test_helpers import (
+    PromptReorderPointerTarget,
+    prompt_reorder_pointer_target,
+)
 
 _REDUCED_MOTION_PROPERTY = "substitute.reduce_motion"
 
@@ -185,13 +192,12 @@ def _create_prompt_editor(
     return box
 
 
-def _overlay_chip_by_segment_index(overlay: QWidget, segment_index: int) -> QWidget:
-    """Return one real-widget overlay chip by segment index."""
+def _overlay_chip_by_segment_index(
+    overlay: QWidget, segment_index: int
+) -> PromptReorderPointerTarget:
+    """Return one production logical pointer target by segment index."""
 
-    for chip in overlay.findChildren(QWidget, "segmentChip"):
-        if chip.property("segmentIndex") == segment_index:
-            return chip
-    raise AssertionError(f"Missing chip for segment index {segment_index}.")
+    return prompt_reorder_pointer_target(overlay, segment_index)
 
 
 def _editor_reorder_preview_document(
@@ -247,19 +253,59 @@ def _open_reorder_overlay(box: PromptEditor) -> SegmentReorderOverlay:
     return cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
 
 
-def _assert_plain_alt_live_rasters(overlay: SegmentReorderOverlay) -> None:
-    """Assert plain Alt reorder chips carry overlay-owned text rasters."""
+def _assert_plain_alt_keeps_surface_text_ownership(
+    overlay: SegmentReorderOverlay,
+) -> None:
+    """Assert plain Alt paints chrome while leaving text on the surface."""
 
     view = overlay.findChild(PromptReorderView, "segmentReorderView")
     assert view is not None
     state = view.render_state
     assert state.preview_active is False
-    assert state.live_chips
-    assert state.raster_paint_count == len(state.live_chips)
-    assert all(chip.raster_entry is not None for chip in state.live_chips)
-    assert len(cast(Any, overlay)._live_visual_snapshots_by_index) == len(
-        state.live_chips
+    assert state.live_chips == ()
+    assert state.raster_paint_count == 0
+    surface_chrome = cast(
+        Any, overlay
+    )._editor._surface._reorder_surface_chrome_snapshot
+    assert surface_chrome is not None
+    assert surface_chrome.mode == "live"
+    assert surface_chrome.chips
+    assert cast(Any, overlay)._live_visual_snapshots_by_index == {}
+
+
+def test_plain_alt_leaves_text_and_raster_work_on_projection_surface(
+    widgets: list[QWidget],
+) -> None:
+    """Alt activation should add chrome without duplicating projection text."""
+
+    app = _ensure_qapp()
+    box = _create_prompt_editor(
+        widgets,
+        text=", ".join(f"tag_{index}" for index in range(48)),
     )
+
+    QTest.keyPress(box, Qt.Key.Key_Alt)
+
+    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    immediate = _performance_counters(overlay)
+    view = overlay.findChild(PromptReorderView, "segmentReorderView")
+    assert view is not None
+    assert immediate["raster_build_count"] == 0
+    assert view.render_state.live_chips == ()
+    surface_chrome = cast(
+        Any, overlay
+    )._editor._surface._reorder_surface_chrome_snapshot
+    assert surface_chrome is not None
+    assert surface_chrome.chips
+    assert view.render_state.raster_paint_count == 0
+
+    _process_events(app)
+
+    settled = _performance_counters(overlay)
+    assert settled["raster_build_count"] == 0
+    _assert_plain_alt_keeps_surface_text_ownership(overlay)
+    QTest.keyRelease(box, Qt.Key.Key_Alt)
+    _process_events(app)
 
 
 def _counter_delta(
@@ -349,7 +395,7 @@ def _build_reorder_preview_state(
 def test_reorder_pointer_release_does_not_mutate_source_or_undo(
     widgets: list[QWidget],
 ) -> None:
-    """Drag start should build bounded setup state and release should not mutate."""
+    """Drag start should do setup once and release should not mutate source."""
 
     app = _ensure_qapp()
     box = _create_prompt_editor(widgets, text="alpha,beta,")
@@ -361,12 +407,10 @@ def test_reorder_pointer_release_does_not_mutate_source_or_undo(
     overlay = _open_reorder_overlay(box)
     first_chip = _overlay_chip_by_segment_index(overlay, 0)
     second_chip = _overlay_chip_by_segment_index(overlay, 1)
-    target_global = first_chip.mapToGlobal(
-        QPoint(4, max(4, first_chip.rect().center().y()))
-    )
+    target_global = first_chip.leading_global_point()
 
     QTest.mousePress(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.rect().center(),
     )
@@ -374,8 +418,8 @@ def test_reorder_pointer_release_does_not_mutate_source_or_undo(
 
     before_drag_start = _performance_counters(overlay)
 
-    QTest.mouseMove(second_chip, second_chip.mapFromGlobal(target_global), 10)
-    _process_events(app)
+    QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(target_global), 10)
+    _wait_for_preview_sync(app)
 
     after_drag_start = _performance_counters(overlay)
     assert (
@@ -384,10 +428,18 @@ def test_reorder_pointer_release_does_not_mutate_source_or_undo(
             after_drag_start,
             "drag_proxy_render_state_rebuild_count",
         )
+        == 0
+    )
+    assert (
+        _counter_delta(
+            before_drag_start,
+            after_drag_start,
+            "drag_proxy_render_state_reuse_count",
+        )
         == 1
     )
     assert after_drag_start["drag_proxy_render_state_invalidation_count"] == 0
-    assert _counter_delta(before_drag_start, after_drag_start, "drag_move_count") == 1
+    assert _counter_delta(before_drag_start, after_drag_start, "drag_move_count") == 0
     assert (
         _counter_delta(
             before_drag_start,
@@ -404,11 +456,11 @@ def test_reorder_pointer_release_does_not_mutate_source_or_undo(
         )
         <= 3
     )
-    _assert_timing_observed(after_drag_start, "max_drag_move_ms")
+    assert after_drag_start["max_drag_move_ms"] == 0.0
     before_release = after_drag_start
 
     QTest.mouseRelease(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.mapFromGlobal(target_global),
         delay=10,
@@ -436,10 +488,10 @@ def test_reorder_pointer_release_does_not_mutate_source_or_undo(
     )
 
 
-def test_plain_alt_rebuilds_text_rasters_after_theme_or_font_invalidation(
+def test_plain_alt_keeps_surface_text_after_theme_or_font_invalidation(
     widgets: list[QWidget],
 ) -> None:
-    """Plain Alt chips should keep text rasters after Qt theme/font churn."""
+    """Theme churn should not transfer plain-Alt text into the overlay."""
 
     app = _ensure_qapp()
     box = _create_prompt_editor(widgets, text="alpha, beta, gamma")
@@ -448,14 +500,57 @@ def test_plain_alt_rebuilds_text_rasters_after_theme_or_font_invalidation(
     QApplication.sendEvent(overlay, QEvent(QEvent.Type.FontChange))
     _process_events(app)
 
-    _assert_plain_alt_live_rasters(overlay)
-
+    _assert_plain_alt_keeps_surface_text_ownership(overlay)
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     _process_events(app)
     assert getattr(box, "_segment_overlay") is None
 
     reopened_overlay = _open_reorder_overlay(box)
-    _assert_plain_alt_live_rasters(reopened_overlay)
+    _assert_plain_alt_keeps_surface_text_ownership(reopened_overlay)
+
+    QTest.keyRelease(box, Qt.Key.Key_Alt)
+    _process_events(app)
+
+
+def test_geometry_refresh_preserves_complete_animation_paint_ownership(
+    widgets: list[QWidget],
+) -> None:
+    """A resize during displacement must not leave translated chrome without text."""
+
+    app = _ensure_qapp()
+    box = _create_prompt_editor(
+        widgets,
+        width=520,
+        height=260,
+        text=", ".join(f"tag_{index}" for index in range(72)),
+    )
+    cursor = box.textCursor()
+    cursor.setPosition(2)
+    box.setTextCursor(cursor)
+    overlay = _open_reorder_overlay(box)
+    cast(Any, overlay)._animation_presenter._duration_ms = 1000
+
+    QTest.keyClick(box, Qt.Key.Key_Right)
+    _process_events(app)
+    assert cast(Any, overlay)._animation_presenter.paint_rect_overrides()
+
+    host = widgets[0]
+    host.resize(host.width() + 24, host.height() + 16)
+    _process_events(app)
+
+    state = cast(Any, overlay)._view.render_state
+    active_chips = state.preview_chips if state.preview_active else state.live_chips
+    surface_chrome = cast(Any, box)._surface._reorder_surface_chrome_snapshot
+    surface_indices = (
+        set()
+        if surface_chrome is None
+        else {chip.segment_index for chip in surface_chrome.chips}
+    )
+    rendered_indices = surface_indices | {chip.segment_index for chip in active_chips}
+    expected_indices = set(cast(Any, overlay)._preview_visuals_by_index)
+
+    assert rendered_indices == expected_indices
+    assert cast(Any, overlay)._animation_presenter.paint_rect_overrides() == {}
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     _process_events(app)
@@ -590,11 +685,11 @@ def test_reorder_alt_left_builds_keyboard_animation_plan(
     recorded_plans: list[Any] = []
     before = _performance_counters(overlay)
 
-    def record_apply_plan(plan: Any, chip_widgets: object) -> None:
+    def record_apply_plan(plan: Any) -> None:
         """Record keyboard animation plans while preserving presenter behavior."""
 
         recorded_plans.append(plan)
-        original_apply_plan(plan, chip_widgets)
+        original_apply_plan(plan)
 
     monkeypatch.setattr(presenter, "apply_plan", record_apply_plan)
 
@@ -690,9 +785,9 @@ def test_reorder_keyboard_suppression_clips_settled_projection(
     surface = surface_for(box)
     visible_region = cast(Any, surface)._preview_visible_region()
 
-    assert cast(Any, surface)._reorder_overlay_suppressed_chip_indices >= frozenset(
-        {0, 1, 2}
-    )
+    assert set(cast(Any, surface)._reorder_overlay_suppression_snapshots_by_index) == {
+        0
+    }
     assert visible_region is not None
     hidden_region = QRegion(surface.viewport().rect()).subtracted(visible_region)
     assert not hidden_region.isEmpty()
@@ -820,7 +915,7 @@ def test_reorder_alt_right_captures_commit_snapshot_before_animation(
     original_apply_plan = presenter.apply_plan
     observed_orders: list[tuple[int, ...] | None] = []
 
-    def record_snapshot_before_animation(plan: Any, chip_widgets: object) -> None:
+    def record_snapshot_before_animation(plan: Any) -> None:
         """Record controller commit state when the display animation is applied."""
 
         _ = plan
@@ -829,7 +924,7 @@ def test_reorder_alt_right_captures_commit_snapshot_before_animation(
         observed_orders.append(
             None if latest_snapshot is None else latest_snapshot.ordered_chip_indices
         )
-        original_apply_plan(plan, chip_widgets)
+        original_apply_plan(plan)
 
     monkeypatch.setattr(presenter, "apply_plan", record_snapshot_before_animation)
 
@@ -868,11 +963,11 @@ def test_reorder_vertical_keyboard_move_animates_to_lane_geometry(
     original_apply_plan = presenter.apply_plan
     recorded_plans: list[Any] = []
 
-    def record_apply_plan(plan: Any, chip_widgets: object) -> None:
+    def record_apply_plan(plan: Any) -> None:
         """Record vertical keyboard plans while preserving presenter behavior."""
 
         recorded_plans.append(plan)
-        original_apply_plan(plan, chip_widgets)
+        original_apply_plan(plan)
 
     monkeypatch.setattr(presenter, "apply_plan", record_apply_plan)
     before = _performance_counters(overlay)
@@ -947,18 +1042,20 @@ def test_reorder_animation_frame_syncs_suppression_without_raster_churn(
     cursor.setPosition(8)
     box.setTextCursor(cursor)
 
-    suppression_publications: list[frozenset[int]] = []
-    original_suppression = box.set_reorder_overlay_suppressed_chip_indices
+    suppression_publications: list[dict[int, PromptReorderProjectionPaintSnapshot]] = []
+    original_suppression = box.set_reorder_overlay_suppression_snapshots
 
-    def count_suppression(indices: frozenset[int]) -> None:
+    def count_suppression(
+        snapshots_by_index: dict[int, PromptReorderProjectionPaintSnapshot],
+    ) -> None:
         """Count suppression publications while preserving real behavior."""
 
-        suppression_publications.append(indices)
-        original_suppression(indices)
+        suppression_publications.append(dict(snapshots_by_index))
+        original_suppression(snapshots_by_index)
 
     monkeypatch.setattr(
         box,
-        "set_reorder_overlay_suppressed_chip_indices",
+        "set_reorder_overlay_suppression_snapshots",
         count_suppression,
     )
 
@@ -969,8 +1066,8 @@ def test_reorder_animation_frame_syncs_suppression_without_raster_churn(
     QTest.keyClick(box, Qt.Key.Key_Left)
     _process_events(app)
 
-    cast(Any, overlay)._last_suppressed_chip_indices = frozenset()
-    original_suppression(frozenset())
+    cast(Any, overlay)._last_suppressed_chip_snapshots_by_index = {}
+    original_suppression({})
     before = _performance_counters(overlay)
     before_suppression_call_count = len(suppression_publications)
     cast(Any, overlay)._sync_reorder_animation_frame()
@@ -980,18 +1077,18 @@ def test_reorder_animation_frame_syncs_suppression_without_raster_churn(
 
     assert after["raster_build_count"] == before["raster_build_count"]
     assert after_suppression_call_count == before_suppression_call_count + 1
-    assert suppression_publications[-1] >= frozenset({0, 1, 2})
+    assert set(suppression_publications[-1]) == {0}
     assert len(suppression_publications) == after_suppression_call_count
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     _process_events(app)
 
 
-def test_reorder_animation_frame_suppresses_vector_fallback_preview_chips(
+def test_reorder_animation_frame_keeps_surface_text_for_chrome_only_preview_chips(
     widgets: list[QWidget],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Overlay-painted vector fallback chips should hide settled projection paint."""
+    """Chrome-only overlay chips should leave surface projection text visible."""
 
     app = _ensure_qapp()
     box = _create_prompt_editor(widgets, text="alpha, beta, gamma")
@@ -999,18 +1096,20 @@ def test_reorder_animation_frame_suppresses_vector_fallback_preview_chips(
     cursor.setPosition(8)
     box.setTextCursor(cursor)
 
-    suppression_publications: list[frozenset[int]] = []
-    original_suppression = box.set_reorder_overlay_suppressed_chip_indices
+    suppression_publications: list[dict[int, PromptReorderProjectionPaintSnapshot]] = []
+    original_suppression = box.set_reorder_overlay_suppression_snapshots
 
-    def count_suppression(indices: frozenset[int]) -> None:
+    def count_suppression(
+        snapshots_by_index: dict[int, PromptReorderProjectionPaintSnapshot],
+    ) -> None:
         """Count suppression publications while preserving real behavior."""
 
-        suppression_publications.append(indices)
-        original_suppression(indices)
+        suppression_publications.append(dict(snapshots_by_index))
+        original_suppression(snapshots_by_index)
 
     monkeypatch.setattr(
         box,
-        "set_reorder_overlay_suppressed_chip_indices",
+        "set_reorder_overlay_suppression_snapshots",
         count_suppression,
     )
 
@@ -1026,13 +1125,16 @@ def test_reorder_animation_frame_suppresses_vector_fallback_preview_chips(
     QTest.keyClick(box, Qt.Key.Key_Left)
     _process_events(app)
 
-    cast(Any, overlay)._last_suppressed_chip_indices = frozenset()
-    original_suppression(frozenset())
+    cast(Any, overlay)._preview_visual_snapshots_by_index = {}
+    cast(Any, overlay)._last_suppressed_chip_snapshots_by_index = {}
+    original_suppression({})
+    suppression_count = len(suppression_publications)
     cast(Any, overlay)._sync_reorder_animation_frame()
 
-    assert suppression_publications[-1] >= frozenset({0, 1, 2})
-    assert surface_for(box)._reorder_overlay_suppressed_chip_indices >= frozenset(  # noqa: SLF001
-        {0, 1, 2}
+    assert len(suppression_publications) == suppression_count
+    assert (
+        surface_for(box)._reorder_overlay_suppression_snapshots_by_index  # noqa: SLF001
+        == {}
     )
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
@@ -1060,17 +1162,15 @@ def test_reorder_unchanged_target_pointer_move_preserves_hot_path_counters(
     overlay = _open_reorder_overlay(box)
     first_chip = _overlay_chip_by_segment_index(overlay, 0)
     second_chip = _overlay_chip_by_segment_index(overlay, 1)
-    target_global = first_chip.mapToGlobal(
-        QPoint(4, max(4, first_chip.rect().center().y()))
-    )
+    target_global = first_chip.leading_global_point()
 
     QTest.mousePress(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.rect().center(),
     )
-    QTest.mouseMove(second_chip, second_chip.mapFromGlobal(target_global), 10)
-    _process_events(app)
+    QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(target_global), 10)
+    _wait_for_preview_sync(app)
 
     cast(Any, overlay)._instrumentation_max_drag_move_ms = 0.0
     before = _performance_counters(overlay)
@@ -1126,7 +1226,7 @@ def test_reorder_unchanged_target_pointer_move_preserves_hot_path_counters(
             )
 
         QTest.mouseMove(
-            second_chip,
+            second_chip.overlay,
             second_chip.mapFromGlobal(target_global + QPoint(1, 0)),
             10,
         )
@@ -1196,7 +1296,7 @@ def test_reorder_unchanged_target_pointer_move_preserves_hot_path_counters(
         telemetry_patch.setattr(telemetry_type, "log_timing", reject_unsampled_timing)
 
         QTest.mouseMove(
-            second_chip,
+            second_chip.overlay,
             second_chip.mapFromGlobal(target_global + QPoint(2, 0)),
             10,
         )
@@ -1209,7 +1309,7 @@ def test_reorder_unchanged_target_pointer_move_preserves_hot_path_counters(
         )
 
     QTest.mouseRelease(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.mapFromGlobal(target_global),
         delay=10,
@@ -1233,25 +1333,21 @@ def test_reorder_target_change_pointer_move_records_rebuild_path_counters(
     first_chip = _overlay_chip_by_segment_index(overlay, 0)
     second_chip = _overlay_chip_by_segment_index(overlay, 1)
     third_chip = _overlay_chip_by_segment_index(overlay, 2)
-    target_global = first_chip.mapToGlobal(
-        QPoint(4, max(4, first_chip.rect().center().y()))
-    )
-    next_target_global = third_chip.mapToGlobal(
-        QPoint(third_chip.width() - 4, max(4, third_chip.rect().center().y()))
-    )
+    target_global = first_chip.leading_global_point()
+    next_target_global = third_chip.trailing_global_point()
 
     QTest.mousePress(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.rect().center(),
     )
-    QTest.mouseMove(second_chip, second_chip.mapFromGlobal(target_global), 10)
+    QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(target_global), 10)
     _process_events(app)
     cast(Any, overlay)._instrumentation_max_drag_move_ms = 0.0
     before = _performance_counters(overlay)
 
     QTest.mouseMove(
-        second_chip,
+        second_chip.overlay,
         second_chip.mapFromGlobal(next_target_global),
         10,
     )
@@ -1286,7 +1382,7 @@ def test_reorder_target_change_pointer_move_records_rebuild_path_counters(
     )
 
     QTest.mouseRelease(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.mapFromGlobal(target_global),
         delay=10,
@@ -1316,33 +1412,44 @@ def test_reorder_target_change_paints_displaced_neighbors_after_preview_sync(
     recorded_plans: list[Any] = []
     original_apply_plan = presenter.apply_plan
 
-    def record_apply_plan(plan: Any, chip_widgets: object) -> None:
+    def record_apply_plan(plan: Any) -> None:
         """Record pointer displacement plans while preserving presenter behavior."""
 
         recorded_plans.append(plan)
-        original_apply_plan(plan, chip_widgets)
+        original_apply_plan(plan)
 
     monkeypatch.setattr(presenter, "apply_plan", record_apply_plan)
     first_chip = _overlay_chip_by_segment_index(overlay, 0)
     second_chip = _overlay_chip_by_segment_index(overlay, 1)
-    first_target = first_chip.mapToGlobal(
-        QPoint(4, max(4, first_chip.rect().center().y()))
-    )
+    first_target = first_chip.leading_global_point()
 
     QTest.mousePress(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.rect().center(),
     )
     _process_events(app)
 
     before = _performance_counters(overlay)
-    QTest.mouseMove(second_chip, second_chip.mapFromGlobal(first_target), 10)
+    threshold_position = QPoint(
+        second_chip.rect().center().x() - (QApplication.startDragDistance() + 1),
+        second_chip.rect().center().y(),
+    )
+    QTest.mouseMove(second_chip.overlay, threshold_position, 10)
+    movement_before = _performance_counters(overlay)
+    QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(first_target), 10)
     immediate_after = _performance_counters(overlay)
 
     assert editor.toPlainText() == "alpha,beta,gamma,"
-    assert _counter_delta(before, immediate_after, "drag_move_count") == 1
-    assert _counter_delta(before, immediate_after, "drop_target_changed_count") == 1
+    assert _counter_delta(movement_before, immediate_after, "drag_move_count") == 1
+    assert (
+        _counter_delta(
+            movement_before,
+            immediate_after,
+            "drop_target_changed_count",
+        )
+        == 1
+    )
 
     _wait_for_preview_sync(app)
     after_sync = _performance_counters(overlay)
@@ -1367,7 +1474,7 @@ def test_reorder_target_change_paints_displaced_neighbors_after_preview_sync(
     )
 
     QTest.mouseRelease(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.mapFromGlobal(first_target),
         delay=10,
@@ -1391,28 +1498,22 @@ def test_reorder_rapid_target_changes_coalesce_one_preview_sync(
     first_chip = _overlay_chip_by_segment_index(overlay, 0)
     second_chip = _overlay_chip_by_segment_index(overlay, 1)
     third_chip = _overlay_chip_by_segment_index(overlay, 2)
-    first_target = first_chip.mapToGlobal(
-        QPoint(4, max(4, first_chip.rect().center().y()))
-    )
-    third_target = third_chip.mapToGlobal(
-        QPoint(third_chip.width() - 4, max(4, third_chip.rect().center().y()))
-    )
-    second_target = second_chip.mapToGlobal(
-        QPoint(second_chip.width() - 4, max(4, second_chip.rect().center().y()))
-    )
+    first_target = first_chip.leading_global_point()
+    third_target = third_chip.trailing_global_point()
+    second_target = second_chip.trailing_global_point()
 
     QTest.mousePress(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.rect().center(),
     )
-    QTest.mouseMove(second_chip, second_chip.mapFromGlobal(first_target), 10)
+    QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(first_target), 10)
     _process_events(app)
 
     cast(Any, overlay)._instrumentation_max_drag_move_ms = 0.0
     before = _performance_counters(overlay)
-    QTest.mouseMove(second_chip, second_chip.mapFromGlobal(second_target), 10)
-    QTest.mouseMove(second_chip, second_chip.mapFromGlobal(third_target), 10)
+    QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(second_target), 10)
+    QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(third_target), 10)
     immediate_after = _performance_counters(overlay)
 
     assert _counter_delta(before, immediate_after, "drop_target_changed_count") == 2
@@ -1440,8 +1541,20 @@ def test_reorder_rapid_target_changes_coalesce_one_preview_sync(
     assert editor.toPlainText() == "alpha,beta,gamma,delta,"
     assert overlay.preview_rect_for_segment(1) is not None
 
+    before_position_notification = _performance_counters(overlay)
+    overlay.refresh_geometry(reason="test_position_notification")
+    after_position_notification = _performance_counters(overlay)
+    assert (
+        _counter_delta(
+            before_position_notification,
+            after_position_notification,
+            "preview_geometry_full_count",
+        )
+        == 0
+    )
+
     QTest.mouseRelease(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.mapFromGlobal(third_target),
         delay=10,
@@ -1469,23 +1582,21 @@ def test_reorder_wrapped_drag_preview_builds_wrapped_animation_plan(
     presenter = cast(Any, overlay)._animation_presenter
     original_apply_plan = presenter.apply_plan
 
-    def record_apply_plan(plan: Any, chip_widgets: object) -> None:
+    def record_apply_plan(plan: Any) -> None:
         """Record integration plans while preserving presenter behavior."""
 
         recorded_plans.append(plan)
-        original_apply_plan(plan, chip_widgets)
+        original_apply_plan(plan)
 
     monkeypatch.setattr(presenter, "apply_plan", record_apply_plan)
-    target_global = target_chip.mapToGlobal(
-        QPoint(4, max(4, target_chip.rect().center().y()))
-    )
+    target_global = target_chip.leading_global_point()
 
     QTest.mousePress(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.rect().center(),
     )
-    QTest.mouseMove(dragged_chip, dragged_chip.mapFromGlobal(target_global), 10)
+    QTest.mouseMove(dragged_chip.overlay, dragged_chip.mapFromGlobal(target_global), 10)
     immediate_after = _performance_counters(overlay)
 
     assert immediate_after["animation_plan_build_count"] == 0
@@ -1510,7 +1621,7 @@ def test_reorder_wrapped_drag_preview_builds_wrapped_animation_plan(
         assert target.target_rect.width() == preview_rect.width()
 
     QTest.mouseRelease(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.mapFromGlobal(target_global),
         delay=10,
@@ -1542,22 +1653,20 @@ def test_reorder_animation_fallback_keeps_final_preview_correct(
     presenter = cast(Any, overlay)._animation_presenter
     applied_generations: list[int] = []
 
-    def no_op_apply_plan(plan: Any, _chip_widgets: object) -> None:
+    def no_op_apply_plan(plan: Any) -> None:
         """Simulate an animation presenter that cannot run animations."""
 
         applied_generations.append(plan.generation)
 
     monkeypatch.setattr(presenter, "apply_plan", no_op_apply_plan)
-    target_global = target_chip.mapToGlobal(
-        QPoint(4, max(4, target_chip.rect().center().y()))
-    )
+    target_global = target_chip.leading_global_point()
 
     QTest.mousePress(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.rect().center(),
     )
-    QTest.mouseMove(dragged_chip, dragged_chip.mapFromGlobal(target_global), 10)
+    QTest.mouseMove(dragged_chip.overlay, dragged_chip.mapFromGlobal(target_global), 10)
     _wait_for_preview_sync(app)
 
     assert applied_generations
@@ -1566,7 +1675,7 @@ def test_reorder_animation_fallback_keeps_final_preview_correct(
     assert overlay.preview_rect_for_segment(1) is not None
 
     QTest.mouseRelease(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.mapFromGlobal(target_global),
         delay=10,
@@ -1594,16 +1703,14 @@ def test_reorder_drag_proxy_font_invalidation_rebuilds_before_visible_use(
     overlay = _open_reorder_overlay(editor)
     first_chip = _overlay_chip_by_segment_index(overlay, 0)
     second_chip = _overlay_chip_by_segment_index(overlay, 1)
-    target_global = first_chip.mapToGlobal(
-        QPoint(4, max(4, first_chip.rect().center().y()))
-    )
+    target_global = first_chip.leading_global_point()
 
     QTest.mousePress(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.rect().center(),
     )
-    QTest.mouseMove(second_chip, second_chip.mapFromGlobal(target_global), 10)
+    QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(target_global), 10)
     _process_events(app)
     before = _performance_counters(overlay)
 
@@ -1611,7 +1718,7 @@ def test_reorder_drag_proxy_font_invalidation_rebuilds_before_visible_use(
     changed_font.setPointSize(changed_font.pointSize() + 2)
     editor.viewport().setFont(changed_font)
     app.sendEvent(overlay, QEvent(QEvent.Type.FontChange))
-    _process_events(app)
+    _wait_for_preview_sync(app)
 
     after = _performance_counters(overlay)
     assert (
@@ -1632,7 +1739,7 @@ def test_reorder_drag_proxy_font_invalidation_rebuilds_before_visible_use(
     )
 
     QTest.mouseMove(
-        second_chip,
+        second_chip.overlay,
         second_chip.mapFromGlobal(target_global + QPoint(3, 0)),
         10,
     )
@@ -1651,7 +1758,7 @@ def test_reorder_drag_proxy_font_invalidation_rebuilds_before_visible_use(
     _assert_timing_observed(after_move, "max_drag_move_ms")
 
     QTest.mouseRelease(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.mapFromGlobal(target_global),
         delay=10,
@@ -1685,12 +1792,17 @@ def test_reorder_autoscroll_steps_do_not_rebuild_surface_projection(
         QPoint(overlay.width() // 2, overlay.height() - 2)
     )
     QTest.mousePress(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.rect().center(),
     )
-    QTest.mouseMove(dragged_chip, dragged_chip.mapFromGlobal(edge_global), 10)
-    _process_events(app)
+    threshold_position = QPoint(
+        dragged_chip.rect().center().x() + QApplication.startDragDistance() + 1,
+        dragged_chip.rect().center().y(),
+    )
+    QTest.mouseMove(dragged_chip.overlay, threshold_position, 10)
+    QTest.mouseMove(dragged_chip.overlay, dragged_chip.mapFromGlobal(edge_global), 10)
+    _wait_for_preview_sync(app)
 
     before = _performance_counters(overlay)
 
@@ -1764,7 +1876,7 @@ def test_reorder_autoscroll_steps_do_not_rebuild_surface_projection(
     )
 
     QTest.mouseRelease(
-        dragged_chip,
+        dragged_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=dragged_chip.mapFromGlobal(edge_global),
         delay=10,

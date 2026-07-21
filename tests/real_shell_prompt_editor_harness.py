@@ -71,6 +71,10 @@ from substitute.application.generation import (
     VisualAuthorizationService,
     WorkflowProgressService,
 )
+from substitute.application.danbooru import (
+    DanbooruUrlImportService,
+    DanbooruWikiContentService,
+)
 from substitute.application.model_metadata import (
     ModelCatalogLookup,
     ThumbnailAssetRepository,
@@ -80,8 +84,13 @@ from substitute.application.overrides import PinnedOverrideService
 from substitute.application.ports import (
     NodeDefinitionHydrationResult,
     PromptAutocompleteSuggestion,
+    PromptWildcardCatalogGateway,
 )
-from substitute.application.prompt_editor import PromptLoraCatalogLookup
+from substitute.application.prompt_editor import (
+    PromptEditorFeatureProfile,
+    PromptLoraCatalogLookup,
+    PromptSpellcheckService,
+)
 from substitute.application.user_presets import UserPresetService
 from substitute.application.workflows import WorkflowSessionService
 from substitute.application.workflows.output_preview_registry import (
@@ -94,6 +103,9 @@ from substitute.presentation.editor.panel.overrides_controller import (
     GlobalOverridesManager,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor
+from substitute.presentation.editor.prompt_editor.projection.snapshot import (
+    PromptProjectionInlineObjectFragment,
+)
 from substitute.presentation.shell.generation_action_controller import (
     GenerationActionController,
 )
@@ -405,6 +417,7 @@ class PromptEditorStateSnapshot:
     projection_text: str
     active_projection_text: str
     layout_projection_text: str
+    active_projection_layout_required: bool
     layout_uses_projection_document: bool
     layout_uses_active_projection_document: bool
     paint_cache_key_present: bool
@@ -529,11 +542,20 @@ class RealShellPromptEditorHarness:
         autocomplete_results: (
             Mapping[str, tuple[PromptAutocompleteSuggestion, ...]] | None
         ) = None,
+        prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway | None = None,
         prompt_lora_catalog_service: PromptLoraCatalogLookup | None = None,
+        prompt_spellcheck_service: PromptSpellcheckService | None = None,
+        danbooru_url_import_service: DanbooruUrlImportService | None = None,
+        danbooru_wiki_service: DanbooruWikiContentService | None = None,
+        prompt_feature_profile: PromptEditorFeatureProfile | None = None,
+        wheel_adjustment_mode: PromptWheelAdjustmentMode = (
+            PromptWheelAdjustmentMode.HOVER_DWELL
+        ),
         thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
         user_preset_service: UserPresetService | None = None,
         model_catalog_service: ModelCatalogLookup | None = None,
         artifact_root: Path | None = None,
+        observe_owner_calls: bool = True,
     ) -> None:
         """Create the shell and fake only external infrastructure services.
 
@@ -554,7 +576,13 @@ class RealShellPromptEditorHarness:
         )
         self.shell = _HarnessShell(
             self.autocomplete_gateway,
+            prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
             prompt_lora_catalog_service=prompt_lora_catalog_service,
+            prompt_spellcheck_service=prompt_spellcheck_service,
+            danbooru_url_import_service=danbooru_url_import_service,
+            danbooru_wiki_service=danbooru_wiki_service,
+            prompt_feature_profile=prompt_feature_profile,
+            wheel_adjustment_mode=wheel_adjustment_mode,
             thumbnail_asset_repository=thumbnail_asset_repository,
             user_preset_service=user_preset_service,
             model_catalog_service=model_catalog_service,
@@ -563,6 +591,7 @@ class RealShellPromptEditorHarness:
         self._trace_actions: list[PromptEditorTraceAction] = []
         self._observed_events: list[PromptEditorObservedEvent] = []
         self._observed_editor_ids: set[int] = set()
+        self._observe_owner_calls = observe_owner_calls
 
     def close(self) -> None:
         """Close real Qt widgets owned by the harness."""
@@ -901,6 +930,15 @@ class RealShellPromptEditorHarness:
     def workflow_round_trip(self, field: PromptFieldHandle) -> PromptFieldHandle:
         """Switch away from a prompt workflow and back through real shell routing."""
 
+        self.prepare_workflow_round_trip(field)
+        secondary_alias = f"{field.workflow.alias}-secondary"
+        self.activate_workflow_for_trace(secondary_alias)
+        self.activate_workflow_for_trace(field.workflow.alias)
+        return self.prompt_field(field.workflow.alias)
+
+    def prepare_workflow_round_trip(self, field: PromptFieldHandle) -> str:
+        """Create and return the inactive secondary workflow alias."""
+
         secondary_alias = f"{field.workflow.alias}-secondary"
         if secondary_alias not in self.workflows:
             self.add_prompt_workflow(
@@ -908,9 +946,7 @@ class RealShellPromptEditorHarness:
                 initial_text="secondary prompt",
                 activate=False,
             )
-        self.activate_workflow_for_trace(secondary_alias)
-        self.activate_workflow_for_trace(field.workflow.alias)
-        return self.prompt_field(field.workflow.alias)
+        return secondary_alias
 
     def prompt_field(self, alias: str) -> PromptFieldHandle:
         """Resolve the current real prompt editor field for one workflow alias."""
@@ -1063,6 +1099,74 @@ class RealShellPromptEditorHarness:
             input_action=press_key,
         )
         self._trace_actions.append(PromptEditorTraceAction("key", label, key=int(key)))
+        return probe
+
+    def probe_paste_projection_paths(
+        self,
+        field: PromptFieldHandle,
+        text: str,
+    ) -> PromptProjectionTypingPathProbe:
+        """Paste through the real clipboard while recording projection paths."""
+
+        QApplication.clipboard().setText(text)
+
+        def paste(target: QWidget) -> None:
+            """Send the platform paste shortcut through Qt's real key route."""
+
+            QTest.keySequence(target, QKeySequence.StandardKey.Paste)
+
+        probe = self._probe_projection_paths(
+            field,
+            input_label=text,
+            input_action=paste,
+        )
+        self._trace_actions.append(PromptEditorTraceAction("paste_text", text))
+        return probe
+
+    def probe_undo_projection_paths(
+        self,
+        field: PromptFieldHandle,
+    ) -> PromptProjectionTypingPathProbe:
+        """Undo through the real shortcut while recording projection paths."""
+
+        return self._probe_history_projection_paths(
+            field,
+            standard_key=QKeySequence.StandardKey.Undo,
+            label="undo",
+        )
+
+    def probe_redo_projection_paths(
+        self,
+        field: PromptFieldHandle,
+    ) -> PromptProjectionTypingPathProbe:
+        """Redo through the real shortcut while recording projection paths."""
+
+        return self._probe_history_projection_paths(
+            field,
+            standard_key=QKeySequence.StandardKey.Redo,
+            label="redo",
+        )
+
+    def _probe_history_projection_paths(
+        self,
+        field: PromptFieldHandle,
+        *,
+        standard_key: QKeySequence.StandardKey,
+        label: str,
+    ) -> PromptProjectionTypingPathProbe:
+        """Send one history shortcut and record its production projection paths."""
+
+        def restore_history(target: QWidget) -> None:
+            """Send the requested history shortcut through Qt's real key route."""
+
+            QTest.keySequence(target, standard_key)
+
+        probe = self._probe_projection_paths(
+            field,
+            input_label=label,
+            input_action=restore_history,
+        )
+        self._trace_actions.append(PromptEditorTraceAction(label, ""))
         return probe
 
     def _probe_projection_paths(
@@ -1569,6 +1673,8 @@ class RealShellPromptEditorHarness:
     def _install_editor_observability(self, field: PromptFieldHandle) -> None:
         """Wrap production editor collaborators with passive call tracing."""
 
+        if not self._observe_owner_calls:
+            return
         editor = field.editor
         if id(editor) in self._observed_editor_ids:
             return
@@ -1864,6 +1970,9 @@ class RealShellPromptEditorHarness:
             projection_text=projection_state["projection_text"],
             active_projection_text=projection_state["active_projection_text"],
             layout_projection_text=projection_state["layout_projection_text"],
+            active_projection_layout_required=bool(
+                projection_state["active_projection_layout_required"]
+            ),
             layout_uses_projection_document=bool(
                 projection_state["layout_uses_projection_document"]
             ),
@@ -2455,6 +2564,7 @@ class RealShellPromptEditorHarness:
             violations.append("active_projection_source_mismatch")
         if (
             not snapshot.autocomplete_preview_active
+            and not snapshot.active_projection_layout_required
             and snapshot.active_projection_text != snapshot.projection_text
         ):
             violations.append("active_projection_preview_leaked_without_preview_state")
@@ -3157,6 +3267,35 @@ class RealShellPromptEditorHarness:
             self.app.processEvents()
 
 
+class _StaticPromptFeatureProfileService:
+    """Return one explicit feature profile through the production panel seam."""
+
+    def __init__(self, profile: PromptEditorFeatureProfile) -> None:
+        """Store the immutable profile used by every mounted harness field."""
+
+        self._profile = profile
+
+    def build_profile(
+        self,
+        *,
+        field_style: Mapping[str, object],
+        workflow_context: object,
+        cube_alias: str | None,
+        prompt_node_name: str,
+        prompt_field_key: str,
+    ) -> PromptEditorFeatureProfile:
+        """Return the configured profile without deriving external preferences."""
+
+        _ = (
+            field_style,
+            workflow_context,
+            cube_alias,
+            prompt_node_name,
+            prompt_field_key,
+        )
+        return self._profile
+
+
 class _HarnessShell(QMainWindow):
     """Own the real workspace and real prompt editor panel under test."""
 
@@ -3173,7 +3312,15 @@ class _HarnessShell(QMainWindow):
         self,
         autocomplete_gateway: RecordingPromptAutocompleteGateway,
         *,
+        prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway | None = None,
         prompt_lora_catalog_service: PromptLoraCatalogLookup | None = None,
+        prompt_spellcheck_service: PromptSpellcheckService | None = None,
+        danbooru_url_import_service: DanbooruUrlImportService | None = None,
+        danbooru_wiki_service: DanbooruWikiContentService | None = None,
+        prompt_feature_profile: PromptEditorFeatureProfile | None = None,
+        wheel_adjustment_mode: PromptWheelAdjustmentMode = (
+            PromptWheelAdjustmentMode.HOVER_DWELL
+        ),
         thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
         user_preset_service: UserPresetService | None = None,
         model_catalog_service: ModelCatalogLookup | None = None,
@@ -3184,24 +3331,31 @@ class _HarnessShell(QMainWindow):
         self.resize(1040, 760)
         self.node_definition_gateway = _PromptNodeDefinitionGateway()
         self.prompt_autocomplete_gateway = autocomplete_gateway
-        self.prompt_wildcard_catalog_gateway = EmptyPromptWildcardCatalogGateway()
+        self.prompt_wildcard_catalog_gateway = (
+            prompt_wildcard_catalog_gateway or EmptyPromptWildcardCatalogGateway()
+        )
         self.node_behavior_service = NodeBehaviorService(
             node_definition_gateway=self.node_definition_gateway
         )
-        self.danbooru_url_import_service = None
-        self.danbooru_wiki_service = None
+        self.danbooru_url_import_service = danbooru_url_import_service
+        self.danbooru_wiki_service = danbooru_wiki_service
         self.danbooru_image_preview_service = None
         self.danbooru_recent_posts_service = None
         self.prompt_lora_catalog_service = prompt_lora_catalog_service
         self.scheduled_lora_provider = None
         self.prompt_scheduled_lora_service = None
-        self.prompt_spellcheck_service = None
-        self.prompt_feature_profile_service = None
+        self.prompt_spellcheck_service = prompt_spellcheck_service
+        self.prompt_feature_profile_service = (
+            None
+            if prompt_feature_profile is None
+            else _StaticPromptFeatureProfileService(prompt_feature_profile)
+        )
         self.prompt_editor_preference_service = SimpleNamespace(
             load_preferences=lambda: SimpleNamespace(
-                wheel_adjustment_mode=PromptWheelAdjustmentMode.HOVER_DWELL
+                wheel_adjustment_mode=wheel_adjustment_mode
             )
         )
+        self.prompt_wheel_adjustment_mode = wheel_adjustment_mode
         self.model_catalog_service = model_catalog_service
         self.model_choice_resolver = None
         self.model_metadata_context_action_handler = None
@@ -3375,7 +3529,15 @@ class _HarnessShell(QMainWindow):
                 prompt_autocomplete_gateway=self.prompt_autocomplete_gateway,
                 prompt_wildcard_catalog_gateway=(self.prompt_wildcard_catalog_gateway),
                 node_behavior_service=self.node_behavior_service,
+                danbooru_url_import_service=self.danbooru_url_import_service,
+                danbooru_wiki_service=self.danbooru_wiki_service,
                 prompt_lora_catalog_service=self.prompt_lora_catalog_service,
+                prompt_spellcheck_service=self.prompt_spellcheck_service,
+                prompt_feature_profile_service=cast(
+                    Any,
+                    self.prompt_feature_profile_service,
+                ),
+                wheel_adjustment_mode=self.prompt_wheel_adjustment_mode,
                 model_catalog_service=self.model_catalog_service,
                 thumbnail_asset_repository=self.thumbnail_asset_repository,
                 user_preset_service=self.user_preset_service,
@@ -4169,6 +4331,9 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         "layout_projection_text": str(
             getattr(layout_projection_document, "projection_text", "")
         ),
+        "active_projection_layout_required": bool(
+            surface is not None and surface._active_projection_requires_layout()
+        ),
         "layout_uses_projection_document": (
             layout_projection_document is projection_document
         ),
@@ -4509,7 +4674,7 @@ def _visible_layout_rows(
         safe_end = max(safe_start, min(source_end, len(source_text)))
         fragments = getattr(line, "fragments", ())
         has_inline_object = any(
-            fragment.__class__.__name__ == "PromptProjectionInlineObjectFragment"
+            isinstance(fragment, PromptProjectionInlineObjectFragment)
             for fragment in fragments
         )
         expected_height = _expected_row_height(line=line, metrics=metrics)
@@ -4611,7 +4776,7 @@ def _expected_row_height(*, line: object, metrics: object | None) -> float | Non
     fragments = getattr(line, "fragments", ())
     if isinstance(fragments, Sequence):
         for fragment in fragments:
-            if fragment.__class__.__name__ != "PromptProjectionInlineObjectFragment":
+            if not isinstance(fragment, PromptProjectionInlineObjectFragment):
                 continue
             rect = getattr(fragment, "rect", None)
             if isinstance(rect, QRectF):
@@ -5838,6 +6003,9 @@ def _snapshot_json(snapshot: PromptEditorStateSnapshot) -> dict[str, object]:
         "projection_text": snapshot.projection_text,
         "active_projection_text": snapshot.active_projection_text,
         "layout_projection_text": snapshot.layout_projection_text,
+        "active_projection_layout_required": (
+            snapshot.active_projection_layout_required
+        ),
         "layout_uses_projection_document": snapshot.layout_uses_projection_document,
         "layout_uses_active_projection_document": (
             snapshot.layout_uses_active_projection_document

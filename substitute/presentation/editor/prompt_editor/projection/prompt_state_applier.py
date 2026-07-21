@@ -216,8 +216,9 @@ class PromptProjectionPromptStateApplier:
             )
         if (
             not source_changed
-            and document_view == host._document_view
             and render_plan != host._render_plan
+            and render_plan.syntax_spans == host._render_plan.syntax_spans
+            and host._projection_document.source_text == document_view.source_text
             and can_schedule_metadata
         ):
             host._projection_freshness_controller.schedule_metadata_update(

@@ -72,6 +72,9 @@ from substitute.presentation.editor.prompt_editor.projection.metrics import (
     PromptProjectionMetrics,
     PromptProjectionMetricsFactory,
 )
+from substitute.presentation.editor.prompt_editor.projection.layout_checkpoint import (
+    PromptProjectionLayoutCheckpoint,
+)
 from substitute.presentation.editor.prompt_editor.projection.transient_edit_overlays import (
     PromptProjectionTransientDeletionOverlay,
     PromptProjectionTransientEditOverlayController,
@@ -88,6 +91,7 @@ class _ProjectionPayload:
     expanded_source_range: tuple[int, int] | None
     document_view: PromptDocumentView
     render_plan: PromptSyntaxRenderPlan
+    layout_checkpoint: PromptProjectionLayoutCheckpoint | None = None
 
 
 def _ensure_qapp() -> QApplication:
@@ -568,6 +572,7 @@ class _SourceChangeHost:
         reset_preferred_x: bool = True,
         caret_rect_override: QRectF | None = None,
         collapse_expanded_token: bool = True,
+        preserve_unmapped_source_positions: bool = False,
         reason: str = "generic",
     ) -> None:
         """Record caret state updates."""
@@ -575,6 +580,7 @@ class _SourceChangeHost:
         _ = reset_preferred_x
         _ = caret_rect_override
         _ = collapse_expanded_token
+        _ = preserve_unmapped_source_positions
         self.caret_state_updates.append(
             (cursor_state.source_position, anchor_state.source_position, reason)
         )
@@ -1021,7 +1027,7 @@ def test_source_change_applier_rebuilds_whitespace_replacements() -> None:
 
 
 def test_source_change_applier_restores_undo_state_through_ports() -> None:
-    """Restore applications should rebuild projection and restore mirror/caret state."""
+    """Restore applications should route exact history state through projection ports."""
 
     session = _projection_session("alpha")
     session.replace_source_range(
@@ -1051,7 +1057,12 @@ def test_source_change_applier_restores_undo_state_through_ports() -> None:
     assert host._document_view.source_text == "alpha"
     assert host._session.expanded_source_range == (0, 5)
     assert host.marked_source_changes == [(False, 9)]
-    assert host.rebuilds == 1
+    assert host.rebuilds == 0
+    assert len(host._incremental_apply_controller.requests) == 1
+    projection_request = host._incremental_apply_controller.requests[0]
+    assert projection_request.previous_source_text == "alpha"
+    assert projection_request.text == "alpha"
+    assert projection_request.projection_deferral_reason == "history_restore"
     assert host.caret_visibility_checks == 1
     assert host.caret_blink_restarts == 1
     assert host.textChanged.count == 1

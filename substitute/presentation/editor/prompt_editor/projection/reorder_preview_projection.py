@@ -42,7 +42,7 @@ from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
 
 from .applicator import PromptProjectionApplicator
 from .layout_engine import PromptProjectionLayout
-from .model import PromptProjectionDisplayMode, PromptProjectionDocument
+from .model import PromptProjectionDocument
 from .observability import (
     log_reorder_drag_event,
     log_reorder_drag_timing,
@@ -52,16 +52,12 @@ from .reorder_preview import (
     PromptReorderPreviewState,
     PromptReorderProjectionSnapshot,
 )
-from .session import PromptProjectionSession
-from .tokens import (
-    PromptEmphasisPrefixRenderer,
-    PromptEmphasisSuffixRenderer,
-    PromptLoraInlineObjectRenderer,
-    PromptProjectionInlineObjectRendererRegistry,
-    PromptWildcardInlineObjectRenderer,
+from .reorder_preview_layout_builder import (
+    PromptReorderPreviewLayoutBuilder,
+    PromptReorderPreviewLayoutIdentity,
+    PromptReorderReusablePreviewLayout,
 )
 
-_SLOW_REORDER_PROJECTION_LAYOUT_MS = 8.0
 _REORDER_PREVIEW_PROJECTION_CACHE_LIMIT = 16
 _REORDER_PROJECTION_SNAPSHOT_CACHE_LIMIT = 64
 _SLOW_RENDER_PLAN_MS = 8.0
@@ -72,19 +68,15 @@ class PromptReorderProjectionSnapshotBuildCacheKey:
     """Identify one display-only reorder preview snapshot build result.
 
     The projection preview module owns this key because the cached value feeds
-    only display projection and overlay geometry refresh. It deliberately
-    includes layout and active-target identity so revisiting a target can reuse
-    prepared syntax work without allowing a different target's display snapshot
-    to leak into the current preview.
+    only display projection and overlay geometry refresh. Consumer roles and
+    active targets do not fragment the cache because the complete serialized
+    snapshot content remains authoritative.
     """
 
-    cache_namespace: str
     syntax_profile_identity: int
     source_revision: int
     viewport_width: int
-    scroll_position: int
     layout_key: Hashable | None
-    active_drop_target_identity: Hashable | None
     preview_text: str
     chip_rendered_ranges: tuple[tuple[int, tuple[int, int]], ...]
     chip_owned_ranges: tuple[tuple[int, tuple[tuple[int, int], ...]], ...]
@@ -111,7 +103,6 @@ class PromptReorderPreviewProjectionContext:
     source_revision: int
     layout_width: float
     viewport_width: int
-    scroll_offset: int
     preview_layout_key: Hashable | None = None
     base_drag_layout_key: Hashable | None = None
     active_drop_target_identity: Hashable | None = None
@@ -131,7 +122,6 @@ class PromptReorderProjectionSnapshotCacheKey:
 
     source_revision: int
     viewport_width: int
-    scroll_offset: int
     layout_width_x100: int
     layout_key: Hashable | None
     active_drop_target_identity: Hashable | None
@@ -192,7 +182,6 @@ class PromptReorderPreviewProjectionProvider:
         cache_namespace: str,
         source_revision: int,
         viewport_width: int,
-        scroll_position: int,
         layout_key: Hashable | None,
         active_drop_target_identity: Hashable | None,
         gesture_id: int | None,
@@ -233,12 +222,9 @@ class PromptReorderPreviewProjectionProvider:
         )
         cache_key = self._cache_key(
             preview_snapshot,
-            cache_namespace=cache_namespace,
             source_revision=source_revision,
             viewport_width=viewport_width,
-            scroll_position=scroll_position,
             layout_key=layout_key,
-            active_drop_target_identity=active_drop_target_identity,
         )
         cached_snapshot = self._cache.get(cache_key)
         if cached_snapshot is not None:
@@ -379,23 +365,17 @@ class PromptReorderPreviewProjectionProvider:
         self,
         snapshot: PromptReorderPreviewSnapshot,
         *,
-        cache_namespace: str,
         source_revision: int,
         viewport_width: int,
-        scroll_position: int,
         layout_key: Hashable | None,
-        active_drop_target_identity: Hashable | None,
     ) -> PromptReorderProjectionSnapshotBuildCacheKey:
         """Return the content identity for one cached reorder projection snapshot."""
 
         return PromptReorderProjectionSnapshotBuildCacheKey(
-            cache_namespace=cache_namespace,
             syntax_profile_identity=id(self._syntax_profile),
             source_revision=source_revision,
             viewport_width=viewport_width,
-            scroll_position=scroll_position,
             layout_key=layout_key,
-            active_drop_target_identity=active_drop_target_identity,
             preview_text=snapshot.text,
             chip_rendered_ranges=tuple(
                 sorted(snapshot.chip_rendered_ranges_by_index.items())
@@ -450,10 +430,11 @@ class PromptReorderPreviewProjectionService:
     ) -> None:
         """Store projection collaborators without taking QWidget ownership."""
 
-        self._projection_applicator = projection_applicator
-        self._thumbnail_cache = thumbnail_cache
+        self._layout_builder = PromptReorderPreviewLayoutBuilder(
+            projection_applicator=projection_applicator,
+            thumbnail_cache=thumbnail_cache,
+        )
         self._cache_limit = cache_limit
-        self._preview_session = PromptProjectionSession()
         self._preview_state: PromptReorderPreviewState | None = None
         self._preview_document: PromptProjectionDocument | None = None
         self._preview_layout: PromptProjectionLayout | None = None
@@ -510,6 +491,8 @@ class PromptReorderPreviewProjectionService:
         font: QFont,
         palette: QPalette,
         semantic_palette: SemanticPalette | None,
+        live_projection_document: PromptProjectionDocument | None = None,
+        live_projection_layout: PromptProjectionLayout | None = None,
     ) -> PromptReorderPreviewProjectionInvalidation:
         """Replace active preview state and rebuild or reuse projection layouts."""
 
@@ -519,12 +502,17 @@ class PromptReorderPreviewProjectionService:
             font=font,
             palette=palette,
             semantic_palette=semantic_palette,
+            live_projection_document=live_projection_document,
+            live_projection_layout=live_projection_layout,
         )
 
     def reset_counters(self) -> None:
         """Reset per-gesture reorder projection cache counters."""
 
         self._projection_snapshot_rebuild_count = 0
+        self._preview_projection_full_layout_count = 0
+        self._preview_projection_incremental_layout_count = 0
+        self._preview_projection_exact_layout_reuse_count = 0
         self._preview_projection_active_cache_hit_count = 0
         self._preview_projection_lru_cache_hit_count = 0
         self._preview_projection_cache_miss_count = 0
@@ -535,6 +523,15 @@ class PromptReorderPreviewProjectionService:
         return {
             "projection_snapshot_rebuild_count": (
                 self._projection_snapshot_rebuild_count
+            ),
+            "preview_projection_full_layout_count": (
+                self._preview_projection_full_layout_count
+            ),
+            "preview_projection_incremental_layout_count": (
+                self._preview_projection_incremental_layout_count
+            ),
+            "preview_projection_exact_layout_reuse_count": (
+                self._preview_projection_exact_layout_reuse_count
             ),
             "preview_projection_active_cache_hit_count": (
                 self._preview_projection_active_cache_hit_count
@@ -624,6 +621,8 @@ class PromptReorderPreviewProjectionService:
         font: QFont,
         palette: QPalette,
         semantic_palette: SemanticPalette | None,
+        live_projection_document: PromptProjectionDocument | None,
+        live_projection_layout: PromptProjectionLayout | None,
     ) -> PromptReorderPreviewProjectionInvalidation:
         """Rebuild the explicit reorder preview projection state when active."""
 
@@ -688,12 +687,29 @@ class PromptReorderPreviewProjectionService:
                 )
             else:
                 phase_started_at = reorder_drag_started_at()
+                reusable = self._active_preview_layout_for_reuse()
+                if reusable is None:
+                    reusable = self._live_projection_layout_for_reuse(
+                        document=live_projection_document,
+                        layout=live_projection_layout,
+                        context=context,
+                        font=font,
+                        palette=palette,
+                        semantic_palette=semantic_palette,
+                    )
+                if self._layout_builder.can_reflow_incrementally(
+                    reusable,
+                    identity=self._layout_identity(preview_cache_key),
+                    snapshot=preview_state.preview_snapshot,
+                ):
+                    assert reusable is not None
                 preview_document, preview_layout = self._build_projection_snapshot(
                     preview_state.preview_snapshot,
                     context=context,
                     font=font,
                     palette=palette,
                     semantic_palette=semantic_palette,
+                    reusable=reusable,
                 )
                 self._preview_document = preview_document
                 self._preview_layout = preview_layout
@@ -748,15 +764,35 @@ class PromptReorderPreviewProjectionService:
         invalidation = PromptReorderPreviewProjectionInvalidation()
         if not base_cache_hit:
             phase_started_at = reorder_drag_started_at()
-            self._base_drag_document, self._base_drag_layout = (
-                self._build_projection_snapshot(
-                    preview_state.base_drag_snapshot,
-                    context=context,
-                    font=font,
-                    palette=palette,
-                    semantic_palette=semantic_palette,
+            reusable = self._active_preview_layout_for_reuse()
+            if self._layout_builder.can_reuse_exactly(
+                reusable,
+                identity=self._layout_identity(base_drag_cache_key),
+                render_plan_hash=base_drag_cache_key.render_plan_hash,
+                snapshot=preview_state.base_drag_snapshot,
+            ):
+                assert reusable is not None
+                self._base_drag_document = reusable.document
+                self._base_drag_layout = reusable.layout
+                self._preview_projection_exact_layout_reuse_count += 1
+                log_reorder_drag_event(
+                    "surface.rebuild_reorder_projection.base_drag_exact_reuse",
+                    gesture_id=preview_state.instrumentation_gesture_id,
+                    event_id=preview_state.instrumentation_event_id,
+                    reason=preview_state.instrumentation_reason,
+                    **self._cache_context(base_drag_cache_key),
                 )
-            )
+            else:
+                self._base_drag_document, self._base_drag_layout = (
+                    self._build_projection_snapshot(
+                        preview_state.base_drag_snapshot,
+                        context=context,
+                        font=font,
+                        palette=palette,
+                        semantic_palette=semantic_palette,
+                        reusable=reusable,
+                    )
+                )
             self._base_drag_cache_key = base_drag_cache_key
             invalidation = PromptReorderPreviewProjectionInvalidation(
                 clear_base_drag_geometry_reason="base_drag_projection_rebuild",
@@ -799,57 +835,24 @@ class PromptReorderPreviewProjectionService:
         font: QFont,
         palette: QPalette,
         semantic_palette: SemanticPalette | None,
+        reusable: PromptReorderReusablePreviewLayout | None,
     ) -> tuple[PromptProjectionDocument, PromptProjectionLayout]:
-        """Build one projection document and layout from a reorder snapshot."""
+        """Delegate one full or local-window preview layout build."""
 
         preview_state = self._preview_state
         self._projection_snapshot_rebuild_count += 1
-        total_started_at = reorder_drag_started_at()
-        phase_started_at = reorder_drag_started_at()
-        projection_document = self._projection_applicator.build_projection(
-            snapshot.document_view,
-            snapshot.render_plan,
-            display_mode=PromptProjectionDisplayMode.PROJECTED,
-            session=self._preview_session,
-            active_span_range=None,
-            decoration_accent_ranges=(),
-            scene_error_keys=frozenset(),
-        )
-        build_projection_elapsed_ms = log_reorder_drag_timing(
-            "surface.build_reorder_projection_snapshot.build_projection",
-            started_at=phase_started_at,
-            text_length=len(snapshot.document_view.source_text),
-            segment_count=len(snapshot.document_view.segments),
-            syntax_span_count=len(snapshot.render_plan.syntax_spans),
-            run_count=len(projection_document.runs),
-            token_count=len(projection_document.tokens),
-            layout_width=f"{context.layout_width:.2f}",
-        )
-        phase_started_at = reorder_drag_started_at()
-        projection_layout = PromptProjectionLayout(
-            PromptProjectionInlineObjectRendererRegistry(
-                (
-                    PromptEmphasisPrefixRenderer(),
-                    PromptEmphasisSuffixRenderer(),
-                    PromptLoraInlineObjectRenderer(
-                        self._thumbnail_cache,
-                        suppress_banners=True,
-                    ),
-                    PromptWildcardInlineObjectRenderer(),
-                )
-            )
-        )
-        projection_layout.set_base_font(font)
-        projection_layout.set_palette(palette)
-        projection_layout.set_semantic_palette(semantic_palette)
-        projection_layout.set_projection_and_text_width(
-            projection_document,
-            context.layout_width,
-            prompt_document_view=snapshot.document_view,
-        )
-        layout_elapsed_ms = log_reorder_drag_timing(
-            "surface.build_reorder_projection_snapshot.layout",
-            started_at=phase_started_at,
+        result = self._layout_builder.build(
+            snapshot,
+            identity=self._layout_identity_for_inputs(
+                context=context,
+                font=font,
+                palette=palette,
+                semantic_palette=semantic_palette,
+            ),
+            layout_width=context.layout_width,
+            font=font,
+            palette=palette,
+            semantic_palette=semantic_palette,
             gesture_id=None
             if preview_state is None
             else preview_state.instrumentation_gesture_id,
@@ -859,81 +862,91 @@ class PromptReorderPreviewProjectionService:
             reason=""
             if preview_state is None
             else preview_state.instrumentation_reason,
-            text_length=len(snapshot.document_view.source_text),
-            segment_count=len(snapshot.document_view.segments),
-            run_count=len(projection_document.runs),
-            token_count=len(projection_document.tokens),
-            visual_line_count=projection_layout.line_count(),
-            text_fragment_count=projection_layout.text_fragment_count(),
-            inline_object_count=projection_layout.inline_object_fragment_count(),
-            chip_count=len(snapshot.chip_rendered_ranges_by_index),
-            layout_width=f"{context.layout_width:.2f}",
-            content_width=f"{projection_layout.content_size().width():.2f}",
-            content_height=f"{projection_layout.content_size().height():.2f}",
+            reusable=reusable,
         )
-        if layout_elapsed_ms >= _SLOW_REORDER_PROJECTION_LAYOUT_MS:
-            log_reorder_drag_event(
-                "slow.projection_layout",
-                gesture_id=None
-                if preview_state is None
-                else preview_state.instrumentation_gesture_id,
-                event_id=None
-                if preview_state is None
-                else preview_state.instrumentation_event_id,
-                reason=""
-                if preview_state is None
-                else preview_state.instrumentation_reason,
-                elapsed_ms=f"{layout_elapsed_ms:.3f}",
-                threshold_ms=f"{_SLOW_REORDER_PROJECTION_LAYOUT_MS:.3f}",
-                text_length=len(snapshot.document_view.source_text),
-                segment_count=len(snapshot.document_view.segments),
-                run_count=len(projection_document.runs),
-                token_count=len(projection_document.tokens),
-                visual_line_count=projection_layout.line_count(),
-                text_fragment_count=projection_layout.text_fragment_count(),
-                inline_object_count=projection_layout.inline_object_fragment_count(),
-                chip_count=len(snapshot.chip_rendered_ranges_by_index),
-                layout_width=f"{context.layout_width:.2f}",
-            )
-            log_reorder_drag_event(
-                "budget.projection_layout_exceeded",
-                gesture_id=None
-                if preview_state is None
-                else preview_state.instrumentation_gesture_id,
-                event_id=None
-                if preview_state is None
-                else preview_state.instrumentation_event_id,
-                reason=""
-                if preview_state is None
-                else preview_state.instrumentation_reason,
-                elapsed_ms=f"{layout_elapsed_ms:.3f}",
-                threshold_ms=f"{_SLOW_REORDER_PROJECTION_LAYOUT_MS:.3f}",
-                text_length=len(snapshot.document_view.source_text),
-                segment_count=len(snapshot.document_view.segments),
-                visual_line_count=projection_layout.line_count(),
-                layout_width=f"{context.layout_width:.2f}",
-            )
-        log_reorder_drag_timing(
-            "surface.build_reorder_projection_snapshot.total",
-            started_at=total_started_at,
-            gesture_id=None
-            if preview_state is None
-            else preview_state.instrumentation_gesture_id,
-            event_id=None
-            if preview_state is None
-            else preview_state.instrumentation_event_id,
-            reason=""
-            if preview_state is None
-            else preview_state.instrumentation_reason,
-            text_length=len(snapshot.document_view.source_text),
-            segment_count=len(snapshot.document_view.segments),
-            rendered_range_count=len(snapshot.chip_rendered_ranges_by_index),
-            gap_range_count=len(snapshot.gap_ranges_by_index),
-            layout_width=f"{context.layout_width:.2f}",
-            build_projection_elapsed_ms=f"{build_projection_elapsed_ms:.3f}",
-            layout_elapsed_ms=f"{layout_elapsed_ms:.3f}",
+        if result.incremental:
+            self._preview_projection_incremental_layout_count += 1
+        else:
+            self._preview_projection_full_layout_count += 1
+        return result.document, result.layout
+
+    def _active_preview_layout_for_reuse(
+        self,
+    ) -> PromptReorderReusablePreviewLayout | None:
+        """Return the active preview layout with its stable reuse identity."""
+
+        if (
+            self._preview_document is None
+            or self._preview_layout is None
+            or self._preview_cache_key is None
+        ):
+            return None
+        return PromptReorderReusablePreviewLayout(
+            identity=self._layout_identity(self._preview_cache_key),
+            render_plan_hash=self._preview_cache_key.render_plan_hash,
+            document=self._preview_document,
+            layout=self._preview_layout,
         )
-        return projection_document, projection_layout
+
+    def _live_projection_layout_for_reuse(
+        self,
+        *,
+        document: PromptProjectionDocument | None,
+        layout: PromptProjectionLayout | None,
+        context: PromptReorderPreviewProjectionContext,
+        font: QFont,
+        palette: QPalette,
+        semantic_palette: SemanticPalette | None,
+    ) -> PromptReorderReusablePreviewLayout | None:
+        """Return a live-layout seed eligible only for copy-on-write reflow."""
+
+        if document is None or layout is None:
+            return None
+        return PromptReorderReusablePreviewLayout(
+            identity=self._layout_identity_for_inputs(
+                context=context,
+                font=font,
+                palette=palette,
+                semantic_palette=semantic_palette,
+            ),
+            render_plan_hash="live-layout-seed-not-exact-reuse",
+            document=document,
+            layout=layout,
+        )
+
+    @staticmethod
+    def _layout_identity(
+        key: PromptReorderProjectionSnapshotCacheKey,
+    ) -> PromptReorderPreviewLayoutIdentity:
+        """Return layout-affecting identity without target or prompt content."""
+
+        return PromptReorderPreviewLayoutIdentity(
+            source_revision=key.source_revision,
+            viewport_width=key.viewport_width,
+            layout_width_x100=key.layout_width_x100,
+            font_key=key.font_key,
+            palette_cache_key=key.palette_cache_key,
+            semantic_palette_hash=key.semantic_palette_hash,
+        )
+
+    @staticmethod
+    def _layout_identity_for_inputs(
+        *,
+        context: PromptReorderPreviewProjectionContext,
+        font: QFont,
+        palette: QPalette,
+        semantic_palette: SemanticPalette | None,
+    ) -> PromptReorderPreviewLayoutIdentity:
+        """Return layout-affecting identity for one pending preview build."""
+
+        return PromptReorderPreviewLayoutIdentity(
+            source_revision=context.source_revision,
+            viewport_width=context.viewport_width,
+            layout_width_x100=int(round(context.layout_width * 100.0)),
+            font_key=font.toString(),
+            palette_cache_key=int(palette.cacheKey()),
+            semantic_palette_hash=_safe_key_hash(semantic_palette),
+        )
 
     def _preview_projection_cache_entry(
         self,
@@ -1003,7 +1016,6 @@ class PromptReorderPreviewProjectionService:
         return PromptReorderProjectionSnapshotCacheKey(
             source_revision=context.source_revision,
             viewport_width=context.viewport_width,
-            scroll_offset=context.scroll_offset,
             layout_width_x100=int(round(context.layout_width * 100.0)),
             layout_key=layout_key,
             active_drop_target_identity=context.active_drop_target_identity,
@@ -1058,7 +1070,6 @@ class PromptReorderPreviewProjectionService:
             "projection_cache_gap_range_count": len(key.gap_ranges),
             "source_revision": key.source_revision,
             "projection_cache_viewport_width": key.viewport_width,
-            "projection_cache_scroll_offset": key.scroll_offset,
             "projection_cache_layout_width_x100": key.layout_width_x100,
             "projection_cache_layout_hash": _safe_key_hash(key.layout_key),
             "projection_cache_target_hash": _safe_key_hash(

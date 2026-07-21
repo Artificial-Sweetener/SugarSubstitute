@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -120,11 +121,11 @@ class PromptDocumentView:
     """Expose one immutable prompt snapshot for presentation and application flows."""
 
     source_text: str
-    segments: tuple[PromptSegmentView, ...]
-    emphasis_spans: tuple[PromptEmphasisView, ...]
-    wildcard_spans: tuple[PromptWildcardView, ...]
-    lora_spans: tuple[PromptLoraView, ...]
-    syntax_spans: tuple[PromptSyntaxSpanView, ...]
+    segments: Sequence[PromptSegmentView]
+    emphasis_spans: Sequence[PromptEmphasisView]
+    wildcard_spans: Sequence[PromptWildcardView]
+    lora_spans: Sequence[PromptLoraView]
+    syntax_spans: Sequence[PromptSyntaxSpanView]
     has_trailing_comma: bool
 
 

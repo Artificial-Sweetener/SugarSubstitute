@@ -37,6 +37,7 @@ from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionTokenKind,
 )
 from substitute.presentation.editor.prompt_editor.projection.incremental_editor import (
+    PromptProjectionPlainTextApplyResult,
     PromptProjectionPlainTextApplyStatus,
 )
 from substitute.presentation.editor.prompt_editor.projection.snapshot import (
@@ -901,7 +902,9 @@ def test_projection_surface_projected_token_delete_preserves_unaffected_tokens(
     }
     assert box.toPlainText() == "(ct:1.05), alpha, (dog:1.10)"
     assert "dog" in projected_texts
-    assert rebuild_count == 1
+    assert surface.projection_document().source_text == box.toPlainText()
+    assert surface.cursor_position == cursor_position - 1
+    assert rebuild_count == 0
     assert surface.has_stale_projection_geometry() is False
 
 
@@ -1052,7 +1055,9 @@ def test_projection_surface_expanded_token_enter_preserves_semantic_projection(
     assert box.toPlainText() == "(cat:1.05), alpha\n beta, (dog:1.10)"
     assert "dog" in projected_texts
     assert surface.has_stale_projection_geometry() is False
-    assert rebuild_count == 1
+    assert surface.projection_document().source_text == box.toPlainText()
+    assert surface.cursor_position == cursor_position + 1
+    assert rebuild_count == 0
 
     content_height_after_enter = surface.content_height()
     flush_semantic_refresh(box)
@@ -1062,7 +1067,9 @@ def test_projection_surface_expanded_token_enter_preserves_semantic_projection(
     }
     assert "dog" in refreshed_texts
     assert surface.content_height() == pytest.approx(content_height_after_enter)
-    assert rebuild_count == 1
+    assert surface.projection_document().source_text == box.toPlainText()
+    assert surface.cursor_position == cursor_position + 1
+    assert rebuild_count == 0
 
 
 def test_projection_surface_expanded_token_newline_backspace_preserves_semantics(
@@ -1106,7 +1113,9 @@ def test_projection_surface_expanded_token_newline_backspace_preserves_semantics
     assert box.toPlainText() == "(cat:1.05), alpha beta, (dog:1.10)"
     assert "dog" in projected_texts
     assert surface.has_stale_projection_geometry() is False
-    assert rebuild_count == 1
+    assert surface.projection_document().source_text == box.toPlainText()
+    assert surface.cursor_position == cursor_position - 1
+    assert rebuild_count == 0
 
     content_height_after_backspace = surface.content_height()
     flush_semantic_refresh(box)
@@ -1116,7 +1125,9 @@ def test_projection_surface_expanded_token_newline_backspace_preserves_semantics
     }
     assert "dog" in refreshed_texts
     assert surface.content_height() == pytest.approx(content_height_after_backspace)
-    assert rebuild_count == 1
+    assert surface.projection_document().source_text == box.toPlainText()
+    assert surface.cursor_position == cursor_position - 1
+    assert rebuild_count == 0
 
 
 def test_projection_surface_backspace_rebuilds_after_pending_typing_projection(
@@ -1340,11 +1351,11 @@ def test_projection_surface_repeated_backspace_publishes_real_layout(
     assert surface.has_stale_projection_geometry() is False
 
 
-def test_projection_surface_fallback_backspace_rebuilds_without_deletion_overlay(
+def test_projection_surface_fallback_backspace_uses_canonical_reflow_without_overlay(
     widgets: list[QWidget],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Backspace should rebuild safely when no deletion overlay can be created."""
+    """Backspace should publish canonical state when transient paths are unavailable."""
 
     box = show_prompt_editor(
         widgets,
@@ -1370,6 +1381,11 @@ def test_projection_surface_fallback_backspace_rebuilds_without_deletion_overlay
         lambda *, start, end, source_revision: None,
     )
     monkeypatch.setattr(
+        cast(Any, surface)._source_change_applier,
+        "_can_defer_source_rebuild_for_edit",
+        lambda **_kwargs: (False, "test_forced_immediate_fallback"),
+    )
+    monkeypatch.setattr(
         cast(Any, surface)._incremental_apply_controller,
         "try_apply_fast_trailing_plain_delete_projection",
         lambda **_kwargs: False,
@@ -1382,7 +1398,14 @@ def test_projection_surface_fallback_backspace_rebuilds_without_deletion_overlay
     monkeypatch.setattr(
         cast(Any, surface)._incremental_apply_controller,
         "try_apply_incremental_plain_text_projection",
-        lambda **_kwargs: PromptProjectionPlainTextApplyStatus.REJECTED,
+        lambda **_kwargs: PromptProjectionPlainTextApplyResult(
+            status=PromptProjectionPlainTextApplyStatus.REJECTED
+        ),
+    )
+    monkeypatch.setattr(
+        cast(Any, surface)._incremental_apply_controller,
+        "try_defer_immediate_projection_fallback_update",
+        lambda **_kwargs: False,
     )
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
@@ -1401,7 +1424,9 @@ def test_projection_surface_fallback_backspace_rebuilds_without_deletion_overlay
     assert cast(Any, surface)._transient_deletion_visible_region() is None
     assert surface.has_pending_projection_update() is False
     assert surface.has_stale_projection_geometry() is False
-    assert rebuild_count == 2
+    assert surface.projection_document().source_text == "alpha be"
+    assert surface.cursor_position == len("alpha be")
+    assert rebuild_count == 0
 
 
 def test_projection_surface_backspace_newline_uses_incremental_layout(
@@ -1758,8 +1783,10 @@ def test_projection_surface_newline_backspace_flushes_pending_typing_before_dele
     assert surface.has_pending_projection_update() is True
     rebuild_count = 0
     cursor_position = box.toPlainText().index("\n") + 1
-    surface._cursor_state = PromptProjectionCaretState(source_position=cursor_position)  # noqa: SLF001
-    surface._anchor_state = PromptProjectionCaretState(source_position=cursor_position)  # noqa: SLF001
+    surface._set_deferred_source_caret_states(  # noqa: SLF001
+        cursor_state=PromptProjectionCaretState(source_position=cursor_position),
+        anchor_state=PromptProjectionCaretState(source_position=cursor_position),
+    )
 
     QTest.keyClick(box, Qt.Key.Key_Backspace)
 

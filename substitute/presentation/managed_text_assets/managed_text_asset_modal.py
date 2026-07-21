@@ -84,6 +84,9 @@ from substitute.presentation.managed_text_assets.managed_text_asset_list import 
     group_assets,
     muted_text_color,
 )
+from substitute.presentation.managed_text_assets.modal_shadow import (
+    ManagedTextAssetModalShadow,
+)
 from substitute.shared.logging.logger import get_logger, log_exception
 
 _LOGGER = get_logger("presentation.managed_text_assets.modal")
@@ -132,6 +135,10 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         """Build the managed text asset modal."""
 
         super().__init__(parent or _fallback_parent())
+        self._static_shadow = ManagedTextAssetModalShadow(
+            modal=self,
+            center_widget=self.widget,
+        )
         self._service = service
         self._asset_title = asset_title
         self._empty_text = empty_text

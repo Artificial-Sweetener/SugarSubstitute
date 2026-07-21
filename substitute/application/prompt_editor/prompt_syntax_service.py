@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 import logging
 from collections import Counter, OrderedDict
 from collections.abc import Hashable
@@ -100,14 +101,14 @@ class PromptSyntaxRendererView:
     """Describe one renderer-facing syntax projection keyed by syntax kind."""
 
     kind: str
-    syntax_spans: tuple[PromptSyntaxSpanView, ...]
+    syntax_spans: Sequence[PromptSyntaxSpanView]
 
 
 @dataclass(frozen=True, slots=True)
 class PromptEmphasisRendererView(PromptSyntaxRendererView):
     """Describe the renderer-ready emphasis projection for one prompt snapshot."""
 
-    emphasis_spans: tuple[PromptEmphasisView, ...]
+    emphasis_spans: Sequence[PromptEmphasisView]
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,7 +140,7 @@ class PromptWildcardRendererSpanView:
 class PromptWildcardRendererView(PromptSyntaxRendererView):
     """Describe the renderer-ready wildcard projection for one prompt snapshot."""
 
-    wildcard_spans: tuple[PromptWildcardRendererSpanView, ...]
+    wildcard_spans: Sequence[PromptWildcardRendererSpanView]
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,7 +182,7 @@ class PromptLoraRendererSpanView:
 class PromptLoraRendererView(PromptSyntaxRendererView):
     """Describe the renderer-ready LoRA projection for one prompt snapshot."""
 
-    lora_spans: tuple[PromptLoraRendererSpanView, ...]
+    lora_spans: Sequence[PromptLoraRendererSpanView]
 
 
 @dataclass(frozen=True, slots=True)
@@ -203,8 +204,8 @@ class _PromptLoraRenderPlanSummary:
 class PromptSyntaxRenderPlan:
     """Group all renderer-facing syntax projections for one prompt snapshot."""
 
-    syntax_spans: tuple[PromptSyntaxSpanView, ...]
-    renderer_views: tuple[PromptSyntaxRendererView, ...]
+    syntax_spans: Sequence[PromptSyntaxSpanView]
+    renderer_views: Sequence[PromptSyntaxRendererView]
     document_semantics_identity: Hashable = "ordinary-prompt-v1"
 
     def renderer_view_for_kind(self, kind: str) -> PromptSyntaxRendererView | None:

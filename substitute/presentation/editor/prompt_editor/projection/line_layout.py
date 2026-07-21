@@ -18,7 +18,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from bisect import bisect_left, bisect_right
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import cast
 
@@ -151,6 +152,19 @@ _WORD_JOINING_CHARACTERS = frozenset(("_", "-", "'"))
 _WIDTH_EPSILON = 0.01
 _MEASUREMENT_CACHE_ENTRY_LIMIT = 8192
 
+type PromptProjectionLineReuseProbe = Callable[
+    [PromptProjectionLineSnapshot], int | None
+]
+
+
+@dataclass(frozen=True, slots=True)
+class PromptProjectionLineLayoutBuildResult:
+    """Carry a built prefix and the reusable previous suffix boundary."""
+
+    snapshot: PromptProjectionLayoutSnapshot
+    reusable_previous_line_index: int | None = None
+    source_limited: bool = False
+
 
 @dataclass(slots=True)
 class _TextMeasurementCache:
@@ -166,6 +180,18 @@ class _TextMeasurementCache:
     font_by_run_key: dict[tuple[str, str, bool, str | None], QFont] = field(
         default_factory=dict
     )
+    key_by_font_id: dict[int, tuple[QFont, str]] = field(default_factory=dict)
+
+    def font_key(self, font: QFont) -> str:
+        """Return one cached stable key for a retained Qt font wrapper."""
+
+        font_id = id(font)
+        cached = self.key_by_font_id.get(font_id)
+        if cached is not None and cached[0] is font:
+            return cached[1]
+        key = font.toString()
+        self.key_by_font_id[font_id] = (font, key)
+        return key
 
     def font_for_run(
         self,
@@ -194,7 +220,7 @@ class _TextMeasurementCache:
 
         if not text:
             return (0.0,)
-        key = (text, font.toString())
+        key = (text, self.font_key(font))
         cached_offsets = self.offsets_by_key.get(key)
         if cached_offsets is not None:
             return cached_offsets
@@ -210,7 +236,7 @@ class _TextMeasurementCache:
     def text_width(self, text: str, font: QFont) -> float:
         """Return cached unwrapped text width."""
 
-        key = (text, font.toString())
+        key = (text, self.font_key(font))
         cached_width = self.width_by_key.get(key)
         if cached_width is not None:
             return cached_width
@@ -225,7 +251,7 @@ class _TextMeasurementCache:
     ) -> bool:
         """Return cached word-fit decisions for one snapshot."""
 
-        key = (text, font.toString(), round(content_width * 100))
+        key = (text, self.font_key(font), round(content_width * 100))
         cached_fit = self.word_fit_by_key.get(key)
         if cached_fit is not None:
             return cached_fit
@@ -241,6 +267,7 @@ class _TextMeasurementCache:
             + len(self.width_by_key)
             + len(self.word_fit_by_key)
             + len(self.font_by_run_key)
+            + len(self.key_by_font_id)
         )
 
     def clear(self) -> None:
@@ -250,6 +277,7 @@ class _TextMeasurementCache:
         self.width_by_key.clear()
         self.word_fit_by_key.clear()
         self.font_by_run_key.clear()
+        self.key_by_font_id.clear()
 
 
 class PromptProjectionLineLayoutBuilder:
@@ -277,6 +305,69 @@ class PromptProjectionLineLayoutBuilder:
     ) -> PromptProjectionLayoutSnapshot:
         """Build one immutable layout snapshot for the supplied projection document."""
 
+        return self._build_snapshot(
+            projection_document,
+            wrap_width=wrap_width,
+            base_font=base_font,
+            document_margin=document_margin,
+            content_left_inset=content_left_inset,
+            prompt_document_view=prompt_document_view,
+            metrics=metrics,
+            line_reuse_probe=None,
+            source_limit=None,
+        ).snapshot
+
+    def build_snapshot_until_reusable_suffix(
+        self,
+        projection_document: PromptProjectionDocument,
+        *,
+        wrap_width: float,
+        base_font: QFont,
+        document_margin: float,
+        content_left_inset: float,
+        prompt_document_view: PromptDocumentView,
+        metrics: PromptProjectionMetrics,
+        line_reuse_probe: PromptProjectionLineReuseProbe,
+        source_start: int,
+        projection_start: int,
+        line_top: float,
+        source_limit: int,
+    ) -> PromptProjectionLineLayoutBuildResult:
+        """Build one dirty-line window through the first reusable suffix line."""
+
+        return self._build_snapshot(
+            projection_document,
+            wrap_width=wrap_width,
+            base_font=base_font,
+            document_margin=document_margin,
+            content_left_inset=content_left_inset,
+            prompt_document_view=prompt_document_view,
+            metrics=metrics,
+            line_reuse_probe=line_reuse_probe,
+            source_start=source_start,
+            projection_start=projection_start,
+            initial_line_top=line_top,
+            source_limit=source_limit,
+        )
+
+    def _build_snapshot(
+        self,
+        projection_document: PromptProjectionDocument,
+        *,
+        wrap_width: float,
+        base_font: QFont,
+        document_margin: float,
+        content_left_inset: float,
+        prompt_document_view: PromptDocumentView | None,
+        metrics: PromptProjectionMetrics | None,
+        line_reuse_probe: PromptProjectionLineReuseProbe | None,
+        source_start: int = 0,
+        projection_start: int = 0,
+        initial_line_top: float | None = None,
+        source_limit: int | None = None,
+    ) -> PromptProjectionLineLayoutBuildResult:
+        """Build projection lines, stopping when a supplied suffix converges."""
+
         if metrics is None:
             metrics = PromptProjectionMetricsFactory().create(
                 base_font=base_font,
@@ -289,7 +380,11 @@ class PromptProjectionLineLayoutBuilder:
         content_width = metrics.content_width
         measurement_cache = self._measurement_cache
         tag_keep_ranges = (
-            tag_keep_source_ranges_for_layout(prompt_document_view)
+            tag_keep_source_ranges_for_layout(
+                prompt_document_view,
+                source_start=source_start,
+                source_limit=source_limit,
+            )
             if prompt_document_view is not None
             else ()
         )
@@ -297,11 +392,15 @@ class PromptProjectionLineLayoutBuilder:
             projection_document,
             prompt_document_view=prompt_document_view,
             tag_keep_ranges=tag_keep_ranges,
+            source_start=source_start,
+            source_limit=source_limit,
         )
         layout_pieces = self._layout_pieces(
             projection_document,
             base_font=base_font,
             source_split_positions=source_split_positions,
+            source_start=source_start,
+            source_limit=source_limit,
         )
         keep_groups = self._keep_groups(
             projection_document,
@@ -315,16 +414,19 @@ class PromptProjectionLineLayoutBuilder:
         )
         keep_group_by_start = {group.start_index: group for group in keep_groups}
 
-        line_top = metrics.initial_line_top()
+        line_top = (
+            metrics.initial_line_top() if initial_line_top is None else initial_line_top
+        )
         line_height = metrics.initial_row_height()
         line_width = 0.0
-        line_start_boundaries = [_LineStartBoundary(0, 0)]
+        line_start_boundaries = [_LineStartBoundary(projection_start, source_start)]
         current_boundaries: list[_LineBoundary] = []
         pending_fragments: list[_PendingFragment] = []
         lines: list[PromptProjectionLineSnapshot] = []
         text_fragments: list[PromptProjectionTextFragment] = []
         inline_object_fragments: list[PromptProjectionInlineObjectFragment] = []
         caret_rects_by_projection_position: dict[int, QRectF] = {}
+        reusable_previous_line_index: int | None = None
 
         def open_line(start_boundaries: list[_LineStartBoundary]) -> None:
             nonlocal line_height, line_width, line_start_boundaries, current_boundaries
@@ -341,7 +443,7 @@ class PromptProjectionLineLayoutBuilder:
             ]
 
         def finish_line(next_start_boundaries: list[_LineStartBoundary] | None) -> None:
-            nonlocal line_top, pending_fragments
+            nonlocal line_top, pending_fragments, reusable_previous_line_index
 
             realized_fragments: list[
                 PromptProjectionTextFragment | PromptProjectionInlineObjectFragment
@@ -436,10 +538,6 @@ class PromptProjectionLineLayoutBuilder:
 
             for boundary in current_boundaries:
                 projection_position = boundary.projection_position
-                if not projection_document.caret_map.has_projection_position(
-                    projection_position
-                ):
-                    continue
                 caret_rect = metrics.caret_rect(
                     x_left=boundary.x_position,
                     row_top=line_top,
@@ -470,22 +568,25 @@ class PromptProjectionLineLayoutBuilder:
                 current_boundaries=current_boundaries,
                 next_start_boundaries=next_start_boundaries,
             )
-            lines.append(
-                PromptProjectionLineSnapshot(
-                    top=line_top,
-                    height=line_height,
-                    source_start=line_source_start,
-                    source_end=line_source_end,
-                    source_content_start=line_source_content_start,
-                    source_content_end=line_source_content_end,
-                    line_break_start=line_break_start,
-                    line_break_end=line_break_end,
-                    fragments=tuple(realized_fragments),
-                    caret_stops=tuple(realized_caret_stops),
-                )
+            completed_line = PromptProjectionLineSnapshot(
+                top=line_top,
+                height=line_height,
+                source_start=line_source_start,
+                source_end=line_source_end,
+                source_content_start=line_source_content_start,
+                source_content_end=line_source_content_end,
+                line_break_start=line_break_start,
+                line_break_end=line_break_end,
+                fragments=tuple(realized_fragments),
+                caret_stops=tuple(realized_caret_stops),
             )
+            lines.append(completed_line)
             line_top += line_height
             pending_fragments = []
+            if line_reuse_probe is not None:
+                reusable_previous_line_index = line_reuse_probe(completed_line)
+                if reusable_previous_line_index is not None:
+                    return
             if next_start_boundaries is not None:
                 open_line(next_start_boundaries)
 
@@ -584,11 +685,15 @@ class PromptProjectionLineLayoutBuilder:
 
             if line_width > 0.0 and group.width > content_width - line_width:
                 finish_line([])
+                if reusable_previous_line_index is not None:
+                    return
             append_keep_group(group)
 
         open_line(line_start_boundaries)
         piece_index = 0
         while piece_index < len(layout_pieces):
+            if reusable_previous_line_index is not None:
+                break
             keep_group = keep_group_by_start.get(piece_index)
             if keep_group is not None:
                 place_keep_group(keep_group)
@@ -678,6 +783,8 @@ class PromptProjectionLineLayoutBuilder:
 
             consumed_cluster_length = 0
             while consumed_cluster_length < len(cluster_text):
+                if reusable_previous_line_index is not None:
+                    break
                 if line_width >= content_width and line_width > 0.0:
                     finish_line([])
                     continue
@@ -777,7 +884,9 @@ class PromptProjectionLineLayoutBuilder:
                 if consumed_cluster_length < len(cluster_text):
                     finish_line([])
 
-        if pending_fragments or line_start_boundaries or not lines:
+        if reusable_previous_line_index is None and (
+            pending_fragments or line_start_boundaries or not lines
+        ):
             finish_line(None)
 
         content_height = line_top + document_margin
@@ -791,7 +900,14 @@ class PromptProjectionLineLayoutBuilder:
         measurement_cache_entries_after = measurement_cache.entry_count()
         if measurement_cache_entries_after > _MEASUREMENT_CACHE_ENTRY_LIMIT:
             measurement_cache.clear()
-        return snapshot
+        return PromptProjectionLineLayoutBuildResult(
+            snapshot=snapshot,
+            reusable_previous_line_index=reusable_previous_line_index,
+            source_limited=(
+                source_limit is not None
+                and source_limit < len(projection_document.source_text)
+            ),
+        )
 
     def _layout_pieces(
         self,
@@ -799,11 +915,21 @@ class PromptProjectionLineLayoutBuilder:
         *,
         base_font: QFont,
         source_split_positions: frozenset[int] = frozenset(),
+        source_start: int = 0,
+        source_limit: int | None = None,
     ) -> tuple[_LayoutPiece, ...]:
         """Split visible runs into text pieces, inline objects, and paragraph breaks."""
 
         pieces: list[_LayoutPiece] = []
         for run in projection_document.runs:
+            if (
+                source_start > 0
+                and run.source_end <= source_start
+                and run.source_start < source_start
+            ):
+                continue
+            if source_limit is not None and run.source_start > source_limit:
+                break
             if run.kind is PromptProjectionRunKind.INLINE_OBJECT:
                 token = projection_document.token_by_id(run.token_id)
                 if token is None:
@@ -823,16 +949,40 @@ class PromptProjectionLineLayoutBuilder:
                 )
                 continue
 
-            piece_start = 0
+            display_start = 0
+            if (
+                source_start > 0
+                and run.source_backed
+                and run.source_start < source_start
+            ):
+                display_start = min(
+                    len(run.display_text),
+                    bisect_left(run.source_positions, source_start),
+                )
+            display_end = len(run.display_text)
+            if (
+                source_limit is not None
+                and run.source_backed
+                and run.source_end > source_limit
+            ):
+                display_end = max(
+                    0,
+                    bisect_right(run.source_positions, source_limit) - 1,
+                )
+            piece_start = display_start
             while True:
-                newline_index = run.display_text.find("\n", piece_start)
+                newline_index = run.display_text.find(
+                    "\n",
+                    piece_start,
+                    display_end,
+                )
                 if newline_index < 0:
-                    if piece_start < len(run.display_text):
+                    if piece_start < display_end:
                         pieces.extend(
                             self._split_text_piece(
                                 run,
                                 start=piece_start,
-                                end=len(run.display_text),
+                                end=display_end,
                                 source_split_positions=source_split_positions,
                             )
                         )
@@ -905,19 +1055,26 @@ class PromptProjectionLineLayoutBuilder:
         *,
         prompt_document_view: PromptDocumentView | None,
         tag_keep_ranges: tuple[tuple[int, int], ...],
+        source_start: int,
+        source_limit: int | None,
     ) -> frozenset[int]:
         """Return source positions where text pieces should split for grouping."""
 
         split_positions: set[int] = set()
         if prompt_document_view is not None:
-            for source_start, source_end in tag_keep_ranges:
-                split_positions.add(source_start)
-                split_positions.add(source_end)
-            for segment in prompt_document_view.segments:
-                split_positions.add(segment.selection_start)
-                split_positions.add(segment.selection_end)
+            for keep_start, keep_end in tag_keep_ranges:
+                split_positions.add(keep_start)
+                split_positions.add(keep_end)
 
         for run_index, run in enumerate(projection_document.runs):
+            if (
+                source_start > 0
+                and run.source_end <= source_start
+                and run.source_start < source_start
+            ):
+                continue
+            if source_limit is not None and run.source_start > source_limit:
+                break
             if run.role is PromptProjectionRunRole.TOKEN_LEADING_DECORATION:
                 content_run = _next_token_content_run(
                     projection_document.runs,
@@ -1190,12 +1347,16 @@ class PromptProjectionLineLayoutBuilder:
 
 def tag_keep_source_ranges(
     prompt_document_view: PromptDocumentView,
+    *,
+    source_limit: int | None = None,
 ) -> tuple[tuple[int, int], ...]:
     """Return parsed source ranges for short comma-delimited tags kept as a unit."""
 
     segment_count = len(prompt_document_view.segments)
     ranges: list[tuple[int, int]] = []
     for segment in prompt_document_view.segments:
+        if source_limit is not None and segment.selection_start > source_limit:
+            break
         if not _segment_is_comma_delimited(segment, segment_count=segment_count):
             continue
         if _segment_word_count(segment.display_text) > _MAX_KEPT_SEGMENT_WORDS:
@@ -1211,16 +1372,17 @@ def tag_keep_source_ranges(
 
 def tag_keep_source_ranges_for_layout(
     prompt_document_view: PromptDocumentView,
+    *,
+    source_start: int = 0,
+    source_limit: int | None = None,
 ) -> tuple[tuple[int, int], ...]:
     """Return parsed and inferred kept-tag ranges for authoritative layout."""
 
-    ranges = list(_source_text_tag_keep_ranges(prompt_document_view.source_text))
-    seen_ranges = set(ranges)
-    for source_start, source_end in tag_keep_source_ranges(prompt_document_view):
-        if (source_start, source_end) not in seen_ranges:
-            ranges.append((source_start, source_end))
-            seen_ranges.add((source_start, source_end))
-    return tuple(ranges)
+    return _source_text_tag_keep_ranges(
+        prompt_document_view.source_text,
+        source_start=source_start,
+        source_limit=source_limit,
+    )
 
 
 def tag_keep_source_ranges_in_source_line(
@@ -1280,15 +1442,26 @@ def tag_keep_source_range_at_position(
     return (selection_start, range_end)
 
 
-def _source_text_tag_keep_ranges(source_text: str) -> tuple[tuple[int, int], ...]:
+def _source_text_tag_keep_ranges(
+    source_text: str,
+    *,
+    source_start: int = 0,
+    source_limit: int | None = None,
+) -> tuple[tuple[int, int], ...]:
     """Infer short comma-delimited tag ranges directly from source text."""
 
     ranges: list[tuple[int, int]] = []
-    line_start = 0
-    while line_start <= len(source_text):
-        line_end = source_text.find("\n", line_start)
+    bounded_source_start = max(0, min(source_start, len(source_text)))
+    line_start = source_text.rfind("\n", 0, bounded_source_start) + 1
+    scan_end = (
+        len(source_text)
+        if source_limit is None
+        else min(len(source_text), max(0, source_limit))
+    )
+    while line_start <= scan_end:
+        line_end = source_text.find("\n", line_start, scan_end)
         if line_end < 0:
-            line_end = len(source_text)
+            line_end = scan_end
         ranges.extend(
             _source_text_line_tag_keep_ranges(
                 source_text,
@@ -1296,7 +1469,7 @@ def _source_text_tag_keep_ranges(source_text: str) -> tuple[tuple[int, int], ...
                 line_end=line_end,
             )
         )
-        if line_end == len(source_text):
+        if line_end == scan_end:
             break
         line_start = line_end + 1
     return tuple(ranges)
@@ -1386,7 +1559,7 @@ def _segment_is_comma_delimited(
 def _segment_word_count(display_text: str) -> int:
     """Return the whitespace-delimited word count for one segment label."""
 
-    return len(tuple(part for part in display_text.strip().split() if part))
+    return len(display_text.split())
 
 
 def _piece_source_ranges(
@@ -1657,7 +1830,7 @@ def _text_option_word_wrap() -> QTextOption:
 
 
 def _next_token_content_run(
-    runs: tuple[PromptProjectionRun, ...],
+    runs: Sequence[PromptProjectionRun],
     *,
     run_index: int,
     token_id: str | None,
@@ -1673,7 +1846,7 @@ def _next_token_content_run(
 
 
 def _previous_token_content_run(
-    runs: tuple[PromptProjectionRun, ...],
+    runs: Sequence[PromptProjectionRun],
     *,
     run_index: int,
     token_id: str | None,

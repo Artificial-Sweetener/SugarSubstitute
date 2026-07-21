@@ -98,7 +98,28 @@ def build_reorder_chips(document: PromptDocument) -> tuple[PromptReorderChip, ..
             )
         )
 
-    return tuple(replace(chip, index=index) for index, chip in enumerate(raw_chips))
+    return tuple(
+        _reorder_chip_with_index(chip, index=index)
+        for index, chip in enumerate(raw_chips)
+    )
+
+
+def _reorder_chip_with_index(
+    chip: PromptReorderChip,
+    *,
+    index: int,
+) -> PromptReorderChip:
+    """Return one chip with its final stable index without reflective copying."""
+
+    return PromptReorderChip(
+        index=index,
+        text=chip.text,
+        content_range=chip.content_range,
+        separator_range=chip.separator_range,
+        envelope_stack=chip.envelope_stack,
+        leading_text=chip.leading_text,
+        trailing_text=chip.trailing_text,
+    )
 
 
 def build_reorder_state_from_chips(
@@ -394,6 +415,8 @@ def _expand_reorder_chips_around_loras(
 ) -> list[PromptReorderChip]:
     """Split each existing chip around LoRA ranges it contains."""
 
+    if not lora_spans:
+        return chips
     expanded_chips: list[PromptReorderChip] = []
     for chip in chips:
         expanded_chips.extend(

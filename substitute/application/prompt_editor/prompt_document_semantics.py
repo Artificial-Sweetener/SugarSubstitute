@@ -18,10 +18,75 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import overload
 from typing import Hashable, Protocol
 
 from substitute.domain.prompt import SourceRange
+
+
+@dataclass(frozen=True, slots=True)
+class PromptIdentityCharacterRangeSequence(Sequence[SourceRange]):
+    """Expose contiguous identity character ranges without per-character objects."""
+
+    source_start: int
+    length: int
+
+    def __post_init__(self) -> None:
+        """Reject negative coordinate identities."""
+
+        if self.source_start < 0 or self.length < 0:
+            raise ValueError(
+                "Identity character range coordinates must be non-negative."
+            )
+
+    def __len__(self) -> int:
+        """Return the logical character count."""
+
+        return self.length
+
+    @overload
+    def __getitem__(self, index: int) -> SourceRange: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> tuple[SourceRange, ...]: ...
+
+    def __getitem__(self, index: int | slice) -> SourceRange | tuple[SourceRange, ...]:
+        """Return one lazily materialized range or a bounded concrete slice."""
+
+        if isinstance(index, slice):
+            start, stop, step = index.indices(self.length)
+            return tuple(self[position] for position in range(start, stop, step))
+        normalized_index = index + self.length if index < 0 else index
+        if normalized_index < 0 or normalized_index >= self.length:
+            raise IndexError(index)
+        source_position = self.source_start + normalized_index
+        return SourceRange(source_position, source_position + 1)
+
+    def contains_only_ranges_within(self, source_range: SourceRange) -> bool:
+        """Validate the full identity sequence in constant time."""
+
+        return (
+            self.source_start >= source_range.start
+            and self.source_start + self.length <= source_range.end
+        )
+
+    def logical_range_for_source_range(
+        self,
+        source_range: SourceRange,
+    ) -> SourceRange | None:
+        """Translate an exact identity-mapped source range in constant time."""
+
+        if (
+            source_range.start < self.source_start
+            or source_range.end > self.source_start + self.length
+        ):
+            return None
+        return SourceRange(
+            source_range.start - self.source_start,
+            source_range.end - self.source_start,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +96,7 @@ class PromptValueMapping:
     value_id: str
     source_range: SourceRange
     logical_text: str
-    logical_character_ranges: tuple[SourceRange, ...]
+    logical_character_ranges: Sequence[SourceRange]
 
     def __post_init__(self) -> None:
         """Reject value mappings that cannot translate logical ranges safely."""
@@ -42,11 +107,19 @@ class PromptValueMapping:
             raise ValueError(
                 "Prompt value character ranges must align with logical text."
             )
-        if any(
-            character_range.start < self.source_range.start
-            or character_range.end > self.source_range.end
-            for character_range in self.logical_character_ranges
-        ):
+        ranges_are_valid = (
+            self.logical_character_ranges.contains_only_ranges_within(self.source_range)
+            if isinstance(
+                self.logical_character_ranges,
+                PromptIdentityCharacterRangeSequence,
+            )
+            else not any(
+                character_range.start < self.source_range.start
+                or character_range.end > self.source_range.end
+                for character_range in self.logical_character_ranges
+            )
+        )
+        if not ranges_are_valid:
             raise ValueError(
                 "Prompt value character mappings must remain inside the value range."
             )
@@ -73,6 +146,17 @@ class PromptValueMapping:
             or source_range.end > self.source_range.end
         ):
             raise ValueError("Source range lies outside its value mapping.")
+        if isinstance(
+            self.logical_character_ranges,
+            PromptIdentityCharacterRangeSequence,
+        ):
+            logical_range = (
+                self.logical_character_ranges.logical_range_for_source_range(
+                    source_range
+                )
+            )
+            if logical_range is not None:
+                return logical_range
         if source_range.start == source_range.end:
             for index, character_range in enumerate(self.logical_character_ranges):
                 if source_range.start == character_range.start:
@@ -204,8 +288,9 @@ class OrdinaryPromptDocumentSemantics:
                 value_id="prompt",
                 source_range=SourceRange(0, len(source_text)),
                 logical_text=source_text,
-                logical_character_ranges=tuple(
-                    SourceRange(index, index + 1) for index in range(len(source_text))
+                logical_character_ranges=PromptIdentityCharacterRangeSequence(
+                    source_start=0,
+                    length=len(source_text),
                 ),
             ),
         )
@@ -407,6 +492,7 @@ __all__ = [
     "OrdinaryPromptDocumentSemantics",
     "PromptDocumentSemantics",
     "PromptDocumentSemanticsController",
+    "PromptIdentityCharacterRangeSequence",
     "PromptValueMapping",
     "leading_scene_marker_ranges",
     "value_mapping_at_source_position",

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -131,7 +132,7 @@ class PromptProjectionSession:
     autocomplete_preview: PromptAutocompletePreviewState | None = None
     search_match_ranges: tuple[tuple[int, int], ...] = ()
     active_search_match_index: int | None = None
-    diagnostics: tuple[PromptDiagnostic, ...] = ()
+    diagnostics: Sequence[PromptDiagnostic] = ()
 
     def is_expanded(self, token: PromptProjectionToken) -> bool:
         """Return whether the supplied token is currently expanded back to raw text."""
@@ -188,7 +189,7 @@ class PromptProjectionSession:
 
     def set_diagnostics(
         self,
-        diagnostics: tuple[PromptDiagnostic, ...],
+        diagnostics: Sequence[PromptDiagnostic],
     ) -> None:
         """Replace the transient diagnostic ranges."""
 

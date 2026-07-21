@@ -161,10 +161,10 @@ def test_segment_overlay_preview_sync_is_immediate_when_base_geometry_is_missing
     assert overlay.preview_sync_decisions == [True]
 
 
-def test_segment_overlay_preview_sync_flushes_initial_shadow_once(
+def test_segment_overlay_preview_sync_defers_initial_shadow_within_one_frame(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The first missing chip-shaped shadow may force one sync after base geometry."""
+    """A missing first shadow should not block the pointer event that starts drag."""
 
     controller = _controller_for_reorder_text("alpha, beta")
     layout_view = _reorder_layout_view_for_text("alpha, beta")
@@ -192,9 +192,9 @@ def test_segment_overlay_preview_sync_flushes_initial_shadow_once(
     controller._reorder.schedule_reorder_preview_sync(reason="drag_start")
     controller._reorder.schedule_reorder_preview_sync(reason="drag_move")
 
-    assert sync_calls == 1
+    assert sync_calls == 0
     assert controller._reorder._preview_sync.state.pending_revision == 2
-    assert overlay.preview_sync_decisions == [True, False]
+    assert overlay.preview_sync_decisions == [False, False]
 
 
 def test_segment_overlay_preview_sync_skips_stale_pending_revision(

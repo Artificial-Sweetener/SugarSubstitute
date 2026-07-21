@@ -18,18 +18,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from PySide6.QtCore import (
     QAbstractAnimation,
     QEasingCurve,
     QObject,
-    QRect,
     QRectF,
     QVariantAnimation,
 )
-from PySide6.QtWidgets import QWidget
 
 from substitute.presentation.motion import resolve_motion_duration
 
@@ -45,10 +43,9 @@ _REORDER_DISPLACEMENT_EASING = QEasingCurve.Type.OutQuad
 
 @dataclass(frozen=True, slots=True)
 class _AnimatedChipTarget:
-    """Bind one widget to its planner-provided displacement rects."""
+    """Bind one semantic chip to planner-provided displacement rects."""
 
     segment_index: int
-    widget: QWidget
     start_rect: QRectF
     target_rect: QRectF
 
@@ -66,8 +63,8 @@ class PromptReorderAnimationPresenter(QObject):
         """Initialize animation state without owning geometry planning.
 
         The overlay paints chip chrome through a passive view while transparent
-        QWidget hotspots receive input. The presenter therefore moves the
-        hotspots and publishes paint-rect overrides for the visible chrome.
+        logical pointer regions receive input independently. The presenter owns
+        only transient paint-rect overrides for visible chrome.
         """
 
         super().__init__(parent)
@@ -77,7 +74,7 @@ class PromptReorderAnimationPresenter(QObject):
         self._active_generation: int | None = None
         self._active_animation: QVariantAnimation | None = None
         self._active_targets: tuple[_AnimatedChipTarget, ...] = ()
-        self._settle_targets_by_segment: dict[int, tuple[QWidget, QRect]] = {}
+        self._settle_targets_by_segment: dict[int, QRectF] = {}
         self._paint_rects_by_segment: dict[int, QRectF] = {}
         self._counters: dict[str, int] = {
             "animation_plan_applied_count": 0,
@@ -86,16 +83,12 @@ class PromptReorderAnimationPresenter(QObject):
             "animation_cancelled_count": 0,
             "animation_settled_count": 0,
             "animation_immediate_target_count": 0,
-            "animation_skipped_widget_count": 0,
+            "animation_skipped_target_count": 0,
             "animation_stale_generation_ignored_count": 0,
             "animation_retargeted_count": 0,
         }
 
-    def apply_plan(
-        self,
-        plan: PromptReorderAnimationPlan,
-        chip_widgets: Mapping[int, QWidget],
-    ) -> None:
+    def apply_plan(self, plan: PromptReorderAnimationPlan) -> None:
         """Run or immediately apply one prepared reorder animation plan."""
 
         if plan.stale or plan.generation < self._latest_generation:
@@ -111,16 +104,15 @@ class PromptReorderAnimationPresenter(QObject):
 
         self._apply_immediate_targets(
             plan.immediate_targets,
-            chip_widgets,
             dragged_segment_index=plan.dragged_segment_index,
         )
         animated_targets = self._animated_targets(
             plan.changed_targets,
-            chip_widgets,
             dragged_segment_index=plan.dragged_segment_index,
         )
         if not animated_targets:
             self._active_generation = None
+            self._notify_frame_changed()
             return
 
         duration_ms = resolve_motion_duration(self._duration_ms)
@@ -129,24 +121,19 @@ class PromptReorderAnimationPresenter(QObject):
             return
 
         active_targets: list[_AnimatedChipTarget] = []
-        for target, widget, start_rect, target_rect in animated_targets:
+        for target, start_rect, target_rect in animated_targets:
             start_paint_rect = QRectF(target.start_rect)
             target_paint_rect = QRectF(target.target_rect)
             animated_target = _AnimatedChipTarget(
                 segment_index=target.segment_index,
-                widget=widget,
                 start_rect=start_paint_rect,
                 target_rect=target_paint_rect,
             )
             active_targets.append(animated_target)
-            widget.setGeometry(_rectf_to_widget_rect(start_paint_rect))
             self._paint_rects_by_segment[target.segment_index] = QRectF(
                 start_paint_rect
             )
-            self._settle_targets_by_segment[target.segment_index] = (
-                widget,
-                target_rect,
-            )
+            self._settle_targets_by_segment[target.segment_index] = QRectF(target_rect)
 
         self._active_targets = tuple(active_targets)
         animation = QVariantAnimation(self)
@@ -224,9 +211,6 @@ class PromptReorderAnimationPresenter(QObject):
             if animation.state() != QAbstractAnimation.State.Stopped:
                 animation.stop()
             animation.deleteLater()
-        for widget, target_rect in self._settle_targets_by_segment.values():
-            if _widget_is_usable(widget):
-                widget.setGeometry(target_rect)
         self._active_targets = ()
         self._settle_targets_by_segment = {}
         self._paint_rects_by_segment = {}
@@ -258,58 +242,41 @@ class PromptReorderAnimationPresenter(QObject):
     def _apply_immediate_targets(
         self,
         targets: tuple[PromptReorderAnimationTarget, ...],
-        chip_widgets: Mapping[int, QWidget],
         *,
         dragged_segment_index: int | None,
     ) -> None:
-        """Place immediate targets without creating animation objects."""
+        """Record immediate semantic targets without transient paint overrides."""
 
         for target in targets:
             if target.segment_index == dragged_segment_index:
-                self._counters["animation_skipped_widget_count"] += 1
+                self._counters["animation_skipped_target_count"] += 1
                 continue
-            widget = chip_widgets.get(target.segment_index)
-            if widget is None or not _widget_is_usable(widget):
-                self._counters["animation_skipped_widget_count"] += 1
+            if not target.target_visible:
+                self._counters["animation_skipped_target_count"] += 1
                 continue
-            target_rect = _rectf_to_widget_rect(target.target_rect)
-            widget.setGeometry(target_rect)
-            self._settle_targets_by_segment[target.segment_index] = (
-                widget,
-                target_rect,
-            )
             self._counters["animation_immediate_target_count"] += 1
 
     def _animated_targets(
         self,
         targets: tuple[PromptReorderAnimationTarget, ...],
-        chip_widgets: Mapping[int, QWidget],
         *,
         dragged_segment_index: int | None,
-    ) -> tuple[tuple[PromptReorderAnimationTarget, QWidget, QRect, QRect], ...]:
-        """Return visible widget targets that can be animated safely."""
+    ) -> tuple[tuple[PromptReorderAnimationTarget, QRectF, QRectF], ...]:
+        """Return visible semantic targets that can be animated safely."""
 
-        animated_targets: list[
-            tuple[PromptReorderAnimationTarget, QWidget, QRect, QRect]
-        ] = []
+        animated_targets: list[tuple[PromptReorderAnimationTarget, QRectF, QRectF]] = []
         for target in targets:
             if target.segment_index == dragged_segment_index:
-                self._counters["animation_skipped_widget_count"] += 1
+                self._counters["animation_skipped_target_count"] += 1
                 continue
-            widget = chip_widgets.get(target.segment_index)
-            if (
-                widget is None
-                or not target.target_visible
-                or not _widget_is_visible(widget)
-            ):
-                self._counters["animation_skipped_widget_count"] += 1
+            if not target.target_visible:
+                self._counters["animation_skipped_target_count"] += 1
                 continue
             animated_targets.append(
                 (
                     target,
-                    widget,
-                    _rectf_to_widget_rect(target.start_rect),
-                    _rectf_to_widget_rect(target.target_rect),
+                    QRectF(target.start_rect),
+                    QRectF(target.target_rect),
                 )
             )
         return tuple(animated_targets)
@@ -327,9 +294,6 @@ class PromptReorderAnimationPresenter(QObject):
         ):
             return
         self._apply_animation_progress(1.0)
-        for widget, target_rect in self._settle_targets_by_segment.values():
-            if _widget_is_usable(widget):
-                widget.setGeometry(target_rect)
         self._active_animation = None
         self._active_generation = None
         self._active_targets = ()
@@ -355,8 +319,6 @@ class PromptReorderAnimationPresenter(QObject):
         for target in self._active_targets:
             rect = _interpolated_rect(target.start_rect, target.target_rect, progress)
             next_paint_rects[target.segment_index] = rect
-            if _widget_is_usable(target.widget):
-                target.widget.setGeometry(_rectf_to_widget_rect(rect))
         self._paint_rects_by_segment = next_paint_rects
 
     def _notify_frame_changed(self) -> None:
@@ -364,17 +326,6 @@ class PromptReorderAnimationPresenter(QObject):
 
         if self._frame_callback is not None:
             self._frame_callback()
-
-
-def _rectf_to_widget_rect(rect: QRectF) -> QRect:
-    """Return integer QWidget geometry for one projection-supplied rect."""
-
-    return QRect(
-        round(rect.left()),
-        round(rect.top()),
-        round(rect.width()),
-        round(rect.height()),
-    )
 
 
 def _progress_value(value: object) -> float | None:
@@ -402,25 +353,6 @@ def _interpolate(start: float, target: float, progress: float) -> float:
     """Return one scalar value at the supplied animation progress."""
 
     return start + ((target - start) * progress)
-
-
-def _widget_is_visible(widget: QWidget) -> bool:
-    """Return whether one widget can participate in visible displacement."""
-
-    try:
-        return widget.isVisible()
-    except RuntimeError:
-        return False
-
-
-def _widget_is_usable(widget: QWidget) -> bool:
-    """Return whether one widget wrapper still accepts geometry updates."""
-
-    try:
-        widget.geometry()
-    except RuntimeError:
-        return False
-    return True
 
 
 __all__ = ["PromptReorderAnimationPresenter"]

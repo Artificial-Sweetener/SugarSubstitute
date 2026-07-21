@@ -33,10 +33,12 @@ from ..projection.observability import (
     reorder_drag_started_at,
 )
 from ..projection.reorder_chip_geometry import PromptReorderChipGeometry
+from ..projection.reorder_visual_snapshot import paint_reorder_projection_snapshot
 from .chip_painter import PromptChipPaintStyle, PromptChipPainter
 from .chip_visuals import PROMPT_CHIP_BUBBLE_RADIUS, PromptChipVisual
 from .reorder_visual_cache import (
     PromptReorderChipVisualSnapshot,
+    translated_snapshot_offset,
 )
 from .reorder_raster_cache import ReorderRasterEntry
 
@@ -102,6 +104,15 @@ class PromptReorderChipPaintState:
     visual_snapshot: PromptReorderChipVisualSnapshot | None = None
     raster_entry: ReorderRasterEntry | None = None
 
+    @property
+    def owns_projection_text(self) -> bool:
+        """Return whether this state can replace surface-painted chip text."""
+
+        return self.visual is not None and (
+            self.visual_snapshot is not None
+            and bool(self.visual_snapshot.projection_snapshot.fragments)
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class PromptReorderMarkerPaintState:
@@ -121,8 +132,8 @@ class PromptReorderLandingPreviewPaintState:
 
 
 @dataclass(frozen=True, slots=True)
-class PromptReorderChipWidgetState:
-    """Describe direct QWidget state the overlay must apply to one hotspot."""
+class PromptReorderChipInteractionState:
+    """Describe logical interaction state for one pointer region."""
 
     segment_index: int
     active: bool
@@ -161,6 +172,54 @@ class PromptReorderVisualStyle:
     drag_fill: QColor
     drag_border: QColor
     marker_color: QColor
+    _rest_style: PromptChipPaintStyle = field(init=False, repr=False, compare=False)
+    _hover_style: PromptChipPaintStyle = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    _active_style: PromptChipPaintStyle = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    _drag_style: PromptChipPaintStyle = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        """Prepare the four immutable interaction styles once per theme state."""
+
+        object.__setattr__(
+            self,
+            "_rest_style",
+            PromptChipPaintStyle(
+                fill_color=QColor(self.rest_fill),
+                border_color=QColor(self.rest_border),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_hover_style",
+            PromptChipPaintStyle(
+                fill_color=QColor(self.hover_fill),
+                border_color=QColor(self.hover_border),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_active_style",
+            PromptChipPaintStyle(
+                fill_color=QColor(self.active_fill),
+                border_color=QColor(self.active_border),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_drag_style",
+            PromptChipPaintStyle(
+                fill_color=QColor(self.drag_fill),
+                border_color=QColor(self.drag_border),
+            ),
+        )
 
     @classmethod
     def from_current_theme(cls) -> PromptReorderVisualStyle:
@@ -225,13 +284,13 @@ class PromptReorderVisualStyle:
     ) -> PromptChipPaintStyle:
         """Return the prepared chip paint style for one segment."""
 
-        fill_color, border_color = self.colors_for_segment(
-            segment_index,
-            dragged_segment_index=dragged_segment_index,
-            hovered_segment_index=hovered_segment_index,
-            active_segment_index=active_segment_index,
-        )
-        return PromptChipPaintStyle(fill_color=fill_color, border_color=border_color)
+        if segment_index == dragged_segment_index:
+            return self._drag_style
+        if segment_index == hovered_segment_index:
+            return self._hover_style
+        if segment_index == active_segment_index:
+            return self._active_style
+        return self._rest_style
 
     def outline_style(
         self, *, opacity: float, outline_width: float
@@ -281,7 +340,7 @@ class PromptReorderViewRenderInput:
     paint_rect_overrides_by_index: Mapping[int, QRectF] = field(default_factory=dict)
 
 
-def prompt_reorder_chip_widget_state(
+def prompt_reorder_chip_interaction_state(
     segment_index: int,
     *,
     visual_style: PromptReorderVisualStyle,
@@ -289,8 +348,8 @@ def prompt_reorder_chip_widget_state(
     hovered_segment_index: int | None,
     active_segment_index: int | None,
     pressed_segment_index: int | None,
-) -> PromptReorderChipWidgetState:
-    """Map gesture state to the direct QWidget state for one hotspot."""
+) -> PromptReorderChipInteractionState:
+    """Map gesture state to one logical pointer region."""
 
     active = segment_index == active_segment_index
     dragging = segment_index == dragged_segment_index
@@ -301,7 +360,7 @@ def prompt_reorder_chip_widget_state(
         if dragging or pressed
         else Qt.CursorShape.OpenHandCursor
     )
-    return PromptReorderChipWidgetState(
+    return PromptReorderChipInteractionState(
         segment_index=segment_index,
         active=active,
         dragging=dragging,
@@ -317,7 +376,7 @@ def prompt_reorder_chip_widget_state(
     )
 
 
-def prompt_reorder_chip_widget_states(
+def prompt_reorder_chip_interaction_states(
     segment_indices: Sequence[int],
     *,
     visual_style: PromptReorderVisualStyle,
@@ -325,11 +384,11 @@ def prompt_reorder_chip_widget_states(
     hovered_segment_index: int | None,
     active_segment_index: int | None,
     pressed_segment_index: int | None,
-) -> tuple[PromptReorderChipWidgetState, ...]:
-    """Map gesture state to direct QWidget state for every overlay hotspot."""
+) -> tuple[PromptReorderChipInteractionState, ...]:
+    """Map gesture state to every visible logical pointer region."""
 
     return tuple(
-        prompt_reorder_chip_widget_state(
+        prompt_reorder_chip_interaction_state(
             segment_index,
             visual_style=visual_style,
             dragged_segment_index=dragged_segment_index,
@@ -504,7 +563,6 @@ class PromptReorderView(QWidget):
         previous_region = QRegion(self._paint_region)
         self._render_state = state
         self._paint_region = _paint_region_for_render_state(state)
-        self.setMask(self._paint_region)
         exposed_region = previous_region.subtracted(self._paint_region)
         parent = self.parentWidget()
         if parent is not None and not exposed_region.isEmpty():
@@ -571,6 +629,24 @@ class PromptReorderView(QWidget):
                     ),
                     chip.raster_entry.pixmap,
                 )
+                continue
+            if chip.visual_snapshot is not None and chip.visual is not None:
+                self._chip_painter.paint_chrome(
+                    painter=painter,
+                    visual=chip.visual,
+                    style=chip.style,
+                )
+                dx, dy = translated_snapshot_offset(
+                    painted_rect=QRectF(chip.visual.hotspot_rect),
+                    snapshot=chip.visual_snapshot,
+                )
+                painter.save()
+                painter.translate(dx, dy)
+                paint_reorder_projection_snapshot(
+                    painter,
+                    chip.visual_snapshot.projection_snapshot,
+                )
+                painter.restore()
                 continue
             if chip.geometry is not None:
                 self._projection_chip_painter.paint_chip_geometry(
@@ -728,7 +804,7 @@ def _expanded_aligned_rect(rect: QRectF) -> QRect:
 
 
 __all__ = [
-    "PromptReorderChipWidgetState",
+    "PromptReorderChipInteractionState",
     "PromptReorderChipPaintState",
     "PromptReorderLandingPreviewPaintState",
     "PromptReorderMarkerPaintState",
@@ -737,8 +813,8 @@ __all__ = [
     "PromptReorderViewRenderState",
     "PromptReorderVisualStyle",
     "prompt_reorder_chip_paint_states",
-    "prompt_reorder_chip_widget_state",
-    "prompt_reorder_chip_widget_states",
+    "prompt_reorder_chip_interaction_state",
+    "prompt_reorder_chip_interaction_states",
     "prompt_reorder_marker_paint_state",
     "prompt_reorder_visual_for_chip_geometry",
     "prompt_reorder_view_render_state",

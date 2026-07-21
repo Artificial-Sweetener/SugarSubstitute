@@ -409,6 +409,45 @@ def test_prompt_editor_emphasis_controls_stay_hidden_until_number_hover(
     assert emphasis_token_for(box).decoration_accented is False
 
 
+def test_idle_typing_does_not_prepare_token_weight_geometry(
+    widgets: list[QWidget],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep dormant control geometry out of the synchronous typing path."""
+
+    app = ensure_qapp()
+    box = show_prompt_editor(
+        widgets,
+        text=", ".join(f"(decorated token {index}:1.10)" for index in range(80)),
+        width=260,
+    )
+    controls = emphasis_controls_for(box)
+    geometry_builds = 0
+    original_build_snapshot = controls._geometry.build_snapshot  # noqa: SLF001
+
+    def record_geometry_build() -> object:
+        """Record an otherwise production-owned geometry snapshot build."""
+
+        nonlocal geometry_builds
+        geometry_builds += 1
+        return original_build_snapshot()
+
+    monkeypatch.setattr(
+        controls._geometry,  # noqa: SLF001
+        "build_snapshot",
+        record_geometry_build,
+    )
+    original_text = box.toPlainText()
+    box.setFocus()
+    QTest.keyClicks(box, "key slam")
+    process_events(app)
+
+    assert box.toPlainText().endswith("key slam")
+    assert box.toPlainText() == original_text + "key slam"
+    assert controls.visible_token is None
+    assert geometry_builds == 0
+
+
 def test_prompt_editor_emphasis_controls_hover_updates_without_breaking_typing_flow(
     widgets: list[QWidget],
 ) -> None:
@@ -1320,8 +1359,8 @@ def test_visible_emphasis_controls_accept_mouse_wheel_like_a_spinbox(
 
     wheel_widget_at_point(box.viewport(), local_point=token_center, angle_delta_y=120)
     assert box.toPlainText() == "(cat:1.10)"
-    assert controls._gestures.weight_preview_text == "1.10"  # noqa: SLF001
-    assert controls._gestures.weight_preview_rect is not None  # noqa: SLF001
+    assert emphasis_token_for(box).value_text == "1.10"
+    assert controls._gestures.weight_preview_text is None  # noqa: SLF001
 
     token = emphasis_token_for(box)
     reveal_emphasis_controls(box, token)

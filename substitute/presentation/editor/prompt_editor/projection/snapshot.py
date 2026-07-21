@@ -99,7 +99,7 @@ class PromptProjectionLayoutSnapshot:
     """Describe the immutable geometry snapshot used by paint and interaction."""
 
     content_size: QSizeF
-    lines: tuple[PromptProjectionLineSnapshot, ...]
+    lines: Sequence[PromptProjectionLineSnapshot]
     text_fragments: Sequence[PromptProjectionTextFragment]
     inline_object_fragments: Sequence[PromptProjectionInlineObjectFragment]
     caret_rects_by_projection_position: Mapping[int, QRectF]

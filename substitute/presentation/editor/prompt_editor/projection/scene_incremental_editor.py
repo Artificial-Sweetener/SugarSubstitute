@@ -30,6 +30,7 @@ from .model import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
+from .scene_title_projection import reconcile_scene_title_projection_run
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +56,8 @@ class PromptSceneProjectionIncrementalEditor:
     ) -> PromptProjectionRun | None:
         """Return the scene-title run when an edit preserves its visible content."""
 
+        if "\n" in replacement_text or "\r" in replacement_text:
+            return None
         for token in previous_document.tokens:
             if not _edit_is_inside_scene_title(token, start=start, end=end):
                 continue
@@ -80,7 +83,7 @@ class PromptSceneProjectionIncrementalEditor:
         document: PromptProjectionDocument,
         *,
         edited_token_id: str,
-        previous_title: str,
+        previous_visible_text: str,
         scene_error_keys: frozenset[str],
     ) -> PromptSceneProjectionIncrementalResult | None:
         """Update scene values and duplicate styling after remapping source geometry."""
@@ -137,19 +140,23 @@ class PromptSceneProjectionIncrementalEditor:
         )
         if edited_run is None:
             return None
-        projection_adjustment = len(next_title) - len(edited_run.display_text)
+        next_visible_text = document.source_text[
+            edited_token.content_start : edited_token.source_end
+        ]
+        projection_adjustment = len(next_visible_text) - len(edited_run.display_text)
         updated_runs = tuple(
             _reconcile_scene_title_run(
                 run,
                 edited_run=edited_run,
                 projection_adjustment=projection_adjustment,
                 tokens_by_id=tokens_by_id,
+                source_text=document.source_text,
             )
             for run in document.runs
         )
         final_projection_text = (
             document.projection_text[: edited_run.projection_start]
-            + next_title
+            + next_visible_text
             + document.projection_text[edited_run.projection_end :]
         )
         mapping = PromptProjectionMapping(
@@ -164,8 +171,8 @@ class PromptSceneProjectionIncrementalEditor:
             projection_length=len(final_projection_text),
         )
         projection_prefix, previous_suffix, next_suffix = _single_text_edit_boundaries(
-            previous_title,
-            next_title,
+            previous_visible_text,
+            next_visible_text,
         )
         return PromptSceneProjectionIncrementalResult(
             document=replace(
@@ -178,12 +185,14 @@ class PromptSceneProjectionIncrementalEditor:
             ),
             projection_start=edited_run.projection_start + projection_prefix,
             projection_end=(
-                edited_run.projection_start + len(previous_title) - previous_suffix
+                edited_run.projection_start
+                + len(previous_visible_text)
+                - previous_suffix
             ),
-            projection_replacement_text=next_title[
-                projection_prefix : len(next_title) - next_suffix
+            projection_replacement_text=next_visible_text[
+                projection_prefix : len(next_visible_text) - next_suffix
                 if next_suffix
-                else len(next_title)
+                else len(next_visible_text)
             ],
         )
 
@@ -237,6 +246,7 @@ def _reconcile_scene_title_run(
     edited_run: PromptProjectionRun,
     projection_adjustment: int,
     tokens_by_id: dict[str, PromptProjectionToken],
+    source_text: str,
 ) -> PromptProjectionRun:
     """Align a scene title run with its locally updated semantic token."""
 
@@ -256,16 +266,10 @@ def _reconcile_scene_title_run(
         return replace(shifted_run, text_style_variant=token.style_variant)
     if token is None or token.kind is not PromptProjectionTokenKind.SCENE:
         return run
-    if token.content_start is None or token.content_end is None:
-        return run
-    return replace(
+    return reconcile_scene_title_projection_run(
         run,
-        source_start=token.content_start,
-        source_end=token.content_end,
-        display_text=token.display_text,
-        source_positions=range(token.content_start, token.content_end + 1),
-        projection_end=run.projection_start + len(token.display_text),
-        text_style_variant=token.style_variant,
+        token=token,
+        source_text=source_text,
     )
 
 

@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import gc
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
@@ -71,18 +70,6 @@ class PromptProjectionCaretStopSequence(Protocol):
     ) -> PromptProjectionCaretState | None:
         """Resolve a state against the sequence when cheaply available."""
         ...
-
-
-def _gc_count_context() -> dict[str, int | bool]:
-    """Return current GC counters for temporary caret-map pause correlation."""
-
-    count_0, count_1, count_2 = gc.get_count()
-    return {
-        "gc_enabled": gc.isenabled(),
-        "gc_count_0": count_0,
-        "gc_count_1": count_1,
-        "gc_count_2": count_2,
-    }
 
 
 class PromptProjectionDisplayMode(str, Enum):
@@ -368,7 +355,7 @@ class PromptProjectionCaretMap:
     """Track ordered visual caret stops across the full projection document."""
 
     stops: Sequence[PromptProjectionCaretStop]
-    tokens: tuple[PromptProjectionToken, ...]
+    tokens: Sequence[PromptProjectionToken]
     source_length: int
     projection_length: int
     _index_by_state: dict[PromptProjectionCaretState, int] | None = field(
@@ -436,7 +423,7 @@ class PromptProjectionCaretMap:
         repr=False,
         compare=False,
     )
-    _tokens_by_id: dict[str, PromptProjectionToken] = field(
+    _tokens_by_id: dict[str, PromptProjectionToken] | None = field(
         init=False,
         repr=False,
         compare=False,
@@ -454,18 +441,22 @@ class PromptProjectionCaretMap:
         object.__setattr__(self, "_last_state_by_projection_position", None)
         object.__setattr__(self, "_projection_positions", None)
         object.__setattr__(self, "_projection_position_by_state", None)
-        object.__setattr__(
-            self,
-            "_tokens_by_id",
-            {token.token_id: token for token in self.tokens},
-        )
+        object.__setattr__(self, "_tokens_by_id", None)
 
     def token_by_id(self, token_id: str | None) -> PromptProjectionToken | None:
         """Return the token owning one caret state when it still exists."""
 
         if token_id is None:
             return None
-        return self._tokens_by_id.get(token_id)
+        optimized_lookup = getattr(self.tokens, "token_by_id", None)
+        if callable(optimized_lookup):
+            token = optimized_lookup(token_id)
+            return token if isinstance(token, PromptProjectionToken) else None
+        tokens_by_id = self._tokens_by_id
+        if tokens_by_id is None:
+            tokens_by_id = {token.token_id: token for token in self.tokens}
+            object.__setattr__(self, "_tokens_by_id", tokens_by_id)
+        return tokens_by_id.get(token_id)
 
     def projection_position_for_state(
         self,
@@ -525,18 +516,27 @@ class PromptProjectionCaretMap:
             return matching_states[-1] if prefer_after else matching_states[0]
 
         nearest_before = max(
-            position
-            for position in states_by_projection_position
-            if position <= clamped_position
+            (
+                position
+                for position in states_by_projection_position
+                if position <= clamped_position
+            ),
+            default=None,
         )
         nearest_after = min(
-            position
-            for position in states_by_projection_position
-            if position >= clamped_position
+            (
+                position
+                for position in states_by_projection_position
+                if position >= clamped_position
+            ),
+            default=None,
         )
-        if prefer_after:
+        if prefer_after and nearest_after is not None:
             return states_by_projection_position[nearest_after][0]
-        return states_by_projection_position[nearest_before][-1]
+        if nearest_before is not None:
+            return states_by_projection_position[nearest_before][-1]
+        assert nearest_after is not None
+        return states_by_projection_position[nearest_after][0]
 
     def next_state(
         self,
@@ -597,6 +597,14 @@ class PromptProjectionCaretMap:
         )
         if optimized_state is not None:
             return optimized_state
+        if callable(getattr(self.stops, "state_for_source_position", None)):
+            token = self.token_covering_source_position(clamped_position)
+            if token is not None:
+                return self._state_inside_token(
+                    token,
+                    source_position=clamped_position,
+                    prefer_after=prefer_after,
+                )
         matching_state = (
             self._last_state_by_source_position_index().get(clamped_position)
             if prefer_after
@@ -619,18 +627,27 @@ class PromptProjectionCaretMap:
             )
 
         nearest_before = max(
-            position
-            for position in states_by_source_position
-            if position <= clamped_position
+            (
+                position
+                for position in states_by_source_position
+                if position <= clamped_position
+            ),
+            default=None,
         )
         nearest_after = min(
-            position
-            for position in states_by_source_position
-            if position >= clamped_position
+            (
+                position
+                for position in states_by_source_position
+                if position >= clamped_position
+            ),
+            default=None,
         )
-        if prefer_after:
+        if prefer_after and nearest_after is not None:
             return states_by_source_position[nearest_after][0]
-        return states_by_source_position[nearest_before][-1]
+        if nearest_before is not None:
+            return states_by_source_position[nearest_before][-1]
+        assert nearest_after is not None
+        return states_by_source_position[nearest_after][0]
 
     def resolve_state(
         self,
@@ -643,6 +660,25 @@ class PromptProjectionCaretMap:
         optimized_state = self._optimized_resolve_state(state)
         if optimized_state is not None:
             return optimized_state
+        if callable(getattr(self.stops, "resolve_state", None)):
+            token = self.token_by_id(state.token_id)
+            if token is not None:
+                try:
+                    return self._state_inside_token(
+                        token,
+                        source_position=state.source_position,
+                        prefer_after=state.placement
+                        is PromptProjectionCaretPlacement.TOKEN_TRAILING_EDGE,
+                        token_slot=state.token_slot,
+                        placement=state.placement,
+                    )
+                except AssertionError:
+                    pass
+            return self.state_for_source_position(
+                state.source_position,
+                prefer_after=state.placement
+                is PromptProjectionCaretPlacement.TOKEN_TRAILING_EDGE,
+            )
         direct_match = self._index_by_state_index().get(state)
         if direct_match is not None:
             return self.stops[direct_match].state
@@ -1061,6 +1097,15 @@ class PromptProjectionCaretMap:
     ) -> PromptProjectionCaretState:
         """Return the first matching caret state already stored for one token."""
 
+        matching_token_state = getattr(self.stops, "matching_token_state", None)
+        if callable(matching_token_state):
+            optimized_state = matching_token_state(
+                token.token_id,
+                placement=placement,
+                token_slot=token_slot,
+            )
+            if isinstance(optimized_state, PromptProjectionCaretState):
+                return optimized_state
         for stop in self.stops:
             state = stop.state
             if state.token_id != token.token_id:
@@ -1080,10 +1125,10 @@ class PromptProjectionCaretMap:
 class PromptProjectionMapping:
     """Map raw source indices onto the ordered projection run stream."""
 
-    runs: tuple[PromptProjectionRun, ...]
+    runs: Sequence[PromptProjectionRun]
     source_length: int
     projection_length: int
-    _runs_by_id: dict[str, PromptProjectionRun] = field(
+    _runs_by_id: dict[str, PromptProjectionRun] | None = field(
         init=False,
         repr=False,
         compare=False,
@@ -1092,18 +1137,22 @@ class PromptProjectionMapping:
     def __post_init__(self) -> None:
         """Index runs for efficient lookup."""
 
-        object.__setattr__(
-            self,
-            "_runs_by_id",
-            {run.run_id: run for run in self.runs},
-        )
+        object.__setattr__(self, "_runs_by_id", None)
 
     def run_by_id(self, run_id: str | None) -> PromptProjectionRun | None:
         """Return the run with the supplied identifier when it exists."""
 
         if run_id is None:
             return None
-        return self._runs_by_id.get(run_id)
+        optimized_lookup = getattr(self.runs, "run_by_id", None)
+        if callable(optimized_lookup):
+            run = optimized_lookup(run_id)
+            return run if isinstance(run, PromptProjectionRun) else None
+        runs_by_id = self._runs_by_id
+        if runs_by_id is None:
+            runs_by_id = {run.run_id: run for run in self.runs}
+            object.__setattr__(self, "_runs_by_id", runs_by_id)
+        return runs_by_id.get(run_id)
 
     def runs_for_token(
         self,
@@ -1122,6 +1171,13 @@ class PromptProjectionMapping:
         """Return the run adjacent to one projection boundary."""
 
         clamped_position = max(0, min(projection_position, self.projection_length))
+        optimized_lookup = getattr(self.runs, "run_at_projection_position", None)
+        if callable(optimized_lookup):
+            run = optimized_lookup(
+                clamped_position,
+                prefer_previous=prefer_previous,
+            )
+            return run if isinstance(run, PromptProjectionRun) else None
         if prefer_previous:
             for run in reversed(self.runs):
                 if run.projection_start < clamped_position <= run.projection_end:
@@ -1184,20 +1240,31 @@ class PromptProjectionDocument:
     display_mode: PromptProjectionDisplayMode
     source_text: str
     projection_text: str
-    runs: tuple[PromptProjectionRun, ...]
-    tokens: tuple[PromptProjectionToken, ...]
+    runs: Sequence[PromptProjectionRun]
+    tokens: Sequence[PromptProjectionToken]
     mapping: PromptProjectionMapping
     caret_map: PromptProjectionCaretMap
+    _tokens_by_id: dict[str, PromptProjectionToken] | None = field(
+        default=None,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def token_by_id(self, token_id: str | None) -> PromptProjectionToken | None:
         """Return the semantic token matching one stable token identifier."""
 
         if token_id is None:
             return None
-        for token in self.tokens:
-            if token.token_id == token_id:
-                return token
-        return None
+        optimized_lookup = getattr(self.tokens, "token_by_id", None)
+        if callable(optimized_lookup):
+            token = optimized_lookup(token_id)
+            return token if isinstance(token, PromptProjectionToken) else None
+        tokens_by_id = self._tokens_by_id
+        if tokens_by_id is None:
+            tokens_by_id = {token.token_id: token for token in self.tokens}
+            object.__setattr__(self, "_tokens_by_id", tokens_by_id)
+        return tokens_by_id.get(token_id)
 
     def run_by_id(self, run_id: str | None) -> PromptProjectionRun | None:
         """Return the visible run matching one stable run identifier."""

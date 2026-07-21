@@ -104,6 +104,12 @@ from tests.prompt_autocomplete_test_helpers import (
 )
 from tests.execution_test_helpers import immediate_prompt_task_executor_factory
 from tests.prompt_projection_test_helpers import surface_for
+from tests.prompt_reorder_pointer_test_helpers import (
+    PromptReorderPointerTarget,
+    drag_prompt_reorder_target_to_global,
+    prompt_reorder_pointer_target,
+    prompt_reorder_pointer_targets,
+)
 from substitute.application.prompt_editor import PromptGapBlankLineDropTarget
 
 TResult = TypeVar("TResult")
@@ -784,17 +790,10 @@ def _render_panel_lora_candidates(
     )
 
 
-def _overlay_chip_widgets(overlay: QWidget) -> list[QWidget]:
-    """Return visible reorder chips sorted by their rendered position."""
+def _overlay_pointer_regions(overlay: QWidget) -> list[PromptReorderPointerTarget]:
+    """Return visible logical reorder targets in rendered order."""
 
-    chips = list(overlay.findChildren(QWidget, "segmentChip"))
-    return sorted(
-        chips,
-        key=lambda chip: (
-            chip.mapToGlobal(chip.rect().topLeft()).y(),
-            chip.mapToGlobal(chip.rect().topLeft()).x(),
-        ),
-    )
+    return prompt_reorder_pointer_targets(overlay)
 
 
 def _overlay_preview_segment_indices(overlay: QWidget) -> list[int]:
@@ -863,13 +862,12 @@ def _active_projection_line_texts(box: PromptEditor) -> tuple[str, ...]:
     )
 
 
-def _overlay_chip_by_segment_index(overlay: QWidget, segment_index: int) -> QWidget:
-    """Return one rendered reorder chip by its segment index property."""
+def _overlay_chip_by_segment_index(
+    overlay: QWidget, segment_index: int
+) -> PromptReorderPointerTarget:
+    """Return one logical reorder target by its stable segment index."""
 
-    for chip in overlay.findChildren(QWidget, "segmentChip"):
-        if chip.property("segmentIndex") == segment_index:
-            return chip
-    raise AssertionError(f"Missing segment chip for index {segment_index}.")
+    return prompt_reorder_pointer_target(overlay, segment_index)
 
 
 def _overlay_drag_proxy(overlay: QWidget) -> QWidget:
@@ -879,17 +877,13 @@ def _overlay_drag_proxy(overlay: QWidget) -> QWidget:
 
 
 def _drag_reorder_chip_to_global(
-    chip: QWidget,
+    chip: PromptReorderPointerTarget,
     *,
     global_target: QPoint,
 ) -> None:
     """Drag one reorder hotspot to the supplied global position."""
 
-    start = chip.rect().center()
-    target = chip.mapFromGlobal(global_target)
-    QTest.mousePress(chip, Qt.MouseButton.LeftButton, pos=start)
-    QTest.mouseMove(chip, target, 10)
-    QTest.mouseRelease(chip, Qt.MouseButton.LeftButton, pos=target, delay=10)
+    drag_prompt_reorder_target_to_global(chip, global_target=global_target)
 
 
 @pytest.fixture()
@@ -2814,13 +2808,11 @@ def test_prompt_editor_real_widget_retains_focus_during_alt_reorder_drag(
 
     first_chip = _overlay_chip_by_segment_index(overlay, 0)
     second_chip = _overlay_chip_by_segment_index(overlay, 1)
-    drag_target = first_chip.mapToGlobal(
-        QPoint(4, max(4, first_chip.rect().center().y()))
-    )
+    drag_target = first_chip.leading_global_point()
     second_chip_target = second_chip.mapFromGlobal(drag_target)
 
     QTest.mousePress(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip.rect().center(),
     )
@@ -2828,13 +2820,13 @@ def test_prompt_editor_real_widget_retains_focus_during_alt_reorder_drag(
 
     assert box.hasFocus() is True
 
-    QTest.mouseMove(second_chip, second_chip_target, 10)
+    QTest.mouseMove(second_chip.overlay, second_chip_target, 10)
     process_events(app)
 
     assert box.hasFocus() is True
 
     QTest.mouseRelease(
-        second_chip,
+        second_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=second_chip_target,
         delay=10,
@@ -2878,6 +2870,7 @@ def test_prompt_editor_real_widget_commits_alt_left_keyboard_reorder(
     process_events(app)
 
     assert _editor_reorder_preview_text(box) == "beta, alpha, gamma"
+
     reorder_session = cast(
         Any, box
     )._interaction_controller._reorder.segment_reorder_session
@@ -3142,9 +3135,7 @@ def test_prompt_editor_real_widget_commits_actual_reorder_on_alt_release(
     assert second_chip.cursor().shape() == Qt.CursorShape.OpenHandCursor
     _drag_reorder_chip_to_global(
         second_chip,
-        global_target=first_chip.mapToGlobal(
-            QPoint(4, max(4, first_chip.rect().center().y()))
-        ),
+        global_target=first_chip.leading_global_point(),
     )
     process_events(app)
 
@@ -3200,9 +3191,7 @@ def test_prompt_editor_real_widget_accumulates_multiple_reorder_drags_before_alt
     beta_chip = _overlay_chip_by_segment_index(overlay, 1)
     _drag_reorder_chip_to_global(
         beta_chip,
-        global_target=alpha_chip.mapToGlobal(
-            QPoint(4, max(4, alpha_chip.rect().center().y()))
-        ),
+        global_target=alpha_chip.leading_global_point(),
     )
     process_events(app)
 
@@ -3212,9 +3201,7 @@ def test_prompt_editor_real_widget_accumulates_multiple_reorder_drags_before_alt
     gamma_chip = _overlay_chip_by_segment_index(overlay, 2)
     _drag_reorder_chip_to_global(
         gamma_chip,
-        global_target=beta_chip.mapToGlobal(
-            QPoint(4, max(4, beta_chip.rect().center().y()))
-        ),
+        global_target=beta_chip.leading_global_point(),
     )
     process_events(app)
 
@@ -3321,9 +3308,7 @@ def test_prompt_editor_real_widget_reorder_commit_round_trips_through_editor_und
     second_chip = _overlay_chip_by_segment_index(overlay, 1)
     _drag_reorder_chip_to_global(
         second_chip,
-        global_target=first_chip.mapToGlobal(
-            QPoint(4, max(4, first_chip.rect().center().y()))
-        ),
+        global_target=first_chip.leading_global_point(),
     )
     process_events(app)
 
@@ -3373,9 +3358,7 @@ def test_prompt_editor_real_widget_reorder_commit_preserves_line_break_slot_form
     second_chip = _overlay_chip_by_segment_index(overlay, 1)
     _drag_reorder_chip_to_global(
         second_chip,
-        global_target=first_chip.mapToGlobal(
-            QPoint(4, max(4, first_chip.rect().center().y()))
-        ),
+        global_target=first_chip.leading_global_point(),
     )
     process_events(app)
 
@@ -3419,17 +3402,13 @@ def test_prompt_editor_real_widget_can_drop_tag_onto_specific_blank_line(
     solo_chip = _overlay_chip_by_segment_index(overlay, 2)
 
     QTest.mousePress(
-        solo_chip,
+        solo_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=solo_chip.rect().center(),
     )
     QTest.mouseMove(
-        solo_chip,
-        solo_chip.mapFromGlobal(
-            soft_lighting_chip.mapToGlobal(
-                QPoint(4, max(4, soft_lighting_chip.rect().center().y()))
-            )
-        ),
+        solo_chip.overlay,
+        solo_chip.mapFromGlobal(soft_lighting_chip.leading_global_point()),
         10,
     )
     process_events(app)
@@ -3442,14 +3421,14 @@ def test_prompt_editor_real_widget_can_drop_tag_onto_specific_blank_line(
         third_blank_line.hit_rect.center().toPoint()
     )
     QTest.mouseMove(
-        solo_chip,
+        solo_chip.overlay,
         solo_chip.mapFromGlobal(third_blank_line_global),
         10,
     )
     process_events(app)
 
     QTest.mouseRelease(
-        solo_chip,
+        solo_chip.overlay,
         Qt.MouseButton.LeftButton,
         pos=solo_chip.mapFromGlobal(third_blank_line_global),
         delay=10,
@@ -3495,7 +3474,7 @@ def test_prompt_editor_real_widget_reorder_preview_still_wraps_in_narrow_card_wi
     overlay = getattr(box, "_segment_overlay")
     assert overlay is not None
 
-    chips = _overlay_chip_widgets(overlay)
+    chips = _overlay_pointer_regions(overlay)
 
     assert overlay.parentWidget() is box.viewport()
     assert overlay.findChild(QWidget, "segmentReorderScrollArea") is None

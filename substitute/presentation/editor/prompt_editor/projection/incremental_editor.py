@@ -34,6 +34,7 @@ from substitute.application.prompt_editor import (
 
 from .caret_map_builder import build_prompt_projection_caret_map
 from .model import (
+    PromptProjectionCaretMap,
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
     PromptProjectionMapping,
@@ -41,6 +42,12 @@ from .model import (
     PromptProjectionRunKind,
     PromptProjectionToken,
 )
+from .plain_edit_caret_sequence import (
+    MAX_PLAIN_EDIT_CARET_TRANSFORM_DEPTH,
+    PromptProjectionPlainEditCaretStopSequence,
+)
+from .plain_edit_coordinates import PromptProjectionPlainEditCoordinates
+from .plain_edit_run_sequence import PromptProjectionPlainEditRunSequence
 from .layout_engine import (
     PromptProjectionIncrementalLayoutResult,
     PromptProjectionLayout,
@@ -78,6 +85,7 @@ class PromptProjectionPlainTextApplyStatus(Enum):
     """Describe how one plain-text projection fast path handled an edit."""
 
     APPLIED = "applied"
+    APPLIED_REFLOW = "applied_reflow"
     DEFERRED_WRAP_REFLOW = "deferred_wrap_reflow"
     REJECTED = "rejected"
 
@@ -163,10 +171,10 @@ class PromptProjectionIncrementalEditor:
             ),
             projection_end=last_run.projection_end + appended_length,
         )
-        next_runs = previous_document.runs[:-1] + (next_run,)
+        next_runs = tuple(previous_document.runs[:-1]) + (next_run,)
         next_caret_map = build_prompt_projection_caret_map(
             runs=next_runs,
-            tokens=previous_document.tokens,
+            tokens=tuple(previous_document.tokens),
             source_length=len(next_text),
             projection_length=next_projection_length,
         )
@@ -235,10 +243,10 @@ class PromptProjectionIncrementalEditor:
             ),
             projection_end=last_run.projection_end + 1,
         )
-        next_runs = previous_document.runs[:-1] + (next_run,)
+        next_runs = tuple(previous_document.runs[:-1]) + (next_run,)
         next_caret_map = build_prompt_projection_caret_map(
             runs=next_runs,
-            tokens=previous_document.tokens,
+            tokens=tuple(previous_document.tokens),
             source_length=len(next_text),
             projection_length=next_projection_length,
         )
@@ -300,13 +308,13 @@ class PromptProjectionIncrementalEditor:
             projection_end=last_run.projection_end - 1,
         )
         next_runs = (
-            previous_document.runs[:-1] + (next_run,)
+            tuple(previous_document.runs[:-1]) + (next_run,)
             if next_display_text
-            else previous_document.runs[:-1]
+            else tuple(previous_document.runs[:-1])
         )
         next_caret_map = build_prompt_projection_caret_map(
             runs=next_runs,
-            tokens=previous_document.tokens,
+            tokens=tuple(previous_document.tokens),
             source_length=len(next_text),
             projection_length=next_projection_length,
         )
@@ -368,13 +376,13 @@ class PromptProjectionIncrementalEditor:
             projection_end=last_run.projection_end - 1,
         )
         next_runs = (
-            previous_document.runs[:-1] + (next_run,)
+            tuple(previous_document.runs[:-1]) + (next_run,)
             if next_display_text
-            else previous_document.runs[:-1]
+            else tuple(previous_document.runs[:-1])
         )
         next_caret_map = build_prompt_projection_caret_map(
             runs=next_runs,
-            tokens=previous_document.tokens,
+            tokens=tuple(previous_document.tokens),
             source_length=len(next_text),
             projection_length=next_projection_length,
         )
@@ -458,10 +466,12 @@ class PromptProjectionIncrementalEditor:
             rejection_reason = layout.last_incremental_reflow_rejection_reason
             if rejection_reason in {"edit_would_wrap", "word_wrap_boundary"}:
                 return PromptProjectionPlainTextApplyResult(
-                    status=PromptProjectionPlainTextApplyStatus.DEFERRED_WRAP_REFLOW
+                    status=PromptProjectionPlainTextApplyStatus.DEFERRED_WRAP_REFLOW,
+                    projection_document=document_result.projection_document,
                 )
             return PromptProjectionPlainTextApplyResult(
-                status=PromptProjectionPlainTextApplyStatus.REJECTED
+                status=PromptProjectionPlainTextApplyStatus.REJECTED,
+                projection_document=document_result.projection_document,
             )
 
         return PromptProjectionPlainTextApplyResult(
@@ -562,7 +572,7 @@ class PromptProjectionIncrementalEditor:
             scene_result = self._scene_editor.reconcile_document(
                 projection_document,
                 edited_token_id=editable_token_id,
-                previous_title=edited_scene_run.display_text,
+                previous_visible_text=edited_scene_run.display_text,
                 scene_error_keys=scene_error_keys,
             )
             if scene_result is None:
@@ -633,40 +643,51 @@ def _is_supported_plain_text_incremental_edit(
 
 def _edit_intersects_token(
     edit: PromptProjectionIncrementalEdit,
-    tokens: tuple[PromptProjectionToken, ...],
+    tokens: Sequence[PromptProjectionToken],
     *,
     editable_token_id: str | None = None,
 ) -> bool:
     """Return whether the source edit touches projected token structure."""
 
-    if edit.start == edit.end:
-        return any(
-            token.token_id != editable_token_id
-            and token.source_start < edit.start < token.source_end
-            for token in tokens
-        )
-    return any(
-        token.token_id != editable_token_id
-        and edit.start < token.source_end
-        and token.source_start < edit.end
-        for token in tokens
-    )
+    for token in tokens:
+        if token.source_start >= edit.end and edit.start != edit.end:
+            return False
+        if token.source_start >= edit.start and edit.start == edit.end:
+            return False
+        if token.token_id == editable_token_id:
+            continue
+        if edit.start == edit.end:
+            if token.source_start < edit.start < token.source_end:
+                return True
+            continue
+        if edit.start < token.source_end and token.source_start < edit.end:
+            return True
+    return False
 
 
 def _edit_intersects_syntax_span(
     edit: PromptProjectionIncrementalEdit,
-    spans: tuple[PromptSyntaxSpanView, ...],
+    spans: Sequence[PromptSyntaxSpanView],
 ) -> bool:
     """Return whether the source edit touches syntax-owned structure."""
 
-    if edit.start == edit.end:
-        return any(span.start < edit.start < span.end for span in spans)
-    return any(edit.start < span.end and span.start < edit.end for span in spans)
+    for span in spans:
+        if span.start >= edit.end and edit.start != edit.end:
+            return False
+        if span.start >= edit.start and edit.start == edit.end:
+            return False
+        if edit.start == edit.end:
+            if span.start < edit.start < span.end:
+                return True
+            continue
+        if edit.start < span.end and span.start < edit.end:
+            return True
+    return False
 
 
 def _source_backed_plain_text_run_for_edit(
     edit: PromptProjectionIncrementalEdit,
-    runs: tuple[PromptProjectionRun, ...],
+    runs: Sequence[PromptProjectionRun],
 ) -> PromptProjectionRun | None:
     """Return the plain source-backed run containing the supplied edit."""
 
@@ -730,34 +751,103 @@ def _apply_plain_text_document_edit(
         + edit.replacement_text
         + previous_document.projection_text[projection_edit_end:]
     )
-    next_runs = tuple(
-        _remap_run_for_plain_text_edit(
-            run,
-            edit=edit,
-            edited_run=edited_run,
-            first_dirty_projection_position=first_dirty_projection_position,
+    edited_run_index = next(
+        index
+        for index, run in enumerate(previous_document.runs)
+        if run.run_id == edited_run.run_id
+    )
+    next_edited_run = _edit_source_backed_text_run(
+        edited_run,
+        edit=edit,
+        first_dirty_projection_position=first_dirty_projection_position,
+        source_delta=source_delta,
+        projection_delta=projection_delta,
+    )
+    if editable_token_id is None:
+        coordinates = PromptProjectionPlainEditCoordinates(
+            source_start=edit.start,
+            source_end=edit.end,
             source_delta=source_delta,
+            projection_start=first_dirty_projection_position,
             projection_delta=projection_delta,
         )
-        for run in previous_document.runs
-    )
-    next_tokens = tuple(
-        _remap_token_after_source_edit(
-            token,
-            edit=edit,
-            delta=source_delta,
-            editable_content=token.token_id == editable_token_id,
+        next_runs: Sequence[PromptProjectionRun] = PromptProjectionPlainEditRunSequence(
+            previous_document.runs,
+            edited_run_index=edited_run_index,
+            edited_run=next_edited_run,
+            coordinates=coordinates,
         )
-        for token in previous_document.tokens
-    )
+        next_tokens: Sequence[PromptProjectionToken] = tuple(
+            _remap_token_after_source_edit(
+                token,
+                edit=edit,
+                delta=source_delta,
+                editable_content=False,
+            )
+            for token in previous_document.tokens
+        )
+        if callable(
+            getattr(
+                previous_document.caret_map.stops,
+                "visual_index_for_state",
+                None,
+            )
+        ):
+            edited_stops = PromptProjectionPlainEditCaretStopSequence(
+                previous_document.caret_map,
+                edited_run=next_edited_run,
+                coordinates=coordinates,
+            )
+            if edited_stops.transform_depth <= MAX_PLAIN_EDIT_CARET_TRANSFORM_DEPTH:
+                next_caret_map = PromptProjectionCaretMap(
+                    stops=edited_stops,
+                    tokens=next_tokens,
+                    source_length=len(edit.next_source_text),
+                    projection_length=len(next_projection_text),
+                )
+            else:
+                next_caret_map = build_prompt_projection_caret_map(
+                    runs=next_runs,
+                    tokens=next_tokens,
+                    source_length=len(edit.next_source_text),
+                    projection_length=len(next_projection_text),
+                )
+        else:
+            next_caret_map = build_prompt_projection_caret_map(
+                runs=tuple(next_runs),
+                tokens=tuple(next_tokens),
+                source_length=len(edit.next_source_text),
+                projection_length=len(next_projection_text),
+            )
+    else:
+        next_runs = tuple(
+            _remap_run_for_plain_text_edit(
+                run,
+                edit=edit,
+                edited_run=edited_run,
+                first_dirty_projection_position=first_dirty_projection_position,
+                source_delta=source_delta,
+                projection_delta=projection_delta,
+            )
+            for run in previous_document.runs
+        )
+        next_tokens = tuple(
+            _remap_token_after_source_edit(
+                token,
+                edit=edit,
+                delta=source_delta,
+                editable_content=token.token_id == editable_token_id,
+            )
+            for token in previous_document.tokens
+        )
+        next_caret_map = build_prompt_projection_caret_map(
+            runs=tuple(next_runs),
+            tokens=tuple(next_tokens),
+            source_length=len(edit.next_source_text),
+            projection_length=len(next_projection_text),
+        )
     next_mapping = PromptProjectionMapping(
         runs=next_runs,
-        source_length=len(edit.next_source_text),
-        projection_length=len(next_projection_text),
-    )
-    next_caret_map = build_prompt_projection_caret_map(
-        runs=next_runs,
-        tokens=next_tokens,
         source_length=len(edit.next_source_text),
         projection_length=len(next_projection_text),
     )
@@ -791,6 +881,11 @@ def _remap_run_for_plain_text_edit(
             source_delta=source_delta,
             projection_delta=projection_delta,
         )
+    if (
+        run.source_end < edit.start
+        and run.projection_end <= first_dirty_projection_position
+    ):
+        return run
     projection_start = run.projection_start
     projection_end = run.projection_end
     if run.projection_start >= first_dirty_projection_position:
@@ -884,6 +979,15 @@ def _remap_token_after_source_edit(
 ) -> PromptProjectionToken:
     """Return one token shifted across a non-intersecting source edit."""
 
+    if token.source_end < edit.start:
+        return token
+    if (
+        not editable_content
+        and edit.start == edit.end
+        and token.source_start < edit.start
+        and token.source_end == edit.start
+    ):
+        return token
     return replace(
         token,
         source_start=_remap_position_after_source_edit(
