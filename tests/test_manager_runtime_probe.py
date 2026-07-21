@@ -29,6 +29,10 @@ import pytest
 from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy import manager_runtime_probe
 from substitute.infrastructure.comfy.manager_contract import ComfyManagerContract
+from sugarsubstitute_shared.windows_long_paths import (
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 
 def test_integrated_manager_4_1_probe_requires_no_pygit2_api(
@@ -43,6 +47,8 @@ def test_integrated_manager_4_1_probe_requires_no_pygit2_api(
     def fake_run(
         command: list[str], **kwargs: object
     ) -> subprocess.CompletedProcess[str]:
+        assert command[0] == subprocess_path(python)
+        assert kwargs["cwd"] == subprocess_working_directory(tmp_path)
         observed_environment.update(cast(Mapping[str, str], kwargs["env"]))
         assert "from comfyui_manager.common import git_compat" not in command[2]
         return subprocess.CompletedProcess(

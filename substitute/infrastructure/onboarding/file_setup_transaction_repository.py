@@ -54,6 +54,7 @@ from substitute.domain.onboarding.setup_transaction_models import (
     SetupTransactionStatus,
 )
 from substitute.shared.logging.logger import get_logger, log_warning
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 _LOGGER = get_logger("infrastructure.onboarding.file_setup_transaction_repository")
 _SCHEMA_VERSION = 1
@@ -212,9 +213,9 @@ def _installation_from_payload(payload: object) -> InstallationConfiguration | N
         return None
     if not isinstance(payload, dict):
         raise ValueError("Installation payload must be a JSON object.")
-    installation_root = Path(str(payload["installation_root"]))
+    installation_root = operational_path(str(payload["installation_root"]))
     defaults = InstallationConfiguration.create_default(installation_root)
-    user_dir = Path(str(payload.get("user_dir", defaults.user_dir)))
+    user_dir = operational_path(str(payload.get("user_dir", defaults.user_dir)))
     legacy_payload = any(
         key in payload
         for key in (
@@ -230,19 +231,25 @@ def _installation_from_payload(payload: object) -> InstallationConfiguration | N
 
         if legacy_payload:
             return default_path
-        return Path(str(payload.get(key, default_path)))
+        return operational_path(str(payload.get(key, default_path)))
 
-    projects_dir = Path(str(payload.get("projects_dir", defaults.projects_dir)))
+    projects_dir = operational_path(
+        str(payload.get("projects_dir", defaults.projects_dir))
+    )
     return InstallationConfiguration(
         installation_root=installation_root,
         user_dir=user_dir,
-        user_settings_dir=Path(
+        user_settings_dir=operational_path(
             str(payload.get("user_settings_dir", defaults.user_settings_dir))
         ),
         projects_dir=projects_dir,
-        outputs_dir=Path(str(payload.get("outputs_dir", user_dir / "outputs"))),
+        outputs_dir=operational_path(
+            str(payload.get("outputs_dir", user_dir / "outputs"))
+        ),
         sugar_scripts_dir=projects_dir,
-        wildcards_dir=Path(str(payload.get("wildcards_dir", user_dir / "wildcards"))),
+        wildcards_dir=operational_path(
+            str(payload.get("wildcards_dir", user_dir / "wildcards"))
+        ),
         appdata_dir=appdata_path("appdata_dir", defaults.appdata_dir),
         session_dir=appdata_path("session_dir", defaults.session_dir),
         cache_dir=appdata_path("cache_dir", defaults.cache_dir),
@@ -252,8 +259,10 @@ def _installation_from_payload(payload: object) -> InstallationConfiguration | N
         model_metadata_dir=appdata_path(
             "model_metadata_dir", defaults.model_metadata_dir
         ),
-        runtime_dir=Path(str(payload.get("runtime_dir", defaults.runtime_dir))),
-        default_managed_comfy_dir=Path(
+        runtime_dir=operational_path(
+            str(payload.get("runtime_dir", defaults.runtime_dir))
+        ),
+        default_managed_comfy_dir=operational_path(
             str(
                 payload.get(
                     "default_managed_comfy_dir",
@@ -288,8 +297,8 @@ def _runtime_from_payload(payload: object) -> RuntimeConfiguration | None:
         raise ValueError("Runtime payload must be a JSON object.")
     python_executable = payload.get("python_executable")
     return RuntimeConfiguration(
-        runtime_root=Path(str(payload["runtime_root"])),
-        python_executable=Path(str(python_executable))
+        runtime_root=operational_path(str(payload["runtime_root"])),
+        python_executable=operational_path(str(python_executable))
         if isinstance(python_executable, str)
         else None,
         bootstrap_status=RuntimeBootstrapStatus(str(payload["bootstrap_status"])),
@@ -334,7 +343,7 @@ def _target_from_payload(payload: object) -> ComfyTargetConfiguration | None:
             host=str(endpoint_payload["host"]),
             port=int(endpoint_payload["port"]),
         ),
-        workspace_path=Path(str(workspace_path))
+        workspace_path=operational_path(str(workspace_path))
         if isinstance(workspace_path, str)
         else None,
         install_owned=bool(payload.get("install_owned", False)),
@@ -366,11 +375,11 @@ def _python_binding_from_payload(payload: object) -> ComfyPythonBinding | None:
     if not isinstance(payload, dict):
         return None
     return ComfyPythonBinding(
-        executable=Path(str(payload["executable"])),
+        executable=operational_path(str(payload["executable"])),
         version=str(payload["version"]),
         architecture=str(payload["architecture"]),
-        prefix=Path(str(payload["prefix"])),
-        base_prefix=Path(str(payload["base_prefix"])),
+        prefix=operational_path(str(payload["prefix"])),
+        base_prefix=operational_path(str(payload["base_prefix"])),
         source=ComfyPythonSelectionSource(str(payload["source"])),
     )
 

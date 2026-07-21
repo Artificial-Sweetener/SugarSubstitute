@@ -40,6 +40,12 @@ from launcher.sugarsubstitute_launcher.platforms import (
     LauncherOperatingSystem,
     LauncherTarget,
 )
+from sugarsubstitute_shared.windows_long_paths import (
+    external_long_path_error,
+    operational_path,
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -115,17 +121,28 @@ class SubprocessRuntimeCommandRunner:
             startupinfo.wShowWindow = 0
             creationflags = subprocess.CREATE_NO_WINDOW
 
-        process = subprocess.Popen(  # noqa: S603
-            list(command),
-            cwd=cwd,
-            env=dict(env),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            shell=False,
-            startupinfo=startupinfo,
-            creationflags=creationflags,
-        )
+        process_cwd = operational_path(cwd)
+        try:
+            process = subprocess.Popen(  # noqa: S603
+                list(command),
+                cwd=subprocess_working_directory(process_cwd),
+                env=dict(env),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                shell=False,
+                startupinfo=startupinfo,
+                creationflags=creationflags,
+            )
+        except OSError as error:
+            compatibility_error = external_long_path_error(
+                component=executable_name,
+                path=process_cwd,
+                detail=error,
+            )
+            if compatibility_error is not None:
+                raise compatibility_error from error
+            raise
         captured_output: list[str] = []
         if process.stdout is not None:
             for raw_line in process.stdout:
@@ -137,6 +154,14 @@ class SubprocessRuntimeCommandRunner:
 
         return_code = process.wait()
         if return_code != 0:
+            detail = "\n".join(captured_output)
+            compatibility_error = external_long_path_error(
+                component=executable_name,
+                path=process_cwd,
+                detail=detail,
+            )
+            if compatibility_error is not None:
+                raise compatibility_error
             for line in captured_output[-_FAILURE_OUTPUT_LOG_LINE_LIMIT:]:
                 _LOGGER.error(
                     "Runtime command failure output | executable=%s output=%s",
@@ -202,12 +227,12 @@ class UvManagedRuntimeInstaller:
         uv_executable = self.ensure_uv(layout=layout)
         env = runtime_environment(layout=layout)
         python_install_command = [
-            str(uv_executable),
+            subprocess_path(uv_executable),
             "python",
             "install",
             self._python_version,
             "--install-dir",
-            str(layout.runtime_dir / "python"),
+            subprocess_path(layout.runtime_dir / "python"),
             "--managed-python",
             "--no-bin",
             "--no-config",
@@ -225,9 +250,9 @@ class UvManagedRuntimeInstaller:
             python_version=self._python_version,
         ):
             venv_command = [
-                str(uv_executable),
+                subprocess_path(uv_executable),
                 "venv",
-                str(venv_path),
+                subprocess_path(venv_path),
                 "--python",
                 self._python_version,
                 "--managed-python",
@@ -311,14 +336,14 @@ def runtime_requirements_command(
     """Build the target-specific uv command for app runtime dependencies."""
 
     command = [
-        str(uv_executable),
+        subprocess_path(uv_executable),
         "pip",
         "install",
         "--python",
-        str(layout.runtime_python),
+        subprocess_path(layout.runtime_python),
     ]
     command.extend(_torch_backend_arguments(layout.target))
-    command.extend(["-r", str(requirements_path)])
+    command.extend(["-r", subprocess_path(requirements_path)])
     return command
 
 
@@ -334,11 +359,11 @@ def runtime_environment(*, layout: InstallLayout) -> dict[str, str]:
     """Build the environment that keeps uv and Python state deterministic."""
 
     env = dict(os.environ)
-    env["UV_CACHE_DIR"] = str(layout.cache_dir / "uv")
-    env["UV_PYTHON_INSTALL_DIR"] = str(layout.runtime_dir / "python")
+    env["UV_CACHE_DIR"] = subprocess_path(layout.cache_dir / "uv")
+    env["UV_PYTHON_INSTALL_DIR"] = subprocess_path(layout.runtime_dir / "python")
     env["UV_NO_MODIFY_PATH"] = "1"
-    env["VIRTUAL_ENV"] = str(layout.runtime_dir / ".venv")
-    env["PYTHONPATH"] = str(layout.app_dir)
+    env["VIRTUAL_ENV"] = subprocess_path(layout.runtime_dir / ".venv")
+    env["PYTHONPATH"] = subprocess_path(layout.app_dir)
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8:replace"
     return env
@@ -388,7 +413,7 @@ def verify_runtime_imports(
 
     import_statement = "; ".join(f"import {module_name}" for module_name in imports)
     runner.run(
-        [str(python_executable), "-c", import_statement],
+        [subprocess_path(python_executable), "-c", import_statement],
         cwd=cwd,
         env=env,
     )

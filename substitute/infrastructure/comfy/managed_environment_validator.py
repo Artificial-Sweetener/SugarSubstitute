@@ -24,6 +24,10 @@ import subprocess
 from typing import Callable
 
 from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.windows_long_paths import (
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 from substitute.infrastructure.comfy.hardware_models import AcceleratorClass
 from substitute.infrastructure.comfy.torch_policy import TorchReleaseChannel
@@ -138,7 +142,7 @@ def validate_managed_environment(
             device_name=device_name,
         )
     smoke_test = run_command(
-        [str(python_executable), str(main_path), "--help"],
+        [subprocess_path(python_executable), subprocess_path(main_path), "--help"],
         cwd=workspace,
         check=False,
     )
@@ -218,7 +222,7 @@ def run_command(
     try:
         result = subprocess.run(
             command,
-            cwd=str(cwd),
+            cwd=subprocess_working_directory(cwd),
             capture_output=True,
             text=True,
             encoding="utf-8",

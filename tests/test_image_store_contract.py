@@ -20,9 +20,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from PySide6.QtGui import QImage
 
 from substitute.infrastructure.persistence import QtImageStore
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
 class _Size:
@@ -93,3 +95,20 @@ def test_image_dimensions_returns_none_for_missing_image(tmp_path: Path) -> None
     dimensions = QtImageStore().image_dimensions(tmp_path / "missing.png")
 
     assert dimensions is None
+
+
+@pytest.mark.platforms("windows")
+def test_qt_image_store_round_trips_an_image_beyond_max_path(tmp_path: Path) -> None:
+    """Qt file APIs should consume the extended namespace without UI involvement."""
+
+    image_path = operational_path(tmp_path / "qt-image")
+    while len(str(image_path)) < 285:
+        image_path /= "segment-0123456789abcdef"
+    image_path /= "image.png"
+    store = QtImageStore()
+
+    assert store.save_blank_image(image_path, width=19, height=23) is True
+    loaded = store.load_image(image_path)
+
+    assert isinstance(loaded, QImage)
+    assert store.image_dimensions(image_path) == (19, 23)

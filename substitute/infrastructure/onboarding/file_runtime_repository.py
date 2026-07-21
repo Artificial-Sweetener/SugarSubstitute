@@ -30,6 +30,7 @@ from substitute.domain.onboarding import (
     RuntimeBootstrapStatus,
     RuntimeConfiguration,
 )
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
 @dataclass
@@ -57,8 +58,8 @@ class FileRuntimeConfigurationRepository(RuntimeConfigurationRepository):
         payload = json.loads(path.read_text(encoding="utf-8"))
         python_executable = payload.get("python_executable")
         return RuntimeConfiguration(
-            runtime_root=Path(payload["runtime_root"]),
-            python_executable=Path(python_executable)
+            runtime_root=operational_path(payload["runtime_root"]),
+            python_executable=operational_path(python_executable)
             if isinstance(python_executable, str)
             else None,
             bootstrap_status=RuntimeBootstrapStatus(payload["bootstrap_status"]),

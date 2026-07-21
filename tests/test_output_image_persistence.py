@@ -181,7 +181,7 @@ def test_persist_output_image_uses_reserved_run_number_and_png_metadata(
     assert persisted.file_path == expected_path
     assert persisted.width == 640
     assert persisted.height == 480
-    assert saved_paths == [str(expected_path)]
+    assert [str(path) for path in saved_paths] == [str(expected_path)]
     assert counter_calls == []
     assert _PngInfo.records == [
         ("sugar_script", "# Project: My Workflow\n\nline one"),
@@ -244,8 +244,11 @@ def test_persist_output_image_allocates_lazy_run_and_source_ordinals(
 
     assert first.file_path == tmp_path / "2026-05-01" / "007_cubea_1.png"
     assert second.file_path == tmp_path / "2026-05-01" / "007_cubea_2.png"
-    assert saved_paths == [str(first.file_path), str(second.file_path)]
-    assert bucket_calls == [str(tmp_path / "2026-05-01")]
+    assert [str(path) for path in saved_paths] == [
+        str(first.file_path),
+        str(second.file_path),
+    ]
+    assert [str(path) for path in bucket_calls] == [str(tmp_path / "2026-05-01")]
 
 
 def test_persist_output_image_allocates_folder_image_number(
@@ -289,4 +292,4 @@ def test_persist_output_image_allocates_folder_image_number(
     )
 
     assert persisted.file_path == tmp_path / "2026-05-01" / "image_02_cubea.png"
-    assert saved_paths == [str(persisted.file_path)]
+    assert [str(path) for path in saved_paths] == [str(persisted.file_path)]

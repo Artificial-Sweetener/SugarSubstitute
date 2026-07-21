@@ -21,11 +21,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from sugarsubstitute_shared.windows_long_paths import operational_path
+
 
 def absolute_interpreter_path(path: Path) -> Path:
-    """Return an absolute interpreter path without dereferencing venv symlinks."""
+    """Return an operational absolute path without dereferencing venv symlinks."""
 
-    return Path(os.path.abspath(path))
+    return operational_path(Path(os.path.abspath(path)))
 
 
 __all__ = ["absolute_interpreter_path"]

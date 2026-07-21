@@ -25,6 +25,7 @@ from typing import Any, Callable
 from substitute.domain.generation import ComfyStagedAsset
 from substitute.domain.onboarding import ComfyEndpoint
 from substitute.infrastructure.external.http_transport import default_http_post
+from sugarsubstitute_shared.windows_long_paths import operational_path, subprocess_path
 
 
 @dataclass(frozen=True)
@@ -41,11 +42,12 @@ class LocalComfyAssetStager:
         """Return the existing path without duplicating Substitute-owned data."""
 
         del target_subfolder, content_hash
+        source_path = operational_path(source_path)
         if not source_path.exists():
             raise FileNotFoundError(str(source_path))
         return ComfyStagedAsset(
             source_path=source_path,
-            execution_value=str(source_path),
+            execution_value=subprocess_path(source_path),
             operation="direct",
         )
 
@@ -67,6 +69,7 @@ class RemoteUploadComfyAssetStager:
     ) -> ComfyStagedAsset:
         """Upload a source file and return the Comfy input namespace value."""
 
+        source_path = operational_path(source_path)
         if not source_path.exists():
             raise FileNotFoundError(str(source_path))
         with source_path.open("rb") as handle:
