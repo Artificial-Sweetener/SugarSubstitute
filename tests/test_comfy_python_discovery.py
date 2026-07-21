@@ -19,8 +19,11 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import subprocess
+import sys
+import venv
 
 import pytest
 
@@ -134,6 +137,36 @@ def test_probe_records_verified_interpreter_evidence(
     assert result.binding is not None
     assert result.binding.executable == executable
     assert result.binding.source is ComfyPythonSelectionSource.USER_SELECTED
+
+
+def test_probe_preserves_virtualenv_interpreter_identity(tmp_path: Path) -> None:
+    """A POSIX venv symlink should remain the interpreter discovery boundary."""
+
+    workspace = _workspace(tmp_path)
+    environment = workspace / ".venv"
+    venv.EnvBuilder(with_pip=False).create(environment)
+    executable = environment / (
+        "Scripts/python.exe" if os.name == "nt" else "bin/python"
+    )
+    site_packages = environment / (
+        "Lib/site-packages"
+        if os.name == "nt"
+        else f"lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages"
+    )
+    site_packages.mkdir(parents=True, exist_ok=True)
+    for module_name in ("comfy", "torch", "aiohttp"):
+        (site_packages / f"{module_name}.py").write_text("", encoding="utf-8")
+
+    result = probe_comfy_python(
+        workspace,
+        executable,
+        source=ComfyPythonSelectionSource.USER_SELECTED,
+    )
+
+    assert result.binding is not None
+    assert result.binding.executable == executable.absolute()
+    assert result.binding.prefix == environment.resolve()
+    assert result.binding.base_prefix != result.binding.prefix
 
 
 def test_probe_rejects_python_below_mandatory_nodepack_floor(

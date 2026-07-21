@@ -26,6 +26,10 @@ from pathlib import Path
 import subprocess
 from typing import Final, cast
 
+from substitute.infrastructure.comfy.interpreter_path import (
+    absolute_interpreter_path,
+)
+
 _PROBE_MARKER: Final[str] = "SUGARSUBSTITUTE_REQUIREMENTS_PROBE="
 _PROBE_SCRIPT: Final[str] = r"""
 from importlib.metadata import PackageNotFoundError, version
@@ -123,7 +127,7 @@ class PythonRequirementsProbe:
 
         result = subprocess.run(
             [
-                os.path.abspath(python_executable),
+                str(absolute_interpreter_path(python_executable)),
                 "-c",
                 _PROBE_SCRIPT,
                 str(requirements_path.resolve()),
