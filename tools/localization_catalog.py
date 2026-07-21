@@ -212,8 +212,15 @@ _VISIBLE_KEYWORDS = frozenset(
         "best_if",
     }
 )
-_MESSAGE_FUNCTIONS = frozenset(
+_APPLICATION_MESSAGE_FUNCTIONS = frozenset(
     {"app_text", "translate_application_message", "translate_application_text"}
+)
+_LANGUAGE_SELECTOR_MESSAGE_FUNCTIONS = frozenset({"translate_language_selector"})
+_LAUNCHER_MESSAGE_FUNCTIONS = frozenset({"launcher_text"})
+_MESSAGE_FUNCTIONS = (
+    _APPLICATION_MESSAGE_FUNCTIONS
+    | _LANGUAGE_SELECTOR_MESSAGE_FUNCTIONS
+    | _LAUNCHER_MESSAGE_FUNCTIONS
 )
 _DIALOG_METHODS = frozenset({"critical", "information", "question", "warning"})
 _FILE_DIALOG_METHODS = frozenset(
@@ -257,23 +264,65 @@ class ExtractedMessage:
 def extract_application_messages(project_root: Path) -> tuple[ExtractedMessage, ...]:
     """Return deterministic English sources from explicit application markers."""
 
+    return _extract_messages(
+        project_root,
+        source_roots=_application_catalog_source_roots(project_root),
+        message_functions=(
+            _APPLICATION_MESSAGE_FUNCTIONS | _PROPERTY_MESSAGE_FUNCTIONS
+        ),
+    )
+
+
+def extract_language_selector_messages(
+    project_root: Path,
+) -> tuple[ExtractedMessage, ...]:
+    """Return shared language-selector sources owned by its Qt context."""
+
+    return _extract_messages(
+        project_root,
+        source_roots=(project_root / "sugarsubstitute_shared" / "presentation",),
+        message_functions=_LANGUAGE_SELECTOR_MESSAGE_FUNCTIONS,
+    )
+
+
+def extract_launcher_messages(project_root: Path) -> tuple[ExtractedMessage, ...]:
+    """Return installer sources owned by the launcher Qt context."""
+
+    return _extract_messages(
+        project_root,
+        source_roots=(project_root / "launcher" / "sugarsubstitute_launcher",),
+        message_functions=_LAUNCHER_MESSAGE_FUNCTIONS,
+    )
+
+
+def _extract_messages(
+    project_root: Path,
+    *,
+    source_roots: tuple[Path, ...],
+    message_functions: frozenset[str],
+) -> tuple[ExtractedMessage, ...]:
+    """Extract deterministic source messages for one explicit owner."""
+
     locations: dict[str, tuple[str, int]] = {}
-    source_roots = _visible_source_roots(project_root)
     for source_root in source_roots:
         for path in sorted(source_root.rglob("*.py")):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            definitions = _message_definitions(tree)
             for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
-                if _call_name(call) not in (
-                    _MESSAGE_FUNCTIONS | _PROPERTY_MESSAGE_FUNCTIONS
-                ):
+                if _call_name(call) not in message_functions:
                     continue
-                for literal in _visible_literals(call):
-                    source = _normalize_source(literal)
-                    if source:
-                        locations.setdefault(
-                            source,
-                            (path.relative_to(project_root).as_posix(), call.lineno),
-                        )
+                for candidate in _visible_candidates(call):
+                    literals = _message_sources(candidate, definitions=definitions)
+                    for literal in literals:
+                        source = _normalize_source(literal)
+                        if source:
+                            locations.setdefault(
+                                source,
+                                (
+                                    path.relative_to(project_root).as_posix(),
+                                    call.lineno,
+                                ),
+                            )
     return tuple(
         ExtractedMessage(source, filename, line)
         for source, (filename, line) in sorted(locations.items())
@@ -514,12 +563,22 @@ def _application_source_roots(project_root: Path) -> tuple[Path, ...]:
     )
 
 
-def _visible_source_roots(project_root: Path) -> tuple[Path, ...]:
-    """Return roots whose explicit presentation calls can expose app copy."""
+def _application_catalog_source_roots(project_root: Path) -> tuple[Path, ...]:
+    """Return roots whose explicit markers feed the AppText catalog."""
 
     return (
         *_application_source_roots(project_root),
         project_root / "substitute" / "infrastructure",
+    )
+
+
+def _visible_source_roots(project_root: Path) -> tuple[Path, ...]:
+    """Return roots whose explicit presentation calls can expose app copy."""
+
+    return (
+        *_application_catalog_source_roots(project_root),
+        project_root / "launcher" / "sugarsubstitute_launcher",
+        project_root / "sugarsubstitute_shared" / "presentation",
     )
 
 
@@ -551,6 +610,36 @@ def _assignment_definitions(tree: ast.Module) -> dict[str, ast.expr]:
             continue
         target_name, value = target_and_value
         definitions.setdefault(target_name, value)
+    return definitions
+
+
+def _message_definitions(tree: ast.Module) -> dict[str, ast.expr]:
+    """Return module constants and loop aliases used by message-owner calls."""
+
+    definitions = _assignment_definitions(tree)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.For):
+            continue
+        iterator = node.iter
+        if (
+            isinstance(iterator, ast.Call)
+            and _call_name(iterator) == "enumerate"
+            and iterator.args
+        ):
+            iterator = iterator.args[0]
+        if not isinstance(iterator, ast.Name) or iterator.id not in definitions:
+            continue
+        target_names = (
+            (node.target.id,)
+            if isinstance(node.target, ast.Name)
+            else tuple(
+                element.id
+                for element in getattr(node.target, "elts", ())
+                if isinstance(element, ast.Name)
+            )
+        )
+        for target_name in target_names:
+            definitions.setdefault(target_name, definitions[iterator.id])
     return definitions
 
 
@@ -589,7 +678,12 @@ def _unmarked_assignment_literals(expression: ast.expr) -> tuple[tuple[str, int]
     return ()
 
 
-def _message_sources(expression: ast.expr) -> tuple[str, ...]:
+def _message_sources(
+    expression: ast.expr,
+    *,
+    definitions: dict[str, ast.expr] | None = None,
+    resolving: frozenset[str] = frozenset(),
+) -> tuple[str, ...]:
     """Extract every locale branch from one explicitly marked expression."""
 
     if isinstance(expression, ast.Constant) and isinstance(expression.value, str):
@@ -599,8 +693,37 @@ def _message_sources(expression: ast.expr) -> tuple[str, ...]:
         return () if dynamic_source is None else (dynamic_source,)
     if isinstance(expression, ast.IfExp):
         return (
-            *_message_sources(expression.body),
-            *_message_sources(expression.orelse),
+            *_message_sources(
+                expression.body,
+                definitions=definitions,
+                resolving=resolving,
+            ),
+            *_message_sources(
+                expression.orelse,
+                definitions=definitions,
+                resolving=resolving,
+            ),
+        )
+    if isinstance(expression, (ast.List, ast.Set, ast.Tuple)):
+        return tuple(
+            source
+            for element in expression.elts
+            for source in _message_sources(
+                element,
+                definitions=definitions,
+                resolving=resolving,
+            )
+        )
+    if (
+        isinstance(expression, ast.Name)
+        and definitions is not None
+        and expression.id in definitions
+        and expression.id not in resolving
+    ):
+        return _message_sources(
+            definitions[expression.id],
+            definitions=definitions,
+            resolving=resolving | {expression.id},
         )
     return ()
 
@@ -782,6 +905,8 @@ def _normalize_source(source: str) -> str:
 __all__ = [
     "ExtractedMessage",
     "extract_application_messages",
+    "extract_language_selector_messages",
+    "extract_launcher_messages",
     "find_unbound_dynamic_messages",
     "find_unclassified_presentation_assignments",
     "find_unclassified_presentation_returns",
