@@ -23,7 +23,77 @@ from pathlib import Path
 
 import pytest
 
-from tools.pyinstaller_support import resolve_uv_executable
+from tools.pyinstaller_support import (
+    build_launcher_data_files,
+    resolve_uv_executable,
+)
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_build_launcher_data_files_includes_every_localization_owner(
+    tmp_path: Path,
+) -> None:
+    """Bundle the language manifest and launcher catalogs on every platform."""
+
+    repo_root = tmp_path / "repo"
+    icon_path = repo_root / "icon.ico"
+
+    data_files = build_launcher_data_files(
+        repo_root=repo_root,
+        app_icon_path=icon_path,
+        uv_executable=str(tmp_path / "uv"),
+    )
+
+    assert data_files == (
+        (str(icon_path.resolve()), "launcher_assets"),
+        (str(tmp_path / "uv"), "launcher_assets"),
+        (
+            str(repo_root.resolve() / "launcher" / "sugarsubstitute_launcher" / "i18n"),
+            "launcher/sugarsubstitute_launcher/i18n",
+        ),
+        (
+            str(
+                repo_root.resolve()
+                / "sugarsubstitute_shared"
+                / "localization"
+                / "resources"
+            ),
+            "sugarsubstitute_shared/localization/resources",
+        ),
+    )
+
+
+def test_launcher_localization_data_files_cover_every_release_locale() -> None:
+    """Keep the packaged manifest and every launcher catalog in native bundles."""
+
+    data_files = build_launcher_data_files(
+        repo_root=PROJECT_ROOT,
+        app_icon_path=(
+            PROJECT_ROOT
+            / "substitute"
+            / "presentation"
+            / "resources"
+            / "app_icons"
+            / "app_icon.ico"
+        ),
+        uv_executable="uv",
+    )
+    source_by_destination = {
+        destination: Path(source) for source, destination in data_files
+    }
+    shared_resources = source_by_destination[
+        "sugarsubstitute_shared/localization/resources"
+    ]
+    launcher_catalogs = source_by_destination["launcher/sugarsubstitute_launcher/i18n"]
+
+    assert (shared_resources / "languages.json").is_file()
+    assert {path.name for path in launcher_catalogs.glob("launcher_*.qm")} == {
+        "launcher_ja_JP.qm",
+        "launcher_ko_KR.qm",
+        "launcher_zh_CN.qm",
+    }
 
 
 def test_resolve_uv_executable_prefers_active_python_environment(
