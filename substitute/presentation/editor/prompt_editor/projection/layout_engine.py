@@ -35,6 +35,9 @@ from .line_layout import (
     tag_keep_source_range_at_position,
     tag_keep_source_ranges_in_source_line,
 )
+from .fragment_ownership_reflow import (
+    reflow_edit_including_fragment_identity_changes,
+)
 from .incremental_text_layout import (
     build_edited_text_fragment,
     editable_text_fragment,
@@ -1033,6 +1036,16 @@ class PromptProjectionLayout:
 
         previous_document = self._projection_document
         previous_snapshot = self._snapshot
+        reflow_edit = reflow_edit_including_fragment_identity_changes(
+            previous_document,
+            projection_document,
+            start=edit_start,
+            end=edit_end,
+            replacement_text=replacement_text,
+        )
+        edit_start = reflow_edit.start
+        edit_end = reflow_edit.end
+        replacement_text = reflow_edit.replacement_text
         source_delta = len(replacement_text) - (edit_end - edit_start)
         projection_delta = (
             projection_document.mapping.projection_length

@@ -1826,10 +1826,10 @@ def _unwrapped_text_offsets_uncached(
         return (0.0,)
     offsets: list[float] = []
     coordinates = TextCoordinateMap(text)
-    for index in range(len(text) + 1):
+    for utf16_index in coordinates.utf16_offsets_by_python_index():
         cursor_x = cast(
             tuple[float, int],
-            text_line.cursorToX(coordinates.python_to_utf16(index)),
+            text_line.cursorToX(utf16_index),
         )
         offsets.append(float(cursor_x[0]))
     return tuple(offsets)
