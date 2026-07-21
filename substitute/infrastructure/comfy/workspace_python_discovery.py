@@ -38,6 +38,9 @@ from substitute.domain.onboarding import (
     ComfyPythonSelectionSource,
 )
 from substitute.infrastructure.comfy.managed_validation import workspace_python_path
+from substitute.infrastructure.comfy.interpreter_path import (
+    absolute_interpreter_path,
+)
 from substitute.infrastructure.comfy.workspace_python_resolver import (
     attached_comfy_python_candidates,
 )
@@ -118,7 +121,7 @@ def probe_comfy_python(
         if isinstance(candidate, ComfyPythonCandidate)
         else ComfyPythonCandidate(candidate, "user selection", 0)
     )
-    executable = normalized.executable.resolve()
+    executable = absolute_interpreter_path(normalized.executable)
     failure = _preflight_failure(workspace, executable)
     if failure is not None:
         return ComfyPythonProbeResult(normalized, None, failure)
@@ -163,7 +166,7 @@ def probe_comfy_python(
         except UnsupportedComfyPythonError as error:
             return ComfyPythonProbeResult(normalized, None, str(error))
         binding = ComfyPythonBinding(
-            executable=Path(str(payload["executable"])).resolve(),
+            executable=absolute_interpreter_path(Path(str(payload["executable"]))),
             version=version,
             architecture=str(payload["architecture"]),
             prefix=Path(str(payload["prefix"])).resolve(),
