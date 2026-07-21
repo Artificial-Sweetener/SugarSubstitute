@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -27,11 +28,19 @@ from pathlib import Path
 from tools.localization_catalog import (
     ExtractedMessage,
     extract_application_messages,
+    extract_language_selector_messages,
+    extract_launcher_messages,
     pseudo_localize,
+)
+from tools.translation_catalog_registry import (
+    TranslationCatalogArtifact,
+    TranslationDomain,
+    release_translation_catalogs,
 )
 
 _APP_CONTEXT = "AppText"
-_CATALOGS = ("app_zh_CN.ts", "app_ja_JP.ts")
+_LANGUAGE_SELECTOR_CONTEXT = "LanguageSelector"
+_LAUNCHER_CONTEXT = "LauncherMainWindow"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -41,46 +50,70 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--compile", action="store_true")
     args = parser.parse_args(argv)
     project_root = Path(__file__).resolve().parents[1]
-    messages = extract_application_messages(project_root)
+    app_messages = extract_application_messages(project_root)
+    language_selector_messages = extract_language_selector_messages(project_root)
+    launcher_messages = extract_launcher_messages(project_root)
+    artifacts = release_translation_catalogs(project_root)
     translations_root = project_root / "translations"
-    for filename in _CATALOGS:
-        _synchronize_catalog(translations_root / filename, messages)
+    for artifact in artifacts:
+        if artifact.domain is TranslationDomain.APPLICATION:
+            _synchronize_catalog(
+                artifact.source_path,
+                app_messages,
+                context_name=_APP_CONTEXT,
+            )
+            _synchronize_catalog(
+                artifact.source_path,
+                language_selector_messages,
+                context_name=_LANGUAGE_SELECTOR_CONTEXT,
+                remove_stale=False,
+            )
+        else:
+            _synchronize_catalog(
+                artifact.source_path,
+                launcher_messages,
+                context_name=_LAUNCHER_CONTEXT,
+            )
     pseudo_path = translations_root / "app_qps_ploc.ts"
-    _write_pseudo_catalog(pseudo_path, messages)
+    _write_pseudo_catalog(pseudo_path, app_messages)
     if args.compile:
-        _compile_catalogs(project_root)
+        _compile_catalogs(project_root, artifacts)
     return 0
 
 
 def _synchronize_catalog(
     path: Path,
     messages: tuple[ExtractedMessage, ...],
+    *,
+    context_name: str,
+    remove_stale: bool = True,
 ) -> None:
-    """Merge extracted AppText messages without disturbing explicit contexts."""
+    """Merge one extracted owner without disturbing other Qt contexts."""
 
     tree = ET.parse(path)
     root = tree.getroot()
-    context = _find_or_create_context(root, _APP_CONTEXT)
+    context = _find_or_create_context(root, context_name)
     existing = {
-        source.text or "": message
+        source_element.text or "": message
         for message in context.findall("message")
-        if (source := message.find("source")) is not None
+        if (source_element := message.find("source")) is not None
     }
     expected_sources = {message.source for message in messages}
-    for source, element in tuple(existing.items()):
-        if source not in expected_sources:
-            context.remove(element)
+    if remove_stale:
+        for source_text, element in tuple(existing.items()):
+            if source_text not in expected_sources:
+                context.remove(element)
     for message in messages:
-        element = existing.get(message.source)
-        if element is None:
-            element = ET.SubElement(context, "message")
-            ET.SubElement(element, "source").text = message.source
-            translation = ET.SubElement(element, "translation")
+        message_element = existing.get(message.source)
+        if message_element is None:
+            message_element = ET.SubElement(context, "message")
+            ET.SubElement(message_element, "source").text = message.source
+            translation = ET.SubElement(message_element, "translation")
             translation.set("type", "unfinished")
-        location = element.find("location")
+        location = message_element.find("location")
         if location is None:
             location = ET.Element("location")
-            element.insert(0, location)
+            message_element.insert(0, location)
         location.set("filename", f"../{message.filename}")
         location.set("line", str(message.line))
     _sort_messages(context)
@@ -137,24 +170,40 @@ def _write_ts(path: Path, root: ET.Element) -> None:
     )
 
 
-def _compile_catalogs(project_root: Path) -> None:
+def _compile_catalogs(
+    project_root: Path,
+    artifacts: tuple[TranslationCatalogArtifact, ...],
+) -> None:
     """Compile release TS catalogs into their package-owned QM paths."""
 
-    executable = project_root / ".venv" / "Scripts" / "pyside6-lrelease.exe"
-    output_root = project_root / "substitute" / "presentation" / "resources" / "i18n"
-    for source_name, output_name in (
-        ("app_zh_CN.ts", "sugarsubstitute_zh_CN.qm"),
-        ("app_ja_JP.ts", "sugarsubstitute_ja_JP.qm"),
-    ):
+    executable = _lrelease_executable(project_root)
+    for artifact in artifacts:
+        artifact.compiled_path.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run(
             [
-                str(executable),
-                str(project_root / "translations" / source_name),
+                executable,
+                str(artifact.source_path),
                 "-qm",
-                str(output_root / output_name),
+                str(artifact.compiled_path),
             ],
             check=True,
         )
+
+
+def _lrelease_executable(project_root: Path) -> str:
+    """Return the repository Qt catalog compiler on every supported platform."""
+
+    candidates = (
+        project_root / ".venv" / "Scripts" / "pyside6-lrelease.exe",
+        project_root / ".venv" / "bin" / "pyside6-lrelease",
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    executable = shutil.which("pyside6-lrelease")
+    if executable is None:
+        raise FileNotFoundError("pyside6-lrelease is unavailable.")
+    return executable
 
 
 if __name__ == "__main__":

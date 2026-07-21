@@ -4,40 +4,45 @@
   <context>
     <name>LanguageSelector</name>
     <message>
+      <location filename="../sugarsubstitute_shared/presentation/localization/language_selector.py" line="63"></location>
       <source>Application language</source>
       <translation>アプリの言語</translation>
     </message>
     <message>
-      <source>Select the system language or a supported application language.</source>
-      <translation>システム言語または対応しているアプリの言語を選択します。</translation>
+      <source>Choose how SugarSubstitute presents text.</source>
+      <translation>SugarSubstitute の表示言語を選びます。</translation>
     </message>
     <message>
-      <source>System default — %1</source>
-      <translation>システムのデフォルト — %1</translation>
+      <source>Choose the language used by SugarSubstitute. Changes apply immediately.</source>
+      <translation>SugarSubstitute で使用する言語を選びます。変更はすぐに反映されます。</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/presentation/localization/language_selector.py" line="123"></location>
       <source>Failed to change language</source>
       <translation>言語を変更できませんでした</translation>
-    </message>
-    <message>
-      <source>SugarSubstitute kept the previous language. %1</source>
-      <translation>SugarSubstitute は以前の言語を維持しました。%1</translation>
     </message>
     <message>
       <source>Language</source>
       <translation>言語</translation>
     </message>
     <message>
-      <source>Choose the language used by SugarSubstitute. Changes apply immediately.</source>
-      <translation>SugarSubstitute で使用する言語を選択します。変更はすぐに適用されます。</translation>
-    </message>
-    <message>
       <source>Language and region</source>
       <translation>言語と地域</translation>
     </message>
     <message>
-      <source>Choose how SugarSubstitute presents text.</source>
-      <translation>SugarSubstitute でのテキストの表示方法を選択します。</translation>
+      <location filename="../sugarsubstitute_shared/presentation/localization/language_selector.py" line="67"></location>
+      <source>Select the system language or a supported application language.</source>
+      <translation>システム言語または対応しているアプリの言語を選択します。</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/localization/language_selector.py" line="124"></location>
+      <source>SugarSubstitute kept the previous language. %1</source>
+      <translation>SugarSubstitute は以前の言語を維持しました。%1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/localization/language_selector.py" line="84"></location>
+      <source>System default — %1</source>
+      <translation>システムのデフォルト — %1</translation>
     </message>
   </context>
   <context>
