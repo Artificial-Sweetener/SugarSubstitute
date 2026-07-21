@@ -63,6 +63,7 @@ from launcher.sugarsubstitute_launcher.ui.main_window import (
 from launcher.sugarsubstitute_launcher.release_sources import LocalFolderReleaseSource
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
 from sugarsubstitute_shared.localization import LanguagePreference, resolve_locale
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -606,9 +607,9 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
     assert launcher_app.main([]) == 0
     assert started_commands == [
         [
-            str(layout.runtime_python),
-            str(layout.app_entrypoint),
-            f"--install-root={layout.root}",
+            subprocess_path(layout.runtime_python),
+            subprocess_path(layout.app_entrypoint),
+            f"--install-root={subprocess_path(layout.root)}",
             "--locale=en",
         ]
     ]
@@ -682,9 +683,9 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
     assert calls == [
         "update",
         "launch",
-        str(layout.runtime_python),
-        str(layout.app_entrypoint),
-        f"--install-root={layout.root}",
+        subprocess_path(layout.runtime_python),
+        subprocess_path(layout.app_entrypoint),
+        f"--install-root={subprocess_path(layout.root)}",
         "--locale=en",
         "--splash-session-endpoint=127.0.0.1:49152",
     ]

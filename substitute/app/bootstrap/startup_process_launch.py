@@ -26,6 +26,10 @@ from typing import Any
 
 from substitute.shared.logging.logger import get_logger, log_exception
 from substitute.shared.startup_trace import trace_mark
+from sugarsubstitute_shared.windows_long_paths import (
+    operational_path,
+    subprocess_working_directory,
+)
 
 _LOGGER = get_logger("app.bootstrap.startup_process_launch")
 
@@ -47,7 +51,11 @@ def start_ready_app_process(command: Sequence[str]) -> bool:
     try:
         subprocess.Popen(  # noqa: S603
             list(command),
-            cwd=working_directory,
+            cwd=(
+                subprocess_working_directory(working_directory)
+                if working_directory is not None
+                else None
+            ),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -78,7 +86,7 @@ def launch_command_working_directory(command: Sequence[str]) -> Path | None:
 
     if len(command) < 2:
         return None
-    entrypoint = Path(command[1])
+    entrypoint = operational_path(command[1])
     if entrypoint.is_file():
         return entrypoint.parent
     return None

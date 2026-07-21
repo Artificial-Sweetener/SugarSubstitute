@@ -22,6 +22,7 @@ from collections.abc import Mapping
 from importlib import metadata
 import os
 from pathlib import Path
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
 def manager_environment(
@@ -31,7 +32,7 @@ def manager_environment(
     """Build the common environment required by every Manager runtime."""
 
     environment = dict(os.environ if base is None else base)
-    environment["COMFYUI_PATH"] = str(workspace)
+    environment["COMFYUI_PATH"] = subprocess_path(workspace)
     environment.setdefault("PYTHONUTF8", "1")
     environment.setdefault("PYTHONIOENCODING", "utf-8:replace")
     return environment
