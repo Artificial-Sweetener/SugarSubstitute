@@ -25,6 +25,35 @@ import shutil
 import sys
 
 
+PyInstallerDataFile = tuple[str, str]
+
+
+def build_launcher_data_files(
+    *,
+    repo_root: Path,
+    app_icon_path: Path,
+    uv_executable: str | None = None,
+) -> tuple[PyInstallerDataFile, ...]:
+    """Return the complete runtime data contract for every launcher bundle."""
+
+    resolved_root = repo_root.resolve()
+    resolved_uv = uv_executable or resolve_uv_executable()
+    return (
+        (str(app_icon_path.resolve()), "launcher_assets"),
+        (resolved_uv, "launcher_assets"),
+        (
+            str(resolved_root / "launcher" / "sugarsubstitute_launcher" / "i18n"),
+            "launcher/sugarsubstitute_launcher/i18n",
+        ),
+        (
+            str(
+                resolved_root / "sugarsubstitute_shared" / "localization" / "resources"
+            ),
+            "sugarsubstitute_shared/localization/resources",
+        ),
+    )
+
+
 def resolve_uv_executable(
     *,
     python_executable: Path | None = None,
@@ -46,3 +75,10 @@ def resolve_uv_executable(
         "uv must be installed beside the active Python interpreter or on PATH "
         "before building the launcher."
     )
+
+
+__all__ = [
+    "PyInstallerDataFile",
+    "build_launcher_data_files",
+    "resolve_uv_executable",
+]
