@@ -28,6 +28,7 @@ from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan im
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.infrastructure.comfy.local_nodepack_source import (
     copy_local_nodepack_source,
+    nodepack_uses_configured_local_source,
     resolve_local_nodepack_source,
 )
 from substitute.infrastructure.comfy.nodepack_git_maintenance import (
@@ -40,7 +41,7 @@ from substitute.infrastructure.comfy.nodepack_manifest import (
 from substitute.infrastructure.comfy.nodepack_python_dependencies import (
     install_backend_python_dependencies,
     install_sugarcubes_python_dependencies,
-    python_distribution_satisfies_minimum as _python_distribution_satisfies_minimum,
+    python_distribution_matches_required_version as _python_distribution_matches_required_version,
     remove_noncanonical_python_distribution_metadata as _remove_noncanonical_python_distribution_metadata,
 )
 from substitute.infrastructure.comfy.nodepack_reconciliation_logger import (
@@ -110,7 +111,7 @@ def ensure_core_comfy_nodepacks(
                     env=env,
                 )
             else:
-                if _installed_core_nodepack_satisfies_minimum(
+                if _installed_core_nodepack_matches_required_version(
                     python_executable=python_executable,
                     workspace=workspace,
                     nodepack=nodepack,
@@ -130,7 +131,7 @@ def ensure_core_comfy_nodepacks(
                         on_log,
                         (
                             f"[ComfyNodepacks] {nodepack.display_name} is installed "
-                            "but below the required version; refreshing before launch."
+                            "but does not match the required version; refreshing before launch."
                         ),
                         operation="core_nodepack_dependency_refresh",
                         nodepack_id=nodepack.nodepack_id.value,
@@ -189,7 +190,7 @@ def refresh_core_comfy_nodepacks(
     )
 
 
-def _installed_core_nodepack_satisfies_minimum(
+def _installed_core_nodepack_matches_required_version(
     *,
     python_executable: Path,
     workspace: Path,
@@ -199,7 +200,7 @@ def _installed_core_nodepack_satisfies_minimum(
 ) -> bool:
     """Return whether an installed core nodepack satisfies its package contract."""
 
-    return _nodepack_python_distributions_satisfy_minimum(
+    return _nodepack_python_distribution_matches_required_version(
         python_executable=python_executable,
         cwd=workspace / nodepack.expected_folder,
         nodepack=nodepack,
@@ -428,19 +429,40 @@ def _refresh_python_distribution_nodepack_dependencies(
         nodepack=nodepack,
         on_log=on_log,
     )
-    primary_minimum_satisfied = _nodepack_python_distributions_satisfy_minimum(
-        python_executable=python_executable,
-        cwd=nodepack_root,
-        nodepack=nodepack,
-        on_log=on_log,
-        env=env,
+    primary_required_version_installed = (
+        _nodepack_python_distribution_matches_required_version(
+            python_executable=python_executable,
+            cwd=nodepack_root,
+            nodepack=nodepack,
+            on_log=on_log,
+            env=env,
+        )
     )
     dependency_plan = plan_core_nodepack_dependency_refresh(
-        minimum_satisfied=primary_minimum_satisfied,
+        required_version_installed=primary_required_version_installed,
         pinned_archive_available=nodepack.pinned_source_archive_url is not None,
         pinned_fallback_already_applied=False,
     )
     if dependency_plan.action == "ready":
+        return
+    if nodepack_uses_configured_local_source(
+        nodepack=nodepack,
+        target_path=nodepack_root,
+        env=env,
+    ):
+        _emit_log(
+            on_log,
+            (
+                f"[ComfyNodepacks] Using configured local {nodepack.display_name} "
+                "checkout before its pinned release is available."
+            ),
+            operation="core_nodepack_dependency_local_source",
+            nodepack_id=nodepack.nodepack_id.value,
+            display_name=nodepack.display_name,
+            registry_id=nodepack.registry_id,
+            required_version=nodepack.required_python_distribution_version,
+            source_kind="local",
+        )
         return
     if dependency_plan.action == "failed":
         raise RuntimeError(
@@ -454,14 +476,14 @@ def _refresh_python_distribution_nodepack_dependencies(
         on_log,
         (
             f"[ComfyNodepacks] Registry refresh did not provide "
-            f"{nodepack.display_name} {nodepack.minimum_python_distribution_version}; "
+            f"{nodepack.display_name} {nodepack.required_python_distribution_version}; "
             "applying pinned GitHub fallback while preserving nodepack metadata shape."
         ),
         operation="core_nodepack_dependency_pinned_fallback",
         nodepack_id=nodepack.nodepack_id.value,
         display_name=nodepack.display_name,
         registry_id=nodepack.registry_id,
-        required_version=nodepack.minimum_python_distribution_version,
+        required_version=nodepack.required_python_distribution_version,
         fallback_kind="pinned_archive",
     )
     _apply_pinned_source_fallback(
@@ -483,26 +505,28 @@ def _refresh_python_distribution_nodepack_dependencies(
         nodepack=nodepack,
         on_log=on_log,
     )
-    fallback_minimum_satisfied = _nodepack_python_distributions_satisfy_minimum(
-        python_executable=python_executable,
-        cwd=nodepack_root,
-        nodepack=nodepack,
-        on_log=on_log,
-        env=env,
+    fallback_required_version_installed = (
+        _nodepack_python_distribution_matches_required_version(
+            python_executable=python_executable,
+            cwd=nodepack_root,
+            nodepack=nodepack,
+            on_log=on_log,
+            env=env,
+        )
     )
     dependency_plan = plan_core_nodepack_dependency_refresh(
-        minimum_satisfied=fallback_minimum_satisfied,
+        required_version_installed=fallback_required_version_installed,
         pinned_archive_available=nodepack.pinned_source_archive_url is not None,
         pinned_fallback_already_applied=True,
     )
     if dependency_plan.action == "failed":
         raise RuntimeError(
             f"Could not install {nodepack.display_name} "
-            f"{nodepack.minimum_python_distribution_version} from fallback source."
+            f"{nodepack.required_python_distribution_version} from fallback source."
         )
 
 
-def _nodepack_python_distributions_satisfy_minimum(
+def _nodepack_python_distribution_matches_required_version(
     *,
     python_executable: Path,
     cwd: Path,
@@ -512,11 +536,11 @@ def _nodepack_python_distributions_satisfy_minimum(
 ) -> bool:
     """Return whether the canonical Python distribution satisfies the nodepack contract."""
 
-    return _python_distribution_satisfies_minimum(
+    return _python_distribution_matches_required_version(
         python_executable=python_executable,
         cwd=cwd,
         distribution_name=nodepack.python_distribution_name,
-        minimum_version=nodepack.minimum_python_distribution_version,
+        required_version=nodepack.required_python_distribution_version,
         on_log=on_log,
         env=env,
     )

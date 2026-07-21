@@ -62,7 +62,7 @@ def test_compatibility_blocks_too_old_backend() -> None:
 
     assert result.status is RuntimeCompatibilityStatus.BACKEND_TOO_OLD
     assert result.repairable is True
-    assert result.required_backend_version == ">=1.7.1,<2.0.0"
+    assert result.required_backend_version == "1.8.0"
 
 
 def test_compatibility_blocks_sugarcubes_before_required_release() -> None:
@@ -72,7 +72,28 @@ def test_compatibility_blocks_sugarcubes_before_required_release() -> None:
 
     assert result.status is RuntimeCompatibilityStatus.SUGARCUBES_TOO_OLD
     assert result.repairable is True
-    assert result.required_sugarcubes_version == ">=0.10.0,<2.0.0"
+    assert result.required_sugarcubes_version == "0.11.0"
+
+
+def test_compatibility_blocks_newer_patch_versions() -> None:
+    """Exact pins should reject versions newer than this application build requires."""
+
+    backend_result = _service(_capabilities(extension_version="1.8.1")).assess()
+    sugarcubes_result = _service(_capabilities(sugar_cubes_version="0.11.1")).assess()
+
+    assert backend_result.status is RuntimeCompatibilityStatus.BACKEND_TOO_NEW
+    assert sugarcubes_result.status is RuntimeCompatibilityStatus.SUGARCUBES_TOO_NEW
+
+
+def test_compatibility_allows_sugarcubes_branch_version_in_development() -> None:
+    """Development runs may exercise a branch before release metadata is bumped."""
+
+    result = _service(
+        _capabilities(sugar_cubes_version="0.10.0"),
+        mode=ApplicationRuntimeMode.DEVELOPMENT,
+    ).assess()
+
+    assert result.status is RuntimeCompatibilityStatus.COMPATIBLE
 
 
 def test_compatibility_allows_missing_sugarcubes_version_only_in_dev() -> None:
@@ -117,8 +138,8 @@ def _service(
 
 def _capabilities(
     *,
-    extension_version: str = "1.7.1",
-    sugar_cubes_version: str = "0.10.0",
+    extension_version: str = "1.8.0",
+    sugar_cubes_version: str = "0.11.0",
     sugarcubes_available: bool = True,
 ) -> BackendCapabilities:
     """Return compatible capabilities with override hooks."""

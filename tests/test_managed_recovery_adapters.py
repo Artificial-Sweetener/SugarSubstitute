@@ -396,7 +396,7 @@ def test_startup_recovery_failure_builds_runtime_incident(tmp_path: Path) -> Non
     incident = incidents[0]
     assert render_source_application_text(getattr(incident, "message")) == (
         "SugarCubes version is incompatible. Required BackEnd: >=1.6.2,<2.0.0. "
-        "Required SugarCubes: >=0.10.0,<2.0.0. recovery failed"
+        "Required SugarCubes: 0.11.0. recovery failed"
     )
     assert getattr(incident, "log_excerpt") == ("captured recovery transcript",)
     assert getattr(incident, "values")["recovery_attempted"] is True
@@ -581,7 +581,7 @@ def _compatibility(
         installed_backend_version="1.6.2",
         required_backend_version=">=1.6.2,<2.0.0",
         installed_sugarcubes_version="0.8.0",
-        required_sugarcubes_version=">=0.10.0,<2.0.0",
+        required_sugarcubes_version="0.11.0",
         repairable=True,
     )
 

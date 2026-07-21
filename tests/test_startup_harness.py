@@ -1022,7 +1022,7 @@ def test_build_sugarcubes_maintenance_command_uses_preflight(
 
     assert command[1:] == (
         "-m",
-        "backend.maintenance",
+        "sugarcubes.maintenance",
         "cube-deps",
         "preflight",
         "--workspace",
