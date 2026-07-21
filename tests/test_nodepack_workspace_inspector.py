@@ -73,13 +73,27 @@ def test_core_nodepack_installed_requires_all_sentinels(tmp_path: Path) -> None:
 
     nodepack = CORE_COMFY_NODEPACKS[0]
     root = tmp_path / nodepack.expected_folder
-    layout = nodepack.sentinel_layouts[0]
-    for sentinel in layout[:-1]:
+    for sentinel in nodepack.sentinel_files[:-1]:
         _write_file(root / sentinel, "")
 
     assert core_nodepack_installed(tmp_path, nodepack) is False
 
-    _write_file(root / layout[-1], "")
+    _write_file(root / nodepack.sentinel_files[-1], "")
+
+    assert core_nodepack_installed(tmp_path, nodepack) is True
+
+
+def test_old_sugarcubes_layout_is_recognized_for_version_reconciliation(
+    tmp_path: Path,
+) -> None:
+    """Layout migration should classify an old checkout as installed, not absent."""
+
+    nodepack = CORE_COMFY_NODEPACKS[1]
+    root = tmp_path / nodepack.expected_folder
+    _write_file(root / "__init__.py", "")
+    _write_file(root / "pyproject.toml", "[project]\nname='SugarCubes'\n")
+    _write_file(root / "nodes.py", "")
+    _write_file(root / "backend" / "__init__.py", "")
 
     assert core_nodepack_installed(tmp_path, nodepack) is True
 
@@ -88,22 +102,11 @@ def test_source_contains_sentinels_checks_checkout_root(tmp_path: Path) -> None:
     """Local source checks should validate sentinel files under the source root."""
 
     nodepack = CORE_COMFY_NODEPACKS[1]
-    for sentinel in nodepack.sentinel_layouts[0]:
+    for sentinel in nodepack.sentinel_files:
         _write_file(tmp_path / "source" / sentinel, "")
 
     assert source_contains_sentinels(tmp_path / "source", nodepack) is True
     assert source_contains_sentinels(tmp_path / "missing", nodepack) is False
-
-
-def test_sugarcubes_supports_current_packaged_source_layout(tmp_path: Path) -> None:
-    """SugarCubes 0.11's package layout should satisfy installation checks."""
-
-    nodepack = CORE_COMFY_NODEPACKS[1]
-    current_layout = nodepack.sentinel_layouts[1]
-    for sentinel in current_layout:
-        _write_file(tmp_path / "source" / sentinel, "")
-
-    assert source_contains_sentinels(tmp_path / "source", nodepack) is True
 
 
 def test_nodepack_metadata_detection(tmp_path: Path) -> None:
