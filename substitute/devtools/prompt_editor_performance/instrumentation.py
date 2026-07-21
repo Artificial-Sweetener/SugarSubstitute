@@ -96,10 +96,16 @@ from substitute.presentation.editor.prompt_editor.shell.scroll_delegate import (
 class InstrumentedMethods:
     """Patch selected prompt editor methods for local measurement."""
 
-    def __init__(self, instrumentation: Instrumentation) -> None:
+    def __init__(
+        self,
+        instrumentation: Instrumentation,
+        *,
+        suppress_context_menu_exec: bool = True,
+    ) -> None:
         """Store target counters and original methods."""
 
         self._instrumentation = instrumentation
+        self._suppress_context_menu_exec = suppress_context_menu_exec
         self._originals: list[tuple[type[object], str, object]] = []
 
     def __enter__(self) -> InstrumentedMethods:
@@ -353,12 +359,16 @@ class InstrumentedMethods:
             "handle_focus_in",
             self._instrumentation.focus_in,
         )
-        self._patch(
-            cast(type[object], prompt_context_menu_module._PromptEditorTextEditMenu),
-            "exec",
-            OperationCounter(),
-            replacement=lambda _instance, *_args, **_kwargs: None,
-        )
+        if self._suppress_context_menu_exec:
+            self._patch(
+                cast(
+                    type[object],
+                    prompt_context_menu_module._PromptEditorTextEditMenu,
+                ),
+                "exec",
+                OperationCounter(),
+                replacement=lambda _instance, *_args, **_kwargs: None,
+            )
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
