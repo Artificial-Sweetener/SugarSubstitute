@@ -30,6 +30,9 @@ from substitute.devtools.prompt_editor_performance.metrics import (
 from substitute.presentation.editor.prompt_editor.projection.surface import (
     PromptProjectionSurface,
 )
+from substitute.presentation.editor.prompt_editor.shell import (
+    context_menu_controller as prompt_context_menu_module,
+)
 
 
 class _PatchTarget:
@@ -99,3 +102,18 @@ def test_instrumented_methods_context_restores_prompt_editor_methods() -> None:
         assert patched is not original
 
     assert PromptProjectionSurface._rebuild_projection is original
+
+
+def test_instrumented_methods_can_delegate_context_menu_suppression() -> None:
+    """Leave menu execution to an outer harness when it owns popup capture."""
+
+    menu_type = cast(Any, prompt_context_menu_module)._PromptEditorTextEditMenu
+    original_exec = menu_type.exec
+
+    with InstrumentedMethods(
+        Instrumentation.create(),
+        suppress_context_menu_exec=False,
+    ):
+        assert menu_type.exec is original_exec
+
+    assert menu_type.exec is original_exec

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 
 from PySide6.QtCore import QTextBoundaryFinder
@@ -56,9 +57,7 @@ class TextCoordinateMap:
         ``prefer_after`` so callers never split a non-BMP character.
         """
 
-        target = min(max(0, utf16_offset), self.utf16_length)
-        if target == 0:
-            return 0
+        target = max(0, utf16_offset)
         consumed = 0
         for index, character in enumerate(self.text):
             next_consumed = consumed + _utf16_code_units(character)
@@ -68,6 +67,16 @@ class TextCoordinateMap:
                 return index + 1
             consumed = next_consumed
         return len(self.text)
+
+    def utf16_offsets_by_python_index(self) -> tuple[int, ...]:
+        """Return the Qt UTF-16 offset of every Python code-point boundary."""
+
+        offsets = [0]
+        consumed = 0
+        for character in self.text:
+            consumed += _utf16_code_units(character)
+            offsets.append(consumed)
+        return tuple(offsets)
 
     def grapheme_boundaries(self) -> tuple[int, ...]:
         """Return Python indices at every Unicode grapheme-cluster boundary."""
@@ -83,8 +92,13 @@ class TextCoordinateMap:
             if boundary < 0:
                 break
             utf16_boundaries.append(boundary)
+        offsets = self.utf16_offsets_by_python_index()
         return tuple(
-            self.utf16_to_python(boundary, prefer_after=True)
+            _python_index_for_utf16_offset(
+                offsets,
+                boundary,
+                prefer_after=True,
+            )
             for boundary in utf16_boundaries
         )
 
@@ -118,7 +132,20 @@ class TextCoordinateMap:
 def _utf16_code_units(character: str) -> int:
     """Return the UTF-16 code-unit width of one Python character."""
 
-    return len(character.encode("utf-16-le", errors="surrogatepass")) // 2
+    return 2 if ord(character) > 0xFFFF else 1
+
+
+def _python_index_for_utf16_offset(
+    offsets: tuple[int, ...],
+    utf16_offset: int,
+    *,
+    prefer_after: bool,
+) -> int:
+    """Resolve one clamped UTF-16 offset against Python boundary offsets."""
+
+    if prefer_after:
+        return bisect_left(offsets, utf16_offset)
+    return max(0, bisect_right(offsets, utf16_offset) - 1)
 
 
 __all__ = ["TextCoordinateMap"]

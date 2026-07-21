@@ -38,6 +38,7 @@ from substitute.presentation.editor.prompt_editor.editing_session import (
 from substitute.presentation.editor.prompt_editor.projection.surface import (
     PromptProjectionUndoPayload,
 )
+import substitute.presentation.text_coordinates as text_coordinates_module
 from substitute.presentation.text_coordinates import TextCoordinateMap
 from tests.prompt_projection_surface_test_helpers import (
     new_projection_surface,
@@ -146,9 +147,40 @@ def test_text_coordinate_map_keeps_surrogates_and_graphemes_atomic() -> None:
     assert coordinates.python_to_utf16(2) == 3
     assert coordinates.utf16_to_python(2) == 1
     assert coordinates.utf16_to_python(2, prefer_after=True) == 2
+    assert coordinates.utf16_to_python(10_000) == len(coordinates.text)
+    assert coordinates.utf16_offsets_by_python_index() == (0, 1, 3, 4, 6, 7, 8, 9)
     assert coordinates.grapheme_boundaries() == (0, 1, 4, 6, 7)
     assert coordinates.next_grapheme_boundary(1) == 4
     assert coordinates.previous_grapheme_boundary(6) == 4
+
+
+def test_text_coordinate_map_resolves_graphemes_with_linear_width_work(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Resolve a boundary batch with one character-width pass."""
+
+    text = "A👩‍🚀é日" * 256
+    width_call_count = 0
+    original_width = text_coordinates_module._utf16_code_units  # noqa: SLF001
+
+    def count_width(character: str) -> int:
+        """Count coordinate-width work without changing its result."""
+
+        nonlocal width_call_count
+        width_call_count += 1
+        return original_width(character)
+
+    monkeypatch.setattr(
+        text_coordinates_module,
+        "_utf16_code_units",
+        count_width,
+    )
+
+    boundaries = TextCoordinateMap(text).grapheme_boundaries()
+
+    assert boundaries[0] == 0
+    assert boundaries[-1] == len(text)
+    assert width_call_count == len(text)
 
 
 def test_prompt_navigation_and_deletion_do_not_split_grapheme_clusters(

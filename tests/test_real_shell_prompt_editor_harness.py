@@ -59,7 +59,9 @@ from tests.prompt_projection_surface_test_helpers import (
     lora_catalog_item_with_banner,
 )
 from tools.prompt_editor_abuse.models import PromptAbuseAction, PromptAbuseScenario
+from tools.prompt_editor_abuse.prompt_workloads import prompt_scenarios
 from tools.prompt_editor_abuse.real_shell_driver import run_real_shell_scenario
+from tools.prompt_editor_abuse.replay import scenario_prefix
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
@@ -1603,6 +1605,58 @@ def test_real_shell_abuse_driver_checks_projection_ownership_after_each_action(
     sample = result.dispatch_samples[0]
     assert sample.active_projection_ownership_valid is True
     assert sample.layout_projection_ownership_valid is True
+
+
+def test_real_shell_abuse_driver_rebinds_fragments_after_autocomplete_churn(
+    tmp_path: Path,
+) -> None:
+    """Queued autocomplete typing must keep layout fragments on current runs."""
+
+    scenario = scenario_prefix(
+        next(
+            candidate
+            for candidate in prompt_scenarios()
+            if candidate.name == "autocomplete-race-churn"
+        ),
+        action_count=6,
+    )
+    result = run_real_shell_scenario(
+        scenario,
+        repetition=0,
+        artifact_root=tmp_path,
+    )
+
+    assert result.correct
+    assert all(
+        sample.layout_fragment_ownership_valid is not False
+        for sample in result.dispatch_samples
+    )
+
+
+def test_seeded_abuse_selection_replace_keeps_fragment_owners(
+    tmp_path: Path,
+) -> None:
+    """Selection replacement must retain current fragment ownership."""
+
+    scenario = scenario_prefix(
+        next(
+            candidate
+            for candidate in prompt_scenarios(seed=7)
+            if candidate.name == "seeded-mixed-abuse"
+        ),
+        action_count=17,
+    )
+    result = run_real_shell_scenario(
+        scenario,
+        repetition=0,
+        artifact_root=tmp_path,
+    )
+
+    assert result.correct
+    assert all(
+        sample.layout_fragment_ownership_valid is not False
+        for sample in result.dispatch_samples
+    )
 
 
 def test_real_shell_abuse_driver_keeps_every_wrapping_keystroke_visible(

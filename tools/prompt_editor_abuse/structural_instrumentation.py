@@ -50,7 +50,10 @@ def prompt_abuse_structural_instrumentation(
     instrumentation = Instrumentation.create()
     token = _ACTIVE_INSTRUMENTATION.set(instrumentation)
     try:
-        with InstrumentedMethods(instrumentation):
+        with InstrumentedMethods(
+            instrumentation,
+            suppress_context_menu_exec=False,
+        ):
             yield instrumentation
     finally:
         _ACTIVE_INSTRUMENTATION.reset(token)
