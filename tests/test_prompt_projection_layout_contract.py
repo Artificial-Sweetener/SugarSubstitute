@@ -880,6 +880,35 @@ def test_projection_layout_reflow_rebuilds_only_the_dirty_line_window() -> None:
     )
 
 
+def test_projection_layout_reflows_before_changed_tag_keep_group() -> None:
+    """Changing kept-tag eligibility should permit preceding-line backfill."""
+
+    previous_text = "alpha, beta gamma delta, omega"
+    edit_start = previous_text.index("beta") + len("beta")
+    replacement_text = " extended"
+    next_text = (
+        f"{previous_text[:edit_start]}{replacement_text}{previous_text[edit_start:]}"
+    )
+    text_width = _plain_text_wrap_width("beta gamma delta,", "alpha, beta ")
+    incremental_layout, _ = _layout_for(previous_text, text_width=text_width)
+    next_document_view, next_projection = _projection_for(next_text)
+    full_layout, _ = _layout_for(next_text, text_width=text_width)
+
+    result = incremental_layout.set_projection_after_source_edit(
+        next_projection,
+        prompt_document_view=next_document_view,
+        edit_start=edit_start,
+        edit_end=edit_start,
+        replacement_text=replacement_text,
+    )
+
+    assert result.first_reflowed_line_index == 0
+    assert _line_texts(incremental_layout)[0] == "alpha, beta "
+    assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
+        full_layout
+    )
+
+
 def test_projection_layout_never_reuses_a_source_limited_terminal_line() -> None:
     """A probe boundary must not masquerade as deterministic suffix convergence."""
 

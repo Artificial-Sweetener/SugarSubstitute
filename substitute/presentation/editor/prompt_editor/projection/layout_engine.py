@@ -1045,6 +1045,14 @@ class PromptProjectionLayout:
             replacement_text=replacement_text,
         )
         first_line = 0 if dirty_line_index is None else dirty_line_index
+        if first_line > 0 and _plain_edit_changes_local_tag_keep_ranges(
+            previous_document.source_text,
+            projection_document.source_text,
+            edit_start=edit_start,
+            edit_end=edit_end,
+            replacement_text=replacement_text,
+        ):
+            first_line -= 1
         dirty_line = (
             previous_snapshot.lines[first_line] if previous_snapshot.lines else None
         )
@@ -4143,11 +4151,9 @@ def _plain_edit_changes_local_tag_keep_ranges(
     edit_end: int,
     replacement_text: str,
 ) -> bool:
-    """Return whether a comma edit changes hard-line tag keep ranges."""
+    """Return whether a plain edit changes its local tag keep range."""
 
     deleted_text = previous_source_text[edit_start:edit_end]
-    if "," not in replacement_text and "," not in deleted_text:
-        return False
     if (
         edit_start < 0
         or edit_end < edit_start
@@ -4170,6 +4176,41 @@ def _plain_edit_changes_local_tag_keep_ranges(
         edit_start=edit_start,
         edit_end=edit_start + len(replacement_text),
     )
+    previous_line_has_comma = (
+        previous_source_text.find(",", previous_line_start, previous_line_end) >= 0
+    )
+    next_line_has_comma = (
+        next_source_text.find(",", next_line_start, next_line_end) >= 0
+    )
+    if not previous_line_has_comma and not next_line_has_comma:
+        return False
+
+    if "," not in replacement_text and "," not in deleted_text:
+        previous_anchor = min(edit_start, len(previous_source_text))
+        next_anchor = min(
+            edit_start + len(replacement_text),
+            len(next_source_text),
+        )
+        previous_range = tag_keep_source_range_at_position(
+            previous_source_text,
+            previous_anchor,
+        )
+        next_range = tag_keep_source_range_at_position(
+            next_source_text,
+            next_anchor,
+        )
+        if previous_range is None and _source_segment_is_empty_at_position(
+            previous_source_text,
+            previous_anchor,
+        ):
+            return False
+        if next_range is None and _source_segment_is_empty_at_position(
+            next_source_text,
+            next_anchor,
+        ):
+            return False
+        return (previous_range is None) != (next_range is None)
+
     previous_ranges = tag_keep_source_ranges_in_source_line(
         previous_source_text,
         line_start=previous_line_start,
@@ -4191,6 +4232,24 @@ def _plain_edit_changes_local_tag_keep_ranges(
         line_end=next_line_end,
     )
     return remapped_previous_ranges != next_ranges
+
+
+def _source_segment_is_empty_at_position(
+    source_text: str,
+    source_position: int,
+) -> bool:
+    """Return whether one position belongs to an empty comma-delimited segment."""
+
+    bounded_position = max(0, min(source_position, len(source_text)))
+    line_start = source_text.rfind("\n", 0, bounded_position) + 1
+    line_end = source_text.find("\n", bounded_position)
+    if line_end < 0:
+        line_end = len(source_text)
+    previous_comma = source_text.rfind(",", line_start, bounded_position)
+    next_comma = source_text.find(",", bounded_position, line_end)
+    segment_start = line_start if previous_comma < 0 else previous_comma + 1
+    segment_end = line_end if next_comma < 0 else next_comma
+    return not source_text[segment_start:segment_end].strip()
 
 
 def _hard_line_bounds_for_source_edit(

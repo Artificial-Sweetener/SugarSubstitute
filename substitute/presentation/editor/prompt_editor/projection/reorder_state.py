@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import blake2b
 
 from PySide6.QtCore import QPoint, QPointF, QRectF, QSizeF
@@ -378,6 +378,23 @@ def reorder_overlay_refresh_geometry_key(
     )
 
 
+def reorder_overlay_refresh_is_height_only_change(
+    previous: PromptReorderOverlayRefreshGeometryKey,
+    current: PromptReorderOverlayRefreshGeometryKey,
+) -> bool:
+    """Return whether changed overlay bounds preserve every chip coordinate."""
+
+    return (
+        previous != current
+        and replace(
+            previous,
+            viewport_height=current.viewport_height,
+            content_height=current.content_height,
+        )
+        == current
+    )
+
+
 def reorder_pointer_region_geometry_key(
     *,
     dragged_segment_index: int | None,
@@ -436,5 +453,6 @@ __all__ = [
     "reorder_live_visual_geometry_key",
     "reorder_overlay_position_geometry_key",
     "reorder_overlay_refresh_geometry_key",
+    "reorder_overlay_refresh_is_height_only_change",
     "reorder_source_fingerprint",
 ]
