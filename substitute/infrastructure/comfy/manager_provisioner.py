@@ -45,6 +45,10 @@ from substitute.infrastructure.version_control import (
     repository_service,
 )
 from substitute.shared.logging.logger import get_logger, log_info
+from sugarsubstitute_shared.windows_long_paths import (
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 LogCallback = Callable[[str], None]
 
@@ -272,7 +276,7 @@ def _probe_integrated_runtime(
     if not workspace_supports_integrated_manager(workspace):
         return None, "ComfyUI does not declare integrated Manager support."
     result = _run_probe(
-        [str(python_executable), "-c", _INTEGRATED_IMPORT_SCRIPT],
+        [subprocess_path(python_executable), "-c", _INTEGRATED_IMPORT_SCRIPT],
         workspace=workspace,
         env=env,
         integrated=True,
@@ -306,7 +310,7 @@ def _probe_legacy_runtime(
     if not cli_path.is_file():
         return None, f"Legacy Manager CLI is missing: {cli_path}"
     result = _run_probe(
-        [str(python_executable), str(cli_path), "--help"],
+        [subprocess_path(python_executable), subprocess_path(cli_path), "--help"],
         workspace=workspace,
         env=env,
         integrated=False,
@@ -340,7 +344,7 @@ def _run_probe(
     )
     return subprocess.run(
         command,
-        cwd=str(workspace),
+        cwd=subprocess_working_directory(workspace),
         env=command_env,
         text=True,
         encoding="utf-8",
@@ -364,15 +368,15 @@ def _install_requirements(
 
     result = subprocess.run(
         [
-            str(python_executable),
+            subprocess_path(python_executable),
             "-m",
             "pip",
             "install",
             "-r",
-            str(requirements_path),
+            subprocess_path(requirements_path),
             *([integrated_manager_pygit2_requirement()] if integrated else []),
         ],
-        cwd=str(workspace),
+        cwd=subprocess_working_directory(workspace),
         env=(
             integrated_manager_environment(workspace, env)
             if integrated

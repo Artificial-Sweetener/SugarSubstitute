@@ -70,6 +70,10 @@ Prömpt prëvïëw:
       <translation>⟦%1 cöüld nöt bë mövëd tö thë cübë-rëqüïrëd vërsïön. ···⟧</translation>
     </message>
     <message>
+      <source>%1 could not use this Windows path even though Substitute can.</source>
+      <translation>⟦%1 cöüld nöt üsë thïs Wïndöws pàth ëvën thöügh Sübstïtütë càn. ···⟧</translation>
+    </message>
+    <message>
       <source>%1 cubes</source>
       <translation>⟦%1 cübës ···⟧</translation>
     </message>
@@ -238,6 +242,10 @@ Prömpt prëvïëw:
       <translation>⟦1 öütpüt ···⟧</translation>
     </message>
     <message>
+      <source>A Windows component could not use this long path</source>
+      <translation>⟦Å Wïndöws cömpönënt cöüld nöt üsë thïs löng pàth ···⟧</translation>
+    </message>
+    <message>
       <source>A cube dependency could not be installed automatically.</source>
       <translation>⟦Å cübë dëpëndëncy cöüld nöt bë ïnstàllëd àütömàtïcàlly. ···⟧</translation>
     </message>
@@ -256,6 +264,10 @@ Prömpt prëvïëw:
     <message>
       <source>A different ComfyUI is running</source>
       <translation>⟦Å dïffërënt CömfyÜÏ ïs rünnïng ···⟧</translation>
+    </message>
+    <message>
+      <source>A file or folder name is too long for Windows</source>
+      <translation>⟦Å fïlë ör földër nàmë ïs töö löng för Wïndöws ···⟧</translation>
     </message>
     <message>
       <source>A fluent design widgets library for PySide6</source>
@@ -752,6 +764,10 @@ Prömpt prëvïëw:
     <message>
       <source>Choose a folder and connect Substitute to ComfyUI.</source>
       <translation>⟦Chöösë à földër ànd cönnëct Sübstïtütë tö CömfyÜÏ. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose a shorter folder for this operation.</source>
+      <translation>⟦Chöösë à shörtër földër för thïs öpëràtïön. ···⟧</translation>
     </message>
     <message>
       <source>Choose a specific cube version</source>
@@ -3146,6 +3162,10 @@ Install these nodes now?</source>
       <translation>⟦Öpëràtïön plànnïng ïs nöt àvàïlàblë för thïs Cömfy sërvër. ···⟧</translation>
     </message>
     <message>
+      <source>Or enable Win32 long paths in Windows, then try again.</source>
+      <translation>⟦Ör ënàblë Wïn32 löng pàths ïn Wïndöws, thën try àgàïn. ···⟧</translation>
+    </message>
+    <message>
       <source>Or go back and choose a different empty ComfyUI folder.</source>
       <translation>⟦Ör gö bàck ànd chöösë à dïffërënt ëmpty CömfyÜÏ földër. ···⟧</translation>
     </message>
@@ -4200,6 +4220,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Severity: %1</source>
       <translation>⟦Sëvërïty: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Shorten the file or folder name at %1, then try again.</source>
+      <translation>⟦Shörtën thë fïlë ör földër nàmë àt %1, thën try àgàïn. ···⟧</translation>
     </message>
     <message>
       <source>Show Comfy output</source>
@@ -5646,6 +5670,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Windows DPAPI is unavailable on this platform.</source>
       <translation>⟦Wïndöws DPÅPÏ ïs ünàvàïlàblë ön thïs plàtförm. ···⟧</translation>
+    </message>
+    <message>
+      <source>Windows limits each individual file or folder name to 255 characters.</source>
+      <translation>⟦Wïndöws lïmïts ëàch ïndïvïdüàl fïlë ör földër nàmë tö 255 chàràctërs. ···⟧</translation>
     </message>
     <message>
       <source>Workflow</source>

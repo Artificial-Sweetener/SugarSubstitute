@@ -33,6 +33,7 @@ from substitute.domain.comfy_manager import (
     select_attached_manager_action,
 )
 from substitute.infrastructure.comfy import manager_provisioner
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 from tests.repository_service_test_double import RecordingRepositoryService
 
 
@@ -107,12 +108,12 @@ def test_managed_manager_installs_integrated_package_then_removes_legacy(
     assert runtime.version == "4.2.2"
     assert not legacy.exists()
     assert commands[1] == [
-        str(python),
+        subprocess_path(python),
         "-m",
         "pip",
         "install",
         "-r",
-        str(tmp_path / "manager_requirements.txt"),
+        subprocess_path(tmp_path / "manager_requirements.txt"),
         "pygit2==1.19.3",
     ]
     assert "cm_cli" not in commands[0][2]
@@ -259,19 +260,19 @@ def test_attached_old_comfy_installs_required_legacy_custom_node(
     )
     assert commands == [
         [
-            str(python),
+            subprocess_path(python),
             "-m",
             "pip",
             "install",
             "-r",
-            str(
+            subprocess_path(
                 manager_provisioner.workspace_manager_directory(tmp_path)
                 / "requirements.txt"
             ),
         ],
         [
-            str(python),
-            str(manager_provisioner.workspace_manager_cli_path(tmp_path)),
+            subprocess_path(python),
+            subprocess_path(manager_provisioner.workspace_manager_cli_path(tmp_path)),
             "--help",
         ],
     ]

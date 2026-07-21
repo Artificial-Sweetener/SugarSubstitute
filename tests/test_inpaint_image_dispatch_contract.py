@@ -52,6 +52,7 @@ from substitute.infrastructure.persistence import (
     FileWorkflowRepository,
 )
 from tests.node_behavior_test_helpers import build_behavior_snapshot
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
 class _QueueRecorderGateway:
@@ -397,8 +398,12 @@ def test_real_inpaint_generation_queues_selected_load_image_instead_of_default(
     assert failures == []
     assert queued_load_image_nodes
     assert queued_load_mask_nodes
-    assert queued_load_image_nodes[0]["inputs"]["image"] == str(selected_image)
-    assert queued_load_mask_nodes[0]["inputs"]["image"] == str(selected_mask)
+    assert queued_load_image_nodes[0]["inputs"]["image"] == subprocess_path(
+        selected_image
+    )
+    assert queued_load_mask_nodes[0]["inputs"]["image"] == subprocess_path(
+        selected_mask
+    )
     assert queued_load_mask_nodes[0]["inputs"]["channel"] == "red"
     assert queued_load_image_nodes[0]["inputs"]["image"] != default_image
     assert queued_load_mask_nodes[0]["inputs"]["image"] != default_image

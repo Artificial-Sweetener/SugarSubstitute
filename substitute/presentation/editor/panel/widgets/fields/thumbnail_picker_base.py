@@ -56,6 +56,7 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
     ensure_fluent_tooltip_filter,
     set_fluent_tooltip_text,
 )
+from sugarsubstitute_shared.windows_long_paths import qt_filesystem_path
 
 try:
     from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import-untyped]
@@ -289,7 +290,7 @@ class ThumbnailPickerBase(QWidget):
     ) -> None:
         """Render one selected file path or fall back to placeholder/empty state."""
 
-        pixmap = pixmap_loader(file_path)
+        pixmap = pixmap_loader(qt_filesystem_path(file_path))
         if pixmap.isNull():
             self._restore_placeholder_or_clear()
             return

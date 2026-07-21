@@ -47,6 +47,7 @@ from substitute.infrastructure.comfy.standalone_environment.models import (
     StandaloneVariantId,
 )
 from tests.repository_service_test_double import RecordingRepositoryService
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
 @pytest.fixture(autouse=True)
@@ -434,7 +435,9 @@ def test_ensure_workspace_virtualenv_creates_workspace_python(
     result = managed_install_commands.ensure_workspace_virtualenv(tmp_path)
 
     assert result == venv_python
-    assert observed == [[sys.executable, "-m", "venv", str(tmp_path / ".venv")]]
+    assert observed == [
+        [sys.executable, "-m", "venv", subprocess_path(tmp_path / ".venv")]
+    ]
 
 
 def test_pip_install_raises_when_streamed_install_fails(
