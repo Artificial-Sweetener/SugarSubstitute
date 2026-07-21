@@ -18,9 +18,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Generic, TypeVar
 
+from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+    PromptStructuredTextMutationService,
+)
+from substitute.domain.prompt import SourceRange
 from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptEditingSession,
     PromptSourceEditOrigin,
@@ -64,6 +68,7 @@ class PromptApplyPreparedDanbooruImportCommand(Generic[TPayload]):
     exact_source: bool
     record_undo: bool
     undo_snapshot: PromptUndoSnapshot[TPayload]
+    structured_text_mutations: PromptStructuredTextMutationService | None = None
     name: str = "apply_prepared_danbooru_import"
 
     def execute(
@@ -97,16 +102,47 @@ class PromptApplyPreparedDanbooruImportCommand(Generic[TPayload]):
                 reason="pasted_text_changed",
             )
 
+        replacement_start = source_range.start
+        replacement_end = source_range.end
+        replacement_text = self.request.import_text
+        exact_source = self.exact_source
+        cursor_position: int | None = None
+        if self.structured_text_mutations is not None:
+            structured_replacement = (
+                self.structured_text_mutations.replacement_for_range(
+                    session.source_text,
+                    SourceRange(source_range.start, source_range.end),
+                    self.request.import_text,
+                )
+            )
+            if structured_replacement is None:
+                return PromptPasteImportCommandResult(
+                    command_name=self.name,
+                    status="rejected",
+                    reason="prompt_value_unavailable",
+                )
+            replacement_start = structured_replacement.source_range.start
+            replacement_end = structured_replacement.source_range.end
+            replacement_text = structured_replacement.replacement_text
+            exact_source = structured_replacement.exact_source
+            cursor_position = structured_replacement.cursor_position
+
         source_change = session.replace_source_range(
-            start=source_range.start,
-            end=source_range.end,
-            replacement_text=self.request.import_text,
+            start=replacement_start,
+            end=replacement_end,
+            replacement_text=replacement_text,
             normalizer=self.normalizer,
             origin=PromptSourceEditOrigin.PASTE,
-            exact_source=self.exact_source,
+            exact_source=exact_source,
             record_undo=self.record_undo,
             undo_snapshot=self.undo_snapshot,
         )
+        if cursor_position is not None:
+            cursor_state = session.set_cursor_positions(
+                cursor_position=cursor_position,
+                anchor_position=cursor_position,
+            )
+            source_change = replace(source_change, cursor_state=cursor_state)
         discard_availability_change = None
         if source_change.source_changed:
             discard_availability_change = session.discard_trailing_undo_state(
@@ -134,6 +170,7 @@ def build_prepared_danbooru_import_command(
     exact_source: bool,
     record_undo: bool,
     undo_snapshot: PromptUndoSnapshot[TPayload],
+    structured_text_mutations: PromptStructuredTextMutationService | None = None,
 ) -> PromptApplyPreparedDanbooruImportCommand[TPayload]:
     """Return the executable command for one prepared Danbooru import insertion."""
 
@@ -143,6 +180,7 @@ def build_prepared_danbooru_import_command(
         exact_source=exact_source,
         record_undo=record_undo,
         undo_snapshot=undo_snapshot,
+        structured_text_mutations=structured_text_mutations,
     )
 
 

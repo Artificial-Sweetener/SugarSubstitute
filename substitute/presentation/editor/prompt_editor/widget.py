@@ -61,12 +61,18 @@ from substitute.application.prompt_editor import (
     PromptEditorFeatureProfile,
     PromptLoraCatalogLookup,
     PromptMutationService,
+    PromptReorderLayoutView,
     PromptScheduledLora,
     PromptScheduledLoraService,
     PromptSpellcheckService,
     PromptSyntaxProfile,
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.prompt_document_semantics import (
+    OrdinaryPromptDocumentSemantics,
+    PromptDocumentSemantics,
+    PromptDocumentSemanticsController,
 )
 from substitute.application.ports import (
     PromptAutocompleteGateway,
@@ -144,7 +150,11 @@ from .mime_data_policy import (
     prompt_plain_text_from_mime_data,
 )
 from .projection.selection_geometry import PromptProjectionSourceLineRect
+from .projection.reorder_chip_geometry import PromptReorderChipGeometrySnapshot
+from .projection.reorder_placement_geometry import PromptReorderPlacementSnapshot
 from .projection.reorder_preview import PromptReorderPreviewState
+from .projection.reorder_visual_snapshot import PromptReorderProjectionPaintSnapshot
+from .projection.reorder_surface_chrome import PromptReorderSurfaceChromeChip
 from .shell import (
     PromptEditorShell,
     PromptFillPlane,
@@ -190,6 +200,7 @@ class PromptEditor(QFluentTextEdit):
         *,
         prompt_autocomplete_gateway: PromptAutocompleteGateway,
         prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
+        prompt_document_semantics: PromptDocumentSemantics | None = None,
         danbooru_url_import_service: DanbooruUrlImportService | None = None,
         danbooru_wiki_service: DanbooruWikiContentService | None = None,
         danbooru_image_preview_service: DanbooruImagePreviewService | None = None,
@@ -213,10 +224,14 @@ class PromptEditor(QFluentTextEdit):
     ) -> None:
         """Create the QFluent host shell and attach the custom projection surface."""
 
+        self._document_semantics = PromptDocumentSemanticsController(
+            prompt_document_semantics or OrdinaryPromptDocumentSemantics()
+        )
         construction_inputs = PromptEditorConstructionInputs(
             parent=parent,
             prompt_autocomplete_gateway=prompt_autocomplete_gateway,
             prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+            prompt_document_semantics=self._document_semantics,
             danbooru_url_import_service=danbooru_url_import_service,
             danbooru_wiki_service=danbooru_wiki_service,
             danbooru_image_preview_service=danbooru_image_preview_service,
@@ -442,6 +457,7 @@ class PromptEditor(QFluentTextEdit):
             surface=self._surface,
             feature_profile=self._feature_profile_controller,
             wildcard_feature=self._wildcard_feature_controller,
+            document_semantics=self._document_semantics,
             spellcheck_service=prompt_spellcheck_service,
             parent=self,
             request_channel=cast(
@@ -794,6 +810,20 @@ class PromptEditor(QFluentTextEdit):
         """Replace restored exact source text and make it the undo baseline."""
 
         self._command_adapter.replace_baseline_text(text, exact_source=True)
+
+    def replaceBaselineSourceDocument(  # noqa: N802
+        self,
+        text: str,
+        document_semantics: PromptDocumentSemantics,
+    ) -> None:
+        """Atomically replace document semantics, exact source, and undo baseline."""
+
+        semantics_changed = self._document_semantics.replace(document_semantics)
+        self._command_adapter.replace_baseline_text(text, exact_source=True)
+        if semantics_changed:
+            self._interaction_controller.handle_document_semantics_changed()
+            self._diagnostics_feature_controller.handle_document_semantics_changed()
+            self._lora_trigger_word_controller.handle_source_changed()
 
     def preloadVisibleLoraBanners(  # noqa: N802
         self,
@@ -1234,6 +1264,21 @@ class PromptEditor(QFluentTextEdit):
             chip_owned_ranges_by_index=chip_owned_ranges_by_index,
         )
 
+    def reorder_live_placement_snapshot(
+        self,
+        *,
+        layout_view: PromptReorderLayoutView,
+        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
+        gap_ranges_by_index: dict[int, tuple[int, int]],
+    ) -> PromptReorderPlacementSnapshot:
+        """Return provisional placements from the current live projection."""
+
+        return self._surface.reorder_live_placement_snapshot(
+            layout_view=layout_view,
+            chip_geometry_snapshot=chip_geometry_snapshot,
+            gap_ranges_by_index=gap_ranges_by_index,
+        )
+
     def reorder_preview_chip_geometry_snapshot(
         self,
         *,
@@ -1265,18 +1310,33 @@ class PromptEditor(QFluentTextEdit):
         *,
         chip_geometry_snapshot,
         chip_owned_ranges_by_index,
+        chip_indices=None,
     ):
         """Return projection-owned preview paint snapshots for visible reorder chips."""
 
         return self._surface.reorder_preview_chip_projection_paint_snapshots(
             chip_geometry_snapshot=chip_geometry_snapshot,
             chip_owned_ranges_by_index=chip_owned_ranges_by_index,
+            chip_indices=chip_indices,
         )
 
-    def set_reorder_overlay_suppressed_chip_indices(self, chip_indices):
-        """Suppress document-painted chips currently rendered by reorder overlay."""
+    def set_reorder_overlay_suppression_snapshots(
+        self,
+        snapshots_by_index: dict[int, PromptReorderProjectionPaintSnapshot],
+    ) -> None:
+        """Suppress fragments represented by exact reorder overlay snapshots."""
 
-        self._surface.set_reorder_overlay_suppressed_chip_indices(chip_indices)
+        self._surface.set_reorder_overlay_suppression_snapshots(snapshots_by_index)
+
+    def set_reorder_surface_chrome(
+        self,
+        *,
+        mode: str,
+        chips: tuple[PromptReorderSurfaceChromeChip, ...],
+    ) -> None:
+        """Paint stationary reorder chrome below projection-owned text."""
+
+        self._surface.set_reorder_surface_chrome(mode=mode, chips=chips)
 
     def reorder_preview_cursor_rect(self, position: int):
         """Return the active reorder preview caret rect for one source position."""

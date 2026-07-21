@@ -182,6 +182,20 @@ class _UnusedGeometryHost:
         _ = layout_view
         raise AssertionError("placement geometry should not be requested")
 
+    def reorder_live_placement_snapshot(
+        self,
+        *,
+        layout_view: PromptReorderLayoutView,
+        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
+        gap_ranges_by_index: dict[int, tuple[int, int]],
+    ) -> PromptReorderPlacementSnapshot:
+        """Reject unexpected live placement requests in identity-only tests."""
+
+        _ = layout_view
+        _ = chip_geometry_snapshot
+        _ = gap_ranges_by_index
+        raise AssertionError("live placement geometry should not be requested")
+
     def reorder_placement_at_rect(
         self,
         drag_rect: QRectF,

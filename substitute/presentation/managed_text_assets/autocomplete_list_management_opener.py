@@ -27,10 +27,6 @@ from substitute.application.managed_text_assets import (
 from substitute.application.managed_text_assets.prompt_profiles import (
     line_list_prompt_feature_profile,
 )
-from substitute.application.ports import (
-    PromptAutocompleteGateway,
-    PromptWildcardCatalogGateway,
-)
 from substitute.application.prompt_autocomplete_lists import (
     PromptAutocompleteListService,
 )
@@ -39,9 +35,8 @@ from substitute.domain.prompt import PromptWheelAdjustmentMode
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget
 
-    from substitute.application.prompt_editor import PromptSpellcheckService
-    from substitute.presentation.editor.panel.service_bundle import (
-        EditorPanelExecutionFactories,
+    from substitute.presentation.editor.prompt_editor.runtime_services import (
+        PromptEditorRuntimeServices,
     )
 
     from .autocomplete_list_management_modal import (
@@ -56,20 +51,14 @@ class AutocompleteListManagementOpener:
         self,
         *,
         list_service: PromptAutocompleteListService,
-        prompt_autocomplete_gateway: PromptAutocompleteGateway,
-        prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
-        editor_panel_execution_factories: EditorPanelExecutionFactories,
-        prompt_spellcheck_service: PromptSpellcheckService | None = None,
+        prompt_runtime_services: PromptEditorRuntimeServices,
         prompt_wheel_adjustment_mode: Callable[[], PromptWheelAdjustmentMode]
         | None = None,
     ) -> None:
         """Store modal construction dependencies."""
 
         self._list_service = list_service
-        self._prompt_autocomplete_gateway = prompt_autocomplete_gateway
-        self._prompt_wildcard_catalog_gateway = prompt_wildcard_catalog_gateway
-        self._execution_factories = editor_panel_execution_factories
-        self._prompt_spellcheck_service = prompt_spellcheck_service
+        self._prompt_runtime_services = prompt_runtime_services
         self._wheel_adjustment_mode = prompt_wheel_adjustment_mode or (
             lambda: PromptWheelAdjustmentMode.HOVER_DWELL
         )
@@ -91,16 +80,8 @@ class AutocompleteListManagementOpener:
 
         return AutocompleteListManagementModal(
             service=AutocompleteListManagedTextAssetService(self._list_service),
-            prompt_autocomplete_gateway=self._prompt_autocomplete_gateway,
-            prompt_wildcard_catalog_gateway=self._prompt_wildcard_catalog_gateway,
+            prompt_runtime_services=self._prompt_runtime_services,
             prompt_feature_profile=line_list_prompt_feature_profile(),
-            prompt_spellcheck_service=self._prompt_spellcheck_service,
-            prompt_task_executor_factory=(
-                self._execution_factories.prompt_task_executor_factory
-            ),
-            danbooru_lookup_dispatcher_factory=(
-                self._execution_factories.danbooru_lookup_dispatcher_factory
-            ),
             wheel_adjustment_mode=self._wheel_adjustment_mode(),
             parent=_top_level_modal_parent(parent),
         )

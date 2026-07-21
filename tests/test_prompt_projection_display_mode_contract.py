@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from unittest.mock import Mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -123,6 +124,63 @@ def test_prompt_editor_display_mode_toggle_preserves_source_text_and_selection(
     assert box.toPlainText() == "(cat:1.05), suffix"
     assert box.textCursor().selectionStart() == 1
     assert box.textCursor().selectionEnd() == 4
+
+
+def test_prompt_editor_reuses_exact_mode_layouts_until_prompt_state_changes(
+    widgets: list[QWidget],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Repeated raw/rich toggles should rebuild once per canonical state."""
+
+    app = ensure_qapp()
+    box = show_prompt_editor(
+        widgets,
+        text="(cat:1.05), suffix",
+        width=240,
+    )
+    surface = surface_for(box)
+    rebuild_projection = Mock(wraps=surface._projection_applicator.rebuild_projection)
+    monkeypatch.setattr(
+        surface._projection_applicator,
+        "rebuild_projection",
+        rebuild_projection,
+    )
+
+    box.setDisplayMode(PromptProjectionDisplayMode.RAW)
+    box.setDisplayMode(PromptProjectionDisplayMode.PROJECTED)
+    box.setDisplayMode(PromptProjectionDisplayMode.RAW)
+    process_events(app)
+
+    assert rebuild_projection.call_count == 1
+    assert surface.projection_document().projection_text == "(cat:1.05), suffix"
+
+    QTest.keyClicks(box, "x")
+    box.setDisplayMode(PromptProjectionDisplayMode.PROJECTED)
+    process_events(app)
+
+    assert rebuild_projection.call_count == 2
+    assert box.toPlainText() == "(cat:1.05), suffixx"
+
+
+def test_prompt_editor_raw_toggle_does_not_leave_cleared_transient_projection(
+    widgets: list[QWidget],
+) -> None:
+    """Mode switching should restore canonical geometry after caret-driven collapse."""
+
+    app = ensure_qapp()
+    box = show_prompt_editor(
+        widgets,
+        text="(cat:1.05), suffix",
+        width=240,
+    )
+    surface = surface_for(box)
+
+    box.setDisplayMode(PromptProjectionDisplayMode.RAW)
+    process_events(app)
+
+    assert surface._active_projection_requires_layout() is False
+    assert surface.active_projection_document() is surface.projection_document()
+    assert surface._layout.projection_document is surface.projection_document()
 
 
 def test_prompt_editor_rich_rendering_defaults_to_projected_mode(

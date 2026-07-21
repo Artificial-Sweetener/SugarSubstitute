@@ -45,6 +45,9 @@ from substitute.presentation.editor.panel.projection_models import ProjectedCube
 from substitute.presentation.editor.panel.projection_session import (
     ActiveProjectionSession,
 )
+from substitute.presentation.editor.prompt_editor.runtime_services import (
+    PromptEditorRuntimeServices,
+)
 from tests.node_behavior_test_helpers import build_behavior_snapshot, cube_state
 from tests.localization_testing import empty_node_presentation_service
 
@@ -73,17 +76,14 @@ class _StrictNodeCardBuilder:
         self.panel = panel
         self.services = services
         self.node_definition_gateway = services.node_definition_gateway
-        self.prompt_autocomplete_gateway = services.prompt.autocomplete_gateway
-        self.prompt_wildcard_catalog_gateway = services.prompt.wildcard_catalog_gateway
-        self.danbooru_url_import_service = services.prompt.danbooru_url_import_service
-        self.danbooru_wiki_service = services.prompt.danbooru_wiki_service
-        self.danbooru_image_preview_service = (
-            services.prompt.danbooru_image_preview_service
-        )
-        self.danbooru_recent_posts_service = (
-            services.prompt.danbooru_recent_posts_service
-        )
-        self.prompt_lora_catalog_service = services.prompt.lora_catalog_service
+        runtime = services.prompt.runtime
+        self.prompt_autocomplete_gateway = runtime.autocomplete_gateway
+        self.prompt_wildcard_catalog_gateway = runtime.wildcard_catalog_gateway
+        self.danbooru_url_import_service = runtime.danbooru_url_import_service
+        self.danbooru_wiki_service = runtime.danbooru_wiki_service
+        self.danbooru_image_preview_service = runtime.danbooru_image_preview_service
+        self.danbooru_recent_posts_service = runtime.danbooru_recent_posts_service
+        self.prompt_lora_catalog_service = runtime.lora_catalog_service
         self.model_choice_snapshot_controller = model_choice_snapshot_controller
         self.thumbnail_asset_repository = thumbnail_asset_repository
         self.dimension_preset_source = dimension_preset_source
@@ -1521,18 +1521,20 @@ def test_editor_panel_build_node_card_uses_node_card_builder_constructor_surface
         node_behavior_service=object(),
         node_presentation_service=empty_node_presentation_service(),
         prompt=mod.EditorPanelPromptServiceBundle(
-            autocomplete_gateway=fake.prompt_autocomplete_gateway,
-            wildcard_catalog_gateway=fake.prompt_wildcard_catalog_gateway,
+            runtime=PromptEditorRuntimeServices(
+                autocomplete_gateway=fake.prompt_autocomplete_gateway,
+                wildcard_catalog_gateway=fake.prompt_wildcard_catalog_gateway,
+                scheduled_lora_service=fake.prompt_scheduled_lora_service,
+                lora_catalog_service=fake.prompt_lora_catalog_service,
+                danbooru_url_import_service=fake.danbooru_url_import_service,
+                danbooru_wiki_service=fake.danbooru_wiki_service,
+                danbooru_image_preview_service=fake.danbooru_image_preview_service,
+                danbooru_recent_posts_service=fake.danbooru_recent_posts_service,
+                spellcheck_service=None,
+                thumbnail_asset_repository=fake.thumbnail_asset_repository,
+            ),
             scheduled_lora_provider=fake.scheduled_lora_provider,
-            scheduled_lora_service=fake.prompt_scheduled_lora_service,
-            lora_catalog_service=fake.prompt_lora_catalog_service,
-            danbooru_url_import_service=fake.danbooru_url_import_service,
-            danbooru_wiki_service=fake.danbooru_wiki_service,
-            danbooru_image_preview_service=fake.danbooru_image_preview_service,
-            danbooru_recent_posts_service=fake.danbooru_recent_posts_service,
-            spellcheck_service=None,
             feature_profile_service=None,
-            thumbnail_asset_repository=fake.thumbnail_asset_repository,
         ),
         model=mod.EditorPanelModelServiceBundle(
             catalog_service=fake.model_catalog_service,
@@ -1625,18 +1627,20 @@ def test_editor_panel_prepares_node_card_prompt_inputs(monkeypatch) -> None:
         node_behavior_service=object(),
         node_presentation_service=empty_node_presentation_service(),
         prompt=mod.EditorPanelPromptServiceBundle(
-            autocomplete_gateway=fake.prompt_autocomplete_gateway,
-            wildcard_catalog_gateway=fake.prompt_wildcard_catalog_gateway,
+            runtime=PromptEditorRuntimeServices(
+                autocomplete_gateway=fake.prompt_autocomplete_gateway,
+                wildcard_catalog_gateway=fake.prompt_wildcard_catalog_gateway,
+                scheduled_lora_service=fake.prompt_scheduled_lora_service,
+                lora_catalog_service=fake.prompt_lora_catalog_service,
+                danbooru_url_import_service=fake.danbooru_url_import_service,
+                danbooru_wiki_service=fake.danbooru_wiki_service,
+                danbooru_image_preview_service=fake.danbooru_image_preview_service,
+                danbooru_recent_posts_service=fake.danbooru_recent_posts_service,
+                spellcheck_service=None,
+                thumbnail_asset_repository=fake.thumbnail_asset_repository,
+            ),
             scheduled_lora_provider=fake.scheduled_lora_provider,
-            scheduled_lora_service=fake.prompt_scheduled_lora_service,
-            lora_catalog_service=fake.prompt_lora_catalog_service,
-            danbooru_url_import_service=fake.danbooru_url_import_service,
-            danbooru_wiki_service=fake.danbooru_wiki_service,
-            danbooru_image_preview_service=fake.danbooru_image_preview_service,
-            danbooru_recent_posts_service=fake.danbooru_recent_posts_service,
-            spellcheck_service=None,
             feature_profile_service=None,
-            thumbnail_asset_repository=fake.thumbnail_asset_repository,
         ),
         model=mod.EditorPanelModelServiceBundle(
             catalog_service=fake.model_catalog_service,

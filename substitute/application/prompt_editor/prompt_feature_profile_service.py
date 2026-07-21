@@ -170,6 +170,36 @@ class PromptFeatureProfileService:
                     syntax_kinds.append(syntax_kind)
         return tuple(syntax_kinds)
 
+    def build_library_profile(self) -> PromptEditorFeatureProfile:
+        """Resolve preference-controlled features without workflow capability gates."""
+
+        user_preferences = self._preference_service.load_preferences()
+        decisions = {
+            definition.feature: PromptFeatureDecision(
+                feature=definition.feature,
+                enabled=user_preferences.user_allows(definition.feature),
+                disabled_reason=(
+                    None
+                    if user_preferences.user_allows(definition.feature)
+                    else PromptFeatureDisabledReason.USER_DISABLED
+                ),
+            )
+            for definition in prompt_feature_definitions()
+        }
+        self._apply_dependencies(decisions)
+        self._apply_conflicts(
+            decisions,
+            cube_alias=None,
+            prompt_node_name="wildcard-library",
+            prompt_field_key="wildcard-value",
+        )
+        return PromptEditorFeatureProfile(
+            decisions=tuple(
+                decisions[definition.feature]
+                for definition in prompt_feature_definitions()
+            )
+        )
+
     def _field_allowed_features(
         self,
         field_style: Mapping[str, object],
@@ -409,17 +439,15 @@ class PromptFeatureProfileService:
 
 
 def wildcard_management_prompt_feature_profile() -> PromptEditorFeatureProfile:
-    """Return prompt features appropriate for wildcard file authoring."""
+    """Return registry-backed default features for wildcard file authoring."""
 
-    enabled_features = {
-        PromptEditorFeature.EMPHASIS,
-        PromptEditorFeature.WILDCARD_SYNTAX,
-        PromptEditorFeature.WILDCARD_AUTOCOMPLETE,
-    }
     return PromptEditorFeatureProfile(
         decisions=tuple(
-            PromptFeatureDecision(feature=feature, enabled=feature in enabled_features)
-            for feature in PromptEditorFeature
+            PromptFeatureDecision(
+                feature=definition.feature,
+                enabled=definition.default_user_allowed,
+            )
+            for definition in prompt_feature_definitions()
         )
     )
 

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -52,7 +53,7 @@ class PromptTokenWeightProjectionSnapshot(Protocol):
         ...
 
     @property
-    def tokens(self) -> tuple[PromptProjectionToken, ...]:
+    def tokens(self) -> Sequence[PromptProjectionToken]:
         """Return prepared projection tokens available to overlays."""
         ...
 

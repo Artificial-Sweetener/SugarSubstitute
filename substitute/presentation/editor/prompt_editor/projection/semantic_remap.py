@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 
 from substitute.application.prompt_editor import (
@@ -38,6 +39,7 @@ from substitute.application.prompt_editor import (
 )
 
 from .diagnostic_remap import remap_diagnostics_after_source_edit
+from .source_shifted_sequence import remap_source_sequence
 
 type PromptProjectionOptimisticPromptState = tuple[
     PromptDocumentView, PromptSyntaxRenderPlan
@@ -51,6 +53,7 @@ _OPTIMISTIC_IMMEDIATE_DEFERRAL_REASONS = frozenset(
         "delete_intersects_projected_token",
         "plain_single_character_requires_layout",
         "plain_single_character_delete",
+        "syntax_sensitive_character",
         "syntax_sensitive_autocomplete_prefix_requires_layout",
     }
 )
@@ -164,12 +167,12 @@ class PromptProjectionSemanticRemapper:
 
     def remap_diagnostics_for_edit(
         self,
-        diagnostics: tuple[PromptDiagnostic, ...],
+        diagnostics: Sequence[PromptDiagnostic],
         *,
         start: int,
         end: int,
         replacement_text: str,
-    ) -> tuple[PromptDiagnostic, ...]:
+    ) -> Sequence[PromptDiagnostic]:
         """Return diagnostics remapped across one bounded source edit."""
 
         return remap_diagnostics_after_source_edit(
@@ -251,6 +254,7 @@ def _optimistic_render_plan_for_edit(
             )
             for renderer_view in render_plan.renderer_views
         ),
+        document_semantics_identity=render_plan.document_semantics_identity,
     )
 
 
@@ -306,432 +310,136 @@ def _remap_renderer_view_for_edit(
 
 
 def _remap_segment_views_for_edit(
-    segments: tuple[PromptSegmentView, ...],
+    segments: Sequence[PromptSegmentView],
     *,
     start: int,
     end: int,
     delta: int,
-) -> tuple[PromptSegmentView, ...]:
+) -> Sequence[PromptSegmentView]:
     """Return segment ranges that remain valid after one source edit."""
 
-    remapped_segments: list[PromptSegmentView] = []
-    for segment in segments:
-        if _range_overlaps_edit(
-            range_start=segment.selection_start,
-            range_end=segment.selection_end,
-            edit_start=start,
-            edit_end=end,
-        ):
-            continue
-        remapped_segments.append(
-            replace(
-                segment,
-                display_source_start=_remap_position_after_edit(
-                    segment.display_source_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                display_source_end=_remap_position_after_edit(
-                    segment.display_source_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-                selection_start=_remap_position_after_edit(
-                    segment.selection_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                selection_end=_remap_position_after_edit(
-                    segment.selection_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-            )
-        )
-    return tuple(remapped_segments)
+    return remap_source_sequence(
+        segments,
+        start=start,
+        end=end,
+        delta=delta,
+        source_range=_segment_source_range,
+        shift_item=_shift_segment_view,
+    )
 
 
 def _remap_syntax_spans_for_edit(
-    spans: tuple[PromptSyntaxSpanView, ...],
+    spans: Sequence[PromptSyntaxSpanView],
     *,
     start: int,
     end: int,
     delta: int,
-) -> tuple[PromptSyntaxSpanView, ...]:
+) -> Sequence[PromptSyntaxSpanView]:
     """Return syntax spans that remain valid after one source edit."""
 
-    remapped_spans: list[PromptSyntaxSpanView] = []
-    for span in spans:
-        if _range_overlaps_edit(
-            range_start=span.start,
-            range_end=span.end,
-            edit_start=start,
-            edit_end=end,
-        ):
-            continue
-        remapped_spans.append(
-            replace(
-                span,
-                start=_remap_position_after_edit(
-                    span.start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                end=_remap_position_after_edit(
-                    span.end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-            )
-        )
-    return tuple(remapped_spans)
+    return remap_source_sequence(
+        spans,
+        start=start,
+        end=end,
+        delta=delta,
+        source_range=_syntax_span_source_range,
+        shift_item=_shift_syntax_span,
+    )
 
 
 def _remap_emphasis_views_for_edit(
-    spans: tuple[PromptEmphasisView, ...],
+    spans: Sequence[PromptEmphasisView],
     *,
     start: int,
     end: int,
     delta: int,
-) -> tuple[PromptEmphasisView, ...]:
+) -> Sequence[PromptEmphasisView]:
     """Return emphasis spans that remain valid after one source edit."""
 
-    remapped_spans: list[PromptEmphasisView] = []
-    for span in spans:
-        if _range_overlaps_edit(
-            range_start=span.outer_start,
-            range_end=span.outer_end,
-            edit_start=start,
-            edit_end=end,
-        ):
-            continue
-        remapped_spans.append(
-            replace(
-                span,
-                outer_start=_remap_position_after_edit(
-                    span.outer_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                outer_end=_remap_position_after_edit(
-                    span.outer_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-                content_start=_remap_position_after_edit(
-                    span.content_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                content_end=_remap_position_after_edit(
-                    span.content_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-                weight_start=_remap_position_after_edit(
-                    span.weight_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                weight_end=_remap_position_after_edit(
-                    span.weight_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-            )
-        )
-    return tuple(remapped_spans)
+    return remap_source_sequence(
+        spans,
+        start=start,
+        end=end,
+        delta=delta,
+        source_range=_emphasis_source_range,
+        shift_item=_shift_emphasis_view,
+    )
 
 
 def _remap_wildcard_views_for_edit(
-    spans: tuple[PromptWildcardView, ...],
+    spans: Sequence[PromptWildcardView],
     *,
     start: int,
     end: int,
     delta: int,
-) -> tuple[PromptWildcardView, ...]:
+) -> Sequence[PromptWildcardView]:
     """Return wildcard spans that remain valid after one source edit."""
 
-    remapped_spans: list[PromptWildcardView] = []
-    for span in spans:
-        if _range_overlaps_edit(
-            range_start=span.outer_start,
-            range_end=span.outer_end,
-            edit_start=start,
-            edit_end=end,
-        ):
-            continue
-        remapped_spans.append(
-            replace(
-                span,
-                outer_start=_remap_position_after_edit(
-                    span.outer_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                outer_end=_remap_position_after_edit(
-                    span.outer_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-                content_start=_remap_position_after_edit(
-                    span.content_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                content_end=_remap_position_after_edit(
-                    span.content_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-            )
-        )
-    return tuple(remapped_spans)
+    return remap_source_sequence(
+        spans,
+        start=start,
+        end=end,
+        delta=delta,
+        source_range=_wildcard_source_range,
+        shift_item=_shift_wildcard_view,
+    )
 
 
 def _remap_lora_views_for_edit(
-    spans: tuple[PromptLoraView, ...],
+    spans: Sequence[PromptLoraView],
     *,
     start: int,
     end: int,
     delta: int,
-) -> tuple[PromptLoraView, ...]:
+) -> Sequence[PromptLoraView]:
     """Return LoRA spans that remain valid after one source edit."""
 
-    remapped_spans: list[PromptLoraView] = []
-    for span in spans:
-        if _range_overlaps_edit(
-            range_start=span.outer_start,
-            range_end=span.outer_end,
-            edit_start=start,
-            edit_end=end,
-        ):
-            continue
-        remapped_spans.append(
-            replace(
-                span,
-                outer_start=_remap_position_after_edit(
-                    span.outer_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                outer_end=_remap_position_after_edit(
-                    span.outer_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-                name_start=_remap_position_after_edit(
-                    span.name_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                name_end=_remap_position_after_edit(
-                    span.name_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-                first_weight_start=_remap_position_after_edit(
-                    span.first_weight_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                first_weight_end=_remap_position_after_edit(
-                    span.first_weight_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-                second_weight_start=_remap_optional_position_after_edit(
-                    span.second_weight_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                second_weight_end=_remap_optional_position_after_edit(
-                    span.second_weight_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-                block_weights_start=_remap_optional_position_after_edit(
-                    span.block_weights_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                block_weights_end=_remap_optional_position_after_edit(
-                    span.block_weights_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-            )
-        )
-    return tuple(remapped_spans)
+    return remap_source_sequence(
+        spans,
+        start=start,
+        end=end,
+        delta=delta,
+        source_range=_lora_source_range,
+        shift_item=_shift_lora_view,
+    )
 
 
 def _remap_wildcard_renderer_spans_for_edit(
-    spans: tuple[PromptWildcardRendererSpanView, ...],
+    spans: Sequence[PromptWildcardRendererSpanView],
     *,
     start: int,
     end: int,
     delta: int,
-) -> tuple[PromptWildcardRendererSpanView, ...]:
+) -> Sequence[PromptWildcardRendererSpanView]:
     """Return wildcard renderer spans that remain valid after one source edit."""
 
-    remapped_spans: list[PromptWildcardRendererSpanView] = []
-    for span in spans:
-        if _range_overlaps_edit(
-            range_start=span.outer_start,
-            range_end=span.outer_end,
-            edit_start=start,
-            edit_end=end,
-        ):
-            continue
-        remapped_spans.append(
-            replace(
-                span,
-                outer_start=_remap_position_after_edit(
-                    span.outer_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                outer_end=_remap_position_after_edit(
-                    span.outer_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-                content_start=_remap_position_after_edit(
-                    span.content_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                content_end=_remap_position_after_edit(
-                    span.content_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-            )
-        )
-    return tuple(remapped_spans)
+    return remap_source_sequence(
+        spans,
+        start=start,
+        end=end,
+        delta=delta,
+        source_range=_wildcard_renderer_source_range,
+        shift_item=_shift_wildcard_renderer_span,
+    )
 
 
 def _remap_lora_renderer_spans_for_edit(
-    spans: tuple[PromptLoraRendererSpanView, ...],
+    spans: Sequence[PromptLoraRendererSpanView],
     *,
     start: int,
     end: int,
     delta: int,
-) -> tuple[PromptLoraRendererSpanView, ...]:
+) -> Sequence[PromptLoraRendererSpanView]:
     """Return LoRA renderer spans that remain valid after one source edit."""
 
-    remapped_spans: list[PromptLoraRendererSpanView] = []
-    for span in spans:
-        if _range_overlaps_edit(
-            range_start=span.outer_start,
-            range_end=span.outer_end,
-            edit_start=start,
-            edit_end=end,
-        ):
-            continue
-        remapped_spans.append(
-            replace(
-                span,
-                outer_start=_remap_position_after_edit(
-                    span.outer_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                outer_end=_remap_position_after_edit(
-                    span.outer_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-                name_start=_remap_position_after_edit(
-                    span.name_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                name_end=_remap_position_after_edit(
-                    span.name_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-                first_weight_start=_remap_position_after_edit(
-                    span.first_weight_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                first_weight_end=_remap_position_after_edit(
-                    span.first_weight_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-                second_weight_start=_remap_optional_position_after_edit(
-                    span.second_weight_start,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                ),
-                second_weight_end=_remap_optional_position_after_edit(
-                    span.second_weight_end,
-                    start=start,
-                    end=end,
-                    delta=delta,
-                    range_end=True,
-                ),
-            )
-        )
-    return tuple(remapped_spans)
+    return remap_source_sequence(
+        spans,
+        start=start,
+        end=end,
+        delta=delta,
+        source_range=_lora_renderer_source_range,
+        shift_item=_shift_lora_renderer_span,
+    )
 
 
 def _remap_position_after_edit(
@@ -774,6 +482,169 @@ def _remap_optional_position_after_edit(
         delta=delta,
         range_end=range_end,
     )
+
+
+def _segment_source_range(segment: PromptSegmentView) -> tuple[int, int]:
+    """Return one segment's selection range for lazy remapping."""
+
+    return segment.selection_start, segment.selection_end
+
+
+def _shift_segment_view(
+    segment: PromptSegmentView,
+    delta: int,
+) -> PromptSegmentView:
+    """Return one unchanged segment shifted by a uniform source delta."""
+
+    return PromptSegmentView(
+        index=segment.index,
+        text=segment.text,
+        display_text=segment.display_text,
+        display_source_start=segment.display_source_start + delta,
+        display_source_end=segment.display_source_end + delta,
+        selection_start=segment.selection_start + delta,
+        selection_end=segment.selection_end + delta,
+        separator_text_after=segment.separator_text_after,
+        has_separator_after=segment.has_separator_after,
+    )
+
+
+def _syntax_span_source_range(span: PromptSyntaxSpanView) -> tuple[int, int]:
+    """Return one syntax span's source range for lazy remapping."""
+
+    return span.start, span.end
+
+
+def _shift_syntax_span(
+    span: PromptSyntaxSpanView,
+    delta: int,
+) -> PromptSyntaxSpanView:
+    """Return one unchanged syntax span shifted by a uniform source delta."""
+
+    return PromptSyntaxSpanView(
+        kind=span.kind,
+        start=span.start + delta,
+        end=span.end + delta,
+        depth=span.depth,
+    )
+
+
+def _emphasis_source_range(span: PromptEmphasisView) -> tuple[int, int]:
+    """Return one emphasis span's outer source range."""
+
+    return span.outer_start, span.outer_end
+
+
+def _wildcard_source_range(span: PromptWildcardView) -> tuple[int, int]:
+    """Return one wildcard span's outer source range."""
+
+    return span.outer_start, span.outer_end
+
+
+def _lora_source_range(span: PromptLoraView) -> tuple[int, int]:
+    """Return one LoRA span's outer source range."""
+
+    return span.outer_start, span.outer_end
+
+
+def _shift_emphasis_view(span: PromptEmphasisView, delta: int) -> PromptEmphasisView:
+    """Return one emphasis view shifted by a uniform source delta."""
+
+    return replace(
+        span,
+        outer_start=span.outer_start + delta,
+        outer_end=span.outer_end + delta,
+        content_start=span.content_start + delta,
+        content_end=span.content_end + delta,
+        weight_start=span.weight_start + delta,
+        weight_end=span.weight_end + delta,
+    )
+
+
+def _shift_wildcard_view(span: PromptWildcardView, delta: int) -> PromptWildcardView:
+    """Return one wildcard view shifted by a uniform source delta."""
+
+    return replace(
+        span,
+        outer_start=span.outer_start + delta,
+        outer_end=span.outer_end + delta,
+        content_start=span.content_start + delta,
+        content_end=span.content_end + delta,
+    )
+
+
+def _shift_lora_view(span: PromptLoraView, delta: int) -> PromptLoraView:
+    """Return one LoRA view shifted by a uniform source delta."""
+
+    return replace(
+        span,
+        outer_start=span.outer_start + delta,
+        outer_end=span.outer_end + delta,
+        name_start=span.name_start + delta,
+        name_end=span.name_end + delta,
+        first_weight_start=span.first_weight_start + delta,
+        first_weight_end=span.first_weight_end + delta,
+        second_weight_start=_shift_optional(span.second_weight_start, delta),
+        second_weight_end=_shift_optional(span.second_weight_end, delta),
+        block_weights_start=_shift_optional(span.block_weights_start, delta),
+        block_weights_end=_shift_optional(span.block_weights_end, delta),
+    )
+
+
+def _wildcard_renderer_source_range(
+    span: PromptWildcardRendererSpanView,
+) -> tuple[int, int]:
+    """Return one wildcard renderer span's outer source range."""
+
+    return span.outer_start, span.outer_end
+
+
+def _shift_wildcard_renderer_span(
+    span: PromptWildcardRendererSpanView,
+    delta: int,
+) -> PromptWildcardRendererSpanView:
+    """Return one wildcard renderer span shifted uniformly."""
+
+    return replace(
+        span,
+        outer_start=span.outer_start + delta,
+        outer_end=span.outer_end + delta,
+        content_start=span.content_start + delta,
+        content_end=span.content_end + delta,
+    )
+
+
+def _lora_renderer_source_range(
+    span: PromptLoraRendererSpanView,
+) -> tuple[int, int]:
+    """Return one LoRA renderer span's outer source range."""
+
+    return span.outer_start, span.outer_end
+
+
+def _shift_lora_renderer_span(
+    span: PromptLoraRendererSpanView,
+    delta: int,
+) -> PromptLoraRendererSpanView:
+    """Return one LoRA renderer span shifted uniformly."""
+
+    return replace(
+        span,
+        outer_start=span.outer_start + delta,
+        outer_end=span.outer_end + delta,
+        name_start=span.name_start + delta,
+        name_end=span.name_end + delta,
+        first_weight_start=span.first_weight_start + delta,
+        first_weight_end=span.first_weight_end + delta,
+        second_weight_start=_shift_optional(span.second_weight_start, delta),
+        second_weight_end=_shift_optional(span.second_weight_end, delta),
+    )
+
+
+def _shift_optional(position: int | None, delta: int) -> int | None:
+    """Return one optional downstream position shifted uniformly."""
+
+    return None if position is None else position + delta
 
 
 def _range_overlaps_edit(

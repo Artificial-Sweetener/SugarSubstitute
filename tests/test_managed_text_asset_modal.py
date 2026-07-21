@@ -39,6 +39,9 @@ from substitute.presentation.managed_text_assets import (
     ManagedTextAssetCreateAction,
     ManagedTextAssetModal,
 )
+from substitute.presentation.editor.prompt_editor.runtime_services import (
+    PromptEditorRuntimeServices,
+)
 from substitute.presentation.managed_text_assets import (
     managed_text_asset_modal as managed_text_asset_modal_module,
 )
@@ -260,6 +263,19 @@ def test_managed_text_asset_modal_gives_editor_more_width() -> None:
     assert body_layout.stretch(1) == 18
 
 
+def test_managed_text_asset_modal_shadow_does_not_filter_editor_descendants() -> None:
+    """High-frequency editor paints should not invalidate a subtree effect."""
+
+    ensure_qapp()
+    modal = _modal(_FakeManagedTextAssetService())
+
+    assert modal.widget.graphicsEffect() is None
+    assert modal._static_shadow.parentWidget() is modal
+    assert not modal._static_shadow.mask().contains(
+        modal._static_shadow.rect().center()
+    )
+
+
 def test_managed_text_asset_modal_uses_owner_window_height() -> None:
     """The modal content should take 90 percent of the top-level owner height."""
 
@@ -332,10 +348,12 @@ def _modal(
                 kind=ManagedTextAssetKind.PROMPT_TEXT,
             ),
         ),
-        prompt_autocomplete_gateway=EmptyPromptAutocompleteGateway(),
-        prompt_wildcard_catalog_gateway=StaticPromptWildcardCatalogGateway({}),
+        prompt_runtime_services=PromptEditorRuntimeServices(
+            autocomplete_gateway=EmptyPromptAutocompleteGateway(),
+            wildcard_catalog_gateway=StaticPromptWildcardCatalogGateway({}),
+            prompt_task_executor_factory=immediate_prompt_task_executor_factory(),
+        ),
         prompt_feature_profile=wildcard_management_prompt_feature_profile(),
-        prompt_task_executor_factory=immediate_prompt_task_executor_factory(),
         error_presenter=error_presenter,
         parent=parent,
     )

@@ -77,6 +77,18 @@ class PromptReorderProjectionPaintSnapshot:
     key: PromptReorderProjectionSnapshotKey
     fragments: tuple[PromptReorderProjectionPaintFragment, ...]
     source_ranges: tuple[tuple[int, int], ...]
+    content_key: object
+
+    @property
+    def viewport_rects(self) -> tuple[QRectF, ...]:
+        """Return the exact viewport-local rectangles represented by this snapshot."""
+
+        return tuple(
+            fragment.text_rect
+            if isinstance(fragment, PromptReorderTextPaintFragment)
+            else fragment.rect
+            for fragment in self.fragments
+        )
 
     @property
     def text_fragments(self) -> tuple[PromptReorderTextPaintFragment, ...]:
@@ -99,6 +111,93 @@ class PromptReorderProjectionPaintSnapshot:
             for fragment in self.fragments
             if isinstance(fragment, PromptReorderInlineObjectPaintFragment)
         )
+
+
+def reorder_projection_paint_content_key(
+    fragments: tuple[PromptReorderProjectionPaintFragment, ...],
+) -> object:
+    """Return a placement-independent identity for immutable paint fragments."""
+
+    origin = _paint_fragment_origin(fragments)
+    return tuple(
+        _paint_fragment_content_key(fragment, origin=origin) for fragment in fragments
+    )
+
+
+def _paint_fragment_origin(
+    fragments: tuple[PromptReorderProjectionPaintFragment, ...],
+) -> QPointF:
+    """Return the top-left origin shared by one chip's paint fragments."""
+
+    if not fragments:
+        return QPointF()
+    rects = tuple(
+        fragment.text_rect
+        if isinstance(fragment, PromptReorderTextPaintFragment)
+        else fragment.rect
+        for fragment in fragments
+    )
+    return QPointF(
+        min(rect.left() for rect in rects),
+        min(rect.top() for rect in rects),
+    )
+
+
+def _paint_fragment_content_key(
+    fragment: PromptReorderProjectionPaintFragment,
+    *,
+    origin: QPointF,
+) -> object:
+    """Return one fragment identity normalized to chip-local coordinates."""
+
+    if isinstance(fragment, PromptReorderTextPaintFragment):
+        return (
+            "text",
+            fragment.text,
+            fragment.font.toString(),
+            fragment.color.rgba(),
+            _relative_point_key(fragment.baseline, origin=origin),
+            _relative_rect_key(fragment.text_rect, origin=origin),
+        )
+    return (
+        "inline",
+        _relative_rect_key(fragment.rect, origin=origin),
+        repr(fragment.run),
+        repr(fragment.token),
+        fragment.base_font.toString(),
+        int(fragment.palette.cacheKey()),
+    )
+
+
+def _relative_rect_key(
+    rect: QRectF,
+    *,
+    origin: QPointF,
+) -> tuple[float, float, float, float]:
+    """Return a rounded rect in chip-local coordinates."""
+
+    return (
+        _rounded(rect.left() - origin.x()),
+        _rounded(rect.top() - origin.y()),
+        _rounded(rect.width()),
+        _rounded(rect.height()),
+    )
+
+
+def _relative_point_key(
+    point: QPointF,
+    *,
+    origin: QPointF,
+) -> tuple[float, float]:
+    """Return a rounded point in chip-local coordinates."""
+
+    return (_rounded(point.x() - origin.x()), _rounded(point.y() - origin.y()))
+
+
+def _rounded(value: float) -> float:
+    """Return stable precision for projection paint identity."""
+
+    return round(float(value), 3)
 
 
 def paint_reorder_projection_snapshot(
@@ -131,4 +230,5 @@ __all__ = [
     "PromptReorderProjectionSnapshotKey",
     "PromptReorderTextPaintFragment",
     "paint_reorder_projection_snapshot",
+    "reorder_projection_paint_content_key",
 ]

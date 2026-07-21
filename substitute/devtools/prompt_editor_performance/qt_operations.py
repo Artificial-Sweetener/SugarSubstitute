@@ -25,7 +25,7 @@ from typing import cast
 from PySide6.QtCore import QPoint, QRectF, Qt
 from PySide6.QtGui import QContextMenuEvent, QImage, QPainter, QTextCursor
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication
 
 from substitute.application.prompt_editor import (
     PromptDiagnostic,
@@ -484,10 +484,7 @@ def time_reorder_alt_drag_operations(
     overlay = current_reorder_overlay(editor)
     dragged_chip = overlay_chip_by_segment_index(overlay, 1)
     first_target = chip_drop_target_global(overlay_chip_by_segment_index(overlay, 0))
-    last_segment_index = max(
-        int(chip.property("segmentIndex"))
-        for chip in overlay.findChildren(QWidget, "segmentChip")
-    )
+    last_segment_index = max(overlay.pointer_region_rects())
     last_target = chip_drop_target_global(
         overlay_chip_by_segment_index(overlay, last_segment_index),
         trailing=True,
@@ -496,14 +493,18 @@ def time_reorder_alt_drag_operations(
     timings: list[float] = []
     try:
         QTest.mousePress(
-            dragged_chip,
+            dragged_chip.overlay,
             Qt.MouseButton.LeftButton,
             pos=dragged_chip.rect().center(),
         )
         process_events(app)
 
         if mode == "same_target":
-            QTest.mouseMove(dragged_chip, dragged_chip.mapFromGlobal(first_target), 10)
+            QTest.mouseMove(
+                dragged_chip.overlay,
+                dragged_chip.overlay.mapFromGlobal(first_target),
+                10,
+            )
             process_events(app)
             targets = tuple(
                 first_target + QPoint(1 + (index % 2), 0) for index in range(count)
@@ -517,7 +518,11 @@ def time_reorder_alt_drag_operations(
         editor.reset_reorder_geometry_cache_counters()
         for target in targets:
             started_at = perf_counter()
-            QTest.mouseMove(dragged_chip, dragged_chip.mapFromGlobal(target), 10)
+            QTest.mouseMove(
+                dragged_chip.overlay,
+                dragged_chip.overlay.mapFromGlobal(target),
+                10,
+            )
             process_events(app)
             timings.append((perf_counter() - started_at) * 1000.0)
 
@@ -527,9 +532,11 @@ def time_reorder_alt_drag_operations(
         capture_reorder_interaction_counts(overlay, extra_counts)
 
         QTest.mouseRelease(
-            dragged_chip,
+            dragged_chip.overlay,
             Qt.MouseButton.LeftButton,
-            pos=dragged_chip.mapFromGlobal(targets[-1] if targets else first_target),
+            pos=dragged_chip.overlay.mapFromGlobal(
+                targets[-1] if targets else first_target
+            ),
             delay=10,
         )
         process_events(app)

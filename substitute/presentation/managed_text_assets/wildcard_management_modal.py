@@ -23,19 +23,23 @@ from sugarsubstitute_shared.presentation.localization import app_text
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.managed_text_assets import WildcardManagedTextAssetService
-from substitute.application.managed_text_assets.models import ManagedTextAssetKind
-from substitute.application.ports import (
-    PromptAutocompleteGateway,
-    PromptWildcardCatalogGateway,
+from substitute.application.managed_text_assets.wildcard_csv_document_semantics import (
+    WildcardCsvDocumentSemantics,
 )
+from substitute.application.managed_text_assets.wildcard_text_document_semantics import (
+    WildcardTextDocumentSemantics,
+)
+from substitute.application.managed_text_assets.models import ManagedTextAsset
+from substitute.application.managed_text_assets.models import ManagedTextAssetKind
 from substitute.application.prompt_editor import (
     PromptEditorFeatureProfile,
-    PromptSpellcheckService,
     PromptWheelAdjustmentMode,
 )
-from substitute.presentation.editor.prompt_editor.composition import (
-    DanbooruWikiLookupDispatcherFactory,
-    PromptEditorTaskExecutorFactory,
+from substitute.application.prompt_editor.prompt_document_semantics import (
+    PromptDocumentSemantics,
+)
+from substitute.presentation.editor.prompt_editor.runtime_services import (
+    PromptEditorRuntimeServices,
 )
 
 from .managed_text_asset_modal import (
@@ -51,14 +55,8 @@ class WildcardManagementModal(ManagedTextAssetModal):
         self,
         *,
         service: WildcardManagedTextAssetService,
-        prompt_autocomplete_gateway: PromptAutocompleteGateway,
-        prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
+        prompt_runtime_services: PromptEditorRuntimeServices,
         prompt_feature_profile: PromptEditorFeatureProfile,
-        prompt_spellcheck_service: PromptSpellcheckService | None = None,
-        prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None,
-        danbooru_lookup_dispatcher_factory: (
-            DanbooruWikiLookupDispatcherFactory | None
-        ) = None,
         wheel_adjustment_mode: PromptWheelAdjustmentMode = (
             PromptWheelAdjustmentMode.HOVER_DWELL
         ),
@@ -82,15 +80,20 @@ class WildcardManagementModal(ManagedTextAssetModal):
                     default_content="value\n",
                 ),
             ),
-            prompt_autocomplete_gateway=prompt_autocomplete_gateway,
-            prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+            prompt_runtime_services=prompt_runtime_services,
             prompt_feature_profile=prompt_feature_profile,
-            prompt_spellcheck_service=prompt_spellcheck_service,
-            prompt_task_executor_factory=prompt_task_executor_factory,
-            danbooru_lookup_dispatcher_factory=danbooru_lookup_dispatcher_factory,
+            document_semantics_for_asset=_wildcard_document_semantics,
             wheel_adjustment_mode=wheel_adjustment_mode,
             parent=parent,
         )
 
 
 __all__ = ["WildcardManagementModal"]
+
+
+def _wildcard_document_semantics(asset: ManagedTextAsset) -> PromptDocumentSemantics:
+    """Return source semantics matching one wildcard asset's persisted format."""
+
+    if asset.kind is ManagedTextAssetKind.CSV:
+        return WildcardCsvDocumentSemantics()
+    return WildcardTextDocumentSemantics()

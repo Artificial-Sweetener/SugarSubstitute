@@ -29,6 +29,9 @@ from substitute.application.prompt_editor import (
     PromptDiagnosticKind,
     PromptSpellingSuggestionSet,
 )
+from substitute.application.prompt_editor.prompt_unsupported_scene_marker_diagnostic_provider import (
+    UNSUPPORTED_SCENE_MARKER_MESSAGE,
+)
 
 from ..commands import PromptCommandSourceIdentity, PromptFeatureSnapshotIdentity
 from .wildcard_controller import PromptWildcardContextAction
@@ -329,11 +332,29 @@ def _actions_for_diagnostic(
             emphasize_first_duplicate_diagnostic=emphasize_first_duplicate_diagnostic,
             ignore_duplicate_diagnostic=ignore_duplicate_diagnostic,
         )
+    if diagnostic.kind is PromptDiagnosticKind.UNSUPPORTED_SCENE_MARKER:
+        return actions_for_unsupported_scene_marker_diagnostic(diagnostic)
     if diagnostic.kind is PromptDiagnosticKind.WILDCARD:
         return _wildcard_actions(
             diagnostic=diagnostic, wildcard_feature=wildcard_feature
         )
     return ()
+
+
+def actions_for_unsupported_scene_marker_diagnostic(
+    diagnostic: PromptDiagnostic,
+) -> tuple[PromptContextMenuAction, ...]:
+    """Return the non-mutating explanation for one rejected scene marker."""
+
+    if diagnostic.kind is not PromptDiagnosticKind.UNSUPPORTED_SCENE_MARKER:
+        return ()
+    return (
+        PromptContextMenuAction(
+            label=UNSUPPORTED_SCENE_MARKER_MESSAGE,
+            callback=None,
+            enabled=False,
+        ),
+    )
 
 
 def _spelling_actions(
@@ -512,6 +533,7 @@ __all__ = [
     "PromptContextMenuAction",
     "PromptDiagnosticMenuActionEntry",
     "PromptDiagnosticMenuActionSnapshot",
+    "actions_for_unsupported_scene_marker_diagnostic",
     "actions_for_prepared_diagnostic",
     "diagnostic_action_entry_at_source_position",
     "diagnostic_menu_action_snapshot_for_position",

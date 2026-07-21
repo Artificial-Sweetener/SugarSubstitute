@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 import pytest
-from PySide6.QtCore import QEvent, QPoint, QRect, QSize
+from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt
 from PySide6.QtWidgets import QApplication, QWidget
 
 from sugarsubstitute_shared.presentation.fluent_tooltips import (
@@ -385,6 +385,21 @@ def test_fluent_tooltip_filter_suppresses_native_tooltip_event() -> None:
     event = _GlobalPositionEvent(QEvent.Type.ToolTip, QPoint(50, 60))
 
     assert tooltip_filter.eventFilter(owner, event) is True
+
+
+def test_fluent_tooltip_window_never_accepts_or_steals_focus() -> None:
+    """QFluent help must remain non-activating while users edit text."""
+
+    owner = _Owner()
+    owner.setToolTip("details")
+    tooltip_filter = FluentToolTipFilter(owner)
+
+    tooltip = cast(QWidget, tooltip_filter._createToolTip())
+
+    assert tooltip.focusPolicy() == Qt.FocusPolicy.NoFocus
+    assert tooltip.testAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+    assert tooltip.windowFlags() & Qt.WindowType.WindowDoesNotAcceptFocus
+    tooltip.close()
 
 
 def test_fluent_tooltip_filter_hides_on_dismissal_events() -> None:

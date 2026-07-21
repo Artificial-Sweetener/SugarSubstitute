@@ -20,10 +20,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Protocol, cast
+from weakref import ReferenceType, ref
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSize
+from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import ToolTipFilter, ToolTipPosition  # type: ignore[import-untyped]
 
 _FILTER_ATTRIBUTE = "_sugarsubstitute_fluent_tooltip_filter"
@@ -114,9 +115,18 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
 
         if not self._canShowToolTip():
             return
+        focused_widget = QApplication.focusWidget()
         if self._tooltip is None and self._canShowToolTip():
             self._tooltip = self._createToolTip()
         super().showToolTip()
+        if focused_widget is not None:
+            focused_widget.setFocus(Qt.FocusReason.OtherFocusReason)
+            QTimer.singleShot(
+                0,
+                lambda focused_ref=ref(focused_widget): (
+                    _restore_focus_after_tooltip_show(focused_ref)
+                ),
+            )
         tooltip = self._tooltip
         if tooltip is None:
             return
@@ -145,6 +155,13 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
         """Create QFluent's tooltip and apply the shared wrapping contract."""
 
         tooltip = cast(_FluentToolTip, super()._createToolTip())
+        tooltip_widget = cast(QWidget, tooltip)
+        tooltip_widget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        tooltip_widget.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        tooltip_widget.setWindowFlag(
+            Qt.WindowType.WindowDoesNotAcceptFocus,
+            True,
+        )
         _configure_tooltip_bounds(tooltip)
         return tooltip
 
@@ -303,6 +320,22 @@ def _configure_tooltip_bounds(tooltip: object) -> None:
             _horizontal_margins(getattr(tooltip, "containerLayout", None)),
         ),
     )
+
+
+def _restore_focus_after_tooltip_show(
+    focused_ref: ReferenceType[QWidget],
+) -> None:
+    """Restore editor focus after backends that activate tooltip windows."""
+
+    focused_widget = focused_ref()
+    if focused_widget is None:
+        return
+    try:
+        if not focused_widget.hasFocus():
+            focused_widget.window().activateWindow()
+            focused_widget.setFocus(Qt.FocusReason.OtherFocusReason)
+    except RuntimeError:
+        return
 
 
 def _layout(widget: object) -> object | None:

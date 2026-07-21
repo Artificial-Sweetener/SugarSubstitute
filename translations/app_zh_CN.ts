@@ -90,7 +90,7 @@ Prompt preview:
       <translation>%1：%2。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="419"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="410"></location>
       <source>%1 (%2)</source>
       <translation>%1（%2）</translation>
     </message>
@@ -470,7 +470,7 @@ Prompt preview:
       <translation>添加自定义标签并隐藏不需要的标签建议。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="397"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="418"></location>
       <source>Add to dictionary</source>
       <translation>添加到词典</translation>
     </message>
@@ -560,7 +560,7 @@ Prompt preview:
       <translation>始终使用最新版本</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="928"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="939"></location>
       <source>Ambiguous</source>
       <translation>匹配不明确</translation>
     </message>
@@ -630,7 +630,7 @@ Prompt preview:
       <translation>自动检测</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="75"></location>
+      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="63"></location>
       <source>Autocomplete Lists</source>
       <translation>自动补全列表</translation>
     </message>
@@ -2168,12 +2168,12 @@ Install these nodes now?</source>
       <translation>定义不可用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="651"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="653"></location>
       <source>Delete</source>
       <translation>删除</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="716"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="718"></location>
       <source>Delete '%1'?</source>
       <translation>删除“%1”？</translation>
     </message>
@@ -2183,7 +2183,7 @@ Install these nodes now?</source>
       <translation>请删除 %1 处未完成的文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="715"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="717"></location>
       <source>Delete wildcard</source>
       <translation>删除通配符</translation>
     </message>
@@ -2248,7 +2248,7 @@ Install these nodes now?</source>
       <translation>直接载入的 Comfy 工作流不包含 Cube 堆栈。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="633"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="635"></location>
       <source>Disable</source>
       <translation>禁用</translation>
     </message>
@@ -2258,12 +2258,12 @@ Install these nodes now?</source>
       <translation>已禁用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="241"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="240"></location>
       <source>Discard</source>
       <translation>丢弃</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="311"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="306"></location>
       <source>Discard changes</source>
       <translation>放弃更改</translation>
     </message>
@@ -2328,7 +2328,7 @@ Install these nodes now?</source>
       <translation>复制</translation>
     </message>
     <message>
-      <location filename="../substitute/application/prompt_editor/prompt_duplicate_segment_diagnostic_provider.py" line="242"></location>
+      <location filename="../substitute/application/prompt_editor/prompt_duplicate_segment_diagnostic_provider.py" line="273"></location>
       <source>Duplicate prompt segment: %1</source>
       <translation>重复的提示词片段：%1</translation>
     </message>
@@ -2368,7 +2368,7 @@ Install these nodes now?</source>
       <translation>强调权重</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="426"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="447"></location>
       <source>Emphasize first</source>
       <translation>优先强调</translation>
     </message>
@@ -2928,7 +2928,7 @@ Install these nodes now?</source>
       <translation>如果仍然关闭，后台服务可能会继续运行。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="433"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="454"></location>
       <source>Ignore duplicate</source>
       <translation>忽略重复项</translation>
     </message>
@@ -2938,7 +2938,7 @@ Install these nodes now?</source>
       <translation>忽略所选项</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="387"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="408"></location>
       <source>Ignore spelling</source>
       <translation>忽略拼写</translation>
     </message>
@@ -3618,22 +3618,22 @@ Install these nodes now?</source>
       <translation>从未同步</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="80"></location>
+      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="78"></location>
       <source>New CSV</source>
       <translation>新建 CSV</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="76"></location>
+      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="74"></location>
       <source>New TXT</source>
       <translation>新建 TXT</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="86"></location>
+      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="74"></location>
       <source>New censored list</source>
       <translation>新建屏蔽列表</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="81"></location>
+      <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="69"></location>
       <source>New custom list</source>
       <translation>新建自定义列表</translation>
     </message>
@@ -3768,7 +3768,7 @@ Install these nodes now?</source>
       <translation>尚未验证任何仓库。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="498"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="489"></location>
       <source>No selection</source>
       <translation>未选择</translation>
     </message>
@@ -3778,7 +3778,7 @@ Install these nodes now?</source>
       <translation>未找到设置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="380"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="401"></location>
       <source>No spelling suggestions</source>
       <translation>没有拼写建议</translation>
     </message>
@@ -3838,7 +3838,7 @@ Install these nodes now?</source>
       <translation>未连接</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="926"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="937"></location>
       <source>Not found</source>
       <translation>未找到</translation>
     </message>
@@ -4573,7 +4573,7 @@ Install these nodes now?</source>
       <translation>取消旁路</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="419"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/features/diagnostic_menu_actions.py" line="440"></location>
       <source>Remove duplicate</source>
       <translation>移除重复项</translation>
     </message>
@@ -4608,7 +4608,7 @@ Install these nodes now?</source>
       <translation>正在移除计划的更改。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="642"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="644"></location>
       <source>Rename</source>
       <translation>重命名</translation>
     </message>
@@ -4982,7 +4982,7 @@ No known extension claimant.</source>
       <translation>保存并继续</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="309"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="304"></location>
       <source>Save changes</source>
       <translation>保存更改</translation>
     </message>
@@ -5070,6 +5070,11 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="482"></location>
       <source>Scene generation requires at least one **scene marker in the first positive prompt.</source>
       <translation>生成场景要求第一个正向提示词中至少包含一个 **scene 标记。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/prompt_editor/prompt_unsupported_scene_marker_diagnostic_provider.py" line="32"></location>
+      <source>Scenes aren’t supported in wildcard values.</source>
+      <translation>通配符值不支持场景。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="735"></location>
@@ -5952,7 +5957,7 @@ No known extension claimant.</source>
       <translation>Substitute 已保存的文件夹设置需要修复</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2809"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2838"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6647,27 +6652,27 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>重试</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="579"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="581"></location>
       <source>Unable to apply changes</source>
       <translation>无法应用更改</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="608"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="610"></location>
       <source>Unable to create asset</source>
       <translation>无法创建资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="724"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="726"></location>
       <source>Unable to delete asset</source>
       <translation>无法删除资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="205"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="204"></location>
       <source>Unable to load assets</source>
       <translation>无法加载资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="477"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="468"></location>
       <source>Unable to read asset</source>
       <translation>无法读取资源</translation>
     </message>
@@ -6677,17 +6682,17 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法刷新目录</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="679"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="681"></location>
       <source>Unable to rename asset</source>
       <translation>无法重命名资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="544"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="546"></location>
       <source>Unable to save asset</source>
       <translation>无法保存资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="702"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="704"></location>
       <source>Unable to update asset</source>
       <translation>无法更新资源</translation>
     </message>
@@ -7087,7 +7092,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>通配符语法</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="70"></location>
+      <location filename="../substitute/presentation/managed_text_assets/wildcard_management_modal.py" line="68"></location>
       <source>Wildcards</source>
       <translation>通配符</translation>
     </message>

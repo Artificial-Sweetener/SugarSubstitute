@@ -22,6 +22,9 @@ import pytest
 
 from substitute.application.prompt_editor import PromptSourceNormalizationService
 from substitute.presentation.editor.prompt_editor.editing_session import (
+    source_edit_commands,
+)
+from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptSourceEditOrigin,
     PromptCursorState,
     PromptSourceBuffer,
@@ -105,6 +108,35 @@ def test_exact_full_replacement_preserves_raw_source() -> None:
     assert result.cursor_state.cursor_position == len("painting (medium)")
 
 
+def test_plain_edit_without_generated_emphasis_skips_document_parse(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Avoid parsing source when no generated emphasis provenance can move."""
+
+    session = _session("alpha, (decorated:1.20), omega")
+
+    def reject_parse(_text: str) -> object:
+        """Fail if the generated-emphasis remapper requests a document parse."""
+
+        raise AssertionError("plain edit unexpectedly parsed the prompt document")
+
+    monkeypatch.setattr(source_edit_commands, "parse_prompt_document", reject_parse)
+
+    result = session.replace_source_range(
+        start=len("alpha"),
+        end=len("alpha"),
+        replacement_text="x",
+        normalizer=PromptSourceNormalizationService(),
+        origin=PromptSourceEditOrigin.TYPED,
+        exact_source=True,
+        record_undo=True,
+        undo_snapshot=_undo_snapshot(session.source_text),
+    )
+
+    assert result.next_snapshot.source_text == "alphax, (decorated:1.20), omega"
+    assert result.next_snapshot.generated_emphases == ()
+
+
 def test_baseline_replacement_clears_prior_history() -> None:
     """Baseline replacement should clear undo history before adopting source."""
 
@@ -160,6 +192,28 @@ def test_typed_close_parenthesis_canonicalizes_implicit_emphasis() -> None:
 
     assert result.next_snapshot.source_text == "painting (medium:1.10)"
     assert result.cursor_state.cursor_position == len("painting (medium:1.10)")
+
+
+def test_typed_selection_replacement_does_not_close_distant_parenthesis() -> None:
+    """Replacing a selection must insert exact text without normalizing prior syntax."""
+
+    source_text = "open (, alpha, {lighting/day}, omega"
+    selection_start = source_text.index(",", source_text.index("{"))
+    session = _session(source_text)
+
+    result = session.replace_source_range(
+        start=selection_start,
+        end=selection_start + 2,
+        replacement_text=")",
+        normalizer=PromptSourceNormalizationService(),
+        origin=PromptSourceEditOrigin.TYPED,
+        exact_source=False,
+        record_undo=True,
+        undo_snapshot=_undo_snapshot(source_text),
+    )
+
+    assert result.next_snapshot.source_text == ("open (, alpha, {lighting/day})omega")
+    assert result.cursor_state.cursor_position == selection_start + 1
 
 
 def test_typed_nested_parentheses_wait_for_outer_close_before_canonicalizing() -> None:

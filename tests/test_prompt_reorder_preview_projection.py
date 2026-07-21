@@ -67,7 +67,6 @@ def test_reorder_projection_snapshot_cache_reuses_render_plan_for_same_layout() 
         cache_namespace="preview",
         source_revision=1,
         viewport_width=480,
-        scroll_position=0,
         layout_key=(("layout", 1),),
         active_drop_target_identity=("line", 0, 0),
         gesture_id=None,
@@ -80,7 +79,6 @@ def test_reorder_projection_snapshot_cache_reuses_render_plan_for_same_layout() 
         cache_namespace="preview",
         source_revision=1,
         viewport_width=480,
-        scroll_position=0,
         layout_key=(("layout", 1),),
         active_drop_target_identity=("line", 0, 0),
         gesture_id=None,
@@ -96,8 +94,10 @@ def test_reorder_projection_snapshot_cache_reuses_render_plan_for_same_layout() 
     )
 
 
-def test_reorder_projection_snapshot_cache_separates_target_identity() -> None:
-    """Projection preview snapshot cache separates display target identities."""
+def test_reorder_projection_snapshot_cache_shares_content_across_consumer_roles() -> (
+    None
+):
+    """Identical serialized previews should share syntax work across consumers."""
 
     document_service = PromptDocumentService()
     counting_syntax_service = CountingSyntaxService()
@@ -115,7 +115,6 @@ def test_reorder_projection_snapshot_cache_separates_target_identity() -> None:
         cache_namespace="preview",
         source_revision=1,
         viewport_width=480,
-        scroll_position=0,
         layout_key=(("layout", 1),),
         active_drop_target_identity=("line", 0, 0),
         gesture_id=None,
@@ -125,12 +124,11 @@ def test_reorder_projection_snapshot_cache_separates_target_identity() -> None:
     second_result = provider.build_projection_snapshot(
         document_view=document_view,
         layout_view=layout_view,
-        cache_namespace="preview",
+        cache_namespace="base_drag",
         source_revision=1,
         viewport_width=480,
-        scroll_position=0,
         layout_key=(("layout", 1),),
-        active_drop_target_identity=("line", 0, 1),
+        active_drop_target_identity=None,
         gesture_id=None,
         event_id=None,
         reason="test",
@@ -138,5 +136,5 @@ def test_reorder_projection_snapshot_cache_separates_target_identity() -> None:
 
     assert first_result is not None
     assert second_result is not None
-    assert first_result.projection_snapshot is not second_result.projection_snapshot
-    assert counting_syntax_service.build_render_plan_calls == 2
+    assert first_result.projection_snapshot is second_result.projection_snapshot
+    assert counting_syntax_service.build_render_plan_calls == 1

@@ -29,6 +29,9 @@ from substitute.presentation.editor.panel.service_bundle import (
     EditorPanelPromptServiceBundle,
     EditorPanelServiceBundle,
 )
+from substitute.presentation.editor.prompt_editor.runtime_services import (
+    PromptEditorRuntimeServices,
+)
 from tests.execution_test_helpers import immediate_editor_panel_execution_factories
 from tests.prompt_autocomplete_test_helpers import (
     EmptyPromptAutocompleteGateway,
@@ -73,34 +76,37 @@ def node_card_service_bundle(
             node_presentation_service or empty_node_presentation_service()
         ),
         prompt=EditorPanelPromptServiceBundle(
-            autocomplete_gateway=(
-                prompt_autocomplete_gateway or EmptyPromptAutocompleteGateway()
+            runtime=PromptEditorRuntimeServices(
+                autocomplete_gateway=(
+                    prompt_autocomplete_gateway or EmptyPromptAutocompleteGateway()
+                ),
+                wildcard_catalog_gateway=(
+                    prompt_wildcard_catalog_gateway
+                    or EmptyPromptWildcardCatalogGateway()
+                ),
+                danbooru_url_import_service=danbooru_url_import_service,
+                danbooru_wiki_service=danbooru_wiki_service,
+                danbooru_image_preview_service=danbooru_image_preview_service,
+                danbooru_recent_posts_service=danbooru_recent_posts_service,
+                lora_catalog_service=prompt_lora_catalog_service,
+                scheduled_lora_service=getattr(
+                    panel,
+                    "prompt_scheduled_lora_service",
+                    None,
+                ),
+                spellcheck_service=getattr(panel, "prompt_spellcheck_service", None),
+                thumbnail_asset_repository=thumbnail_asset_repository,
+                prompt_task_executor_factory=(
+                    execution_factories.prompt_task_executor_factory
+                ),
+                danbooru_lookup_dispatcher_factory=(
+                    execution_factories.danbooru_lookup_dispatcher_factory
+                ),
             ),
-            wildcard_catalog_gateway=(
-                prompt_wildcard_catalog_gateway or EmptyPromptWildcardCatalogGateway()
-            ),
-            danbooru_url_import_service=danbooru_url_import_service,
-            danbooru_wiki_service=danbooru_wiki_service,
-            danbooru_image_preview_service=danbooru_image_preview_service,
-            danbooru_recent_posts_service=danbooru_recent_posts_service,
-            lora_catalog_service=prompt_lora_catalog_service,
-            scheduled_lora_service=getattr(
-                panel,
-                "prompt_scheduled_lora_service",
-                None,
-            ),
-            spellcheck_service=getattr(panel, "prompt_spellcheck_service", None),
             feature_profile_service=getattr(
                 panel,
                 "prompt_feature_profile_service",
                 None,
-            ),
-            thumbnail_asset_repository=thumbnail_asset_repository,
-            prompt_task_executor_factory=(
-                execution_factories.prompt_task_executor_factory
-            ),
-            danbooru_lookup_dispatcher_factory=(
-                execution_factories.danbooru_lookup_dispatcher_factory
             ),
             model_picker_thumbnail_preload_route_factory=(
                 execution_factories.model_picker_thumbnail_preload_route_factory

@@ -35,6 +35,7 @@ from .prompt_document_cache import (
     clear_prompt_document_caches,
 )
 from .prompt_document_projector import PromptDocumentProjector
+from .prompt_document_semantics import PromptDocumentSemantics
 from .prompt_document_selection_service import (
     PromptDocumentSelectionService,
 )
@@ -68,6 +69,11 @@ from .prompt_reorder_views import (
     PromptReorderSessionView,
     PromptReorderStateView,
 )
+from .prompt_semantic_reorder_services import (
+    PromptSemanticReorderDropService,
+    PromptSemanticReorderProjectionService,
+    PromptSemanticReorderSerializationService,
+)
 
 
 class PromptDocumentService:
@@ -79,6 +85,7 @@ class PromptDocumentService:
         document_projector: PromptDocumentProjector | None = None,
         selection_service: PromptDocumentSelectionService | None = None,
         autocomplete_query_service: PromptAutocompleteQueryService | None = None,
+        document_semantics: PromptDocumentSemantics | None = None,
         reorder_projection_service: PromptReorderProjectionService | None = None,
         reorder_drop_service: PromptReorderDropService | None = None,
         reorder_serialization_service: PromptReorderSerializationService | None = None,
@@ -94,19 +101,30 @@ class PromptDocumentService:
                 selection_service=self._selection_service,
             )
         )
-        self._reorder_projection_service = (
-            reorder_projection_service
-            or PromptReorderProjectionService(
+        self._reorder_projection_service = reorder_projection_service or (
+            PromptReorderProjectionService(document_projector=self._document_projector)
+            if document_semantics is None
+            else PromptSemanticReorderProjectionService(
                 document_projector=self._document_projector,
+                document_semantics=document_semantics,
             )
         )
-        self._reorder_drop_service = reorder_drop_service or PromptReorderDropService(
-            document_projector=self._document_projector,
-        )
-        self._reorder_serialization_service = (
-            reorder_serialization_service
-            or PromptReorderSerializationService(
+        self._reorder_drop_service = reorder_drop_service or (
+            PromptReorderDropService(document_projector=self._document_projector)
+            if document_semantics is None
+            else PromptSemanticReorderDropService(
                 document_projector=self._document_projector,
+                document_semantics=document_semantics,
+            )
+        )
+        self._reorder_serialization_service = reorder_serialization_service or (
+            PromptReorderSerializationService(
+                document_projector=self._document_projector
+            )
+            if document_semantics is None
+            else PromptSemanticReorderSerializationService(
+                document_projector=self._document_projector,
+                document_semantics=document_semantics,
             )
         )
 

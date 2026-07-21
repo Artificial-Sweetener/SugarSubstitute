@@ -23,6 +23,9 @@ from PySide6.QtCore import QMargins, QPointF, QSize, Qt
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QWidget
 
+from .projection.reorder_visual_snapshot import PromptReorderProjectionPaintSnapshot
+from .projection.reorder_surface_chrome import PromptReorderSurfaceChromeChip
+
 from substitute.application.danbooru import (
     DanbooruImagePreviewService,
     DanbooruRecentPostsService,
@@ -42,6 +45,9 @@ from substitute.application.prompt_editor import (
     PromptSyntaxService,
 )
 from substitute.application.prompt_editor import PromptSyntaxProfile
+from substitute.application.prompt_editor.prompt_document_semantics import (
+    PromptDocumentSemantics,
+)
 from substitute.application.model_metadata import ThumbnailAssetRepository
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
@@ -115,6 +121,7 @@ class PromptEditor(QWidget):
         *,
         prompt_autocomplete_gateway: PromptAutocompleteGateway,
         prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
+        prompt_document_semantics: PromptDocumentSemantics | None = ...,
         danbooru_url_import_service: DanbooruUrlImportService | None = ...,
         danbooru_wiki_service: DanbooruWikiContentService | None = ...,
         danbooru_image_preview_service: DanbooruImagePreviewService | None = ...,
@@ -168,6 +175,11 @@ class PromptEditor(QWidget):
     def setSourceText(self, text: str) -> None: ...
     def replaceBaselineText(self, text: str) -> None: ...
     def replaceBaselineSourceText(self, text: str) -> None: ...
+    def replaceBaselineSourceDocument(
+        self,
+        text: str,
+        document_semantics: PromptDocumentSemantics,
+    ) -> None: ...
     def preloadVisibleLoraBanners(
         self,
         *,
@@ -303,6 +315,13 @@ class PromptEditor(QWidget):
         chip_rendered_ranges_by_index: Any,
         chip_owned_ranges_by_index: Any,
     ) -> Any: ...
+    def reorder_live_placement_snapshot(
+        self,
+        *,
+        layout_view: Any,
+        chip_geometry_snapshot: Any,
+        gap_ranges_by_index: dict[int, tuple[int, int]],
+    ) -> Any: ...
     def reorder_preview_chip_geometry_snapshot(
         self,
         *,
@@ -320,9 +339,17 @@ class PromptEditor(QWidget):
         *,
         chip_geometry_snapshot: Any,
         chip_owned_ranges_by_index: Any,
+        chip_indices: frozenset[int] | None = ...,
     ) -> Any: ...
-    def set_reorder_overlay_suppressed_chip_indices(
-        self, chip_indices: frozenset[int]
+    def set_reorder_overlay_suppression_snapshots(
+        self,
+        snapshots_by_index: dict[int, PromptReorderProjectionPaintSnapshot],
+    ) -> None: ...
+    def set_reorder_surface_chrome(
+        self,
+        *,
+        mode: str,
+        chips: tuple[PromptReorderSurfaceChromeChip, ...],
     ) -> None: ...
     def reorder_preview_cursor_rect(self, position: int) -> Any: ...
     def reorder_base_drag_fragments(self, *, start: int, end: int) -> Any: ...

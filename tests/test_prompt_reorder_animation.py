@@ -25,7 +25,7 @@ from typing import cast
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtCore import QRect, QRectF
+from PySide6.QtCore import QRectF
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
@@ -42,6 +42,9 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_animation i
 )
 from substitute.presentation.editor.prompt_editor.overlays.reorder_animation_presenter import (
     PromptReorderAnimationPresenter,
+)
+from substitute.presentation.editor.prompt_editor.overlays.reorder_paint_ownership import (
+    animation_plan_with_complete_paint_ownership,
 )
 
 
@@ -61,6 +64,60 @@ def _layout(*rows: tuple[int, ...]) -> PromptReorderLayoutView:
         ),
         gaps=(),
     )
+
+
+def test_animation_requires_complete_projection_paint_snapshot() -> None:
+    """A moving chip without text paint ownership should settle immediately."""
+
+    planner = PromptReorderAnimationPlanner()
+    plan = planner.build_plan(
+        generation=1,
+        current_visuals={0: QRectF(0.0, 0.0, 20.0, 10.0)},
+        proposed_layout_view=_layout((0,)),
+        proposed_chip_geometry={0: QRectF(40.0, 0.0, 20.0, 10.0)},
+        ordered_segment_indices=(0,),
+        dragged_segment_index=None,
+        reason="paint_ownership_test",
+    )
+
+    safe_plan = animation_plan_with_complete_paint_ownership(
+        plan,
+        snapshot_indices=frozenset(),
+    )
+
+    assert safe_plan.changed_targets == ()
+    assert tuple(target.segment_index for target in safe_plan.immediate_targets) == (0,)
+    assert safe_plan.immediate_segment_indices == frozenset({0})
+    assert safe_plan.fallbacks[-1].reason == "projection_paint_snapshot_missing"
+
+
+def test_animation_retains_targets_with_complete_projection_paint() -> None:
+    """A moving chip with a complete snapshot should keep smooth displacement."""
+
+    planner = PromptReorderAnimationPlanner()
+    plan = planner.build_plan(
+        generation=1,
+        current_visuals={
+            0: QRectF(0.0, 0.0, 20.0, 10.0),
+            1: QRectF(24.0, 0.0, 20.0, 10.0),
+        },
+        proposed_layout_view=_layout((0, 1)),
+        proposed_chip_geometry={
+            0: QRectF(24.0, 0.0, 20.0, 10.0),
+            1: QRectF(0.0, 0.0, 20.0, 10.0),
+        },
+        ordered_segment_indices=(0, 1),
+        dragged_segment_index=None,
+        reason="paint_ownership_test",
+    )
+
+    safe_plan = animation_plan_with_complete_paint_ownership(
+        plan,
+        snapshot_indices=frozenset({0}),
+    )
+
+    assert tuple(target.segment_index for target in safe_plan.changed_targets) == (0,)
+    assert tuple(target.segment_index for target in safe_plan.immediate_targets) == (1,)
 
 
 def test_same_line_move_produces_settled_target_rect_shift() -> None:
@@ -369,7 +426,7 @@ def _presenter_plan(
 
 @_WINDOWS_XDIST_QT_SKIP
 def test_presenter_starts_animations_for_changed_visible_chips() -> None:
-    """Presenter should run QWidget animations from planner-provided rects."""
+    """Presenter should animate paint geometry from planner-provided rects."""
 
     app, host, chips = _host_with_chips()
     try:
@@ -386,7 +443,7 @@ def test_presenter_starts_animations_for_changed_visible_chips() -> None:
             ),
         )
 
-        presenter.apply_plan(plan, chips)
+        presenter.apply_plan(plan)
         _process_events(app)
 
         assert presenter.is_animating() is True
@@ -396,7 +453,8 @@ def test_presenter_starts_animations_for_changed_visible_chips() -> None:
         _process_events(app)
 
         assert presenter.is_animating() is False
-        assert chips[0].geometry() == QRect(40, 0, 20, 10)
+        assert presenter.paint_rect_overrides() == {}
+        assert presenter.counters()["animation_finished_count"] == 1
     finally:
         host.close()
         host.deleteLater()
@@ -432,7 +490,7 @@ def test_presenter_publishes_paint_rect_overrides_during_animation() -> None:
             ),
         )
 
-        presenter.apply_plan(plan, chips)
+        presenter.apply_plan(plan)
         _process_events(app)
 
         assert presenter.paint_rect_overrides()[0] == QRectF(0.0, 0.0, 20.0, 10.0)
@@ -486,7 +544,7 @@ def test_presenter_publishes_coherent_multi_chip_frame_overrides() -> None:
             ),
         )
 
-        presenter.apply_plan(plan, chips)
+        presenter.apply_plan(plan)
         QTest.qWait(80)
         _process_events(app)
 
@@ -536,7 +594,7 @@ def test_presenter_retargets_running_animation_without_blank_cancel_frame() -> N
                 ),
             ),
         )
-        presenter.apply_plan(first_plan, chips)
+        presenter.apply_plan(first_plan)
         QTest.qWait(50)
         _process_events(app)
         retarget_start = presenter.paint_rect_overrides()[0]
@@ -553,7 +611,7 @@ def test_presenter_retargets_running_animation_without_blank_cancel_frame() -> N
                 ),
             ),
         )
-        presenter.apply_plan(second_plan, chips)
+        presenter.apply_plan(second_plan)
         _process_events(app)
 
         assert presenter.is_animating() is True
@@ -576,7 +634,7 @@ def test_presenter_ignores_stale_generation() -> None:
     app, host, chips = _host_with_chips()
     try:
         presenter = PromptReorderAnimationPresenter(parent=host, duration_ms=80)
-        presenter.apply_plan(_presenter_plan(generation=3), chips)
+        presenter.apply_plan(_presenter_plan(generation=3))
         stale_plan = _presenter_plan(
             generation=2,
             changed_targets=(
@@ -589,11 +647,11 @@ def test_presenter_ignores_stale_generation() -> None:
             ),
         )
 
-        presenter.apply_plan(stale_plan, chips)
+        presenter.apply_plan(stale_plan)
         _process_events(app)
 
         assert presenter.is_animating() is False
-        assert chips[0].geometry() == QRect(0, 0, 20, 10)
+        assert presenter.paint_rect_overrides() == {}
         assert presenter.counters()["animation_stale_generation_ignored_count"] == 1
     finally:
         host.close()
@@ -620,7 +678,7 @@ def test_presenter_cancel_stops_active_animations() -> None:
             ),
         )
 
-        presenter.apply_plan(plan, chips)
+        presenter.apply_plan(plan)
         _process_events(app)
 
         assert presenter.is_animating() is True
@@ -637,8 +695,8 @@ def test_presenter_cancel_stops_active_animations() -> None:
 
 
 @_WINDOWS_XDIST_QT_SKIP
-def test_presenter_settle_places_widgets_at_target_rects() -> None:
-    """Presenter settling should stop active motion and apply final geometry."""
+def test_presenter_settle_clears_transient_paint_geometry() -> None:
+    """Presenter settling should stop active motion and clear paint overrides."""
 
     app, host, chips = _host_with_chips()
     try:
@@ -655,13 +713,13 @@ def test_presenter_settle_places_widgets_at_target_rects() -> None:
             ),
         )
 
-        presenter.apply_plan(plan, chips)
+        presenter.apply_plan(plan)
         _process_events(app)
         presenter.settle(reason="test_settle")
         _process_events(app)
 
         assert presenter.is_animating() is False
-        assert chips[0].geometry() == QRect(64, 18, 20, 10)
+        assert presenter.paint_rect_overrides() == {}
         assert presenter.counters()["animation_settled_count"] == 1
     finally:
         host.close()
@@ -670,12 +728,24 @@ def test_presenter_settle_places_widgets_at_target_rects() -> None:
 
 
 @_WINDOWS_XDIST_QT_SKIP
-def test_presenter_applies_immediate_targets_without_animation() -> None:
-    """Presenter should directly place immediate targets and skip animation setup."""
+def test_presenter_records_immediate_targets_without_animation() -> None:
+    """Immediate targets should publish settled paint without animation state."""
 
     app, host, chips = _host_with_chips()
     try:
-        presenter = PromptReorderAnimationPresenter(parent=host, duration_ms=200)
+        frame_count = 0
+
+        def count_frame() -> None:
+            """Record the settled frame needed by the overlay paint owner."""
+
+            nonlocal frame_count
+            frame_count += 1
+
+        presenter = PromptReorderAnimationPresenter(
+            parent=host,
+            duration_ms=200,
+            frame_callback=count_frame,
+        )
         plan = _presenter_plan(
             generation=1,
             immediate_targets=(
@@ -688,13 +758,14 @@ def test_presenter_applies_immediate_targets_without_animation() -> None:
             ),
         )
 
-        presenter.apply_plan(plan, chips)
+        presenter.apply_plan(plan)
         _process_events(app)
 
         assert presenter.is_animating() is False
-        assert chips[1].geometry() == QRect(90, 0, 20, 10)
+        assert presenter.paint_rect_overrides() == {}
         assert presenter.counters()["animation_immediate_target_count"] == 1
         assert presenter.counters()["animation_started_count"] == 0
+        assert frame_count == 1
     finally:
         host.close()
         host.deleteLater()
@@ -735,18 +806,17 @@ def test_presenter_skips_dragged_chip_targets() -> None:
             ),
         )
 
-        presenter.apply_plan(plan, chips)
+        presenter.apply_plan(plan)
         _process_events(app)
 
         assert presenter.is_animating() is True
-        assert chips[0].geometry() == QRect(0, 0, 20, 10)
-        assert presenter.counters()["animation_skipped_widget_count"] == 2
+        assert set(presenter.paint_rect_overrides()) == {1}
+        assert presenter.counters()["animation_skipped_target_count"] == 2
 
         QTest.qWait(120)
         _process_events(app)
 
-        assert chips[0].geometry() == QRect(0, 0, 20, 10)
-        assert chips[1].geometry() == QRect(48, 0, 20, 10)
+        assert presenter.paint_rect_overrides() == {}
     finally:
         host.close()
         host.deleteLater()
@@ -754,8 +824,8 @@ def test_presenter_skips_dragged_chip_targets() -> None:
 
 
 @_WINDOWS_XDIST_QT_SKIP
-def test_presenter_cancel_clears_immediate_settle_targets() -> None:
-    """Presenter cancellation should forget immediate-only settle targets."""
+def test_presenter_cancel_after_immediate_target_is_a_noop() -> None:
+    """Immediate targets should leave no transient animation state to cancel."""
 
     app, host, chips = _host_with_chips()
     try:
@@ -772,16 +842,15 @@ def test_presenter_cancel_clears_immediate_settle_targets() -> None:
             ),
         )
 
-        presenter.apply_plan(plan, chips)
+        presenter.apply_plan(plan)
         _process_events(app)
-        chips[1].setGeometry(24, 0, 20, 10)
 
         presenter.cancel(reason="test_cancel_immediate")
         presenter.settle(reason="test_settle_after_cancel")
         _process_events(app)
 
-        assert chips[1].geometry() == QRect(24, 0, 20, 10)
-        assert presenter.counters()["animation_cancelled_count"] == 1
+        assert presenter.paint_rect_overrides() == {}
+        assert presenter.counters()["animation_cancelled_count"] == 0
         assert presenter.counters()["animation_settled_count"] == 0
     finally:
         host.close()

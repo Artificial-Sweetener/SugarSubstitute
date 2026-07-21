@@ -19,29 +19,30 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
-from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
-import gc
 from typing import TYPE_CHECKING, cast, overload
 
 from PySide6.QtCore import QPointF, QRectF, QSizeF
-from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPalette, QTextLayout
-from PySide6.QtGui import QTextOption
+from PySide6.QtGui import QFont, QFontMetricsF, QPalette
 from substitute.application.prompt_editor import (
     PromptDocumentView,
-    PromptGapBlankLineDropTarget,
-    PromptLineDropTarget,
-    PromptReorderGapView,
     PromptReorderLayoutView,
-    blank_line_drop_offsets,
 )
 from substitute.application.appearance import SemanticPalette
-from substitute.presentation.text_coordinates import TextCoordinateMap
 
 from .line_layout import (
     PromptProjectionLineLayoutBuilder,
     tag_keep_source_range_at_position,
     tag_keep_source_ranges_in_source_line,
+)
+from .incremental_text_layout import (
+    build_edited_text_fragment,
+    editable_text_fragment,
+    text_boundary_offsets,
+)
+from .layout_checkpoint import (
+    PromptProjectionLayoutCheckpoint,
+    PromptProjectionLayoutCheckpointKey,
 )
 from .metrics import PromptProjectionMetrics, PromptProjectionMetricsFactory
 from .model import (
@@ -67,6 +68,7 @@ from .snapshot import (
     PromptProjectionLayoutSnapshot,
     PromptProjectionTextFragment,
 )
+from .source_line_geometry import PromptSourceLineGeometry, source_line_ranges
 from .text_style import projection_text_run_font
 from .painter import PromptProjectionPainter
 from .tokens import (
@@ -75,32 +77,22 @@ from .tokens import (
     PromptProjectionInlineObjectRendererRegistry,
     PromptWildcardInlineObjectRenderer,
 )
-from .reorder_chip_geometry import (
-    PROMPT_REORDER_CHIP_BUBBLE_PADDING_X,
-    PROMPT_REORDER_CHIP_BUBBLE_PADDING_Y,
-    PROMPT_REORDER_CHIP_HOTSPOT_PADDING_X,
-    PROMPT_REORDER_CHIP_HOTSPOT_PADDING_Y,
-    PromptReorderChipGeometry,
-    PromptReorderChipGeometryId,
-    PromptReorderChipGeometrySnapshot,
-    PromptReorderChipLineGeometry,
-    chip_geometry_context,
-    chrome_path_from_rects,
+from .reorder_chip_geometry import PromptReorderChipGeometrySnapshot
+from .reorder_geometry import (
+    PromptProjectionReorderGeometry,
+    PromptProjectionReorderGeometryState,
 )
-from .reorder_geometry import PromptProjectionReorderGeometry
-from .observability import log_reorder_drag_event
-from .reorder_placement_geometry import (
-    PromptReorderPlacementGeometry,
-    PromptReorderPlacementSnapshot,
-    rect_from_centerline,
-    reorder_placement_id_for_target,
-)
+from .reorder_placement_geometry import PromptReorderPlacementSnapshot
 from .reorder_visual_snapshot import (
-    PromptReorderInlineObjectPaintFragment,
-    PromptReorderProjectionPaintFragment,
     PromptReorderProjectionPaintSnapshot,
     PromptReorderProjectionSnapshotKey,
-    PromptReorderTextPaintFragment,
+)
+from .reorder_paint_snapshot_builder import PromptReorderPaintSnapshotBuilder
+from .reused_line_sequence import PromptProjectionReusedLineSequence
+from .reused_line_semantics import (
+    PromptReusedFragmentIdentity,
+    PromptReusedLineSemanticResolver,
+    reusable_suffix_semantics_by_line,
 )
 from .hit_testing import (
     PromptProjectionCaretHit,
@@ -113,23 +105,13 @@ from .selection_geometry import (
     PromptProjectionSourceLineRect,
     PromptProjectionVerticalCaretTarget,
 )
+from .visible_line_range import (
+    source_range_intersects_visual_line,
+    visible_projection_lines,
+)
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QPainter, QRegion
-
-
-@contextmanager
-def _suspend_gc_for_hot_layout_path() -> Iterator[bool]:
-    """Temporarily defer cyclic GC during short incremental layout edits."""
-
-    was_enabled = gc.isenabled()
-    if was_enabled:
-        gc.disable()
-    try:
-        yield was_enabled
-    finally:
-        if was_enabled:
-            gc.enable()
 
 
 class _ShiftedSourcePositions(Sequence[int]):
@@ -257,12 +239,14 @@ class _ShiftedTextFragment(PromptProjectionTextFragment):
 
     __slots__ = (
         "_fragment",
+        "_semantic_identity",
         "_projection_delta",
         "_source_delta",
         "_source_positions",
         "_y_delta",
     )
     _fragment: PromptProjectionTextFragment
+    _semantic_identity: PromptReusedFragmentIdentity | None
     _projection_delta: int
     _source_delta: int
     _source_positions: _ShiftedSourcePositions | None
@@ -275,10 +259,16 @@ class _ShiftedTextFragment(PromptProjectionTextFragment):
         source_delta: int,
         projection_delta: int,
         y_delta: float,
+        semantic_identity: PromptReusedFragmentIdentity | None = None,
     ) -> None:
         """Create a lazy shifted text fragment view."""
 
         if isinstance(fragment, _ShiftedTextFragment):
+            if semantic_identity is None:
+                semantic_identity = object.__getattribute__(
+                    fragment,
+                    "_semantic_identity",
+                )
             source_delta += object.__getattribute__(fragment, "_source_delta")
             projection_delta += object.__getattribute__(
                 fragment,
@@ -287,6 +277,7 @@ class _ShiftedTextFragment(PromptProjectionTextFragment):
             y_delta += object.__getattribute__(fragment, "_y_delta")
             fragment = object.__getattribute__(fragment, "_fragment")
         object.__setattr__(self, "_fragment", fragment)
+        object.__setattr__(self, "_semantic_identity", semantic_identity)
         object.__setattr__(self, "_source_delta", source_delta)
         object.__setattr__(self, "_projection_delta", projection_delta)
         object.__setattr__(self, "_y_delta", y_delta)
@@ -326,9 +317,12 @@ class _ShiftedTextFragment(PromptProjectionTextFragment):
             fragment = object.__getattribute__(self, "_fragment")
             y_delta = object.__getattribute__(self, "_y_delta")
             return fragment.baseline + y_delta
+        if name in {"run_id", "token_id"}:
+            identity = object.__getattribute__(self, "_semantic_identity")
+            if identity is not None:
+                return getattr(identity, name)
+            return getattr(object.__getattribute__(self, "_fragment"), name)
         if name in {
-            "run_id",
-            "token_id",
             "text",
             "boundary_offsets",
             "active",
@@ -363,12 +357,14 @@ class _ShiftedInlineObjectFragment(PromptProjectionInlineObjectFragment):
 
     __slots__ = (
         "_fragment",
+        "_semantic_identity",
         "_projection_delta",
         "_source_delta",
         "_source_positions",
         "_y_delta",
     )
     _fragment: PromptProjectionInlineObjectFragment
+    _semantic_identity: PromptReusedFragmentIdentity | None
     _projection_delta: int
     _source_delta: int
     _source_positions: _ShiftedSourcePositions | None
@@ -381,10 +377,16 @@ class _ShiftedInlineObjectFragment(PromptProjectionInlineObjectFragment):
         source_delta: int,
         projection_delta: int,
         y_delta: float,
+        semantic_identity: PromptReusedFragmentIdentity | None = None,
     ) -> None:
         """Create a lazy shifted inline-object fragment view."""
 
         if isinstance(fragment, _ShiftedInlineObjectFragment):
+            if semantic_identity is None:
+                semantic_identity = object.__getattribute__(
+                    fragment,
+                    "_semantic_identity",
+                )
             source_delta += object.__getattribute__(fragment, "_source_delta")
             projection_delta += object.__getattribute__(
                 fragment,
@@ -393,6 +395,7 @@ class _ShiftedInlineObjectFragment(PromptProjectionInlineObjectFragment):
             y_delta += object.__getattribute__(fragment, "_y_delta")
             fragment = object.__getattribute__(fragment, "_fragment")
         object.__setattr__(self, "_fragment", fragment)
+        object.__setattr__(self, "_semantic_identity", semantic_identity)
         object.__setattr__(self, "_source_delta", source_delta)
         object.__setattr__(self, "_projection_delta", projection_delta)
         object.__setattr__(self, "_y_delta", y_delta)
@@ -428,9 +431,12 @@ class _ShiftedInlineObjectFragment(PromptProjectionInlineObjectFragment):
             rect = QRectF(fragment.rect)
             rect.translate(0.0, y_delta)
             return rect
+        if name in {"run_id", "token_id"}:
+            identity = object.__getattribute__(self, "_semantic_identity")
+            if identity is not None:
+                return getattr(identity, name)
+            return getattr(object.__getattribute__(self, "_fragment"), name)
         if name in {
-            "run_id",
-            "token_id",
             "renderer_key",
             "active",
         }:
@@ -446,6 +452,7 @@ class _ShiftedLineSnapshot(PromptProjectionLineSnapshot):
         "_fragments",
         "_line",
         "_projection_delta",
+        "_semantic_resolver",
         "_source_delta",
         "_y_delta",
     )
@@ -459,6 +466,7 @@ class _ShiftedLineSnapshot(PromptProjectionLineSnapshot):
     )
     _line: PromptProjectionLineSnapshot
     _projection_delta: int
+    _semantic_resolver: PromptReusedLineSemanticResolver | None
     _source_delta: int
     _y_delta: float
 
@@ -469,15 +477,22 @@ class _ShiftedLineSnapshot(PromptProjectionLineSnapshot):
         source_delta: int,
         projection_delta: int,
         y_delta: float,
+        semantic_resolver: PromptReusedLineSemanticResolver | None = None,
     ) -> None:
         """Create a lazy shifted line view."""
 
         if isinstance(line, _ShiftedLineSnapshot):
+            if semantic_resolver is None:
+                semantic_resolver = object.__getattribute__(
+                    line,
+                    "_semantic_resolver",
+                )
             source_delta += object.__getattribute__(line, "_source_delta")
             projection_delta += object.__getattribute__(line, "_projection_delta")
             y_delta += object.__getattribute__(line, "_y_delta")
             line = object.__getattribute__(line, "_line")
         object.__setattr__(self, "_line", line)
+        object.__setattr__(self, "_semantic_resolver", semantic_resolver)
         object.__setattr__(self, "_source_delta", source_delta)
         object.__setattr__(self, "_projection_delta", projection_delta)
         object.__setattr__(self, "_y_delta", y_delta)
@@ -509,12 +524,17 @@ class _ShiftedLineSnapshot(PromptProjectionLineSnapshot):
                 line = object.__getattribute__(self, "_line")
                 source_delta = object.__getattribute__(self, "_source_delta")
                 projection_delta = object.__getattribute__(self, "_projection_delta")
+                semantic_resolver = object.__getattribute__(
+                    self,
+                    "_semantic_resolver",
+                )
                 fragments = tuple(
                     _shift_downstream_fragment_after_plain_edit(
                         fragment,
                         source_delta=source_delta,
                         projection_delta=projection_delta,
                         y_delta=object.__getattribute__(self, "_y_delta"),
+                        semantic_resolver=semantic_resolver,
                     )
                     for fragment in line.fragments
                 )
@@ -778,6 +798,7 @@ class PromptProjectionLayout:
     _selection_geometry: PromptProjectionSelectionGeometry = field(init=False)
     _metrics_factory: PromptProjectionMetricsFactory = field(init=False)
     _metrics: PromptProjectionMetrics = field(init=False)
+    _source_line_geometry: PromptSourceLineGeometry = field(init=False)
 
     def __post_init__(self) -> None:
         """Initialize the reusable layout state for the visible projection."""
@@ -811,10 +832,11 @@ class PromptProjectionLayout:
         self._line_layout_builder = PromptProjectionLineLayoutBuilder(
             self.inline_object_renderers
         )
+        self._source_line_geometry = PromptSourceLineGeometry()
         self._selection_geometry = PromptProjectionSelectionGeometry(self)
         self._painter = PromptProjectionPainter(self)
         self._hit_tester = PromptProjectionHitTester(self)
-        self._reorder_geometry = PromptProjectionReorderGeometry(self)
+        self._reorder_geometry = PromptProjectionReorderGeometry()
         self._snapshot = self._line_layout_builder.build_snapshot(
             self._projection_document,
             wrap_width=self._text_width,
@@ -927,6 +949,232 @@ class PromptProjectionLayout:
         self._prompt_document_view = prompt_document_view
         self._rebuild_snapshot()
 
+    def fork_for_incremental_reflow(
+        self,
+        *,
+        inline_object_renderers: PromptProjectionInlineObjectRendererRegistry
+        | None = None,
+    ) -> PromptProjectionLayout:
+        """Return an independent layout sharing the current immutable snapshot."""
+
+        fork = PromptProjectionLayout(
+            inline_object_renderers or self.inline_object_renderers
+        )
+        fork._projection_document = self._projection_document
+        fork._paint_state = self._paint_state
+        fork._base_font = QFont(self._base_font)
+        fork._palette = QPalette(self._palette)
+        fork._semantic_palette = self._semantic_palette
+        fork._document_margin = self._document_margin
+        fork._text_width = self._text_width
+        fork._content_left_inset = self._content_left_inset
+        fork._prompt_document_view = self._prompt_document_view
+        fork._metrics = self._metrics
+        fork._snapshot = self._snapshot
+        return fork
+
+    def create_history_checkpoint(self) -> PromptProjectionLayoutCheckpoint | None:
+        """Capture exact canonical layout state when source ownership is current."""
+
+        prompt_document_view = self._prompt_document_view
+        if (
+            prompt_document_view is None
+            or prompt_document_view.source_text != self._projection_document.source_text
+        ):
+            return None
+        return PromptProjectionLayoutCheckpoint(
+            key=self._history_checkpoint_key(),
+            projection_document=self._projection_document,
+            prompt_document_view=prompt_document_view,
+            snapshot=self._snapshot,
+        )
+
+    def try_restore_history_checkpoint(
+        self,
+        checkpoint: PromptProjectionLayoutCheckpoint,
+    ) -> bool:
+        """Restore exact layout state when every geometry input still matches."""
+
+        if (
+            checkpoint.key != self._history_checkpoint_key()
+            or checkpoint.prompt_document_view.source_text
+            != checkpoint.projection_document.source_text
+        ):
+            return False
+        self._projection_document = checkpoint.projection_document
+        self._paint_state = empty_projection_paint_state()
+        self._prompt_document_view = checkpoint.prompt_document_view
+        self._snapshot = checkpoint.snapshot
+        self._metrics = self._build_metrics()
+        return True
+
+    def _history_checkpoint_key(self) -> PromptProjectionLayoutCheckpointKey:
+        """Return the current exact geometry identity for history restoration."""
+
+        return PromptProjectionLayoutCheckpointKey(
+            font_key=self._base_font.toString(),
+            palette_key=int(self._palette.cacheKey()),
+            semantic_palette=self._semantic_palette,
+            document_margin=self._document_margin,
+            text_width=self._text_width,
+            content_left_inset=self._content_left_inset,
+        )
+
+    def set_projection_after_source_edit(
+        self,
+        projection_document: PromptProjectionDocument,
+        *,
+        prompt_document_view: PromptDocumentView,
+        edit_start: int,
+        edit_end: int,
+        replacement_text: str,
+    ) -> PromptProjectionIncrementalLayoutResult:
+        """Relayout one canonical source edit and reuse its converged suffix."""
+
+        previous_document = self._projection_document
+        previous_snapshot = self._snapshot
+        source_delta = len(replacement_text) - (edit_end - edit_start)
+        projection_delta = (
+            projection_document.mapping.projection_length
+            - previous_document.mapping.projection_length
+        )
+        dirty_line_index = _line_index_for_plain_edit(
+            previous_snapshot.lines,
+            edit_start=edit_start,
+            edit_end=edit_end,
+            replacement_text=replacement_text,
+        )
+        first_line = 0 if dirty_line_index is None else dirty_line_index
+        dirty_line = (
+            previous_snapshot.lines[first_line] if previous_snapshot.lines else None
+        )
+        reflow_source_start = 0 if dirty_line is None else dirty_line.source_start
+        reflow_projection_start = (
+            0
+            if dirty_line is None or not dirty_line.caret_stops
+            else dirty_line.caret_stops[0].projection_position
+        )
+        reflow_line_top = (
+            self._metrics.initial_line_top() if dirty_line is None else dirty_line.top
+        )
+        reusable_lines = {
+            line.source_start + source_delta: line_index
+            for line_index, line in enumerate(previous_snapshot.lines)
+            if line.source_start >= edit_end
+        }
+        reused_line_semantic_resolver = PromptReusedLineSemanticResolver(
+            projection_document
+        )
+        reusable_suffix_semantics = reusable_suffix_semantics_by_line(
+            previous_snapshot.lines,
+            reused_line_semantic_resolver,
+            projection_delta=projection_delta,
+        )
+
+        def reusable_previous_line_index(
+            line: PromptProjectionLineSnapshot,
+        ) -> int | None:
+            """Return a previous line when deterministic layout has converged."""
+
+            previous_line_index = reusable_lines.get(line.source_start)
+            if previous_line_index is None:
+                return None
+            previous_line = previous_snapshot.lines[previous_line_index]
+            if not reusable_suffix_semantics[previous_line_index]:
+                return None
+            if not _line_matches_shifted_plain_edit(
+                line,
+                previous_line,
+                source_delta=source_delta,
+                projection_delta=projection_delta,
+            ):
+                return None
+            return previous_line_index
+
+        self._metrics = self._build_metrics()
+        source_coordinates_are_unchanged = (
+            source_delta == 0
+            and previous_document.source_text == projection_document.source_text
+        )
+        probe_line_span = (
+            max(2, len(previous_snapshot.lines))
+            if source_coordinates_are_unchanged
+            else 2
+        )
+        while True:
+            if previous_snapshot.lines:
+                probe_line_index = min(
+                    len(previous_snapshot.lines) - 1,
+                    first_line + probe_line_span,
+                )
+                guard_line_index = min(
+                    len(previous_snapshot.lines) - 1,
+                    probe_line_index + 1,
+                )
+                source_limit = _remap_source_position_for_layout(
+                    previous_snapshot.lines[guard_line_index].source_end,
+                    edit_start=edit_start,
+                    edit_end=edit_end,
+                    delta=source_delta,
+                )
+                source_limit = min(
+                    len(projection_document.source_text),
+                    max(edit_start + len(replacement_text), source_limit),
+                )
+            else:
+                source_limit = len(projection_document.source_text)
+            build_result = (
+                self._line_layout_builder.build_snapshot_until_reusable_suffix(
+                    projection_document,
+                    wrap_width=self._text_width,
+                    base_font=self._base_font,
+                    document_margin=self._document_margin,
+                    content_left_inset=self._content_left_inset,
+                    prompt_document_view=prompt_document_view,
+                    metrics=self._metrics,
+                    line_reuse_probe=reusable_previous_line_index,
+                    source_start=reflow_source_start,
+                    projection_start=reflow_projection_start,
+                    line_top=reflow_line_top,
+                    source_limit=source_limit,
+                )
+            )
+            if (
+                build_result.reusable_previous_line_index is not None
+                or not build_result.source_limited
+            ):
+                break
+            probe_line_span *= 2
+        partial_snapshot = build_result.snapshot
+        previous_match_index = build_result.reusable_previous_line_index
+        next_snapshot = _snapshot_with_rebuilt_plain_edit_window(
+            partial_snapshot,
+            previous_snapshot=previous_snapshot,
+            first_rebuilt_line_index=first_line,
+            previous_match_index=previous_match_index,
+            source_delta=source_delta,
+            projection_delta=projection_delta,
+            semantic_resolver=reused_line_semantic_resolver,
+        )
+        self._projection_document = projection_document
+        self._paint_state = empty_projection_paint_state()
+        self._prompt_document_view = prompt_document_view
+        self._snapshot = next_snapshot
+        return PromptProjectionIncrementalLayoutResult(
+            content_height_changed=abs(
+                next_snapshot.content_size.height()
+                - previous_snapshot.content_size.height()
+            )
+            > 0.01,
+            content_height_delta=(
+                next_snapshot.content_size.height()
+                - previous_snapshot.content_size.height()
+            ),
+            first_reflowed_line_index=first_line,
+            reflowed_line_count=max(1, len(partial_snapshot.lines)),
+            upstream_line_count=first_line,
+        )
+
     def set_projection_and_text_width(
         self,
         projection_document: PromptProjectionDocument,
@@ -952,11 +1200,14 @@ class PromptProjectionLayout:
         edit_end: int,
         replacement_text: str,
         first_dirty_projection_position: int,
+        editable_token_id: str | None = None,
+        projection_edit_start: int | None = None,
+        projection_edit_end: int | None = None,
+        projection_replacement_text: str | None = None,
     ) -> PromptProjectionIncrementalLayoutResult | None:
-        """Apply a one-character non-wrapping plain edit without full relayout."""
+        """Apply a one-character non-wrapping source-backed text edit locally."""
 
         line_index: int | None = None
-        dirty_line_inline_fragment_count = 0
 
         def reject(
             reason: str,
@@ -971,9 +1222,10 @@ class PromptProjectionLayout:
             projection_document.mapping.projection_length
             - previous_document.mapping.projection_length
         )
-        if (source_delta > 1 or projection_delta != source_delta) or (
-            source_delta == 0 and edit_start == edit_end
-        ):
+        if (
+            source_delta > 1
+            or (projection_delta != source_delta and editable_token_id is None)
+        ) or (source_delta == 0 and edit_start == edit_end):
             return reject("unsupported_edit_delta")
         if "\n" in replacement_text or "\r" in replacement_text:
             return reject("newline_edit")
@@ -986,12 +1238,6 @@ class PromptProjectionLayout:
         if line_index is None:
             return reject("dirty_line_not_found")
         previous_line = previous_snapshot.lines[line_index]
-        dirty_line_inline_fragment_count = sum(
-            isinstance(fragment, PromptProjectionInlineObjectFragment)
-            for fragment in previous_line.fragments
-        )
-        if dirty_line_inline_fragment_count:
-            return reject("dirty_line_has_inline_object")
         tag_keep_ranges_changed = (
             prompt_document_view is not None
             and _plain_edit_changes_local_tag_keep_ranges(
@@ -1002,11 +1248,14 @@ class PromptProjectionLayout:
                 replacement_text=replacement_text,
             )
         )
-        affected_fragment = _plain_text_fragment_for_edit(
-            previous_line,
+        affected_fragment = editable_text_fragment(
+            previous_line.fragments,
             edit_start=edit_start,
             edit_end=edit_end,
             replacement_text=replacement_text,
+            editable_token_id=editable_token_id,
+            projection_edit_start=projection_edit_start,
+            projection_edit_end=projection_edit_end,
         )
         empty_line_insert_fragment: PromptProjectionTextFragment | None = None
         if affected_fragment is None and replacement_text:
@@ -1033,13 +1282,16 @@ class PromptProjectionLayout:
             next_run = projection_document.run_by_id(affected_fragment.run_id)
             if next_run is None:
                 return reject("updated_run_not_found")
-            next_fragment = _edited_text_fragment(
+            next_fragment = build_edited_text_fragment(
                 affected_fragment,
                 next_run=next_run,
                 edit_start=edit_start,
                 edit_end=edit_end,
                 replacement_text=replacement_text,
                 base_font=self._base_font,
+                projection_edit_start=projection_edit_start,
+                projection_edit_end=projection_edit_end,
+                projection_replacement_text=projection_replacement_text,
             )
             if next_fragment is None:
                 return reject("fragment_edit_not_supported")
@@ -1047,15 +1299,30 @@ class PromptProjectionLayout:
             next_fragment = empty_line_insert_fragment
             if next_fragment is None:
                 return reject("empty_line_insert_not_supported")
-        if _plain_edit_touches_visual_word_wrap_boundary(
-            previous_snapshot.lines,
-            dirty_line_index=line_index,
-            line=previous_line,
-            next_source_text=projection_document.source_text,
-            edit_start=edit_start,
-            edit_end=edit_end,
-            replacement_text=replacement_text,
-            source_delta=source_delta,
+        editable_run = (
+            None
+            if affected_fragment is None
+            else previous_document.run_by_id(affected_fragment.run_id)
+        )
+        editable_token_stays_in_one_fragment = bool(
+            editable_token_id is not None
+            and affected_fragment is not None
+            and editable_run is not None
+            and affected_fragment.projection_start == editable_run.projection_start
+            and affected_fragment.projection_end == editable_run.projection_end
+        )
+        if (
+            not editable_token_stays_in_one_fragment
+            and _plain_edit_touches_visual_word_wrap_boundary(
+                previous_snapshot.lines,
+                dirty_line_index=line_index,
+                line=previous_line,
+                next_source_text=projection_document.source_text,
+                edit_start=edit_start,
+                edit_end=edit_end,
+                replacement_text=replacement_text,
+                source_delta=source_delta,
+            )
         ):
             return reject("word_wrap_boundary")
 
@@ -1130,7 +1397,7 @@ class PromptProjectionLayout:
             caret_count=max(
                 0,
                 len(previous_snapshot.caret_rects_by_projection_position)
-                + source_delta,
+                + projection_delta,
             ),
         )
         self._projection_document = projection_document
@@ -1244,17 +1511,15 @@ class PromptProjectionLayout:
             return self._reject_incremental_reflow("line_split_not_supported")
         left_line, right_line = split_result
         line_height_delta = right_line.height
-        downstream_lines = tuple(
-            _remap_downstream_line_after_hard_line_edit(
-                line,
-                source_delta=1,
-                projection_delta=1,
-                y_delta=line_height_delta,
-            )
-            for line in previous_snapshot.lines[line_index + 1 :]
+        downstream_lines = _remap_downstream_lines_after_hard_line_edit(
+            previous_snapshot.lines[line_index + 1 :],
+            projection_document=projection_document,
+            source_delta=1,
+            projection_delta=1,
+            y_delta=line_height_delta,
         )
         next_lines = (
-            previous_snapshot.lines[:line_index]
+            tuple(previous_snapshot.lines[:line_index])
             + (left_line, right_line)
             + downstream_lines
         )
@@ -1313,17 +1578,17 @@ class PromptProjectionLayout:
         if joined_line is None:
             return self._reject_incremental_reflow("line_join_not_supported")
         line_height_delta = -second_line.height
-        downstream_lines = tuple(
-            _remap_downstream_line_after_hard_line_edit(
-                line,
-                source_delta=-1,
-                projection_delta=-1,
-                y_delta=line_height_delta,
-            )
-            for line in previous_snapshot.lines[line_index + 2 :]
+        downstream_lines = _remap_downstream_lines_after_hard_line_edit(
+            previous_snapshot.lines[line_index + 2 :],
+            projection_document=projection_document,
+            source_delta=-1,
+            projection_delta=-1,
+            y_delta=line_height_delta,
         )
         next_lines = (
-            previous_snapshot.lines[:line_index] + (joined_line,) + downstream_lines
+            tuple(previous_snapshot.lines[:line_index])
+            + (joined_line,)
+            + downstream_lines
         )
         self._install_incremental_line_break_snapshot(
             projection_document,
@@ -1344,7 +1609,7 @@ class PromptProjectionLayout:
         projection_document: PromptProjectionDocument,
         *,
         prompt_document_view: PromptDocumentView | None,
-        lines: tuple[PromptProjectionLineSnapshot, ...],
+        lines: Sequence[PromptProjectionLineSnapshot],
         content_height_delta: float,
     ) -> None:
         """Install a line-break incremental snapshot derived from visual lines."""
@@ -1501,7 +1766,7 @@ class PromptProjectionLayout:
                 if stop.projection_position <= next_projection_length
             ),
         )
-        next_lines = previous_snapshot.lines[:-1] + (next_line,)
+        next_lines = tuple(previous_snapshot.lines[:-1]) + (next_line,)
         self._projection_document = projection_document
         self._prompt_document_view = prompt_document_view
         self._snapshot = PromptProjectionLayoutSnapshot(
@@ -1586,7 +1851,7 @@ class PromptProjectionLayout:
             1.0,
             previous_snapshot.content_size.height() - previous_empty_line.height,
         )
-        next_lines = previous_snapshot.lines[:-2] + (next_content_line,)
+        next_lines = tuple(previous_snapshot.lines[:-2]) + (next_content_line,)
         self._projection_document = projection_document
         self._prompt_document_view = prompt_document_view
         self._snapshot = PromptProjectionLayoutSnapshot(
@@ -1660,7 +1925,7 @@ class PromptProjectionLayout:
         next_fragment_source_positions = tuple(
             previous_fragment.source_positions
         ) + tuple(range(previous_source_length + 1, next_source_length + 1))
-        next_fragment_boundary_offsets = _text_boundary_offsets(
+        next_fragment_boundary_offsets = text_boundary_offsets(
             next_fragment_text,
             self._base_font,
         )
@@ -1717,7 +1982,7 @@ class PromptProjectionLayout:
             fragments=previous_line.fragments[:-1] + (next_fragment,),
             caret_stops=previous_line.caret_stops + appended_caret_stops,
         )
-        next_lines = previous_snapshot.lines[:-1] + (next_line,)
+        next_lines = tuple(previous_snapshot.lines[:-1]) + (next_line,)
         self._projection_document = projection_document
         self._prompt_document_view = prompt_document_view
         self._snapshot = PromptProjectionLayoutSnapshot(
@@ -1790,7 +2055,10 @@ class PromptProjectionLayout:
             line_break_start=previous_source_length,
             line_break_end=next_source_length,
         )
-        next_lines = previous_snapshot.lines[:-1] + (next_previous_line, next_line)
+        next_lines = tuple(previous_snapshot.lines[:-1]) + (
+            next_previous_line,
+            next_line,
+        )
         self._projection_document = projection_document
         self._prompt_document_view = prompt_document_view
         self._snapshot = PromptProjectionLayoutSnapshot(
@@ -2050,6 +2318,23 @@ class PromptProjectionLayout:
             scroll_offset=scroll_offset,
         )
 
+    def visible_source_bounds(
+        self,
+        *,
+        viewport_rect: QRectF,
+        scroll_offset: float,
+    ) -> tuple[int, int] | None:
+        """Return the source interval intersecting one viewport."""
+
+        visible_lines = visible_projection_lines(
+            self._snapshot.lines,
+            document_top=viewport_rect.top() + scroll_offset,
+            document_bottom=viewport_rect.bottom() + scroll_offset,
+        )
+        if not visible_lines:
+            return None
+        return (visible_lines[0].source_start, visible_lines[-1].source_end)
+
     def reorder_projection_paint_snapshot(
         self,
         *,
@@ -2060,97 +2345,42 @@ class PromptProjectionLayout:
     ) -> PromptReorderProjectionPaintSnapshot:
         """Return cached-paint-ready projection fragments for one reorder chip."""
 
-        document_clip = viewport_rect.translated(0.0, scroll_offset)
-        normalized_ranges = _normalized_source_ranges(source_ranges)
-        fragments: list[PromptReorderProjectionPaintFragment] = []
-        for line in _reorder_visible_lines(
-            self._snapshot.lines,
-            document_clip=document_clip,
-        ):
-            for fragment in line.fragments:
-                if isinstance(fragment, PromptProjectionTextFragment):
-                    fragments.extend(
-                        self._reorder_text_paint_fragments(
-                            fragment,
-                            source_ranges=normalized_ranges,
-                            scroll_offset=scroll_offset,
-                        )
-                    )
-                    continue
-                inline_fragment = self._reorder_inline_object_paint_fragment(
-                    fragment,
-                    source_ranges=normalized_ranges,
-                    scroll_offset=scroll_offset,
-                )
-                if inline_fragment is not None:
-                    fragments.append(inline_fragment)
-        return PromptReorderProjectionPaintSnapshot(
+        return PromptReorderPaintSnapshotBuilder(
+            projection_document=self._projection_document,
+            lines=self._snapshot.lines,
+            painter=self._painter,
+            inline_object_renderers=self.inline_object_renderers,
+            base_font=self._base_font,
+            palette=self._palette,
+        ).build(
             key=key,
-            fragments=tuple(fragments),
-            source_ranges=normalized_ranges,
+            source_ranges=source_ranges,
+            viewport_rect=viewport_rect,
+            scroll_offset=scroll_offset,
         )
 
-    def _reorder_text_paint_fragments(
+    def reorder_projection_paint_snapshots(
         self,
-        fragment: PromptProjectionTextFragment,
         *,
-        source_ranges: tuple[tuple[int, int], ...],
+        keys_by_chip_index: Mapping[int, PromptReorderProjectionSnapshotKey],
+        source_ranges_by_chip_index: Mapping[int, Sequence[tuple[int, int]]],
+        viewport_rect: QRectF,
         scroll_offset: float,
-    ) -> tuple[PromptReorderTextPaintFragment, ...]:
-        """Return chip-owned slices from one prepared projection text fragment."""
+    ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
+        """Return one indexed batch of cached-paint-ready reorder snapshots."""
 
-        if not fragment.source_positions:
-            return ()
-        font = self._painter.font_for_fragment(fragment)
-        color = self._painter.text_color_for_fragment(fragment)
-        text_fragments: list[PromptReorderTextPaintFragment] = []
-        for chunk_start, chunk_end in _source_position_chunks(
-            fragment.source_positions[: len(fragment.text)],
-            source_ranges=source_ranges,
-        ):
-            if chunk_end <= chunk_start:
-                continue
-            left = fragment.rect.left() + fragment.boundary_offsets[chunk_start]
-            right = fragment.rect.left() + fragment.boundary_offsets[chunk_end]
-            text_fragments.append(
-                PromptReorderTextPaintFragment(
-                    text=fragment.text[chunk_start:chunk_end],
-                    font=QFont(font),
-                    baseline=QPointF(left, fragment.baseline - scroll_offset),
-                    text_rect=QRectF(
-                        left,
-                        fragment.rect.top() - scroll_offset,
-                        max(0.0, right - left),
-                        fragment.rect.height(),
-                    ),
-                    color=QColor(color),
-                )
-            )
-        return tuple(text_fragments)
-
-    def _reorder_inline_object_paint_fragment(
-        self,
-        fragment: PromptProjectionInlineObjectFragment,
-        *,
-        source_ranges: tuple[tuple[int, int], ...],
-        scroll_offset: float,
-    ) -> PromptReorderInlineObjectPaintFragment | None:
-        """Return a chip-owned inline object fragment from prepared projection state."""
-
-        if not _source_positions_overlap(fragment.source_positions, source_ranges):
-            return None
-        run = self._projection_document.run_by_id(fragment.run_id)
-        token = self._projection_document.token_by_id(fragment.token_id)
-        renderer = self.inline_object_renderers.renderer_for(fragment.renderer_key)
-        if run is None or token is None or renderer is None:
-            return None
-        return PromptReorderInlineObjectPaintFragment(
-            renderer=renderer,
-            rect=fragment.rect.translated(0.0, -scroll_offset),
-            run=run,
-            token=token,
-            base_font=QFont(self._base_font),
-            palette=QPalette(self._palette),
+        return PromptReorderPaintSnapshotBuilder(
+            projection_document=self._projection_document,
+            lines=self._snapshot.lines,
+            painter=self._painter,
+            inline_object_renderers=self.inline_object_renderers,
+            base_font=self._base_font,
+            palette=self._palette,
+        ).build_many(
+            keys_by_chip_index=keys_by_chip_index,
+            source_ranges_by_chip_index=source_ranges_by_chip_index,
+            viewport_rect=viewport_rect,
+            scroll_offset=scroll_offset,
         )
 
     def _selection_rects_from_geometry(
@@ -2394,31 +2624,14 @@ class PromptProjectionLayout:
     ) -> tuple[PromptProjectionSourceLineRect, ...]:
         """Return visible viewport rects for newline-delimited source lines."""
 
-        source_text = self._projection_document.source_text
-        line_ranges = _source_line_ranges(source_text)
-        visible_rects: list[PromptProjectionSourceLineRect] = []
-        for line_index, (source_start, source_end) in enumerate(line_ranges):
-            document_rect = self._source_line_document_rect(
-                source_start=source_start,
-                source_end=source_end,
-            )
-            if document_rect is None:
-                continue
-            viewport_line_rect = QRectF(
-                viewport_rect.left(),
-                document_rect.top() - scroll_offset,
-                viewport_rect.width(),
-                document_rect.height(),
-            )
-            clipped_rect = viewport_line_rect.intersected(viewport_rect)
-            if clipped_rect.isValid() and not clipped_rect.isEmpty():
-                visible_rects.append(
-                    PromptProjectionSourceLineRect(
-                        line_index=line_index,
-                        rect=viewport_line_rect,
-                    )
-                )
-        return tuple(visible_rects)
+        return self._source_line_geometry.visible_rects(
+            self._projection_document.source_text,
+            self._snapshot.lines,
+            layout_identity=id(self._snapshot),
+            viewport_rect=viewport_rect,
+            scroll_offset=scroll_offset,
+            layout_width=self._text_width,
+        )
 
     def _caret_rect_for_projection_position(self, projection_position: int) -> QRectF:
         """Return a caret rect without falling back to document origin for live lines."""
@@ -2495,13 +2708,13 @@ class PromptProjectionLayout:
         source_text = self._projection_document.source_text
         clamped_position = max(0, min(source_position, len(source_text)))
         for line_index, (source_start, source_end) in enumerate(
-            _source_line_ranges(source_text)
+            source_line_ranges(source_text)
         ):
             if source_start <= clamped_position < source_end:
                 return line_index
             if source_start == source_end == clamped_position:
                 return line_index
-        return max(0, len(_source_line_ranges(source_text)) - 1)
+        return max(0, len(source_line_ranges(source_text)) - 1)
 
     def _vertical_caret_target_from_geometry(
         self,
@@ -2780,17 +2993,17 @@ class PromptProjectionLayout:
     ) -> tuple[QRectF, ...]:
         """Return wrapped viewport fragments for one raw source range."""
 
-        translated_rects = tuple(
-            rect.translated(0.0, -scroll_offset)
-            for rect in self._merged_rects(
-                self._content_rects_for_source_range(start=start, end=end)
-            )
+        visible_lines = visible_projection_lines(
+            self._snapshot.lines,
+            document_top=viewport_rect.top() + scroll_offset,
+            document_bottom=viewport_rect.bottom() + scroll_offset,
         )
-        return tuple(
-            rect.intersected(viewport_rect)
-            for rect in translated_rects
-            if rect.intersected(viewport_rect).isValid()
-            and not rect.intersected(viewport_rect).isEmpty()
+        return self._visible_source_range_fragments(
+            start,
+            end,
+            visible_lines=visible_lines,
+            viewport_rect=viewport_rect,
+            scroll_offset=scroll_offset,
         )
 
     def _visible_source_range_fragments(
@@ -2812,88 +3025,82 @@ class PromptProjectionLayout:
         selection = PromptProjectionSelection(range_start, range_end)
         content_rects: list[QRectF] = []
         for line in visible_lines:
-            if not _source_range_intersects_visual_line(
+            if not source_range_intersects_visual_line(
                 source_start=range_start,
                 source_end=range_end,
                 visual_start=line.source_start,
                 visual_end=line.source_end,
             ):
                 continue
-            for fragment in line.fragments:
-                if isinstance(fragment, PromptProjectionTextFragment):
-                    selection_bounds = self._text_fragment_selection_bounds(
-                        fragment,
-                        selection,
-                    )
-                    if selection_bounds is None:
-                        continue
-                    start_index, end_index = selection_bounds
-                    content_rects.append(
-                        QRectF(
-                            fragment.rect.left()
-                            + fragment.boundary_offsets[start_index],
-                            fragment.rect.top(),
-                            max(
-                                1.0,
-                                fragment.boundary_offsets[end_index]
-                                - fragment.boundary_offsets[start_index],
-                            ),
-                            fragment.rect.height(),
-                        )
-                    )
-                    continue
-                run = self._projection_document.run_by_id(fragment.run_id)
-                projection_token = self._projection_document.token_by_id(
-                    fragment.token_id
+            content_rects.extend(
+                self.source_range_fragments_for_line(
+                    line,
+                    selection=selection,
+                    range_start=range_start,
+                    range_end=range_end,
                 )
-                if run is None or projection_token is None:
-                    continue
-                renderer = self.inline_object_renderers.renderer_for(
-                    fragment.renderer_key
-                )
-                if renderer is None:
-                    continue
-                content_rects.extend(
-                    renderer.selection_rects(
-                        run,
-                        projection_token,
-                        fragment.rect,
-                        selection_start=range_start,
-                        selection_end=range_end,
-                        base_font=self._base_font,
-                    )
-                )
-
-        translated_rects = tuple(
-            rect.translated(0.0, -scroll_offset)
-            for rect in self._merged_rects(tuple(content_rects))
-        )
-        return tuple(
-            rect.intersected(viewport_rect)
-            for rect in translated_rects
-            if rect.intersected(viewport_rect).isValid()
-            and not rect.intersected(viewport_rect).isEmpty()
-        )
-
-    def _visible_reorder_geometry_lines(
-        self,
-        *,
-        viewport_rect: QRectF,
-        scroll_offset: float,
-    ) -> tuple[PromptProjectionLineSnapshot, ...]:
-        """Return projection lines that can contribute reorder chip geometry."""
-
-        visible_lines: list[PromptProjectionLineSnapshot] = []
-        for line in self._snapshot.lines:
-            line_rect = QRectF(
-                viewport_rect.left(),
-                line.top - scroll_offset,
-                viewport_rect.width(),
-                line.height,
             )
-            if line_rect.intersects(viewport_rect):
-                visible_lines.append(line)
-        return tuple(visible_lines)
+
+        visible_rects: list[QRectF] = []
+        for rect in content_rects:
+            clipped_rect = rect.translated(0.0, -scroll_offset).intersected(
+                viewport_rect
+            )
+            if clipped_rect.isValid() and not clipped_rect.isEmpty():
+                visible_rects.append(clipped_rect)
+        return tuple(visible_rects)
+
+    def source_range_fragments_for_line(
+        self,
+        line: PromptProjectionLineSnapshot,
+        *,
+        selection: PromptProjectionSelection,
+        range_start: int,
+        range_end: int,
+    ) -> tuple[QRectF, ...]:
+        """Return merged document-space fragments from one known visual line."""
+
+        line_content_rects: list[QRectF] = []
+        for fragment in line.fragments:
+            if isinstance(fragment, PromptProjectionTextFragment):
+                selection_bounds = self._text_fragment_selection_bounds(
+                    fragment,
+                    selection,
+                )
+                if selection_bounds is None:
+                    continue
+                start_index, end_index = selection_bounds
+                line_content_rects.append(
+                    QRectF(
+                        fragment.rect.left() + fragment.boundary_offsets[start_index],
+                        fragment.rect.top(),
+                        max(
+                            1.0,
+                            fragment.boundary_offsets[end_index]
+                            - fragment.boundary_offsets[start_index],
+                        ),
+                        fragment.rect.height(),
+                    )
+                )
+                continue
+            run = self._projection_document.run_by_id(fragment.run_id)
+            projection_token = self._projection_document.token_by_id(fragment.token_id)
+            if run is None or projection_token is None:
+                continue
+            renderer = self.inline_object_renderers.renderer_for(fragment.renderer_key)
+            if renderer is None:
+                continue
+            line_content_rects.extend(
+                renderer.selection_rects(
+                    run,
+                    projection_token,
+                    fragment.rect,
+                    selection_start=range_start,
+                    selection_end=range_end,
+                    base_font=self._base_font,
+                )
+            )
+        return self._merge_horizontally_touching_rects(line_content_rects)
 
     def reorder_chip_geometry_snapshot(
         self,
@@ -2903,120 +3110,18 @@ class PromptProjectionLayout:
         chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
         viewport_rect: QRectF,
         scroll_offset: float,
+        included_chip_indices: frozenset[int] | None = None,
     ) -> PromptReorderChipGeometrySnapshot:
         """Return one projection-owned geometry object per semantic reorder chip."""
 
         return self._reorder_geometry.reorder_chip_geometry_snapshot(
+            state=self._reorder_geometry_state(),
             layout_view=layout_view,
             chip_rendered_ranges_by_index=chip_rendered_ranges_by_index,
             chip_owned_ranges_by_index=chip_owned_ranges_by_index,
             viewport_rect=viewport_rect,
             scroll_offset=scroll_offset,
-        )
-
-    def _reorder_chip_geometry_snapshot_from_geometry(
-        self,
-        *,
-        layout_view: PromptReorderLayoutView,
-        chip_rendered_ranges_by_index: dict[int, tuple[int, int]],
-        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
-        viewport_rect: QRectF,
-        scroll_offset: float,
-    ) -> PromptReorderChipGeometrySnapshot:
-        """Return one projection-owned geometry object per semantic reorder chip."""
-
-        _ = chip_owned_ranges_by_index
-        line_rects = self._viewport_line_rects(
-            viewport_rect=viewport_rect,
-            scroll_offset=scroll_offset,
-        )
-        visible_lines = self._visible_reorder_geometry_lines(
-            viewport_rect=viewport_rect,
-            scroll_offset=scroll_offset,
-        )
-        ordered_chip_indices = tuple(
-            chip_index for row in layout_view.rows for chip_index in row.chip_indices
-        )
-        geometries: dict[int, PromptReorderChipGeometry] = {}
-        for visual_revision, chip_index in enumerate(ordered_chip_indices):
-            rendered_range = chip_rendered_ranges_by_index.get(chip_index)
-            if rendered_range is None:
-                log_reorder_drag_event(
-                    "anomaly.chip_geometry_missing_range",
-                    chip_index=chip_index,
-                )
-                continue
-            range_start, range_end = rendered_range
-            fragments = self._visible_source_range_fragments(
-                range_start,
-                range_end,
-                visible_lines=visible_lines,
-                viewport_rect=viewport_rect,
-                scroll_offset=scroll_offset,
-            )
-            log_reorder_drag_event(
-                "chip_geometry.fragment_inputs",
-                chip_index=chip_index,
-                rendered_start=range_start,
-                rendered_end=range_end,
-                fragment_count=len(fragments),
-            )
-            if not fragments:
-                log_reorder_drag_event(
-                    "anomaly.chip_geometry_missing",
-                    chip_index=chip_index,
-                    rendered_start=range_start,
-                    rendered_end=range_end,
-                )
-                continue
-            geometry = self._reorder_chip_geometry_from_fragments(
-                chip_index=chip_index,
-                visual_revision=visual_revision,
-                rendered_start=range_start,
-                rendered_end=range_end,
-                fragments=fragments,
-                viewport_rect=viewport_rect,
-                line_rects=line_rects,
-                scroll_offset=scroll_offset,
-            )
-            if geometry.chrome_path.isEmpty():
-                log_reorder_drag_event(
-                    "anomaly.chip_geometry_empty_path",
-                    chip_index=chip_index,
-                    rendered_start=range_start,
-                    rendered_end=range_end,
-                )
-            geometries[chip_index] = geometry
-            log_reorder_drag_event(
-                "chip_geometry.chip",
-                **chip_geometry_context(geometry),
-            )
-
-        duplicate_chip_count = len(ordered_chip_indices) - len(
-            set(ordered_chip_indices)
-        )
-        if duplicate_chip_count:
-            log_reorder_drag_event(
-                "anomaly.chip_geometry_duplicate",
-                geometry_count=len(geometries),
-                duplicate_chip_count=duplicate_chip_count,
-            )
-        log_reorder_drag_event(
-            "chip_geometry.snapshot",
-            geometry_count=len(geometries),
-            ordered_count=len(ordered_chip_indices),
-            visual_line_count=len(self._snapshot.lines),
-            layout_width=f"{viewport_rect.width():.2f}",
-            content_height=f"{self.content_size().height():.2f}",
-            scroll_offset=f"{scroll_offset:.2f}",
-        )
-        return PromptReorderChipGeometrySnapshot(
-            geometries_by_chip_index=geometries,
-            ordered_chip_indices=ordered_chip_indices,
-            visual_line_count=len(self._snapshot.lines),
-            layout_width=float(viewport_rect.width()),
-            content_height=float(self.content_size().height()),
-            scroll_offset=float(scroll_offset),
+            included_chip_indices=included_chip_indices,
         )
 
     def reorder_placement_snapshot(
@@ -3031,152 +3136,12 @@ class PromptProjectionLayout:
         """Return placement geometry derived from projection-owned chip geometry."""
 
         return self._reorder_geometry.reorder_placement_snapshot(
+            state=self._reorder_geometry_state(),
             layout_view=layout_view,
             chip_geometry_snapshot=chip_geometry_snapshot,
             gap_ranges_by_index=gap_ranges_by_index,
             viewport_rect=viewport_rect,
             scroll_offset=scroll_offset,
-        )
-
-    def _reorder_placement_snapshot_from_geometry(
-        self,
-        *,
-        layout_view: PromptReorderLayoutView,
-        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
-        gap_ranges_by_index: dict[int, tuple[int, int]],
-        viewport_rect: QRectF,
-        scroll_offset: float,
-    ) -> PromptReorderPlacementSnapshot:
-        """Return placement geometry derived from projection-owned chip geometry."""
-
-        placements: list[PromptReorderPlacementGeometry] = []
-        ordinal = 0
-        line_rects = self._viewport_line_rects(
-            viewport_rect=viewport_rect,
-            scroll_offset=scroll_offset,
-        )
-        log_reorder_drag_event(
-            "placement_geometry.uses_chip_geometry_snapshot",
-            chip_geometry_count=len(chip_geometry_snapshot.geometries_by_chip_index),
-            ordered_chip_count=len(chip_geometry_snapshot.ordered_chip_indices),
-            row_count=len(layout_view.rows),
-            gap_count=len(layout_view.gaps),
-        )
-
-        for row in layout_view.rows:
-            row_line_items: dict[
-                int,
-                list[
-                    tuple[
-                        int,
-                        PromptReorderChipGeometry,
-                        PromptReorderChipLineGeometry,
-                    ]
-                ],
-            ] = {}
-            for segment_index in row.chip_indices:
-                geometry = chip_geometry_snapshot.geometries_by_chip_index.get(
-                    segment_index
-                )
-                if geometry is None:
-                    log_reorder_drag_event(
-                        "anomaly.placement_missing_chip_geometry",
-                        row_index=row.row_index,
-                        chip_index=segment_index,
-                        chip_geometry_count=len(
-                            chip_geometry_snapshot.geometries_by_chip_index
-                        ),
-                    )
-                    continue
-                for line_geometry in geometry.visual_lines:
-                    row_line_items.setdefault(
-                        line_geometry.visual_line_index,
-                        [],
-                    ).append((segment_index, geometry, line_geometry))
-
-            for visual_line_index, line_items in sorted(row_line_items.items()):
-                line_rect = line_rects.get(visual_line_index)
-                if line_rect is None or line_rect.isEmpty():
-                    continue
-                line_items.sort(key=lambda item: item[2].content_rect.center().x())
-                placement_items = self._row_placement_items(
-                    row_indices=row.chip_indices,
-                    line_items=line_items,
-                    row_index=row.row_index,
-                    visual_line_index=visual_line_index,
-                    visual_line_rect=line_rect,
-                    viewport_rect=viewport_rect,
-                    ordinal_start=ordinal,
-                )
-                placements.extend(placement_items)
-                ordinal += len(placement_items)
-
-        for gap in layout_view.gaps:
-            gap_range = gap_ranges_by_index.get(gap.gap_index)
-            if gap_range is None:
-                continue
-            gap_start, _gap_end = gap_range
-            for blank_line_index in range(gap.blank_line_count):
-                caret_rect = self.cursor_rect(
-                    self._projection_document.caret_map.state_for_source_position(
-                        gap_start + self._gap_blank_line_offset(gap, blank_line_index)
-                    ),
-                    scroll_offset=scroll_offset,
-                )
-                if caret_rect.isEmpty():
-                    continue
-                visual_line_index_or_none = self._visual_line_index_for_viewport_y(
-                    caret_rect.center().y(),
-                    scroll_offset=scroll_offset,
-                )
-                if visual_line_index_or_none is None:
-                    visual_line_index = max(0, len(self._snapshot.lines) - 1)
-                else:
-                    visual_line_index = visual_line_index_or_none
-                visual_line_rect = line_rects.get(
-                    visual_line_index,
-                    QRectF(
-                        viewport_rect.left(),
-                        caret_rect.top(),
-                        viewport_rect.width(),
-                        max(1.0, caret_rect.height()),
-                    ),
-                )
-                hit_rect = QRectF(
-                    viewport_rect.left(),
-                    caret_rect.top(),
-                    viewport_rect.width(),
-                    max(1.0, caret_rect.height()),
-                ).intersected(viewport_rect)
-                if hit_rect.isEmpty():
-                    continue
-                target = PromptGapBlankLineDropTarget(
-                    gap_index=gap.gap_index,
-                    blank_line_index=blank_line_index,
-                )
-                placements.append(
-                    PromptReorderPlacementGeometry(
-                        placement_id=reorder_placement_id_for_target(
-                            target,
-                            visual_line_index=visual_line_index,
-                            ordinal=ordinal,
-                        ),
-                        target=target,
-                        hit_rect=hit_rect,
-                        insertion_anchor_rect=caret_rect,
-                        visual_line_rect=visual_line_rect,
-                        expected_landing_rect=None,
-                        source_before=gap_start,
-                        source_after=gap_start,
-                    )
-                )
-                ordinal += 1
-
-        return PromptReorderPlacementSnapshot(
-            placements=tuple(placements),
-            visual_line_count=len(self._snapshot.lines),
-            layout_width=float(viewport_rect.width()),
-            content_height=float(self.content_size().height()),
         )
 
     def source_range_row_rects(
@@ -3190,348 +3155,28 @@ class PromptProjectionLayout:
         """Return full-width visible row rects intersecting one source range."""
 
         return self._reorder_geometry.source_range_row_rects(
+            self._reorder_geometry_state(),
             start,
             end,
             viewport_rect=viewport_rect,
             scroll_offset=scroll_offset,
         )
 
-    def _source_range_row_rects_from_reorder_geometry(
-        self,
-        start: int,
-        end: int,
-        *,
-        viewport_rect: QRectF,
-        scroll_offset: float,
-    ) -> tuple[QRectF, ...]:
-        """Return full-width visible row rects intersecting one source range."""
+    def _reorder_geometry_state(self) -> PromptProjectionReorderGeometryState:
+        """Return the prepared immutable inputs for one reorder geometry request."""
 
-        range_start = max(0, min(start, end))
-        range_end = max(0, max(start, end))
-        row_rects: list[QRectF] = []
-        for line in self._snapshot.lines:
-            if not _source_range_intersects_visual_line(
-                source_start=range_start,
-                source_end=range_end,
-                visual_start=line.source_start,
-                visual_end=line.source_end,
-            ):
-                continue
-            viewport_line_rect = QRectF(
-                viewport_rect.left(),
-                line.top - scroll_offset,
-                viewport_rect.width(),
-                line.height,
-            )
-            clipped_rect = viewport_line_rect.intersected(viewport_rect)
-            if clipped_rect.isValid() and not clipped_rect.isEmpty():
-                row_rects.append(viewport_line_rect)
-        return tuple(row_rects)
-
-    def _reorder_chip_geometry_from_fragments(
-        self,
-        *,
-        chip_index: int,
-        visual_revision: int,
-        rendered_start: int,
-        rendered_end: int,
-        fragments: tuple[QRectF, ...],
-        viewport_rect: QRectF,
-        line_rects: dict[int, QRectF],
-        scroll_offset: float,
-    ) -> PromptReorderChipGeometry:
-        """Build one semantic chip geometry from projection-internal fragments."""
-
-        line_content_rects: dict[int, list[QRectF]] = {}
-        for fragment in fragments:
-            visual_line_index = self._visual_line_index_for_viewport_y(
-                fragment.center().y(),
-                scroll_offset=scroll_offset,
-            )
-            if visual_line_index is None:
-                visual_line_index = 0
-            line_content_rects.setdefault(visual_line_index, []).append(
-                self._chip_content_rect_for_fragment(
-                    fragment,
-                    viewport_rect=viewport_rect,
-                )
-            )
-
-        line_geometries: list[PromptReorderChipLineGeometry] = []
-        for visual_line_index, content_rects in sorted(line_content_rects.items()):
-            content_rect = QRectF(content_rects[0])
-            for rect in content_rects[1:]:
-                content_rect = content_rect.united(rect)
-            line_rect = line_rects.get(
-                visual_line_index,
-                QRectF(
-                    viewport_rect.left(),
-                    content_rect.top(),
-                    viewport_rect.width(),
-                    max(1.0, content_rect.height()),
-                ),
-            )
-            line_geometries.append(
-                PromptReorderChipLineGeometry(
-                    visual_line_index=visual_line_index,
-                    line_rect=QRectF(line_rect),
-                    content_rect=content_rect,
-                    leading_anchor=QPointF(
-                        content_rect.left(), content_rect.center().y()
-                    ),
-                    trailing_anchor=QPointF(
-                        content_rect.right(),
-                        content_rect.center().y(),
-                    ),
-                )
-            )
-
-        outline_bounds = QRectF(line_geometries[0].content_rect)
-        for line_geometry in line_geometries[1:]:
-            outline_bounds = outline_bounds.united(line_geometry.content_rect)
-        hotspot_rect = outline_bounds.adjusted(
-            -PROMPT_REORDER_CHIP_HOTSPOT_PADDING_X,
-            -PROMPT_REORDER_CHIP_HOTSPOT_PADDING_Y,
-            PROMPT_REORDER_CHIP_HOTSPOT_PADDING_X,
-            PROMPT_REORDER_CHIP_HOTSPOT_PADDING_Y,
-        ).toAlignedRect()
-        return PromptReorderChipGeometry(
-            geometry_id=PromptReorderChipGeometryId(
-                chip_index=chip_index,
-                visual_revision=visual_revision,
-            ),
-            chip_index=chip_index,
-            source_start=rendered_start,
-            source_end=rendered_end,
-            rendered_start=rendered_start,
-            rendered_end=rendered_end,
-            visual_lines=tuple(line_geometries),
-            hotspot_rect=hotspot_rect,
-            chrome_path=chrome_path_from_rects(
-                tuple(line.content_rect for line in line_geometries)
-            ),
-            outline_bounds=outline_bounds,
-            slot_before=QPointF(
-                line_geometries[0].content_rect.left(),
-                line_geometries[0].content_rect.center().y(),
-            ),
-            slot_after=QPointF(
-                line_geometries[-1].content_rect.right(),
-                line_geometries[-1].content_rect.center().y(),
-            ),
-            marker_height=max(line.content_rect.height() for line in line_geometries),
-        )
-
-    @staticmethod
-    def _chip_content_rect_for_fragment(
-        fragment: QRectF,
-        *,
-        viewport_rect: QRectF,
-    ) -> QRectF:
-        """Inflate one projection fragment into semantic chip chrome content."""
-
-        return QRectF(
-            QPointF(
-                max(
-                    viewport_rect.left(),
-                    fragment.left() - PROMPT_REORDER_CHIP_BUBBLE_PADDING_X,
-                ),
-                max(
-                    viewport_rect.top(),
-                    fragment.top() - PROMPT_REORDER_CHIP_BUBBLE_PADDING_Y,
-                ),
-            ),
-            QPointF(
-                min(
-                    viewport_rect.right(),
-                    fragment.right() + PROMPT_REORDER_CHIP_BUBBLE_PADDING_X,
-                ),
-                min(
-                    viewport_rect.bottom(),
-                    fragment.bottom() + PROMPT_REORDER_CHIP_BUBBLE_PADDING_Y,
-                ),
-            ),
-        )
-
-    def _row_placement_items(
-        self,
-        *,
-        row_indices: tuple[int, ...],
-        line_items: list[
-            tuple[int, PromptReorderChipGeometry, PromptReorderChipLineGeometry]
-        ],
-        row_index: int,
-        visual_line_index: int,
-        visual_line_rect: QRectF,
-        viewport_rect: QRectF,
-        ordinal_start: int,
-    ) -> list[PromptReorderPlacementGeometry]:
-        """Return projection-owned placements for one visual row of chips."""
-
-        placements: list[PromptReorderPlacementGeometry] = []
-        visual_rects = tuple(
-            line.content_rect for _index, _geometry, line in line_items
-        )
-        row_top = min(
-            (rect.top() for rect in visual_rects), default=visual_line_rect.top()
-        )
-        row_bottom = max(
-            (rect.bottom() for rect in visual_rects),
-            default=visual_line_rect.bottom(),
-        )
-        placement_line_rect = QRectF(
-            viewport_rect.left(),
-            min(visual_line_rect.top(), row_top),
-            viewport_rect.width(),
-            max(
+        return PromptProjectionReorderGeometryState(
+            projection_document=self._projection_document,
+            layout_snapshot=self._snapshot,
+            content_size=QSizeF(self._snapshot.content_size),
+            fallback_caret_rect=QRectF(
+                0.0,
+                self._document_margin,
                 1.0,
-                max(visual_line_rect.bottom(), row_bottom)
-                - min(visual_line_rect.top(), row_top),
+                self._metrics.text_line_height,
             ),
-        ).intersected(viewport_rect)
-        if placement_line_rect.isEmpty():
-            return placements
-        line_top = placement_line_rect.top()
-        line_height = max(1.0, placement_line_rect.height())
-
-        def append_placement(
-            *,
-            insertion_index: int,
-            hit_left: float,
-            hit_right: float,
-            anchor_x: float,
-            source_before: int | None,
-            source_after: int | None,
-            adjacent_chip_indices: tuple[int, ...],
-        ) -> None:
-            target = PromptLineDropTarget(
-                row_index=row_index,
-                insertion_index=insertion_index,
-            )
-            ordinal = ordinal_start + len(placements)
-            placements.append(
-                PromptReorderPlacementGeometry(
-                    placement_id=reorder_placement_id_for_target(
-                        target,
-                        visual_line_index=visual_line_index,
-                        ordinal=ordinal,
-                    ),
-                    target=target,
-                    hit_rect=QRectF(
-                        hit_left,
-                        line_top,
-                        max(8.0, hit_right - hit_left),
-                        line_height,
-                    ).intersected(viewport_rect),
-                    insertion_anchor_rect=rect_from_centerline(
-                        x=anchor_x,
-                        y=placement_line_rect.center().y(),
-                        height=line_height,
-                    ),
-                    visual_line_rect=placement_line_rect,
-                    expected_landing_rect=None,
-                    source_before=source_before,
-                    source_after=source_after,
-                    adjacent_chip_indices=adjacent_chip_indices,
-                )
-            )
-
-        first_segment_index, first_geometry, first_line = line_items[0]
-        first_rect = QRectF(first_line.content_rect)
-        first_logical_index = row_indices.index(first_segment_index)
-        append_placement(
-            insertion_index=first_logical_index,
-            hit_left=viewport_rect.left(),
-            hit_right=first_rect.center().x(),
-            anchor_x=first_line.leading_anchor.x(),
-            source_before=None,
-            source_after=first_geometry.rendered_start,
-            adjacent_chip_indices=(first_segment_index,),
+            source_fragments=self,
         )
-
-        for visual_insertion_index, (
-            left_segment_index,
-            _left_geometry,
-            left_line,
-        ) in enumerate(
-            line_items[:-1],
-            start=1,
-        ):
-            right_segment_index, right_geometry, right_line = line_items[
-                visual_insertion_index
-            ]
-            left_rect = QRectF(left_line.content_rect)
-            right_rect = QRectF(right_line.content_rect)
-            right_logical_index = row_indices.index(right_segment_index)
-            append_placement(
-                insertion_index=right_logical_index,
-                hit_left=left_rect.center().x(),
-                hit_right=right_rect.center().x(),
-                anchor_x=right_line.leading_anchor.x(),
-                source_before=_left_geometry.rendered_end,
-                source_after=right_geometry.rendered_start,
-                adjacent_chip_indices=(left_segment_index, right_segment_index),
-            )
-
-        last_segment_index, last_geometry, last_line = line_items[-1]
-        last_rect = QRectF(last_line.content_rect)
-        last_logical_index = row_indices.index(last_segment_index)
-        append_placement(
-            insertion_index=last_logical_index + 1,
-            hit_left=last_rect.center().x(),
-            hit_right=viewport_rect.right(),
-            anchor_x=last_line.trailing_anchor.x(),
-            source_before=last_geometry.rendered_end,
-            source_after=None,
-            adjacent_chip_indices=(last_segment_index,),
-        )
-        return placements
-
-    def _viewport_line_rects(
-        self,
-        *,
-        viewport_rect: QRectF,
-        scroll_offset: float,
-    ) -> dict[int, QRectF]:
-        """Return viewport-local full-width rects for visible projection lines."""
-
-        line_rects: dict[int, QRectF] = {}
-        for line_index, line in enumerate(self._snapshot.lines):
-            line_rect = QRectF(
-                viewport_rect.left(),
-                line.top - scroll_offset,
-                viewport_rect.width(),
-                line.height,
-            ).intersected(viewport_rect)
-            if line_rect.isValid() and not line_rect.isEmpty():
-                line_rects[line_index] = line_rect
-        return line_rects
-
-    def _visual_line_index_for_viewport_y(
-        self,
-        y_position: float,
-        *,
-        scroll_offset: float,
-    ) -> int | None:
-        """Return the projection visual line that owns one viewport-local Y value."""
-
-        document_y = y_position + scroll_offset
-        return self._line_index_for_pointer_y(
-            document_y,
-            preferred_line_index=None,
-        )
-
-    @staticmethod
-    def _gap_blank_line_offset(
-        gap: PromptReorderGapView,
-        blank_line_index: int,
-    ) -> int:
-        """Return the source offset for one blank-line target inside a gap."""
-
-        offsets = blank_line_drop_offsets(gap.separator_text)
-        if not 0 <= blank_line_index < len(offsets):
-            return 0
-        return offsets[blank_line_index]
 
     def measure_token(self, token: PromptProjectionToken) -> QSizeF:
         """Measure the visible presentation owned by one semantic token."""
@@ -4219,30 +3864,6 @@ class PromptProjectionLayout:
                 return line_index
         return None
 
-    def _source_line_document_rect(
-        self,
-        *,
-        source_start: int,
-        source_end: int,
-    ) -> QRectF | None:
-        """Return the document rect covering every visual row for one source line."""
-
-        matching_lines = tuple(
-            line
-            for line in self._snapshot.lines
-            if _source_line_intersects_visual_line(
-                source_start=source_start,
-                source_end=source_end,
-                visual_start=line.source_start,
-                visual_end=line.source_end,
-            )
-        )
-        if not matching_lines:
-            return None
-        top = min(line.top for line in matching_lines)
-        bottom = max(line.top + line.height for line in matching_lines)
-        return QRectF(0.0, top, self._text_width, max(1.0, bottom - top))
-
     def _merge_horizontally_touching_rects(
         self,
         rects: Sequence[QRectF],
@@ -4338,7 +3959,7 @@ __all__ = [
 
 
 def _line_index_for_plain_edit(
-    lines: tuple[PromptProjectionLineSnapshot, ...],
+    lines: Sequence[PromptProjectionLineSnapshot],
     *,
     edit_start: int,
     edit_end: int,
@@ -4361,7 +3982,7 @@ def _line_index_for_plain_edit(
 
 
 def _line_index_for_hard_line_insert(
-    lines: tuple[PromptProjectionLineSnapshot, ...],
+    lines: Sequence[PromptProjectionLineSnapshot],
     *,
     edit_start: int,
 ) -> int | None:
@@ -4377,7 +3998,7 @@ def _line_index_for_hard_line_insert(
 
 
 def _line_index_for_hard_line_delete(
-    lines: tuple[PromptProjectionLineSnapshot, ...],
+    lines: Sequence[PromptProjectionLineSnapshot],
     *,
     edit_start: int,
 ) -> int | None:
@@ -4396,7 +4017,7 @@ def _plain_edit_requires_tag_keep_reflow(
     prompt_document_view: PromptDocumentView,
     *,
     previous_source_text: str,
-    lines: tuple[PromptProjectionLineSnapshot, ...],
+    lines: Sequence[PromptProjectionLineSnapshot],
     line: PromptProjectionLineSnapshot,
     line_index: int,
     edit_start: int,
@@ -4443,7 +4064,7 @@ def _plain_edit_requires_tag_keep_reflow(
         replacement_text=replacement_text,
     )
     if touched_range is None:
-        return False
+        return tag_keep_ranges_changed
     range_start, range_end = touched_range
     if range_start < line.source_content_start or range_end > next_line_content_end:
         return True
@@ -4650,35 +4271,6 @@ def _edit_touches_source_range(
     return edit_start < range_end and range_start < edit_end
 
 
-def _plain_text_fragment_for_edit(
-    line: PromptProjectionLineSnapshot,
-    *,
-    edit_start: int,
-    edit_end: int,
-    replacement_text: str,
-) -> PromptProjectionTextFragment | None:
-    """Return the source-backed plain text fragment containing one edit."""
-
-    for fragment in line.fragments:
-        if not isinstance(fragment, PromptProjectionTextFragment):
-            continue
-        if fragment.token_id is not None:
-            continue
-        try:
-            start_index = fragment.source_positions.index(edit_start)
-        except ValueError:
-            continue
-        if replacement_text and edit_start == edit_end:
-            return fragment
-        try:
-            end_index = fragment.source_positions.index(edit_end)
-        except ValueError:
-            continue
-        if end_index > start_index:
-            return fragment
-    return None
-
-
 def _plain_text_run_for_empty_line_insert(
     projection_document: PromptProjectionDocument,
     *,
@@ -4737,7 +4329,7 @@ def _text_fragment_for_empty_line_insert(
     ) != tuple(range(edit_start, edit_start + len(replacement_text) + 1)):
         return None
     fragment_font = projection_text_run_font(next_run, base_font)
-    boundary_offsets = _text_boundary_offsets(replacement_text, fragment_font)
+    boundary_offsets = text_boundary_offsets(replacement_text, fragment_font)
     if len(boundary_offsets) != len(replacement_text) + 1:
         return None
     font_metrics = QFontMetricsF(fragment_font)
@@ -4762,80 +4354,8 @@ def _text_fragment_for_empty_line_insert(
     )
 
 
-def _edited_text_fragment(
-    fragment: PromptProjectionTextFragment,
-    *,
-    next_run: PromptProjectionRun,
-    edit_start: int,
-    edit_end: int,
-    replacement_text: str,
-    base_font: QFont,
-) -> PromptProjectionTextFragment | None:
-    """Return an edited text fragment when the edit remains inside one line."""
-
-    try:
-        local_start = fragment.source_positions.index(edit_start)
-    except ValueError:
-        return None
-    source_delta = len(replacement_text) - (edit_end - edit_start)
-    projection_delta = source_delta
-    try:
-        local_end = fragment.source_positions.index(edit_end)
-    except ValueError:
-        return None
-    if local_end < local_start:
-        return None
-    next_text = (
-        fragment.text[:local_start] + replacement_text + fragment.text[local_end:]
-    )
-    if not next_text:
-        return None
-    next_source_positions = (
-        tuple(fragment.source_positions[: local_start + 1])
-        + tuple(edit_start + index for index in range(1, len(replacement_text) + 1))
-        + tuple(
-            position + source_delta
-            for position in fragment.source_positions[local_end + 1 :]
-        )
-    )
-
-    next_projection_end = fragment.projection_end + projection_delta
-    if (
-        next_projection_end <= fragment.projection_start
-        or next_run.projection_start > fragment.projection_start
-        or next_run.projection_end < next_projection_end
-    ):
-        return None
-    expected_text = next_run.display_text[
-        fragment.projection_start - next_run.projection_start : next_projection_end
-        - next_run.projection_start
-    ]
-    if expected_text != next_text:
-        return None
-    boundary_offsets = _text_boundary_offsets(
-        next_text,
-        projection_text_run_font(next_run, base_font),
-    )
-    if len(boundary_offsets) != len(next_text) + 1:
-        return None
-    next_rect = QRectF(fragment.rect)
-    next_rect.setWidth(max(1.0, boundary_offsets[-1]))
-    return PromptProjectionTextFragment(
-        run_id=fragment.run_id,
-        token_id=fragment.token_id,
-        projection_start=fragment.projection_start,
-        projection_end=next_projection_end,
-        text=next_text,
-        source_positions=next_source_positions,
-        rect=next_rect,
-        baseline=fragment.baseline,
-        boundary_offsets=boundary_offsets,
-        active=next_run.active,
-    )
-
-
 def _plain_edit_touches_visual_word_wrap_boundary(
-    lines: tuple[PromptProjectionLineSnapshot, ...],
+    lines: Sequence[PromptProjectionLineSnapshot],
     *,
     dirty_line_index: int,
     line: PromptProjectionLineSnapshot,
@@ -5179,7 +4699,7 @@ def _slice_text_fragment(
         if rect_left_override is not None
         else fragment.rect.left() + boundary_offsets[0] + x_delta
     )
-    rect.setTop(fragment.rect.top() + y_delta)
+    rect.moveTop(fragment.rect.top() + y_delta)
     rect.setWidth(max(1.0, normalized_offsets[-1]))
     return PromptProjectionTextFragment(
         run_id=fragment.run_id,
@@ -5271,7 +4791,7 @@ def _content_right(
 
 
 def _remap_lines_for_same_line_plain_edit(
-    lines: tuple[PromptProjectionLineSnapshot, ...],
+    lines: Sequence[PromptProjectionLineSnapshot],
     *,
     projection_document: PromptProjectionDocument,
     dirty_line_index: int,
@@ -5303,22 +4823,19 @@ def _remap_lines_for_same_line_plain_edit(
         )
     downstream_lines = lines[dirty_line_index + 1 :]
     if downstream_lines:
-        with _suspend_gc_for_hot_layout_path():
-            next_lines.extend(
-                _remap_downstream_line_after_plain_edit(
-                    line,
-                    edit_start=edit_start,
-                    edit_end=edit_end,
-                    source_delta=source_delta,
-                    projection_delta=projection_delta,
-                )
-                for line in downstream_lines
+        next_lines.extend(
+            _remap_downstream_lines_after_plain_edit(
+                downstream_lines,
+                projection_document=projection_document,
+                source_delta=source_delta,
+                projection_delta=projection_delta,
             )
+        )
     return tuple(next_lines)
 
 
 def _remap_lines_for_empty_line_plain_insert(
-    lines: tuple[PromptProjectionLineSnapshot, ...],
+    lines: Sequence[PromptProjectionLineSnapshot],
     *,
     projection_document: PromptProjectionDocument,
     dirty_line_index: int,
@@ -5364,14 +4881,12 @@ def _remap_lines_for_empty_line_plain_insert(
             )
         )
     next_lines.extend(
-        _remap_downstream_line_after_plain_edit(
-            line,
-            edit_start=edit_start,
-            edit_end=edit_end,
+        _remap_downstream_lines_after_plain_edit(
+            lines[dirty_line_index + 1 :],
+            projection_document=projection_document,
             source_delta=source_delta,
             projection_delta=projection_delta,
         )
-        for line in lines[dirty_line_index + 1 :]
     )
     return tuple(next_lines)
 
@@ -5483,23 +4998,84 @@ def _remap_dirty_line_for_same_line_plain_edit(
     )
 
 
+def _remap_downstream_lines_after_plain_edit(
+    lines: Sequence[PromptProjectionLineSnapshot],
+    *,
+    projection_document: PromptProjectionDocument,
+    source_delta: int,
+    projection_delta: int,
+) -> tuple[PromptProjectionLineSnapshot, ...]:
+    """Shift downstream lines and refresh only existing semantic bindings."""
+
+    semantic_resolver: PromptReusedLineSemanticResolver | None = None
+    shifted_lines: list[PromptProjectionLineSnapshot] = []
+    for line in lines:
+        line_resolver = None
+        if _shifted_line_has_semantic_resolver(line):
+            if semantic_resolver is None:
+                semantic_resolver = PromptReusedLineSemanticResolver(
+                    projection_document
+                )
+            line_resolver = semantic_resolver
+        shifted_lines.append(
+            _remap_downstream_line_after_plain_edit(
+                line,
+                source_delta=source_delta,
+                projection_delta=projection_delta,
+                semantic_resolver=line_resolver,
+            )
+        )
+    return tuple(shifted_lines)
+
+
 def _remap_downstream_line_after_plain_edit(
     line: PromptProjectionLineSnapshot,
     *,
-    edit_start: int,
-    edit_end: int,
     source_delta: int,
     projection_delta: int,
+    semantic_resolver: PromptReusedLineSemanticResolver | None,
 ) -> PromptProjectionLineSnapshot:
     """Return a downstream line shifted logically but not geometrically."""
 
-    del edit_start, edit_end
     return _ShiftedLineSnapshot(
         line,
         source_delta=source_delta,
         projection_delta=projection_delta,
         y_delta=0.0,
+        semantic_resolver=semantic_resolver,
     )
+
+
+def _remap_downstream_lines_after_hard_line_edit(
+    lines: Sequence[PromptProjectionLineSnapshot],
+    *,
+    projection_document: PromptProjectionDocument,
+    source_delta: int,
+    projection_delta: int,
+    y_delta: float,
+) -> tuple[PromptProjectionLineSnapshot, ...]:
+    """Shift hard-line suffixes while retaining current semantic ownership."""
+
+    semantic_resolver: PromptReusedLineSemanticResolver | None = None
+    shifted_lines: list[PromptProjectionLineSnapshot] = []
+    for line in lines:
+        line_resolver = None
+        if _shifted_line_has_semantic_resolver(line):
+            if semantic_resolver is None:
+                semantic_resolver = PromptReusedLineSemanticResolver(
+                    projection_document
+                )
+            line_resolver = semantic_resolver
+        shifted_lines.append(
+            _remap_downstream_line_after_hard_line_edit(
+                line,
+                source_delta=source_delta,
+                projection_delta=projection_delta,
+                y_delta=y_delta,
+                semantic_resolver=line_resolver,
+            )
+        )
+    return tuple(shifted_lines)
 
 
 def _remap_downstream_line_after_hard_line_edit(
@@ -5508,6 +5084,7 @@ def _remap_downstream_line_after_hard_line_edit(
     source_delta: int,
     projection_delta: int,
     y_delta: float,
+    semantic_resolver: PromptReusedLineSemanticResolver | None,
 ) -> PromptProjectionLineSnapshot:
     """Return a downstream line shifted lazily after a hard-line insert/delete."""
 
@@ -5516,6 +5093,18 @@ def _remap_downstream_line_after_hard_line_edit(
         source_delta=source_delta,
         projection_delta=projection_delta,
         y_delta=y_delta,
+        semantic_resolver=semantic_resolver,
+    )
+
+
+def _shifted_line_has_semantic_resolver(
+    line: PromptProjectionLineSnapshot,
+) -> bool:
+    """Return whether one lazy line must rebind fragments to current semantics."""
+
+    return bool(
+        isinstance(line, _ShiftedLineSnapshot)
+        and object.__getattribute__(line, "_semantic_resolver") is not None
     )
 
 
@@ -5525,21 +5114,32 @@ def _shift_downstream_fragment_after_plain_edit(
     source_delta: int,
     projection_delta: int,
     y_delta: float,
+    semantic_resolver: PromptReusedLineSemanticResolver | None = None,
 ) -> PromptProjectionTextFragment | PromptProjectionInlineObjectFragment:
     """Return one downstream fragment shifted after an upstream edit."""
 
+    semantic_identity = (
+        None
+        if semantic_resolver is None
+        else semantic_resolver.identity_for(
+            fragment,
+            projection_delta=projection_delta,
+        )
+    )
     if isinstance(fragment, PromptProjectionTextFragment):
         return _ShiftedTextFragment(
             fragment,
             source_delta=source_delta,
             projection_delta=projection_delta,
             y_delta=y_delta,
+            semantic_identity=semantic_identity,
         )
     return _ShiftedInlineObjectFragment(
         fragment,
         source_delta=source_delta,
         projection_delta=projection_delta,
         y_delta=y_delta,
+        semantic_identity=semantic_identity,
     )
 
 
@@ -5709,68 +5309,6 @@ def _caret_stops_for_line_fragments(
     )
 
 
-def _normalized_source_ranges(
-    source_ranges: Sequence[tuple[int, int]],
-) -> tuple[tuple[int, int], ...]:
-    """Return non-empty source ranges in deterministic order."""
-
-    return tuple(sorted((start, end) for start, end in source_ranges if end > start))
-
-
-def _reorder_visible_lines(
-    lines: tuple[PromptProjectionLineSnapshot, ...],
-    *,
-    document_clip: QRectF,
-) -> tuple[PromptProjectionLineSnapshot, ...]:
-    """Return projection lines intersecting one reorder paint snapshot clip."""
-
-    clip_top = document_clip.top()
-    clip_bottom = document_clip.bottom()
-    return tuple(
-        line
-        for line in lines
-        if line.top <= clip_bottom and line.top + line.height >= clip_top
-    )
-
-
-def _source_positions_overlap(
-    source_positions: Sequence[int],
-    source_ranges: tuple[tuple[int, int], ...],
-) -> bool:
-    """Return whether any source position belongs to the supplied ranges."""
-
-    for source_position in source_positions:
-        for start, end in source_ranges:
-            if start <= source_position < end:
-                return True
-    return False
-
-
-def _source_position_chunks(
-    source_positions: Sequence[int],
-    *,
-    source_ranges: tuple[tuple[int, int], ...],
-) -> tuple[tuple[int, int], ...]:
-    """Return contiguous fragment-local chunks owned by the supplied source ranges."""
-
-    chunks: list[tuple[int, int]] = []
-    chunk_start: int | None = None
-    previous_index: int | None = None
-    for index, source_position in enumerate(source_positions):
-        owned = any(start <= source_position < end for start, end in source_ranges)
-        if owned and chunk_start is None:
-            chunk_start = index
-        if not owned and chunk_start is not None:
-            chunks.append((chunk_start, index))
-            chunk_start = None
-        previous_index = index
-    if chunk_start is not None:
-        chunks.append(
-            (chunk_start, 0 if previous_index is None else previous_index + 1)
-        )
-    return tuple(chunks)
-
-
 def _remap_optional_source_position_for_layout(
     position: int | None,
     *,
@@ -5810,6 +5348,234 @@ def _remap_source_position_for_layout(
     return position
 
 
+def _snapshot_with_rebuilt_plain_edit_window(
+    partial_snapshot: PromptProjectionLayoutSnapshot,
+    *,
+    previous_snapshot: PromptProjectionLayoutSnapshot,
+    first_rebuilt_line_index: int,
+    previous_match_index: int | None,
+    source_delta: int,
+    projection_delta: int,
+    semantic_resolver: PromptReusedLineSemanticResolver,
+) -> PromptProjectionLayoutSnapshot:
+    """Compose a stable prefix, rebuilt dirty window, and reusable suffix."""
+
+    previous_prefix = previous_snapshot.lines[:first_rebuilt_line_index]
+    rebuilt_prefix = tuple(previous_prefix) + tuple(partial_snapshot.lines)
+    previous_suffix = (
+        ()
+        if previous_match_index is None
+        else previous_snapshot.lines[previous_match_index + 1 :]
+    )
+    if not previous_prefix and not previous_suffix:
+        return partial_snapshot
+    y_delta = 0.0
+    if previous_suffix:
+        prefix_bottom = (
+            rebuilt_prefix[-1].top + rebuilt_prefix[-1].height
+            if rebuilt_prefix
+            else previous_suffix[0].top
+        )
+        y_delta = prefix_bottom - previous_suffix[0].top
+        next_lines: Sequence[PromptProjectionLineSnapshot] = (
+            PromptProjectionReusedLineSequence(
+                rebuilt_prefix,
+                previous_suffix,
+                shift_line=lambda line, shifted_source_delta, shifted_projection_delta, shifted_y_delta: (
+                    _ShiftedLineSnapshot(
+                        line,
+                        source_delta=shifted_source_delta,
+                        projection_delta=shifted_projection_delta,
+                        y_delta=shifted_y_delta,
+                        semantic_resolver=semantic_resolver,
+                    )
+                ),
+                source_delta=source_delta,
+                projection_delta=projection_delta,
+                y_delta=y_delta,
+            )
+        )
+    else:
+        next_lines = rebuilt_prefix
+    previous_consumed_lines = (
+        previous_snapshot.lines
+        if previous_match_index is None
+        else previous_snapshot.lines[: previous_match_index + 1]
+    )
+    previous_prefix_text_count = sum(
+        isinstance(fragment, PromptProjectionTextFragment)
+        for line in previous_prefix
+        for fragment in line.fragments
+    )
+    previous_prefix_inline_count = sum(
+        isinstance(fragment, PromptProjectionInlineObjectFragment)
+        for line in previous_prefix
+        for fragment in line.fragments
+    )
+    previous_consumed_text_count = sum(
+        isinstance(fragment, PromptProjectionTextFragment)
+        for line in previous_consumed_lines
+        for fragment in line.fragments
+    )
+    previous_consumed_inline_count = sum(
+        isinstance(fragment, PromptProjectionInlineObjectFragment)
+        for line in previous_consumed_lines
+        for fragment in line.fragments
+    )
+    text_fragment_count = (
+        previous_prefix_text_count
+        + len(partial_snapshot.text_fragments)
+        + len(previous_snapshot.text_fragments)
+        - previous_consumed_text_count
+    )
+    inline_fragment_count = (
+        previous_prefix_inline_count
+        + len(partial_snapshot.inline_object_fragments)
+        + len(previous_snapshot.inline_object_fragments)
+        - previous_consumed_inline_count
+    )
+    return PromptProjectionLayoutSnapshot(
+        content_size=QSizeF(
+            partial_snapshot.content_size.width(),
+            (
+                previous_snapshot.content_size.height() + y_delta
+                if previous_suffix
+                else partial_snapshot.content_size.height()
+            ),
+        ),
+        lines=next_lines,
+        text_fragments=_LineTextFragmentSequence(
+            next_lines,
+            fragment_count=text_fragment_count,
+        ),
+        inline_object_fragments=_LineInlineObjectFragmentSequence(
+            next_lines,
+            fragment_count=inline_fragment_count,
+        ),
+        caret_rects_by_projection_position=_LineCaretRectMapping(
+            next_lines,
+            caret_count=max(
+                0,
+                len(previous_snapshot.caret_rects_by_projection_position)
+                + projection_delta,
+            ),
+        ),
+    )
+
+
+def _line_matches_shifted_plain_edit(
+    next_line: PromptProjectionLineSnapshot,
+    previous_line: PromptProjectionLineSnapshot,
+    *,
+    source_delta: int,
+    projection_delta: int,
+) -> bool:
+    """Return whether a rebuilt line proves deterministic suffix convergence."""
+
+    if (
+        abs(next_line.height - previous_line.height) > 0.01
+        or next_line.source_start != previous_line.source_start + source_delta
+        or next_line.source_end != previous_line.source_end + source_delta
+        or next_line.source_content_start
+        != previous_line.source_content_start + source_delta
+        or next_line.source_content_end
+        != previous_line.source_content_end + source_delta
+        or _shifted_optional_position(previous_line.line_break_start, source_delta)
+        != next_line.line_break_start
+        or _shifted_optional_position(previous_line.line_break_end, source_delta)
+        != next_line.line_break_end
+        or len(next_line.fragments) != len(previous_line.fragments)
+        or len(next_line.caret_stops) != len(previous_line.caret_stops)
+    ):
+        return False
+    if not all(
+        _fragment_matches_shifted_plain_edit(
+            next_fragment,
+            previous_fragment,
+            source_delta=source_delta,
+            projection_delta=projection_delta,
+        )
+        for next_fragment, previous_fragment in zip(
+            next_line.fragments,
+            previous_line.fragments,
+            strict=True,
+        )
+    ):
+        return False
+    return all(
+        next_stop.projection_position
+        == previous_stop.projection_position + projection_delta
+        and abs(next_stop.rect.left() - previous_stop.rect.left()) <= 0.01
+        and abs(next_stop.rect.width() - previous_stop.rect.width()) <= 0.01
+        for next_stop, previous_stop in zip(
+            next_line.caret_stops,
+            previous_line.caret_stops,
+            strict=True,
+        )
+    )
+
+
+def _fragment_matches_shifted_plain_edit(
+    next_fragment: PromptProjectionTextFragment | PromptProjectionInlineObjectFragment,
+    previous_fragment: (
+        PromptProjectionTextFragment | PromptProjectionInlineObjectFragment
+    ),
+    *,
+    source_delta: int,
+    projection_delta: int,
+) -> bool:
+    """Return whether one fragment is unchanged apart from logical offsets."""
+
+    if isinstance(next_fragment, PromptProjectionTextFragment) != isinstance(
+        previous_fragment,
+        PromptProjectionTextFragment,
+    ):
+        return False
+    if (
+        next_fragment.run_id != previous_fragment.run_id
+        or next_fragment.token_id != previous_fragment.token_id
+        or next_fragment.projection_start
+        != previous_fragment.projection_start + projection_delta
+        or next_fragment.projection_end
+        != previous_fragment.projection_end + projection_delta
+        or next_fragment.active != previous_fragment.active
+        or abs(next_fragment.rect.left() - previous_fragment.rect.left()) > 0.01
+        or abs(next_fragment.rect.width() - previous_fragment.rect.width()) > 0.01
+        or abs(next_fragment.rect.height() - previous_fragment.rect.height()) > 0.01
+        or len(next_fragment.source_positions)
+        != len(previous_fragment.source_positions)
+        or any(
+            next_position != previous_position + source_delta
+            for next_position, previous_position in zip(
+                next_fragment.source_positions,
+                previous_fragment.source_positions,
+                strict=True,
+            )
+        )
+    ):
+        return False
+    if isinstance(next_fragment, PromptProjectionTextFragment) and isinstance(
+        previous_fragment,
+        PromptProjectionTextFragment,
+    ):
+        return bool(
+            next_fragment.text == previous_fragment.text
+            and next_fragment.boundary_offsets == previous_fragment.boundary_offsets
+        )
+    if isinstance(next_fragment, PromptProjectionInlineObjectFragment) and isinstance(
+        previous_fragment,
+        PromptProjectionInlineObjectFragment,
+    ):
+        return next_fragment.renderer_key == previous_fragment.renderer_key
+    return False
+
+
+def _shifted_optional_position(position: int | None, delta: int) -> int | None:
+    """Return an optional position shifted by one uniform suffix delta."""
+
+    return None if position is None else position + delta
+
+
 def _drag_direction(
     *, anchor_line_index: int | None, line_index: int | None
 ) -> int | None:
@@ -5822,77 +5588,3 @@ def _drag_direction(
     if line_index < anchor_line_index:
         return -1
     return 0
-
-
-def _source_line_ranges(source_text: str) -> tuple[tuple[int, int], ...]:
-    """Return newline-delimited source ranges including trailing empty lines."""
-
-    ranges: list[tuple[int, int]] = []
-    line_start = 0
-    for index, character in enumerate(source_text):
-        if character != "\n":
-            continue
-        ranges.append((line_start, index + 1))
-        line_start = index + 1
-    ranges.append((line_start, len(source_text)))
-    return tuple(ranges)
-
-
-def _text_boundary_offsets(text: str, font: QFont) -> tuple[float, ...]:
-    """Return horizontal offsets for every character boundary in one text fragment."""
-
-    if not text:
-        return (0.0,)
-    text_option = QTextOption()
-    text_option.setWrapMode(QTextOption.WrapMode.NoWrap)
-    text_layout = QTextLayout(text, font)
-    text_layout.setTextOption(text_option)
-    text_layout.beginLayout()
-    text_line = text_layout.createLine()
-    if text_line.isValid():
-        text_line.setLineWidth(
-            max(1.0, QFontMetricsF(font).horizontalAdvance(text) + 1.0)
-        )
-    text_layout.endLayout()
-    if not text_line.isValid():
-        return (0.0,)
-    coordinates = TextCoordinateMap(text)
-    return tuple(
-        float(
-            cast(
-                tuple[float, int],
-                text_line.cursorToX(coordinates.python_to_utf16(index)),
-            )[0]
-        )
-        for index in range(len(text) + 1)
-    )
-
-
-def _source_line_intersects_visual_line(
-    *,
-    source_start: int,
-    source_end: int,
-    visual_start: int,
-    visual_end: int,
-) -> bool:
-    """Return whether a source logical line owns one wrapped visual line."""
-
-    if source_start == source_end:
-        return visual_start == source_start and visual_end == source_start
-    return visual_start < source_end and source_start < visual_end
-
-
-def _source_range_intersects_visual_line(
-    *,
-    source_start: int,
-    source_end: int,
-    visual_start: int,
-    visual_end: int,
-) -> bool:
-    """Return whether one source range owns any part of a visual line."""
-
-    if source_start == source_end:
-        return visual_start <= source_start <= visual_end
-    if visual_start == visual_end:
-        return source_start <= visual_start < source_end
-    return visual_start < source_end and source_start < visual_end

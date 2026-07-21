@@ -29,6 +29,7 @@ class PromptDiagnosticKind(Enum):
 
     SPELLING = "spelling"
     DUPLICATE_SEGMENT = "duplicate_segment"
+    UNSUPPORTED_SCENE_MARKER = "unsupported_scene_marker"
     WILDCARD = "wildcard"
 
 
@@ -69,9 +70,17 @@ class PromptWildcardDiagnosticPayload:
     available_csv_columns: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class PromptUnsupportedSceneMarkerDiagnosticPayload:
+    """Identify a scene marker rejected by the active document semantics."""
+
+    marker: str = "**"
+
+
 PromptDiagnosticPayload = (
     PromptSpellingDiagnosticPayload
     | PromptDuplicateSegmentDiagnosticPayload
+    | PromptUnsupportedSceneMarkerDiagnosticPayload
     | PromptWildcardDiagnosticPayload
 )
 
@@ -116,5 +125,6 @@ __all__ = [
     "PromptDiagnosticSnapshot",
     "PromptDuplicateSegmentDiagnosticPayload",
     "PromptSpellingDiagnosticPayload",
+    "PromptUnsupportedSceneMarkerDiagnosticPayload",
     "PromptWildcardDiagnosticPayload",
 ]

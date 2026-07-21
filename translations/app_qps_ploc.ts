@@ -4018,6 +4018,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Scënë gënëràtïön rëqüïrës àt lëàst önë **scënë màrkër ïn thë fïrst pösïtïvë prömpt. ···⟧</translation>
     </message>
     <message>
+      <source>Scenes aren’t supported in wildcard values.</source>
+      <translation>⟦Scënës àrën’t süppörtëd ïn wïldcàrd vàlüës. ···⟧</translation>
+    </message>
+    <message>
       <source>Schedule LoRA</source>
       <translation>⟦Schëdülë LöRÅ ···⟧</translation>
     </message>

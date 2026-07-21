@@ -23,19 +23,16 @@ from PySide6.QtGui import QColor, QPainter, QPainterPath, QPaintEvent, QPen
 from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QWidget
 from qfluentwidgets import isDarkTheme, themeColor  # type: ignore[import-untyped]
 
-from substitute.application.ports import (
-    PromptAutocompleteGateway,
-    PromptWildcardCatalogGateway,
-)
 from substitute.application.prompt_editor import (
     PromptEditorFeatureProfile,
-    PromptSpellcheckService,
     PromptWheelAdjustmentMode,
 )
+from substitute.application.prompt_editor.prompt_document_semantics import (
+    PromptDocumentSemantics,
+)
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.composition import (
-    DanbooruWikiLookupDispatcherFactory,
-    PromptEditorTaskExecutorFactory,
+from substitute.presentation.editor.prompt_editor.runtime_services import (
+    PromptEditorRuntimeServices,
 )
 from substitute.presentation.widgets.wheel_intent_controller import (
     WheelIntentController,
@@ -76,14 +73,9 @@ class NumberedPromptEditorFrame(QWidget):
     def __init__(
         self,
         *,
-        prompt_autocomplete_gateway: PromptAutocompleteGateway,
-        prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
+        prompt_runtime_services: PromptEditorRuntimeServices,
         prompt_feature_profile: PromptEditorFeatureProfile,
-        prompt_spellcheck_service: PromptSpellcheckService | None = None,
-        prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None,
-        danbooru_lookup_dispatcher_factory: (
-            DanbooruWikiLookupDispatcherFactory | None
-        ) = None,
+        prompt_document_semantics: PromptDocumentSemantics | None = None,
         wheel_adjustment_mode: PromptWheelAdjustmentMode = (
             PromptWheelAdjustmentMode.HOVER_DWELL
         ),
@@ -94,12 +86,43 @@ class NumberedPromptEditorFrame(QWidget):
         super().__init__(parent)
         self._editor = PromptEditor(
             self,
-            prompt_autocomplete_gateway=prompt_autocomplete_gateway,
-            prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+            prompt_autocomplete_gateway=prompt_runtime_services.autocomplete_gateway,
+            prompt_wildcard_catalog_gateway=(
+                prompt_runtime_services.wildcard_catalog_gateway
+            ),
             prompt_feature_profile=prompt_feature_profile,
-            prompt_spellcheck_service=prompt_spellcheck_service,
-            prompt_task_executor_factory=prompt_task_executor_factory,
-            danbooru_lookup_dispatcher_factory=danbooru_lookup_dispatcher_factory,
+            prompt_document_semantics=prompt_document_semantics,
+            danbooru_url_import_service=(
+                prompt_runtime_services.danbooru_url_import_service
+            ),
+            danbooru_wiki_service=prompt_runtime_services.danbooru_wiki_service,
+            danbooru_image_preview_service=(
+                prompt_runtime_services.danbooru_image_preview_service
+            ),
+            danbooru_recent_posts_service=(
+                prompt_runtime_services.danbooru_recent_posts_service
+            ),
+            prompt_lora_catalog_service=prompt_runtime_services.lora_catalog_service,
+            thumbnail_asset_repository=(
+                prompt_runtime_services.thumbnail_asset_repository
+            ),
+            prompt_scheduled_lora_service=(
+                prompt_runtime_services.scheduled_lora_service_or_default()
+            ),
+            prompt_spellcheck_service=prompt_runtime_services.spellcheck_service,
+            prompt_segment_preset_source=(
+                prompt_runtime_services.segment_preset_source
+            ),
+            open_url=prompt_runtime_services.open_url,
+            model_metadata_action_handler=(
+                prompt_runtime_services.model_metadata_action_handler
+            ),
+            prompt_task_executor_factory=(
+                prompt_runtime_services.prompt_task_executor_factory
+            ),
+            danbooru_lookup_dispatcher_factory=(
+                prompt_runtime_services.danbooru_lookup_dispatcher_factory
+            ),
             maximum_visible_lines=None,
         )
         self._editor.set_source_line_chrome_enabled(True)
@@ -150,6 +173,16 @@ class NumberedPromptEditorFrame(QWidget):
         """Replace wrapped exact source text and make it the editor undo baseline."""
 
         self._editor.replaceBaselineSourceText(text)
+        self._sync_gutter_width()
+
+    def replaceBaselineSourceDocument(  # noqa: N802
+        self,
+        text: str,
+        document_semantics: PromptDocumentSemantics,
+    ) -> None:
+        """Replace semantics and exact source as one editor undo baseline."""
+
+        self._editor.replaceBaselineSourceDocument(text, document_semantics)
         self._sync_gutter_width()
 
     def toPlainText(self) -> str:

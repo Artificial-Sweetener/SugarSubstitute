@@ -28,6 +28,10 @@ from substitute.application.prompt_editor import (
     effective_prompt_text_at_source_position,
     prompt_scene_key_at_projection_source_position,
 )
+from substitute.application.prompt_editor.prompt_document_semantics import (
+    OrdinaryPromptDocumentSemantics,
+    PromptDocumentSemantics,
+)
 
 from ..commands import PromptFeatureSnapshotIdentity
 from .feature_profile_controller import PromptFeatureProfileController
@@ -112,6 +116,7 @@ type _PositionContextCacheKey = tuple[
     Hashable | None,
     Hashable | None,
     Hashable | None,
+    Hashable,
     str | None,
 ]
 
@@ -124,11 +129,15 @@ class PromptSceneFeatureController:
         *,
         host: PromptSceneSourceHost,
         feature_profile: PromptFeatureProfileController,
+        document_semantics: PromptDocumentSemantics | None = None,
     ) -> None:
         """Store scene collaborators and publish an initial empty snapshot."""
 
         self._host = host
         self._feature_profile = feature_profile
+        self._document_semantics = (
+            document_semantics or OrdinaryPromptDocumentSemantics()
+        )
         self._scene_autocomplete_titles: tuple[str, ...] = ()
         self._queueable_scene_keys: frozenset[str] = frozenset()
         self._cube_context_id: Hashable | None = None
@@ -178,7 +187,7 @@ class PromptSceneFeatureController:
     ) -> tuple[PromptAutocompleteSuggestion, ...]:
         """Return prepared scene autocomplete rows for one query."""
 
-        if limit <= 0:
+        if limit <= 0 or not self._document_semantics.scenes_enabled:
             return ()
         normalized_prefix = query.prefix.strip().casefold()
         matches: list[PromptAutocompleteSuggestion] = []
@@ -214,6 +223,8 @@ class PromptSceneFeatureController:
     def scene_key_for_source_position(self, source_position: int) -> str | None:
         """Return the normalized scene key containing one source position."""
 
+        if not self._document_semantics.scenes_enabled:
+            return None
         return prompt_scene_key_at_projection_source_position(
             text=self._host.toPlainText(),
             source_position=source_position,
@@ -276,10 +287,7 @@ class PromptSceneFeatureController:
             )
             return cached_context
 
-        scene_key = prompt_scene_key_at_projection_source_position(
-            text=text,
-            source_position=source_position,
-        )
+        scene_key = self.scene_key_for_source_position(source_position)
         queueable_scene_key = (
             scene_key
             if scene_key is not None and scene_key in self._queueable_scene_keys
@@ -289,7 +297,7 @@ class PromptSceneFeatureController:
             source_position=source_position,
             scene_key=scene_key,
             queueable_scene_key=queueable_scene_key,
-            effective_prompt_text=effective_prompt_text_at_source_position(
+            effective_prompt_text=self._effective_prompt_text(
                 text=text,
                 source_position=source_position,
             ),
@@ -341,7 +349,7 @@ class PromptSceneFeatureController:
     def effective_prompt_text_for_source_position(self, source_position: int) -> str:
         """Compute effective prompt text for transitional non-menu consumers."""
 
-        return effective_prompt_text_at_source_position(
+        return self._effective_prompt_text(
             text=self._host.toPlainText(),
             source_position=source_position,
         )
@@ -350,6 +358,8 @@ class PromptSceneFeatureController:
         """Return unique effective prompts for all source scene boundaries."""
 
         source_text = self._host.toPlainText()
+        if not self._document_semantics.scenes_enabled:
+            return (self._document_semantics.prompt_content_text(source_text),)
         positions = (
             0,
             *(index + 1 for index, char in enumerate(source_text) if char == "\n"),
@@ -359,6 +369,16 @@ class PromptSceneFeatureController:
             for position in positions
         )
         return tuple(prompts)
+
+    def _effective_prompt_text(self, *, text: str, source_position: int) -> str:
+        """Return the scene-effective prompt or complete scene-free document."""
+
+        if self._document_semantics.scenes_enabled:
+            return effective_prompt_text_at_source_position(
+                text=text,
+                source_position=source_position,
+            )
+        return self._document_semantics.prompt_content_text(text)
 
     def _position_context_cache_key(
         self,
@@ -382,6 +402,7 @@ class PromptSceneFeatureController:
             self._cube_context_id,
             self._scene_context_id,
             self._feature_profile.identity.feature_profile_id,
+            self._document_semantics.identity,
             fallback_text,
         )
 
@@ -409,6 +430,7 @@ class PromptSceneFeatureController:
             self._cube_context_id,
             self._scene_context_id,
             self._feature_profile.identity.feature_profile_id,
+            self._document_semantics.identity,
             None,
         )
 
@@ -459,6 +481,7 @@ class PromptSceneFeatureController:
             source_position,
             source_length,
             self._queueable_scene_keys,
+            self._document_semantics.identity,
             unavailable_reason,
         )
         return PromptFeatureSnapshotIdentity(
@@ -492,13 +515,31 @@ class PromptSceneFeatureController:
         return PromptSceneContextSnapshot(
             identity=identity,
             autocomplete=PromptSceneAutocompleteState(
-                titles=self._scene_autocomplete_titles,
-                ready=bool(self._scene_autocomplete_titles),
+                titles=(
+                    self._scene_autocomplete_titles
+                    if self._document_semantics.scenes_enabled
+                    else ()
+                ),
+                ready=(
+                    bool(self._scene_autocomplete_titles)
+                    and self._document_semantics.scenes_enabled
+                ),
             ),
             queue_action=PromptSceneQueueActionState(
-                queueable_scene_keys=self._queueable_scene_keys,
-                action_ready=action_scene_key is not None,
-                scene_key=action_scene_key,
+                queueable_scene_keys=(
+                    self._queueable_scene_keys
+                    if self._document_semantics.scenes_enabled
+                    else frozenset()
+                ),
+                action_ready=(
+                    action_scene_key is not None
+                    and self._document_semantics.scenes_enabled
+                ),
+                scene_key=(
+                    action_scene_key
+                    if self._document_semantics.scenes_enabled
+                    else None
+                ),
             ),
             unavailable_reason=unavailable_reason,
         )
