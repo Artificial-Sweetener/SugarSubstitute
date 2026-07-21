@@ -516,7 +516,7 @@ def _manager_freshness_key(workspace: Path) -> dict[str, object]:
 
     return {
         "kind": "integrated",
-        "git_backend": integrated_manager_pygit2_requirement(),
+        "optional_pygit2_backend": integrated_manager_pygit2_requirement(),
         "requirements": _path_signature(workspace / "manager_requirements.txt"),
         "launch_contract": _path_signature(workspace / "comfy" / "cli_args.py"),
     }

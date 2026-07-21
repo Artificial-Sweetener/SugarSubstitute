@@ -23,6 +23,7 @@ from pathlib import Path
 
 from sugarsubstitute_shared.localization import app_text
 
+from substitute.domain.comfy_compatibility import COMFY_COMPATIBILITY_POLICY
 from substitute.domain.onboarding import ComfyPythonBinding
 from substitute.infrastructure.comfy.backend_model_root_configurator import (
     configure_backend_model_root,
@@ -87,6 +88,7 @@ def prepare_verified_attached_comfy_setup(
     """Prepare an attached workspace through its already verified Python binding."""
 
     binding = python_binding
+    COMFY_COMPATIBILITY_POLICY.require_supported_python(binding.version)
     if on_log is not None:
         on_log(
             app_text(

@@ -24,6 +24,10 @@ from pathlib import Path
 import subprocess
 from typing import Final
 
+from substitute.domain.comfy_compatibility import (
+    COMFY_COMPATIBILITY_POLICY,
+    UnsupportedComfyPythonError,
+)
 from substitute.domain.onboarding import (
     ComfyPythonBinding,
     ComfyPythonCandidate,
@@ -153,9 +157,14 @@ def probe_comfy_python(
                 None,
                 f"Python is missing ComfyUI modules: {', '.join(missing)}.",
             )
+        version = str(payload["version"])
+        try:
+            COMFY_COMPATIBILITY_POLICY.require_supported_python(version)
+        except UnsupportedComfyPythonError as error:
+            return ComfyPythonProbeResult(normalized, None, str(error))
         binding = ComfyPythonBinding(
             executable=Path(str(payload["executable"])).resolve(),
-            version=str(payload["version"]),
+            version=version,
             architecture=str(payload["architecture"]),
             prefix=Path(str(payload["prefix"])).resolve(),
             base_prefix=Path(str(payload["base_prefix"])).resolve(),

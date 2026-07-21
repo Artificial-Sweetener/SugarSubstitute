@@ -72,11 +72,11 @@ from substitute.infrastructure.comfy.managed_process_containment import (
     build_launch_request,
     launch_managed_process,
 )
-from substitute.infrastructure.comfy.manager_provisioner import (
+from substitute.infrastructure.comfy.manager_runtime_probe import (
     detect_workspace_manager_runtime,
 )
 from substitute.infrastructure.comfy.manager_environment import (
-    integrated_manager_environment,
+    manager_runtime_environment,
 )
 from substitute.infrastructure.comfy.managed_runtime_selection_policy import (
     HardwareAwareManagedRuntimeSelectionPolicy,
@@ -310,7 +310,11 @@ def start_managed_comfy_subprocess(
     )
     env = os.environ.copy()
     if manager_runtime.kind is ComfyManagerKind.INTEGRATED:
-        env = integrated_manager_environment(workspace, env)
+        env = manager_runtime_environment(
+            workspace,
+            env,
+            use_pygit2=manager_runtime.uses_pygit2,
+        )
     env["PATH"] = str(venv_python.parent) + os.pathsep + env.get("PATH", "")
     env["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"
     launch_result = launch_managed_process(
@@ -448,7 +452,11 @@ def start_managed_comfy_background(
 
             env = os.environ.copy()
             if manager_runtime.kind is ComfyManagerKind.INTEGRATED:
-                env = integrated_manager_environment(workspace, env)
+                env = manager_runtime_environment(
+                    workspace,
+                    env,
+                    use_pygit2=manager_runtime.uses_pygit2,
+                )
             env["PATH"] = str(venv_python.parent) + os.pathsep + env.get("PATH", "")
             env["PYTHONIOENCODING"] = "utf-8"
             env["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"

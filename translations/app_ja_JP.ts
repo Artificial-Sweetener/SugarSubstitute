@@ -1745,7 +1745,7 @@ Prompt preview:
       <translation>設定済み</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="115"></location>
+      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="117"></location>
       <source>Configuring the ComfyUI models folder.</source>
       <translation>ComfyUI のモデルフォルダーを設定しています。</translation>
     </message>
@@ -3058,7 +3058,7 @@ Install these nodes now?</source>
       <translation>ComfyUI をインストールしてセットアップを完了しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="107"></location>
+      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="109"></location>
       <source>Installing Substitute Comfy nodepacks.</source>
       <translation>Substitute の Comfy ノードパックをインストールしています。</translation>
     </message>
@@ -4203,12 +4203,12 @@ Install these nodes now?</source>
       <translation>準備中</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="122"></location>
+      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="124"></location>
       <source>Preparing Base-Cubes dependencies.</source>
       <translation>Base-Cubes の依存関係を準備しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="129"></location>
+      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="131"></location>
       <source>Preparing acceleration support.</source>
       <translation>アクセラレーション対応を準備しています。</translation>
     </message>
@@ -4303,7 +4303,7 @@ Install these nodes now?</source>
       <translation>プロンプト：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="100"></location>
+      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="102"></location>
       <source>Provisioning ComfyUI-Manager.</source>
       <translation>ComfyUI-Manager を準備しています。</translation>
     </message>
@@ -6080,6 +6080,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>SugarSubstitute は ComfyUI 用の使いやすい PySide6 ワークスペースです。キューブによるワークフロー構成、管理されたモデルメタデータ、プロンプトツール、統合画像キャンバスのワークフローに対応しています。</translation>
     </message>
     <message>
+      <location filename="../substitute/domain/comfy_compatibility.py" line="62"></location>
+      <source>SugarSubstitute requires Python %1 or newer for ComfyUI node packs. The selected environment uses Python %2.</source>
+      <translation>SugarSubstitute の ComfyUI ノードパックには Python %1 以降が必要です。選択した環境では Python %2 が使用されています。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/prompt_editor/prompt_feature_registry.py" line="109"></location>
       <source>Suggest LoRA names from the model catalog while editing prompts.</source>
       <translation>プロンプトの編集中に、モデルカタログから LoRA 名を候補として表示します。</translation>
@@ -6942,7 +6947,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>検証エラーとエラーの強調表示に使用します。</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="92"></location>
+      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="94"></location>
       <source>Using ComfyUI Python %1 (%2) at %3.</source>
       <translation>%3 にある ComfyUI Python %1（%2）を使用しています。</translation>
     </message>

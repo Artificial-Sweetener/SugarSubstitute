@@ -14,81 +14,43 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Detect, provision, and validate ComfyUI Manager runtimes."""
+"""Orchestrate Manager provisioning from checkout-owned capabilities."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
-import subprocess
-from typing import Callable
 
 from substitute.domain.comfy_manager import (
     ComfyManagerCapabilities,
-    ComfyManagerKind,
     ComfyManagerProvisioningAction,
     ComfyManagerRuntime,
     select_attached_manager_action,
+)
+from substitute.infrastructure.comfy.manager_contract import ComfyManagerContract
+from substitute.infrastructure.comfy.legacy_manager_installer import (
+    LegacyComfyManagerInstaller,
+)
+from substitute.infrastructure.comfy.manager_requirements_installer import (
+    ComfyManagerRequirementsInstaller,
+    LogCallback,
+)
+from substitute.infrastructure.comfy.manager_runtime_probe import (
+    ComfyManagerRuntimeProbe,
+    validation_failure_message,
 )
 from substitute.infrastructure.comfy.workspace_python_resolver import (
     resolve_workspace_python,
 )
 from substitute.infrastructure.filesystem import remove_app_owned_path
-from substitute.infrastructure.comfy.manager_environment import (
-    integrated_manager_environment,
-    integrated_manager_pygit2_requirement,
-    manager_environment,
-)
 from substitute.infrastructure.version_control import (
-    RepositoryOperationError,
     RepositoryService,
     repository_service,
 )
 from substitute.shared.logging.logger import get_logger, log_info
 
-LogCallback = Callable[[str], None]
-
 _LOGGER = get_logger("infrastructure.comfy.manager_provisioner")
 DEFAULT_MANAGER_REPOSITORY_URL = "https://github.com/ltdrdata/ComfyUI-Manager.git"
-_INTEGRATED_IMPORT_SCRIPT = (
-    "import importlib.metadata; import comfyui_manager; "
-    "from comfyui_manager.common import git_compat; "
-    "assert git_compat.USE_PYGIT2, 'Integrated Manager did not select pygit2'; "
-    "print(importlib.metadata.version('comfyui-manager'))"
-)
-
-
-def workspace_manager_directory(workspace: Path) -> Path:
-    """Return the legacy ComfyUI-Manager custom-node directory."""
-
-    return workspace / "custom_nodes" / "ComfyUI-Manager"
-
-
-def workspace_manager_cli_path(workspace: Path) -> Path:
-    """Return the legacy Manager CLI script path."""
-
-    return workspace_manager_directory(workspace) / "cm-cli.py"
-
-
-def workspace_manager_requirements_path(workspace: Path) -> Path:
-    """Return the integrated Manager requirements file shipped by ComfyUI."""
-
-    return workspace / "manager_requirements.txt"
-
-
-def workspace_supports_integrated_manager(workspace: Path) -> bool:
-    """Return whether ComfyUI declares its integrated Manager launch contract."""
-
-    requirements_path = workspace_manager_requirements_path(workspace)
-    cli_args_path = workspace / "comfy" / "cli_args.py"
-    if not requirements_path.is_file() or not cli_args_path.is_file():
-        return False
-    try:
-        return "--enable-manager" in cli_args_path.read_text(
-            encoding="utf-8", errors="replace"
-        )
-    except OSError:
-        return False
 
 
 def ensure_managed_workspace_manager(
@@ -98,43 +60,28 @@ def ensure_managed_workspace_manager(
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
 ) -> ComfyManagerRuntime:
-    """Ensure an app-owned current ComfyUI uses integrated Manager only."""
+    """Ensure an app-owned supported ComfyUI uses its integrated Manager."""
 
-    resolved_python = python_executable or resolve_workspace_python(workspace)
-    if not workspace_supports_integrated_manager(workspace):
+    contract = ComfyManagerContract(workspace)
+    if not contract.supports_integrated_manager:
         raise RuntimeError(
             "Managed ComfyUI does not expose the required integrated Manager contract "
             "(--enable-manager and manager_requirements.txt)."
         )
-    runtime, failure = _probe_integrated_runtime(
-        workspace=workspace,
+    resolved_python = python_executable or resolve_workspace_python(workspace)
+    runtime = _ensure_integrated_runtime(
+        contract=contract,
         python_executable=resolved_python,
+        on_log=on_log,
         env=env,
     )
-    if runtime is None:
-        _emit_log(on_log, "[Manager] Installing ComfyUI's integrated Manager package.")
-        _install_requirements(
-            workspace=workspace,
-            python_executable=resolved_python,
-            requirements_path=workspace_manager_requirements_path(workspace),
-            on_log=on_log,
-            env=env,
-            integrated=True,
-        )
-        runtime, failure = _probe_integrated_runtime(
-            workspace=workspace,
-            python_executable=resolved_python,
-            env=env,
-        )
-    if runtime is None:
-        raise RuntimeError(_validation_failure_message("integrated", failure))
-    legacy_directory = workspace_manager_directory(workspace)
-    if legacy_directory.exists():
+    if contract.legacy_directory.exists():
         _emit_log(
             on_log,
-            f"[Manager] Removing app-owned legacy Manager checkout: {legacy_directory}",
+            f"[Manager] Removing app-owned legacy Manager checkout: "
+            f"{contract.legacy_directory}",
         )
-        remove_app_owned_path(legacy_directory)
+        remove_app_owned_path(contract.legacy_directory)
     return runtime
 
 
@@ -147,274 +94,157 @@ def ensure_attached_workspace_manager(
     repository_url: str = DEFAULT_MANAGER_REPOSITORY_URL,
     repositories: RepositoryService | None = None,
 ) -> ComfyManagerRuntime:
-    """Select or install Manager without replacing user-owned attached checkouts."""
+    """Provision Manager without replacing user-owned attached checkouts."""
 
     resolved_python = python_executable or resolve_workspace_python(workspace)
-    integrated, integrated_failure = _probe_integrated_runtime(
+    contract = ComfyManagerContract(workspace)
+    probe = ComfyManagerRuntimeProbe()
+    integrated = probe.integrated(
         workspace=workspace,
         python_executable=resolved_python,
         env=env,
     )
-    legacy, legacy_failure = _probe_legacy_runtime(
+    legacy = probe.legacy(
         workspace=workspace,
         python_executable=resolved_python,
         env=env,
     )
     action = select_attached_manager_action(
         ComfyManagerCapabilities(
-            supports_integrated=workspace_supports_integrated_manager(workspace),
-            integrated_healthy=integrated is not None,
-            legacy_healthy=legacy is not None,
+            supports_integrated=contract.supports_integrated_manager,
+            integrated_healthy=integrated.runtime is not None,
+            legacy_healthy=legacy.runtime is not None,
         )
     )
     if action is ComfyManagerProvisioningAction.USE_INTEGRATED:
         _emit_log(on_log, "[Manager] Using ComfyUI's integrated Manager package.")
-        assert integrated is not None
-        return integrated
+        assert integrated.runtime is not None
+        return _ensure_optional_pygit2_backend(
+            integrated.runtime,
+            probe=probe,
+            installer=ComfyManagerRequirementsInstaller(),
+            on_log=on_log,
+            env=env,
+        )
     if action is ComfyManagerProvisioningAction.USE_LEGACY:
         _emit_log(on_log, "[Manager] Using the attached legacy Manager custom node.")
-        assert legacy is not None
-        return legacy
+        assert legacy.runtime is not None
+        return legacy.runtime
     if action is ComfyManagerProvisioningAction.INSTALL_INTEGRATED:
-        _emit_log(on_log, "[Manager] Installing ComfyUI's integrated Manager package.")
-        _install_requirements(
-            workspace=workspace,
+        return _install_integrated_runtime(
+            contract=contract,
             python_executable=resolved_python,
-            requirements_path=workspace_manager_requirements_path(workspace),
             on_log=on_log,
             env=env,
-            integrated=True,
+            probe=probe,
+            installer=ComfyManagerRequirementsInstaller(),
         )
-        integrated, integrated_failure = _probe_integrated_runtime(
-            workspace=workspace,
-            python_executable=resolved_python,
-            env=env,
-        )
-        if integrated is None:
-            raise RuntimeError(
-                _validation_failure_message("integrated", integrated_failure)
-            )
-        return integrated
-
-    legacy_directory = workspace_manager_directory(workspace)
-    if legacy_directory.exists():
-        raise RuntimeError(
-            _validation_failure_message("legacy custom-node", legacy_failure)
-            + " The existing user-owned Manager directory was left unchanged."
-        )
-    legacy_directory.parent.mkdir(parents=True, exist_ok=True)
-    _emit_log(on_log, f"[Manager] Installing legacy Manager into {legacy_directory}.")
-    try:
-        (repositories or repository_service()).clone(
-            repository_url,
-            legacy_directory,
-            on_progress=on_log,
-        )
-    except RepositoryOperationError as error:
-        raise RuntimeError(
-            "Substitute could not install the required legacy ComfyUI-Manager custom node."
-        ) from error
-    requirements_path = legacy_directory / "requirements.txt"
-    if requirements_path.is_file():
-        _install_requirements(
-            workspace=workspace,
-            python_executable=resolved_python,
-            requirements_path=requirements_path,
-            on_log=on_log,
-            env=env,
-            integrated=False,
-        )
-    legacy, legacy_failure = _probe_legacy_runtime(
-        workspace=workspace,
+    return LegacyComfyManagerInstaller(
+        repositories=repositories or repository_service()
+    ).install(
+        contract=contract,
         python_executable=resolved_python,
+        repository_url=repository_url,
+        on_log=on_log,
         env=env,
+        previous_failure=legacy.failure,
     )
-    if legacy is None:
-        raise RuntimeError(_validation_failure_message("legacy", legacy_failure))
-    return legacy
 
 
-def detect_workspace_manager_runtime(
-    workspace: Path,
+def _ensure_integrated_runtime(
     *,
-    python_executable: Path | None = None,
-    env: Mapping[str, str] | None = None,
-) -> ComfyManagerRuntime:
-    """Return the preferred validated Manager runtime without changing the workspace."""
-
-    resolved_python = python_executable or resolve_workspace_python(workspace)
-    integrated, integrated_failure = _probe_integrated_runtime(
-        workspace=workspace,
-        python_executable=resolved_python,
-        env=env,
-    )
-    if integrated is not None:
-        return integrated
-    legacy, legacy_failure = _probe_legacy_runtime(
-        workspace=workspace,
-        python_executable=resolved_python,
-        env=env,
-    )
-    if legacy is not None:
-        return legacy
-    details = integrated_failure or legacy_failure
-    raise RuntimeError(_validation_failure_message("workspace", details))
-
-
-def _probe_integrated_runtime(
-    *,
-    workspace: Path,
+    contract: ComfyManagerContract,
     python_executable: Path,
-    env: Mapping[str, str] | None,
-) -> tuple[ComfyManagerRuntime | None, str]:
-    """Probe the integrated Manager package and retain diagnostic output."""
-
-    if not workspace_supports_integrated_manager(workspace):
-        return None, "ComfyUI does not declare integrated Manager support."
-    result = _run_probe(
-        [str(python_executable), "-c", _INTEGRATED_IMPORT_SCRIPT],
-        workspace=workspace,
-        env=env,
-        integrated=True,
-    )
-    if result.returncode != 0:
-        return None, _command_output(result)
-    version = next(
-        (line.strip() for line in (result.stdout or "").splitlines() if line.strip()),
-        None,
-    )
-    return (
-        ComfyManagerRuntime(
-            kind=ComfyManagerKind.INTEGRATED,
-            workspace=workspace,
-            python_executable=python_executable,
-            version=version,
-        ),
-        "",
-    )
-
-
-def _probe_legacy_runtime(
-    *,
-    workspace: Path,
-    python_executable: Path,
-    env: Mapping[str, str] | None,
-) -> tuple[ComfyManagerRuntime | None, str]:
-    """Probe the legacy Manager script and retain diagnostic output."""
-
-    cli_path = workspace_manager_cli_path(workspace)
-    if not cli_path.is_file():
-        return None, f"Legacy Manager CLI is missing: {cli_path}"
-    result = _run_probe(
-        [str(python_executable), str(cli_path), "--help"],
-        workspace=workspace,
-        env=env,
-        integrated=False,
-    )
-    if result.returncode != 0:
-        return None, _command_output(result)
-    return (
-        ComfyManagerRuntime(
-            kind=ComfyManagerKind.LEGACY_CUSTOM_NODE,
-            workspace=workspace,
-            python_executable=python_executable,
-            legacy_cli_path=cli_path,
-        ),
-        "",
-    )
-
-
-def _run_probe(
-    command: list[str],
-    *,
-    workspace: Path,
-    env: Mapping[str, str] | None,
-    integrated: bool,
-) -> subprocess.CompletedProcess[str]:
-    """Run one bounded Manager health probe with its required environment."""
-
-    command_env = (
-        integrated_manager_environment(workspace, env)
-        if integrated
-        else manager_environment(workspace, env)
-    )
-    return subprocess.run(
-        command,
-        cwd=str(workspace),
-        env=command_env,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        capture_output=True,
-        timeout=60,
-        check=False,
-    )
-
-
-def _install_requirements(
-    *,
-    workspace: Path,
-    python_executable: Path,
-    requirements_path: Path,
     on_log: LogCallback | None,
     env: Mapping[str, str] | None,
-    integrated: bool,
-) -> None:
-    """Install one authoritative Manager requirements file and expose failures."""
+) -> ComfyManagerRuntime:
+    """Install missing integrated dependencies and validate optional backends."""
 
-    result = subprocess.run(
-        [
-            str(python_executable),
-            "-m",
-            "pip",
-            "install",
-            "-r",
-            str(requirements_path),
-            *([integrated_manager_pygit2_requirement()] if integrated else []),
-        ],
-        cwd=str(workspace),
-        env=(
-            integrated_manager_environment(workspace, env)
-            if integrated
-            else manager_environment(workspace, env)
-        ),
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        capture_output=True,
-        timeout=1_800,
-        check=False,
+    probe = ComfyManagerRuntimeProbe()
+    installer = ComfyManagerRequirementsInstaller()
+    integrated = probe.integrated(
+        workspace=contract.workspace,
+        python_executable=python_executable,
+        env=env,
     )
-    _log_command_output(result, on_log)
-    if result.returncode != 0:
-        raise RuntimeError(
-            "Substitute could not install ComfyUI Manager requirements. "
-            + _command_output(result)
+    if integrated.runtime is None:
+        return _install_integrated_runtime(
+            contract=contract,
+            python_executable=python_executable,
+            on_log=on_log,
+            env=env,
+            probe=probe,
+            installer=installer,
         )
+    return _ensure_optional_pygit2_backend(
+        integrated.runtime,
+        probe=probe,
+        installer=installer,
+        on_log=on_log,
+        env=env,
+    )
 
 
-def _validation_failure_message(kind: str, detail: str) -> str:
-    """Build an actionable Manager validation failure message."""
+def _install_integrated_runtime(
+    *,
+    contract: ComfyManagerContract,
+    python_executable: Path,
+    on_log: LogCallback | None,
+    env: Mapping[str, str] | None,
+    probe: ComfyManagerRuntimeProbe,
+    installer: ComfyManagerRequirementsInstaller,
+) -> ComfyManagerRuntime:
+    """Install the checkout's exact Manager requirements and validate them."""
 
-    excerpt = detail.strip() or "The validation command returned no diagnostic output."
-    return f"ComfyUI Manager {kind} validation failed. {excerpt}"
+    _emit_log(on_log, "[Manager] Installing ComfyUI's integrated Manager package.")
+    installer.install_requirements(
+        workspace=contract.workspace,
+        python_executable=python_executable,
+        requirements_path=contract.integrated_requirements_path,
+        on_log=on_log,
+        env=env,
+    )
+    integrated = probe.integrated(
+        workspace=contract.workspace,
+        python_executable=python_executable,
+        env=env,
+    )
+    if integrated.runtime is None:
+        raise RuntimeError(validation_failure_message("integrated", integrated.failure))
+    return _ensure_optional_pygit2_backend(
+        integrated.runtime,
+        probe=probe,
+        installer=installer,
+        on_log=on_log,
+        env=env,
+    )
 
 
-def _command_output(result: subprocess.CompletedProcess[str]) -> str:
-    """Return a bounded combined stdout/stderr diagnostic excerpt."""
+def _ensure_optional_pygit2_backend(
+    runtime: ComfyManagerRuntime,
+    *,
+    probe: ComfyManagerRuntimeProbe,
+    installer: ComfyManagerRequirementsInstaller,
+    on_log: LogCallback | None,
+    env: Mapping[str, str] | None,
+) -> ComfyManagerRuntime:
+    """Provision pygit2 only when the installed Manager advertises support."""
 
-    combined = "\n".join(part for part in (result.stdout, result.stderr) if part)
-    lines = [line.strip() for line in combined.splitlines() if line.strip()]
-    return " ".join(lines[-20:])[-4_000:]
-
-
-def _log_command_output(
-    result: subprocess.CompletedProcess[str], callback: LogCallback | None
-) -> None:
-    """Emit non-empty stdout and stderr from one package installation."""
-
-    for line in _command_output(result).splitlines():
-        _emit_log(callback, line)
+    if not runtime.supports_pygit2:
+        return runtime
+    backend = probe.pygit2_backend(runtime, env=env)
+    if backend.runtime is None:
+        _emit_log(on_log, "[Manager] Installing the integrated pygit2 backend.")
+        installer.install_pygit2_backend(
+            workspace=runtime.workspace,
+            python_executable=runtime.python_executable,
+            on_log=on_log,
+            env=env,
+        )
+        backend = probe.pygit2_backend(runtime, env=env)
+    if backend.runtime is None:
+        raise RuntimeError(validation_failure_message("pygit2", backend.failure))
+    return backend.runtime
 
 
 def _emit_log(callback: LogCallback | None, message: str) -> None:
@@ -427,11 +257,6 @@ def _emit_log(callback: LogCallback | None, message: str) -> None:
 
 __all__ = [
     "DEFAULT_MANAGER_REPOSITORY_URL",
-    "detect_workspace_manager_runtime",
     "ensure_attached_workspace_manager",
     "ensure_managed_workspace_manager",
-    "workspace_manager_cli_path",
-    "workspace_manager_directory",
-    "workspace_manager_requirements_path",
-    "workspace_supports_integrated_manager",
 ]

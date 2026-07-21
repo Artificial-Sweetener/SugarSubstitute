@@ -136,6 +136,41 @@ def test_probe_records_verified_interpreter_evidence(
     assert result.binding.source is ComfyPythonSelectionSource.USER_SELECTED
 
 
+def test_probe_rejects_python_below_mandatory_nodepack_floor(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A valid Comfy Python 3.11 environment should fail SugarSubstitute policy."""
+
+    workspace = _workspace(tmp_path)
+    executable = _file(tmp_path / "external" / "python.exe")
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "executable": str(executable),
+                    "prefix": str(executable.parent),
+                    "base_prefix": str(executable.parent.parent),
+                    "version": "3.11.9",
+                    "architecture": "AMD64",
+                    "modules": {"comfy": True, "torch": True, "aiohttp": True},
+                }
+            ),
+            stderr="",
+        ),
+    )
+
+    result = probe_comfy_python(workspace, executable)
+
+    assert result.binding is None
+    assert result.failure is not None
+    assert "Python 3.12" in result.failure
+
+
 def test_probe_classifies_timeout(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
