@@ -119,6 +119,24 @@ def test_projection_layout_keeps_short_tag_from_source_text() -> None:
     )
 
 
+def test_projection_layout_does_not_keep_partial_tag_at_probe_limit() -> None:
+    """A bounded reflow probe must not treat its artificial cutoff as a tag end."""
+
+    source_text = "alpha beta, gamma delta, omega"
+    source_limit = source_text.index("gamma delta") + len("gamma")
+    document_view = SimpleNamespace(
+        source_text=source_text,
+        segments=(),
+    )
+
+    ranges = tag_keep_source_ranges_for_layout(
+        cast(Any, document_view),
+        source_limit=source_limit,
+    )
+
+    assert ranges == ((0, len("alpha beta,")),)
+
+
 def _imported_modules(tree: ast.AST) -> tuple[str, ...]:
     """Return fully qualified module names imported by a parsed Python file."""
 

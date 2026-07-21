@@ -1478,6 +1478,11 @@ def _source_text_tag_keep_ranges(
                 source_text,
                 line_start=line_start,
                 line_end=line_end,
+                include_terminal_segment=(
+                    line_end < scan_end
+                    or scan_end == len(source_text)
+                    or source_text[scan_end] == "\n"
+                ),
             )
         )
         if line_end == scan_end:
@@ -1491,6 +1496,7 @@ def _source_text_line_tag_keep_ranges(
     *,
     line_start: int,
     line_end: int,
+    include_terminal_segment: bool = True,
 ) -> tuple[tuple[int, int], ...]:
     """Infer short comma-tag ranges inside one hard source line."""
 
@@ -1515,6 +1521,7 @@ def _source_text_line_tag_keep_ranges(
         )
         if (
             selection_end > selection_start
+            and (comma_index >= 0 or include_terminal_segment)
             and _segment_word_count(source_text[selection_start:selection_end])
             <= _MAX_KEPT_SEGMENT_WORDS
         ):
