@@ -30,6 +30,10 @@ from substitute.infrastructure.version_control.repository import (
     RepositoryOperationError,
     RepositoryProgressCallback,
 )
+from sugarsubstitute_shared.windows_long_paths import (
+    external_long_path_error,
+    operational_path,
+)
 
 
 _CHECKOUT_STRATEGY = pygit2.GIT_CHECKOUT_SAFE | pygit2.GIT_CHECKOUT_RECREATE_MISSING
@@ -46,10 +50,18 @@ class Pygit2RepositoryService:
     def initialize(self, repository_path: Path, *, branch: str = "main") -> None:
         """Initialize an empty repository through libgit2."""
 
+        repository_path = operational_path(repository_path)
         try:
             repository_path.mkdir(parents=True, exist_ok=True)
             pygit2.init_repository(repository_path, initial_head=branch)
         except (OSError, ValueError, pygit2.GitError) as error:
+            compatibility_error = external_long_path_error(
+                component="pygit2",
+                path=repository_path,
+                detail=error,
+            )
+            if compatibility_error is not None:
+                raise compatibility_error from error
             raise RepositoryOperationError(
                 f"Could not initialize repository at {repository_path}."
             ) from error
@@ -63,6 +75,7 @@ class Pygit2RepositoryService:
     ) -> None:
         """Clone a repository into a new target path."""
 
+        target_path = operational_path(target_path)
         self._emit(on_progress, f"Cloning {repository_url} into {target_path}")
         target_path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -213,9 +226,17 @@ class Pygit2RepositoryService:
     def _open(self, repository_path: Path) -> pygit2.Repository:
         """Open one worktree repository and normalize backend failures."""
 
+        repository_path = operational_path(repository_path)
         try:
             return pygit2.Repository(repository_path)
         except (OSError, ValueError, pygit2.GitError) as error:
+            compatibility_error = external_long_path_error(
+                component="pygit2",
+                path=repository_path,
+                detail=error,
+            )
+            if compatibility_error is not None:
+                raise compatibility_error from error
             raise RepositoryOperationError(
                 f"Could not open repository {repository_path}: {error}"
             ) from error

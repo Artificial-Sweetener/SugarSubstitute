@@ -37,6 +37,7 @@ from substitute.domain.onboarding import (
     ComfyTargetConfiguration,
     ComfyTargetMode,
 )
+from sugarsubstitute_shared.windows_long_paths import operational_path
 from substitute.domain.comfy_environment import (
     ComfyEnvironmentCapabilities,
     ComfyModelRootStatus,
@@ -330,14 +331,14 @@ class ComfyConnectionSettingsService:
             return ComfyTargetConfiguration(
                 mode=ComfyTargetMode.MANAGED_LOCAL,
                 endpoint=endpoint,
-                workspace_path=draft.managed_workspace_path.resolve(),
+                workspace_path=operational_path(draft.managed_workspace_path).resolve(),
                 install_owned=True,
                 launch_owned=True,
             )
         if draft.mode is ComfyTargetMode.ATTACHED_LOCAL:
             if draft.attached_workspace_path is None:
                 raise ValueError("Existing local setup requires a ComfyUI folder.")
-            workspace = draft.attached_workspace_path.resolve()
+            workspace = operational_path(draft.attached_workspace_path).resolve()
             if not self.checks.attached_workspace_exists(workspace):
                 raise ValueError(f"Existing ComfyUI folder does not exist: {workspace}")
             if self.attached_python_resolver is None:
@@ -557,7 +558,7 @@ def _target_restart_value(target: ComfyTargetConfiguration) -> str:
 def _path_restart_value(path: Path | str) -> str:
     """Return a stable path string without rewriting remote host syntax."""
 
-    return str(path.resolve()) if isinstance(path, Path) else path
+    return str(operational_path(path).resolve()) if isinstance(path, Path) else path
 
 
 __all__ = [

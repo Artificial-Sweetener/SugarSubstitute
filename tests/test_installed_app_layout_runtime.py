@@ -41,6 +41,7 @@ from substitute.presentation.onboarding.onboarding_models import (
     OnboardingPageId,
     initial_onboarding_page,
 )
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
 def test_app_layout_resolves_installed_source_payload(tmp_path: Path) -> None:
@@ -195,11 +196,13 @@ def test_launcher_runtime_launch_command_includes_install_root(tmp_path: Path) -
         runtime_configuration,
         tmp_path / "app" / "main.py",
     )
+    python_executable = runtime_configuration.python_executable
+    assert python_executable is not None
 
     assert command == [
-        str(runtime_configuration.python_executable),
-        str(tmp_path / "app" / "main.py"),
-        f"--install-root={tmp_path}",
+        subprocess_path(python_executable),
+        subprocess_path(tmp_path / "app" / "main.py"),
+        f"--install-root={subprocess_path(tmp_path)}",
     ]
 
 

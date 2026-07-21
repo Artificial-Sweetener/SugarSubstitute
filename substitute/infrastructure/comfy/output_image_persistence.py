@@ -128,9 +128,7 @@ class OutputImagePersistence:
                         set_index=source_index,
                     ),
                 )
-                self._image_run_counter = get_next_bucket_run_number(
-                    str(bucket.directory)
-                )
+                self._image_run_counter = get_next_bucket_run_number(bucket.directory)
             folder_image_number = self._next_folder_image_number(
                 workflow_name=workflow_name,
                 source=source_label,
@@ -169,7 +167,7 @@ class OutputImagePersistence:
             workflow_metadata = workflow_metadata_json(self._workflow_payload)
             if workflow_metadata is not None:
                 png_metadata.add_text("workflow", workflow_metadata)
-            image.save(str(file_path), pnginfo=png_metadata)
+            image.save(file_path, pnginfo=png_metadata)
             if self._output_save_plan.jpeg.enabled:
                 try:
                     jpeg_bytes = self._jpeg_encoder.encode(
@@ -219,7 +217,7 @@ class OutputImagePersistence:
             avoid_collisions=False,
         ).path
         return get_next_folder_image_number(
-            str(unnumbered_path.parent),
+            unnumbered_path.parent,
             self._output_save_plan.path_pattern,
         )
 

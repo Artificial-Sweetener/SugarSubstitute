@@ -26,6 +26,7 @@ import sys
 from substitute.application.ports.runtime_provisioner import RuntimeProvisioner
 from substitute.domain.onboarding import RuntimeBootstrapStatus, RuntimeConfiguration
 from substitute.domain.onboarding.runtime_layout import runtime_layout_for_root
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
 @dataclass
@@ -49,7 +50,7 @@ class SubstituteRuntimeProvisioner(RuntimeProvisioner):
         self._ensure_runtime_pip(python_executable)
         self._run_checked(
             [
-                str(python_executable),
+                subprocess_path(python_executable),
                 "-m",
                 "pip",
                 "install",
@@ -61,7 +62,7 @@ class SubstituteRuntimeProvisioner(RuntimeProvisioner):
         )
         self._run_checked(
             [
-                str(python_executable),
+                subprocess_path(python_executable),
                 "-m",
                 "pip",
                 "install",
@@ -88,7 +89,7 @@ class SubstituteRuntimeProvisioner(RuntimeProvisioner):
             raise RuntimeError("Runtime configuration has no python executable.")
         return [
             str(configuration.python_executable),
-            str(entrypoint_path),
+            subprocess_path(entrypoint_path),
             f"--install-root={configuration.runtime_root.parent}",
         ]
 
@@ -103,7 +104,7 @@ class SubstituteRuntimeProvisioner(RuntimeProvisioner):
         if python_executable.exists():
             return
         self._run_checked(
-            [sys.executable, "-m", "venv", str(venv_root)],
+            [sys.executable, "-m", "venv", subprocess_path(venv_root)],
             failure_message="Failed to create Substitute runtime virtual environment.",
         )
         if not venv_root.exists():
@@ -117,7 +118,7 @@ class SubstituteRuntimeProvisioner(RuntimeProvisioner):
         if self._runtime_has_pip(python_executable):
             return
         self._run_checked(
-            [str(python_executable), "-m", "ensurepip", "--upgrade"],
+            [subprocess_path(python_executable), "-m", "ensurepip", "--upgrade"],
             failure_message="Failed to bootstrap pip inside the Substitute runtime environment.",
         )
         if not self._runtime_has_pip(python_executable):
@@ -129,7 +130,7 @@ class SubstituteRuntimeProvisioner(RuntimeProvisioner):
         """Return whether the runtime venv can execute `python -m pip` successfully."""
 
         result = subprocess.run(
-            [str(python_executable), "-m", "pip", "--version"],
+            [subprocess_path(python_executable), "-m", "pip", "--version"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False,

@@ -36,6 +36,10 @@ from substitute.infrastructure.comfy.workspace_python_resolver import (
     resolve_workspace_python,
 )
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
+from sugarsubstitute_shared.windows_long_paths import (
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 _LOGGER = get_logger("infrastructure.comfy.manager_runtime_probe")
 _PROBE_MARKER: Final[str] = "SUGARSUBSTITUTE_MANAGER_PROBE="
@@ -83,7 +87,7 @@ class ComfyManagerRuntimeProbe:
                 "ComfyUI does not declare integrated Manager support.",
             )
         result = self._run(
-            [str(python_executable), "-c", _INTEGRATED_PROBE_SCRIPT],
+            [subprocess_path(python_executable), "-c", _INTEGRATED_PROBE_SCRIPT],
             workspace=workspace,
             env=manager_runtime_environment(
                 workspace,
@@ -137,7 +141,11 @@ class ComfyManagerRuntimeProbe:
         if not runtime.supports_pygit2:
             return ComfyManagerProbeResult(runtime)
         result = self._run(
-            [str(runtime.python_executable), "-c", _PYGIT2_PROBE_SCRIPT],
+            [
+                subprocess_path(runtime.python_executable),
+                "-c",
+                _PYGIT2_PROBE_SCRIPT,
+            ],
             workspace=runtime.workspace,
             env=manager_runtime_environment(
                 runtime.workspace,
@@ -177,7 +185,11 @@ class ComfyManagerRuntimeProbe:
                 f"Legacy Manager CLI is missing: {cli_path}",
             )
         result = self._run(
-            [str(python_executable), str(cli_path), "--help"],
+            [
+                subprocess_path(python_executable),
+                subprocess_path(cli_path),
+                "--help",
+            ],
             workspace=workspace,
             env=manager_environment(workspace, env),
         )
@@ -203,7 +215,7 @@ class ComfyManagerRuntimeProbe:
 
         return subprocess.run(
             command,
-            cwd=str(workspace),
+            cwd=subprocess_working_directory(workspace),
             env=env,
             text=True,
             encoding="utf-8",

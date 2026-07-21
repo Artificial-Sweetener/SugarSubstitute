@@ -26,6 +26,7 @@ from substitute.application.ports.installation_repository import (
     InstallationConfigurationRepository,
 )
 from substitute.domain.onboarding import InstallationConfiguration
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
 @dataclass
@@ -62,7 +63,7 @@ class FileInstallationConfigurationRepository(InstallationConfigurationRepositor
         """Return normalized installation paths from current or legacy JSON."""
 
         default_configuration = self.build_default()
-        installation_root = Path(
+        installation_root = operational_path(
             str(
                 payload.get(
                     "installation_root", default_configuration.installation_root
@@ -85,15 +86,17 @@ class FileInstallationConfigurationRepository(InstallationConfigurationRepositor
 
             if legacy_payload:
                 return default_path
-            return Path(str(payload.get(key, default_path)))
+            return operational_path(str(payload.get(key, default_path)))
 
-        projects_dir = Path(
+        projects_dir = operational_path(
             str(payload.get("projects_dir", default_for_root.projects_dir))
         )
         return InstallationConfiguration(
             installation_root=installation_root,
-            user_dir=Path(str(payload.get("user_dir", default_for_root.user_dir))),
-            user_settings_dir=Path(
+            user_dir=operational_path(
+                str(payload.get("user_dir", default_for_root.user_dir))
+            ),
+            user_settings_dir=operational_path(
                 str(
                     payload.get(
                         "user_settings_dir",
@@ -102,14 +105,14 @@ class FileInstallationConfigurationRepository(InstallationConfigurationRepositor
                 )
             ),
             projects_dir=projects_dir,
-            outputs_dir=Path(
+            outputs_dir=operational_path(
                 str(payload.get("outputs_dir", default_for_root.outputs_dir))
             ),
             sugar_scripts_dir=projects_dir,
-            wildcards_dir=Path(
+            wildcards_dir=operational_path(
                 str(payload.get("wildcards_dir", default_for_root.wildcards_dir))
             ),
-            appdata_dir=Path(
+            appdata_dir=operational_path(
                 str(payload.get("appdata_dir", default_for_root.appdata_dir))
             ),
             session_dir=appdata_path("session_dir", default_for_root.session_dir),
@@ -124,10 +127,10 @@ class FileInstallationConfigurationRepository(InstallationConfigurationRepositor
             model_metadata_dir=appdata_path(
                 "model_metadata_dir", default_for_root.model_metadata_dir
             ),
-            runtime_dir=Path(
+            runtime_dir=operational_path(
                 str(payload.get("runtime_dir", default_for_root.runtime_dir))
             ),
-            default_managed_comfy_dir=Path(
+            default_managed_comfy_dir=operational_path(
                 str(
                     payload.get(
                         "default_managed_comfy_dir",
