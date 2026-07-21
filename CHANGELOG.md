@@ -1,3 +1,10 @@
+# [0.17.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.16.0...v0.17.0) (2026-07-21)
+
+
+### Features
+
+* **integration:** require versioned SugarCubes host API ([049b5e1](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/049b5e1f1ae1325e54a8b341884c1bd57a839c83))
+
 # [0.16.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.15.0...v0.16.0) (2026-07-21)
 
 

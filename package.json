@@ -1,7 +1,7 @@
 {
   "name": "sugarsubstitute-release",
   "private": true,
-  "version": "0.16.0",
+  "version": "0.17.0",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "packageManager": "npm@10.9.2",
