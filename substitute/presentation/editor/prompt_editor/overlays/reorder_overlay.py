@@ -95,6 +95,7 @@ from ..projection.reorder_state import (
     reorder_pointer_region_geometry_key,
     reorder_overlay_position_geometry_key,
     reorder_overlay_refresh_geometry_key,
+    reorder_overlay_refresh_is_height_only_change,
 )
 from .chip_visuals import PromptChipVisual
 from .reorder_drag_proxy import (
@@ -697,7 +698,15 @@ class SegmentReorderOverlay(
             or previous_key.preview_layout_key != next_key.preview_layout_key
             or previous_key.active_target != next_key.active_target
         )
-        if key_changed and not preview_snapshot_changed:
+        height_only_geometry_change = (
+            previous_key is not None
+            and reorder_overlay_refresh_is_height_only_change(previous_key, next_key)
+        )
+        if (
+            key_changed
+            and not preview_snapshot_changed
+            and not height_only_geometry_change
+        ):
             self._settle_chip_animations(reason=f"geometry_refresh:{reason}")
         self._log_interaction_event(
             "overlay.refresh_geometry.requested",
@@ -767,7 +776,10 @@ class SegmentReorderOverlay(
             self.record_pointer_unexpected_work("full_refresh", reason=reason)
 
         live_changed = self._refresh_live_chip_geometry_if_needed(reason=reason)
-        preview_changed = self._refresh_preview_geometry_if_needed(reason=reason)
+        preview_changed = self._refresh_preview_geometry_if_needed(
+            reason=reason,
+            preserve_animation=height_only_geometry_change,
+        )
         chip_geometry_changed = self._sync_pointer_region_geometry_if_needed(
             reason=reason
         )
@@ -907,10 +919,16 @@ class SegmentReorderOverlay(
         self._visuals_by_index = self._build_visuals_if_needed(reason=reason)
         return self._visuals_by_index != previous_visuals
 
-    def _refresh_preview_geometry_if_needed(self, *, reason: str) -> bool:
+    def _refresh_preview_geometry_if_needed(
+        self,
+        *,
+        reason: str,
+        preserve_animation: bool,
+    ) -> bool:
         """Refresh preview and base geometry when preview identity changed."""
 
-        self._settle_chip_animations(reason=f"{reason}_preview_geometry_refresh")
+        if not preserve_animation:
+            self._settle_chip_animations(reason=f"{reason}_preview_geometry_refresh")
         previous_preview_visuals = self._preview_visuals_by_index
         previous_lane_count = len(self._drop_target_lanes)
         self._update_preview_layout()

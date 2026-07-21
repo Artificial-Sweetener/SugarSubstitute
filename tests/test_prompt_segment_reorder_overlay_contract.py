@@ -1091,7 +1091,6 @@ def test_segment_reorder_overlay_preserves_grab_offset_in_drag_intent_rect(
         text="wide descriptive chip, beta, gamma",
     )
     dragged_chip = _chip_by_segment_index(overlay, 0)
-    chip_geometry = dragged_chip.geometry()
     drag_intents: list[PromptReorderDragIntent] = []
     overlay.set_drag_handler(drag_intents.append)
     press_pos = QPoint(
@@ -1113,8 +1112,10 @@ def test_segment_reorder_overlay_preserves_grab_offset_in_drag_intent_rect(
     assert intent_rect is not None
     grab_offset = pointer_state.drag_grab_offset
     assert grab_offset is not None
-    assert 0.0 < grab_offset.x() < chip_geometry.width()
-    assert 0.0 <= grab_offset.y() < chip_geometry.height()
+    drag_intent_size = pointer_state.drag_intent_size
+    assert drag_intent_size is not None
+    assert 0.0 < grab_offset.x() < drag_intent_size.width()
+    assert 0.0 <= grab_offset.y() < drag_intent_size.height()
     assert drag_intents
     expected_top_left = (
         QPointF(overlay.mapFromGlobal(drag_intents[-1].global_position)) - grab_offset
@@ -1122,7 +1123,7 @@ def test_segment_reorder_overlay_preserves_grab_offset_in_drag_intent_rect(
 
     assert abs(intent_rect.topLeft().x() - expected_top_left.x()) < 0.01
     assert abs(intent_rect.topLeft().y() - expected_top_left.y()) < 0.01
-    assert intent_rect.size().toSize() == chip_geometry.size()
+    assert intent_rect.size() == drag_intent_size
 
     QTest.mouseRelease(
         dragged_chip.overlay,

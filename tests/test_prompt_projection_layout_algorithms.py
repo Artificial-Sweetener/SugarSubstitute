@@ -137,6 +137,81 @@ def test_projection_layout_does_not_keep_partial_tag_at_probe_limit() -> None:
     assert ranges == ((0, len("alpha beta,")),)
 
 
+def test_projection_layout_detects_word_count_change_in_kept_tag() -> None:
+    """A non-comma edit can change whether one comma tag stays together."""
+
+    previous_text = "alpha, beta gamma delta, omega"
+    edit_start = previous_text.index("beta") + len("beta")
+    replacement_text = " extended"
+    next_text = (
+        f"{previous_text[:edit_start]}{replacement_text}{previous_text[edit_start:]}"
+    )
+
+    changed = projection_layout_module._plain_edit_changes_local_tag_keep_ranges(  # noqa: SLF001
+        previous_text,
+        next_text,
+        edit_start=edit_start,
+        edit_end=edit_start,
+        replacement_text=replacement_text,
+    )
+
+    assert changed is True
+
+
+def test_projection_layout_ignores_character_edit_with_stable_kept_tag() -> None:
+    """Ordinary character typing should keep the local fast-path classification."""
+
+    previous_text = "alpha, beta gamma, omega"
+    edit_start = previous_text.index("beta") + len("be")
+    next_text = f"{previous_text[:edit_start]}x{previous_text[edit_start:]}"
+
+    changed = projection_layout_module._plain_edit_changes_local_tag_keep_ranges(  # noqa: SLF001
+        previous_text,
+        next_text,
+        edit_start=edit_start,
+        edit_end=edit_start,
+        replacement_text="x",
+    )
+
+    assert changed is False
+
+
+def test_projection_layout_ignores_character_insert_at_kept_tag_start() -> None:
+    """A kept tag remains eligible when ordinary text extends its leading edge."""
+
+    previous_text = "alpha, beta gamma, omega"
+    edit_start = previous_text.index("beta")
+    next_text = f"{previous_text[:edit_start]}x{previous_text[edit_start:]}"
+
+    changed = projection_layout_module._plain_edit_changes_local_tag_keep_ranges(  # noqa: SLF001
+        previous_text,
+        next_text,
+        edit_start=edit_start,
+        edit_end=edit_start,
+        replacement_text="x",
+    )
+
+    assert changed is False
+
+
+def test_projection_layout_ignores_first_character_in_empty_trailing_tag() -> None:
+    """Creating a local trailing tag should retain the character typing fast path."""
+
+    previous_text = "alpha, "
+    edit_start = len(previous_text)
+    next_text = f"{previous_text}x"
+
+    changed = projection_layout_module._plain_edit_changes_local_tag_keep_ranges(  # noqa: SLF001
+        previous_text,
+        next_text,
+        edit_start=edit_start,
+        edit_end=edit_start,
+        replacement_text="x",
+    )
+
+    assert changed is False
+
+
 def _imported_modules(tree: ast.AST) -> tuple[str, ...]:
     """Return fully qualified module names imported by a parsed Python file."""
 
