@@ -19,11 +19,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 from tempfile import NamedTemporaryFile
 from typing import Sequence, cast
 
 from substitute.domain.workflow import ImageMeta
 from substitute.shared.logging.logger import get_logger, log_exception, log_warning
+from sugarsubstitute_shared.windows_long_paths import (
+    exceeds_windows_legacy_path_limit,
+    operational_path,
+)
 
 _LOGGER = get_logger("infrastructure.external.photoshop_gateway")
 
@@ -171,8 +176,10 @@ class PhotoshopGateway:
 
         candidate = image_meta.path.strip()
         if candidate:
-            path = Path(candidate)
+            path = operational_path(candidate)
             if path.is_file():
+                if exceeds_windows_legacy_path_limit(path):
+                    return _stage_external_editor_image(path)
                 return path
 
         save_method = getattr(image, "save", None)
@@ -221,6 +228,17 @@ class PhotoshopGateway:
         if dots_per_meter_x <= 0:
             return 72.0
         return float(dots_per_meter_x) * 0.0254
+
+
+def _stage_external_editor_image(source_path: Path) -> Path:
+    """Copy a long-path image to a short temporary path for Photoshop COM."""
+
+    suffix = source_path.suffix or ".png"
+    temp_file = NamedTemporaryFile(suffix=suffix, delete=False)
+    staged_path = Path(temp_file.name)
+    temp_file.close()
+    shutil.copy2(source_path, staged_path)
+    return staged_path
 
 
 __all__ = [

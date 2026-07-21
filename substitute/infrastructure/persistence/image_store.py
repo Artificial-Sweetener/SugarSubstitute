@@ -24,6 +24,10 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage, QImageReader
 
 from substitute.shared.logging.logger import get_logger, log_exception, log_warning
+from sugarsubstitute_shared.windows_long_paths import (
+    operational_path,
+    qt_filesystem_path,
+)
 
 _LOGGER = get_logger("infrastructure.persistence.image_store")
 
@@ -34,9 +38,9 @@ class QtImageStore:
     def load_image(self, path: Path) -> object | None:
         """Load image with auto-transform enabled and return QImage on success."""
 
-        resolved_path = Path(path)
+        resolved_path = operational_path(path)
         try:
-            reader = QImageReader(str(resolved_path))
+            reader = QImageReader(qt_filesystem_path(resolved_path))
             reader.setAutoTransform(True)
             image = reader.read()
         except Exception as error:
@@ -60,7 +64,7 @@ class QtImageStore:
     def save_image(self, path: Path, *, image: object) -> bool:
         """Persist Qt-compatible image object at destination path."""
 
-        resolved_path = Path(path)
+        resolved_path = operational_path(path)
         if image is None:
             log_warning(
                 _LOGGER,
@@ -90,7 +94,7 @@ class QtImageStore:
 
         try:
             resolved_path.parent.mkdir(parents=True, exist_ok=True)
-            return bool(save_image(str(resolved_path)))
+            return bool(save_image(qt_filesystem_path(resolved_path)))
         except Exception as error:
             log_exception(
                 _LOGGER,
@@ -124,13 +128,13 @@ class QtImageStore:
                     height=height,
                 )
                 return False
-            resolved_path = Path(path)
+            resolved_path = operational_path(path)
             resolved_path.parent.mkdir(parents=True, exist_ok=True)
             blank_image = QImage(
                 width, height, QImage.Format.Format_ARGB32_Premultiplied
             )
             blank_image.fill(getattr(Qt, "transparent", 0))
-            return bool(blank_image.save(str(resolved_path)))
+            return bool(blank_image.save(qt_filesystem_path(resolved_path)))
         except Exception as error:
             log_exception(
                 _LOGGER,
@@ -143,7 +147,7 @@ class QtImageStore:
     def save_blank_image(self, path: Path, *, width: int, height: int) -> bool:
         """Write an opaque neutral RGB image for synthetic Input canvas backing."""
 
-        resolved_path = Path(path)
+        resolved_path = operational_path(path)
         if width <= 0 or height <= 0:
             log_warning(
                 _LOGGER,
@@ -157,7 +161,7 @@ class QtImageStore:
             resolved_path.parent.mkdir(parents=True, exist_ok=True)
             blank_image = QImage(width, height, QImage.Format.Format_RGB32)
             blank_image.fill(QColor(24, 24, 24))
-            return bool(blank_image.save(str(resolved_path)))
+            return bool(blank_image.save(qt_filesystem_path(resolved_path)))
         except Exception as error:
             log_exception(
                 _LOGGER,
@@ -172,9 +176,9 @@ class QtImageStore:
     def image_dimensions(self, path: Path) -> tuple[int, int] | None:
         """Return readable image dimensions after Qt reader transformations."""
 
-        resolved_path = Path(path)
+        resolved_path = operational_path(path)
         try:
-            reader = QImageReader(str(resolved_path))
+            reader = QImageReader(qt_filesystem_path(resolved_path))
             reader.setAutoTransform(True)
             image = reader.read()
         except Exception as error:

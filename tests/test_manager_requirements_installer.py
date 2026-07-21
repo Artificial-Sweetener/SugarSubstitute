@@ -24,6 +24,10 @@ import subprocess
 import pytest
 
 from substitute.infrastructure.comfy import manager_requirements_installer
+from sugarsubstitute_shared.windows_long_paths import (
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 
 def test_manager_requirements_install_uses_checkout_file_exactly(
@@ -35,11 +39,13 @@ def test_manager_requirements_install_uses_checkout_file_exactly(
     python = tmp_path / "python.exe"
     requirements = tmp_path / "manager_requirements.txt"
     observed: list[list[str]] = []
+    observed_working_directories: list[str] = []
 
     def fake_run(
-        command: list[str], **_kwargs: object
+        command: list[str], **kwargs: object
     ) -> subprocess.CompletedProcess[str]:
         observed.append(command)
+        observed_working_directories.append(str(kwargs["cwd"]))
         return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 
     monkeypatch.setattr(
@@ -53,7 +59,17 @@ def test_manager_requirements_install_uses_checkout_file_exactly(
         requirements_path=requirements,
     )
 
-    assert observed == [[str(python), "-m", "pip", "install", "-r", str(requirements)]]
+    assert observed == [
+        [
+            subprocess_path(python),
+            "-m",
+            "pip",
+            "install",
+            "-r",
+            subprocess_path(requirements),
+        ]
+    ]
+    assert observed_working_directories == [subprocess_working_directory(tmp_path)]
 
 
 def test_pygit2_backend_is_an_explicit_separate_transaction(
@@ -83,4 +99,6 @@ def test_pygit2_backend_is_an_explicit_separate_transaction(
         python_executable=python,
     )
 
-    assert observed == [[str(python), "-m", "pip", "install", "pygit2==1.19.3"]]
+    assert observed == [
+        [subprocess_path(python), "-m", "pip", "install", "pygit2==1.19.3"]
+    ]

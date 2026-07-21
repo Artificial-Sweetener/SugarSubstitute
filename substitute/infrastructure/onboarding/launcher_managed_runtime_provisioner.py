@@ -27,6 +27,7 @@ import sys
 from substitute.application.ports.runtime_provisioner import RuntimeProvisioner
 from substitute.domain.onboarding import RuntimeBootstrapStatus, RuntimeConfiguration
 from substitute.domain.onboarding.runtime_layout import runtime_layout_for_root
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
 @dataclass(frozen=True)
@@ -80,9 +81,9 @@ class LauncherManagedRuntimeProvisioner(RuntimeProvisioner):
         if python_executable is None:
             raise RuntimeError("Runtime configuration has no python executable.")
         return [
-            str(python_executable),
-            str(entrypoint_path),
-            f"--install-root={self.install_root}",
+            subprocess_path(python_executable),
+            subprocess_path(entrypoint_path),
+            f"--install-root={subprocess_path(self.install_root)}",
         ]
 
     def _run_checked(

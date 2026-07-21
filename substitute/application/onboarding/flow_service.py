@@ -24,6 +24,10 @@ from pathlib import Path
 from typing import Protocol
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.windows_long_paths import (
+    ExternalLongPathCompatibilityError,
+    WindowsPathComponentTooLongError,
+)
 
 from substitute.domain.onboarding import (
     BootstrapRoute,
@@ -1150,6 +1154,33 @@ class OnboardingFlowService:
         """Translate one provisioning exception into actionable onboarding guidance."""
 
         technical_detail = str(error).strip() or type(error).__name__
+        if isinstance(error, WindowsPathComponentTooLongError):
+            return OnboardingProvisioningFailure(
+                headline=app_text("A file or folder name is too long for Windows"),
+                user_message=app_text(
+                    "Windows limits each individual file or folder name to 255 characters."
+                ),
+                technical_detail=technical_detail,
+                remediation_steps=(
+                    app_text(
+                        "Shorten the file or folder name at %1, then try again.",
+                        error.path,
+                    ),
+                ),
+            )
+        if isinstance(error, ExternalLongPathCompatibilityError):
+            return OnboardingProvisioningFailure(
+                headline=app_text("A Windows component could not use this long path"),
+                user_message=app_text(
+                    "%1 could not use this Windows path even though Substitute can.",
+                    error.component,
+                ),
+                technical_detail=technical_detail,
+                remediation_steps=(
+                    app_text("Choose a shorter folder for this operation."),
+                    app_text("Or enable Win32 long paths in Windows, then try again."),
+                ),
+            )
         if _is_storage_exhaustion_detail(technical_detail):
             return OnboardingProvisioningFailure(
                 headline=app_text("Substitute ran out of temporary install space"),

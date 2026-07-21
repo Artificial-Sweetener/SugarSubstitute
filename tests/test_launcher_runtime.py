@@ -43,6 +43,7 @@ from launcher.sugarsubstitute_launcher.runtime import (
     runtime_environment,
     runtime_requirements_command,
 )
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
 class RecordingRuntimeRunner:
@@ -86,12 +87,12 @@ def test_uv_runtime_provisioner_builds_managed_runtime_commands(tmp_path: Path) 
     assert result.python_executable == layout.runtime_python
     assert result.requirements_path == layout.app_dir / "requirements.txt"
     python_install_command = [
-        str(uv_executable),
+        subprocess_path(uv_executable),
         "python",
         "install",
         DEFAULT_PYTHON_VERSION,
         "--install-dir",
-        str(layout.runtime_dir / "python"),
+        subprocess_path(layout.runtime_dir / "python"),
         "--managed-python",
         "--no-bin",
     ]
@@ -101,9 +102,9 @@ def test_uv_runtime_provisioner_builds_managed_runtime_commands(tmp_path: Path) 
     assert runner.commands == [
         python_install_command,
         [
-            str(uv_executable),
+            subprocess_path(uv_executable),
             "venv",
-            str(layout.runtime_dir / ".venv"),
+            subprocess_path(layout.runtime_dir / ".venv"),
             "--python",
             DEFAULT_PYTHON_VERSION,
             "--managed-python",
@@ -115,20 +116,21 @@ def test_uv_runtime_provisioner_builds_managed_runtime_commands(tmp_path: Path) 
             requirements_path=layout.app_dir / "requirements.txt",
         ),
         [
-            str(layout.runtime_python),
+            subprocess_path(layout.runtime_python),
             "-c",
             "import PySide6; import qfluentwidgets; import qpane; import substitute",
         ],
     ]
     assert all(
-        environment["UV_PYTHON_INSTALL_DIR"] == str(layout.runtime_dir / "python")
+        environment["UV_PYTHON_INSTALL_DIR"]
+        == subprocess_path(layout.runtime_dir / "python")
         for environment in runner.environments
     )
     assert all(
         environment["UV_NO_MODIFY_PATH"] == "1" for environment in runner.environments
     )
     assert all(
-        environment["PYTHONPATH"] == str(layout.app_dir)
+        environment["PYTHONPATH"] == subprocess_path(layout.app_dir)
         for environment in runner.environments
     )
     assert all(environment["PYTHONUTF8"] == "1" for environment in runner.environments)
@@ -211,11 +213,13 @@ def test_runtime_environment_keeps_uv_state_inside_install_root(tmp_path: Path) 
 
     env = runtime_environment(layout=layout)
 
-    assert env["UV_CACHE_DIR"] == str(layout.cache_dir / "uv")
-    assert env["UV_PYTHON_INSTALL_DIR"] == str(layout.runtime_dir / "python")
-    assert env["VIRTUAL_ENV"] == str(layout.runtime_dir / ".venv")
+    assert env["UV_CACHE_DIR"] == subprocess_path(layout.cache_dir / "uv")
+    assert env["UV_PYTHON_INSTALL_DIR"] == subprocess_path(
+        layout.runtime_dir / "python"
+    )
+    assert env["VIRTUAL_ENV"] == subprocess_path(layout.runtime_dir / ".venv")
     assert env["UV_NO_MODIFY_PATH"] == "1"
-    assert env["PYTHONPATH"] == str(layout.app_dir)
+    assert env["PYTHONPATH"] == subprocess_path(layout.app_dir)
     assert env["PYTHONUTF8"] == "1"
     assert env["PYTHONIOENCODING"] == "utf-8:replace"
 
@@ -235,7 +239,7 @@ def test_linux_runtime_installs_cpu_pytorch_distributions(tmp_path: Path) -> Non
         "--torch-backend",
         "cpu",
         "-r",
-        str(layout.app_dir / "requirements.txt"),
+        subprocess_path(layout.app_dir / "requirements.txt"),
     ]
 
 

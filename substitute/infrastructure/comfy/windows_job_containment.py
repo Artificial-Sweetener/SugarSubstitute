@@ -41,6 +41,11 @@ from substitute.infrastructure.comfy.managed_process_metadata import (
 )
 from substitute.infrastructure.comfy.managed_process_probe import is_process_running
 from substitute.shared.logging.logger import get_logger, log_info
+from sugarsubstitute_shared.windows_long_paths import (
+    ExternalLongPathCompatibilityError,
+    external_long_path_error,
+    subprocess_working_directory,
+)
 
 _LOGGER = get_logger("infrastructure.comfy.windows_job_containment")
 _CREATE_NEW_PROCESS_GROUP = 0x00000200
@@ -286,6 +291,15 @@ def launch_in_job(
             _close_handle(job_handle)
         if stdout_stream is not None:
             stdout_stream.close()
+        if isinstance(error, ExternalLongPathCompatibilityError):
+            raise
+        compatibility_error = external_long_path_error(
+            component="ComfyUI",
+            path=workspace,
+            detail=error,
+        )
+        if compatibility_error is not None:
+            raise compatibility_error from error
         raise ManagedContainmentError(
             f"Windows Job Object containment failed: {error}"
         ) from error
@@ -417,7 +431,7 @@ def _create_suspended_process(
         inherit_handles,
         creation_flags,
         environment_block,
-        str(request.cwd),
+        subprocess_working_directory(request.cwd),
         ctypes.byref(startup_info),
         ctypes.byref(process_info),
     )

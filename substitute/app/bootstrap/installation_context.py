@@ -67,6 +67,7 @@ from substitute.infrastructure.onboarding.readiness_checks import (
     FileSystemReadinessChecks,
 )
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 if TYPE_CHECKING:
     from substitute.application.civitai import (
@@ -131,11 +132,11 @@ def resolve_installation_root(explicit_root: Path | None = None) -> Path:
     """Resolve the active installation root from explicit input, env, or repo root."""
 
     if explicit_root is not None:
-        return explicit_root.resolve()
+        return operational_path(explicit_root).resolve()
     env_root = os.environ.get(_INSTALL_ROOT_ENV)
     if env_root:
-        return Path(env_root).resolve()
-    return Path(__file__).resolve().parents[3]
+        return operational_path(env_root).resolve()
+    return operational_path(Path(__file__).resolve().parents[3])
 
 
 def build_onboarding_service_bundle(

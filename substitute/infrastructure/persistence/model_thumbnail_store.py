@@ -42,6 +42,7 @@ from substitute.domain.model_metadata import (
 )
 from substitute.shared.qt_thumbnail_codec import prepare_qt_thumbnail
 from substitute.shared.logging.logger import get_logger, log_debug, log_warning
+from sugarsubstitute_shared.windows_long_paths import qt_filesystem_path
 
 from .thumbnail_banner_cropper import ThumbnailBannerCropper
 
@@ -330,7 +331,7 @@ def _qimage_from_local_payload(
         if not image.isNull():
             return image.copy()
     if source_path:
-        image = QImage(source_path)
+        image = QImage(qt_filesystem_path(source_path))
         if not image.isNull():
             return image.copy()
     return None

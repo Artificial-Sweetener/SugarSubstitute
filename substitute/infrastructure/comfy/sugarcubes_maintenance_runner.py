@@ -46,6 +46,7 @@ from substitute.infrastructure.comfy.nodepack_reconciliation_logger import (
 from substitute.infrastructure.comfy.workspace_python_resolver import (
     resolve_workspace_python,
 )
+from substitute.infrastructure.filesystem import remove_app_owned_path
 from substitute.infrastructure.comfy.trusted_nodepack_installer import (
     install_trusted_nodepack_repository,
 )
@@ -262,13 +263,17 @@ def _install_sugarcubes_nodepack_candidate(
                 on_log=on_log,
                 repositories=repositories,
             )
-            install_nodepack_requirements(
-                python_executable=python_executable,
-                nodepack_root=target_path,
-                display_name=node_id,
-                on_log=on_log,
-                env=env,
-            )
+            try:
+                install_nodepack_requirements(
+                    python_executable=python_executable,
+                    nodepack_root=target_path,
+                    display_name=node_id,
+                    on_log=on_log,
+                    env=env,
+                )
+            except RuntimeError:
+                remove_app_owned_path(target_path)
+                raise
             return
         except RuntimeError as exc:
             failures.append(str(exc))

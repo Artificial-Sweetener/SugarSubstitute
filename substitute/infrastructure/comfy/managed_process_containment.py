@@ -29,6 +29,7 @@ from substitute.infrastructure.comfy.managed_process_metadata import (
     ContainmentMode,
     ManagedProcessMetadata,
 )
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
 class ManagedProcessHandle(Protocol):
@@ -85,7 +86,7 @@ def build_launch_request(
 
     return ManagedContainmentLaunchRequest(
         command=tuple(command),
-        cwd=cwd,
+        cwd=operational_path(cwd),
         env=dict(env),
         capture_output=capture_output,
     )

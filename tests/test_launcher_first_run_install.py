@@ -59,6 +59,7 @@ from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRe
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
 def test_local_folder_release_source_loads_manifest(tmp_path: Path) -> None:
@@ -227,9 +228,9 @@ def test_continue_install_command_carries_handoff_geometry(tmp_path: Path) -> No
     )
 
     assert command == [
-        str(layout.executable_path),
+        subprocess_path(layout.executable_path),
         "--continue-install",
-        f"--install-root={layout.root}",
+        f"--install-root={subprocess_path(layout.root)}",
         "--handoff-geometry=10,20,1260,800",
     ]
 
@@ -349,9 +350,9 @@ def test_app_launch_command_uses_hidden_console_python(tmp_path: Path) -> None:
     layout = InstallLayout.from_root(tmp_path / "install")
 
     assert build_app_launch_command(layout=layout) == [
-        str(layout.runtime_python),
-        str(layout.app_entrypoint),
-        f"--install-root={layout.root}",
+        subprocess_path(layout.runtime_python),
+        subprocess_path(layout.app_entrypoint),
+        f"--install-root={subprocess_path(layout.root)}",
     ]
 
 

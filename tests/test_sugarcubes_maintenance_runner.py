@@ -385,6 +385,80 @@ def test_run_sugarcubes_baseline_maintenance_installs_reported_nodepacks(
     assert not (tmp_path / "custom_nodes" / "ComfyUI-SeedVR2_VideoUpscaler").exists()
 
 
+def test_failed_nodepack_dependencies_remove_only_the_new_app_owned_clone(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A failed dependency transaction should leave a retryable missing nodepack."""
+
+    _write_maintenance_fixture(tmp_path)
+
+    def fake_stream(
+        command: list[str],
+        *,
+        cwd: Path,
+        on_line: object | None,
+        env: Mapping[str, str] | None = None,
+        timeout_seconds: int | None = None,
+    ) -> tuple[int, tuple[str, ...]]:
+        """Report one trusted nodepack as missing."""
+
+        _ = command, cwd, on_line, env, timeout_seconds
+        return (
+            2,
+            (
+                json.dumps(
+                    {
+                        "schemaVersion": 1,
+                        "dependencyReadiness": {
+                            "ready": False,
+                            "missingCustomNodes": ["seedvr2_videoupscaler"],
+                            "installPlan": [
+                                {
+                                    "nodeId": "seedvr2_videoupscaler",
+                                    "installable": True,
+                                    "installed": False,
+                                }
+                            ],
+                        },
+                        "repairResult": {"failedNodes": [], "skippedNodes": []},
+                    }
+                ),
+            ),
+        )
+
+    def materialize(_repository_url: str, target_path: Path) -> None:
+        """Materialize the application-owned clone boundary."""
+
+        target_path.mkdir(parents=True)
+        (target_path / "requirements.txt").write_text("fixture", encoding="utf-8")
+
+    def fail_requirements(**_kwargs: object) -> None:
+        """Simulate a failed pip transaction after cloning succeeds."""
+
+        raise RuntimeError("pip failed")
+
+    monkeypatch.setattr(
+        sugarcubes_maintenance_runner,
+        "_stream_command_collecting_output",
+        fake_stream,
+    )
+    monkeypatch.setattr(
+        sugarcubes_maintenance_runner,
+        "install_nodepack_requirements",
+        fail_requirements,
+    )
+
+    target = tmp_path / "custom_nodes" / "seedvr2_videoupscaler"
+    with pytest.raises(RuntimeError, match="pip failed"):
+        sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(
+            tmp_path,
+            repositories=RecordingRepositoryService(clone_callback=materialize),
+        )
+
+    assert not target.exists()
+
+
 def test_run_sugarcubes_baseline_maintenance_exit_two_with_readiness(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
