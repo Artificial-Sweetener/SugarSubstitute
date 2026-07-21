@@ -17,6 +17,17 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 - Preserve compatibility for persisted files and project data unless explicitly approved to change.
 - Treat current behavior and persisted formats as the contract; change internals freely within that boundary.
 
+## Localization Policy
+
+- Route all SugarSubstitute-owned user-facing text, including installer text, through its explicit localization owner. Hard-coded visible copy is not allowed.
+- Treat `languages.json` as the sole supported-locale registry. Do not duplicate locale inventories in source, tools, or tests.
+- Every release-enabled locale must have complete application and installer coverage. Add or change owned text and all supported translations atomically; add a locale only with complete coverage for every owned surface.
+- When one source string is intentionally shared or repeated, update every matching occurrence and catalog entry together. Do not leave inconsistent near-duplicates for later cleanup.
+- English is the canonical source and fallback language. Write translations directly and do not use external translation aids.
+- Preserve cube-authored and user-authored text exactly. Resolve eligible ComfyUI-owned node text from the connected ComfyUI server and never maintain a parallel local ComfyUI corpus.
+- Preserve Unicode and IME input, widget behavior, styling, and layout across locales. A localization change that regresses text entry or presentation behavior is a failure.
+- Keep the source-ownership and absolute-coverage gates strict. Fix violations at their owner; do not weaken extraction, parity, completion, or runtime-catalog checks to pass CI.
+
 ## Environment and Gate Execution
 
 - All verification commands must run against the repository virtual environment at `.venv`.

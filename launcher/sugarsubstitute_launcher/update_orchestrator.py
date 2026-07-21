@@ -29,6 +29,7 @@ from launcher.sugarsubstitute_launcher import __version__ as LAUNCHER_VERSION
 
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from launcher.sugarsubstitute_launcher.manifest import ReleaseManifest
 from launcher.sugarsubstitute_launcher.payload import (
     AppPayloadInstallResult,
@@ -171,7 +172,7 @@ class LauncherUpdateOrchestrator:
                 skipped_reason=check_policy.reason,
             )
 
-        progress.append_log("Checking for SugarSubstitute updates.")
+        progress.append_log(launcher_text("Checking for SugarSubstitute updates."))
         try:
             with LauncherUpdateLock.acquire(layout.locks_dir):
                 return self._run_with_lock(
@@ -229,19 +230,26 @@ class LauncherUpdateOrchestrator:
         )
         installed_app_update = False
         if update_policy.decision is AppPayloadUpdateDecision.INSTALL:
-            progress.append_log(f"Installing SugarSubstitute {manifest.version}.")
+            progress.append_log(
+                launcher_text("Installing SugarSubstitute %1.", manifest.version)
+            )
             install_result = self._payload_installer.install(
                 layout=layout,
                 manifest=manifest,
             )
-            progress.append_log("Preparing SugarSubstitute runtime.")
+            progress.append_log(launcher_text("Preparing SugarSubstitute runtime."))
             self._runtime_reconciler.reconcile(layout=layout, progress=progress)
             state = state.with_successful_update(
                 version=install_result.version,
                 channel=manifest.channel,
                 completed_at=self._now(),
             )
-            progress.append_log(f"Installed SugarSubstitute {install_result.version}.")
+            progress.append_log(
+                launcher_text(
+                    "Installed SugarSubstitute %1.",
+                    install_result.version,
+                )
+            )
             installed_app_update = True
         else:
             state = state.with_update_check(
@@ -302,7 +310,7 @@ class LauncherUpdateOrchestrator:
             if minimum_comparison < 0:
                 raise LauncherMinimumVersionError(error_message)
             raise RuntimeError(error_message)
-        progress.append_log(f"Preparing launcher {manifest.version}.")
+        progress.append_log(launcher_text("Preparing launcher %1.", manifest.version))
         try:
             request_path = self._launcher_bundle_stager.stage(
                 install_root=layout.root,
@@ -321,7 +329,9 @@ class LauncherUpdateOrchestrator:
                     "The required launcher update could not be staged."
                 ) from error
             raise
-        progress.append_log("The launcher will restart to finish updating.")
+        progress.append_log(
+            launcher_text("The launcher will restart to finish updating.")
+        )
         return request_path
 
 

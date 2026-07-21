@@ -4,40 +4,45 @@
   <context>
     <name>LanguageSelector</name>
     <message>
+      <location filename="../sugarsubstitute_shared/presentation/localization/language_selector.py" line="63"></location>
       <source>Application language</source>
       <translation>应用语言</translation>
     </message>
     <message>
-      <source>Select the system language or a supported application language.</source>
-      <translation>选择系统语言或受支持的应用语言。</translation>
-    </message>
-    <message>
-      <source>System default — %1</source>
-      <translation>系统默认 — %1</translation>
-    </message>
-    <message>
-      <source>Failed to change language</source>
-      <translation>无法切换语言</translation>
-    </message>
-    <message>
-      <source>SugarSubstitute kept the previous language. %1</source>
-      <translation>SugarSubstitute 已保留原来的语言。%1</translation>
-    </message>
-    <message>
-      <source>Language</source>
-      <translation>语言</translation>
+      <source>Choose how SugarSubstitute presents text.</source>
+      <translation>选择 SugarSubstitute 显示文本的方式。</translation>
     </message>
     <message>
       <source>Choose the language used by SugarSubstitute. Changes apply immediately.</source>
       <translation>选择 SugarSubstitute 使用的语言。更改会立即生效。</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/presentation/localization/language_selector.py" line="123"></location>
+      <source>Failed to change language</source>
+      <translation>无法切换语言</translation>
+    </message>
+    <message>
+      <source>Language</source>
+      <translation>语言</translation>
+    </message>
+    <message>
       <source>Language and region</source>
       <translation>语言和区域</translation>
     </message>
     <message>
-      <source>Choose how SugarSubstitute presents text.</source>
-      <translation>选择 SugarSubstitute 显示文本的方式。</translation>
+      <location filename="../sugarsubstitute_shared/presentation/localization/language_selector.py" line="67"></location>
+      <source>Select the system language or a supported application language.</source>
+      <translation>选择系统语言或受支持的应用语言。</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/localization/language_selector.py" line="124"></location>
+      <source>SugarSubstitute kept the previous language. %1</source>
+      <translation>SugarSubstitute 已保留原来的语言。%1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/localization/language_selector.py" line="84"></location>
+      <source>System default — %1</source>
+      <translation>系统默认 — %1</translation>
     </message>
   </context>
   <context>
