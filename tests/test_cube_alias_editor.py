@@ -316,7 +316,7 @@ def test_native_input_method_commits_cjk_and_non_bmp_text_exactly() -> None:
     """Commit CJK and non-BMP IME text through the existing painted editor."""
 
     editor = _editor("Old")
-    committed_text = "中文 日本語 👩‍💻"
+    committed_text = "中文 日本語 한국어 👩‍💻"
     preedit = QInputMethodEvent("にほん", [])
 
     QApplication.sendEvent(editor, preedit)
