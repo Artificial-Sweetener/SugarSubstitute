@@ -55,6 +55,7 @@ from substitute.app.bootstrap.standalone_long_lived_execution import (
     StandaloneLongLivedExecutionOwner,
 )
 from substitute.shared.logging.logger import get_logger, log_warning
+from sugarsubstitute_shared.windows_long_paths import subprocess_working_directory
 
 
 _LOGGER = get_logger("app.bootstrap.early_launch_splash")
@@ -184,7 +185,7 @@ def start_shared_launch_splash(
                 _SHARED_SPLASH_HOST_MODULE,
                 format_locale_argument(language_identifier),
             ],
-            cwd=app_root,
+            cwd=subprocess_working_directory(app_root),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

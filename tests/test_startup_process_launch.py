@@ -31,6 +31,7 @@ from substitute.app.bootstrap.startup_process_launch import (
     launch_command_working_directory,
     start_ready_app_process,
 )
+from sugarsubstitute_shared.windows_long_paths import subprocess_working_directory
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -107,7 +108,7 @@ def test_start_ready_app_process_launches_with_hidden_stdio(
     assert observed["command"] == [sys.executable, str(entrypoint), "--ready"]
     kwargs = observed["kwargs"]
     assert isinstance(kwargs, dict)
-    assert kwargs["cwd"] == entrypoint.parent
+    assert kwargs["cwd"] == subprocess_working_directory(entrypoint.parent)
     assert kwargs["stdin"] is subprocess.DEVNULL
     assert kwargs["stdout"] is subprocess.DEVNULL
     assert kwargs["stderr"] is subprocess.DEVNULL

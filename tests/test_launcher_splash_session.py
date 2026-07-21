@@ -28,6 +28,10 @@ from launcher.sugarsubstitute_launcher.splash_session import (
     append_splash_session_args,
     start_launcher_splash_session,
 )
+from sugarsubstitute_shared.windows_long_paths import (
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 
 def test_launcher_splash_session_starts_host_and_returns_app_args(
@@ -64,13 +68,13 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
         "--splash-session-host-pid=1234",
     )
     assert calls[0]["command"] == [
-        str(layout.runtime_python),
+        subprocess_path(layout.runtime_python),
         "-m",
         "substitute.app.bootstrap.shared_splash_host",
         "--locale=ja",
     ]
-    assert calls[0]["cwd"] == str(layout.root)
-    assert calls[0]["env"]["PYTHONPATH"] == str(layout.app_dir)
+    assert calls[0]["cwd"] == subprocess_working_directory(layout.root)
+    assert calls[0]["env"]["PYTHONPATH"] == subprocess_path(layout.app_dir)
 
 
 def test_launcher_splash_session_returns_none_for_invalid_ready_payload(
