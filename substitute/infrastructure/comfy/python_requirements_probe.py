@@ -123,7 +123,7 @@ class PythonRequirementsProbe:
 
         result = subprocess.run(
             [
-                str(python_executable.resolve()),
+                os.path.abspath(python_executable),
                 "-c",
                 _PROBE_SCRIPT,
                 str(requirements_path.resolve()),
