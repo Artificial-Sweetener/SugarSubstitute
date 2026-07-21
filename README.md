@@ -9,6 +9,10 @@
   <a href="https://www.gnu.org/licenses/gpl-3.0.html"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="GPL-3.0-or-later license"></a>
 </p>
 
+<p align="center">
+  <strong>English</strong> | <a href="README.zh-Hans.md">简体中文</a> | <a href="README.ja.md">日本語</a>
+</p>
+
 **SugarSubstitute is the Qt front-end for [ComfyUI](https://github.com/Comfy-Org/ComfyUI) built for people who love what a graph can do and would rather not spend all day untangling one.**
 
 I kept building the same workflow sections, switching them on and off, moving them around, and wiring them back together. Eventually I got fed up. Those sections became [**Cubes**](https://github.com/Artificial-Sweetener/SugarCubes), and the desktop app around them became SugarSubstitute.
