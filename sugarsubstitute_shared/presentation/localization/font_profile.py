@@ -36,11 +36,17 @@ _PROFILE_FAMILIES: Mapping[str, tuple[str, ...]] = {
         "Noto Sans CJK JP",
         "Source Han Sans JP",
     ),
+    "cjk-kr": (
+        "Malgun Gothic",
+        "Apple SD Gothic Neo",
+        "Noto Sans CJK KR",
+        "Source Han Sans K",
+    ),
 }
 
 
 def localized_application_font(base_font: QFont, profile: str) -> QFont:
-    """Return a copy with deterministic SC or Japanese Han fallback families."""
+    """Return a copy with deterministic CJK fallback families."""
 
     if profile not in _PROFILE_FAMILIES:
         raise ValueError(f"Unsupported localization font profile: {profile!r}")

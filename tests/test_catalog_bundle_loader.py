@@ -87,6 +87,26 @@ def test_japanese_bundle_loads_app_owned_widget_text_and_qt_catalogs() -> None:
     assert qt_catalog.translate("QPlatformTheme", "Cancel") == "キャンセル"
 
 
+def test_korean_bundle_loads_app_owned_widget_text_and_qt_catalogs() -> None:
+    """Load complete Korean app and Qt delegates with Korean font fallbacks."""
+
+    application = _application()
+    loader = _application_loader(application)
+    resolved = resolve_locale(
+        LanguagePreference.explicit("ko"),
+        ui_languages=("en-US",),
+    )
+
+    bundle = loader.prepare(resolved)
+
+    assert len(bundle.translators) == 2
+    assert bundle.application_font.families()[0] == "Malgun Gothic"
+    app_catalog, qt_catalog = bundle.translators
+    assert app_catalog.translate("LanguageSelector", "Language") == "언어"
+    assert app_catalog.translate("SwitchButton", "On") == "켜짐"
+    assert qt_catalog.translate("QPlatformTheme", "Cancel") == "취소"
+
+
 def test_missing_required_catalog_fails_before_bundle_commit(tmp_path: Path) -> None:
     """Reject an incomplete locale instead of presenting a partially loaded mode."""
 

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> | <a href="README.zh-Hans.md">简体中文</a> | <strong>日本語</strong>
+  <a href="README.md">English</a> | <a href="README.zh-Hans.md">简体中文</a> | <strong>日本語</strong> | <a href="README.ko.md">한국어</a>
 </p>
 
 **SugarSubstitute は [ComfyUI](https://github.com/Comfy-Org/ComfyUI) のための Qt フロントエンドです。グラフにできることは大好き。でも一日中その配線をほどいていたくはない——そんな人のために作りました。**

@@ -216,6 +216,51 @@ def test_frontend_client_loads_only_requested_official_core_locales() -> None:
     ]
 
 
+def test_frontend_client_loads_official_korean_node_definitions() -> None:
+    """Request Korean node text from Comfy without loading unrelated locales."""
+
+    index = '<link rel="modulepreload" href="./assets/i18n-release.js">'
+    module = (
+        '"./en/nodeDefs.json":()=>import(`./nodeDefs-en.js`),'
+        '"./ko/nodeDefs.json":()=>import(`./nodeDefs-ko.js`),'
+        '"./ja/nodeDefs.json":()=>import(`./nodeDefs-ja.js`)'
+    )
+    payloads = {
+        "http://127.0.0.1:8188/": index,
+        "http://127.0.0.1:8188/assets/i18n-release.js": module,
+        "http://127.0.0.1:8188/assets/nodeDefs-ko.js.map": _source_map(
+            "ko", {"KSampler": _node("K샘플러", input_name="시드")}
+        ),
+        "http://127.0.0.1:8188/assets/nodeDefs-en.js.map": _source_map(
+            "en", {"KSampler": _node("KSampler")}
+        ),
+    }
+    calls: list[str] = []
+
+    def http_get(url: str, **_kwargs: object) -> FakeAssetResponse:
+        """Return one attached-server asset and record selective requests."""
+
+        calls.append(url)
+        return FakeAssetResponse(payloads[url])
+
+    client = ComfyFrontendI18nClient(
+        ComfyEndpoint("127.0.0.1", 8188),
+        http_get=http_get,
+    )
+
+    branches = client.load_node_definitions(("ko", "en"))
+
+    assert branches["ko"]["KSampler"] == _node("K샘플러", input_name="시드")
+    assert branches["en"]["KSampler"] == _node("KSampler")
+    assert all("nodeDefs-ja" not in url for url in calls)
+    assert calls == [
+        "http://127.0.0.1:8188/",
+        "http://127.0.0.1:8188/assets/i18n-release.js",
+        "http://127.0.0.1:8188/assets/nodeDefs-ko.js.map",
+        "http://127.0.0.1:8188/assets/nodeDefs-en.js.map",
+    ]
+
+
 def test_frontend_client_skips_one_unavailable_locale_source_map() -> None:
     """Keep translated core branches when English uses raw object-info fallback."""
 
