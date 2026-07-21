@@ -18,12 +18,48 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import sys
+import venv
 
 from substitute.infrastructure.comfy.python_requirements_probe import (
     PythonRequirementsProbe,
 )
+
+
+def test_probe_preserves_virtualenv_executable_identity(tmp_path: Path) -> None:
+    """Requirement inspection should not dereference a virtualenv Python symlink."""
+
+    environment = tmp_path / "probe-environment"
+    venv.EnvBuilder(with_pip=True).create(environment)
+    python_executable = environment / (
+        "Scripts/python.exe" if os.name == "nt" else "bin/python"
+    )
+    site_packages = environment / (
+        "Lib/site-packages"
+        if os.name == "nt"
+        else f"lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages"
+    )
+    metadata = site_packages / "sugarsubstitute_probe_fixture-1.0.dist-info"
+    metadata.mkdir(parents=True)
+    (metadata / "METADATA").write_text(
+        "Metadata-Version: 2.1\nName: sugarsubstitute-probe-fixture\nVersion: 1.0\n",
+        encoding="utf-8",
+    )
+    requirements = tmp_path / "requirements.txt"
+    requirements.write_text(
+        "sugarsubstitute-probe-fixture==1.0\n",
+        encoding="utf-8",
+    )
+
+    assessment = PythonRequirementsProbe().assess(
+        requirements_path=requirements,
+        python_executable=python_executable,
+        workspace=tmp_path,
+    )
+
+    assert assessment.satisfied is True
 
 
 def test_probe_reports_satisfied_and_missing_requirements(tmp_path: Path) -> None:
