@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -32,6 +33,7 @@ from substitute.infrastructure.comfy.managed_process_probe import (
     is_process_running,
     probe_managed_listener,
 )
+from substitute.infrastructure.comfy.managed_process_query import get_listener_pid
 
 
 def test_probe_managed_listener_treats_stale_metadata_without_process_as_absent(
@@ -87,7 +89,7 @@ def test_probe_managed_listener_ignores_pid_reuse_for_unrelated_process(
         lambda *_args, **_kwargs: True,
     )
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.managed_process_probe._get_process_command_line",
+        "substitute.infrastructure.comfy.managed_process_probe.get_process_command_line",
         lambda *_args, **_kwargs: '"C:\\Python312\\python.exe" C:\\OtherApp\\main.py',
     )
 
@@ -305,3 +307,21 @@ def test_is_process_running_treats_windows_access_denied_as_alive(
     )
 
     assert is_process_running(321) is True
+
+
+def test_windows_listener_pid_timeout_degrades_to_unresolved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A slow Windows ownership query must not crash desktop startup."""
+
+    monkeypatch.setattr(os, "name", "nt", raising=False)
+
+    def _raise_timeout(*_args: object, **_kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(cmd="powershell", timeout=5)
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.managed_process_query.subprocess.run",
+        _raise_timeout,
+    )
+
+    assert get_listener_pid("127.0.0.1", 8188) is None

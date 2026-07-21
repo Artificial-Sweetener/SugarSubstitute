@@ -139,7 +139,7 @@ def replace_with_pinned_source_archive(
         on_log,
         (
             f"[ComfyNodepacks] Replacing unmergeable {nodepack.display_name} "
-            f"with pinned source {nodepack.minimum_python_distribution_version}."
+            f"with pinned source {nodepack.required_python_distribution_version}."
         ),
     )
     with tempfile.TemporaryDirectory(

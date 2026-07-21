@@ -169,7 +169,7 @@ def test_runtime_compatibility_incident_records_versions(tmp_path: Path) -> None
     rendered_message = render_source_application_text(incident.message)
     assert "SugarCubes version is incompatible." in rendered_message
     assert "Required BackEnd: >=1.6.2,<2.0.0." in rendered_message
-    assert "Required SugarCubes: >=0.10.0,<2.0.0." in rendered_message
+    assert "Required SugarCubes: 0.11.0." in rendered_message
     assert "still incompatible" in rendered_message
     assert incident.exception_type == "RuntimeError"
     assert incident.log_excerpt == ("startup log",)
@@ -177,7 +177,7 @@ def test_runtime_compatibility_incident_records_versions(tmp_path: Path) -> None
     assert incident.values["installed_backend_version"] == "1.6.2"
     assert incident.values["required_backend_version"] == ">=1.6.2,<2.0.0"
     assert incident.values["installed_sugarcubes_version"] == "0.8.0"
-    assert incident.values["required_sugarcubes_version"] == ">=0.10.0,<2.0.0"
+    assert incident.values["required_sugarcubes_version"] == "0.11.0"
     assert incident.values["recovery_attempted"] is True
     assert incident.values["host"] == "127.0.0.1"
     assert incident.values["port"] == 8188
@@ -287,7 +287,7 @@ def _compatibility(
         installed_backend_version="1.6.2",
         required_backend_version=">=1.6.2,<2.0.0",
         installed_sugarcubes_version="0.8.0",
-        required_sugarcubes_version=">=0.10.0,<2.0.0",
+        required_sugarcubes_version="0.11.0",
         repairable=True,
     )
 

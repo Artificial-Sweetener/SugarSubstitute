@@ -30,11 +30,10 @@ from substitute.infrastructure.comfy.nodepack_python_dependencies import (
     egg_info_distribution_name,
     install_nodepack_python_project,
     installed_python_distribution_version,
-    nodepack_python_distributions_satisfy_minimum,
+    nodepack_python_distributions_match_required_version,
     normalized_distribution_name,
+    python_distribution_matches_required_version,
     remove_noncanonical_python_distribution_metadata,
-    version_at_least,
-    version_key,
 )
 
 _DEPENDENCIES_MODULE = (
@@ -227,7 +226,7 @@ def test_installed_python_distribution_version_logs_probe_failure(
     ]
 
 
-def test_nodepack_python_distributions_satisfy_minimum_uses_manifest_metadata(
+def test_nodepack_python_distributions_match_required_version_uses_manifest_metadata(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -241,15 +240,45 @@ def test_nodepack_python_distributions_satisfy_minimum_uses_manifest_metadata(
 
     monkeypatch.setattr(
         "substitute.infrastructure.comfy.nodepack_python_dependencies.installed_python_distribution_version",
-        lambda **kwargs: "1.7.1",
+        lambda **kwargs: "1.8.0",
     )
 
-    assert nodepack_python_distributions_satisfy_minimum(
+    assert nodepack_python_distributions_match_required_version(
         python_executable=tmp_path / "python.exe",
         cwd=tmp_path,
         nodepack=backend_nodepack,
         on_log=None,
         env=None,
+    )
+
+
+@pytest.mark.parametrize(
+    ("installed_version", "expected"),
+    (("1.8.0", True), ("1.7.1", False), ("1.8.1", False)),
+)
+def test_python_distribution_requires_exact_version(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    installed_version: str,
+    expected: bool,
+) -> None:
+    """Distribution checks should reject both older and newer versions."""
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.nodepack_python_dependencies.installed_python_distribution_version",
+        lambda **kwargs: installed_version,
+    )
+
+    assert (
+        python_distribution_matches_required_version(
+            python_executable=tmp_path / "python.exe",
+            cwd=tmp_path,
+            distribution_name="substitute-backend",
+            required_version="1.8.0",
+            on_log=None,
+            env=None,
+        )
+        is expected
     )
 
 
@@ -308,32 +337,6 @@ def test_egg_info_distribution_name_reads_pkg_info(tmp_path: Path) -> None:
 
     assert egg_info_distribution_name(metadata) == "Example_Package"
     assert normalized_distribution_name("Example_Package") == "example-package"
-
-
-@pytest.mark.parametrize(
-    ("installed", "minimum", "expected"),
-    [
-        ("1.6.0", "1.6.0", True),
-        ("1.6.1", "1.6.0", True),
-        ("1.5.9", "1.6.0", False),
-        ("1.6.0-beta", "1.6.0", True),
-        ("bad", "1.0.0", False),
-    ],
-)
-def test_version_at_least_compares_semver_like_versions(
-    installed: str,
-    minimum: str,
-    expected: bool,
-) -> None:
-    """Version comparison should preserve the existing semver-ish ordering."""
-
-    assert version_at_least(installed, minimum) is expected
-
-
-def test_version_key_pads_missing_numeric_parts() -> None:
-    """Short versions should compare as zero-padded release tuples."""
-
-    assert version_key("1.2") == (1, 2, 0, "")
 
 
 def _imported_module_names(tree: ast.AST) -> set[str]:

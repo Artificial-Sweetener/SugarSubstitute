@@ -27,6 +27,7 @@ from pathlib import Path
 import pytest
 
 from substitute.infrastructure.comfy import nodepack_reconciliation
+from substitute.infrastructure.comfy import sugarcubes_dependency_installer
 from substitute.infrastructure.comfy import sugarcubes_maintenance_runner
 from tests.repository_service_test_double import RecordingRepositoryService
 
@@ -115,7 +116,7 @@ def test_run_sugarcubes_baseline_maintenance_builds_sync_check_command(
         [
             str(python_path),
             "-m",
-            "backend.maintenance",
+            "sugarcubes.maintenance",
             "cube-deps",
             "preflight",
             "--workspace",
@@ -125,40 +126,6 @@ def test_run_sugarcubes_baseline_maintenance_builds_sync_check_command(
     ]
     assert result.exit_code == 0
     assert result.diagnostics == ()
-
-
-def test_run_sugarcubes_baseline_maintenance_supports_packaged_layout(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Maintenance should derive the current packaged module from its files."""
-
-    python_path = _write_maintenance_fixture(tmp_path, packaged=True)
-    commands: list[list[str]] = []
-
-    def fake_stream(
-        command: list[str],
-        *,
-        cwd: Path,
-        on_line: object | None,
-        env: Mapping[str, str] | None = None,
-        timeout_seconds: int | None = None,
-    ) -> tuple[int, tuple[str, ...]]:
-        """Record the maintenance command and report readiness."""
-
-        _ = cwd, on_line, env, timeout_seconds
-        commands.append(command)
-        return 0, ('{"schemaVersion": 1, "dependencyReadiness": {"ready": true}}',)
-
-    monkeypatch.setattr(
-        sugarcubes_maintenance_runner,
-        "_stream_command_collecting_output",
-        fake_stream,
-    )
-
-    sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(tmp_path)
-
-    assert commands[0][:3] == [str(python_path), "-m", "sugarcubes.maintenance"]
 
 
 def test_nodepack_reconciliation_facade_exports_sugarcubes_maintenance() -> None:
@@ -363,7 +330,7 @@ def test_run_sugarcubes_baseline_maintenance_installs_reported_nodepacks(
         fake_stream,
     )
     monkeypatch.setattr(
-        sugarcubes_maintenance_runner,
+        sugarcubes_dependency_installer,
         "install_nodepack_requirements",
         lambda **kwargs: None,
     )
@@ -444,7 +411,7 @@ def test_failed_nodepack_dependencies_remove_only_the_new_app_owned_clone(
         fake_stream,
     )
     monkeypatch.setattr(
-        sugarcubes_maintenance_runner,
+        sugarcubes_dependency_installer,
         "install_nodepack_requirements",
         fail_requirements,
     )
@@ -599,7 +566,7 @@ def test_run_sugarcubes_baseline_maintenance_malformed_nonzero_output_blocks(
 def test_sugarcubes_installable_missing_node_ids_filters_readiness_plan() -> None:
     """Install planning should only return missing, installable, uninstalled nodes."""
 
-    assert sugarcubes_maintenance_runner._sugarcubes_installable_missing_node_ids(
+    assert sugarcubes_dependency_installer.sugarcubes_installable_missing_node_ids(
         {
             "dependencyReadiness": {
                 "ready": False,
@@ -634,7 +601,7 @@ def test_sugarcubes_installable_missing_node_ids_filters_readiness_plan() -> Non
 def test_sugarcubes_installable_missing_node_ids_falls_back_to_failed_nodes() -> None:
     """Legacy repair payloads should still identify failed missing node installs."""
 
-    assert sugarcubes_maintenance_runner._sugarcubes_installable_missing_node_ids(
+    assert sugarcubes_dependency_installer.sugarcubes_installable_missing_node_ids(
         {
             "dependencyReadiness": {
                 "ready": False,
@@ -663,21 +630,17 @@ def test_run_sugarcubes_baseline_maintenance_requires_entrypoint(
         sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(tmp_path)
 
 
-def _write_maintenance_fixture(workspace: Path, *, packaged: bool = False) -> Path:
+def _write_maintenance_fixture(workspace: Path) -> Path:
     """Create the minimum workspace files required by maintenance startup."""
 
     python_path = _workspace_python_path(workspace)
     python_path.parent.mkdir(parents=True)
     python_path.write_text("", encoding="utf-8")
-    maintenance_package = Path("sugarcubes") if packaged else Path("backend")
-    backend_package = Path("sugarcubes/backend") if packaged else Path("backend")
-    sugarcubes_root = workspace / "custom_nodes" / "SugarCubes"
-    maintenance_path = sugarcubes_root / maintenance_package / "maintenance.py"
+    maintenance_path = (
+        workspace / "custom_nodes" / "SugarCubes" / "sugarcubes" / "maintenance.py"
+    )
     maintenance_path.parent.mkdir(parents=True)
     maintenance_path.write_text("", encoding="utf-8")
-    backend_path = sugarcubes_root / backend_package / "__init__.py"
-    backend_path.parent.mkdir(parents=True, exist_ok=True)
-    backend_path.write_text("", encoding="utf-8")
     return python_path
 
 

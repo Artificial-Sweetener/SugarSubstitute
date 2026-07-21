@@ -1547,7 +1547,7 @@ class RealShellPromptEditorHarness:
         RoundMenu.exec = capture_exec
         text_menu_class.exec = capture_text_menu_exec
         try:
-            started_at = thread_time()
+            started_at = perf_counter()
             press_event = QMouseEvent(
                 QtCore.QEvent.Type.MouseButtonPress,
                 QtCore.QPointF(local_pos),
@@ -1563,7 +1563,7 @@ class RealShellPromptEditorHarness:
                 global_pos,
             )
             QCoreApplication.sendEvent(viewport, context_event)
-            event_dispatch_elapsed_ms = (thread_time() - started_at) * 1000.0
+            event_dispatch_elapsed_ms = (perf_counter() - started_at) * 1000.0
             self.process_events(cycles=10)
         finally:
             text_menu_class.exec = original_text_menu_exec
