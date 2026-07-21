@@ -443,7 +443,11 @@ class PromptProjectionLineLayoutBuilder:
                 for boundary in line_start_boundaries
             ]
 
-        def finish_line(next_start_boundaries: list[_LineStartBoundary] | None) -> None:
+        def finish_line(
+            next_start_boundaries: list[_LineStartBoundary] | None,
+            *,
+            allow_reuse: bool = True,
+        ) -> None:
             nonlocal line_top, pending_fragments, reusable_previous_line_index
 
             realized_fragments: list[
@@ -584,7 +588,7 @@ class PromptProjectionLineLayoutBuilder:
             lines.append(completed_line)
             line_top += line_height
             pending_fragments = []
-            if line_reuse_probe is not None:
+            if allow_reuse and line_reuse_probe is not None:
                 reusable_previous_line_index = line_reuse_probe(completed_line)
                 if reusable_previous_line_index is not None:
                     return
@@ -891,10 +895,13 @@ class PromptProjectionLineLayoutBuilder:
                 if consumed_cluster_length < len(cluster_text):
                     finish_line([])
 
+        source_limited = source_limit is not None and source_limit < len(
+            projection_document.source_text
+        )
         if reusable_previous_line_index is None and (
             pending_fragments or line_start_boundaries or not lines
         ):
-            finish_line(None)
+            finish_line(None, allow_reuse=not source_limited)
 
         content_height = line_top + document_margin
         snapshot = PromptProjectionLayoutSnapshot(
@@ -910,10 +917,7 @@ class PromptProjectionLineLayoutBuilder:
         return PromptProjectionLineLayoutBuildResult(
             snapshot=snapshot,
             reusable_previous_line_index=reusable_previous_line_index,
-            source_limited=(
-                source_limit is not None
-                and source_limit < len(projection_document.source_text)
-            ),
+            source_limited=source_limited,
         )
 
     def _layout_pieces(
