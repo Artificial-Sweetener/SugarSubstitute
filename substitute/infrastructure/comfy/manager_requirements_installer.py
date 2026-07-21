@@ -29,6 +29,10 @@ from substitute.infrastructure.comfy.manager_environment import (
 )
 from substitute.infrastructure.comfy.manager_runtime_probe import command_output
 from substitute.shared.logging.logger import get_logger, log_info
+from sugarsubstitute_shared.windows_long_paths import (
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 LogCallback = Callable[[str], None]
 
@@ -52,7 +56,7 @@ class ComfyManagerRequirementsInstaller:
         self._install(
             workspace=workspace,
             python_executable=python_executable,
-            arguments=("-r", str(requirements_path)),
+            arguments=("-r", subprocess_path(requirements_path)),
             on_log=on_log,
             env=env,
         )
@@ -87,8 +91,14 @@ class ComfyManagerRequirementsInstaller:
         """Run one hidden pip transaction and expose bounded diagnostics."""
 
         result = subprocess.run(
-            [str(python_executable), "-m", "pip", "install", *arguments],
-            cwd=str(workspace),
+            [
+                subprocess_path(python_executable),
+                "-m",
+                "pip",
+                "install",
+                *arguments,
+            ],
+            cwd=subprocess_working_directory(workspace),
             env=manager_runtime_environment(workspace, env, use_pygit2=False),
             text=True,
             encoding="utf-8",

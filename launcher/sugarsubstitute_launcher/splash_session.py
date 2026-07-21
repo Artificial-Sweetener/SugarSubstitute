@@ -29,6 +29,10 @@ from typing import IO, Any
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.runtime import runtime_environment
+from sugarsubstitute_shared.windows_long_paths import (
+    subprocess_path,
+    subprocess_working_directory,
+)
 from sugarsubstitute_shared.launch_splash import (
     SocketSplashSessionClient,
     SplashSessionSpec,
@@ -97,14 +101,14 @@ def _start_splash_host_process(
     """Launch the app-payload splash host without importing app code."""
 
     command = [
-        str(layout.runtime_python),
+        subprocess_path(layout.runtime_python),
         "-m",
         _HOST_MODULE,
         format_locale_argument(locale_identifier),
     ]
     return popen(
         command,
-        cwd=str(layout.root),
+        cwd=subprocess_working_directory(layout.root),
         env=runtime_environment(layout=layout),
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,

@@ -21,12 +21,21 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import tempfile
 
 from substitute.infrastructure.filesystem import remove_app_owned_path
 from substitute.infrastructure.version_control.repository import (
     RepositoryOperationError,
+)
+from sugarsubstitute_shared.windows_long_paths import (
+    exceeds_windows_legacy_path_limit,
+    external_long_path_error,
+    operational_path,
+    subprocess_path,
+    subprocess_working_directory,
 )
 
 
@@ -56,23 +65,31 @@ class Pygit2CloneProcess:
     def clone(self, repository_url: str, target_path: Path) -> None:
         """Run a depth-one clone and remove partial output on every failure."""
 
+        target_path = operational_path(target_path)
+        staging_root: Path | None = None
+        clone_target = target_path
+        if exceeds_windows_legacy_path_limit(target_path):
+            staging_root = Path(tempfile.mkdtemp(prefix="sugarsubstitute-git-"))
+            clone_target = staging_root / "repository"
         command = (
-            str(self._python_executable),
+            subprocess_path(self._python_executable),
             "-m",
             "substitute.infrastructure.version_control.clone_entry",
             repository_url,
-            str(target_path),
+            subprocess_path(clone_target),
         )
         environment = dict(os.environ)
         existing_python_path = environment.get("PYTHONPATH", "")
         environment["PYTHONPATH"] = os.pathsep.join(
-            part for part in (str(self._application_root), existing_python_path) if part
+            part
+            for part in (subprocess_path(self._application_root), existing_python_path)
+            if part
         )
         startupinfo, creationflags = _hidden_process_options()
         try:
             completed = subprocess.run(  # noqa: S603
                 command,
-                cwd=target_path.parent,
+                cwd=subprocess_working_directory(self._application_root),
                 env=environment,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
@@ -87,21 +104,47 @@ class Pygit2CloneProcess:
                 creationflags=creationflags,
             )
         except subprocess.TimeoutExpired as error:
-            _discard_partial_clone(target_path)
+            _discard_clone_work(clone_target, staging_root=staging_root)
             raise RepositoryOperationError(
                 f"Repository clone timed out after {self._timeout_seconds:g} seconds: "
                 f"{repository_url}"
             ) from error
         except OSError as error:
-            _discard_partial_clone(target_path)
+            _discard_clone_work(clone_target, staging_root=staging_root)
+            compatibility_error = external_long_path_error(
+                component="pygit2",
+                path=clone_target,
+                detail=error,
+            )
+            if compatibility_error is not None:
+                raise compatibility_error from error
             raise RepositoryOperationError(
                 f"Could not start the bundled repository clone process: {error}"
             ) from error
 
         if completed.returncode == 0:
+            if staging_root is not None:
+                try:
+                    shutil.copytree(clone_target, target_path)
+                except (OSError, shutil.Error):
+                    _LOGGER.exception(
+                        "Failed to promote staged repository clone | target=%s",
+                        target_path,
+                    )
+                    _discard_partial_clone(target_path)
+                    raise
+                finally:
+                    _discard_staging_root(staging_root)
             return
-        _discard_partial_clone(target_path)
+        _discard_clone_work(clone_target, staging_root=staging_root)
         detail = _tail_output(completed.stdout)
+        compatibility_error = external_long_path_error(
+            component="pygit2",
+            path=clone_target,
+            detail=detail,
+        )
+        if compatibility_error is not None:
+            raise compatibility_error
         suffix = f" Details: {detail}" if detail else ""
         raise RepositoryOperationError(
             f"Repository clone process failed with exit code "
@@ -118,6 +161,31 @@ def _hidden_process_options() -> tuple[subprocess.STARTUPINFO | None, int]:
     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     startupinfo.wShowWindow = 0
     return startupinfo, subprocess.CREATE_NO_WINDOW
+
+
+def _discard_clone_work(
+    clone_target: Path,
+    *,
+    staging_root: Path | None,
+) -> None:
+    """Remove partial clone output and its optional short-path staging root."""
+
+    _discard_partial_clone(clone_target)
+    if staging_root is not None:
+        _discard_staging_root(staging_root)
+
+
+def _discard_staging_root(staging_root: Path) -> None:
+    """Best-effort remove one app-owned clone staging directory with diagnostics."""
+
+    try:
+        remove_app_owned_path(staging_root)
+    except OSError:
+        _LOGGER.warning(
+            "Could not remove repository clone staging root | root=%s",
+            staging_root,
+            exc_info=True,
+        )
 
 
 def _discard_partial_clone(target_path: Path) -> None:
