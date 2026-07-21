@@ -25,6 +25,8 @@ from typing import Any, cast
 
 import pytest
 
+from sugarsubstitute_shared.localization import app_text
+
 from substitute.app.bootstrap import managed_target_activation
 from substitute.application.comfy_startup_diagnostics import (
     ComfyStartupDiagnosticsCollector,
@@ -87,6 +89,9 @@ def test_activate_target_starts_launch_owned_managed_workspace(
         captured.update(kwargs)
         cast(Any, kwargs["on_log"])("log line")
         cast(Any, kwargs["on_status"])("status line")
+        cast(Any, kwargs["on_progress"])(
+            app_text("Waiting for ComfyUI to become ready%1", "...")
+        )
         return fake_state
 
     monkeypatch.setattr(
@@ -119,11 +124,13 @@ def test_activate_target_starts_launch_owned_managed_workspace(
         "Activating managed_local Comfy target at 127.0.0.1:8188.",
         "log line",
         "status line",
+        "Waiting for ComfyUI to become ready...\r",
     ]
     assert stream.lines == [
         "Activating managed_local Comfy target at 127.0.0.1:8188.",
         "log line",
         "status line",
+        "Waiting for ComfyUI to become ready...\r",
     ]
     assert diagnostics.lines == ["log line", "status line"]
 

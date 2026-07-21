@@ -486,8 +486,8 @@ def test_create_bound_startup_readiness_controller_binds_starter() -> None:
     assert timer.started == 1
 
 
-def test_startup_readiness_controller_times_out_after_max_attempts() -> None:
-    """Readiness timeout should stop polling and report one startup incident."""
+def test_remote_startup_readiness_times_out_after_max_attempts() -> None:
+    """Remote readiness should retain its bounded connection failure policy."""
 
     harness = _Harness()
     harness.state.readiness_attempts = STARTUP_READINESS_MAX_ATTEMPTS - 1
@@ -499,6 +499,21 @@ def test_startup_readiness_controller_times_out_after_max_attempts() -> None:
     assert harness.timer.stopped == 1
     assert harness.readiness_probe.cancel_calls == 1
     assert harness.failures == [harness.timeout_incident]
+
+
+def test_managed_startup_readiness_keeps_polling_after_max_attempts() -> None:
+    """The outer probe must not time out a live process owned by the managed monitor."""
+
+    harness = _Harness(target=_target(mode=ComfyTargetMode.MANAGED_LOCAL))
+    harness.state.readiness_attempts = STARTUP_READINESS_MAX_ATTEMPTS - 1
+
+    harness.controller.start()
+    harness.timer.fire()
+    harness.readiness_probe.emit_result(ready=False)
+
+    assert harness.timer.started == 2
+    assert harness.readiness_probe.cancel_calls == 0
+    assert harness.failures == []
 
 
 def test_startup_readiness_controller_marks_backend_ready_and_releases_warmups() -> (

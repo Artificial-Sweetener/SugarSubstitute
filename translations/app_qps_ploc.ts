@@ -1238,6 +1238,10 @@ Prömpt prëvïëw:
       <translation>⟦CömfyÜÏ ïs stïll stàrtïng. ···⟧</translation>
     </message>
     <message>
+      <source>ComfyUI is taking longer than usual…</source>
+      <translation>⟦CömfyÜÏ ïs tàkïng löngër thàn üsüàl… ···⟧</translation>
+    </message>
+    <message>
       <source>ComfyUI is unavailable.</source>
       <translation>⟦CömfyÜÏ ïs ünàvàïlàblë. ···⟧</translation>
     </message>
@@ -4374,6 +4378,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Stëp %1 öf %2 ···⟧</translation>
     </message>
     <message>
+      <source>Still waiting—custom nodes, slow storage, or a startup issue may be delaying ComfyUI.</source>
+      <translation>⟦Stïll wàïtïng—cüstöm nödës, slöw störàgë, ör à stàrtüp ïssüë mày bë dëlàyïng CömfyÜÏ. ···⟧</translation>
+    </message>
+    <message>
       <source>Stop continuous after current job</source>
       <translation>⟦Stöp cöntïnüöüs àftër cürrënt jöb ···⟧</translation>
     </message>
@@ -5556,8 +5564,8 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Wàïtïng för Cömfy tö cömë bàck. ···⟧</translation>
     </message>
     <message>
-      <source>Waiting for ComfyUI to become ready...</source>
-      <translation>⟦Wàïtïng för CömfyÜÏ tö bëcömë rëàdy... ···⟧</translation>
+      <source>Waiting for ComfyUI to become ready%1</source>
+      <translation>⟦Wàïtïng för CömfyÜÏ tö bëcömë rëàdy%1 ···⟧</translation>
     </message>
     <message>
       <source>Waiting for ComfyUI to become ready…</source>

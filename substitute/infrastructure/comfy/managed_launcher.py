@@ -94,6 +94,7 @@ from substitute.infrastructure.comfy.managed_process_registry import (
 )
 from substitute.infrastructure.comfy.managed_startup_monitor import (
     ManagedStartupReadinessResult,
+    ProgressCallback,
     wait_for_managed_startup_ready,
 )
 from substitute.infrastructure.comfy.managed_shutdown import (
@@ -367,6 +368,7 @@ def start_managed_comfy_background(
     runtime_state_dir: Path,
     on_log: LogCallback | None = None,
     on_status: StatusCallback | None = None,
+    on_progress: ProgressCallback | None = None,
     diagnostics: ComfyStartupDiagnosticsCollector | None = None,
     launch_task_factory: ManagedTaskFactory,
     process_pump_task_factory: ManagedTaskFactory,
@@ -519,7 +521,7 @@ def start_managed_comfy_background(
                     port=endpoint.port,
                     process=launch_result.process,
                     workspace=workspace,
-                    on_status=on_status,
+                    on_progress=on_progress,
                     cancellation=cancellation,
                     diagnostics=diagnostics,
                 )

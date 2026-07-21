@@ -1600,6 +1600,11 @@ Prompt preview:
       <translation>ComfyUI はまだ起動中です。</translation>
     </message>
     <message>
+      <location filename="../substitute/application/managed_startup_progress.py" line="41"></location>
+      <source>ComfyUI is taking longer than usual…</source>
+      <translation>ComfyUI の起動に通常より時間がかかっています…</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="295"></location>
       <source>ComfyUI is unavailable.</source>
       <translation>ComfyUI を利用できません。</translation>
@@ -5517,6 +5522,11 @@ No known extension claimant.</source>
       <translation>ステップ %1／%2</translation>
     </message>
     <message>
+      <location filename="../substitute/application/managed_startup_progress.py" line="36"></location>
+      <source>Still waiting—custom nodes, slow storage, or a startup issue may be delaying ComfyUI.</source>
+      <translation>まだ待機中です。カスタムノード、低速なストレージ、または起動時の問題により、ComfyUI の起動が遅れている可能性があります。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/generation_action_projection.py" line="31"></location>
       <source>Stop continuous after current job</source>
       <translation>現在のジョブ完了後に連続生成を停止</translation>
@@ -6992,9 +7002,9 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>Comfy の復帰を待っています。</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/managed_startup_monitor.py" line="99"></location>
-      <source>Waiting for ComfyUI to become ready...</source>
-      <translation>ComfyUI の準備が整うのを待っています...</translation>
+      <location filename="../substitute/application/managed_startup_progress.py" line="45"></location>
+      <source>Waiting for ComfyUI to become ready%1</source>
+      <translation>ComfyUI の起動を待っています%1</translation>
     </message>
     <message>
       <location filename="../substitute/infrastructure/comfy/managed_readiness.py" line="55"></location>
