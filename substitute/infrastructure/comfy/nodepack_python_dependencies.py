@@ -131,7 +131,7 @@ def install_nodepack_requirements(
         raise RuntimeError(f"Could not install {display_name} dependencies.")
 
 
-def nodepack_python_distributions_satisfy_minimum(
+def nodepack_python_distributions_match_required_version(
     *,
     python_executable: Path,
     cwd: Path,
@@ -141,11 +141,11 @@ def nodepack_python_distributions_satisfy_minimum(
 ) -> bool:
     """Return whether the canonical Python distribution satisfies the nodepack contract."""
 
-    return python_distribution_satisfies_minimum(
+    return python_distribution_matches_required_version(
         python_executable=python_executable,
         cwd=cwd,
         distribution_name=nodepack.python_distribution_name,
-        minimum_version=nodepack.minimum_python_distribution_version,
+        required_version=nodepack.required_python_distribution_version,
         on_log=on_log,
         env=env,
     )
@@ -199,18 +199,18 @@ def normalized_distribution_name(distribution_name: str) -> str:
     return distribution_name.replace("_", "-").lower()
 
 
-def python_distribution_satisfies_minimum(
+def python_distribution_matches_required_version(
     *,
     python_executable: Path,
     cwd: Path,
     distribution_name: str | None,
-    minimum_version: str | None,
+    required_version: str | None,
     on_log: LogCallback | None,
     env: Mapping[str, str] | None,
 ) -> bool:
     """Return whether the workspace Python sees the required distribution version."""
 
-    if distribution_name is None or minimum_version is None:
+    if distribution_name is None or required_version is None:
         return True
     installed_version = installed_python_distribution_version(
         python_executable=python_executable,
@@ -221,7 +221,7 @@ def python_distribution_satisfies_minimum(
     )
     if installed_version is None:
         return False
-    return version_at_least(installed_version, minimum_version)
+    return installed_version == required_version
 
 
 def installed_python_distribution_version(
@@ -256,28 +256,6 @@ def installed_python_distribution_version(
     return result.stdout.strip()
 
 
-def version_at_least(installed_version: str, minimum_version: str) -> bool:
-    """Return whether a simple semver-ish version is at least the minimum."""
-
-    return version_key(installed_version) >= version_key(minimum_version)
-
-
-def version_key(version: str) -> tuple[int, int, int, str]:
-    """Return a comparable key for release and prerelease version strings."""
-
-    release, _, suffix = version.partition("-")
-    parts = release.split(".")
-    numeric_parts: list[int] = []
-    for part in parts[:3]:
-        try:
-            numeric_parts.append(int(part))
-        except ValueError:
-            numeric_parts.append(0)
-    while len(numeric_parts) < 3:
-        numeric_parts.append(0)
-    return numeric_parts[0], numeric_parts[1], numeric_parts[2], suffix
-
-
 def _emit_log(callback: LogCallback | None, message: str) -> None:
     """Emit one nodepack dependency line to logs and optional setup output."""
 
@@ -294,10 +272,8 @@ __all__ = [
     "install_nodepack_requirements",
     "install_sugarcubes_python_dependencies",
     "installed_python_distribution_version",
-    "nodepack_python_distributions_satisfy_minimum",
+    "nodepack_python_distributions_match_required_version",
     "normalized_distribution_name",
-    "python_distribution_satisfies_minimum",
+    "python_distribution_matches_required_version",
     "remove_noncanonical_python_distribution_metadata",
-    "version_at_least",
-    "version_key",
 ]

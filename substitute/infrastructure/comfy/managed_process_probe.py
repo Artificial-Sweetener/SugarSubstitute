@@ -24,7 +24,6 @@ import ctypes
 import os
 from pathlib import Path
 import socket
-import subprocess
 
 from substitute.infrastructure.comfy.managed_process_containment import (
     describe_persisted_containment,
@@ -33,7 +32,11 @@ from substitute.infrastructure.comfy.managed_readiness import probe_http_ready
 from substitute.infrastructure.comfy.managed_process_metadata import (
     ManagedProcessMetadata,
 )
-from substitute.shared.logging.logger import get_logger, log_debug, log_warning
+from substitute.infrastructure.comfy.managed_process_query import (
+    get_listener_pid,
+    get_process_command_line,
+)
+from substitute.shared.logging.logger import get_logger, log_warning
 
 _LOGGER = get_logger("infrastructure.comfy.managed_process_probe")
 _WINDOWS_ERROR_ACCESS_DENIED = 5
@@ -251,16 +254,6 @@ def probe_managed_listener(
     )
 
 
-def get_listener_pid(host: str, port: int) -> int | None:
-    """Return the listener pid for one local TCP endpoint when the platform can resolve it."""
-
-    if host not in {"127.0.0.1", "localhost", "::1"}:
-        return None
-    if os.name == "nt":
-        return _get_listener_pid_windows(host, port)
-    return _get_listener_pid_posix(port)
-
-
 def _is_owned_listener_alive(
     metadata: ManagedProcessMetadata,
     listener_pid: int | None,
@@ -286,7 +279,7 @@ def _is_owned_process_identity_alive(metadata: ManagedProcessMetadata) -> bool:
 
     containment_status = describe_persisted_containment(metadata)
     if containment_status.managed_process_running:
-        command_line = _get_process_command_line(metadata.pid)
+        command_line = get_process_command_line(metadata.pid)
         if command_line is None:
             return False
         return _command_line_matches_metadata(
@@ -318,147 +311,9 @@ def _command_line_matches_metadata(
     )
 
 
-def _get_process_command_line(pid: int) -> str | None:
-    """Return the current process command line for one pid when the platform can resolve it."""
-
-    if os.name == "nt":
-        return _get_process_command_line_windows(pid)
-    return _get_process_command_line_posix(pid)
-
-
-def _get_listener_pid_windows(host: str, port: int) -> int | None:
-    """Resolve the Windows owning pid for one listening TCP endpoint."""
-
-    script = (
-        "$connection = Get-NetTCPConnection "
-        f"-LocalAddress '{host}' -LocalPort {port} -State Listen "
-        "-ErrorAction SilentlyContinue | Select-Object -First 1;"
-        "if ($null -ne $connection) { Write-Output $connection.OwningProcess }"
-    )
-    try:
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", script],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=5,
-            check=False,
-        )
-    except OSError:
-        return None
-    output = result.stdout.strip()
-    if not output:
-        return None
-    try:
-        return int(output)
-    except ValueError:
-        log_debug(
-            _LOGGER,
-            "Unexpected Windows listener pid output",
-            host=host,
-            port=port,
-            output=output,
-        )
-        return None
-
-
-def _get_process_command_line_windows(pid: int) -> str | None:
-    """Return the Windows command line for one pid when it can be queried."""
-
-    script = (
-        "$process = Get-CimInstance Win32_Process "
-        f'-Filter "ProcessId = {pid}" '
-        "-ErrorAction SilentlyContinue | Select-Object -First 1;"
-        "if ($null -ne $process) { Write-Output $process.CommandLine }"
-    )
-    try:
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", script],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=5,
-            check=False,
-        )
-    except OSError:
-        return None
-    output = result.stdout.strip()
-    return output or None
-
-
-def _get_listener_pid_posix(port: int) -> int | None:
-    """Resolve the POSIX owning pid for one listening TCP endpoint."""
-
-    commands = (
-        ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
-        ["ss", "-ltnp", f"sport = :{port}"],
-    )
-    for command in commands:
-        try:
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=5,
-                check=False,
-            )
-        except OSError:
-            continue
-        pid = _parse_posix_listener_pid(command[0], result.stdout)
-        if pid is not None:
-            return pid
-    return None
-
-
-def _get_process_command_line_posix(pid: int) -> str | None:
-    """Return the POSIX command line for one pid when it can be queried."""
-
-    try:
-        result = subprocess.run(
-            ["ps", "-p", str(pid), "-o", "command="],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=5,
-            check=False,
-        )
-    except OSError:
-        return None
-    output = result.stdout.strip()
-    return output or None
-
-
-def _parse_posix_listener_pid(command_name: str, output: str) -> int | None:
-    """Extract one pid from common POSIX listener query outputs."""
-
-    stripped = output.strip()
-    if not stripped:
-        return None
-    if command_name == "lsof":
-        first_line = stripped.splitlines()[0].strip()
-        return int(first_line) if first_line.isdigit() else None
-    marker = "pid="
-    start = stripped.find(marker)
-    if start == -1:
-        return None
-    start += len(marker)
-    digits: list[str] = []
-    for character in stripped[start:]:
-        if not character.isdigit():
-            break
-        digits.append(character)
-    return int("".join(digits)) if digits else None
-
-
 __all__ = [
     "ManagedListenerProbeResult",
     "ManagedListenerStatus",
-    "get_listener_pid",
     "is_endpoint_listening",
     "is_process_running",
     "probe_managed_listener",

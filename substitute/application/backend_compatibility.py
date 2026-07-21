@@ -27,8 +27,8 @@ from sugarsubstitute_shared.localization import ApplicationText, app_text
 
 from substitute.application.runtime_mode import ApplicationRuntimeModeService
 from substitute.domain.comfy_nodepacks import (
-    SUGARCUBES_REQUIRED_MINIMUM_VERSION,
-    SUBSTITUTE_BACKEND_REQUIRED_MINIMUM_VERSION,
+    SUGARCUBES_REQUIRED_VERSION,
+    SUBSTITUTE_BACKEND_REQUIRED_VERSION,
 )
 from substitute.domain.model_metadata import BackendCapabilities
 
@@ -58,41 +58,20 @@ class RuntimeCompatibilityStatus(Enum):
 
 
 @dataclass(frozen=True)
-class VersionRange:
-    """Represent an inclusive lower and exclusive upper semver policy."""
-
-    minimum: str
-    maximum_exclusive: str
-
-    def contains(self, version: str) -> bool:
-        """Return whether `version` satisfies this semver range."""
-
-        parsed = _semver_key(version)
-        return parsed >= _semver_key(self.minimum) and parsed < _semver_key(
-            self.maximum_exclusive
-        )
-
-
-@dataclass(frozen=True)
 class RuntimeCompatibilityPolicy:
     """Define the runtime contracts required by this Substitute build."""
 
-    required_backend_version: VersionRange = VersionRange(
-        SUBSTITUTE_BACKEND_REQUIRED_MINIMUM_VERSION,
-        "2.0.0",
-    )
+    required_backend_version: str = SUBSTITUTE_BACKEND_REQUIRED_VERSION
     required_backend_api_version: int = 1
     required_backend_features: tuple[str, ...] = (
         "cube-library",
         "prompt-queue-facade",
         "visual-routing",
     )
-    required_sugarcubes_version: VersionRange = VersionRange(
-        SUGARCUBES_REQUIRED_MINIMUM_VERSION,
-        "2.0.0",
-    )
+    required_sugarcubes_version: str = SUGARCUBES_REQUIRED_VERSION
     allow_missing_sugarcubes_version_in_dev: bool = True
     allow_dev_sugarcubes_version_in_dev: bool = True
+    allow_older_sugarcubes_version_in_dev: bool = True
 
 
 @dataclass(frozen=True)
@@ -143,9 +122,9 @@ class BackendCompatibilityService:
             status=RuntimeCompatibilityStatus.COMPATIBLE,
             summary=app_text("Substitute BackEnd and SugarCubes are compatible."),
             installed_backend_version=capabilities.extension_version,
-            required_backend_version=self._backend_range_text(),
+            required_backend_version=self.policy.required_backend_version,
             installed_sugarcubes_version=capabilities.cube_library.sugar_cubes_version,
-            required_sugarcubes_version=self._sugarcubes_range_text(),
+            required_sugarcubes_version=self.policy.required_sugarcubes_version,
         )
 
     def _assess_backend(
@@ -175,7 +154,7 @@ class BackendCompatibilityService:
                     ", ".join(missing_features),
                 ),
                 installed_backend_version=capabilities.extension_version,
-                required_backend_version=self._backend_range_text(),
+                required_backend_version=self.policy.required_backend_version,
                 repairable=True,
             )
         if not capabilities.extension_version:
@@ -184,7 +163,7 @@ class BackendCompatibilityService:
                 summary=app_text(
                     "Substitute BackEnd did not report its extension version."
                 ),
-                required_backend_version=self._backend_range_text(),
+                required_backend_version=self.policy.required_backend_version,
                 repairable=True,
             )
         if (
@@ -192,20 +171,18 @@ class BackendCompatibilityService:
             and self.runtime_mode.is_development()
         ):
             return None
-        if not self.policy.required_backend_version.contains(
-            capabilities.extension_version
-        ):
+        if capabilities.extension_version != self.policy.required_backend_version:
             status = (
                 RuntimeCompatibilityStatus.BACKEND_TOO_OLD
                 if _semver_key(capabilities.extension_version)
-                < _semver_key(self.policy.required_backend_version.minimum)
+                < _semver_key(self.policy.required_backend_version)
                 else RuntimeCompatibilityStatus.BACKEND_TOO_NEW
             )
             return BackendCompatibilityResult(
                 status=status,
                 summary=app_text("Substitute BackEnd version is incompatible."),
                 installed_backend_version=capabilities.extension_version,
-                required_backend_version=self._backend_range_text(),
+                required_backend_version=self.policy.required_backend_version,
                 repairable=True,
             )
         return None
@@ -223,7 +200,7 @@ class BackendCompatibilityService:
                 summary=cube_library.unavailable_reason
                 or app_text("SugarCubes is not available on this target."),
                 installed_backend_version=capabilities.extension_version,
-                required_sugarcubes_version=self._sugarcubes_range_text(),
+                required_sugarcubes_version=self.policy.required_sugarcubes_version,
                 repairable=True,
             )
         if not cube_library.sugar_cubes_version:
@@ -236,7 +213,7 @@ class BackendCompatibilityService:
                 status=RuntimeCompatibilityStatus.SUGARCUBES_VERSION_UNKNOWN,
                 summary=app_text("SugarCubes did not report its runtime version."),
                 installed_backend_version=capabilities.extension_version,
-                required_sugarcubes_version=self._sugarcubes_range_text(),
+                required_sugarcubes_version=self.policy.required_sugarcubes_version,
                 repairable=True,
             )
         if _is_prerelease(cube_library.sugar_cubes_version):
@@ -254,16 +231,22 @@ class BackendCompatibilityService:
                 ),
                 installed_backend_version=capabilities.extension_version,
                 installed_sugarcubes_version=cube_library.sugar_cubes_version,
-                required_sugarcubes_version=self._sugarcubes_range_text(),
+                required_sugarcubes_version=self.policy.required_sugarcubes_version,
                 repairable=True,
             )
-        if not self.policy.required_sugarcubes_version.contains(
-            cube_library.sugar_cubes_version
-        ):
+        if cube_library.sugar_cubes_version != self.policy.required_sugarcubes_version:
+            version_is_too_old = _semver_key(
+                cube_library.sugar_cubes_version
+            ) < _semver_key(self.policy.required_sugarcubes_version)
+            if (
+                version_is_too_old
+                and self.runtime_mode.is_development()
+                and self.policy.allow_older_sugarcubes_version_in_dev
+            ):
+                return None
             status = (
                 RuntimeCompatibilityStatus.SUGARCUBES_TOO_OLD
-                if _semver_key(cube_library.sugar_cubes_version)
-                < _semver_key(self.policy.required_sugarcubes_version.minimum)
+                if version_is_too_old
                 else RuntimeCompatibilityStatus.SUGARCUBES_TOO_NEW
             )
             return BackendCompatibilityResult(
@@ -271,26 +254,10 @@ class BackendCompatibilityService:
                 summary=app_text("SugarCubes version is incompatible."),
                 installed_backend_version=capabilities.extension_version,
                 installed_sugarcubes_version=cube_library.sugar_cubes_version,
-                required_sugarcubes_version=self._sugarcubes_range_text(),
+                required_sugarcubes_version=self.policy.required_sugarcubes_version,
                 repairable=True,
             )
         return None
-
-    def _backend_range_text(self) -> str:
-        """Return the configured backend version range."""
-
-        return (
-            f">={self.policy.required_backend_version.minimum},"
-            f"<{self.policy.required_backend_version.maximum_exclusive}"
-        )
-
-    def _sugarcubes_range_text(self) -> str:
-        """Return the configured SugarCubes version range."""
-
-        return (
-            f">={self.policy.required_sugarcubes_version.minimum},"
-            f"<{self.policy.required_sugarcubes_version.maximum_exclusive}"
-        )
 
 
 def _semver_key(version: str) -> tuple[int, int, int, str]:

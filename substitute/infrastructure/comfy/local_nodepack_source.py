@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import os
 from pathlib import Path
 import shutil
@@ -28,11 +29,16 @@ from substitute.infrastructure.comfy.nodepack_workspace_inspector import (
 )
 
 
-def resolve_local_nodepack_source(nodepack: CoreComfyNodepack) -> Path | None:
-    """Return a developer-local source checkout for an unpublished nodepack."""
+def resolve_local_nodepack_source(
+    nodepack: CoreComfyNodepack,
+    *,
+    env: Mapping[str, str] | None = None,
+) -> Path | None:
+    """Return an explicitly configured developer-local source checkout."""
 
     if nodepack.local_source_environment_variable is not None:
-        configured_source = os.environ.get(nodepack.local_source_environment_variable)
+        selected_env = os.environ if env is None else env
+        configured_source = selected_env.get(nodepack.local_source_environment_variable)
         if configured_source:
             source_path = Path(configured_source).expanduser().resolve()
             if source_contains_sentinels(source_path, nodepack):
@@ -42,6 +48,18 @@ def resolve_local_nodepack_source(nodepack: CoreComfyNodepack) -> Path | None:
                 f"valid {nodepack.display_name} checkout: {source_path}"
             )
     return None
+
+
+def nodepack_uses_configured_local_source(
+    *,
+    nodepack: CoreComfyNodepack,
+    target_path: Path,
+    env: Mapping[str, str] | None = None,
+) -> bool:
+    """Return whether the active nodepack is the configured development checkout."""
+
+    source_path = resolve_local_nodepack_source(nodepack, env=env)
+    return source_path is not None and source_path == target_path.resolve()
 
 
 def copy_local_nodepack_source(
@@ -75,5 +93,6 @@ def copy_local_nodepack_source(
 
 __all__ = [
     "copy_local_nodepack_source",
+    "nodepack_uses_configured_local_source",
     "resolve_local_nodepack_source",
 ]

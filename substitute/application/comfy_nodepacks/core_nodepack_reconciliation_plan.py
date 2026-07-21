@@ -81,13 +81,13 @@ def plan_core_nodepack_refresh_route(
 
 def plan_core_nodepack_dependency_refresh(
     *,
-    minimum_satisfied: bool,
+    required_version_installed: bool,
     pinned_archive_available: bool,
     pinned_fallback_already_applied: bool,
 ) -> CoreNodepackDependencyRefreshPlan:
     """Return the next dependency-refresh action from version and fallback facts."""
 
-    if minimum_satisfied:
+    if required_version_installed:
         return CoreNodepackDependencyRefreshPlan(action="ready")
     if pinned_archive_available and not pinned_fallback_already_applied:
         return CoreNodepackDependencyRefreshPlan(action="pinned_fallback")
