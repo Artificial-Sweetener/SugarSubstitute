@@ -19,12 +19,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 from sugarsubstitute_shared.localization import app_text, render_source_application_text
 
 
 class UnsupportedComfyPythonError(RuntimeError):
     """Report an attached Python below the mandatory node-pack floor."""
+
+
+class UnsupportedComfyVersionError(RuntimeError):
+    """Report a ComfyUI checkout below the supported release floor."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +50,28 @@ class ComfyCompatibilityPolicy:
         """Return the mandatory node-pack Python version label."""
 
         return ".".join(str(part) for part in self.minimum_python_version)
+
+    def supports_comfyui(self, version: str) -> bool:
+        """Return whether a ComfyUI version satisfies the checkout floor."""
+
+        parsed = _semantic_triplet(version)
+        return parsed is not None and parsed >= self.minimum_comfyui_version
+
+    def require_supported_comfyui(self, version: str) -> None:
+        """Reject a checkout below the supported ComfyUI release floor."""
+
+        if self.supports_comfyui(version):
+            return
+        raise UnsupportedComfyVersionError(
+            render_source_application_text(
+                app_text(
+                    "SugarSubstitute requires ComfyUI %1 or newer. "
+                    "The selected checkout is ComfyUI %2.",
+                    self.minimum_comfyui_label,
+                    version,
+                )
+            )
+        )
 
     def supports_python(self, version: str) -> bool:
         """Return whether a Python version satisfies mandatory node packs."""
@@ -84,8 +111,19 @@ def _major_minor(version: str) -> tuple[int, int] | None:
         return None
 
 
+def _semantic_triplet(version: str) -> tuple[int, int, int] | None:
+    """Return a leading semantic-version triplet with an optional `v` prefix."""
+
+    match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?", version.strip())
+    if match is None:
+        return None
+    major, minor, patch = match.groups()
+    return int(major), int(minor), int(patch)
+
+
 __all__ = [
     "COMFY_COMPATIBILITY_POLICY",
     "ComfyCompatibilityPolicy",
+    "UnsupportedComfyVersionError",
     "UnsupportedComfyPythonError",
 ]
