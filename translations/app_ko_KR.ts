@@ -845,6 +845,11 @@ Prompt preview:
       <translation>인터넷 연결을 확인하세요.</translation>
     </message>
     <message>
+      <location filename="../substitute/infrastructure/comfy/managed_existing_setup.py" line="178"></location>
+      <source>Checking ComfyUI's Python environment.</source>
+      <translation>ComfyUI의 Python 환경을 확인하는 중입니다.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1053"></location>
       <source>Checking ComfyUI…</source>
       <translation>ComfyUI 확인 중�</translation>
@@ -1690,7 +1695,7 @@ Prompt preview:
       <translation>구성됨</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="117"></location>
+      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="124"></location>
       <source>Configuring the ComfyUI models folder.</source>
       <translation>ComfyUI 모델 폴더를 구성하는 중입니다.</translation>
     </message>
@@ -3003,7 +3008,7 @@ Install these nodes now?</source>
       <translation>ComfyUI를 설치하고 설정을 마무리하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="109"></location>
+      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="116"></location>
       <source>Installing Substitute Comfy nodepacks.</source>
       <translation>Substitute Comfy 노드 팩을 설치하는 중입니다.</translation>
     </message>
@@ -4148,12 +4153,12 @@ Install these nodes now?</source>
       <translation>준비 중</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="124"></location>
+      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="131"></location>
       <source>Preparing Base-Cubes dependencies.</source>
       <translation>Base-Cubes 종속성을 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="131"></location>
+      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="138"></location>
       <source>Preparing acceleration support.</source>
       <translation>가속 지원을 준비하는 중입니다.</translation>
     </message>
@@ -4248,7 +4253,7 @@ Install these nodes now?</source>
       <translation>프롬프트: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="102"></location>
+      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="109"></location>
       <source>Provisioning ComfyUI-Manager.</source>
       <translation>ComfyUI-Manager를 프로비저닝하는 중입니다.</translation>
     </message>
@@ -6025,7 +6030,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>SugarSubstitute는 큐브 기반 워크플로 구성, 관리형 모델 메타데이터, 프롬프트 도구 및 통합 이미지 캔버스 워크플로를 갖춘 ComfyUI용 집중형 PySide6 작업 공간을 제공합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/domain/comfy_compatibility.py" line="62"></location>
+      <location filename="../substitute/domain/comfy_compatibility.py" line="67"></location>
+      <source>SugarSubstitute requires ComfyUI %1 or newer. The selected checkout is ComfyUI %2.</source>
+      <translation>SugarSubstitute를 사용하려면 ComfyUI %1 이상이 필요합니다. 선택한 체크아웃은 ComfyUI %2입니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/domain/comfy_compatibility.py" line="89"></location>
       <source>SugarSubstitute requires Python %1 or newer for ComfyUI node packs. The selected environment uses Python %2.</source>
       <translation>SugarSubstitute의 ComfyUI 노드 팩에는 Python %1 이상이 필요합니다. 선택한 환경은 Python %2를 사용합니다.</translation>
     </message>
@@ -6225,6 +6235,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../substitute/infrastructure/security/civitai_credential_store_factory.py" line="77"></location>
       <source>The Python keyring package is not installed.</source>
       <translation>Python keyring 패키지가 설치되어 있지 않습니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/infrastructure/comfy/workspace_dependency_reconciler.py" line="199"></location>
+      <source>The attached ComfyUI environment does not satisfy its updated requirements. Repair that environment before continuing. %1</source>
+      <translation>연결된 ComfyUI 환경이 업데이트된 요구 사항을 충족하지 않습니다. 계속하기 전에 해당 환경을 복구하세요. %1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="175"></location>
@@ -6892,7 +6907,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>검증 실패와 오류 강조 표시에 사용됩니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="94"></location>
+      <location filename="../substitute/infrastructure/comfy/attached_install.py" line="101"></location>
       <source>Using ComfyUI Python %1 (%2) at %3.</source>
       <translation>%3에서 ComfyUI Python %1(%2)을(를) 사용합니다.</translation>
     </message>

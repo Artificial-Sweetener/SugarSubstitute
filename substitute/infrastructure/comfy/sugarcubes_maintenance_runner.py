@@ -52,6 +52,9 @@ from substitute.infrastructure.comfy.trusted_nodepack_installer import (
 from substitute.infrastructure.comfy.sugarcubes_repository_bootstrapper import (
     prepare_sugarcubes_repositories,
 )
+from substitute.infrastructure.comfy.sugarcubes_runtime_contract import (
+    resolve_sugarcubes_runtime_contract,
+)
 from substitute.infrastructure.comfy.sugarcubes_version_repair import (
     repair_sugarcubes_git_versions,
 )
@@ -74,8 +77,7 @@ def run_sugarcubes_baseline_maintenance(
     if python_executable is None:
         python_executable = resolve_workspace_python(workspace)
     sugarcubes_root = workspace / "custom_nodes" / "SugarCubes"
-    if not (sugarcubes_root / "backend" / "maintenance.py").exists():
-        raise RuntimeError("SugarCubes offline maintenance entrypoint is missing.")
+    runtime_contract = resolve_sugarcubes_runtime_contract(sugarcubes_root)
     prepare_sugarcubes_repositories(
         sugarcubes_root,
         on_log=on_log,
@@ -84,7 +86,7 @@ def run_sugarcubes_baseline_maintenance(
     command = [
         str(python_executable),
         "-m",
-        "backend.maintenance",
+        runtime_contract.maintenance_module,
         "cube-deps",
         "preflight",
         "--workspace",

@@ -30,26 +30,59 @@ class ComfySupportMatrixEntry:
     supports_pygit2: bool
 
 
-COMFY_SUPPORT_MATRIX: tuple[ComfySupportMatrixEntry, ...] = (
+@dataclass(frozen=True, slots=True)
+class ComfyUpdateMatrixEntry:
+    """Describe one in-place forward update between reviewed upstream releases."""
+
+    source_tag: str
+    target_tag: str
+
+
+COMFY_RELEASE_CONTRACTS: tuple[ComfySupportMatrixEntry, ...] = (
     ComfySupportMatrixEntry("v0.15.0", "4.1b1", False),
     ComfySupportMatrixEntry("v0.17.0", "4.1b2", False),
     ComfySupportMatrixEntry("v0.18.0", "4.1b6", False),
     ComfySupportMatrixEntry("v0.19.0", "4.1", False),
     ComfySupportMatrixEntry("v0.20.0", "4.2.1", True),
+    ComfySupportMatrixEntry("v0.24.0", "4.2.1", True),
+    ComfySupportMatrixEntry("v0.25.0", "4.2.2", True),
     ComfySupportMatrixEntry("v0.28.2", "4.2.2", True),
+)
+
+COMFY_SUPPORT_MATRIX: tuple[ComfySupportMatrixEntry, ...] = tuple(
+    entry
+    for entry in COMFY_RELEASE_CONTRACTS
+    if entry.comfyui_tag
+    in {"v0.15.0", "v0.17.0", "v0.18.0", "v0.19.0", "v0.20.0", "v0.28.2"}
+)
+
+COMFY_UPDATE_MATRIX: tuple[ComfyUpdateMatrixEntry, ...] = (
+    ComfyUpdateMatrixEntry("v0.15.0", "v0.19.0"),
+    ComfyUpdateMatrixEntry("v0.19.0", "v0.20.0"),
+    ComfyUpdateMatrixEntry("v0.20.0", "v0.24.0"),
+    ComfyUpdateMatrixEntry("v0.24.0", "v0.25.0"),
+    ComfyUpdateMatrixEntry("v0.25.0", "v0.28.2"),
+    ComfyUpdateMatrixEntry("v0.15.0", "v0.24.0"),
 )
 
 
 def matrix_entry(comfyui_tag: str) -> ComfySupportMatrixEntry:
     """Return the declared matrix entry for one exact upstream tag."""
 
-    for entry in COMFY_SUPPORT_MATRIX:
+    for entry in COMFY_RELEASE_CONTRACTS:
         if entry.comfyui_tag == comfyui_tag:
             return entry
-    supported = ", ".join(entry.comfyui_tag for entry in COMFY_SUPPORT_MATRIX)
+    supported = ", ".join(entry.comfyui_tag for entry in COMFY_RELEASE_CONTRACTS)
     raise ValueError(
         f"Unknown ComfyUI matrix tag {comfyui_tag!r}; expected {supported}."
     )
 
 
-__all__ = ["COMFY_SUPPORT_MATRIX", "ComfySupportMatrixEntry", "matrix_entry"]
+__all__ = [
+    "COMFY_RELEASE_CONTRACTS",
+    "COMFY_SUPPORT_MATRIX",
+    "COMFY_UPDATE_MATRIX",
+    "ComfySupportMatrixEntry",
+    "ComfyUpdateMatrixEntry",
+    "matrix_entry",
+]

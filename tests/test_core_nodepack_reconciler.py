@@ -260,7 +260,7 @@ def _materialize_nodepack(
 
     if git_managed:
         (target_path / ".git").mkdir(parents=True, exist_ok=True)
-    for sentinel in nodepack.sentinel_files:
+    for sentinel in nodepack.sentinel_layouts[0]:
         sentinel_path = target_path / sentinel
         sentinel_path.parent.mkdir(parents=True, exist_ok=True)
         sentinel_path.write_text("fixture", encoding="utf-8")

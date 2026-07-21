@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Collection, Mapping
 from datetime import UTC, datetime
-import json
 import os
 from pathlib import Path
 
@@ -36,6 +35,12 @@ from substitute.domain.onboarding import (
 )
 from substitute.infrastructure.comfy.managed_environment_validator import (
     ManagedEnvironmentValidationResult,
+)
+from substitute.infrastructure.comfy.managed_setup_evidence import (
+    content_signature as _content_signature,
+    load_json_object,
+    path_signature as _path_signature,
+    write_json_object_atomic,
 )
 from substitute.infrastructure.comfy.manager_environment import (
     integrated_manager_pygit2_requirement,
@@ -53,13 +58,16 @@ from substitute.infrastructure.comfy.nodepack_manifest import (
     SUGARCUBES_BASE_NODEPACK_INSTALLS,
     SUGARCUBES_COMPANION_NODEPACKS,
 )
+from substitute.infrastructure.comfy.sugarcubes_runtime_contract import (
+    SUGARCUBES_RUNTIME_CONTRACTS,
+)
 from substitute.infrastructure.version_control import (
     RepositoryOperationError,
     repository_service,
 )
 from substitute.shared.startup_trace import trace_mark
 
-_MANAGED_SETUP_FRESHNESS_SCHEMA_VERSION = 3
+_MANAGED_SETUP_FRESHNESS_SCHEMA_VERSION = 4
 _MANAGED_SETUP_FRESHNESS_MAX_AGE_SECONDS = 6 * 60 * 60
 _MANAGED_SETUP_FRESHNESS_DISABLE_ENV = "SUGARSUB_DISABLE_MANAGED_SETUP_CACHE"
 
@@ -139,6 +147,13 @@ def _installed_setup_static_freshness_key(workspace: Path) -> dict[str, object]:
 
     return {
         "schema_version": _MANAGED_SETUP_FRESHNESS_SCHEMA_VERSION,
+        "checkout_contract": {
+            "version": _content_signature(workspace / "comfyui_version.py"),
+            "requirements": _content_signature(workspace / "requirements.txt"),
+            "manager_requirements": _content_signature(
+                workspace / "manager_requirements.txt"
+            ),
+        },
         "workspace": {
             "python": _path_signature(workspace_python_path(workspace)),
             "main": _path_signature(workspace_main_path(workspace)),
@@ -272,14 +287,7 @@ def _installed_setup_freshness_is_current(
 def _load_installed_setup_freshness(workspace: Path) -> dict[str, object] | None:
     """Load one installed-workspace setup freshness record if it is valid JSON."""
 
-    path = _installed_setup_freshness_path(workspace)
-    if not path.exists():
-        return None
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-    return payload if isinstance(payload, dict) else None
+    return load_json_object(_installed_setup_freshness_path(workspace))
 
 
 def _write_installed_setup_freshness(
@@ -313,7 +321,7 @@ def _write_installed_setup_freshness(
         },
         "key": dict(key),
     }
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    write_json_object_atomic(path, payload)
     trace_mark("managed_setup.existing.cache_written")
 
 
@@ -517,8 +525,8 @@ def _manager_freshness_key(workspace: Path) -> dict[str, object]:
     return {
         "kind": "integrated",
         "optional_pygit2_backend": integrated_manager_pygit2_requirement(),
-        "requirements": _path_signature(workspace / "manager_requirements.txt"),
-        "launch_contract": _path_signature(workspace / "comfy" / "cli_args.py"),
+        "requirements": _content_signature(workspace / "manager_requirements.txt"),
+        "launch_contract": _content_signature(workspace / "comfy" / "cli_args.py"),
     }
 
 
@@ -537,9 +545,9 @@ def _core_nodepack_freshness_key(
         "folder": str(expected_folder),
         "folder_signature": _path_signature(nodepack_root),
         "git": _git_head_signature(nodepack_root),
-        "sentinels": [
-            _path_signature(nodepack_root / sentinel)
-            for sentinel in getattr(nodepack, "sentinel_files", ())
+        "sentinel_layouts": [
+            [_path_signature(nodepack_root / sentinel) for sentinel in layout]
+            for layout in getattr(nodepack, "sentinel_layouts", ())
         ],
         "source_url": getattr(nodepack, "source_url", None),
         "python_distribution": getattr(nodepack, "python_distribution_name", None),
@@ -555,8 +563,16 @@ def _sugarcubes_baseline_freshness_key(workspace: Path) -> dict[str, object]:
 
     sugarcubes_root = workspace / "custom_nodes" / "SugarCubes"
     return {
-        "maintenance": _path_signature(sugarcubes_root / "backend" / "maintenance.py"),
-        "backend": _path_signature(sugarcubes_root / "backend" / "__init__.py"),
+        "runtime_contracts": [
+            {
+                "module": contract.maintenance_module,
+                "maintenance": _content_signature(
+                    sugarcubes_root / contract.maintenance_path
+                ),
+                "backend": _content_signature(sugarcubes_root / contract.backend_path),
+            }
+            for contract in SUGARCUBES_RUNTIME_CONTRACTS
+        ],
         "install_mapping": {
             node_id: [
                 {
@@ -586,21 +602,6 @@ def _site_packages_signature(workspace: Path) -> dict[str, object]:
         if candidate.exists():
             return _path_signature(candidate)
     return {"exists": False}
-
-
-def _path_signature(path: Path) -> dict[str, object]:
-    """Return a cheap filesystem signature for one path."""
-
-    try:
-        stat = path.stat()
-    except OSError:
-        return {"exists": False}
-    return {
-        "exists": True,
-        "is_dir": path.is_dir(),
-        "size": stat.st_size,
-        "mtime_ns": stat.st_mtime_ns,
-    }
 
 
 def _git_head_signature(path: Path) -> dict[str, object]:
