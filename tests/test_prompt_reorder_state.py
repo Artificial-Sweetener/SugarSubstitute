@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 
 import pytest
 from PySide6.QtCore import QPoint, QPointF, QRectF, QSizeF
@@ -42,6 +42,7 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_state impor
     reorder_live_visual_geometry_key,
     reorder_overlay_position_geometry_key,
     reorder_overlay_refresh_geometry_key,
+    reorder_overlay_refresh_is_height_only_change,
     reorder_source_fingerprint,
 )
 
@@ -286,6 +287,16 @@ def test_overlay_refresh_geometry_key_uses_prompt_safe_source_identity() -> None
     assert key.source_fingerprint == reorder_source_fingerprint("secret prompt")
     assert "secret prompt" not in repr(key)
     assert key != changed_target_key
+
+    height_only_key = replace(
+        key,
+        viewport_height=key.viewport_height + 16,
+        content_height=key.content_height + 16,
+    )
+    width_key = replace(key, viewport_width=key.viewport_width + 16)
+
+    assert reorder_overlay_refresh_is_height_only_change(key, height_only_key) is True
+    assert reorder_overlay_refresh_is_height_only_change(key, width_key) is False
 
 
 def test_pointer_region_geometry_key_tracks_preview_and_live_rects() -> None:
