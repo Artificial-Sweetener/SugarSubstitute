@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -77,13 +77,10 @@ def test_update_check_policy_respects_cli_and_config_disables(tmp_path: Path) ->
         layout=layout,
         update_check=UpdateCheckConfig(enabled=False),
     )
-    now = datetime(2026, 7, 7, tzinfo=UTC)
 
     assert (
         decide_update_check(
             config=enabled_config,
-            state=LauncherUpdateState(),
-            now=now,
             no_update_check=True,
         ).decision
         is UpdateCheckDecision.SKIP
@@ -91,50 +88,39 @@ def test_update_check_policy_respects_cli_and_config_disables(tmp_path: Path) ->
     assert (
         decide_update_check(
             config=disabled_config,
-            state=LauncherUpdateState(),
-            now=now,
             no_update_check=False,
         ).decision
         is UpdateCheckDecision.SKIP
     )
 
 
-def test_update_check_policy_runs_when_daily_check_is_due(tmp_path: Path) -> None:
-    """Daily update checks should run after the configured interval elapses."""
+def test_update_check_policy_runs_on_every_startup(tmp_path: Path) -> None:
+    """Automatic update checks should run on every launcher startup."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     config = LauncherConfig.from_layout(layout=layout)
-    now = datetime(2026, 7, 7, 12, tzinfo=UTC)
-    recent_state = LauncherUpdateState(
-        last_update_check_utc=now - timedelta(hours=12),
+
+    assert (
+        decide_update_check(
+            config=config,
+            no_update_check=False,
+        ).reason
+        == "startup"
     )
-    stale_state = LauncherUpdateState(
-        last_update_check_utc=now - timedelta(days=1, minutes=1),
+
+
+def test_legacy_daily_update_check_runs_on_startup(tmp_path: Path) -> None:
+    """Existing daily configurations should adopt startup update checks."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    config = LauncherConfig.from_layout(
+        layout=layout,
+        update_check=UpdateCheckConfig(frequency="daily"),
     )
 
     assert (
         decide_update_check(
             config=config,
-            state=LauncherUpdateState(),
-            now=now,
-            no_update_check=False,
-        ).reason
-        == "never_checked"
-    )
-    assert (
-        decide_update_check(
-            config=config,
-            state=recent_state,
-            now=now,
-            no_update_check=False,
-        ).decision
-        is UpdateCheckDecision.SKIP
-    )
-    assert (
-        decide_update_check(
-            config=config,
-            state=stale_state,
-            now=now,
             no_update_check=False,
         ).decision
         is UpdateCheckDecision.CHECK
