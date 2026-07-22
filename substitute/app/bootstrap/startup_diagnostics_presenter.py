@@ -42,7 +42,7 @@ from substitute.application.ports.startup_diagnostics_ignore_repository import (
     StartupDiagnosticsIgnoreRepository,
 )
 from substitute.domain.comfy_startup_diagnostics import ComfyStartupIncident
-from substitute.domain.onboarding import InstallationContext
+from substitute.domain.onboarding import ComfyTargetMode, InstallationContext
 from substitute.shared.logging.logger import get_logger, log_warning
 
 _LOGGER = get_logger("app.bootstrap.startup_diagnostics_presenter")
@@ -279,11 +279,28 @@ def startup_extension_metadata_providers(
     from substitute.infrastructure.comfy.local_custom_node_git_metadata import (
         LocalCustomNodeGitMetadataProvider,
     )
+    from substitute.infrastructure.comfy.manager_runtime_probe import (
+        detect_workspace_manager_runtime,
+    )
+
+    manager_kind = (
+        None
+        if target.mode is ComfyTargetMode.REMOTE
+        else detect_workspace_manager_runtime(
+            workspace,
+            python_executable=(
+                target.python_binding.executable
+                if target.python_binding is not None
+                else None
+            ),
+        ).kind
+    )
 
     providers: list[ComfyExtensionMetadataProvider] = [
         ComfyManagerExtensionMetadataProvider(
             host=target.endpoint.host,
             port=target.endpoint.port,
+            manager_kind=manager_kind,
             timeout_seconds=1.0,
         )
     ]

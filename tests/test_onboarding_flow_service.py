@@ -23,6 +23,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from sugarsubstitute_shared.localization import render_source_application_text
+from sugarsubstitute_shared.windows_long_paths import (
+    ExternalLongPathCompatibilityError,
+    WindowsPathComponentTooLongError,
+)
 
 import pytest
 
@@ -971,6 +975,61 @@ def test_flow_service_maps_storage_exhaustion_to_temp_space_copy(
     assert failure.headline == "Substitute ran out of temporary install space"
     assert str(tmp_path) in render_source_application_text(failure.remediation_steps[0])
     assert "Python packages" in failure.user_message
+
+
+def test_flow_service_maps_external_long_path_failure_to_actionable_copy(
+    tmp_path: Path,
+) -> None:
+    """A known third-party path failure should name the boundary and both remedies."""
+
+    long_path = tmp_path / "deep" / "ComfyUI"
+    failure = OnboardingFlowService._build_provisioning_failure(
+        draft=OnboardingDraftState(
+            installation_root=tmp_path,
+            target_mode=ComfyTargetMode.MANAGED_LOCAL.value,
+            endpoint_host="127.0.0.1",
+            endpoint_port=8188,
+            managed_workspace_path=long_path,
+            attached_workspace_path=None,
+        ),
+        target_mode=ComfyTargetMode.MANAGED_LOCAL,
+        error=ExternalLongPathCompatibilityError(
+            component="7-Zip",
+            path=long_path,
+            detail="[WinError 206] The filename or extension is too long",
+        ),
+    )
+
+    assert failure.headline == "A Windows component could not use this long path"
+    assert "7-Zip" in render_source_application_text(failure.user_message)
+    assert "shorter folder" in failure.remediation_steps[0]
+    assert "enable Win32 long paths" in failure.remediation_steps[1]
+
+
+def test_flow_service_maps_component_limit_to_specific_copy(tmp_path: Path) -> None:
+    """An impossible individual name should not be reported as a total-path failure."""
+
+    offending_name = "x" * 256
+    path = tmp_path / offending_name
+    failure = OnboardingFlowService._build_provisioning_failure(
+        draft=OnboardingDraftState(
+            installation_root=tmp_path,
+            target_mode=ComfyTargetMode.MANAGED_LOCAL.value,
+            endpoint_host="127.0.0.1",
+            endpoint_port=8188,
+            managed_workspace_path=path,
+            attached_workspace_path=None,
+        ),
+        target_mode=ComfyTargetMode.MANAGED_LOCAL,
+        error=WindowsPathComponentTooLongError(
+            path=path,
+            component=offending_name,
+        ),
+    )
+
+    assert failure.headline == "A file or folder name is too long for Windows"
+    assert "255 characters" in failure.user_message
+    assert str(path) in render_source_application_text(failure.remediation_steps[0])
 
 
 @pytest.mark.parametrize(

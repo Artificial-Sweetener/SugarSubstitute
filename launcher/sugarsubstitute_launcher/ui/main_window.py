@@ -83,6 +83,10 @@ from launcher.sugarsubstitute_launcher.runtime import (
 )
 
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
+from sugarsubstitute_shared.windows_long_paths import (
+    ExternalLongPathCompatibilityError,
+    WindowsPathComponentTooLongError,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -168,7 +172,7 @@ class _SetupWorker(QObject):
             runtime_installer = self._runtime_installer_factory(self.log.emit)
             runtime_installer.provision(layout=self._layout)
         except Exception as error:
-            self.failed.emit("runtime", str(error))
+            self.failed.emit("runtime", _launcher_failure_detail(error))
             self.finished.emit()
             return
 
@@ -177,7 +181,7 @@ class _SetupWorker(QObject):
         try:
             self._process_starter(self._setup_command)
         except Exception as error:
-            self.failed.emit("setup", str(error))
+            self.failed.emit("setup", _launcher_failure_detail(error))
             self.finished.emit()
             return
 
@@ -252,7 +256,7 @@ class _InitialInstallWorker(QObject):
                 release_source=release_source,
             )
         except Exception as error:
-            self.failed.emit(str(error))
+            self.failed.emit(_launcher_failure_detail(error))
             self.finished.emit()
             return
 
@@ -1022,7 +1026,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self._append_log(
             launcher_text("Setup failed. Check the details below and try again.")
         )
-        self._append_log(launcher_text("Details: %1", error))
+        self._append_log(launcher_text("Details: %1", _launcher_failure_detail(error)))
 
     @Slot(str)
     def _append_log(self, message: str) -> None:
@@ -1231,6 +1235,26 @@ def _current_frozen_executable() -> Path | None:
     if bool(getattr(sys, "frozen", False)):
         return Path(sys.executable)
     return None
+
+
+def _launcher_failure_detail(error: Exception) -> str:
+    """Render structured Windows path failures as actionable launcher text."""
+
+    if isinstance(error, WindowsPathComponentTooLongError):
+        return launcher_text(
+            "Windows limits each file or folder name to 255 characters. Shorten "
+            "the name in %1, then try again.",
+            error.path,
+        )
+    if isinstance(error, ExternalLongPathCompatibilityError):
+        return launcher_text(
+            "%1 could not use this long Windows path even though SugarSubstitute "
+            "can: %2. Choose a shorter folder for this operation, or enable Win32 "
+            "long paths in Windows, then try again.",
+            error.component,
+            error.path,
+        )
+    return str(error)
 
 
 def _install_location_guidance() -> str:

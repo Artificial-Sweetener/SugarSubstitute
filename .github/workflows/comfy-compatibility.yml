@@ -1,0 +1,146 @@
+name: Comfy compatibility
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - "dependabot/**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: comfy-compatibility-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12.10"
+  LINUX_PYTHON_VERSION: "3.12.13"
+  QT_QPA_PLATFORM: offscreen
+  QT_OPENGL: software
+  SUBSTITUTE_DISABLE_APP_USER_MODEL_ID: "1"
+  SUBSTITUTE_DISABLE_QPANE_SAM_WARMUP: "1"
+
+jobs:
+  real-tag-probe:
+    name: ${{ matrix.comfyui }} / ${{ matrix.manager }} (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            python-version: "3.12.10"
+            python: ./.venv/Scripts/python.exe
+            comfyui: v0.15.0
+            manager: 4.1b1
+          - name: Linux x64
+            os: ubuntu-24.04
+            python-version: "3.12.13"
+            python: ./.venv/bin/python
+            comfyui: v0.17.0
+            manager: 4.1b2
+          - name: macOS Apple Silicon
+            os: macos-15
+            python-version: "3.12.10"
+            python: ./.venv/bin/python
+            comfyui: v0.18.0
+            manager: 4.1b6
+          - name: Windows x64
+            os: windows-latest
+            python-version: "3.12.10"
+            python: ./.venv/Scripts/python.exe
+            comfyui: v0.19.0
+            manager: "4.1"
+          - name: Linux x64
+            os: ubuntu-24.04
+            python-version: "3.12.13"
+            python: ./.venv/bin/python
+            comfyui: v0.20.0
+            manager: 4.2.1
+          - name: macOS Apple Silicon
+            os: macos-15
+            python-version: "3.12.10"
+            python: ./.venv/bin/python
+            comfyui: v0.28.2
+            manager: 4.2.2
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - name: Checkout SugarSubstitute
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Create project virtual environment
+        run: python -m venv .venv
+      - name: Install project test toolchain
+        run: ${{ matrix.python }} -m pip install --requirement requirements-toolchain.txt
+      - name: Run exact upstream compatibility probe
+        run: >-
+          ${{ matrix.python }} -m tools.ci.run_comfy_compatibility_probe
+          --comfyui-tag ${{ matrix.comfyui }}
+
+  real-update-probe:
+    name: ${{ matrix.source }} -> ${{ matrix.target }} (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            python-version: "3.12.10"
+            python: ./.venv/Scripts/python.exe
+            source: v0.15.0
+            target: v0.19.0
+          - name: Windows x64
+            os: windows-latest
+            python-version: "3.12.10"
+            python: ./.venv/Scripts/python.exe
+            source: v0.19.0
+            target: v0.20.0
+          - name: macOS Apple Silicon
+            os: macos-15
+            python-version: "3.12.10"
+            python: ./.venv/bin/python
+            source: v0.20.0
+            target: v0.24.0
+          - name: Windows x64
+            os: windows-latest
+            python-version: "3.12.10"
+            python: ./.venv/Scripts/python.exe
+            source: v0.24.0
+            target: v0.25.0
+          - name: Windows x64
+            os: windows-latest
+            python-version: "3.12.10"
+            python: ./.venv/Scripts/python.exe
+            source: v0.25.0
+            target: v0.28.2
+          - name: macOS Apple Silicon
+            os: macos-15
+            python-version: "3.12.10"
+            python: ./.venv/bin/python
+            source: v0.15.0
+            target: v0.24.0
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    steps:
+      - name: Checkout SugarSubstitute
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Create project virtual environment
+        run: python -m venv .venv
+      - name: Install project test toolchain
+        run: ${{ matrix.python }} -m pip install --requirement requirements-toolchain.txt
+      - name: Run exact upstream update reconciliation probe
+        run: >-
+          ${{ matrix.python }} -m tools.ci.run_comfy_update_probe
+          --source-tag ${{ matrix.source }}
+          --target-tag ${{ matrix.target }}

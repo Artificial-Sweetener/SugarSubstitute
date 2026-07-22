@@ -24,6 +24,12 @@ import subprocess
 import sys
 
 from substitute.shared.logging.logger import get_logger, log_info
+from sugarsubstitute_shared.windows_long_paths import (
+    external_long_path_error,
+    operational_path,
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 LogCallback = Callable[[str], None]
 CommandResult = subprocess.CompletedProcess[str]
@@ -40,25 +46,44 @@ def run_command(
 ) -> CommandResult:
     """Run one hidden subprocess and return captured output."""
 
-    command_args = list(command)
+    process_cwd = operational_path(cwd)
+    command_args = _process_command(command)
     log_info(
         _LOGGER,
         "Executing hidden process command",
         command_label=_command_label(command_args),
-        cwd=cwd,
+        cwd=process_cwd,
     )
-    result = subprocess.run(
-        command_args,
-        cwd=str(cwd),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        creationflags=creation_flags(),
-        env=dict(env) if env is not None else None,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            command_args,
+            cwd=subprocess_working_directory(process_cwd),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=creation_flags(),
+            env=dict(env) if env is not None else None,
+            check=False,
+        )
+    except OSError as error:
+        compatibility_error = external_long_path_error(
+            component=_command_label(command_args),
+            path=process_cwd,
+            detail=error,
+        )
+        if compatibility_error is not None:
+            raise compatibility_error from error
+        raise
     if check and result.returncode != 0:
+        detail = "\n".join(part for part in (result.stdout, result.stderr) if part)
+        compatibility_error = external_long_path_error(
+            component=_command_label(command_args),
+            path=process_cwd,
+            detail=detail,
+        )
+        if compatibility_error is not None:
+            raise compatibility_error
         raise RuntimeError(
             f"Command failed with exit code {result.returncode}: {' '.join(command)}"
         )
@@ -75,17 +100,18 @@ def stream_command(
 ) -> int:
     """Run one hidden subprocess and stream merged stdout/stderr."""
 
-    command_args = list(command)
+    process_cwd = operational_path(cwd)
+    command_args = _process_command(command)
     log_info(
         _LOGGER,
         "Streaming hidden process command",
         command_label=_command_label(command_args),
-        cwd=cwd,
+        cwd=process_cwd,
         timeout_seconds=timeout_seconds,
     )
     proc = subprocess.Popen(
         command_args,
-        cwd=str(cwd),
+        cwd=subprocess_working_directory(process_cwd),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -117,17 +143,18 @@ def stream_command_collecting_output(
 ) -> tuple[int, tuple[str, ...]]:
     """Run one hidden subprocess while retaining merged stdout/stderr records."""
 
-    command_args = list(command)
+    process_cwd = operational_path(cwd)
+    command_args = _process_command(command)
     log_info(
         _LOGGER,
         "Streaming hidden process command and collecting output",
         command_label=_command_label(command_args),
-        cwd=cwd,
+        cwd=process_cwd,
         timeout_seconds=timeout_seconds,
     )
     proc = subprocess.Popen(
         command_args,
-        cwd=str(cwd),
+        cwd=subprocess_working_directory(process_cwd),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -166,6 +193,15 @@ def _command_label(command: Sequence[str]) -> str:
     if len(command) >= 3 and command[1] == "-m":
         return f"{executable} -m {command[2]}"
     return executable
+
+
+def _process_command(command: Sequence[str]) -> list[str]:
+    """Normalize an absolute executable without rewriting opaque arguments."""
+
+    command_args = list(command)
+    if command_args and Path(command_args[0]).is_absolute():
+        command_args[0] = subprocess_path(command_args[0])
+    return command_args
 
 
 __all__ = [

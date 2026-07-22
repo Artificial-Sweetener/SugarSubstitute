@@ -25,6 +25,7 @@ from urllib.parse import quote
 
 from substitute.domain.onboarding.comfy_python_models import ComfyPythonBinding
 from substitute.domain.onboarding.runtime_layout import runtime_layout_for_root
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
 class ComfyTargetMode(str, Enum):
@@ -152,7 +153,7 @@ class InstallationConfiguration:
     def create_default(cls, installation_root: Path) -> InstallationConfiguration:
         """Build the default installation layout for one visible root."""
 
-        resolved_root = installation_root.resolve()
+        resolved_root = operational_path(installation_root).resolve()
         user_dir = resolved_root / "user"
         projects_dir = user_dir / "projects"
         appdata_dir = resolved_root / "appdata"
