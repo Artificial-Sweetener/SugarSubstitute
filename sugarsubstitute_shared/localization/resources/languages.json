@@ -71,6 +71,21 @@
       "text_direction": "left-to-right",
       "font_profile": "cjk-kr",
       "release_enabled": true
+    },
+    {
+      "id": "es",
+      "native_display_name": "Español",
+      "qt_locale_candidates": ["es_ES", "es"],
+      "accepted_system_tags": ["es", "es-*"],
+      "comfy_catalog_aliases": ["es"],
+      "app_qm": "sugarsubstitute_es_ES.qm",
+      "launcher_qm": "launcher_es_ES.qm",
+      "qtbase_qm": "qtbase_es.qm",
+      "fluent_qm": "qfluentwidgets.es_ES.qm",
+      "fluent_catalog_source": "upstream",
+      "text_direction": "left-to-right",
+      "font_profile": "system",
+      "release_enabled": true
     }
   ]
 }

@@ -19,7 +19,7 @@
       <translation>浏览...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="175"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="172"></location>
       <source>Checking for SugarSubstitute updates.</source>
       <translation>正在检查 SugarSubstitute 更新。</translation>
     </message>
@@ -104,7 +104,7 @@
       <translation>安装运行环境</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="248"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="245"></location>
       <source>Installed SugarSubstitute %1.</source>
       <translation>SugarSubstitute %1 已安装。</translation>
     </message>
@@ -134,7 +134,7 @@
       <translation>正在安装 Python 运行环境和应用依赖项。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="234"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="231"></location>
       <source>Installing SugarSubstitute %1.</source>
       <translation>正在安装 SugarSubstitute %1。</translation>
     </message>
@@ -164,12 +164,12 @@
       <translation>正在准备安装 SugarSubstitute。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="240"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="237"></location>
       <source>Preparing SugarSubstitute runtime.</source>
       <translation>正在准备 SugarSubstitute 运行环境。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="313"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="310"></location>
       <source>Preparing launcher %1.</source>
       <translation>正在准备启动器 %1。</translation>
     </message>
@@ -254,7 +254,7 @@
       <translation>SugarSubstitute 安装程序</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="333"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="330"></location>
       <source>The launcher will restart to finish updating.</source>
       <translation>启动器将重启以完成更新。</translation>
     </message>

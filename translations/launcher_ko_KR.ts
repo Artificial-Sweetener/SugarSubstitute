@@ -19,7 +19,7 @@
       <translation>찾아보기...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="175"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="172"></location>
       <source>Checking for SugarSubstitute updates.</source>
       <translation>SugarSubstitute 업데이트를 확인하는 중입니다.</translation>
     </message>
@@ -104,7 +104,7 @@
       <translation>런타임 설치</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="248"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="245"></location>
       <source>Installed SugarSubstitute %1.</source>
       <translation>SugarSubstitute %1을(를) 설치했습니다.</translation>
     </message>
@@ -134,7 +134,7 @@
       <translation>Python 런타임과 앱 종속성을 설치하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="234"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="231"></location>
       <source>Installing SugarSubstitute %1.</source>
       <translation>SugarSubstitute %1 설치 중입니다.</translation>
     </message>
@@ -164,12 +164,12 @@
       <translation>SugarSubstitute 설치를 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="240"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="237"></location>
       <source>Preparing SugarSubstitute runtime.</source>
       <translation>SugarSubstitute 런타임을 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="313"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="310"></location>
       <source>Preparing launcher %1.</source>
       <translation>실행기 %1을(를) 준비하는 중입니다.</translation>
     </message>
@@ -254,7 +254,7 @@
       <translation>SugarSubstitute 설정</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="333"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="330"></location>
       <source>The launcher will restart to finish updating.</source>
       <translation>업데이트를 마치기 위해 실행기가 다시 시작됩니다.</translation>
     </message>
