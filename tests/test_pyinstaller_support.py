@@ -90,6 +90,7 @@ def test_launcher_localization_data_files_cover_every_release_locale() -> None:
 
     assert (shared_resources / "languages.json").is_file()
     assert {path.name for path in launcher_catalogs.glob("launcher_*.qm")} == {
+        "launcher_es_ES.qm",
         "launcher_ja_JP.qm",
         "launcher_ko_KR.qm",
         "launcher_zh_CN.qm",

@@ -52,7 +52,7 @@ from sugarsubstitute_shared.presentation.localization import (
 def test_language_settings_switches_catalogs_and_persists_without_restart(
     tmp_path: Path,
 ) -> None:
-    """Apply Chinese then Japanese while retaining only the active generation."""
+    """Apply every translated locale while retaining only the active generation."""
 
     application = _application()
     context = _context(tmp_path)
@@ -65,11 +65,12 @@ def test_language_settings_switches_catalogs_and_persists_without_restart(
     assert tuple(
         card.language_combo.itemData(index)
         for index in range(card.language_combo.count())
-    ) == ("system", "en", "zh-Hans", "ja", "ko")
+    ) == ("system", "en", "zh-Hans", "ja", "ko", "es")
     assert card.language_combo.itemText(0) == "System default — English"
     assert card.language_combo.itemText(2) == "简体中文"
     assert card.language_combo.itemText(3) == "日本語"
     assert card.language_combo.itemText(4) == "한국어"
+    assert card.language_combo.itemText(5) == "Español"
 
     card.language_combo.setCurrentIndex(card.language_combo.findData("zh-Hans"))
     chinese_delegates = runtime.manager.composite_translator.delegates
@@ -88,6 +89,18 @@ def test_language_settings_switches_catalogs_and_persists_without_restart(
     assert card.title_label.text() == "言語"
     assert "変更はすぐに反映されます" in card.description_label.text()
     assert QCoreApplication.translate("LanguageSelector", "Language") == "言語"
+    assert all(
+        delegate not in runtime.manager.composite_translator.delegates
+        for delegate in chinese_delegates
+    )
+
+    card.language_combo.setCurrentIndex(card.language_combo.findData("es"))
+
+    assert runtime.manager.snapshot.requested == LanguagePreference.explicit("es")
+    assert store.load() == LanguagePreference.explicit("es")
+    assert card.title_label.text() == "Idioma"
+    assert "se aplican de inmediato" in card.description_label.text()
+    assert QCoreApplication.translate("LanguageSelector", "Language") == "Idioma"
     assert all(
         delegate not in runtime.manager.composite_translator.delegates
         for delegate in chinese_delegates
@@ -188,7 +201,7 @@ def test_translation_manager_exposes_only_release_enabled_manifest_languages(
 
     assert tuple(
         language.identifier for language in runtime.manager.available_languages
-    ) == ("en", "zh-Hans", "ja", "ko")
+    ) == ("en", "zh-Hans", "ja", "ko", "es")
     runtime.manager.close()
 
 

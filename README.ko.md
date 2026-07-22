@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> | <a href="README.zh-Hans.md">简体中文</a> | <a href="README.ja.md">日本語</a> | <strong>한국어</strong>
+  <a href="README.md">English</a> | <a href="README.zh-Hans.md">简体中文</a> | <a href="README.ja.md">日本語</a> | <strong>한국어</strong> | <a href="README.es.md">Español</a>
 </p>
 
 **SugarSubstitute는 그래프의 가능성은 좋아하지만 하루 종일 복잡한 선을 풀고 싶지는 않은 사람을 위해 만든 [ComfyUI](https://github.com/Comfy-Org/ComfyUI)용 Qt 프런트엔드입니다.**

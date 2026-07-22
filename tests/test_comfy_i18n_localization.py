@@ -171,6 +171,43 @@ def test_streaming_client_retains_only_active_and_english_branches(
     }
 
 
+def test_spanish_selection_uses_connected_comfy_catalog_with_english_fallback(
+    tmp_path: Path,
+) -> None:
+    """Request Spanish node text from Comfy without creating a local corpus."""
+
+    response = FakeStreamingResponse(
+        {
+            "es": {"nodeDefs": {"KSampler": _node("Muestreador K")}},
+            "en": {"nodeDefs": {"EnglishOnly": _node("English fallback")}},
+            "ja": {"nodeDefs": {"Discarded": _node("破棄")}},
+        }
+    )
+    store = ActiveComfyNodeCatalogStore()
+    client = ComfyI18nCatalogClient(
+        endpoint=ComfyEndpoint("127.0.0.1", 8188),
+        cache_root=tmp_path,
+        language_selection=lambda: ComfyI18nLanguageSelection("es", ("es",)),
+        store=store,
+        background_scheduler=lambda callback: callback(),
+        http_get=lambda *_args, **_kwargs: response,
+    )
+
+    assert client.refresh() is True
+
+    selection = store.selection()
+    assert selection is not None
+    assert selection.active_catalog is not None
+    assert selection.english_catalog is not None
+    assert selection.active_catalog.node_definitions["KSampler"].display_name == (
+        "Muestreador K"
+    )
+    assert "Discarded" not in selection.active_catalog.node_definitions
+    assert selection.english_catalog.node_definitions["EnglishOnly"].display_name == (
+        "English fallback"
+    )
+
+
 def test_frontend_client_loads_only_requested_official_core_locales() -> None:
     """Resolve hashed nodeDefs source maps from the attached Comfy frontend."""
 

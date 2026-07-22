@@ -98,9 +98,9 @@ def test_manager_language_change_refreshes_open_widget_without_losing_state() ->
     window.show()
     application.processEvents()
 
-    manager.request_language(LanguagePreference.explicit("zh-Hans"))
+    manager.request_language(LanguagePreference.explicit("es"))
 
-    assert label.text() == "你好"
+    assert label.text() == "Hola"
     assert window.isVisible()
     window.close()
     window.deleteLater()
@@ -275,6 +275,7 @@ class _RecordingBundleLoader:
             "en": "Hello",
             "zh-Hans": "你好",
             "ja": "こんにちは",
+            "es": "Hola",
         }
         application_font = QFont(self._application.font())
         application_font.setFamilies([f"Test {identifier}"])
