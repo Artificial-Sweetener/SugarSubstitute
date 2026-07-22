@@ -34,6 +34,12 @@ from substitute.infrastructure.comfy.standalone_environment.models import (
     StandaloneArtifactError,
 )
 from substitute.infrastructure.execution.process_output import BinaryProcessOutput
+from sugarsubstitute_shared.windows_long_paths import (
+    external_long_path_error,
+    operational_path,
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -95,10 +101,10 @@ class NativeSevenZipExtractionProcess:
         executable = self._prepared_executable()
         completed = _run_bounded(
             (
-                str(executable),
+                subprocess_path(executable),
                 "l",
                 "-slt",
-                str(archive_path),
+                subprocess_path(archive_path),
             ),
             cwd=archive_path.parent,
             timeout_seconds=min(self._timeout_seconds, _LISTING_TIMEOUT_SECONDS),
@@ -107,6 +113,7 @@ class NativeSevenZipExtractionProcess:
             self._raise_failed_process(
                 operation="listing",
                 archive_path=archive_path,
+                compatibility_path=archive_path,
                 return_code=completed.returncode,
                 output=completed.stdout,
             )
@@ -128,10 +135,10 @@ class NativeSevenZipExtractionProcess:
 
         executable = self._prepared_executable()
         command = (
-            str(executable),
+            subprocess_path(executable),
             "x",
-            str(archive_path),
-            f"-o{destination}",
+            subprocess_path(archive_path),
+            f"-o{subprocess_path(destination)}",
             "-y",
             "-bsp1",
         )
@@ -143,7 +150,7 @@ class NativeSevenZipExtractionProcess:
         try:
             process = subprocess.Popen(  # noqa: S603
                 command,
-                cwd=archive_path.parent,
+                cwd=subprocess_working_directory(archive_path.parent),
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -152,6 +159,13 @@ class NativeSevenZipExtractionProcess:
                 creationflags=creationflags,
             )
         except OSError as error:
+            compatibility_error = external_long_path_error(
+                component="7-Zip",
+                path=destination,
+                detail=error,
+            )
+            if compatibility_error is not None:
+                raise compatibility_error from error
             raise StandaloneArtifactError(
                 "Could not start the bundled native 7-Zip process."
             ) from error
@@ -200,6 +214,7 @@ class NativeSevenZipExtractionProcess:
             self._raise_failed_process(
                 operation="extraction",
                 archive_path=archive_path,
+                compatibility_path=destination,
                 return_code=return_code,
                 output=output_tail,
             )
@@ -219,7 +234,7 @@ class NativeSevenZipExtractionProcess:
     def _prepared_executable(self) -> Path:
         """Require the bundled binary and make Unix payloads executable."""
 
-        executable = self._executable_path.resolve()
+        executable = operational_path(self._executable_path).resolve()
         if not executable.is_file():
             raise StandaloneArtifactError(
                 f"Bundled native 7-Zip binary is missing: {executable}"
@@ -233,6 +248,7 @@ class NativeSevenZipExtractionProcess:
         *,
         operation: str,
         archive_path: Path,
+        compatibility_path: Path,
         return_code: int,
         output: str | None,
     ) -> None:
@@ -248,6 +264,13 @@ class NativeSevenZipExtractionProcess:
             detail,
         )
         suffix = f" Details: {detail}" if detail else ""
+        compatibility_error = external_long_path_error(
+            component="7-Zip",
+            path=compatibility_path,
+            detail=detail,
+        )
+        if compatibility_error is not None:
+            raise compatibility_error
         raise StandaloneArtifactError(
             f"Native 7-Zip {operation} failed with exit code {return_code}.{suffix}"
         )
@@ -297,7 +320,7 @@ def _run_bounded(
     try:
         return subprocess.run(  # noqa: S603
             command,
-            cwd=cwd,
+            cwd=subprocess_working_directory(cwd),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

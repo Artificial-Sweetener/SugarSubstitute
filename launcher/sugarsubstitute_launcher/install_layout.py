@@ -28,6 +28,7 @@ from launcher.sugarsubstitute_launcher.platforms import (
     LauncherTarget,
     detect_launcher_target,
 )
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 APP_DIR_NAME = "app"
 APPDATA_DIR_NAME = "appdata"
@@ -53,7 +54,7 @@ class InstallLayout:
         """Create an install layout from a user-selected root path."""
 
         return cls(
-            root=root.expanduser().resolve(),
+            root=operational_path(root).resolve(),
             target=target or detect_launcher_target(),
         )
 

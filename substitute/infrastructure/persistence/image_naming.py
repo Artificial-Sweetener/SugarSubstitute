@@ -24,6 +24,8 @@ import re
 import threading
 from pathlib import Path
 
+from sugarsubstitute_shared.windows_long_paths import operational_path
+
 _TOKEN_RE = re.compile(r"\{([^{}]+)\}")
 _PATH_SEPARATOR_RE = re.compile(r"[\\/]+")
 _UNSAFE_COMPONENT_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]+')
@@ -33,11 +35,18 @@ _FOLDER_IMAGE_NUMBER_LOCK = threading.Lock()
 _RESERVED_FOLDER_IMAGE_NUMBERS: dict[str, set[int]] = {}
 
 
-def get_next_image_counter(workflow_tab_name: str, output_dir: str) -> int:
+def get_next_image_counter(
+    workflow_tab_name: str,
+    output_dir: Path | str,
+) -> int:
     """Return next 3-digit image index for a workflow-specific output filename prefix."""
 
     tab_name_for_file = workflow_tab_name.replace(" ", "_").lower()
-    pattern = os.path.join(output_dir, f"[0-9][0-9][0-9]_{tab_name_for_file}_*.png")
+    directory = operational_path(output_dir)
+    pattern = os.path.join(
+        os.fspath(directory),
+        f"[0-9][0-9][0-9]_{tab_name_for_file}_*.png",
+    )
     existing_files = glob.glob(pattern)
     max_counter = 0
     for filename in existing_files:
@@ -52,10 +61,11 @@ def get_next_image_counter(workflow_tab_name: str, output_dir: str) -> int:
     return max_counter + 1
 
 
-def get_next_bucket_run_number(output_dir: str) -> int:
+def get_next_bucket_run_number(output_dir: Path | str) -> int:
     """Return next 3-digit image index for a bucket-local output filename prefix."""
 
-    pattern = os.path.join(output_dir, "*.png")
+    directory = operational_path(output_dir)
+    pattern = os.path.join(os.fspath(directory), "*.png")
     existing_files = glob.glob(pattern)
     max_counter = 0
     for filename in existing_files:
@@ -67,10 +77,13 @@ def get_next_bucket_run_number(output_dir: str) -> int:
     return max_counter + 1
 
 
-def get_next_folder_image_number(output_dir: str, path_pattern: str) -> int:
+def get_next_folder_image_number(
+    output_dir: Path | str,
+    path_pattern: str,
+) -> int:
     """Return the next folder-local number for a filename `{image#}` token."""
 
-    directory = Path(output_dir)
+    directory = operational_path(output_dir)
     key = str(directory.resolve()).replace("\\", "/").casefold()
     expression = _compile_folder_image_filename_pattern(path_pattern)
     with _FOLDER_IMAGE_NUMBER_LOCK:

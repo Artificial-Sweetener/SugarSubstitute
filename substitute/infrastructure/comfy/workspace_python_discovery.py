@@ -24,6 +24,10 @@ from pathlib import Path
 import subprocess
 from typing import Final
 
+from substitute.domain.comfy_compatibility import (
+    COMFY_COMPATIBILITY_POLICY,
+    UnsupportedComfyPythonError,
+)
 from substitute.domain.onboarding import (
     ComfyPythonBinding,
     ComfyPythonCandidate,
@@ -34,8 +38,18 @@ from substitute.domain.onboarding import (
     ComfyPythonSelectionSource,
 )
 from substitute.infrastructure.comfy.managed_validation import workspace_python_path
+from substitute.infrastructure.comfy.interpreter_path import (
+    absolute_interpreter_path,
+)
 from substitute.infrastructure.comfy.workspace_python_resolver import (
     attached_comfy_python_candidates,
+)
+from sugarsubstitute_shared.windows_long_paths import (
+    exceeds_windows_legacy_path_limit,
+    logical_path,
+    operational_path,
+    subprocess_path,
+    subprocess_working_directory,
 )
 
 _PROBE_TIMEOUT_SECONDS: Final[float] = 8.0
@@ -114,14 +128,23 @@ def probe_comfy_python(
         if isinstance(candidate, ComfyPythonCandidate)
         else ComfyPythonCandidate(candidate, "user selection", 0)
     )
-    executable = normalized.executable.resolve()
+    workspace = operational_path(workspace)
+    executable = absolute_interpreter_path(normalized.executable)
     failure = _preflight_failure(workspace, executable)
     if failure is not None:
         return ComfyPythonProbeResult(normalized, None, failure)
     try:
+        command = [subprocess_path(executable), "-c", _PROBE_SCRIPT]
+        if exceeds_windows_legacy_path_limit(workspace):
+            command = [
+                subprocess_path(executable),
+                "-c",
+                "import os, sys; os.chdir(sys.argv[1]);\n" + _PROBE_SCRIPT,
+                subprocess_path(workspace),
+            ]
         completed = subprocess.run(
-            [str(executable), "-c", _PROBE_SCRIPT],
-            cwd=str(workspace),
+            command,
+            cwd=subprocess_working_directory(workspace),
             capture_output=True,
             text=True,
             timeout=timeout_seconds,
@@ -153,12 +176,17 @@ def probe_comfy_python(
                 None,
                 f"Python is missing ComfyUI modules: {', '.join(missing)}.",
             )
+        version = str(payload["version"])
+        try:
+            COMFY_COMPATIBILITY_POLICY.require_supported_python(version)
+        except UnsupportedComfyPythonError as error:
+            return ComfyPythonProbeResult(normalized, None, str(error))
         binding = ComfyPythonBinding(
-            executable=Path(str(payload["executable"])).resolve(),
-            version=str(payload["version"]),
+            executable=absolute_interpreter_path(Path(str(payload["executable"]))),
+            version=version,
             architecture=str(payload["architecture"]),
-            prefix=Path(str(payload["prefix"])).resolve(),
-            base_prefix=Path(str(payload["base_prefix"])).resolve(),
+            prefix=Path(logical_path(str(payload["prefix"]))).resolve(),
+            base_prefix=Path(logical_path(str(payload["base_prefix"]))).resolve(),
             source=source,
         )
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
