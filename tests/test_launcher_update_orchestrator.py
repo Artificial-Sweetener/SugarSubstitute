@@ -95,11 +95,14 @@ def test_pre_launch_update_installs_newer_manifest_and_writes_state(
 def test_pre_launch_update_skips_current_manifest_and_records_check(
     tmp_path: Path,
 ) -> None:
-    """A current installed version should record the check without reinstalling."""
+    """Every startup should check a current version without reinstalling it."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     config = LauncherConfig.from_layout(layout=layout)
-    LauncherUpdateState(installed_app_version="0.4.0").save(layout.state_path)
+    LauncherUpdateState(
+        installed_app_version="0.4.0",
+        last_update_check_utc=_fixed_now(),
+    ).save(layout.state_path)
     installer = _PayloadInstaller(version="0.4.0")
     runtime_reconciler = _RuntimeReconciler()
 

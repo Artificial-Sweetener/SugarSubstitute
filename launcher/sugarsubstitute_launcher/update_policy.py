@@ -19,14 +19,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from enum import Enum
 
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
-from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
-
-
-DAILY_UPDATE_INTERVAL = timedelta(days=1)
 
 
 class UpdateCheckDecision(Enum):
@@ -62,8 +57,6 @@ class AppPayloadUpdatePolicyResult:
 def decide_update_check(
     *,
     config: LauncherConfig,
-    state: LauncherUpdateState,
-    now: datetime,
     no_update_check: bool,
 ) -> UpdateCheckPolicyResult:
     """Return whether launcher startup should check the release manifest."""
@@ -75,13 +68,7 @@ def decide_update_check(
     frequency = config.update_check.frequency.lower()
     if frequency == "manual":
         return UpdateCheckPolicyResult(UpdateCheckDecision.SKIP, "manual")
-    if state.last_update_check_utc is None:
-        return UpdateCheckPolicyResult(UpdateCheckDecision.CHECK, "never_checked")
-    if frequency == "always":
-        return UpdateCheckPolicyResult(UpdateCheckDecision.CHECK, "always")
-    if now - state.last_update_check_utc >= DAILY_UPDATE_INTERVAL:
-        return UpdateCheckPolicyResult(UpdateCheckDecision.CHECK, "daily_due")
-    return UpdateCheckPolicyResult(UpdateCheckDecision.SKIP, "not_due")
+    return UpdateCheckPolicyResult(UpdateCheckDecision.CHECK, "startup")
 
 
 def decide_app_payload_update(
