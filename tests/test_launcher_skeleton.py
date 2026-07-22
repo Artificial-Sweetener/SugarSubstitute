@@ -1183,6 +1183,10 @@ def test_launcher_handoff_failure_keeps_open_setup_enabled(
         "Could not start SugarSubstitute setup."
         in window._progress_log.log_view.toPlainText()
     )  # noqa: SLF001
+    _pump_events_until(
+        qt_application,
+        lambda: window._setup_thread is None,  # noqa: SLF001
+    )
     window.close()
 
 
@@ -1257,6 +1261,10 @@ def test_launcher_runtime_failure_keeps_runtime_retry_enabled(
     assert (  # noqa: SLF001
         "Could not install the Python runtime."
         in window._progress_log.log_view.toPlainText()
+    )
+    _pump_events_until(
+        qt_application,
+        lambda: window._setup_thread is None,  # noqa: SLF001
     )
     window.close()
 
