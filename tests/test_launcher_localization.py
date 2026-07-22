@@ -78,6 +78,35 @@ def test_launcher_runtime_installs_japanese_before_window_construction(
     runtime.manager.close()
 
 
+def test_launcher_runtime_installs_spanish_before_window_construction(
+    tmp_path: Path,
+) -> None:
+    """Render the real Spanish installer catalog from the shared locale registry."""
+
+    application = _application()
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    runtime = build_launcher_localization_runtime(
+        application,
+        layout=layout,
+        locale_override="es",
+    )
+    window = LauncherMainWindow(
+        initial_layout=layout,
+        continue_install=False,
+        repair=False,
+        update_check_enabled=True,
+    )
+
+    try:
+        assert runtime.initial_snapshot.effective_language_identifier == "es"
+        assert window.windowTitle() == "Instalación de SugarSubstitute"
+        assert window.progress_title_label.text() == "Elige una carpeta"
+        assert QCoreApplication.translate("SwitchButton", "On") == "Activado"
+    finally:
+        window.close()
+        runtime.manager.close()
+
+
 def test_launcher_uses_startup_locale_without_exposing_a_language_selector(
     tmp_path: Path,
 ) -> None:

@@ -5527,32 +5527,32 @@ No known extension claimant.</source>
       <translation>%1:%2을(를) 사용하는 다른 프로세스를 중지하거나 다른 관리형 포트를 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="160"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="139"></location>
       <source>Substitute BackEnd API version is incompatible.</source>
       <translation>Substitute BackEnd API 버전이 호환되지 않습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="144"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="123"></location>
       <source>Substitute BackEnd and SugarCubes are compatible.</source>
       <translation>Substitute BackEnd와 SugarCubes가 호환됩니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="133"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="112"></location>
       <source>Substitute BackEnd capabilities could not be read.</source>
       <translation>Substitute BackEnd 기능을 읽지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="184"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="163"></location>
       <source>Substitute BackEnd did not report its extension version.</source>
       <translation>Substitute BackEnd에서 확장 프로그램 버전을 보고하지 않았습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="173"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="152"></location>
       <source>Substitute BackEnd is missing required features: %1</source>
       <translation>Substitute BackEnd에 필요한 기능이 없습니다: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="206"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="183"></location>
       <source>Substitute BackEnd version is incompatible.</source>
       <translation>Substitute BackEnd 버전이 호환되지 않습니다.</translation>
     </message>
@@ -5972,12 +5972,12 @@ No known extension claimant.</source>
       <translation>SugarCubes 종속성 버전 복구 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="237"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="214"></location>
       <source>SugarCubes did not report its runtime version.</source>
       <translation>SugarCubes에서 런타임 버전을 보고하지 않았습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="224"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="201"></location>
       <source>SugarCubes is not available on this target.</source>
       <translation>이 대상에서 SugarCubes를 사용할 수 없습니다.</translation>
     </message>
@@ -6002,7 +6002,7 @@ No known extension claimant.</source>
       <translation>SugarCubes 유지 관리 출력을 읽을 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="252"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="229"></location>
       <source>SugarCubes prerelease versions are not allowed in release mode.</source>
       <translation>릴리스 모드에서는 SugarCubes 시험판 버전을 사용할 수 없습니다.</translation>
     </message>
@@ -6032,7 +6032,7 @@ No known extension claimant.</source>
       <translation>SugarCubes에서 기본 큐브 종속성이 여전히 누락되었다고 보고합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="271"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="254"></location>
       <source>SugarCubes version is incompatible.</source>
       <translation>SugarCubes 버전이 호환되지 않습니다.</translation>
     </message>

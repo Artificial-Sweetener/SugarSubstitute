@@ -44,7 +44,10 @@ from substitute.domain.onboarding import (
     RuntimeBootstrapStatus,
     RuntimeConfiguration,
 )
-from sugarsubstitute_shared.localization import LocalizationPreferenceStore
+from sugarsubstitute_shared.localization import (
+    LanguagePreference,
+    LocalizationPreferenceStore,
+)
 
 
 def test_application_localization_handoff_override_is_active_but_not_persisted(
@@ -76,8 +79,6 @@ def test_application_localization_loads_explicit_japanese_preference(
     application = _application()
     context = _context(tmp_path)
     store = LocalizationPreferenceStore(context.user_settings_dir / "localization.json")
-    from sugarsubstitute_shared.localization import LanguagePreference
-
     store.save(LanguagePreference.explicit("ja"))
 
     runtime = build_application_localization_runtime(application, context, None)
@@ -85,6 +86,29 @@ def test_application_localization_loads_explicit_japanese_preference(
     assert runtime.initial_snapshot.effective_language_identifier == "ja"
     assert QCoreApplication.translate("LanguageSelector", "Language") == "言語"
     assert QCoreApplication.translate("SwitchButton", "On") == "オン"
+    runtime.manager.close()
+
+
+def test_application_localization_switches_to_spanish_runtime_catalog(
+    tmp_path: Path,
+) -> None:
+    """Commit the real Spanish catalog through the live language transaction."""
+
+    application = _application()
+    context = _context(tmp_path)
+    runtime = build_application_localization_runtime(application, context, "en")
+
+    switched = runtime.manager.request_language(LanguagePreference.explicit("es"))
+
+    assert switched.effective_language_identifier == "es"
+    assert switched.formatting_locale == "es-ES"
+    assert QCoreApplication.translate("LanguageSelector", "Language") == "Idioma"
+    assert QCoreApplication.translate("SwitchButton", "On") == "Activado"
+    assert QCoreApplication.translate("AppText", "Settings") == "Configuración"
+    assert (
+        QCoreApplication.translate("AppText", "You're almost done.")
+        == "Ya casi has terminado."
+    )
     runtime.manager.close()
 
 
