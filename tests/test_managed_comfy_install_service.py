@@ -32,9 +32,11 @@ from substitute.application.onboarding.managed_runtime_service import (
 )
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.infrastructure.comfy import managed_install
+from substitute.infrastructure.comfy import managed_existing_setup
 from substitute.infrastructure.comfy import managed_install_commands
 from substitute.infrastructure.comfy import managed_install_failures
 from substitute.infrastructure.comfy import managed_install_scratch
+from substitute.infrastructure.comfy import managed_setup_state
 from substitute.infrastructure.comfy import managed_workspace_operations
 from substitute.infrastructure.comfy.hardware_models import AcceleratorClass
 from substitute.infrastructure.comfy.managed_validation import (
@@ -47,6 +49,7 @@ from substitute.infrastructure.comfy.standalone_environment.models import (
     StandaloneVariantId,
 )
 from tests.repository_service_test_double import RecordingRepositoryService
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
 @pytest.fixture(autouse=True)
@@ -131,6 +134,11 @@ def _disable_shared_models_link(monkeypatch: pytest.MonkeyPatch) -> None:
         "reconcile_managed_acceleration_stack",
         lambda **kwargs: None,
     )
+    monkeypatch.setattr(
+        managed_install,
+        "reconcile_managed_workspace_dependencies",
+        lambda **kwargs: None,
+    )
 
 
 def test_ensure_managed_comfy_setup_reuses_installed_workspace(
@@ -178,6 +186,7 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
         "trace_span",
         trace_span,
     )
+    monkeypatch.setattr(managed_existing_setup, "trace_span", trace_span)
     monkeypatch.setattr(
         managed_install,
         "provision_workspace_manager",
@@ -202,6 +211,8 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
     assert trace_events == [
         "span:start:managed_setup.scratch.create",
         "span:end:managed_setup.scratch.create",
+        "span:start:managed_setup.existing.reconcile_dependencies",
+        "span:end:managed_setup.existing.reconcile_dependencies",
         "span:start:managed_setup.existing.provision_manager",
         "span:end:managed_setup.existing.provision_manager",
         "span:start:managed_setup.detect_hardware",
@@ -404,6 +415,90 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
     ]
 
 
+def test_ensure_managed_comfy_setup_retries_after_state_commit_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A failed success-state commit should leave reconciliation retryable."""
+
+    python_path = workspace_python_path(tmp_path)
+    python_path.parent.mkdir(parents=True, exist_ok=True)
+    python_path.write_text("", encoding="utf-8")
+    (python_path.parent.parent / "Lib" / "site-packages").mkdir(parents=True)
+    (tmp_path / "main.py").write_text("main", encoding="utf-8")
+    manager_dir = tmp_path / "custom_nodes" / "ComfyUI-Manager"
+    manager_dir.mkdir(parents=True)
+    (manager_dir / "cm-cli.py").write_text("cli", encoding="utf-8")
+
+    reconciliation_calls: list[str] = []
+    monkeypatch.setattr(
+        managed_install,
+        "provision_workspace_manager",
+        lambda workspace, on_log=None, env=None: manager_dir / "cm-cli.py",
+    )
+    monkeypatch.setattr(
+        managed_install,
+        "ensure_core_comfy_nodepacks",
+        lambda workspace, refresh_nodepacks=frozenset(), on_log=None, env=None: (
+            reconciliation_calls.append("nodepacks")
+        ),
+    )
+    monkeypatch.setattr(
+        managed_install,
+        "run_sugarcubes_baseline_maintenance",
+        lambda workspace, on_log=None, env=None: reconciliation_calls.append(
+            "sugarcubes"
+        ),
+    )
+    monkeypatch.setattr(
+        managed_install,
+        "reconcile_managed_acceleration_stack",
+        lambda **kwargs: reconciliation_calls.append("acceleration"),
+    )
+
+    atomic_write = cast(
+        "Callable[[Path, dict[str, object]], None]",
+        getattr(managed_setup_state, "write_json_object_atomic"),
+    )
+    commit_attempts = 0
+
+    def _fail_first_state_commit(path: Path, payload: dict[str, object]) -> None:
+        """Fail once before delegating later commits to the atomic writer."""
+
+        nonlocal commit_attempts
+        commit_attempts += 1
+        if commit_attempts == 1:
+            raise OSError("injected state commit failure")
+        atomic_write(path, payload)
+
+    monkeypatch.setattr(
+        managed_setup_state,
+        "write_json_object_atomic",
+        _fail_first_state_commit,
+    )
+
+    with pytest.raises(OSError, match="injected state commit failure"):
+        managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+
+    freshness_path = tmp_path / ".substitute" / "managed_setup_freshness.json"
+    assert not freshness_path.exists()
+
+    retried = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+    cached = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+
+    assert retried == python_path
+    assert cached == python_path
+    assert commit_attempts == 2
+    assert reconciliation_calls == [
+        "nodepacks",
+        "sugarcubes",
+        "acceleration",
+        "nodepacks",
+        "sugarcubes",
+        "acceleration",
+    ]
+
+
 def test_ensure_workspace_virtualenv_creates_workspace_python(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -434,7 +529,9 @@ def test_ensure_workspace_virtualenv_creates_workspace_python(
     result = managed_install_commands.ensure_workspace_virtualenv(tmp_path)
 
     assert result == venv_python
-    assert observed == [[sys.executable, "-m", "venv", str(tmp_path / ".venv")]]
+    assert observed == [
+        [sys.executable, "-m", "venv", subprocess_path(tmp_path / ".venv")]
+    ]
 
 
 def test_pip_install_raises_when_streamed_install_fails(

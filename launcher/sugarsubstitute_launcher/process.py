@@ -27,6 +27,12 @@ from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.windows_long_paths import (
+    external_long_path_error,
+    operational_path,
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 
 APP_STARTUP_LOG_NAME = "app-startup.log"
@@ -44,9 +50,9 @@ def build_continue_install_command(
     """Build the command that resumes setup from the installed launcher."""
 
     command = [
-        str(layout.executable_path),
+        subprocess_path(layout.executable_path),
         "--continue-install",
-        f"--install-root={layout.root}",
+        f"--install-root={subprocess_path(layout.root)}",
     ]
     if handoff_geometry:
         command.append(f"--handoff-geometry={handoff_geometry}")
@@ -61,9 +67,9 @@ def build_app_launch_command(
     """Build the command that starts the source payload with managed Python."""
 
     return [
-        str(layout.runtime_python),
-        str(layout.app_entrypoint),
-        f"--install-root={layout.root}",
+        subprocess_path(layout.runtime_python),
+        subprocess_path(layout.app_entrypoint),
+        f"--install-root={subprocess_path(layout.root)}",
         *extra_args,
     ]
 
@@ -89,29 +95,52 @@ def start_detached(
         log_file.write("\n--- Starting SugarSubstitute app ---\n")
         log_file.write(" ".join(command) + "\n")
         log_file.flush()
-        with _standard_child_process_dll_search_path():
-            process = subprocess.Popen(  # noqa: S603
-                list(command),
-                cwd=_command_working_directory(command),
-                env=_child_process_environment(),
-                stdin=subprocess.DEVNULL,
-                stdout=log_file,
-                stderr=subprocess.STDOUT,
-                close_fds=True,
-                creationflags=creationflags,
-                shell=False,
-                startupinfo=startupinfo,
+        working_directory = _command_working_directory(command)
+        try:
+            with _standard_child_process_dll_search_path():
+                process = subprocess.Popen(  # noqa: S603
+                    list(command),
+                    cwd=(
+                        subprocess_working_directory(working_directory)
+                        if working_directory is not None
+                        else None
+                    ),
+                    env=_child_process_environment(),
+                    stdin=subprocess.DEVNULL,
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    close_fds=True,
+                    creationflags=creationflags,
+                    shell=False,
+                    startupinfo=startupinfo,
+                )
+        except OSError as error:
+            compatibility_error = external_long_path_error(
+                component="Python",
+                path=working_directory or startup_log_path.parent,
+                detail=error,
             )
+            if compatibility_error is not None:
+                raise compatibility_error from error
+            raise
         try:
             return_code = process.wait(timeout=startup_timeout_seconds)
         except subprocess.TimeoutExpired:
             return
 
+    startup_detail = _tail_text(startup_log_path)
+    compatibility_error = external_long_path_error(
+        component="Python",
+        path=_command_working_directory(command) or startup_log_path.parent,
+        detail=startup_detail,
+    )
+    if compatibility_error is not None:
+        raise compatibility_error
     raise ProcessStartupError(
         "SugarSubstitute exited before the setup window opened. "
         f"Exit code: {return_code}. "
         f"Startup log: {startup_log_path}. "
-        f"{_tail_text(startup_log_path)}"
+        f"{startup_detail}"
     )
 
 
@@ -126,7 +155,7 @@ def _command_working_directory(command: Sequence[str]) -> Path | None:
 
     if len(command) < 2:
         return None
-    entrypoint = Path(command[1])
+    entrypoint = operational_path(command[1])
     if entrypoint.is_file():
         return entrypoint.parent
     return None
@@ -180,7 +209,7 @@ def _app_startup_log_path(command: Sequence[str]) -> Path:
     """Resolve the startup log path from an installed app launch command."""
 
     if len(command) >= 2:
-        entrypoint = Path(command[1])
+        entrypoint = operational_path(command[1])
         if entrypoint.name.lower() == "main.py":
             return entrypoint.parents[1] / "launcher" / "logs" / APP_STARTUP_LOG_NAME
     return Path.cwd() / APP_STARTUP_LOG_NAME
