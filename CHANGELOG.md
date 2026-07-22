@@ -1,3 +1,10 @@
+## [0.18.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.18.0...v0.18.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* **launcher:** check for updates on every startup ([94774e5](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/94774e571ceeec49ef26945bd5dcf91c609253f4))
+
 # [0.18.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.17.0...v0.18.0) (2026-07-22)
 
 
