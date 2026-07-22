@@ -1782,7 +1782,7 @@ def test_run_saves_cube_output_artifact_to_project_image(monkeypatch, tmp_path) 
     assert output_events[0].node_id == "output-node"
     assert output_events[0].source_key == "wf-1:output-node"
     assert output_events[0].source_label == "CubeA"
-    assert saved and saved[0][0] == str(expected_path)
+    assert saved and str(saved[0][0]) == str(expected_path)
     assert png_text == [
         ("sugar_script", "# Project: My Workflow\n\nline one"),
         ("workflow", json.dumps(ui_workflow, separators=(",", ":"))),
@@ -1863,7 +1863,7 @@ def test_run_saves_prefixed_cube_output_with_short_source_label(
     assert output_events[0].file_path == expected_path
     assert output_events[0].source_key == "wf-1:output-node"
     assert output_events[0].source_label == "Text to Image"
-    assert saved and saved[0][0] == str(expected_path)
+    assert saved and str(saved[0][0]) == str(expected_path)
     assert "sdxl_text_to_image" not in str(expected_path)
 
 
@@ -2805,7 +2805,7 @@ def test_run_saves_cube_output_artifact_with_reserved_output_number(
     expected_path = tmp_path / output_date / "012_01_my_workflow_cubea.png"
     assert failures == []
     assert output_events[0].file_path == expected_path
-    assert saved == [str(expected_path)]
+    assert [str(path) for path in saved] == [str(expected_path)]
     assert counter_calls == []
 
 
@@ -2898,7 +2898,7 @@ def test_run_saves_cube_output_artifact_with_custom_output_save_plan(
     )
     assert failures == []
     assert output_events[0].file_path == expected_path
-    assert saved == [str(expected_path)]
+    assert [str(path) for path in saved] == [str(expected_path)]
 
 
 def test_run_saves_cube_output_artifact_with_seed_output_token(
@@ -2987,7 +2987,7 @@ def test_run_saves_cube_output_artifact_with_seed_output_token(
     expected_path = output_root / "My Workflow" / "1234_cubea.png"
     assert failures == []
     assert output_events[0].file_path == expected_path
-    assert saved == [str(expected_path)]
+    assert [str(path) for path in saved] == [str(expected_path)]
 
 
 def test_run_saves_cube_output_artifact_with_folder_image_number_token(
@@ -3073,7 +3073,7 @@ def test_run_saves_cube_output_artifact_with_folder_image_number_token(
     expected_path = output_root / "2026-05-01" / "image_02_cubea.png"
     assert failures == []
     assert output_events[0].file_path == expected_path
-    assert saved == [str(expected_path)]
+    assert [str(path) for path in saved] == [str(expected_path)]
 
 
 def test_run_saves_cube_output_artifact_without_overwriting_existing_output(
@@ -3157,7 +3157,7 @@ def test_run_saves_cube_output_artifact_without_overwriting_existing_output(
     expected_path = tmp_path / output_date / "012_01_my_workflow_cubea_002.png"
     assert failures == []
     assert output_events[0].file_path == expected_path
-    assert saved == [str(expected_path)]
+    assert [str(path) for path in saved] == [str(expected_path)]
 
 
 def test_run_drops_metadata_less_binary_preview(monkeypatch) -> None:

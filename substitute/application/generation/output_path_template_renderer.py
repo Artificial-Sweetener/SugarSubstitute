@@ -28,6 +28,7 @@ from substitute.domain.generation import (
     SUPPORTED_OUTPUT_PATH_TOKEN_NAMES,
 )
 from substitute.shared.util.path_safety import ensure_within_root
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 _TOKEN_RE = re.compile(r"\{([^{}]+)\}")
 _PATH_SEPARATOR_RE = re.compile(r"[\\/]+")
@@ -325,9 +326,9 @@ class OutputPathTemplateRenderer:
     def _resolve_output_root(self, output_root: Path) -> Path:
         """Return a resolved absolute output root or raise."""
 
-        root = Path(output_root)
-        if not root.is_absolute():
+        if not Path(str(output_root)).expanduser().is_absolute():
             raise OutputPathTemplateError("Output root must be an absolute path.")
+        root = operational_path(output_root)
         return root.resolve()
 
     def _collision_safe_path(self, candidate: Path, root: Path) -> Path:

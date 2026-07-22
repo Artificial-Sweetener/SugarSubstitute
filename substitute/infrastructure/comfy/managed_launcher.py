@@ -72,11 +72,11 @@ from substitute.infrastructure.comfy.managed_process_containment import (
     build_launch_request,
     launch_managed_process,
 )
-from substitute.infrastructure.comfy.manager_provisioner import (
+from substitute.infrastructure.comfy.manager_runtime_probe import (
     detect_workspace_manager_runtime,
 )
 from substitute.infrastructure.comfy.manager_environment import (
-    integrated_manager_environment,
+    manager_runtime_environment,
 )
 from substitute.infrastructure.comfy.managed_runtime_selection_policy import (
     HardwareAwareManagedRuntimeSelectionPolicy,
@@ -118,6 +118,11 @@ from substitute.shared.logging.logger import (
     log_info,
     log_warning_exception,
 )
+from sugarsubstitute_shared.windows_long_paths import (
+    exceeds_windows_legacy_path_limit,
+    operational_path,
+    subprocess_path,
+)
 
 StatusCallback = Callable[[str], None]
 LogCallback = Callable[[str], None]
@@ -127,6 +132,12 @@ LongLivedWork = Callable[[CancellationSource], TResult]
 _LOGGER = get_logger("infrastructure.comfy.managed_launcher")
 _MANAGED_LAUNCH_REQUEST_IDS = count(1)
 _STARTUP_HARNESS_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS"
+_LONG_WORKSPACE_BOOTSTRAP = (
+    "import os, runpy, sys; "
+    "root = sys.argv.pop(1); script = sys.argv.pop(1); "
+    "os.chdir(root); sys.argv[0] = script; "
+    "runpy.run_path(script, run_name='__main__')"
+)
 
 
 class ManagedLongLivedTaskHandle(Protocol):
@@ -271,6 +282,10 @@ def start_managed_comfy_subprocess(
 ) -> ManagedProcessHandle:
     """Ensure setup and launch a foreground managed Comfy subprocess."""
 
+    workspace = operational_path(workspace)
+    runtime_state_dir = operational_path(runtime_state_dir)
+    if python_executable is not None:
+        python_executable = operational_path(python_executable)
     registry = ManagedProcessRegistry(runtime_state_dir)
     runtime_service = ManagedRuntimeService(
         FileManagedRuntimeConfigurationRepository(runtime_state_dir),
@@ -310,7 +325,11 @@ def start_managed_comfy_subprocess(
     )
     env = os.environ.copy()
     if manager_runtime.kind is ComfyManagerKind.INTEGRATED:
-        env = integrated_manager_environment(workspace, env)
+        env = manager_runtime_environment(
+            workspace,
+            env,
+            use_pygit2=manager_runtime.uses_pygit2,
+        )
     env["PATH"] = str(venv_python.parent) + os.pathsep + env.get("PATH", "")
     env["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"
     launch_result = launch_managed_process(
@@ -376,6 +395,10 @@ def start_managed_comfy_background(
 ) -> ManagedComfyState:
     """Launch ComfyUI through the managed execution layer."""
 
+    workspace = operational_path(workspace)
+    runtime_state_dir = operational_path(runtime_state_dir)
+    if python_executable is not None:
+        python_executable = operational_path(python_executable)
     registry = ManagedProcessRegistry(runtime_state_dir)
     runtime_service = ManagedRuntimeService(
         FileManagedRuntimeConfigurationRepository(runtime_state_dir),
@@ -448,7 +471,11 @@ def start_managed_comfy_background(
 
             env = os.environ.copy()
             if manager_runtime.kind is ComfyManagerKind.INTEGRATED:
-                env = integrated_manager_environment(workspace, env)
+                env = manager_runtime_environment(
+                    workspace,
+                    env,
+                    use_pygit2=manager_runtime.uses_pygit2,
+                )
             env["PATH"] = str(venv_python.parent) + os.pathsep + env.get("PATH", "")
             env["PYTHONIOENCODING"] = "utf-8"
             env["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"
@@ -910,14 +937,26 @@ def _build_managed_launch_command(
 ) -> tuple[str, ...]:
     """Build the authoritative managed ComfyUI launch command."""
 
-    return (
-        str(venv_python),
-        str(workspace / "main.py"),
+    arguments = (
         "--listen",
         str(endpoint.host),
         "--port",
         str(endpoint.port),
         *manager_runtime.launch_arguments,
+    )
+    if exceeds_windows_legacy_path_limit(workspace):
+        return (
+            subprocess_path(venv_python),
+            "-c",
+            _LONG_WORKSPACE_BOOTSTRAP,
+            subprocess_path(workspace),
+            subprocess_path(workspace / "main.py"),
+            *arguments,
+        )
+    return (
+        subprocess_path(venv_python),
+        subprocess_path(workspace / "main.py"),
+        *arguments,
     )
 
 

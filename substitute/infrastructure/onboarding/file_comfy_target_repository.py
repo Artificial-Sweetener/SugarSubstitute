@@ -33,6 +33,7 @@ from substitute.domain.onboarding import (
     ComfyTargetMode,
     InstallationConfiguration,
 )
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
 @dataclass
@@ -66,7 +67,7 @@ class FileComfyTargetConfigurationRepository(ComfyTargetConfigurationRepository)
                 host=str(payload["endpoint"]["host"]),
                 port=int(payload["endpoint"]["port"]),
             ),
-            workspace_path=Path(workspace_path)
+            workspace_path=operational_path(workspace_path)
             if isinstance(workspace_path, str)
             else None,
             install_owned=bool(payload.get("install_owned", False)),
@@ -141,10 +142,10 @@ def _python_binding_from_payload(payload: object) -> ComfyPythonBinding | None:
     if not isinstance(payload, dict):
         return None
     return ComfyPythonBinding(
-        executable=Path(str(payload["executable"])),
+        executable=operational_path(str(payload["executable"])),
         version=str(payload["version"]),
         architecture=str(payload["architecture"]),
-        prefix=Path(str(payload["prefix"])),
-        base_prefix=Path(str(payload["base_prefix"])),
+        prefix=operational_path(str(payload["prefix"])),
+        base_prefix=operational_path(str(payload["base_prefix"])),
         source=ComfyPythonSelectionSource(str(payload["source"])),
     )

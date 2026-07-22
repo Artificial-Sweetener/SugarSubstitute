@@ -60,6 +60,7 @@ from launcher.sugarsubstitute_launcher.update_orchestrator import (
 )
 from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
 from sugarsubstitute_shared.localization import format_locale_argument
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -279,7 +280,7 @@ def _resolve_installed_config_plan(layout: InstallLayout) -> LauncherStartupPlan
         "runtime_python": (config.runtime_python, layout.runtime_python),
     }
     for name, (configured_path, expected_path) in expected_values.items():
-        if configured_path.expanduser().resolve() != expected_path:
+        if operational_path(configured_path).resolve() != expected_path:
             return LauncherStartupPlan(
                 layout=layout,
                 installed_config_found=True,

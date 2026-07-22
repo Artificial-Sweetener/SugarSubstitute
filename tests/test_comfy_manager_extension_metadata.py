@@ -18,11 +18,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import logging
 from pathlib import Path
 
 import pytest
 
+from substitute.application.ports.comfy_extension_metadata_provider import (
+    ComfyExtensionMetadata,
+)
+from substitute.domain.comfy_manager import ComfyManagerKind
 from substitute.infrastructure.comfy.comfy_manager_extension_metadata import (
     ComfyManagerExtensionMetadataProvider,
 )
@@ -55,6 +60,131 @@ class _Response:
         return self._payload
 
 
+class _PassthroughRegistry:
+    """Keep Manager route tests independent from the external registry."""
+
+    def enrich(
+        self,
+        installed: Mapping[str, ComfyExtensionMetadata],
+    ) -> dict[str, ComfyExtensionMetadata]:
+        """Return installed metadata unchanged."""
+
+        return dict(installed)
+
+
+def test_integrated_manager_uses_v4_installed_route_without_legacy_catalog(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Integrated Manager should avoid routes registered only by legacy servers."""
+
+    calls: list[str] = []
+
+    def fake_get(url: str, *, timeout: float) -> _Response:
+        del timeout
+        calls.append(url)
+        return _Response(
+            {
+                "comfyui-impact-subpack": {
+                    "ver": "1.3.5",
+                    "cnr_id": "comfyui-impact-subpack",
+                    "aux_id": None,
+                }
+            }
+        )
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.comfy_manager_extension_metadata.requests.get",
+        fake_get,
+    )
+
+    metadata = ComfyManagerExtensionMetadataProvider(
+        host="127.0.0.1",
+        port=8188,
+        manager_kind=ComfyManagerKind.INTEGRATED,
+        registry_client=_PassthroughRegistry(),
+    ).installed_extensions()
+
+    assert calls == ["http://127.0.0.1:8188/v2/customnode/installed"]
+    assert metadata["comfyui-impact-subpack"].version == "1.3.5"
+    assert metadata["comfyui-impact-subpack"].repository_url is None
+
+
+def test_legacy_manager_uses_v3_installed_and_catalog_routes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Legacy Manager should retain its catalog enrichment API."""
+
+    calls: list[str] = []
+
+    def fake_get(url: str, *, timeout: float) -> _Response:
+        del timeout
+        calls.append(url)
+        if url.endswith("/customnode/installed"):
+            return _Response({"pack": {"ver": "1.0", "cnr_id": "pack", "aux_id": None}})
+        return _Response(
+            {
+                "node_packs": {
+                    "pack": {
+                        "id": "pack",
+                        "repository": "https://github.com/example/pack",
+                    }
+                }
+            }
+        )
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.comfy_manager_extension_metadata.requests.get",
+        fake_get,
+    )
+
+    metadata = ComfyManagerExtensionMetadataProvider(
+        host="127.0.0.1",
+        port=8188,
+        manager_kind=ComfyManagerKind.LEGACY_CUSTOM_NODE,
+        registry_client=_PassthroughRegistry(),
+    ).installed_extensions()
+
+    assert calls == [
+        "http://127.0.0.1:8188/customnode/installed",
+        "http://127.0.0.1:8188/customnode/getlist?mode=cache&skip_update=true",
+    ]
+    assert metadata["pack"].repository_url == "https://github.com/example/pack"
+
+
+def test_remote_manager_discovers_legacy_routes_from_live_server(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Remote metadata should follow the server instead of a local checkout."""
+
+    calls: list[str] = []
+
+    def fake_get(url: str, *, timeout: float) -> _Response:
+        del timeout
+        calls.append(url)
+        if url.endswith("/v2/customnode/installed"):
+            raise RuntimeError("404")
+        if url.endswith("/customnode/installed"):
+            return _Response({"pack": {"ver": "1.0", "aux_id": "example/pack"}})
+        return _Response({"node_packs": {}})
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.comfy_manager_extension_metadata.requests.get",
+        fake_get,
+    )
+
+    metadata = ComfyManagerExtensionMetadataProvider(
+        host="remote-box",
+        port=8188,
+        registry_client=_PassthroughRegistry(),
+    ).installed_extensions()
+
+    assert calls[:2] == [
+        "http://remote-box:8188/v2/customnode/installed",
+        "http://remote-box:8188/customnode/installed",
+    ]
+    assert metadata["pack"].repository_url == "https://github.com/example/pack"
+
+
 def test_manager_installed_aux_id_resolves_github_links(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -82,6 +212,8 @@ def test_manager_installed_aux_id_resolves_github_links(
     metadata = ComfyManagerExtensionMetadataProvider(
         host="127.0.0.1",
         port=8188,
+        manager_kind=ComfyManagerKind.LEGACY_CUSTOM_NODE,
+        registry_client=_PassthroughRegistry(),
     ).installed_extensions()
 
     extension = metadata["ComfyUI-GGUF-FantasyTalking"]
@@ -137,6 +269,8 @@ def test_manager_catalog_resolves_cnr_only_installed_package(
     metadata = ComfyManagerExtensionMetadataProvider(
         host="127.0.0.1",
         port=8188,
+        manager_kind=ComfyManagerKind.LEGACY_CUSTOM_NODE,
+        registry_client=_PassthroughRegistry(),
     ).installed_extensions()
 
     assert len(calls) == 2
@@ -180,6 +314,8 @@ def test_manager_catalog_response_can_be_json_string(
     metadata = ComfyManagerExtensionMetadataProvider(
         host="127.0.0.1",
         port=8188,
+        manager_kind=ComfyManagerKind.LEGACY_CUSTOM_NODE,
+        registry_client=_PassthroughRegistry(),
     ).installed_extensions()
 
     assert metadata["comfyui-impact-subpack"].repository_url == (
@@ -209,6 +345,8 @@ def test_manager_endpoint_failure_returns_empty_metadata(
         metadata = ComfyManagerExtensionMetadataProvider(
             host="127.0.0.1",
             port=8188,
+            manager_kind=ComfyManagerKind.LEGACY_CUSTOM_NODE,
+            registry_client=_PassthroughRegistry(),
         ).installed_extensions()
 
     assert metadata == {}
@@ -235,6 +373,8 @@ def test_manager_catalog_failure_returns_partial_metadata(
     metadata = ComfyManagerExtensionMetadataProvider(
         host="127.0.0.1",
         port=8188,
+        manager_kind=ComfyManagerKind.LEGACY_CUSTOM_NODE,
+        registry_client=_PassthroughRegistry(),
     ).installed_extensions()
 
     assert metadata["pack"].version == "1.0"

@@ -28,6 +28,7 @@ from substitute.infrastructure.comfy import (
     LocalComfyAssetStager,
     RemoteUploadComfyAssetStager,
 )
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
 def test_local_asset_stager_returns_direct_filesystem_path(tmp_path: Path) -> None:
@@ -43,7 +44,7 @@ def test_local_asset_stager_returns_direct_filesystem_path(tmp_path: Path) -> No
     )
 
     assert staged.source_path == source
-    assert staged.execution_value == str(source)
+    assert staged.execution_value == subprocess_path(source)
     assert staged.operation == "direct"
 
 

@@ -70,6 +70,10 @@ Prömpt prëvïëw:
       <translation>⟦%1 cöüld nöt bë mövëd tö thë cübë-rëqüïrëd vërsïön. ···⟧</translation>
     </message>
     <message>
+      <source>%1 could not use this Windows path even though Substitute can.</source>
+      <translation>⟦%1 cöüld nöt üsë thïs Wïndöws pàth ëvën thöügh Sübstïtütë càn. ···⟧</translation>
+    </message>
+    <message>
       <source>%1 cubes</source>
       <translation>⟦%1 cübës ···⟧</translation>
     </message>
@@ -238,6 +242,10 @@ Prömpt prëvïëw:
       <translation>⟦1 öütpüt ···⟧</translation>
     </message>
     <message>
+      <source>A Windows component could not use this long path</source>
+      <translation>⟦Å Wïndöws cömpönënt cöüld nöt üsë thïs löng pàth ···⟧</translation>
+    </message>
+    <message>
       <source>A cube dependency could not be installed automatically.</source>
       <translation>⟦Å cübë dëpëndëncy cöüld nöt bë ïnstàllëd àütömàtïcàlly. ···⟧</translation>
     </message>
@@ -256,6 +264,10 @@ Prömpt prëvïëw:
     <message>
       <source>A different ComfyUI is running</source>
       <translation>⟦Å dïffërënt CömfyÜÏ ïs rünnïng ···⟧</translation>
+    </message>
+    <message>
+      <source>A file or folder name is too long for Windows</source>
+      <translation>⟦Å fïlë ör földër nàmë ïs töö löng för Wïndöws ···⟧</translation>
     </message>
     <message>
       <source>A fluent design widgets library for PySide6</source>
@@ -678,6 +690,10 @@ Prömpt prëvïëw:
       <translation>⟦Chëck yöür ïntërnët cönnëctïön. ···⟧</translation>
     </message>
     <message>
+      <source>Checking ComfyUI's Python environment.</source>
+      <translation>⟦Chëckïng CömfyÜÏ's Pythön ënvïrönmënt. ···⟧</translation>
+    </message>
+    <message>
       <source>Checking ComfyUI…</source>
       <translation>⟦Chëckïng CömfyÜÏ… ···⟧</translation>
     </message>
@@ -752,6 +768,10 @@ Prömpt prëvïëw:
     <message>
       <source>Choose a folder and connect Substitute to ComfyUI.</source>
       <translation>⟦Chöösë à földër ànd cönnëct Sübstïtütë tö CömfyÜÏ. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose a shorter folder for this operation.</source>
+      <translation>⟦Chöösë à shörtër földër för thïs öpëràtïön. ···⟧</translation>
     </message>
     <message>
       <source>Choose a specific cube version</source>
@@ -3146,6 +3166,10 @@ Install these nodes now?</source>
       <translation>⟦Öpëràtïön plànnïng ïs nöt àvàïlàblë för thïs Cömfy sërvër. ···⟧</translation>
     </message>
     <message>
+      <source>Or enable Win32 long paths in Windows, then try again.</source>
+      <translation>⟦Ör ënàblë Wïn32 löng pàths ïn Wïndöws, thën try àgàïn. ···⟧</translation>
+    </message>
+    <message>
       <source>Or go back and choose a different empty ComfyUI folder.</source>
       <translation>⟦Ör gö bàck ànd chöösë à dïffërënt ëmpty CömfyÜÏ földër. ···⟧</translation>
     </message>
@@ -4202,6 +4226,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sëvërïty: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Shorten the file or folder name at %1, then try again.</source>
+      <translation>⟦Shörtën thë fïlë ör földër nàmë àt %1, thën try àgàïn. ···⟧</translation>
+    </message>
+    <message>
       <source>Show Comfy output</source>
       <translation>⟦Shöw Cömfy öütpüt ···⟧</translation>
     </message>
@@ -4826,6 +4854,14 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦SügàrSübstïtütë prövïdës à föcüsëd PySïdë6 wörkspàcë för CömfyÜÏ, wïth cübë-bàsëd wörkflöw cömpösïtïön, mànàgëd mödël mëtàdàtà, prömpt töölïng, ànd ïntëgràtëd ïmàgë cànvàs wörkflöws. ···⟧</translation>
     </message>
     <message>
+      <source>SugarSubstitute requires ComfyUI %1 or newer. The selected checkout is ComfyUI %2.</source>
+      <translation>⟦SügàrSübstïtütë rëqüïrës CömfyÜÏ %1 ör nëwër. Thë sëlëctëd chëcköüt ïs CömfyÜÏ %2. ···⟧</translation>
+    </message>
+    <message>
+      <source>SugarSubstitute requires Python %1 or newer for ComfyUI node packs. The selected environment uses Python %2.</source>
+      <translation>⟦SügàrSübstïtütë rëqüïrës Pythön %1 ör nëwër för CömfyÜÏ nödë pàcks. Thë sëlëctëd ënvïrönmënt üsës Pythön %2. ···⟧</translation>
+    </message>
+    <message>
       <source>Suggest LoRA names from the model catalog while editing prompts.</source>
       <translation>⟦Süggëst LöRÅ nàmës fröm thë mödël càtàlög whïlë ëdïtïng prömpts. ···⟧</translation>
     </message>
@@ -4982,6 +5018,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>The Python keyring package is not installed.</source>
       <translation>⟦Thë Pythön këyrïng pàckàgë ïs nöt ïnstàllëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>The attached ComfyUI environment does not satisfy its updated requirements. Repair that environment before continuing. %1</source>
+      <translation>⟦Thë àttàchëd CömfyÜÏ ënvïrönmënt döës nöt sàtïsfy ïts üpdàtëd rëqüïrëmënts. Rëpàïr thàt ënvïrönmënt bëförë cöntïnüïng. %1 ···⟧</translation>
     </message>
     <message>
       <source>The defaults usually work well for first-time setup.</source>
@@ -5646,6 +5686,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Windows DPAPI is unavailable on this platform.</source>
       <translation>⟦Wïndöws DPÅPÏ ïs ünàvàïlàblë ön thïs plàtförm. ···⟧</translation>
+    </message>
+    <message>
+      <source>Windows limits each individual file or folder name to 255 characters.</source>
+      <translation>⟦Wïndöws lïmïts ëàch ïndïvïdüàl fïlë ör földër nàmë tö 255 chàràctërs. ···⟧</translation>
     </message>
     <message>
       <source>Workflow</source>

@@ -23,6 +23,10 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QPixmap
+from sugarsubstitute_shared.windows_long_paths import (
+    operational_path,
+    qt_filesystem_path,
+)
 
 
 class GenerationQueueThumbnailCache:
@@ -37,7 +41,7 @@ class GenerationQueueThumbnailCache:
     def thumbnail(self, path: Path, size: QSize) -> QPixmap | None:
         """Return a scaled thumbnail pixmap for an existing image path."""
 
-        resolved_path = Path(path)
+        resolved_path = operational_path(path)
         if not resolved_path.exists():
             return None
         key = (resolved_path, size.width(), size.height())
@@ -46,7 +50,7 @@ class GenerationQueueThumbnailCache:
             self._cache.move_to_end(key)
             return cached
 
-        pixmap = QPixmap(str(resolved_path))
+        pixmap = QPixmap(qt_filesystem_path(resolved_path))
         if pixmap.isNull():
             return None
         scaled = pixmap.scaled(
