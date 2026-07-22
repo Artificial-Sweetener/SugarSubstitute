@@ -41,7 +41,7 @@ class UpdateCheckConfig:
     """Describe automatic update-check preferences owned by the launcher."""
 
     enabled: bool = True
-    frequency: str = "daily"
+    frequency: str = "always"
 
     def to_json(self) -> dict[str, bool | str]:
         """Return a JSON-safe update-check object."""
@@ -58,10 +58,10 @@ class UpdateCheckConfig:
         if not isinstance(value, dict):
             return cls()
         enabled = value.get("enabled", True)
-        frequency = value.get("frequency", "daily")
+        frequency = value.get("frequency", "always")
         return cls(
             enabled=enabled if isinstance(enabled, bool) else True,
-            frequency=frequency if isinstance(frequency, str) else "daily",
+            frequency=frequency if isinstance(frequency, str) else "always",
         )
 
 

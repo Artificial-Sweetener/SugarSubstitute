@@ -152,11 +152,8 @@ class LauncherUpdateOrchestrator:
         """Run a best-effort update before launching the installed app."""
 
         progress = progress or NullLauncherUpdateProgress()
-        state = LauncherUpdateState.load(layout.state_path)
         check_policy = decide_update_check(
             config=config,
-            state=state,
-            now=self._now(),
             no_update_check=no_update_check,
         )
         if release_source is None:
