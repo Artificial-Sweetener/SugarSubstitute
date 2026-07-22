@@ -1,3 +1,21 @@
+# [0.18.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.17.0...v0.18.0) (2026-07-22)
+
+
+### Bug Fixes
+
+* **installer:** preserve attached virtualenv identity ([aacf327](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/aacf32705bb557144d4e0fde0994a9ae6085d138))
+* **installer:** preserve virtualenv interpreter identity ([9451894](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/9451894784795cf4b94ad60104c4d810c678291a))
+* **installer:** reconcile updated ComfyUI contracts ([2bcc504](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/2bcc504748aa301740039ad4ff1ddac41c272f42))
+* **installer:** support ComfyUI 0.15 manager contracts ([d73a5e5](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/d73a5e51a36ba72ceff6afe7a79b86927509421f))
+
+
+### Features
+
+* **installer:** support ComfyUI 0.15+ and Windows long paths ([3317235](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/33172356bf84122b3c502d7fb7a9584dc0dd7253))
+* **integration:** merge Comfy compatibility and long paths ([eef66d8](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/eef66d8cadac5225c3f1dff6ab917b4c67b1cb19))
+* **integration:** merge main v0.17.0 ([1bf5232](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/1bf523283ed9728a350e8dfbfec55d51602b702e))
+* **windows:** support long application paths ([5993879](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/59938792b5d4c680cbd73a96b38a5987112b18a2))
+
 # [0.17.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.16.0...v0.17.0) (2026-07-21)
 
 
