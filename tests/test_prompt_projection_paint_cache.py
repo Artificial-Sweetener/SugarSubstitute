@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.application.prompt_editor import PromptRegionStructureView
+
 import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -253,6 +255,7 @@ def _plain_text_document(text: str) -> PromptProjectionDocument:
         tokens=(),
         mapping=mapping,
         caret_map=caret_map,
+        region_structure=PromptRegionStructureView.empty(len(text)),
     )
 
 

@@ -23,6 +23,7 @@ from substitute.domain.prompt import (
     LoraSpan,
     PromptDocument,
     PromptReorderChip,
+    PromptRegionStructure,
     PromptSegment,
     serialize_reorder_chip,
     SyntaxSpan,
@@ -35,6 +36,9 @@ from .prompt_document_views import (
     PromptEmphasisView,
     PromptLoraView,
     PromptReorderChipView,
+    PromptRegionPartitionView,
+    PromptRegionSeparatorView,
+    PromptRegionStructureView,
     PromptSegmentView,
     PromptSyntaxSpanView,
     PromptWildcardView,
@@ -63,6 +67,7 @@ def prompt_document_view_from_domain(document: PromptDocument) -> PromptDocument
         syntax_spans=tuple(
             _syntax_span_view_from_domain(span) for span in document.syntax_spans
         ),
+        region_structure=_region_structure_view_from_domain(document.region_structure),
         has_trailing_comma=document.has_trailing_comma,
     )
 
@@ -101,6 +106,7 @@ def prompt_reorder_chip_view_from_domain(
     )
     return PromptReorderChipView(
         index=chip.index,
+        partition_index=chip.partition_index,
         text=chip.text,
         serialized_text=serialize_reorder_chip(chip),
         display_text=unescape_literal_parentheses_for_display(chip.display_text),
@@ -174,6 +180,33 @@ def _syntax_span_view_from_domain(span: SyntaxSpan) -> PromptSyntaxSpanView:
         start=span.source_range.start,
         end=span.source_range.end,
         depth=span.depth,
+    )
+
+
+def _region_structure_view_from_domain(
+    structure: PromptRegionStructure,
+) -> PromptRegionStructureView:
+    """Convert canonical regional structure into application coordinates."""
+
+    return PromptRegionStructureView(
+        separators=tuple(
+            PromptRegionSeparatorView(
+                token_start=separator.token_range.start,
+                token_end=separator.token_range.end,
+                line_start=separator.line_range.start,
+                line_end=separator.line_range.end,
+            )
+            for separator in structure.separators
+        ),
+        partitions=tuple(
+            PromptRegionPartitionView(
+                index=partition.index,
+                source_start=partition.source_range.start,
+                source_end=partition.source_range.end,
+                is_global=partition.is_global,
+            )
+            for partition in structure.partitions
+        ),
     )
 
 

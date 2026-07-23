@@ -163,6 +163,49 @@ class LoraSpan:
 
 
 @dataclass(frozen=True, slots=True)
+class PromptRegionSeparator:
+    """Represent one exact standalone regional prompt separator line."""
+
+    token_range: SourceRange
+    line_range: SourceRange
+
+    def __post_init__(self) -> None:
+        """Require the structural line to contain the separator token."""
+
+        if not self.line_range.encloses(self.token_range):
+            raise ValueError("Separator line range must enclose its token range.")
+
+
+@dataclass(frozen=True, slots=True)
+class PromptRegionPartition:
+    """Represent one global or regional source partition between separators."""
+
+    index: int
+    source_range: SourceRange
+    is_global: bool
+
+
+@dataclass(frozen=True, slots=True)
+class PromptRegionStructure:
+    """Own exact separators and every global or regional source partition."""
+
+    separators: tuple[PromptRegionSeparator, ...]
+    partitions: tuple[PromptRegionPartition, ...]
+
+    def __post_init__(self) -> None:
+        """Require one global partition and one additional partition per separator."""
+
+        if len(self.partitions) != len(self.separators) + 1:
+            raise ValueError(
+                "Region structure must contain one more partition than separator."
+            )
+        if not self.partitions or not self.partitions[0].is_global:
+            raise ValueError("Region structure must begin with a global partition.")
+        if any(partition.is_global for partition in self.partitions[1:]):
+            raise ValueError("Only the first region partition may be global.")
+
+
+@dataclass(frozen=True, slots=True)
 class PromptDocument:
     """Represent the parsed prompt document and all prompt-domain spans."""
 
@@ -172,6 +215,7 @@ class PromptDocument:
     emphasis_spans: tuple[EmphasisSpan, ...]
     wildcard_spans: tuple[WildcardSpan, ...]
     lora_spans: tuple[LoraSpan, ...]
+    region_structure: PromptRegionStructure
     has_trailing_comma: bool = False
 
     def segment_at_position(self, position: int) -> PromptSegment | None:

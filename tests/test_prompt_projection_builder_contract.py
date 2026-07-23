@@ -145,6 +145,80 @@ def _build_projection(
     )
 
 
+def test_projection_builder_emits_non_inline_structural_region_runs() -> None:
+    """Projected separators should become structural rows with only edge caret states."""
+
+    projection = _build_projection("global\n[SEP]\nregional")
+
+    separator_token = next(
+        token
+        for token in projection.tokens
+        if token.kind is PromptProjectionTokenKind.REGION_SEPARATOR
+    )
+    separator_run = projection.runs_for_token(separator_token.token_id)[0]
+    assert separator_run.kind is PromptProjectionRunKind.STRUCTURAL_ROW
+    assert separator_run.renderer_key is None
+    assert separator_run.display_text == ""
+    assert (
+        projection.projection_text == f"global\n{OBJECT_REPLACEMENT_CHARACTER}regional"
+    )
+
+    leading_state = projection.caret_map.state_for_source_position(
+        separator_token.source_start
+    )
+    trailing_state = projection.caret_map.state_for_source_position(
+        separator_token.source_end,
+        prefer_after=True,
+    )
+    assert leading_state.placement is PromptProjectionCaretPlacement.TOKEN_LEADING_EDGE
+    assert (
+        trailing_state.placement is PromptProjectionCaretPlacement.TOKEN_TRAILING_EDGE
+    )
+    regional_start = separator_token.source_end + 1
+    regional_state = projection.caret_map.state_for_source_position(regional_start)
+    assert regional_state.source_position == regional_start
+    assert regional_state.placement is PromptProjectionCaretPlacement.PLAIN_TEXT
+    assert projection.caret_map.next_state(trailing_state) == regional_state
+    assert not any(
+        stop.state.placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
+        and stop.state.token_id == separator_token.token_id
+        for stop in projection.caret_map.stops
+    )
+
+
+def test_projection_builder_exposes_terminal_region_input_caret_after_separator() -> (
+    None
+):
+    """A separator-owned newline should end at a plain regional caret stop."""
+
+    text = "global\n[SEP]\n"
+    projection = _build_projection(text)
+
+    terminal_state = projection.caret_map.state_for_source_position(len(text))
+
+    assert terminal_state.source_position == len(text)
+    assert terminal_state.placement is PromptProjectionCaretPlacement.PLAIN_TEXT
+    assert projection.caret_map.resolve_state(terminal_state) == terminal_state
+
+
+def test_projection_builder_keeps_region_separator_literal_in_raw_mode() -> None:
+    """Raw mode should expose exact separator source without structural projection."""
+
+    projection = _build_projection(
+        "global\r\n[SEP]\r\nregional",
+        display_mode=PromptProjectionDisplayMode.RAW,
+    )
+
+    assert projection.projection_text == "global\r\n[SEP]\r\nregional"
+    assert not any(
+        run.kind is PromptProjectionRunKind.STRUCTURAL_ROW for run in projection.runs
+    )
+    assert not any(
+        token.kind is PromptProjectionTokenKind.REGION_SEPARATOR
+        for token in projection.tokens
+    )
+
+
 def test_projection_builder_projects_scene_titles_without_marker_symbol() -> None:
     """Projected scene markers should hide `**` and expose bold title metadata."""
 

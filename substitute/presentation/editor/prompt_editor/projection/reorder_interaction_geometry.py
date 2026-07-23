@@ -56,6 +56,7 @@ from .reorder_placement_geometry import (
     PromptReorderPlacementGeometry,
     PromptReorderPlacementSnapshot,
 )
+from .reorder_partition_targets import partition_drop_placements
 from .reorder_state import (
     PromptReorderGeometryGenerationState,
     PromptReorderPreparedGeometryIdentity,
@@ -943,6 +944,12 @@ class PromptReorderInteractionGeometry:
         tuple[PromptReorderDropTargetVisual, ...], tuple[PromptReorderDropLane, ...]
     ]:
         """Expose placement geometry as prepared target visuals and lanes."""
+
+        if self.base_drag_layout_view is not None:
+            snapshot = partition_drop_placements(
+                snapshot,
+                self.base_drag_layout_view,
+            )
 
         visual_targets = tuple(
             PromptReorderDropTargetVisual(placement.target, placement.hit_rect)

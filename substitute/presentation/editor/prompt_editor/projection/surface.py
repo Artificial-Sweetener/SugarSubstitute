@@ -64,6 +64,7 @@ from PySide6.QtWidgets import (
 from substitute.application.prompt_editor import parse_prompt_scene_projection_document
 from substitute.application.prompt_editor import (
     PromptDocumentView,
+    PromptRegionStructureView,
     PromptDiagnostic,
     PromptReorderLayoutView,
     PromptSyntaxAction,
@@ -76,7 +77,6 @@ from substitute.application.prompt_editor.prompt_document_semantics import (
 from substitute.presentation.widgets.text_caret import (
     paint_text_caret,
 )
-from substitute.presentation.text_coordinates import TextCoordinateMap
 from substitute.shared.logging.logger import (
     get_logger,
     log_debug,
@@ -109,6 +109,10 @@ from ..interactions import (
     PromptSurfaceWheelHost,
     PromptWheelScrollResult,
     prompt_word_bounds,
+)
+from ..interactions.deletion_controller import (
+    PromptSurfaceDeletionController,
+    PromptSurfaceDeletionHost,
 )
 from ..qt_lifecycle import qt_object_is_alive
 from .applicator import PromptProjectionApplicator, PromptProjectionRebuildResult
@@ -153,6 +157,7 @@ from .lora_surface_features import (
     PromptSurfaceLoraThumbnailPreloader,
 )
 from .paint_cache import PromptProjectionPaintCache
+from .region_chrome import PromptRegionChrome
 from .observability import (
     log_projection_timing,
     projection_observability_started_at,
@@ -411,6 +416,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             wildcard_spans=(),
             lora_spans=(),
             syntax_spans=(),
+            region_structure=PromptRegionStructureView.empty(0),
             has_trailing_comma=False,
         )
         self._render_plan = PromptSyntaxRenderPlan(
@@ -469,8 +475,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._edit_block_actions: PromptSurfaceEditBlockActions | None = None
         self._clipboard_history_actions: PromptClipboardHistoryActions | None = None
         self._undo_coalescing_actions: PromptUndoCoalescingActions | None = None
+        self._deletion_controller = PromptSurfaceDeletionController(
+            cast(PromptSurfaceDeletionHost, self)
+        )
         self._key_handler = PromptSurfaceKeyHandler(
             cast(PromptSurfaceKeyHost, self),
+            deletion_controller=self._deletion_controller,
             clipboard_history_actions=lambda: self._clipboard_history_actions,
             undo_coalescing_actions=lambda: self._undo_coalescing_actions,
         )
@@ -537,6 +547,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._weight_click_handler: Callable[[QPointF], bool] | None = None
         self._weight_double_click_handler: Callable[[QPointF], bool] | None = None
         self._source_line_chrome = PromptSourceLineChrome()
+        self._region_chrome = PromptRegionChrome()
         self._layout.set_semantic_palette(semantic_palette_from_theme())
 
         self.setFrameShape(QAbstractScrollArea.Shape.NoFrame)
@@ -3722,6 +3733,16 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 viewport_rect = QRectF(self.viewport().rect())
                 scroll_offset = self._scroll_offset()
                 self._paint_source_line_chrome(painter, layout=preview_layout)
+                if (
+                    preview_layout.projection_document.display_mode
+                    is PromptProjectionDisplayMode.PROJECTED
+                    and preview_layout.projection_document.region_structure.separators
+                ):
+                    self._region_chrome.paint(
+                        painter,
+                        layout=preview_layout,
+                        scroll_offset=scroll_offset,
+                    )
                 self._paint_reorder_surface_chrome(painter, mode="preview")
                 preview_layout.draw(
                     painter,
@@ -3755,6 +3776,16 @@ class PromptProjectionSurface(QAbstractScrollArea):
             paint_clip_rect = QRectF(event.rect()).intersected(viewport_rect)
             scroll_offset = self._scroll_offset()
             self._paint_source_line_chrome(painter, layout=self._layout)
+            if (
+                self._layout.projection_document.display_mode
+                is PromptProjectionDisplayMode.PROJECTED
+                and self._layout.projection_document.region_structure.separators
+            ):
+                self._region_chrome.paint(
+                    painter,
+                    layout=self._layout,
+                    scroll_offset=scroll_offset,
+                )
             self._paint_reorder_surface_chrome(painter, mode="live")
             self._paint_search_matches(painter)
             deletion_visible_region = self._transient_deletion_visible_region()
@@ -4492,6 +4523,26 @@ class PromptProjectionSurface(QAbstractScrollArea):
             semantic_palette=semantic_palette,
             content_left_inset=self._source_line_chrome.content_left_inset,
         )
+        if (
+            self._layout.projection_document.display_mode
+            is PromptProjectionDisplayMode.PROJECTED
+            and self._layout.projection_document.region_structure.separators
+        ):
+            self._region_chrome.prepare(
+                self._layout,
+                semantic_palette=semantic_palette,
+            )
+        preview_layout = self._reorder_preview_projection.preview_layout
+        if (
+            preview_layout is not None
+            and preview_layout.projection_document.display_mode
+            is PromptProjectionDisplayMode.PROJECTED
+            and preview_layout.projection_document.region_structure.separators
+        ):
+            self._region_chrome.prepare(
+                preview_layout,
+                semantic_palette=semantic_palette,
+            )
         self._source_document_adapter.sync_default_font(self.font())
         self._source_document_adapter.sync_text_width(layout_width)
         content_height = sync_result.content_height
@@ -4695,136 +4746,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._caret_movement_controller.move_vertically(
             direction,
             keep_anchor=keep_anchor,
-        )
-
-    def _backspace(self) -> None:
-        """Delete the previous raw source boundary or selection."""
-
-        selection = self._selection()
-        if not selection.is_empty:
-            self._flush_pending_projection_update(reason="backspace")
-            self._delete_viewport_selection()
-            return
-        if self.cursor_position <= 0:
-            self._flush_pending_projection_update(reason="backspace_at_start")
-            return
-        previous_grapheme_boundary = TextCoordinateMap(
-            self.toPlainText()
-        ).previous_grapheme_boundary(self.cursor_position)
-        if self._can_delete_raw_boundary_from_stale_projection(
-            start=previous_grapheme_boundary,
-            end=self.cursor_position,
-        ):
-            self._replace_viewport_range(
-                previous_grapheme_boundary, self.cursor_position, ""
-            )
-            return
-        if not self._cancel_stale_safe_projection_update(reason="backspace"):
-            self._flush_pending_projection_update(reason="backspace")
-        token = self.focused_token()
-        previous_state = self._projection_document.caret_map.previous_state(
-            self._cursor_state
-        )
-        if (
-            token is not None
-            and not self._session.is_expanded(token)
-            and self._cursor_state.placement
-            is PromptProjectionCaretPlacement.TOKEN_CONTENT
-            and previous_state.token_id == token.token_id
-            and previous_state.placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
-        ):
-            self._replace_viewport_range(
-                previous_state.source_position, self.cursor_position, ""
-            )
-            return
-        if token is not None and not self._session.is_expanded(token):
-            self._session.expand_token(token)
-            self._rebuild_projection()
-            self.set_cursor_positions(
-                cursor_position=token.source_end,
-                anchor_position=token.source_start,
-            )
-            return
-        if previous_state.source_position >= self.cursor_position:
-            return
-        self._replace_viewport_range(
-            previous_state.source_position, self.cursor_position, ""
-        )
-
-    def _delete(self) -> None:
-        """Delete the next raw source boundary or selection."""
-
-        selection = self._selection()
-        if not selection.is_empty:
-            self._flush_pending_projection_update(reason="delete")
-            self._delete_viewport_selection()
-            return
-        if self.cursor_position >= len(self.toPlainText()):
-            self._flush_pending_projection_update(reason="delete_at_end")
-            return
-        next_grapheme_boundary = TextCoordinateMap(
-            self.toPlainText()
-        ).next_grapheme_boundary(self.cursor_position)
-        if self._can_delete_raw_boundary_from_stale_projection(
-            start=self.cursor_position,
-            end=next_grapheme_boundary,
-        ):
-            self._replace_viewport_range(
-                self.cursor_position, next_grapheme_boundary, ""
-            )
-            return
-        if not self._cancel_stale_safe_projection_update(reason="delete"):
-            self._flush_pending_projection_update(reason="delete")
-        token = self.focused_token()
-        next_state = self._projection_document.caret_map.next_state(self._cursor_state)
-        if (
-            token is not None
-            and not self._session.is_expanded(token)
-            and self._cursor_state.placement
-            is PromptProjectionCaretPlacement.TOKEN_CONTENT
-            and next_state.token_id == token.token_id
-            and next_state.placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
-        ):
-            self._replace_viewport_range(
-                self.cursor_position, next_state.source_position, ""
-            )
-            return
-        if token is not None and not self._session.is_expanded(token):
-            self._session.expand_token(token)
-            self._rebuild_projection()
-            self.set_cursor_positions(
-                cursor_position=token.source_end,
-                anchor_position=token.source_start,
-            )
-            return
-        if next_state.source_position <= self.cursor_position:
-            return
-        self._replace_viewport_range(
-            self.cursor_position, next_state.source_position, ""
-        )
-
-    def _can_delete_raw_boundary_from_stale_projection(
-        self,
-        *,
-        start: int,
-        end: int,
-    ) -> bool:
-        """Return whether deletion can avoid flushing a pending projection first."""
-
-        if start < 0 or end > len(self.toPlainText()):
-            return False
-        if self.toPlainText()[start:end] in {"\n", "\r", "\t"}:
-            return False
-        projection_source_is_stale = (
-            self._projection_document.source_text != self.toPlainText()
-        )
-        return bool(
-            (
-                projection_source_is_stale
-                or self._projection_freshness_controller.has_stale_projection_geometry()
-            )
-            and self._cursor_state.token_id is None
-            and self._anchor_state.token_id is None
         )
 
     def _set_cursor_from_projection_hit(

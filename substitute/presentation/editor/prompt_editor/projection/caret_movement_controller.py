@@ -30,7 +30,11 @@ from .model import (
     PromptProjectionDocument,
     PromptProjectionSelection,
 )
-from .selection_geometry import rects_nearly_equal
+from .region_caret_navigation import skip_region_separator_caret_states
+from .selection_geometry import (
+    PromptProjectionHorizontalCaretTarget,
+    rects_nearly_equal,
+)
 
 
 class PromptProjectionCaretMovementFreshnessController(Protocol):
@@ -107,6 +111,10 @@ class PromptProjectionCaretMovementController:
                 current_rect=origin_rect,
             )
             if local_target is not None:
+                local_target = self._visible_horizontal_target(
+                    local_target,
+                    direction=direction,
+                )
                 next_anchor_state = (
                     host._anchor_state if keep_anchor else local_target.state
                 )
@@ -125,6 +133,10 @@ class PromptProjectionCaretMovementController:
                 current_rect=origin_rect,
             )
             if visual_target is not None:
+                visual_target = self._visible_horizontal_target(
+                    visual_target,
+                    direction=direction,
+                )
                 if (
                     skip_same_source_soft_wrap_move
                     and visual_target.state.source_position
@@ -166,6 +178,11 @@ class PromptProjectionCaretMovementController:
                 if direction > 0
                 else host._projection_document.caret_map.previous_state(origin_state)
             )
+            next_cursor_state = skip_region_separator_caret_states(
+                host._projection_document.caret_map,
+                next_cursor_state,
+                direction=direction,
+            )
             caret_rect_override = host._layout.horizontal_line_edge_affinity(
                 next_cursor_state,
                 direction=direction,
@@ -176,6 +193,26 @@ class PromptProjectionCaretMovementController:
             cursor_state=next_cursor_state,
             anchor_state=next_anchor_state,
             caret_rect_override=caret_rect_override,
+        )
+
+    def _visible_horizontal_target(
+        self,
+        target: PromptProjectionHorizontalCaretTarget,
+        *,
+        direction: int,
+    ) -> PromptProjectionHorizontalCaretTarget:
+        """Return a layout target whose state does not belong to hidden `[SEP]`."""
+
+        state = skip_region_separator_caret_states(
+            self._host._projection_document.caret_map,
+            target.state,
+            direction=direction,
+        )
+        if state == target.state:
+            return target
+        return PromptProjectionHorizontalCaretTarget(
+            state=state,
+            rect=self._host._layout.cursor_rect(state, scroll_offset=0.0),
         )
 
     def move_vertically(self, direction: int, *, keep_anchor: bool) -> None:

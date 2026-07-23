@@ -22,7 +22,7 @@ from collections.abc import Iterator
 import os
 from typing import Any, cast
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QKeySequence, QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
@@ -137,6 +137,716 @@ def test_real_shell_plain_escape_does_not_insert_control_character(
         pytest.fail(f"plain Escape inserted a control character; artifacts: {artifact}")
 
     assert after.source_text == before.source_text
+
+
+def test_real_shell_newline_before_separator_preserves_regional_structure(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """A newline in the global prompt must not destabilize the following separator."""
+
+    source = (
+        "blue decorative staff bow ribbon,  \n\n[SEP]\n"
+        "grass, flower field, cloudy sky, pink petals, blue petals, "
+        "mountainous horizon,    "
+    )
+    field = harness.add_prompt_workflow(initial_text=source)
+    cursor_position = source.index("ribbon,") + len("ribbon,")
+    harness.set_source_cursor_position(field, cursor_position)
+    before = harness.capture_state_snapshot(field, label="before-global-newline")
+
+    harness.press_key(field, Qt.Key.Key_Return)
+    after = harness.capture_state_snapshot(field, label="after-global-newline")
+
+    assert (
+        after.source_text == source[:cursor_position] + "\n" + source[cursor_position:]
+    )
+    assert before.projection_text.count("\ufffc") == 1
+    assert after.projection_text.count("\ufffc") == 1
+    assert "[SEP]" not in after.projection_text
+    assert not harness.transition_invariant_violations(
+        action_name="newline",
+        before=before,
+        after=after,
+    )
+
+
+def test_real_shell_separator_completion_normalizes_in_one_undo_transaction(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Completing `[SEP]` should add both line breaks in the authored edit transaction."""
+
+    field = harness.add_prompt_workflow(initial_text="global[SEP")
+    harness.set_source_cursor_position(field, len("global[SEP"))
+
+    harness.type_text(field, "]")
+    normalized = harness.capture_state_snapshot(field, label="normalized-separator")
+    harness.undo(field)
+    undone = harness.capture_state_snapshot(field, label="undone-separator")
+
+    assert normalized.source_text == "global\n[SEP]\n"
+    assert normalized.projection_text.count("\ufffc") == 1
+    assert undone.source_text == "global[SEP"
+    assert not harness.invariant_violations(normalized)
+    assert not harness.invariant_violations(undone)
+
+
+@pytest.mark.parametrize(
+    ("source", "cursor_position", "expected_source"),
+    (
+        (
+            "global\n[SEP]\nregional",
+            len("global\n[SEP]\n"),
+            "global\n[SEP]\n[SEP]\nregional",
+        ),
+        (
+            "global\n[SEP]\nregional alpha",
+            len("global\n[SEP]\nregional"),
+            "global\n[SEP]\nregional\n[SEP]\n alpha",
+        ),
+    ),
+)
+def test_real_shell_typing_second_separator_creates_new_region(
+    harness: RealShellPromptEditorHarness,
+    source: str,
+    cursor_position: int,
+    expected_source: str,
+) -> None:
+    """Typing `[SEP]` within a regional partition must create another partition."""
+
+    field = harness.add_prompt_workflow(initial_text=source)
+    harness.set_source_cursor_position(field, cursor_position)
+
+    harness.type_text(field, "[SEP]")
+    after = harness.capture_state_snapshot(field, label="authored-second-separator")
+
+    assert after.source_text == expected_source
+    assert after.document_view_region_separator_count == 2
+    assert after.projection_region_separator_count == 2
+    assert after.projection_text.count("\ufffc") == 2
+    assert "[SEP]" not in after.projection_text
+    assert sum(row.is_structural for row in after.visible_layout_rows) == 2
+    assert not harness.invariant_violations(after)
+
+
+def test_real_shell_second_separator_completion_publishes_adjacent_region_immediately(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Completing a nearby second marker must publish both partitions immediately."""
+
+    source = "global\n[SEP]\n[SEPregional"
+    completion_position = source.index("regional")
+    field = harness.add_prompt_workflow(initial_text=source)
+    harness.set_source_cursor_position(field, completion_position)
+
+    immediate = harness.press_key_and_capture_immediate_state(
+        field,
+        Qt.Key.Key_BracketRight,
+        label="adjacent-second-separator-immediate",
+    )
+    settled = harness.capture_state_snapshot(
+        field,
+        label="adjacent-second-separator-settled",
+    )
+
+    for snapshot in (immediate, settled):
+        assert snapshot.source_text == "global\n[SEP]\n[SEP]\nregional"
+        assert snapshot.document_view_region_separator_count == 2
+        assert snapshot.projection_region_separator_count == 2
+        assert snapshot.projection_text.count("\ufffc") == 2
+        assert "[SEP]" not in snapshot.projection_text
+        assert sum(row.is_structural for row in snapshot.visible_layout_rows) == 2
+    assert not harness.invariant_violations(settled)
+
+
+def test_real_shell_adjacent_separator_region_accepts_text_without_collapsing(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Typing into the empty region between dividers must preserve both sections."""
+
+    source = "global\n[SEP]\n[SEP]\nregional"
+    insertion_position = source.rindex("[SEP]")
+    field = harness.add_prompt_workflow(initial_text=source)
+    harness.set_source_cursor_position(field, insertion_position)
+
+    harness.type_text(field, "middle")
+    after = harness.capture_state_snapshot(field, label="adjacent-region-populated")
+
+    assert after.source_text == "global\n[SEP]\nmiddle\n[SEP]\nregional"
+    assert after.cursor_position == len("global\n[SEP]\nmiddle")
+    assert after.projection_region_separator_count == 2
+    assert after.region_chrome_divider_count == 2
+    assert after.region_chrome_rail_count == 2
+    assert not harness.invariant_violations(after)
+
+
+def test_real_shell_typing_after_separator_completion_starts_regional_line(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Continued typing after `[SEP]` must enter its new regional section."""
+
+    source = "global\n[SEP]\n"
+    field = harness.add_prompt_workflow(initial_text=source)
+    harness.set_source_cursor_position(field, len(source))
+
+    harness.type_text(field, "[SEP]jfklasfjal")
+    after = harness.capture_state_snapshot(
+        field,
+        label="separator-followed-by-regional-text",
+    )
+
+    assert after.source_text == "global\n[SEP]\n[SEP]\njfklasfjal"
+    assert after.cursor_position == len(after.source_text)
+    assert after.document_view_region_separator_count == 2
+    assert after.projection_region_separator_count == 2
+    assert after.projection_text.count("\ufffc") == 2
+    assert "[SEP]" not in after.projection_text
+    assert after.region_chrome_divider_count == 2
+    assert after.region_chrome_rail_count == 2
+    assert not harness.invariant_violations(after)
+
+
+def test_real_shell_terminal_separator_immediately_renders_empty_region_rail(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Completing a terminal marker must render its empty regional row immediately."""
+
+    field = harness.add_prompt_workflow(initial_text="global\n[SEP")
+    harness.set_source_cursor_position(field, len("global\n[SEP"))
+
+    immediate = harness.press_key_and_capture_immediate_state(
+        field,
+        Qt.Key.Key_BracketRight,
+        label="terminal-separator-empty-region-immediate",
+    )
+    settled = harness.capture_state_snapshot(
+        field,
+        label="terminal-separator-empty-region-settled",
+    )
+
+    for snapshot in (immediate, settled):
+        assert snapshot.source_text == "global\n[SEP]\n"
+        assert snapshot.cursor_position == len(snapshot.source_text)
+        assert snapshot.document_view_region_separator_count == 1
+        assert snapshot.projection_region_separator_count == 1
+        assert snapshot.region_chrome_divider_count == 1
+        assert snapshot.region_chrome_rail_count == 1
+    assert not harness.invariant_violations(settled)
+
+
+def test_real_shell_raw_mode_has_literal_separator_and_no_regional_chrome(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Raw mode must expose exact source without preparing structural chrome."""
+
+    source = "global\n[SEP]\nregional"
+    field = harness.add_prompt_workflow(initial_text=source)
+    rich = harness.capture_state_snapshot(field, label="separator-rich-mode")
+
+    harness.set_rich_rendering(field, enabled=False)
+    raw = harness.capture_state_snapshot(field, label="separator-raw-mode")
+
+    assert raw.display_mode == "raw"
+    assert raw.source_text == source
+    assert raw.projection_text == source
+    assert raw.projection_token_count == 0
+    assert not any(row.is_structural for row in raw.visible_layout_rows), (
+        raw.active_projection_text,
+        raw.layout_projection_text,
+        raw.layout_uses_projection_document,
+        raw.layout_uses_active_projection_document,
+        raw.visible_layout_rows,
+    )
+    assert raw.region_chrome_divider_count == 0
+    assert raw.region_chrome_rail_count == 0
+    assert raw.region_chrome_visited_line_count == 0
+    assert raw.region_chrome_prepare_count == rich.region_chrome_prepare_count
+    assert not harness.invariant_violations(raw)
+
+
+def test_real_shell_raw_caret_inside_marker_resolves_when_rich_mode_returns(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """A raw source caret inside `[SEP]` must become one visible rich boundary."""
+
+    source = "global\n[SEP]\nregional"
+    separator_start = source.index("[SEP]")
+    separator_end = separator_start + len("[SEP]")
+    field = harness.add_prompt_workflow(initial_text=source)
+    harness.set_rich_rendering(field, enabled=False)
+    harness.set_source_cursor_position(field, separator_start + 2)
+    raw = harness.capture_state_snapshot(field, label="raw-caret-inside-separator")
+
+    harness.set_rich_rendering(field, enabled=True)
+    rich = harness.capture_state_snapshot(field, label="rich-caret-after-raw-separator")
+
+    assert raw.cursor_position == separator_start + 2
+    assert raw.caret_state_placement == "plain_text"
+    assert rich.cursor_position in {separator_start, separator_end}
+    assert not rich.caret_inside_region_separator
+    assert rich.region_chrome_divider_count == 1
+    assert not harness.invariant_violations(rich)
+
+
+def test_real_shell_backspace_at_region_start_deletes_line_break_before_text(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Backspace at regional text should delete its preceding newline, not `]`."""
+
+    source = "global\n[SEP]\npink witch hat"
+    field = harness.add_prompt_workflow(initial_text=source)
+    regional_start = source.index("pink")
+    harness.set_source_cursor_position(field, regional_start)
+    before = harness.capture_state_snapshot(field, label="before-region-backspace")
+
+    harness.press_key(field, Qt.Key.Key_Backspace)
+    after = harness.capture_state_snapshot(field, label="after-region-backspace")
+
+    assert before.cursor_position == regional_start
+    assert before.caret_state_placement == "plain_text"
+    assert after.source_text == "global\n[SEP]pink witch hat"
+    assert after.cursor_position == regional_start - 1
+    assert after.projection_text.count("\ufffc") == 0
+    assert "[SEP]" in after.projection_text
+    assert not any(row.is_structural for row in after.visible_layout_rows)
+    assert not harness.invariant_violations(after)
+
+
+def test_real_shell_delete_before_separator_removes_decoration_atomically(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Deleting the leading newline must not retain stale separator chrome."""
+
+    source = "global\n[SEP]\npink witch hat"
+    field = harness.add_prompt_workflow(initial_text=source)
+    global_end = source.index("\n")
+    harness.set_source_cursor_position(field, global_end)
+
+    harness.press_key(field, Qt.Key.Key_Delete)
+    after = harness.capture_state_snapshot(
+        field, label="after-separator-leading-delete"
+    )
+
+    assert after.source_text == "global[SEP]\npink witch hat"
+    assert after.cursor_position == global_end
+    assert after.projection_text.count("\ufffc") == 0
+    assert "[SEP]" in after.projection_text
+    assert not any(row.is_structural for row in after.visible_layout_rows)
+    assert not harness.invariant_violations(after)
+
+
+def test_real_shell_repeated_delete_never_combines_separator_text_and_decoration(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Repeated Delete should transition from decoration-only to literal-only."""
+
+    source = "global\n\n[SEP]\npink witch hat"
+    field = harness.add_prompt_workflow(initial_text=source)
+    global_end = source.index("\n")
+    harness.set_source_cursor_position(field, global_end)
+
+    immediate_structural = harness.press_key_and_capture_immediate_state(
+        field,
+        Qt.Key.Key_Delete,
+        label="separator-delete-preserves-structure",
+    )
+    still_structural = harness.capture_state_snapshot(
+        field,
+        label="separator-delete-preserves-structure-settled",
+    )
+    immediate_literal = harness.press_key_and_capture_immediate_state(
+        field,
+        Qt.Key.Key_Delete,
+        label="separator-delete-invalidates-structure",
+    )
+    now_literal = harness.capture_state_snapshot(
+        field,
+        label="separator-delete-invalidates-structure-settled",
+    )
+
+    for snapshot in (immediate_structural, still_structural):
+        assert snapshot.source_text == "global\n[SEP]\npink witch hat"
+        assert snapshot.projection_text.count("\ufffc") == 1
+        assert "[SEP]" not in snapshot.projection_text
+        assert sum(row.is_structural for row in snapshot.visible_layout_rows) == 1
+        assert not snapshot.transient_deletion_overlay_present
+    for snapshot in (immediate_literal, now_literal):
+        assert snapshot.source_text == "global[SEP]\npink witch hat"
+        assert snapshot.projection_text.count("\ufffc") == 0, (
+            snapshot.label,
+            snapshot.document_view_source_text,
+            snapshot.document_view_region_separator_count,
+            snapshot.projection_document_source_text,
+            snapshot.projection_region_separator_count,
+            snapshot.projection_freshness,
+            snapshot.projection_has_pending_update,
+        )
+        assert "[SEP]" in snapshot.projection_text
+        assert not any(row.is_structural for row in snapshot.visible_layout_rows)
+        assert not snapshot.transient_deletion_overlay_present
+    assert not harness.invariant_violations(still_structural)
+    assert not harness.invariant_violations(now_literal)
+
+
+def test_real_shell_horizontal_navigation_crosses_separator_without_stalling(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Left and Right should cross one hidden separator in one visible move."""
+
+    source = "global\n[SEP]\npink witch hat"
+    field = harness.add_prompt_workflow(initial_text=source)
+    global_end = source.index("\n")
+    regional_start = source.index("pink")
+    harness.set_source_cursor_position(field, global_end)
+
+    before = harness.capture_state_snapshot(field, label="separator-right-before")
+    harness.press_key(field, Qt.Key.Key_Right)
+    after_right = harness.capture_state_snapshot(field, label="separator-right-after")
+
+    assert after_right.cursor_position == regional_start
+    assert after_right.caret_state_placement == "plain_text"
+    assert after_right.caret_rect != before.caret_rect
+
+    harness.press_key(field, Qt.Key.Key_Left)
+    after_left = harness.capture_state_snapshot(field, label="separator-left-after")
+
+    assert after_left.cursor_position == global_end
+    assert after_left.caret_state_placement == "plain_text"
+    assert after_left.caret_rect == before.caret_rect
+    assert not harness.invariant_violations(after_right)
+    assert not harness.invariant_violations(after_left)
+
+
+def test_real_shell_horizontal_navigation_visits_adjacent_empty_region_once(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Adjacent dividers must expose one visible caret row for their empty region."""
+
+    source = "global\n[SEP]\n[SEP]\nregional"
+    global_end = source.index("\n")
+    empty_region = source.rindex("[SEP]")
+    regional_start = source.index("regional")
+    field = harness.add_prompt_workflow(initial_text=source)
+    harness.set_source_cursor_position(field, global_end)
+    snapshots = [
+        harness.capture_state_snapshot(field, label="adjacent-navigation-global")
+    ]
+
+    for label in ("empty", "regional"):
+        harness.press_key(field, Qt.Key.Key_Right)
+        snapshots.append(
+            harness.capture_state_snapshot(
+                field,
+                label=f"adjacent-navigation-{label}",
+            )
+        )
+
+    assert tuple(snapshot.cursor_position for snapshot in snapshots) == (
+        global_end,
+        empty_region,
+        regional_start,
+    )
+    assert all(snapshot.caret_state_placement == "plain_text" for snapshot in snapshots)
+    assert all(snapshot.caret_token_id is None for snapshot in snapshots)
+    assert all(
+        before.caret_rect != after.caret_rect
+        for before, after in zip(snapshots, snapshots[1:])
+    )
+    assert all(not harness.invariant_violations(snapshot) for snapshot in snapshots)
+
+
+def test_real_shell_separator_navigation_never_enters_hidden_source_or_stalls(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Horizontal movement must cross atomic separator boundaries visibly."""
+
+    source = "above\n[SEP]\nbelow"
+    field = harness.add_prompt_workflow(initial_text=source)
+    harness.set_source_cursor_position(field, source.index("\n"))
+    snapshots = [harness.capture_state_snapshot(field, label="separator-atomic-origin")]
+
+    for step in range(3):
+        harness.press_key(field, Qt.Key.Key_Right)
+        snapshots.append(
+            harness.capture_state_snapshot(
+                field,
+                label=f"separator-atomic-right-{step}",
+            )
+        )
+
+    assert tuple(snapshot.cursor_position for snapshot in snapshots) == (
+        source.index("\n"),
+        source.index("below"),
+        source.index("below") + 1,
+        source.index("below") + 2,
+    )
+    assert not any(snapshot.caret_inside_region_separator for snapshot in snapshots)
+    assert not any(snapshot.anchor_inside_region_separator for snapshot in snapshots)
+    assert all(
+        before.caret_rect != after.caret_rect
+        for before, after in zip(snapshots, snapshots[1:])
+    ), tuple(
+        (
+            snapshot.cursor_position,
+            snapshot.caret_state_placement,
+            snapshot.caret_rect,
+        )
+        for snapshot in snapshots
+    )
+
+
+def test_real_shell_shift_navigation_selects_across_separator_atomically(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Shift+arrow must cross hidden marker source without hidden anchor stops."""
+
+    source = "above\n[SEP]\nbelow"
+    global_end = source.index("\n")
+    regional_start = source.index("below")
+    field = harness.add_prompt_workflow(initial_text=source)
+    harness.set_source_cursor_position(field, global_end)
+
+    harness.press_key(
+        field,
+        Qt.Key.Key_Right,
+        modifiers=Qt.KeyboardModifier.ShiftModifier,
+    )
+    selected = harness.capture_state_snapshot(field, label="separator-shift-right")
+    harness.press_key(
+        field,
+        Qt.Key.Key_Left,
+        modifiers=Qt.KeyboardModifier.ShiftModifier,
+    )
+    collapsed = harness.capture_state_snapshot(field, label="separator-shift-left")
+
+    assert selected.selection_range == (global_end, regional_start)
+    assert selected.selected_source_text == "\n[SEP]\n"
+    assert selected.cursor_position == regional_start
+    assert not selected.caret_inside_region_separator
+    assert not selected.anchor_inside_region_separator
+    assert collapsed.selection_range == (global_end, global_end)
+    assert collapsed.cursor_position == global_end
+    assert not harness.invariant_violations(selected)
+    assert not harness.invariant_violations(collapsed)
+
+
+def test_real_shell_requested_hidden_separator_positions_resolve_to_atomic_edges(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """External caret placement inside `[SEP]` must resolve to a visible edge."""
+
+    source = "above\n[SEP]\nbelow"
+    separator_start = source.index("[SEP]")
+    separator_end = separator_start + len("[SEP]")
+    field = harness.add_prompt_workflow(initial_text=source)
+
+    for position in range(separator_start + 1, separator_end):
+        harness.set_source_cursor_position(field, position)
+        snapshot = harness.capture_state_snapshot(
+            field,
+            label=f"separator-hidden-position-{position}",
+        )
+
+        assert snapshot.cursor_position in {separator_start, separator_end}
+        assert not snapshot.caret_inside_region_separator
+        assert snapshot.caret_state_placement in {
+            "token_leading_edge",
+            "token_trailing_edge",
+        }
+
+
+def test_real_shell_clicking_separator_row_resolves_to_visible_caret(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """A divider-row click must not leave the caret owned by hidden marker text."""
+
+    source = "above\n[SEP]\nbelow"
+    field = harness.add_prompt_workflow(initial_text=source)
+    before = harness.capture_state_snapshot(field, label="separator-row-before-click")
+    structural_row = next(
+        row for row in before.visible_layout_rows if row.is_structural
+    )
+    point = QPoint(
+        before.viewport_rect[2] // 2,
+        round(structural_row.viewport_top + structural_row.height / 2.0),
+    )
+
+    harness.click_editor_viewport_point(field, point)
+    clicked = harness.capture_state_snapshot(field, label="separator-row-after-click")
+
+    assert clicked.cursor_position in {source.index("\n"), source.index("below")}
+    assert clicked.caret_state_placement == "plain_text"
+    assert clicked.caret_token_id is None
+    assert not clicked.caret_inside_region_separator
+    assert not harness.invariant_violations(clicked)
+
+
+def test_real_shell_nearby_inline_sep_text_preserves_visual_source_order(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Typing arbitrary `[SEP]`-suffixed text near a divider edits that visual row."""
+
+    source = (
+        "best quality, score_7, masterpiece, very aesthetic\n"
+        "\n"
+        "2girls, standing, full body, looking at viewer, outdoors, cherry "
+        "blossoms, school uniform \n"
+        "\n"
+        "[SEP]\n"
+        "1girl, red hair, long hair, green eyes, smile, blazer, pleated skirt, "
+        "black thighhighs \n"
+        "\n"
+        "\n"
+        "faksflas\n"
+        "jfak;lsfa\n"
+        "\n"
+        "fsjma;f \n"
+        "[SEP]\n"
+        "\n"
+        " \n"
+        "\n"
+        "1girl, blue hair, short hair, blue eyes, serious, cardigan, pleated "
+        "skirt, kneehighs\n"
+    )
+    typed_text = "fasdfsa[SEP]"
+    second_separator = source.index("[SEP]", source.index("[SEP]") + 1)
+    insertion_position = second_separator + len("[SEP]\n")
+    normalized_insert = "fasdfsa\n[SEP]"
+    expected_source = (
+        source[:insertion_position] + normalized_insert + source[insertion_position:]
+    )
+    field = harness.add_prompt_workflow(initial_text=source)
+
+    harness.click_projected_source_position(field, insertion_position)
+    clicked = harness.capture_state_snapshot(field, label="near-separator-clicked")
+    immediate = harness.type_text_and_capture_immediate_state(
+        field,
+        typed_text,
+        label="near-separator-typed-immediate",
+    )
+    settled = harness.capture_state_snapshot(
+        field, label="near-separator-typed-settled"
+    )
+
+    assert clicked.cursor_position == insertion_position
+    for snapshot in (immediate, settled):
+        assert snapshot.source_text == expected_source
+        assert (
+            snapshot.cursor_position == insertion_position + len(normalized_insert) + 1
+        )
+        assert snapshot.document_view_region_separator_count == 3
+        assert snapshot.projection_region_separator_count == 3
+        assert snapshot.region_chrome_divider_count == 3
+        assert "fasdfsa" in snapshot.projection_text
+        assert typed_text not in snapshot.source_text
+        assert not snapshot.caret_inside_region_separator
+    assert all(
+        violation.startswith("shell_height_contract_mismatch:")
+        for violation in harness.invariant_violations(immediate)
+    )
+    assert not harness.invariant_violations(settled)
+
+
+def test_real_shell_vertical_navigation_crosses_separator_as_line_break(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Up and Down should skip separator chrome and preserve text-column affinity."""
+
+    source = "alpha\n[SEP]\nbravo"
+    field = harness.add_prompt_workflow(initial_text=source)
+    global_position = source.index("alpha") + 3
+    regional_position = source.index("bravo") + 3
+    harness.set_source_cursor_position(field, regional_position)
+
+    harness.press_key(field, Qt.Key.Key_Up)
+    after_up = harness.capture_state_snapshot(field, label="separator-up-crossing")
+    harness.press_key(field, Qt.Key.Key_Down)
+    after_down = harness.capture_state_snapshot(field, label="separator-down-crossing")
+
+    assert after_up.cursor_position == global_position
+    assert after_up.caret_state_placement == "plain_text"
+    assert after_down.cursor_position == regional_position
+    assert after_down.caret_state_placement == "plain_text"
+    assert not harness.invariant_violations(after_up)
+    assert not harness.invariant_violations(after_down)
+
+
+@pytest.mark.parametrize(
+    ("separator_occurrence", "boundary"),
+    (
+        (0, "before"),
+        (0, "after"),
+        (1, "before"),
+        (1, "after"),
+    ),
+)
+def test_real_shell_line_breaks_adjacent_to_multiple_separators_preserve_chrome(
+    harness: RealShellPromptEditorHarness,
+    separator_occurrence: int,
+    boundary: str,
+) -> None:
+    """Line breaks beside either separator must preserve both structural rows."""
+
+    source = (
+        "testbest quality, score_7, masterpiece, very aesthetic\n\n"
+        "2girls, standing, full body, looking at viewer, outdoors, cherry blossoms, "
+        "school uniform \n"
+        "[SEP]\n"
+        "1girl, red hair, long hair, green eyes, smile, blazer, pleated skirt, "
+        "black thighhighs \n\n\n"
+        "[SEP]\n"
+        "1girl, blue hair, short hair, blue eyes, serious, cardigan, pleated skirt, "
+        "kneehighs\n"
+    )
+    separator_positions = (source.index("[SEP]"), source.rindex("[SEP]"))
+    insertion_position = separator_positions[separator_occurrence]
+    if boundary == "after":
+        insertion_position += len("[SEP]\n")
+
+    field = harness.add_prompt_workflow(initial_text=source)
+    harness.set_source_cursor_position(field, insertion_position)
+    harness.press_key(field, Qt.Key.Key_Return)
+    after = harness.capture_state_snapshot(
+        field,
+        label=f"separator-{separator_occurrence}-{boundary}-newline",
+    )
+
+    assert after.projection_region_separator_count == 2
+    assert after.document_view_region_separator_count == 2
+    assert after.projection_text.count("\ufffc") == 2
+    assert "[SEP]" not in after.projection_text
+    assert not harness.invariant_violations(after)
+
+
+@pytest.mark.parametrize(
+    ("source", "insertion_position"),
+    (
+        ("school uniform [SEP]\nregional", len("school uniform ")),
+        ("global\n[SEP] regional", len("global\n[SEP]")),
+    ),
+)
+def test_real_shell_line_break_promotes_inline_separator_to_decoration(
+    harness: RealShellPromptEditorHarness,
+    source: str,
+    insertion_position: int,
+) -> None:
+    """A line break that isolates `[SEP]` must publish structural chrome immediately."""
+
+    field = harness.add_prompt_workflow(initial_text=source)
+    harness.set_source_cursor_position(field, insertion_position)
+
+    immediate = harness.press_key_and_capture_immediate_state(
+        field,
+        Qt.Key.Key_Return,
+        label="separator-promotion-immediate",
+    )
+    settled = harness.capture_state_snapshot(field, label="separator-promotion-settled")
+
+    for snapshot in (immediate, settled):
+        assert snapshot.projection_region_separator_count == 1
+        assert snapshot.document_view_region_separator_count == 1
+        assert snapshot.projection_text.count("\ufffc") == 1
+        assert "[SEP]" not in snapshot.projection_text
+    assert not harness.invariant_violations(settled)
 
 
 def test_real_shell_paste_canonicalizes_implicit_parenthesis_weights(

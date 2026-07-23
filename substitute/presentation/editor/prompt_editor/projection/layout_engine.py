@@ -26,6 +26,7 @@ from PySide6.QtCore import QPointF, QRectF, QSizeF
 from PySide6.QtGui import QFont, QFontMetricsF, QPalette
 from substitute.application.prompt_editor import (
     PromptDocumentView,
+    PromptRegionStructureView,
     PromptReorderLayoutView,
 )
 from substitute.application.appearance import SemanticPalette
@@ -64,6 +65,7 @@ from .paint_state import (
     PromptProjectionPaintState,
     empty_projection_paint_state,
 )
+from .region_caret_navigation import resolve_region_separator_line_caret_state
 from .snapshot import (
     PromptProjectionInlineObjectFragment,
     PromptProjectionLineCaretStopSnapshot,
@@ -820,6 +822,7 @@ class PromptProjectionLayout:
             tokens=(),
             mapping=PromptProjectionMapping((), 0, 0),
             caret_map=empty_caret_map,
+            region_structure=PromptRegionStructureView.empty(0),
         )
         self._paint_state = empty_projection_paint_state()
         self._base_font = QFont()
@@ -920,6 +923,12 @@ class PromptProjectionLayout:
         """Return the metrics authority for the current projection snapshot."""
 
         return self._metrics
+
+    @property
+    def line_snapshots(self) -> Sequence[PromptProjectionLineSnapshot]:
+        """Return the immutable visual-line sequence without copying it."""
+
+        return self._snapshot.lines
 
     def set_base_font(self, font: QFont) -> None:
         """Apply the base font used by plain text and inline object renderers."""
@@ -2762,10 +2771,13 @@ class PromptProjectionLayout:
             return None
 
         target_line_index = current_line_index + direction
-        if target_line_index < 0:
-            target_line_index = 0
-        elif target_line_index >= len(self._snapshot.lines):
-            target_line_index = len(self._snapshot.lines) - 1
+        while (
+            0 <= target_line_index < len(self._snapshot.lines)
+            and not self._snapshot.lines[target_line_index].caret_stops
+        ):
+            target_line_index += direction
+        if not 0 <= target_line_index < len(self._snapshot.lines):
+            target_line_index = current_line_index
 
         target_line = self._snapshot.lines[target_line_index]
         if not target_line.caret_stops:
@@ -2949,6 +2961,7 @@ class PromptProjectionLayout:
         line_caret_stop = self._line_caret_stop_nearest_x(line, document_position.x())
         if line_caret_stop is not None:
             return self._line_caret_stop_hit(
+                line,
                 line_caret_stop,
                 x_position=document_position.x(),
             )
@@ -3489,6 +3502,7 @@ class PromptProjectionLayout:
 
     def _line_caret_stop_hit(
         self,
+        line: PromptProjectionLineSnapshot,
         caret_stop: PromptProjectionLineCaretStopSnapshot,
         *,
         x_position: float,
@@ -3500,6 +3514,12 @@ class PromptProjectionLayout:
                 caret_stop.projection_position,
                 prefer_after=x_position >= caret_stop.rect.center().x(),
             )
+        )
+        state = resolve_region_separator_line_caret_state(
+            self._projection_document.caret_map,
+            state,
+            line_source_start=line.source_start,
+            line_source_end=line.source_end,
         )
         return PromptProjectionCaretHit(
             state=state,

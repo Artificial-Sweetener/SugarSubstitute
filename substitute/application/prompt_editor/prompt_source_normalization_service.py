@@ -33,6 +33,11 @@ from .prompt_literal_parenthesis_normalizer import (
     canonicalize_prompt_parentheses,
     is_explicit_weighted_emphasis_group,
 )
+from .prompt_region_separator_normalizer import (
+    normalize_empty_region_insertion,
+    normalize_pasted_region_separators,
+    normalize_typed_region_separator,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,14 +83,38 @@ class PromptSourceNormalizationService:
     ) -> PromptSourceNormalization:
         """Normalize only the pasted source range inside the full prompt text."""
 
-        return _normalize_source_range_with_boundaries(
+        partition_normalization = normalize_empty_region_insertion(
             text,
             start=start,
             end=end,
+        )
+        separator_normalization = normalize_pasted_region_separators(
+            partition_normalization.text,
+            start=partition_normalization.boundary_positions[start],
+            end=partition_normalization.boundary_positions[end],
+        )
+        canonical_normalization = _normalize_source_range_with_boundaries(
+            separator_normalization.text,
+            start=separator_normalization.boundary_positions[
+                partition_normalization.boundary_positions[start]
+            ],
+            end=separator_normalization.boundary_positions[
+                partition_normalization.boundary_positions[end]
+            ],
             normalizer=lambda value: _normalize_canonical_source_with_boundaries(
                 value,
                 tag_snapshot=self._tag_snapshot,
             ),
+        )
+        return PromptSourceNormalization(
+            text=canonical_normalization.text,
+            boundary_positions=tuple(
+                canonical_normalization.boundary_positions[
+                    separator_normalization.boundary_positions[position]
+                ]
+                for position in partition_normalization.boundary_positions
+            ),
+            transitions=canonical_normalization.transitions,
         )
 
     def normalize_for_typed_edit(self, text: str) -> PromptSourceNormalization:
@@ -113,6 +142,28 @@ class PromptSourceNormalizationService:
         generated_emphases: tuple[PromptGeneratedEmphasis, ...] = (),
     ) -> PromptSourceNormalization:
         """Normalize only parenthesis syntax introduced by one typed edit."""
+
+        partition_normalization = normalize_empty_region_insertion(
+            text,
+            start=start,
+            end=end,
+        )
+        if partition_normalization.text != text:
+            return PromptSourceNormalization(
+                text=partition_normalization.text,
+                boundary_positions=partition_normalization.boundary_positions,
+            )
+        separator_normalization = normalize_typed_region_separator(
+            text,
+            start=start,
+            end=end,
+            replacement_text=replacement_text,
+        )
+        if separator_normalization.text != text:
+            return PromptSourceNormalization(
+                text=separator_normalization.text,
+                boundary_positions=separator_normalization.boundary_positions,
+            )
 
         reclassification = _normalize_typed_emphasis_reclassification(
             text,

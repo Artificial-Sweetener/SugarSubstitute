@@ -31,8 +31,11 @@ class PromptReorderState:
     """Store prompt reorder state as segment order plus separator slots."""
 
     ordered_segment_indices: tuple[int, ...]
+    partition_index_by_segment_index: tuple[int, ...]
     separator_slots: tuple[str, ...]
     has_trailing_comma: bool
+    prefix_text: str
+    suffix_text: str
 
     def __post_init__(self) -> None:
         """Reject separator-slot counts that cannot describe the segment order."""
@@ -42,6 +45,12 @@ class PromptReorderState:
             raise ValueError(
                 "PromptReorderState.separator_slots must match the segment order."
             )
+        if self.ordered_segment_indices and max(self.ordered_segment_indices) >= len(
+            self.partition_index_by_segment_index
+        ):
+            raise ValueError(
+                "PromptReorderState.partition_index_by_segment_index must cover every segment."
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,8 +58,10 @@ class PromptDerivedRow:
     """Describe one derived presentation row inside reorder state."""
 
     row_index: int
+    partition_index: int
     start_segment_offset: int
     segment_indices: tuple[int, ...]
+    boundary_separator_before: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +69,7 @@ class PromptDerivedGap:
     """Describe one derived multiline separator slot between presentation rows."""
 
     gap_index: int
+    partition_index: int
     slot_index: int
     separator_text: str
     blank_line_offsets: tuple[int, ...]
@@ -92,8 +104,13 @@ def build_reorder_state(document: PromptDocument) -> PromptReorderState:
     )
     return PromptReorderState(
         ordered_segment_indices=ordered_segment_indices,
+        partition_index_by_segment_index=tuple(
+            0 for _segment_index in ordered_segment_indices
+        ),
         separator_slots=separator_slots,
         has_trailing_comma=document.has_trailing_comma,
+        prefix_text="",
+        suffix_text="",
     )
 
 
@@ -109,6 +126,10 @@ def derive_rows_and_gaps(
     gaps: list[PromptDerivedGap] = []
     current_row_indices: list[int] = []
     current_row_start_offset = 0
+    current_boundary_separator = ""
+    current_partition_index = state.partition_index_by_segment_index[
+        state.ordered_segment_indices[0]
+    ]
 
     for segment_offset, segment_index in enumerate(state.ordered_segment_indices):
         current_row_indices.append(segment_index)
@@ -116,19 +137,41 @@ def derive_rows_and_gaps(
             continue
 
         separator_text = state.separator_slots[segment_offset]
+        next_segment_index = state.ordered_segment_indices[segment_offset + 1]
+        next_partition_index = state.partition_index_by_segment_index[
+            next_segment_index
+        ]
+        if next_partition_index != current_partition_index:
+            rows.append(
+                PromptDerivedRow(
+                    row_index=len(rows),
+                    partition_index=current_partition_index,
+                    start_segment_offset=current_row_start_offset,
+                    segment_indices=tuple(current_row_indices),
+                    boundary_separator_before=current_boundary_separator,
+                )
+            )
+            current_row_indices = []
+            current_row_start_offset = segment_offset + 1
+            current_partition_index = next_partition_index
+            current_boundary_separator = separator_text
+            continue
         if "\n" not in separator_text and "\r" not in separator_text:
             continue
 
         rows.append(
             PromptDerivedRow(
                 row_index=len(rows),
+                partition_index=current_partition_index,
                 start_segment_offset=current_row_start_offset,
                 segment_indices=tuple(current_row_indices),
+                boundary_separator_before=current_boundary_separator,
             )
         )
         gaps.append(
             PromptDerivedGap(
                 gap_index=len(gaps),
+                partition_index=current_partition_index,
                 slot_index=segment_offset,
                 separator_text=separator_text,
                 blank_line_offsets=blank_line_drop_offsets(separator_text),
@@ -136,13 +179,16 @@ def derive_rows_and_gaps(
         )
         current_row_indices = []
         current_row_start_offset = segment_offset + 1
+        current_boundary_separator = ""
 
     if current_row_indices:
         rows.append(
             PromptDerivedRow(
                 row_index=len(rows),
+                partition_index=current_partition_index,
                 start_segment_offset=current_row_start_offset,
                 segment_indices=tuple(current_row_indices),
+                boundary_separator_before=current_boundary_separator,
             )
         )
 
@@ -218,8 +264,11 @@ def build_base_drag_state(
     if not state.separator_slots:
         return PromptReorderState(
             ordered_segment_indices=tuple(remaining_indices),
+            partition_index_by_segment_index=state.partition_index_by_segment_index,
             separator_slots=(),
             has_trailing_comma=state.has_trailing_comma,
+            prefix_text=state.prefix_text,
+            suffix_text=state.suffix_text,
         )
 
     if dragged_offset == 0:
@@ -235,8 +284,11 @@ def build_base_drag_state(
 
     return PromptReorderState(
         ordered_segment_indices=tuple(remaining_indices),
+        partition_index_by_segment_index=state.partition_index_by_segment_index,
         separator_slots=tuple(remaining_slots),
         has_trailing_comma=state.has_trailing_comma,
+        prefix_text=state.prefix_text,
+        suffix_text=state.suffix_text,
     )
 
 
@@ -253,6 +305,11 @@ def apply_line_drop_target_to_state(
         raise ValueError("row_index must reference an available reorder row.")
 
     destination_row = rows[target.row_index]
+    dragged_partition_index = base_drag_state.partition_index_by_segment_index[
+        dragged_segment_index
+    ]
+    if destination_row.partition_index != dragged_partition_index:
+        raise ValueError("A reorder drop cannot cross a regional prompt separator.")
     if not 0 <= target.insertion_index <= len(destination_row.segment_indices):
         raise ValueError(
             "insertion_index must reference a valid position inside the row."
@@ -291,8 +348,11 @@ def apply_line_drop_target_to_state(
 
     return PromptReorderState(
         ordered_segment_indices=tuple(ordered_segment_indices),
+        partition_index_by_segment_index=base_drag_state.partition_index_by_segment_index,
         separator_slots=tuple(separator_slots),
         has_trailing_comma=base_drag_state.has_trailing_comma,
+        prefix_text=base_drag_state.prefix_text,
+        suffix_text=base_drag_state.suffix_text,
     )
 
 
@@ -309,6 +369,11 @@ def apply_blank_line_drop_target_to_state(
         raise ValueError("gap_index must reference an available reorder gap.")
 
     targeted_gap = gaps[target.gap_index]
+    dragged_partition_index = base_drag_state.partition_index_by_segment_index[
+        dragged_segment_index
+    ]
+    if targeted_gap.partition_index != dragged_partition_index:
+        raise ValueError("A reorder drop cannot cross a regional prompt separator.")
     prefix_separator, suffix_separator = split_gap_for_blank_line_insert(
         targeted_gap.separator_text,
         blank_line_index=target.blank_line_index,
@@ -323,8 +388,11 @@ def apply_blank_line_drop_target_to_state(
 
     return PromptReorderState(
         ordered_segment_indices=tuple(ordered_segment_indices),
+        partition_index_by_segment_index=base_drag_state.partition_index_by_segment_index,
         separator_slots=tuple(separator_slots),
         has_trailing_comma=base_drag_state.has_trailing_comma,
+        prefix_text=base_drag_state.prefix_text,
+        suffix_text=base_drag_state.suffix_text,
     )
 
 
@@ -356,7 +424,7 @@ def serialize_reorder_state(
 ) -> str:
     """Serialize one canonical reorder state back into prompt text."""
 
-    serialized_parts: list[str] = []
+    serialized_parts: list[str] = [state.prefix_text]
     for segment_offset, segment_index in enumerate(state.ordered_segment_indices):
         serialized_parts.append(segment_texts_by_index[segment_index])
         if segment_offset < len(state.separator_slots):
@@ -364,6 +432,7 @@ def serialize_reorder_state(
 
     if state.has_trailing_comma:
         serialized_parts.append(", ")
+    serialized_parts.append(state.suffix_text)
     return "".join(serialized_parts)
 
 

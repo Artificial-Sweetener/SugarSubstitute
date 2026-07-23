@@ -347,6 +347,7 @@ class PromptEditorVisibleLayoutRow:
     height: float
     text: str
     has_inline_object: bool = False
+    is_structural: bool = False
     expected_height: float | None = None
     expected_text_baseline: float | None = None
 
@@ -416,7 +417,16 @@ class PromptEditorStateSnapshot:
     editing_session_cursor_position: int | None
     editing_session_anchor_position: int | None
     document_view_source_text: str
+    document_view_region_separator_count: int
     projection_document_source_text: str
+    projection_region_separator_count: int
+    projection_region_separator_ranges: tuple[tuple[int, int], ...]
+    caret_inside_region_separator: bool
+    anchor_inside_region_separator: bool
+    region_chrome_divider_count: int
+    region_chrome_rail_count: int
+    region_chrome_prepare_count: int
+    region_chrome_visited_line_count: int
     active_projection_source_text: str
     layout_projection_source_text: str
     projection_text: str
@@ -436,6 +446,8 @@ class PromptEditorStateSnapshot:
     projection_has_stale_geometry: bool
     caret_state_source_position: int | None
     anchor_state_source_position: int | None
+    caret_state_placement: str
+    anchor_state_placement: str
     caret_map_source_length: int | None
     caret_map_stop_count: int | None
     caret_preferred_x: float | None
@@ -1341,6 +1353,45 @@ class RealShellPromptEditorHarness:
         field.editor.setTextCursor(cursor)
         self.process_events(cycles=4)
 
+    def click_projected_source_position(
+        self,
+        field: PromptFieldHandle,
+        position: int,
+    ) -> None:
+        """Click the production caret geometry for one source boundary."""
+
+        self.set_source_cursor_position(field, position)
+        point = field.editor.cursorRect().center()
+        self.click_editor_viewport_point(field, point)
+        self._trace_actions.append(
+            PromptEditorTraceAction(
+                "click_projected_source_position",
+                f"{position}@{point.x()},{point.y()}",
+            )
+        )
+
+    def click_editor_viewport_point(
+        self,
+        field: PromptFieldHandle,
+        point: QPoint,
+    ) -> None:
+        """Click one exact viewport-local point through the production mouse route."""
+
+        target = field.editor.viewport()
+        QTest.mouseClick(
+            target,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            point,
+        )
+        self._trace_actions.append(
+            PromptEditorTraceAction(
+                "click_editor_viewport_point",
+                f"{point.x()},{point.y()}",
+            )
+        )
+        self.process_events(cycles=8)
+
     def set_rich_rendering(
         self,
         field: PromptFieldHandle,
@@ -1392,6 +1443,48 @@ class RealShellPromptEditorHarness:
             ghost_visible_before=before.ghost_visual_visible,
             ghost_visible_after=after.ghost_visual_visible,
             inserted_text=_inserted_text(before.source_text, after.source_text),
+        )
+
+    def press_key_and_capture_immediate_state(
+        self,
+        field: PromptFieldHandle,
+        key: Qt.Key,
+        *,
+        label: str,
+    ) -> PromptEditorStateSnapshot:
+        """Capture owner state synchronously after one production key event."""
+
+        target = self.focus_editor(field)
+        QTest.keyClick(target, key)
+        self._trace_actions.append(
+            PromptEditorTraceAction(
+                "press_key_immediate",
+                "",
+                key=_enum_value(key),
+            )
+        )
+        return self.capture_state_snapshot(
+            field,
+            label=label,
+            settle_cycles=0,
+        )
+
+    def type_text_and_capture_immediate_state(
+        self,
+        field: PromptFieldHandle,
+        text: str,
+        *,
+        label: str,
+    ) -> PromptEditorStateSnapshot:
+        """Capture owner state synchronously after production text key events."""
+
+        target = self.focus_editor(field)
+        QTest.keyClicks(target, text)
+        self._trace_actions.append(PromptEditorTraceAction("type_text_immediate", text))
+        return self.capture_state_snapshot(
+            field,
+            label=label,
+            settle_cycles=0,
         )
 
     def move_cursor_to_end(self, field: PromptFieldHandle) -> None:
@@ -1855,10 +1948,11 @@ class RealShellPromptEditorHarness:
         field: PromptFieldHandle,
         *,
         label: str,
+        settle_cycles: int = 6,
     ) -> PromptEditorStateSnapshot:
         """Capture headless shell, editor, autocomplete, projection diagnostics."""
 
-        self.process_events(cycles=6)
+        self.process_events(cycles=settle_cycles)
         editor = field.editor
         panel = self.shell.editor_panels[field.workflow.workflow_id]
         viewport = editor.viewport()
@@ -1867,7 +1961,7 @@ class RealShellPromptEditorHarness:
         selected_text = cursor.selectedText()
         selection_start = cursor.selectionStart()
         selection_end = cursor.selectionEnd()
-        display_mode = str(editor.displayMode())
+        display_mode = _safe_enum_value(editor.displayMode())
         autocomplete_preview = _autocomplete_preview_state(editor)
         autocomplete_state = _autocomplete_owner_state(editor)
         projection_state = _projection_owner_state(editor)
@@ -1971,9 +2065,37 @@ class RealShellPromptEditorHarness:
                 projection_state["editing_session_anchor_position"]
             ),
             document_view_source_text=projection_state["document_view_source_text"],
+            document_view_region_separator_count=int(
+                projection_state["document_view_region_separator_count"]
+            ),
             projection_document_source_text=projection_state[
                 "projection_document_source_text"
             ],
+            projection_region_separator_count=int(
+                projection_state["projection_region_separator_count"]
+            ),
+            projection_region_separator_ranges=tuple(
+                cast(
+                    tuple[tuple[int, int], ...],
+                    projection_state["projection_region_separator_ranges"],
+                )
+            ),
+            caret_inside_region_separator=bool(
+                projection_state["caret_inside_region_separator"]
+            ),
+            anchor_inside_region_separator=bool(
+                projection_state["anchor_inside_region_separator"]
+            ),
+            region_chrome_divider_count=int(
+                projection_state["region_chrome_divider_count"]
+            ),
+            region_chrome_rail_count=int(projection_state["region_chrome_rail_count"]),
+            region_chrome_prepare_count=int(
+                projection_state["region_chrome_prepare_count"]
+            ),
+            region_chrome_visited_line_count=int(
+                projection_state["region_chrome_visited_line_count"]
+            ),
             active_projection_source_text=projection_state[
                 "active_projection_source_text"
             ],
@@ -2023,6 +2145,8 @@ class RealShellPromptEditorHarness:
             anchor_state_source_position=_optional_int(
                 projection_state["anchor_state_source_position"]
             ),
+            caret_state_placement=str(projection_state["caret_state_placement"]),
+            anchor_state_placement=str(projection_state["anchor_state_placement"]),
             caret_map_source_length=_optional_int(
                 projection_state["caret_map_source_length"]
             ),
@@ -4212,6 +4336,13 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     layout = getattr(surface, "_layout", None)
     layout_projection_document = getattr(layout, "projection_document", None)
     layout_snapshot = getattr(layout, "_snapshot", None)
+    region_chrome = getattr(surface, "_region_chrome", None)
+    region_chrome_snapshot_for = getattr(region_chrome, "snapshot_for", None)
+    region_chrome_snapshot = (
+        region_chrome_snapshot_for(layout)
+        if callable(region_chrome_snapshot_for)
+        else None
+    )
     paint_cache = getattr(surface, "_projection_paint_cache", None)
     paint_cache_key = getattr(paint_cache, "cache_key", None)
     paint_cache_state = getattr(paint_cache_key, "paint_state", None)
@@ -4306,6 +4437,21 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     shell_sizing = getattr(editor, "_sizing", None)
     caret_token_id = getattr(caret_state, "token_id", None)
     anchor_token_id = getattr(anchor_state, "token_id", None)
+    projection_region_separators = tuple(
+        getattr(
+            getattr(projection_document, "region_structure", None),
+            "separators",
+            (),
+        )
+    )
+    projection_region_separator_ranges = tuple(
+        (int(separator.token_start), int(separator.token_end))
+        for separator in projection_region_separators
+    )
+    caret_source_position = _optional_int(getattr(caret_state, "source_position", None))
+    anchor_source_position = _optional_int(
+        getattr(anchor_state, "source_position", None)
+    )
     paint_cache_projection_identity = getattr(
         paint_cache_key,
         "projection_document_identity",
@@ -4334,8 +4480,31 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
             None,
         ),
         "document_view_source_text": str(getattr(document_view, "source_text", "")),
+        "document_view_region_separator_count": len(
+            getattr(getattr(document_view, "region_structure", None), "separators", ())
+        ),
         "projection_document_source_text": str(
             getattr(projection_document, "source_text", "")
+        ),
+        "projection_region_separator_count": len(projection_region_separators),
+        "projection_region_separator_ranges": projection_region_separator_ranges,
+        "caret_inside_region_separator": _position_inside_any_range(
+            caret_source_position,
+            projection_region_separator_ranges,
+        ),
+        "anchor_inside_region_separator": _position_inside_any_range(
+            anchor_source_position,
+            projection_region_separator_ranges,
+        ),
+        "region_chrome_divider_count": len(
+            getattr(region_chrome_snapshot, "divider_lines", ())
+        ),
+        "region_chrome_rail_count": len(
+            getattr(region_chrome_snapshot, "rail_lines", ())
+        ),
+        "region_chrome_prepare_count": int(getattr(region_chrome, "prepare_count", 0)),
+        "region_chrome_visited_line_count": int(
+            getattr(region_chrome_snapshot, "visited_line_count", 0)
         ),
         "active_projection_source_text": str(
             getattr(active_projection_document, "source_text", "")
@@ -4386,6 +4555,12 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         "projection_has_stale_geometry": bool(has_stale_geometry),
         "caret_state_source_position": getattr(caret_state, "source_position", None),
         "anchor_state_source_position": getattr(anchor_state, "source_position", None),
+        "caret_state_placement": _enum_value_text(
+            getattr(caret_state, "placement", None)
+        ),
+        "anchor_state_placement": _enum_value_text(
+            getattr(anchor_state, "placement", None)
+        ),
         "caret_map_source_length": getattr(caret_map, "source_length", None),
         "caret_map_stop_count": None
         if caret_map is None
@@ -4671,6 +4846,19 @@ def _visible_layout_rows(
     viewport_top = float(viewport_rect.top())
     viewport_bottom = float(viewport_rect.bottom())
     rows: list[PromptEditorVisibleLayoutRow] = []
+    projection_document = getattr(layout, "projection_document", None)
+    region_structure = getattr(projection_document, "region_structure", None)
+    projection_display_mode = _safe_enum_value(
+        getattr(projection_document, "display_mode", "")
+    )
+    structural_ranges = (
+        {
+            (separator.line_start, separator.line_end)
+            for separator in getattr(region_structure, "separators", ())
+        }
+        if projection_display_mode == "projected"
+        else set()
+    )
     for row_index, line in enumerate(lines):
         document_top = _optional_float(getattr(line, "top", None))
         height = _optional_float(getattr(line, "height", None))
@@ -4696,11 +4884,20 @@ def _visible_layout_rows(
             isinstance(fragment, PromptProjectionInlineObjectFragment)
             for fragment in fragments
         )
-        expected_height = _expected_row_height(line=line, metrics=metrics)
-        expected_baseline = _metrics_text_baseline(
+        is_structural = (source_start, source_end) in structural_ranges
+        expected_height = _expected_row_height(
+            line=line,
             metrics=metrics,
-            row_top=document_top,
-            row_height=height,
+            is_structural=is_structural,
+        )
+        expected_baseline = (
+            None
+            if is_structural
+            else _metrics_text_baseline(
+                metrics=metrics,
+                row_top=document_top,
+                row_height=height,
+            )
         )
         rows.append(
             PromptEditorVisibleLayoutRow(
@@ -4712,6 +4909,7 @@ def _visible_layout_rows(
                 height=height,
                 text=source_text[safe_start:safe_end],
                 has_inline_object=has_inline_object,
+                is_structural=is_structural,
                 expected_height=expected_height,
                 expected_text_baseline=expected_baseline,
             )
@@ -4785,12 +4983,19 @@ def _visible_text_fragments(
     return tuple(visible_fragments)
 
 
-def _expected_row_height(*, line: object, metrics: object | None) -> float | None:
+def _expected_row_height(
+    *,
+    line: object,
+    metrics: object | None,
+    is_structural: bool = False,
+) -> float | None:
     """Return the row height expected by the projection metrics contract."""
 
     text_line_height = _optional_float(getattr(metrics, "text_line_height", None))
     if text_line_height is None:
         return None
+    if is_structural:
+        return text_line_height * 0.5
     expected_height = text_line_height
     fragments = getattr(line, "fragments", ())
     if isinstance(fragments, Sequence):
@@ -4984,6 +5189,15 @@ def _optional_int(value: object) -> int | None:
     return value if isinstance(value, int) else None
 
 
+def _position_inside_any_range(
+    position: int | None,
+    ranges: tuple[tuple[int, int], ...],
+) -> bool:
+    """Return whether one caret boundary lies inside hidden source content."""
+
+    return position is not None and any(start < position < end for start, end in ranges)
+
+
 def _optional_float(value: object) -> float | None:
     """Return value as a float when it is numeric, otherwise None."""
 
@@ -5021,12 +5235,17 @@ def _projection_metrics_contract_violations(
             row.expected_height,
         ):
             violations.append(
-                "text_only_row_height_mismatch"
-                if not row.has_inline_object
-                else "inline_row_height_mismatch"
+                "structural_row_height_mismatch"
+                if row.is_structural
+                else (
+                    "text_only_row_height_mismatch"
+                    if not row.has_inline_object
+                    else "inline_row_height_mismatch"
+                )
             )
         if (
-            not row.has_inline_object
+            not row.is_structural
+            and not row.has_inline_object
             and row.expected_text_baseline is not None
             and not _row_contains_fragment_with_baseline(
                 row=row,
@@ -5121,6 +5340,8 @@ def _caret_row_height_contract_violations(
     caret_y = snapshot.caret_rect[1]
     caret_height = snapshot.caret_rect[3]
     for row in snapshot.visible_layout_rows:
+        if row.is_structural:
+            continue
         if row.viewport_top - 0.5 <= caret_y <= row.viewport_top + row.height + 0.5:
             if not _float_close(caret_height, row.height):
                 return (
@@ -5954,6 +6175,13 @@ def _enum_value(value: object) -> int:
     return int(cast(Any, raw_value))
 
 
+def _enum_value_text(value: object) -> str:
+    """Return the stable string payload for one optional enum value."""
+
+    raw_value = getattr(value, "value", value)
+    return "" if raw_value is None else str(raw_value)
+
+
 def _snapshot_json(snapshot: PromptEditorStateSnapshot) -> dict[str, object]:
     """Serialize snapshot diagnostics without embedding image payloads."""
 
@@ -5965,6 +6193,8 @@ def _snapshot_json(snapshot: PromptEditorStateSnapshot) -> dict[str, object]:
         "selection_range": snapshot.selection_range,
         "selection_rects": snapshot.selection_rects,
         "cursor_position": snapshot.cursor_position,
+        "caret_state_placement": snapshot.caret_state_placement,
+        "anchor_state_placement": snapshot.anchor_state_placement,
         "display_mode": snapshot.display_mode,
         "focus_widget_path": snapshot.focus_widget_path,
         "active_window_path": snapshot.active_window_path,
@@ -6016,7 +6246,13 @@ def _snapshot_json(snapshot: PromptEditorStateSnapshot) -> dict[str, object]:
         "editing_session_cursor_position": snapshot.editing_session_cursor_position,
         "editing_session_anchor_position": snapshot.editing_session_anchor_position,
         "document_view_source_text": snapshot.document_view_source_text,
+        "document_view_region_separator_count": (
+            snapshot.document_view_region_separator_count
+        ),
         "projection_document_source_text": snapshot.projection_document_source_text,
+        "projection_region_separator_count": (
+            snapshot.projection_region_separator_count
+        ),
         "active_projection_source_text": snapshot.active_projection_source_text,
         "layout_projection_source_text": snapshot.layout_projection_source_text,
         "projection_text": snapshot.projection_text,
