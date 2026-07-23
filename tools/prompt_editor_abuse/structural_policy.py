@@ -60,12 +60,150 @@ _FORBIDDEN_POINTER_COUNTERS = frozenset(
 )
 _CANVAS_FORBIDDEN_COUNTERS = frozenset(
     {
+        "instrumented_document_view_build_count",
+        "instrumented_editing_paste_count",
+        "instrumented_editing_replace_range_count",
         "instrumented_editing_replace_full_source_count",
         "instrumented_layout_snapshot_count",
+        "instrumented_projection_document_build_count",
         "instrumented_projection_rebuild_count",
+        "instrumented_surface_source_apply_count",
+        "instrumented_syntax_render_plan_build_count",
         "region_chrome_prepare_count",
     }
 )
+_PASSIVE_FORBIDDEN_COUNTERS = frozenset(
+    {
+        "instrumented_diagnostic_cache_clear_count",
+        "instrumented_document_view_build_count",
+        "instrumented_editing_paste_count",
+        "instrumented_editing_replace_full_source_count",
+        "instrumented_editing_replace_range_count",
+        "instrumented_layout_snapshot_count",
+        "instrumented_projection_document_build_count",
+        "instrumented_projection_rebuild_count",
+        "instrumented_surface_source_apply_count",
+        "instrumented_syntax_render_plan_build_count",
+        "region_chrome_prepare_count",
+    }
+)
+_EDIT_LIMITS: Mapping[str, float] = {
+    "instrumented_document_view_build_count": 1.0,
+    "instrumented_editing_replace_range_count": 1.0,
+    "instrumented_layout_snapshot_count": 1.0,
+    "instrumented_projection_rebuild_count": 1.0,
+    "instrumented_surface_source_apply_count": 1.0,
+    "instrumented_syntax_render_plan_build_count": 1.0,
+    "region_chrome_prepare_count": 1.0,
+}
+_DANBOORU_IMPORT_EDIT_LIMITS: Mapping[str, float] = {
+    "instrumented_danbooru_import_apply_count": 1.0,
+    "instrumented_document_view_build_count": 2.0,
+    "instrumented_editing_replace_range_count": 2.0,
+    "instrumented_layout_snapshot_count": 2.0,
+    "instrumented_projection_document_build_count": 2.0,
+    "instrumented_projection_rebuild_count": 2.0,
+    "instrumented_surface_source_apply_count": 2.0,
+    "instrumented_syntax_render_plan_build_count": 2.0,
+    "region_chrome_prepare_count": 2.0,
+}
+_EDIT_APPLIED_PATH_COUNTERS = frozenset(
+    {
+        "instrumented_projection_fast_delete_applied_count",
+        "instrumented_projection_fast_insert_applied_count",
+        "instrumented_projection_fast_newline_applied_count",
+        "instrumented_projection_incremental_applied_count",
+        "instrumented_projection_incremental_deferred_count",
+    }
+)
+_QUEUED_CORE_LIMITS: Mapping[str, float] = {
+    "instrumented_document_view_build_count": 1.0,
+    "instrumented_layout_snapshot_count": 1.0,
+    "instrumented_projection_document_build_count": 1.0,
+    "instrumented_projection_rebuild_count": 1.0,
+    "instrumented_syntax_render_plan_build_count": 1.0,
+    "region_chrome_prepare_count": 1.0,
+}
+_QUEUED_AUTOCOMPLETE_CORE_LIMITS: Mapping[str, float] = {
+    "instrumented_autocomplete_preview_update_count": 1.0,
+    "instrumented_document_view_build_count": 1.0,
+    "instrumented_layout_snapshot_count": 2.0,
+    "instrumented_projection_document_build_count": 2.0,
+    "instrumented_projection_rebuild_count": 1.0,
+    "instrumented_syntax_render_plan_build_count": 1.0,
+    "region_chrome_prepare_count": 1.0,
+}
+_QUEUED_REORDER_CORE_LIMITS: Mapping[str, float] = {
+    "instrumented_document_view_build_count": 2.0,
+    "instrumented_layout_snapshot_count": 4.0,
+    "instrumented_projection_document_build_count": 2.0,
+    "instrumented_projection_rebuild_count": 1.0,
+    "instrumented_reorder_preview_run_count": 1.0,
+    "instrumented_syntax_render_plan_build_count": 2.0,
+    "region_chrome_prepare_count": 2.0,
+}
+_PASSIVE_AUTOCOMPLETE_LIMITS: Mapping[str, float] = {
+    "instrumented_autocomplete_preview_update_count": 1.0,
+    "instrumented_layout_snapshot_count": 1.0,
+    "instrumented_projection_document_build_count": 1.0,
+}
+_PASSIVE_AUTOCOMPLETE_ALLOWED_COUNTERS = frozenset(
+    {
+        "instrumented_layout_snapshot_count",
+        "instrumented_projection_document_build_count",
+    }
+)
+_PASSIVE_DIAGNOSTIC_PUBLISH_LIMITS: Mapping[str, float] = {
+    "instrumented_diagnostic_cache_clear_count": 1.0,
+    "instrumented_diagnostics_visible_publish_count": 1.0,
+}
+_PASSIVE_DIAGNOSTIC_PUBLISH_ALLOWED_COUNTERS = frozenset(
+    _PASSIVE_DIAGNOSTIC_PUBLISH_LIMITS
+)
+_PASSIVE_DEFERRED_FLUSH_LIMITS: Mapping[str, float] = {
+    "instrumented_diagnostic_cache_clear_count": 1.0,
+    "instrumented_document_view_build_count": 1.0,
+    "instrumented_layout_snapshot_count": 1.0,
+    "instrumented_projection_document_build_count": 1.0,
+    "instrumented_projection_pending_flush_applied_count": 1.0,
+    "instrumented_projection_rebuild_count": 1.0,
+    "instrumented_syntax_render_plan_build_count": 1.0,
+    "region_chrome_prepare_count": 1.0,
+}
+_PASSIVE_DEFERRED_FLUSH_ALLOWED_COUNTERS = frozenset(_PASSIVE_DEFERRED_FLUSH_LIMITS)
+_RESIZE_LIMITS: Mapping[str, float] = {
+    "instrumented_layout_snapshot_count": 1.0,
+    "instrumented_surface_resize_event_count": 1.0,
+    "region_chrome_prepare_count": 1.0,
+}
+_RESIZE_FORBIDDEN_COUNTERS = frozenset(
+    {
+        "instrumented_document_view_build_count",
+        "instrumented_editing_paste_count",
+        "instrumented_editing_replace_full_source_count",
+        "instrumented_editing_replace_range_count",
+        "instrumented_projection_document_build_count",
+        "instrumented_projection_rebuild_count",
+        "instrumented_surface_source_apply_count",
+        "instrumented_syntax_render_plan_build_count",
+    }
+)
+_WORKFLOW_ROUND_TRIP_LIMITS: Mapping[str, float] = {
+    "instrumented_document_view_build_count": 2.0,
+    "instrumented_editing_replace_full_source_count": 1.0,
+    "instrumented_layout_snapshot_count": 6.0,
+    "instrumented_projection_document_build_count": 4.0,
+    "instrumented_projection_rebuild_count": 2.0,
+    "instrumented_syntax_render_plan_build_count": 2.0,
+}
+_DISPLAY_MODE_LIMITS: Mapping[str, float] = {
+    "instrumented_document_view_build_count": 1.0,
+    "instrumented_layout_snapshot_count": 1.0,
+    "instrumented_projection_document_build_count": 1.0,
+    "instrumented_projection_rebuild_count": 1.0,
+    "instrumented_syntax_render_plan_build_count": 1.0,
+    "region_chrome_prepare_count": 1.0,
+}
 
 
 def prompt_abuse_structural_violations(
@@ -81,6 +219,13 @@ def prompt_abuse_structural_violations(
             violations.extend(_direct_reorder_move_violations(delta, counters))
         elif action_kind in {"event_turn", "drain_events"}:
             violations.extend(_queued_reorder_work_violations(delta, counters))
+            violations.extend(
+                _counter_limit_violations(
+                    delta,
+                    counters,
+                    _queued_core_limits(counters),
+                )
+            )
         elif action_kind == "canvas_round_trip":
             violations.extend(
                 _forbidden_counter_violations(
@@ -89,26 +234,103 @@ def prompt_abuse_structural_violations(
                     _CANVAS_FORBIDDEN_COUNTERS,
                 )
             )
-        if action_kind in {"request_paint", "mouse_caret"} or _is_navigation_key(
-            delta.label
-        ):
+        elif action_kind == "workflow_round_trip":
             violations.extend(
-                _maximum_counter_violations(
+                _counter_limit_violations(
                     delta,
                     counters,
-                    counter_name="region_chrome_prepare_count",
-                    maximum=0.0,
+                    _WORKFLOW_ROUND_TRIP_LIMITS,
                 )
             )
-        if action_kind in {"type", "paste", "display_mode"}:
+        elif action_kind == "resize":
             violations.extend(
-                _maximum_counter_violations(
+                _forbidden_counter_violations(
                     delta,
                     counters,
-                    counter_name="region_chrome_prepare_count",
-                    maximum=1.0,
+                    _RESIZE_FORBIDDEN_COUNTERS,
                 )
             )
+            violations.extend(
+                _counter_limit_violations(delta, counters, _RESIZE_LIMITS)
+            )
+        elif action_kind == "display_mode":
+            violations.extend(
+                _counter_limit_violations(delta, counters, _DISPLAY_MODE_LIMITS)
+            )
+        elif _is_passive_editor_action(delta.label):
+            if counters.get(
+                "instrumented_projection_pending_flush_applied_count",
+                0.0,
+            ):
+                violations.extend(
+                    _forbidden_counter_violations(
+                        delta,
+                        counters,
+                        (
+                            _PASSIVE_FORBIDDEN_COUNTERS
+                            - _PASSIVE_DEFERRED_FLUSH_ALLOWED_COUNTERS
+                        ),
+                    )
+                )
+                violations.extend(
+                    _counter_limit_violations(
+                        delta,
+                        counters,
+                        _PASSIVE_DEFERRED_FLUSH_LIMITS,
+                    )
+                )
+            elif counters.get(
+                "instrumented_autocomplete_preview_update_count",
+                0.0,
+            ):
+                violations.extend(
+                    _forbidden_counter_violations(
+                        delta,
+                        counters,
+                        (
+                            _PASSIVE_FORBIDDEN_COUNTERS
+                            - _PASSIVE_AUTOCOMPLETE_ALLOWED_COUNTERS
+                        ),
+                    )
+                )
+                violations.extend(
+                    _counter_limit_violations(
+                        delta,
+                        counters,
+                        _PASSIVE_AUTOCOMPLETE_LIMITS,
+                    )
+                )
+            elif counters.get(
+                "instrumented_diagnostics_visible_publish_count",
+                0.0,
+            ):
+                violations.extend(
+                    _forbidden_counter_violations(
+                        delta,
+                        counters,
+                        (
+                            _PASSIVE_FORBIDDEN_COUNTERS
+                            - _PASSIVE_DIAGNOSTIC_PUBLISH_ALLOWED_COUNTERS
+                        ),
+                    )
+                )
+                violations.extend(
+                    _counter_limit_violations(
+                        delta,
+                        counters,
+                        _PASSIVE_DIAGNOSTIC_PUBLISH_LIMITS,
+                    )
+                )
+            else:
+                violations.extend(
+                    _forbidden_counter_violations(
+                        delta,
+                        counters,
+                        _PASSIVE_FORBIDDEN_COUNTERS,
+                    )
+                )
+        if _is_edit_action(delta.label):
+            violations.extend(_edit_action_violations(delta, counters))
     return tuple(dict.fromkeys(violations))
 
 
@@ -117,8 +339,134 @@ def _is_navigation_key(label: str) -> bool:
 
     return any(
         label.startswith(f"key:'{key_name}'")
-        for key_name in ("left", "right", "up", "down", "home", "end")
+        for key_name in (
+            "left",
+            "right",
+            "up",
+            "down",
+            "home",
+            "end",
+            "shift_left",
+            "shift_right",
+            "shift_up",
+            "shift_down",
+            "shift_home",
+            "shift_end",
+            "copy",
+            "select_all",
+        )
     )
+
+
+def _is_passive_editor_action(label: str) -> bool:
+    """Return whether one action must not change source or rebuild editor state."""
+
+    action_kind = label.partition(":")[0]
+    return action_kind in {
+        "mouse_caret",
+        "mouse_drag_selection",
+        "move_cursor",
+        "request_paint",
+        "scroll",
+        "select",
+    } or _is_navigation_key(label)
+
+
+def _is_edit_action(label: str) -> bool:
+    """Return whether one action may perform one bounded source edit."""
+
+    action_kind = label.partition(":")[0]
+    return action_kind in {"paste", "type"} or any(
+        label.startswith(f"key:'{key_name}'")
+        for key_name in ("backspace", "cut", "delete", "enter")
+    )
+
+
+def _edit_action_violations(
+    delta: PromptAbuseActionOwnerDelta,
+    counters: Mapping[str, float],
+) -> tuple[str, ...]:
+    """Require one user edit to remain single-source and single-strategy work."""
+
+    danbooru_import_count = counters.get(
+        "instrumented_danbooru_import_apply_count",
+        0.0,
+    )
+    limits = _DANBOORU_IMPORT_EDIT_LIMITS if danbooru_import_count else _EDIT_LIMITS
+    violations = list(_counter_limit_violations(delta, counters, limits))
+    if not danbooru_import_count:
+        canonical_document_count = counters.get(
+            "instrumented_document_view_build_count",
+            0.0,
+        )
+        violations.extend(
+            _maximum_counter_violations(
+                delta,
+                counters,
+                counter_name="instrumented_projection_document_build_count",
+                maximum=min(2.0, canonical_document_count + 1.0),
+            )
+        )
+    violations.extend(
+        _maximum_counter_violations(
+            delta,
+            counters,
+            counter_name="instrumented_editing_replace_full_source_count",
+            maximum=0.0,
+        )
+    )
+    if delta.label.partition(":")[0] == "paste":
+        violations.extend(
+            _maximum_counter_violations(
+                delta,
+                counters,
+                counter_name="instrumented_editing_paste_count",
+                maximum=1.0,
+            )
+        )
+    applied_path_count = sum(
+        counters.get(counter_name, 0.0) for counter_name in _EDIT_APPLIED_PATH_COUNTERS
+    )
+    if applied_path_count > 1.0:
+        violations.append(
+            _violation(
+                delta,
+                "projection_applied_path_count",
+                expected="<=1",
+                actual=applied_path_count,
+            )
+        )
+    return tuple(violations)
+
+
+def _queued_core_limits(counters: Mapping[str, float]) -> Mapping[str, float]:
+    """Return the core budget matching one explicit queued-work owner."""
+
+    if counters.get("instrumented_reorder_preview_run_count", 0.0):
+        return _QUEUED_REORDER_CORE_LIMITS
+    if counters.get("instrumented_autocomplete_preview_update_count", 0.0):
+        return _QUEUED_AUTOCOMPLETE_CORE_LIMITS
+    return _QUEUED_CORE_LIMITS
+
+
+def _counter_limit_violations(
+    delta: PromptAbuseActionOwnerDelta,
+    counters: Mapping[str, float],
+    limits: Mapping[str, float],
+) -> tuple[str, ...]:
+    """Return violations for one named set of maximum owner-work budgets."""
+
+    violations: list[str] = []
+    for counter_name, maximum in limits.items():
+        violations.extend(
+            _maximum_counter_violations(
+                delta,
+                counters,
+                counter_name=counter_name,
+                maximum=maximum,
+            )
+        )
+    return tuple(violations)
 
 
 def _forbidden_counter_violations(

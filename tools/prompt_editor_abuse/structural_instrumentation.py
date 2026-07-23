@@ -24,7 +24,7 @@ from contextvars import ContextVar
 from dataclasses import fields
 
 from substitute.devtools.prompt_editor_performance.instrumentation import (
-    InstrumentedMethods,
+    instrument_prompt_editor,
 )
 from substitute.devtools.prompt_editor_performance.metrics import (
     Instrumentation,
@@ -50,7 +50,7 @@ def prompt_abuse_structural_instrumentation(
     instrumentation = Instrumentation.create()
     token = _ACTIVE_INSTRUMENTATION.set(instrumentation)
     try:
-        with InstrumentedMethods(
+        with instrument_prompt_editor(
             instrumentation,
             suppress_context_menu_exec=False,
         ):

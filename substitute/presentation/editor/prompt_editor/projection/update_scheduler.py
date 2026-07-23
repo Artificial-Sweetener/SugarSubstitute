@@ -284,18 +284,19 @@ class PromptProjectionUpdateScheduler(QObject):
             and not decision.force_due_to_max_stale
         )
 
-    def flush_now(self, *, reason: str) -> None:
-        """Synchronously apply any pending update before exact geometry reads."""
+    def flush_now(self, *, reason: str) -> bool:
+        """Apply pending work synchronously and report whether work was applied."""
 
         pending_update = self._pending_update
         if pending_update is None:
-            return
+            return False
         if not self._timer_is_operational():
             self._drop_pending_after_dead_timer(operation="flush_now")
-            return
+            return False
         if self._timer_is_active():
             self._timer.stop()
         self._flush_pending(reason=reason)
+        return True
 
     def cancel(self) -> None:
         """Drop any pending update without applying it."""

@@ -21,6 +21,10 @@ from __future__ import annotations
 from substitute.domain.prompt import (
     PromptDocument,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 from .prompt_autocomplete_query_service import (
     PromptAutocompleteQueryService,
@@ -133,6 +137,7 @@ class PromptDocumentService:
 
         return self._document_projector.parse_document(text)
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DOCUMENT_VIEW_BUILD)
     def build_document_view(self, text: str) -> PromptDocumentView:
         """Build one application-safe prompt snapshot from plain text."""
 
@@ -143,6 +148,7 @@ class PromptDocumentService:
 
         return self._document_projector.prewarm_document_views(texts)
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DOCUMENT_VIEW_BUILD)
     def build_document_view_from_document(
         self,
         document: PromptDocument,
@@ -413,6 +419,7 @@ class PromptDocumentService:
             outer_end=outer_end,
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.AUTOCOMPLETE_QUERY_RESOLUTION)
     def autocomplete_query_at_cursor(
         self,
         document_view: PromptDocumentView,
@@ -432,6 +439,7 @@ class PromptDocumentService:
             minimum_prefix_length=minimum_prefix_length,
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.AUTOCOMPLETE_QUERY_RESOLUTION)
     def wildcard_autocomplete_query_at_cursor(
         self,
         *,
@@ -447,6 +455,7 @@ class PromptDocumentService:
             has_selection=has_selection,
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.AUTOCOMPLETE_QUERY_RESOLUTION)
     def scene_autocomplete_query_at_cursor(
         self,
         *,
@@ -462,6 +471,7 @@ class PromptDocumentService:
             has_selection=has_selection,
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.AUTOCOMPLETE_QUERY_RESOLUTION)
     def lora_autocomplete_query_at_cursor(
         self,
         *,

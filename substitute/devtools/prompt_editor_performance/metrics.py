@@ -85,6 +85,9 @@ class Instrumentation:
     """Store operation counters used during one benchmark run."""
 
     projection_rebuild: OperationCounter
+    document_view_build: OperationCounter
+    syntax_render_plan_build: OperationCounter
+    projection_document_build: OperationCounter
     layout_snapshot: OperationCounter
     autocomplete_refresh: OperationCounter
     autocomplete_query_resolution: OperationCounter
@@ -96,6 +99,7 @@ class Instrumentation:
     autocomplete_preview_update: OperationCounter
     diagnostics_activation: OperationCounter
     diagnostics_visible_refresh: OperationCounter
+    diagnostics_visible_publish: OperationCounter
     diagnostics_action_prepare: OperationCounter
     context_menu_snapshot: OperationCounter
     context_menu_scene_context: OperationCounter
@@ -110,6 +114,7 @@ class Instrumentation:
     editing_set_cursor_positions: OperationCounter
     editing_selection: OperationCounter
     editing_paste: OperationCounter
+    danbooru_import_apply: OperationCounter
     surface_source_apply: OperationCounter
     projection_fast_insert_applied: OperationCounter
     projection_fast_delete_applied: OperationCounter
@@ -119,6 +124,7 @@ class Instrumentation:
     projection_incremental_rejected: OperationCounter
     projection_wrap_deferred: OperationCounter
     projection_fallback_deferred: OperationCounter
+    projection_pending_flush_applied: OperationCounter
     paint_cache_hit: OperationCounter
     paint_cache_miss: OperationCounter
     paint_cache_bypass: OperationCounter
@@ -168,7 +174,9 @@ class ScenarioResult:
     characters: int
     operations: int
     average_ms: float
+    p50_ms: float
     p95_ms: float
+    p99_ms: float
     max_ms: float
     instrumentation: Instrumentation
     extra_counts: dict[str, int | float] = field(default_factory=dict)

@@ -39,6 +39,10 @@ from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptSourceNormalizer,
     PromptUndoSnapshot,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 from substitute.shared.logging.logger import get_logger, log_debug
 
 TPayload = TypeVar("TPayload")
@@ -158,6 +162,7 @@ class PromptDanbooruPasteImportHandler(Generic[TPayload]):
         )
         return True
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DANBOORU_IMPORT_APPLY)
     def apply_import_result(
         self,
         request: PromptDanbooruPasteRequest[TPayload],

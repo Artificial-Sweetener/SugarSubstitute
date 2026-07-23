@@ -90,12 +90,17 @@ def test_result_table_rows_include_metric_summaries_without_prompt_text() -> Non
     instrumentation.context_menu_snapshot.record(0.25)
     instrumentation.context_menu_open.record(0.75)
     instrumentation.diagnostics_activation.record(0.5)
+    instrumentation.diagnostics_visible_publish.record(0.0)
+    instrumentation.danbooru_import_apply.record(0.0)
+    instrumentation.projection_pending_flush_applied.record(0.0)
     result = ScenarioResult(
         name="plain-prompt-type",
         characters=99,
         operations=3,
         average_ms=1.234,
+        p50_ms=1.789,
         p95_ms=2.345,
+        p99_ms=2.901,
         max_ms=3.456,
         instrumentation=instrumentation,
         extra_counts={"max_drag_move_ms": 4.567},
@@ -105,10 +110,15 @@ def test_result_table_rows_include_metric_summaries_without_prompt_text() -> Non
 
     assert rows[0].startswith("scenario")
     assert "max_drag" in rows[0]
+    assert "diag_pub" in rows[0]
+    assert "dan_apply" in rows[0]
+    assert "pend_flush" in rows[0]
     assert "plain-prompt-type" in rows[1]
     assert "99" in rows[1]
     assert "1.23" in rows[1]
+    assert "1.79" in rows[1]
     assert "2.35" in rows[1]
+    assert "2.90" in rows[1]
     assert "3.46" in rows[1]
     assert "4.57" in rows[1]
     assert "typed secret" not in "\n".join(rows)
@@ -124,7 +134,9 @@ def test_print_results_writes_generated_rows(
         characters=0,
         operations=0,
         average_ms=0.0,
+        p50_ms=0.0,
         p95_ms=0.0,
+        p99_ms=0.0,
         max_ms=0.0,
         instrumentation=Instrumentation.create(),
     )

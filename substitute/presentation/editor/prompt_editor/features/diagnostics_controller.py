@@ -47,6 +47,11 @@ from substitute.application.prompt_editor.prompt_structured_value_diagnostic_pro
     PromptStructuredValueDiagnosticProvider,
 )
 from substitute.shared.logging.logger import get_logger, log_timing
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+    record_prompt_editor_work_count,
+)
 
 from ..async_work import (
     PromptAsyncRequest,
@@ -277,6 +282,7 @@ class PromptDiagnosticsFeatureController:
             reason="diagnostics_activation",
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTICS_ACTIVATION)
     def activate(self) -> None:
         """Create optional providers and queue an initial diagnostics refresh."""
 
@@ -427,6 +433,7 @@ class PromptDiagnosticsFeatureController:
             source_position,
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTICS_ACTION_PREPARE)
     def actions_for_diagnostic(
         self,
         diagnostic: PromptDiagnostic | None,
@@ -624,6 +631,7 @@ class PromptDiagnosticsFeatureController:
         self._set_visible_diagnostics(())
         self._publish_snapshot(stale=False)
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTICS_VISIBLE_REFRESH)
     def refresh_visible_diagnostics(self) -> None:
         """Refresh displayed diagnostics from the cached snapshot without backend work."""
 
@@ -661,6 +669,9 @@ class PromptDiagnosticsFeatureController:
         if next_identity == self._visible_diagnostics_identity:
             return
         self._visible_diagnostics_identity = next_identity
+        record_prompt_editor_work_count(
+            PromptEditorWorkEvent.DIAGNOSTICS_VISIBLE_PUBLISH
+        )
         if diagnostics:
             self._surface.set_diagnostics(diagnostics)
             return

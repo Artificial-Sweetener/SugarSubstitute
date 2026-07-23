@@ -43,6 +43,10 @@ from substitute.application.prompt_editor.prompt_document_semantics import (
     PromptDocumentSemantics,
 )
 from substitute.shared.logging.logger import get_logger, log_debug
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 from .caret_map_builder import build_prompt_projection_caret_map
 from .model import (
@@ -144,6 +148,7 @@ class PromptProjectionBuilder:
             end=end,
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.PROJECTION_DOCUMENT_BUILD)
     def build_projection(
         self,
         document_view: PromptDocumentView,

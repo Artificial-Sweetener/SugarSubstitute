@@ -23,8 +23,9 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QKeyEvent
+from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.application.prompt_editor import PromptSpellingDiagnosticPayload
 from substitute.devtools.prompt_editor_performance.metrics import Instrumentation
@@ -32,9 +33,12 @@ from substitute.devtools.prompt_editor_performance.qt_operations import (
     QT_REORDER_ARROW_KEYS,
     operation_key,
     process_events,
+    prompt_key_target,
     run_scenario_operations,
+    send_prompt_alt_event,
     spelling_diagnostic_for_text,
     time_key_click,
+    wait_for_current_reorder_overlay,
 )
 from substitute.devtools.prompt_editor_performance.scenarios import (
     Scenario,
@@ -71,6 +75,26 @@ class _EventApp:
         """Record one event-loop flush."""
 
         self.process_event_count += 1
+
+
+class _KeyEventRecorder(QWidget):
+    """Record modifier events delivered through the benchmark focus route."""
+
+    def __init__(self) -> None:
+        """Initialize recorded key event tuples."""
+
+        super().__init__()
+        self.events: list[tuple[QEvent.Type, int, Qt.KeyboardModifier]] = []
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Record one Alt press."""
+
+        self.events.append((event.type(), event.key(), event.modifiers()))
+
+    def keyReleaseEvent(self, event: QKeyEvent) -> None:
+        """Record one Alt release."""
+
+        self.events.append((event.type(), event.key(), event.modifiers()))
 
 
 def test_prompt_editor_performance_qt_operations_imports_no_tools() -> None:
@@ -142,6 +166,102 @@ def test_process_events_flushes_bounded_cycles() -> None:
     process_events(cast(QApplication, app), cycles=5)
 
     assert app.process_event_count == 5
+
+
+def test_prompt_key_target_uses_the_production_focus_proxy() -> None:
+    """Benchmark key events must follow the same focus route as user input."""
+
+    app = QApplication.instance() or QApplication([])
+    editor = QWidget()
+    proxy = QWidget(editor)
+    editor.setFocusProxy(proxy)
+
+    assert prompt_key_target(cast(PromptEditor, editor)) is proxy
+    editor.close()
+    app.processEvents()
+
+
+def test_prompt_alt_events_traverse_the_focus_widget_once() -> None:
+    """Modifier setup must avoid QTest's platform-dependent standalone Alt path."""
+
+    app = QApplication.instance() or QApplication([])
+    target = _KeyEventRecorder()
+
+    send_prompt_alt_event(target, QEvent.Type.KeyPress)
+    send_prompt_alt_event(target, QEvent.Type.KeyRelease)
+
+    assert target.events == [
+        (
+            QEvent.Type.KeyPress,
+            int(Qt.Key.Key_Alt),
+            Qt.KeyboardModifier.NoModifier,
+        ),
+        (
+            QEvent.Type.KeyRelease,
+            int(Qt.Key.Key_Alt),
+            Qt.KeyboardModifier.AltModifier,
+        ),
+    ]
+    target.close()
+    app.processEvents()
+
+
+def test_prompt_alt_event_rejects_non_key_event() -> None:
+    """Modifier delivery must remain constrained to key press and release."""
+
+    app = QApplication.instance() or QApplication([])
+    target = QWidget()
+
+    with pytest.raises(ValueError, match="key press or release"):
+        send_prompt_alt_event(target, QEvent.Type.MouseMove)
+
+    target.close()
+    app.processEvents()
+
+
+def test_reorder_overlay_waits_for_bounded_observable_event_turns(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Overlay setup may cross queued turns without repeating the Alt input."""
+
+    app = _EventApp()
+    overlay = object()
+    attempts = 0
+
+    def fake_current_reorder_overlay(editor: PromptEditor) -> object:
+        """Publish the overlay after two queued event turns."""
+
+        nonlocal attempts
+        _ = editor
+        attempts += 1
+        if attempts < 3:
+            raise RuntimeError("not ready")
+        return overlay
+
+    monkeypatch.setattr(
+        "substitute.devtools.prompt_editor_performance.qt_operations."
+        "current_reorder_overlay",
+        fake_current_reorder_overlay,
+    )
+
+    result = wait_for_current_reorder_overlay(
+        cast(QApplication, app),
+        cast(PromptEditor, object()),
+    )
+
+    assert result is overlay
+    assert app.process_event_count == 2
+
+
+def test_reorder_overlay_wait_rejects_unbounded_configuration() -> None:
+    """Overlay setup must retain a positive bounded event-turn budget."""
+
+    with pytest.raises(ValueError, match="must be positive"):
+        wait_for_current_reorder_overlay(
+            cast(QApplication, _EventApp()),
+            cast(PromptEditor, object()),
+            event_cycles=0,
+        )
 
 
 def test_run_scenario_operations_rejects_unsupported_operation() -> None:

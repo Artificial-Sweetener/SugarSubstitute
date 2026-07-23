@@ -99,7 +99,9 @@ def test_prompt_editor_performance_cli_delegates_to_runner(
         characters=7,
         operations=0,
         average_ms=0.0,
+        p50_ms=0.0,
         p95_ms=0.0,
+        p99_ms=0.0,
         max_ms=0.0,
         instrumentation=Instrumentation.create(),
     )
@@ -115,12 +117,16 @@ def test_prompt_editor_performance_cli_delegates_to_runner(
     monkeypatch.setattr(module, "_scenarios", fake_scenarios)
 
     def fake_run_scenarios(
-        app: object, scenarios: tuple[Scenario, ...]
+        app: object,
+        scenarios: tuple[Scenario, ...],
+        *,
+        observe_owner_work: bool,
     ) -> list[ScenarioResult]:
         """Record runner inputs and return deterministic results."""
 
         calls["app"] = app
         calls["scenarios"] = scenarios
+        calls["observe_owner_work"] = observe_owner_work
         return [result]
 
     def fake_print_results(results: list[ScenarioResult]) -> None:
@@ -138,6 +144,7 @@ def test_prompt_editor_performance_cli_delegates_to_runner(
         "typed_text": "secret prompt",
         "app": "app",
         "scenarios": (scenario,),
+        "observe_owner_work": True,
         "results": [result],
     }
 
@@ -151,7 +158,11 @@ def test_prompt_editor_performance_cli_can_disable_logging(
     disable_calls: list[int] = []
     monkeypatch.setattr(module, "prompt_performance_application", lambda: "app")
     monkeypatch.setattr(module, "_scenarios", lambda typed_text: ())
-    monkeypatch.setattr(module, "_run_scenarios", lambda app, scenarios: [])
+    monkeypatch.setattr(
+        module,
+        "_run_scenarios",
+        lambda app, scenarios, *, observe_owner_work: [],
+    )
     monkeypatch.setattr(module, "_print_results", lambda results: None)
     monkeypatch.setattr(logging, "disable", disable_calls.append)
 
@@ -159,6 +170,37 @@ def test_prompt_editor_performance_cli_can_disable_logging(
 
     assert exit_code == 0
     assert disable_calls == [logging.CRITICAL]
+
+
+def test_prompt_editor_performance_cli_can_disable_owner_observation(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Timing-only mode must measure without installing owner instrumentation."""
+
+    module = _load_cli_module()
+    observed_modes: list[bool] = []
+    monkeypatch.setattr(module, "prompt_performance_application", lambda: "app")
+    monkeypatch.setattr(module, "_scenarios", lambda typed_text: ())
+
+    def fake_run_scenarios(
+        app: object,
+        scenarios: tuple[Scenario, ...],
+        *,
+        observe_owner_work: bool,
+    ) -> list[ScenarioResult]:
+        """Record whether the runner will install its owner observer."""
+
+        _ = (app, scenarios)
+        observed_modes.append(observe_owner_work)
+        return []
+
+    monkeypatch.setattr(module, "_run_scenarios", fake_run_scenarios)
+    monkeypatch.setattr(module, "_print_results", lambda results: None)
+
+    exit_code = cast(int, module.main(["--timing-only"]))
+
+    assert exit_code == 0
+    assert observed_modes == [False]
 
 
 def _load_cli_module() -> ModuleType:

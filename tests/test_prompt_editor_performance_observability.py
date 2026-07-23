@@ -79,7 +79,9 @@ def test_scenario_log_fields_include_required_context_and_counters() -> None:
         characters=42,
         operations=3,
         average_ms=1.25,
+        p50_ms=1.5,
         p95_ms=1.75,
+        p99_ms=2.0,
         max_ms=2.25,
         instrumentation=instrumentation,
         extra_counts={"preview_scheduler_request_count": 4},
@@ -103,7 +105,9 @@ def test_scenario_log_fields_include_required_context_and_counters() -> None:
     assert fields["scenario_character_count"] == 42
     assert fields["feature_profile_name"] == "default"
     assert fields["average_ms"] == 1.25
+    assert fields["p50_ms"] == 1.5
     assert fields["p95_ms"] == 1.75
+    assert fields["p99_ms"] == 2.0
     assert fields["max_ms"] == 2.25
     assert fields["instrumentation_projection_rebuild_count"] == 1
     assert fields["instrumentation_projection_rebuild_elapsed_ms"] == 2.5
@@ -123,7 +127,9 @@ def test_scenario_log_fields_do_not_include_prompt_text_values() -> None:
         characters=21,
         operations=1,
         average_ms=0.5,
+        p50_ms=0.5,
         p95_ms=0.5,
+        p99_ms=0.5,
         max_ms=0.5,
         instrumentation=Instrumentation.create(),
     )

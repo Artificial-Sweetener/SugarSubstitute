@@ -29,6 +29,10 @@ from substitute.presentation.editor.prompt_editor.geometry import (
     map_cursor_rect_to_host,
 )
 from substitute.presentation.editor.prompt_editor.models import AutocompleteSession
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 from .autocomplete_panel import (
     PromptAutocompleteActivationIntent,
@@ -148,6 +152,7 @@ class PromptAutocompletePanelPresenter:
 
         return self._panel
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.AUTOCOMPLETE_PANEL_UPDATE)
     def present_session(self, session: AutocompleteSession) -> bool:
         """Render the prepared panel state for one autocomplete session."""
 

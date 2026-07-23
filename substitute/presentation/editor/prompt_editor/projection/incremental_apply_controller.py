@@ -29,6 +29,11 @@ from substitute.application.prompt_editor import (
     PromptDocumentView,
     PromptSyntaxRenderPlan,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_result_event,
+    prompt_editor_work_true_event,
+)
 
 from .applicator import PromptProjectionApplicator
 from .canonical_edit_reflow import PromptProjectionCanonicalEditReflow
@@ -124,6 +129,21 @@ class PromptProjectionSourceChangeApplyOutcome:
     apply_path: PromptProjectionApplyPath
     fast_projection_applied: bool = False
     wrap_reflow_deferred: bool = False
+
+
+def _incremental_apply_work_event(
+    result: PromptProjectionPlainTextApplyResult,
+) -> PromptEditorWorkEvent:
+    """Classify one incremental projection attempt for structural measurement."""
+
+    if result.status in {
+        PromptProjectionPlainTextApplyStatus.APPLIED,
+        PromptProjectionPlainTextApplyStatus.APPLIED_REFLOW,
+    }:
+        return PromptEditorWorkEvent.PROJECTION_INCREMENTAL_APPLIED
+    if result.status is PromptProjectionPlainTextApplyStatus.DEFERRED_WRAP_REFLOW:
+        return PromptEditorWorkEvent.PROJECTION_INCREMENTAL_DEFERRED
+    return PromptEditorWorkEvent.PROJECTION_INCREMENTAL_REJECTED
 
 
 class PromptProjectionRectSignal(Protocol):
@@ -464,6 +484,11 @@ class PromptProjectionIncrementalApplyController:
         host._update_incremental_plain_text_projection_paint(layout_result)
         return True
 
+    @prompt_editor_work_result_event(
+        prompt_editor_work_true_event(
+            PromptEditorWorkEvent.PROJECTION_FAST_INSERT_APPLIED,
+        )
+    )
     def try_apply_fast_trailing_plain_insert_projection(
         self,
         *,
@@ -515,6 +540,11 @@ class PromptProjectionIncrementalApplyController:
         host.viewport().update()
         return True
 
+    @prompt_editor_work_result_event(
+        prompt_editor_work_true_event(
+            PromptEditorWorkEvent.PROJECTION_FAST_NEWLINE_APPLIED,
+        )
+    )
     def try_apply_fast_trailing_newline_insert_projection(
         self,
         *,
@@ -571,6 +601,11 @@ class PromptProjectionIncrementalApplyController:
         host.viewport().update()
         return True
 
+    @prompt_editor_work_result_event(
+        prompt_editor_work_true_event(
+            PromptEditorWorkEvent.PROJECTION_FAST_DELETE_APPLIED,
+        )
+    )
     def try_apply_fast_trailing_plain_delete_projection(
         self,
         *,
@@ -622,6 +657,11 @@ class PromptProjectionIncrementalApplyController:
         host.viewport().update()
         return True
 
+    @prompt_editor_work_result_event(
+        prompt_editor_work_true_event(
+            PromptEditorWorkEvent.PROJECTION_FAST_NEWLINE_APPLIED,
+        )
+    )
     def try_apply_fast_trailing_newline_delete_projection(
         self,
         *,
@@ -666,6 +706,7 @@ class PromptProjectionIncrementalApplyController:
         host.viewport().update()
         return True
 
+    @prompt_editor_work_result_event(_incremental_apply_work_event)
     def try_apply_incremental_plain_text_projection(
         self,
         *,
@@ -782,6 +823,9 @@ class PromptProjectionIncrementalApplyController:
         host._clear_transient_caret_geometry()
         host._update_incremental_plain_text_projection_paint(layout_result)
 
+    @prompt_editor_work_result_event(
+        prompt_editor_work_true_event(PromptEditorWorkEvent.PROJECTION_WRAP_DEFERRED)
+    )
     def defer_wrap_reflow_projection_update(
         self,
         *,
@@ -808,6 +852,11 @@ class PromptProjectionIncrementalApplyController:
         )
         return True
 
+    @prompt_editor_work_result_event(
+        prompt_editor_work_true_event(
+            PromptEditorWorkEvent.PROJECTION_FALLBACK_DEFERRED,
+        )
+    )
     def try_defer_immediate_projection_fallback_update(
         self,
         *,

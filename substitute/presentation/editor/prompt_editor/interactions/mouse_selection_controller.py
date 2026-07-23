@@ -29,6 +29,10 @@ from substitute.application.prompt_editor import (
     PromptDocumentView,
     PromptSyntaxAction,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 from ..models import PromptEditorInteractionMode
 from ..projection.hit_testing import (
@@ -280,6 +284,7 @@ class PromptSurfaceMouseHandler:
         event.accept()
         return True
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.HOVER_MOVE)
     def handle_viewport_mouse_move(
         self,
         event: QMouseEvent,
@@ -388,6 +393,7 @@ class PromptSurfaceMouseHandler:
         event.accept()
         return True
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.HOVER_UPDATE)
     def update_hovered_token(self, local_position: QPointF) -> None:
         """Refresh the token currently under the mouse pointer."""
 

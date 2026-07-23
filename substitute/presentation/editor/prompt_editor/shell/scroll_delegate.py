@@ -27,6 +27,10 @@ from PySide6.QtWidgets import QScrollBar, QWidget
 from sugarsubstitute_shared.presentation.widgets.scrolling import (
     configure_qfluent_scroll_surface,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 from ..qt_lifecycle import qt_object_is_alive
 
@@ -188,6 +192,7 @@ class PromptShellScrollDelegate:
         self._visible_scrollbar_value_connected = True
         self.sync_host_scrollbar_shell()
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.SHELL_SCROLL_EVENT)
     def handle_viewport_scroll_value_changed(self, _value: int) -> None:
         """Refresh shell scroll chrome after projection scrollbar movement."""
 
@@ -221,6 +226,7 @@ class PromptShellScrollDelegate:
         self._shell_geometry_follow_up_pending = True
         QTimer.singleShot(0, self.sync_shell_geometry)
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.SHELL_GEOMETRY_SYNC)
     def sync_shell_geometry(self) -> None:
         """Rebuild prompt layout and finish once live viewport widths settle."""
 
@@ -257,6 +263,7 @@ class PromptShellScrollDelegate:
             return
         self._shell_geometry_sync_pending = False
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.SHELL_LAYOUT_SURFACE)
     def layout_surface(self) -> None:
         """Resize the projection surface to match the live QFluent viewport."""
 

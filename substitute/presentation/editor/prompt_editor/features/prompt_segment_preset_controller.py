@@ -43,6 +43,10 @@ from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset
     PromptSegmentPresetSnapshot,
     PromptSegmentPresetSource,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_selection import (
     PromptSegmentPresetHost,
     PromptSegmentSelectionSnapshot,
@@ -190,6 +194,7 @@ class PromptSegmentPresetController:
         self._snapshot = snapshot
         return snapshot
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.CONTEXT_MENU_SEGMENT_SNAPSHOT)
     def prepared_menu_snapshot_for_selection(
         self,
         *,

@@ -48,6 +48,10 @@ from .undo_stack import PromptUndoStack
 from substitute.application.prompt_editor.prompt_literal_parenthesis_normalizer import (
     PromptParenthesisTransition,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 TPayload = TypeVar("TPayload")
 
@@ -194,6 +198,7 @@ class PromptEditingSession(Generic[TPayload]):
 
         return self._source_edits.snapshot()
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.EDITING_SELECTION)
     def selection(self) -> PromptSelection:
         """Return the active source selection."""
 
@@ -222,6 +227,7 @@ class PromptEditingSession(Generic[TPayload]):
             source_length=len(self.source_text),
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.EDITING_SET_CURSOR_POSITIONS)
     def set_cursor_positions(
         self,
         *,
@@ -241,6 +247,7 @@ class PromptEditingSession(Generic[TPayload]):
 
         return self._cursor_session.select_all(source_length=len(self.source_text))
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.EDITING_REPLACE_FULL_SOURCE)
     def replace_full_source(
         self,
         text: str,
@@ -267,6 +274,7 @@ class PromptEditingSession(Generic[TPayload]):
         )
         return self._commit_source_edit_result(result)
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.EDITING_REPLACE_RANGE)
     def replace_source_range(
         self,
         *,
@@ -401,6 +409,7 @@ class PromptEditingSession(Generic[TPayload]):
             selection=self.selection(),
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.EDITING_PASTE)
     def paste(self, pasted_text: str) -> PromptClipboardPasteResult:
         """Return the source range that should receive pasted text."""
 

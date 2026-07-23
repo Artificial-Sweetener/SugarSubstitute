@@ -36,6 +36,10 @@ from substitute.application.ports import (
     PromptWildcardReference,
     PromptWildcardResolution,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 from .prompt_document_views import (
     PromptDocumentView,
@@ -245,6 +249,7 @@ class PromptSyntaxService:
             prompt_lora_catalog_service
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.SYNTAX_RENDER_PLAN_BUILD)
     def build_render_plan(
         self,
         document_view: PromptDocumentView,

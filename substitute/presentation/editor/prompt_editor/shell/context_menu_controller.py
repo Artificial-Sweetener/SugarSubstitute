@@ -53,6 +53,12 @@ from substitute.presentation.widgets.menu_model import (
     MenuSeparator,
 )
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
+
+from .menu_presentation import present_prompt_menu
 
 PromptShellSelectionSnapshot = tuple[int, int, str]
 
@@ -304,6 +310,7 @@ class PromptShellContextMenuController:
         event.accept()
         return True
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.CONTEXT_MENU_OPEN)
     def show_prompt_context_menu(self, event: QContextMenuEvent) -> None:
         """Show the QFluent prompt menu from prepared feature action state."""
 
@@ -510,7 +517,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
         )
         if self.view.count() == 0:
             return None
-        return RoundMenu.exec(self, pos, ani, aniType)
+        return present_prompt_menu(self, pos, ani, aniType)
 
     def _menu_entries(self) -> tuple[MenuEntry, ...]:
         """Return the complete prompt context-menu model in display order."""

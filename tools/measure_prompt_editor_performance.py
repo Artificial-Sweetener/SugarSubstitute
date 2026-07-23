@@ -54,6 +54,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Disable Python logging while measuring keypress costs.",
     )
+    parser.add_argument(
+        "--timing-only",
+        action="store_true",
+        help=(
+            "Measure production hot paths without owner-work observation while "
+            "still suppressing native menu presentation."
+        ),
+    )
     args = parser.parse_args(argv)
 
     if args.disable_logging:
@@ -61,7 +69,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     app = prompt_performance_application()
     scenarios = _scenarios(args.typed_text)
-    results = _run_scenarios(app, scenarios)
+    results = _run_scenarios(
+        app,
+        scenarios,
+        observe_owner_work=not args.timing_only,
+    )
     _print_results(results)
     return 0
 

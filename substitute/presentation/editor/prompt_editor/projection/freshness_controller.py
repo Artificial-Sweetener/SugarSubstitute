@@ -28,6 +28,11 @@ from substitute.application.prompt_editor import (
     PromptDocumentView,
     PromptSyntaxRenderPlan,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_result_event,
+    prompt_editor_work_true_event,
+)
 
 from .model import PromptProjectionDisplayMode
 from ..editing_session import PromptSourceEditOrigin
@@ -208,12 +213,17 @@ class PromptProjectionFreshnessController:
         self._update_scheduler.cancel()
         self._last_source_edit_deferrable_for_projection = False
 
-    def flush_pending_update(self, *, reason: str) -> None:
-        """Apply scheduled projection work before exact geometry is read."""
+    @prompt_editor_work_result_event(
+        prompt_editor_work_true_event(
+            PromptEditorWorkEvent.PROJECTION_PENDING_FLUSH_APPLIED,
+        )
+    )
+    def flush_pending_update(self, *, reason: str) -> bool:
+        """Apply scheduled projection work and report whether work was applied."""
 
         if self._applying_scheduled_projection_update:
-            return
-        self._update_scheduler.flush_now(reason=reason)
+            return False
+        return self._update_scheduler.flush_now(reason=reason)
 
     def cancel_stale_safe_projection_update(
         self,

@@ -25,6 +25,11 @@ from typing import Protocol, cast
 
 from PySide6.QtCore import QObject, QTimer
 
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
+
 from ..projection.observability import (
     log_reorder_drag_event,
     log_reorder_drag_timing,
@@ -121,6 +126,7 @@ class PromptReorderPreviewScheduler(QObject):
         self._latest_gesture_id: int | None = None
         self._latest_event_id: int | None = None
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.REORDER_PREVIEW_REQUEST)
     def request(
         self,
         *,
@@ -208,6 +214,7 @@ class PromptReorderPreviewScheduler(QObject):
 
         return self._timer.isActive()
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.REORDER_PREVIEW_RUN)
     def _run(self) -> None:
         """Run the latest pending preview work from the timer callback."""
 

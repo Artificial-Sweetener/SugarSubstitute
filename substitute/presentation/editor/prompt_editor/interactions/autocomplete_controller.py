@@ -31,6 +31,10 @@ from substitute.application.prompt_editor import (
     PromptSceneAutocompleteQuery,
     PromptWildcardAutocompleteQuery,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 from substitute.presentation.editor.prompt_editor.autocomplete_refresh_intent import (
     PASSIVE_AUTOCOMPLETE_REFRESH_INTENTS,
     PromptAutocompleteRefreshIntent,
@@ -291,6 +295,7 @@ class PromptAutocompleteCoordinator:
         )
         return False
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.AUTOCOMPLETE_REFRESH)
     def refresh_for_query(
         self,
         query: PromptAutocompleteQuery | None,

@@ -325,6 +325,390 @@ def test_structural_policy_rejects_editor_rebuild_work_on_canvas_round_trip() ->
     assert any("region_chrome_prepare_count" in item for item in violations)
 
 
+def test_structural_policy_rejects_semantic_work_on_passive_editor_actions() -> None:
+    """Navigation, selection, paint, and scroll must remain source-neutral."""
+
+    deltas = tuple(
+        PromptAbuseActionOwnerDelta(
+            action_index=index,
+            unit_index=0,
+            label=label,
+            counter_deltas=(
+                ("instrumented_document_view_build_count", 1.0),
+                ("instrumented_layout_snapshot_count", 1.0),
+                ("instrumented_surface_source_apply_count", 1.0),
+            ),
+        )
+        for index, label in enumerate(
+            (
+                "key:'up'",
+                "mouse_caret",
+                "mouse_drag_selection",
+                "move_cursor",
+                "request_paint",
+                "scroll",
+                "select",
+            )
+        )
+    )
+
+    violations = prompt_abuse_structural_violations(deltas)
+
+    assert len(violations) == len(deltas) * 3
+    assert all("expected=0" in violation for violation in violations)
+
+
+def test_structural_policy_accepts_one_bounded_incremental_user_edit() -> None:
+    """One character edit may use one source and one projection strategy."""
+
+    deltas = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="type:'x'",
+            counter_deltas=(
+                ("instrumented_editing_replace_range_count", 1.0),
+                ("instrumented_projection_incremental_applied_count", 1.0),
+                ("instrumented_surface_source_apply_count", 1.0),
+            ),
+        ),
+        PromptAbuseActionOwnerDelta(
+            action_index=1,
+            unit_index=0,
+            label="key:'enter'",
+            counter_deltas=(
+                ("instrumented_editing_replace_range_count", 1.0),
+                ("instrumented_layout_snapshot_count", 1.0),
+                ("instrumented_projection_document_build_count", 1.0),
+                ("instrumented_projection_rebuild_count", 1.0),
+                ("instrumented_surface_source_apply_count", 1.0),
+            ),
+        ),
+    )
+
+    assert prompt_abuse_structural_violations(deltas) == ()
+
+
+def test_structural_policy_distinguishes_canonical_and_active_edit_projections() -> (
+    None
+):
+    """One canonical edit may publish one additional active-edit projection."""
+
+    accepted = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="type:')'",
+            counter_deltas=(
+                ("instrumented_document_view_build_count", 1.0),
+                ("instrumented_layout_snapshot_count", 1.0),
+                ("instrumented_projection_document_build_count", 2.0),
+                ("instrumented_syntax_render_plan_build_count", 1.0),
+            ),
+        ),
+    )
+    rejected = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="type:')'",
+            counter_deltas=(
+                ("instrumented_document_view_build_count", 1.0),
+                ("instrumented_layout_snapshot_count", 1.0),
+                ("instrumented_projection_document_build_count", 3.0),
+                ("instrumented_syntax_render_plan_build_count", 1.0),
+            ),
+        ),
+    )
+
+    assert prompt_abuse_structural_violations(accepted) == ()
+    assert any(
+        "instrumented_projection_document_build_count" in violation
+        for violation in prompt_abuse_structural_violations(rejected)
+    )
+
+
+def test_structural_policy_models_one_immediate_danbooru_import_completion() -> None:
+    """Literal URL paste and its immediate import may commit two revisions."""
+
+    accepted = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="paste:'https://danbooru.donmai.us/posts/1'",
+            counter_deltas=(
+                ("instrumented_danbooru_import_apply_count", 1.0),
+                ("instrumented_document_view_build_count", 1.0),
+                ("instrumented_editing_replace_range_count", 2.0),
+                ("instrumented_editing_paste_count", 1.0),
+                ("instrumented_projection_document_build_count", 2.0),
+                ("instrumented_surface_source_apply_count", 2.0),
+                ("instrumented_syntax_render_plan_build_count", 1.0),
+            ),
+        ),
+    )
+    rejected = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="paste:'https://danbooru.donmai.us/posts/1'",
+            counter_deltas=(
+                ("instrumented_danbooru_import_apply_count", 2.0),
+                ("instrumented_editing_replace_range_count", 3.0),
+                ("instrumented_surface_source_apply_count", 3.0),
+            ),
+        ),
+    )
+
+    assert prompt_abuse_structural_violations(accepted) == ()
+    violations = prompt_abuse_structural_violations(rejected)
+    assert any(
+        "instrumented_danbooru_import_apply_count" in item for item in violations
+    )
+    assert any(
+        "instrumented_editing_replace_range_count" in item for item in violations
+    )
+    assert any("instrumented_surface_source_apply_count" in item for item in violations)
+
+
+def test_structural_policy_rejects_duplicate_edit_and_projection_work() -> None:
+    """One input unit must not trigger multiple source or applied-path units."""
+
+    deltas = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="paste:'x'",
+            counter_deltas=(
+                ("instrumented_editing_paste_count", 2.0),
+                ("instrumented_editing_replace_full_source_count", 1.0),
+                ("instrumented_editing_replace_range_count", 2.0),
+                ("instrumented_projection_fast_insert_applied_count", 1.0),
+                ("instrumented_projection_incremental_applied_count", 1.0),
+                ("instrumented_surface_source_apply_count", 2.0),
+            ),
+        ),
+    )
+
+    violations = prompt_abuse_structural_violations(deltas)
+
+    assert any("instrumented_editing_paste_count" in item for item in violations)
+    assert any(
+        "instrumented_editing_replace_full_source_count" in item for item in violations
+    )
+    assert any(
+        "instrumented_editing_replace_range_count" in item for item in violations
+    )
+    assert any("instrumented_surface_source_apply_count" in item for item in violations)
+    assert any("projection_applied_path_count" in item for item in violations)
+
+
+def test_structural_policy_bounds_queued_core_and_workflow_round_trip_work() -> None:
+    """One event turn and one workflow round trip must stay coalesced."""
+
+    accepted = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="event_turn:0",
+            counter_deltas=(
+                ("instrumented_document_view_build_count", 1.0),
+                ("instrumented_layout_snapshot_count", 1.0),
+                ("instrumented_projection_document_build_count", 1.0),
+                ("instrumented_projection_rebuild_count", 1.0),
+                ("instrumented_syntax_render_plan_build_count", 1.0),
+                ("region_chrome_prepare_count", 1.0),
+            ),
+        ),
+        PromptAbuseActionOwnerDelta(
+            action_index=1,
+            unit_index=0,
+            label="workflow_round_trip",
+            counter_deltas=(
+                ("instrumented_document_view_build_count", 2.0),
+                ("instrumented_editing_replace_full_source_count", 1.0),
+                ("instrumented_layout_snapshot_count", 6.0),
+                ("instrumented_projection_document_build_count", 4.0),
+                ("instrumented_projection_rebuild_count", 2.0),
+                ("instrumented_syntax_render_plan_build_count", 2.0),
+            ),
+        ),
+    )
+    rejected = tuple(
+        PromptAbuseActionOwnerDelta(
+            action_index=delta.action_index,
+            unit_index=delta.unit_index,
+            label=delta.label,
+            counter_deltas=tuple(
+                (counter_name, value + 1.0)
+                for counter_name, value in delta.counter_deltas
+            ),
+        )
+        for delta in accepted
+    )
+
+    assert prompt_abuse_structural_violations(accepted) == ()
+    violations = prompt_abuse_structural_violations(rejected)
+    assert len(violations) == 12
+
+
+def test_structural_policy_models_queued_autocomplete_and_reorder_projections() -> None:
+    """Queued transient owners may add bounded projection and layout documents."""
+
+    deltas = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="drain_events:0",
+            counter_deltas=(
+                ("instrumented_autocomplete_preview_update_count", 1.0),
+                ("instrumented_document_view_build_count", 1.0),
+                ("instrumented_layout_snapshot_count", 2.0),
+                ("instrumented_projection_document_build_count", 2.0),
+                ("instrumented_syntax_render_plan_build_count", 1.0),
+            ),
+        ),
+        PromptAbuseActionOwnerDelta(
+            action_index=1,
+            unit_index=0,
+            label="event_turn:0",
+            counter_deltas=(
+                ("instrumented_document_view_build_count", 2.0),
+                ("instrumented_layout_snapshot_count", 4.0),
+                ("instrumented_projection_document_build_count", 2.0),
+                ("instrumented_reorder_preview_run_count", 1.0),
+                ("instrumented_syntax_render_plan_build_count", 2.0),
+                ("preview_scheduler_run_count", 1.0),
+            ),
+        ),
+        PromptAbuseActionOwnerDelta(
+            action_index=2,
+            unit_index=0,
+            label="key:'down'",
+            counter_deltas=(
+                ("instrumented_autocomplete_preview_update_count", 1.0),
+                ("instrumented_layout_snapshot_count", 1.0),
+                ("instrumented_projection_document_build_count", 1.0),
+            ),
+        ),
+    )
+
+    assert prompt_abuse_structural_violations(deltas) == ()
+
+
+def test_structural_policy_attributes_deferred_projection_flush_to_prior_edit() -> None:
+    """Passive movement may flush one explicitly identified pending edit update."""
+
+    accepted = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="move_cursor",
+            counter_deltas=(
+                ("instrumented_diagnostic_cache_clear_count", 1.0),
+                ("instrumented_layout_snapshot_count", 1.0),
+                ("instrumented_projection_document_build_count", 1.0),
+                ("instrumented_projection_pending_flush_applied_count", 1.0),
+                ("instrumented_projection_rebuild_count", 1.0),
+            ),
+        ),
+    )
+    unowned_rebuild = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="move_cursor",
+            counter_deltas=(
+                ("instrumented_layout_snapshot_count", 1.0),
+                ("instrumented_projection_document_build_count", 1.0),
+                ("instrumented_projection_rebuild_count", 1.0),
+            ),
+        ),
+    )
+
+    assert prompt_abuse_structural_violations(accepted) == ()
+    assert len(prompt_abuse_structural_violations(unowned_rebuild)) == 3
+
+
+def test_structural_policy_attributes_passive_diagnostic_cache_clear_to_publish() -> (
+    None
+):
+    """Caret movement may invalidate one materially changed diagnostic view."""
+
+    accepted = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="select",
+            counter_deltas=(
+                ("instrumented_diagnostic_cache_clear_count", 1.0),
+                ("instrumented_diagnostics_visible_publish_count", 1.0),
+                ("instrumented_diagnostics_visible_refresh_count", 2.0),
+            ),
+        ),
+    )
+    unowned_clear = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="select",
+            counter_deltas=(
+                ("instrumented_diagnostic_cache_clear_count", 1.0),
+                ("instrumented_diagnostics_visible_refresh_count", 1.0),
+            ),
+        ),
+    )
+    repeated_publish = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="move_cursor",
+            counter_deltas=(
+                ("instrumented_diagnostic_cache_clear_count", 2.0),
+                ("instrumented_diagnostics_visible_publish_count", 2.0),
+            ),
+        ),
+    )
+
+    assert prompt_abuse_structural_violations(accepted) == ()
+    assert len(prompt_abuse_structural_violations(unowned_clear)) == 1
+    assert len(prompt_abuse_structural_violations(repeated_publish)) == 2
+
+
+def test_structural_policy_keeps_resize_source_neutral_and_single_pass() -> None:
+    """A delivered resize may lay out once without rebuilding prompt semantics."""
+
+    accepted = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="resize",
+            counter_deltas=(
+                ("instrumented_layout_snapshot_count", 1.0),
+                ("instrumented_surface_resize_event_count", 1.0),
+                ("region_chrome_prepare_count", 1.0),
+            ),
+        ),
+    )
+    rejected = (
+        PromptAbuseActionOwnerDelta(
+            action_index=1,
+            unit_index=0,
+            label="resize",
+            counter_deltas=(
+                ("instrumented_document_view_build_count", 1.0),
+                ("instrumented_layout_snapshot_count", 2.0),
+                ("instrumented_projection_rebuild_count", 1.0),
+                ("instrumented_surface_resize_event_count", 2.0),
+            ),
+        ),
+    )
+
+    assert prompt_abuse_structural_violations(accepted) == ()
+    violations = prompt_abuse_structural_violations(rejected)
+    assert len(violations) == 4
+
+
 def test_campaign_reports_structural_and_timing_evidence_independently() -> None:
     """Fast clocks must not conceal structurally unbounded editor work."""
 

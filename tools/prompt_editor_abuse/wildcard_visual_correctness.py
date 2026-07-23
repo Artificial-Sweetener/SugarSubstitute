@@ -21,6 +21,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
+from PySide6.QtCore import QEventLoop, QTimer
+from PySide6.QtGui import QGuiApplication
+
 from tests.real_shell_prompt_editor_harness import RealShellPromptEditorHarness
 
 from .action_driver import dispatch_action
@@ -93,6 +96,9 @@ def _capture_visual_checkpoint(
 ) -> None:
     """Assert zebra chrome and preview state from a rendered owner snapshot."""
 
+    preview_expected = _preview_expected(scenario, action_index, action)
+    if preview_expected:
+        _wait_for_preview(editor)
     probe = RealShellPromptEditorHarness.capture_source_line_chrome_render_probe(
         cast(Any, editor),
         label=f"{scenario.name}-action-{action_index}",
@@ -102,9 +108,8 @@ def _capture_visual_checkpoint(
         violations.append(f"wildcard_alt_overlay_inactive_at_action_{action_index}")
     if colors.get(1) == colors.get(2):
         violations.append(f"wildcard_zebra_missing_at_action_{action_index}")
-    if _preview_expected(scenario, action_index, action):
-        if not probe.projection_preview_active:
-            violations.append("wildcard_reorder_preview_inactive")
+    if preview_expected and not probe.projection_preview_active:
+        violations.append(f"wildcard_reorder_preview_inactive_at_action_{action_index}")
 
 
 def _preview_expected(
@@ -127,6 +132,23 @@ def _preview_expected(
             )
         )
     )
+
+
+def _wait_for_preview(editor: object, *, timeout_ms: int = 250) -> None:
+    """Drain queued preview work until the production projection becomes current."""
+
+    prompt_editor = cast(Any, editor)
+    remaining_ms = timeout_ms
+    while (
+        prompt_editor._surface._reorder_preview_projection.preview_layout is None
+        and remaining_ms > 0
+    ):
+        loop = QEventLoop()
+        interval_ms = min(5, remaining_ms)
+        QTimer.singleShot(interval_ms, loop.quit)
+        loop.exec()
+        remaining_ms -= interval_ms
+    QGuiApplication.processEvents()
 
 
 __all__ = ["capture_wildcard_visual_violations"]

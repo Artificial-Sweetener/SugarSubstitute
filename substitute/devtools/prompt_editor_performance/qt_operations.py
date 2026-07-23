@@ -22,10 +22,16 @@ from collections.abc import Callable
 from time import perf_counter
 from typing import cast
 
-from PySide6.QtCore import QPoint, QRectF, Qt
-from PySide6.QtGui import QContextMenuEvent, QImage, QPainter, QTextCursor
+from PySide6.QtCore import QCoreApplication, QEvent, QPoint, QRectF, Qt
+from PySide6.QtGui import (
+    QContextMenuEvent,
+    QImage,
+    QKeyEvent,
+    QPainter,
+    QTextCursor,
+)
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.application.prompt_editor import (
     PromptDiagnostic,
@@ -53,6 +59,7 @@ from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.interactions.reorder_preview_sync import (
     PromptReorderPreviewScheduler,
 )
+from substitute.presentation.editor.prompt_editor.overlays import SegmentReorderOverlay
 from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
     PromptShellContextMenuController,
 )
@@ -179,13 +186,14 @@ def time_key_click(
 ) -> float:
     """Return elapsed milliseconds for one key operation plus event processing."""
 
+    if character is None and key is None:
+        raise ValueError("A character or key is required for performance timing.")
+    target = prompt_key_target(editor)
     started_at = perf_counter()
     if character is not None:
-        QTest.keyClicks(editor, character)
-    elif key is not None:
-        QTest.keyClick(editor, key)
+        QTest.keyClicks(target, character)
     else:
-        raise ValueError("A character or key is required for performance timing.")
+        QTest.keyClick(target, cast(Qt.Key, key))
     process_events(app)
     return (perf_counter() - started_at) * 1000.0
 
@@ -212,10 +220,11 @@ def time_selection_change_operations(
     """Measure user-facing selection extension and contraction."""
 
     timings: list[float] = []
+    target = prompt_key_target(editor)
     for index in range(count):
         key = Qt.Key.Key_Right if index % 2 == 0 else Qt.Key.Key_Left
         started_at = perf_counter()
-        QTest.keyClick(editor, key, Qt.KeyboardModifier.ShiftModifier)
+        QTest.keyClick(target, key, Qt.KeyboardModifier.ShiftModifier)
         process_events(app)
         timings.append((perf_counter() - started_at) * 1000.0)
     return timings
@@ -438,18 +447,19 @@ def time_reorder_alt_arrow_operations(
 
     editor.setFocus()
     process_events(app)
+    key_target = prompt_key_target(editor)
     started_at = perf_counter()
-    QTest.keyPress(editor, Qt.Key.Key_Alt)
+    send_prompt_alt_event(key_target, QEvent.Type.KeyPress)
     process_events(app)
     extra_counts["alt_open_ms"] = (perf_counter() - started_at) * 1000.0
 
-    overlay = current_reorder_overlay(editor)
+    overlay = wait_for_current_reorder_overlay(app, editor)
     timings: list[float] = []
     try:
         for key in keys:
             started_at = perf_counter()
             QTest.keyPress(
-                editor,
+                key_target,
                 QT_REORDER_ARROW_KEYS[key],
                 Qt.KeyboardModifier.AltModifier,
             )
@@ -458,7 +468,7 @@ def time_reorder_alt_arrow_operations(
         capture_reorder_interaction_counts(overlay, extra_counts)
     finally:
         started_at = perf_counter()
-        QTest.keyRelease(editor, Qt.Key.Key_Alt)
+        send_prompt_alt_event(key_target, QEvent.Type.KeyRelease)
         process_events(app)
         extra_counts["alt_release_ms"] = (perf_counter() - started_at) * 1000.0
     return timings
@@ -476,12 +486,13 @@ def time_reorder_alt_drag_operations(
 
     editor.setFocus()
     process_events(app)
+    key_target = prompt_key_target(editor)
     started_at = perf_counter()
-    QTest.keyPress(editor, Qt.Key.Key_Alt)
+    send_prompt_alt_event(key_target, QEvent.Type.KeyPress)
     process_events(app)
     extra_counts["alt_open_ms"] = (perf_counter() - started_at) * 1000.0
 
-    overlay = current_reorder_overlay(editor)
+    overlay = wait_for_current_reorder_overlay(app, editor)
     dragged_chip = overlay_chip_by_segment_index(overlay, 1)
     first_target = chip_drop_target_global(overlay_chip_by_segment_index(overlay, 0))
     last_segment_index = max(overlay.pointer_region_rects())
@@ -516,11 +527,11 @@ def time_reorder_alt_drag_operations(
             )
 
         editor.reset_reorder_geometry_cache_counters()
-        for target in targets:
+        for global_target in targets:
             started_at = perf_counter()
             QTest.mouseMove(
                 dragged_chip.overlay,
-                dragged_chip.overlay.mapFromGlobal(target),
+                dragged_chip.overlay.mapFromGlobal(global_target),
                 10,
             )
             process_events(app)
@@ -542,7 +553,7 @@ def time_reorder_alt_drag_operations(
         process_events(app)
     finally:
         started_at = perf_counter()
-        QTest.keyRelease(editor, Qt.Key.Key_Alt)
+        send_prompt_alt_event(key_target, QEvent.Type.KeyRelease)
         process_events(app)
         extra_counts["alt_release_ms"] = (perf_counter() - started_at) * 1000.0
     return timings
@@ -626,6 +637,33 @@ def set_cursor_position(editor: PromptEditor, position: int) -> None:
     editor.setTextCursor(cursor)
 
 
+def prompt_key_target(editor: PromptEditor) -> QWidget:
+    """Return the production focus widget that receives prompt key events."""
+
+    focus_proxy = editor.focusProxy()
+    return focus_proxy if isinstance(focus_proxy, QWidget) else editor
+
+
+def send_prompt_alt_event(target: QWidget, event_type: QEvent.Type) -> None:
+    """Deliver one modifier event through the production focus-widget route."""
+
+    if event_type not in {QEvent.Type.KeyPress, QEvent.Type.KeyRelease}:
+        raise ValueError("Prompt Alt event must be a key press or release.")
+    modifiers = (
+        Qt.KeyboardModifier.AltModifier
+        if event_type is QEvent.Type.KeyPress
+        else Qt.KeyboardModifier.NoModifier
+    )
+    QCoreApplication.sendEvent(
+        target,
+        QKeyEvent(
+            event_type,
+            Qt.Key.Key_Alt,
+            modifiers,
+        ),
+    )
+
+
 def process_events(app: QApplication, cycles: int = 3) -> None:
     """Flush a bounded number of Qt event-loop turns."""
 
@@ -633,11 +671,31 @@ def process_events(app: QApplication, cycles: int = 3) -> None:
         app.processEvents()
 
 
+def wait_for_current_reorder_overlay(
+    app: QApplication,
+    editor: PromptEditor,
+    *,
+    event_cycles: int = 12,
+) -> SegmentReorderOverlay:
+    """Return the Alt-created overlay after bounded observable event turns."""
+
+    if event_cycles < 1:
+        raise ValueError("Reorder overlay event cycles must be positive.")
+    for _ in range(event_cycles):
+        try:
+            return current_reorder_overlay(editor)
+        except RuntimeError:
+            app.processEvents()
+    return current_reorder_overlay(editor)
+
+
 __all__ = [
     "QT_REORDER_ARROW_KEYS",
     "operation_key",
+    "prompt_key_target",
     "process_events",
     "run_scenario_operations",
+    "send_prompt_alt_event",
     "set_cursor_position",
     "spelling_diagnostic_for_text",
     "time_context_menu_open",
@@ -655,4 +713,5 @@ __all__ = [
     "time_resize_operations",
     "time_scroll_operations",
     "time_selection_change_operations",
+    "wait_for_current_reorder_overlay",
 ]
