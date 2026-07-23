@@ -88,6 +88,35 @@ class _EditorDouble:
         self.set_cursor_calls.append(cursor)
 
 
+class _InteractionControllerDouble:
+    """Record semantic setup flushes requested by the runner."""
+
+    def __init__(self) -> None:
+        """Initialize recorded flush reasons."""
+
+        self.flush_reasons: list[str] = []
+
+    def flush_pending_semantic_refresh(self, *, reason: str) -> None:
+        """Record one semantic-owner flush."""
+
+        self.flush_reasons.append(reason)
+
+
+class _MeasurementEditorDouble:
+    """Expose setup owners used before benchmark timing begins."""
+
+    def __init__(self) -> None:
+        """Initialize projection and semantic setup records."""
+
+        self.projection_flush_reasons: list[str] = []
+        self._interaction_controller = _InteractionControllerDouble()
+
+    def flush_pending_projection_update(self, *, reason: str) -> None:
+        """Record one projection-owner flush."""
+
+        self.projection_flush_reasons.append(reason)
+
+
 def test_prompt_editor_performance_runner_imports_no_tools() -> None:
     """Runner may use Qt and presentation, but not tests or tools."""
 
@@ -118,17 +147,21 @@ def test_run_scenarios_delegates_in_order(monkeypatch: MonkeyPatch) -> None:
     def fake_run_scenario(
         app: QApplication,
         scenario: Scenario,
+        *,
+        observe_owner_work: bool = True,
     ) -> ScenarioResult:
         """Record delegated scenario names and return a minimal result."""
 
-        _ = app
+        _ = (app, observe_owner_work)
         calls.append(scenario.name)
         return ScenarioResult(
             name=scenario.name,
             characters=len(scenario.initial_text),
             operations=0,
             average_ms=0.0,
+            p50_ms=0.0,
             p95_ms=0.0,
+            p99_ms=0.0,
             max_ms=0.0,
             instrumentation=Instrumentation.create(),
         )
@@ -139,6 +172,47 @@ def test_run_scenarios_delegates_in_order(monkeypatch: MonkeyPatch) -> None:
 
     assert calls == ["first", "second"]
     assert [result.name for result in results] == ["first", "second"]
+
+
+def test_run_scenarios_can_disable_owner_work_observation(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Timing-only runs must propagate disabled owner observation."""
+
+    scenarios = (Scenario("timing", "alpha"),)
+    observed_modes: list[bool] = []
+
+    def fake_run_scenario(
+        app: QApplication,
+        scenario: Scenario,
+        *,
+        observe_owner_work: bool = True,
+    ) -> ScenarioResult:
+        """Record the requested observation mode."""
+
+        _ = (app, scenario)
+        observed_modes.append(observe_owner_work)
+        return ScenarioResult(
+            name="timing",
+            characters=5,
+            operations=0,
+            average_ms=0.0,
+            p50_ms=0.0,
+            p95_ms=0.0,
+            p99_ms=0.0,
+            max_ms=0.0,
+            instrumentation=Instrumentation.create(),
+        )
+
+    monkeypatch.setattr(runner, "run_scenario", fake_run_scenario)
+
+    runner.run_scenarios(
+        cast(QApplication, object()),
+        scenarios,
+        observe_owner_work=False,
+    )
+
+    assert observed_modes == [False]
 
 
 def test_feature_profile_for_scenario_only_enables_explicit_feature_scenarios() -> None:
@@ -169,6 +243,26 @@ def test_set_selection_range_uses_move_then_keep_anchor() -> None:
         (7, QTextCursor.MoveMode.KeepAnchor),
     ]
     assert editor.set_cursor_calls == [editor.cursor]
+
+
+def test_settle_prompt_editor_publishes_setup_before_measurement(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Every scenario must start from current semantic and projection owners."""
+
+    editor = _MeasurementEditorDouble()
+    processed_apps: list[object] = []
+    monkeypatch.setattr(runner, "process_events", processed_apps.append)
+    app = object()
+
+    runner.settle_prompt_editor_for_measurement(
+        cast(QApplication, app),
+        cast(PromptEditor, editor),
+    )
+
+    assert editor.projection_flush_reasons == ["performance_setup"]
+    assert editor._interaction_controller.flush_reasons == ["performance_setup"]
+    assert processed_apps == [app]
 
 
 def _imported_module_names(tree: ast.AST) -> set[str]:

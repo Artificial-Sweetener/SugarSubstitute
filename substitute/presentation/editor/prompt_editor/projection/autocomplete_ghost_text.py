@@ -28,6 +28,10 @@ from substitute.application.prompt_editor.prompt_autocomplete_text import (
     autocomplete_completion_suffix,
     autocomplete_suffix_without_existing_right_text,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 from ..debug_probe import log_prompt_editor_probe, preview_probe_state
 from ..autocomplete_preview_state import PromptAutocompletePreviewState
@@ -81,6 +85,7 @@ class PromptAutocompleteGhostTextPublisher:
         self._preview_sink = preview_sink
         self._last_state: PromptAutocompleteGhostTextState | None = None
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.AUTOCOMPLETE_PREVIEW_UPDATE)
     def publish_for_session(
         self,
         session: AutocompleteSession,

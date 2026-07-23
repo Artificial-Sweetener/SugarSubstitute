@@ -47,7 +47,7 @@ from substitute.devtools.prompt_editor_performance.fakes import (
     wildcard_gateway,
 )
 from substitute.devtools.prompt_editor_performance.instrumentation import (
-    InstrumentedMethods,
+    instrument_prompt_editor,
 )
 from substitute.devtools.prompt_editor_performance.metrics import (
     Instrumentation,
@@ -90,6 +90,9 @@ from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
     PromptSegmentPresetSource,
 )
+from substitute.presentation.editor.prompt_editor.interactions.controller import (
+    PromptInteractionController,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -97,13 +100,27 @@ logger = logging.getLogger(__name__)
 def run_scenarios(
     app: QApplication,
     scenarios: Sequence[Scenario],
+    *,
+    observe_owner_work: bool = True,
 ) -> list[ScenarioResult]:
     """Run prompt editor performance scenarios in order."""
 
-    return [run_scenario(app, scenario) for scenario in scenarios]
+    return [
+        run_scenario(
+            app,
+            scenario,
+            observe_owner_work=observe_owner_work,
+        )
+        for scenario in scenarios
+    ]
 
 
-def run_scenario(app: QApplication, scenario: Scenario) -> ScenarioResult:
+def run_scenario(
+    app: QApplication,
+    scenario: Scenario,
+    *,
+    observe_owner_work: bool = True,
+) -> ScenarioResult:
     """Run one scenario and return summarized measurements."""
 
     instrumentation = Instrumentation.create()
@@ -113,7 +130,10 @@ def run_scenario(app: QApplication, scenario: Scenario) -> ScenarioResult:
     editor_execution = create_editor_panel_execution_factories(execution_runtime)
 
     try:
-        with InstrumentedMethods(instrumentation):
+        with instrument_prompt_editor(
+            instrumentation,
+            enabled=observe_owner_work,
+        ):
             editor = PromptEditor(
                 prompt_autocomplete_gateway=cast(
                     PromptAutocompleteGateway,
@@ -162,6 +182,7 @@ def run_scenario(app: QApplication, scenario: Scenario) -> ScenarioResult:
             if scenario.danbooru_import_enabled:
                 configure_danbooru_import(editor)
             editor.setPlainText(scenario.initial_text)
+            settle_prompt_editor_for_measurement(app, editor)
             if scenario.selection_range is not None:
                 set_selection_range(editor, *scenario.selection_range)
             elif scenario.cursor_position is not None:
@@ -190,7 +211,9 @@ def run_scenario(app: QApplication, scenario: Scenario) -> ScenarioResult:
         characters=len(scenario.initial_text),
         operations=len(timings),
         average_ms=average(timings),
+        p50_ms=percentile(timings, 50),
         p95_ms=percentile(timings, 95),
+        p99_ms=percentile(timings, 99),
         max_ms=max(timings) if timings else 0.0,
         instrumentation=instrumentation,
         extra_counts=extra_counts,
@@ -214,6 +237,21 @@ def configure_danbooru_import(editor: PromptEditor) -> None:
             immediate_danbooru_import_dispatcher(),
         ),
     )
+
+
+def settle_prompt_editor_for_measurement(
+    app: QApplication,
+    editor: PromptEditor,
+) -> None:
+    """Publish setup source through semantic and projection owners before timing."""
+
+    editor.flush_pending_projection_update(reason="performance_setup")
+    interaction_controller = cast(
+        PromptInteractionController,
+        getattr(editor, "_interaction_controller"),
+    )
+    interaction_controller.flush_pending_semantic_refresh(reason="performance_setup")
+    process_events(app)
 
 
 def prepare_context_menu_scenario(
@@ -292,4 +330,5 @@ __all__ = [
     "run_scenario",
     "run_scenarios",
     "set_selection_range",
+    "settle_prompt_editor_for_measurement",
 ]

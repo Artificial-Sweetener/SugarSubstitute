@@ -30,6 +30,10 @@ from substitute.application.danbooru import (
     DanbooruUrlImportService,
     DanbooruWikiContentService,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 from ..commands import PromptFeatureCommandRequest, PromptFeatureSnapshotIdentity
 from .feature_profile_controller import (
@@ -191,6 +195,7 @@ class PromptDanbooruActionController:
         self._snapshot = snapshot
         return self._snapshot
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.CONTEXT_MENU_DANBOORU_SNAPSHOT)
     def prepared_menu_snapshot_for_selection(
         self,
         *,

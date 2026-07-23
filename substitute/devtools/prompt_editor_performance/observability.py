@@ -45,7 +45,9 @@ def scenario_log_fields(
         "scenario_character_count": result.characters,
         "feature_profile_name": feature_profile_name_for_scenario(scenario),
         "average_ms": result.average_ms,
+        "p50_ms": result.p50_ms,
         "p95_ms": result.p95_ms,
+        "p99_ms": result.p99_ms,
         "max_ms": result.max_ms,
     }
     log_fields.update(instrumentation_log_fields(result.instrumentation))

@@ -28,6 +28,10 @@ from PySide6.QtGui import QFont, QFontMetricsF, QTextLayout, QTextOption
 
 from substitute.application.prompt_editor import PromptDocumentView
 from substitute.presentation.text_coordinates import TextCoordinateMap
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 from .model import (
     PromptProjectionDisplayMode,
@@ -302,6 +306,7 @@ class PromptProjectionLineLayoutBuilder:
         self._measurement_cache = _TextMeasurementCache()
         self._region_row_layout = PromptRegionStructuralRowLayoutBuilder()
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.LAYOUT_SNAPSHOT)
     def build_snapshot(
         self,
         projection_document: PromptProjectionDocument,

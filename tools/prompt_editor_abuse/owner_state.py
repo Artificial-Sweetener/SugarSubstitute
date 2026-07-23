@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 from typing import Any, cast
 
 from substitute.presentation.editor.prompt_editor.projection.model import (
@@ -426,14 +427,30 @@ def _fresh_projection_maps_current_caret(
     surface: Any,
     projection_document: Any,
 ) -> bool:
-    """Return whether fresh layout geometry owns the exact live source boundary."""
+    """Return whether fresh layout geometry owns a visible live-source caret."""
 
     cursor_state = surface._cursor_state
     cursor_position = int(surface.cursor_position)
     if int(cursor_state.source_position) != cursor_position:
         return False
     resolved_state = projection_document.caret_map.resolve_state(cursor_state)
-    return int(resolved_state.source_position) == cursor_position
+    caret_rect = surface._layout.cursor_rect(
+        resolved_state,
+        scroll_offset=0.0,
+    )
+    return (
+        all(
+            isfinite(value)
+            for value in (
+                caret_rect.left(),
+                caret_rect.top(),
+                caret_rect.width(),
+                caret_rect.height(),
+            )
+        )
+        and caret_rect.width() >= 1.0
+        and caret_rect.height() > 0.0
+    )
 
 
 def _active_projection_ownership_is_valid(

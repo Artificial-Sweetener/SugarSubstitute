@@ -35,6 +35,10 @@ from substitute.application.prompt_editor import (
 from substitute.application.prompt_editor.prompt_literal_parenthesis_normalizer import (
     PromptParenthesisTransitionKind,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 from ..editing_session import (
     PromptEditingSessionRestoreResult,
@@ -1173,6 +1177,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             for token in self._host._projection_document.tokens
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_SOURCE_APPLY)
     def _apply_source_replacement_source_change(
         self,
         *,

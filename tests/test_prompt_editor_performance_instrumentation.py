@@ -14,106 +14,108 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Tests for prompt editor performance instrumentation patches."""
+"""Tests for stable prompt-editor performance instrumentation."""
 
 from __future__ import annotations
 
 from typing import Any, cast
 
 from substitute.devtools.prompt_editor_performance.instrumentation import (
-    InstrumentedMethods,
+    PromptEditorInstrumentationObserver,
+    instrument_prompt_editor,
 )
-from substitute.devtools.prompt_editor_performance.metrics import (
-    Instrumentation,
-    OperationCounter,
-)
+from substitute.devtools.prompt_editor_performance.metrics import Instrumentation
 from substitute.presentation.editor.prompt_editor.projection.surface import (
     PromptProjectionSurface,
 )
 from substitute.presentation.editor.prompt_editor.shell import (
     context_menu_controller as prompt_context_menu_module,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 
-class _PatchTarget:
-    """Provide small methods for focused patch-stack tests."""
+def test_instrumentation_observer_records_stable_owner_event() -> None:
+    """Map one stable event to its benchmark counter without owner inspection."""
 
-    def value(self, amount: int) -> int:
-        """Return an incremented amount."""
+    instrumentation = Instrumentation.create()
+    observer = PromptEditorInstrumentationObserver(instrumentation)
 
-        return amount + 1
+    observer.record(PromptEditorWorkEvent.EDITING_REPLACE_RANGE, 2.5)
 
-    def branch(self, result: bool) -> bool:
-        """Return the requested branch result."""
-
-        return result
+    assert instrumentation.editing_replace_range.count == 1
+    assert instrumentation.editing_replace_range.elapsed_ms == 2.5
 
 
-def test_instrumented_methods_patch_records_elapsed_time_and_restores() -> None:
-    """Generic timed patches should call the original method and restore it."""
+def test_instrumentation_supports_every_stable_owner_event() -> None:
+    """Keep the stable event contract and benchmark counters exhaustive."""
 
-    manager = InstrumentedMethods(Instrumentation.create())
-    counter = OperationCounter()
-    original = _PatchTarget.value
+    instrumentation = Instrumentation.create()
+    observer = PromptEditorInstrumentationObserver(instrumentation)
 
-    cast(Any, manager)._patch(_PatchTarget, "value", counter)
+    for event in PromptEditorWorkEvent:
+        observer.record(event, 1.0)
 
-    assert _PatchTarget().value(4) == 5
-    assert counter.count == 1
-    assert counter.elapsed_ms >= 0.0
-
-    manager.__exit__(None, None, None)
-
-    assert _PatchTarget.value is original
+    for event in PromptEditorWorkEvent:
+        counter = cast(Any, getattr(instrumentation, event.value))
+        assert counter.count == 1
+        assert counter.elapsed_ms == 1.0
 
 
-def test_instrumented_methods_bool_patch_records_selected_branch() -> None:
-    """Boolean patches should count true and false outcomes separately."""
+def test_instrumentation_context_observes_decorated_owner_boundary() -> None:
+    """Collect owner events without replacing the measured method."""
 
-    manager = InstrumentedMethods(Instrumentation.create())
-    true_counter = OperationCounter()
-    false_counter = OperationCounter()
-    original = _PatchTarget.branch
+    instrumentation = Instrumentation.create()
 
-    cast(Any, manager)._patch_bool_result(
-        _PatchTarget,
-        "branch",
-        true_counter,
-        false_counter=false_counter,
-    )
+    @prompt_editor_work_event(PromptEditorWorkEvent.EDITING_SELECTION)
+    def selection() -> int:
+        """Return one representative owner result."""
 
-    assert _PatchTarget().branch(True) is True
-    assert _PatchTarget().branch(False) is False
-    assert true_counter.count == 1
-    assert false_counter.count == 1
+        return 3
 
-    manager.__exit__(None, None, None)
+    original = selection
+    with instrument_prompt_editor(instrumentation):
+        assert selection() == 3
+        assert selection is original
 
-    assert _PatchTarget.branch is original
+    assert instrumentation.editing_selection.count == 1
 
 
-def test_instrumented_methods_context_restores_prompt_editor_methods() -> None:
-    """The benchmark context should restore real prompt editor methods on exit."""
+def test_instrumentation_context_does_not_patch_prompt_editor_owners() -> None:
+    """Keep measured owner methods stable throughout an instrumented run."""
 
     original = PromptProjectionSurface._rebuild_projection
 
-    with InstrumentedMethods(Instrumentation.create()):
-        patched = PromptProjectionSurface._rebuild_projection
-        assert patched is not original
+    with instrument_prompt_editor(Instrumentation.create()):
+        assert PromptProjectionSurface._rebuild_projection is original
 
     assert PromptProjectionSurface._rebuild_projection is original
 
 
-def test_instrumented_methods_can_delegate_context_menu_suppression() -> None:
+def test_instrumentation_can_delegate_context_menu_suppression() -> None:
     """Leave menu execution to an outer harness when it owns popup capture."""
 
     menu_type = cast(Any, prompt_context_menu_module)._PromptEditorTextEditMenu
     original_exec = menu_type.exec
 
-    with InstrumentedMethods(
+    with instrument_prompt_editor(
         Instrumentation.create(),
         suppress_context_menu_exec=False,
     ):
+        assert menu_type.exec is original_exec
+
+    assert menu_type.exec is original_exec
+
+
+def test_instrumentation_suppresses_modal_context_menu_by_default() -> None:
+    """Keep menu benchmarks non-modal without replacing menu owner methods."""
+
+    menu_type = cast(Any, prompt_context_menu_module)._PromptEditorTextEditMenu
+    original_exec = menu_type.exec
+
+    with instrument_prompt_editor(Instrumentation.create()):
         assert menu_type.exec is original_exec
 
     assert menu_type.exec is original_exec

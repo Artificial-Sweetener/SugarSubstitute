@@ -26,6 +26,10 @@ from PySide6.QtGui import QFont, QPalette, QWheelEvent
 from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.presentation.shell.chrome_style import connect_theme_refresh
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 
 class PromptShellChromeHost(Protocol):
@@ -170,6 +174,7 @@ class PromptShellQFluentChrome:
             True,
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.FOCUS_IN)
     def handle_focus_in(self) -> None:
         """Refresh ready feature chrome after the editor gains focus."""
 

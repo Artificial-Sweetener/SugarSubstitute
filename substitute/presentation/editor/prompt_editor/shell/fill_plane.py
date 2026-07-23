@@ -23,6 +23,10 @@ from typing import Protocol, runtime_checkable
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QMouseEvent, QPaintEvent, QPainter, QRegion
 from PySide6.QtWidgets import QWidget
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 
 class PromptFillBand(Protocol):
@@ -180,6 +184,7 @@ class PromptFillPlane(QWidget):
         region.boundingRect()
         return region
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.FILL_PLANE_PAINT)
     def paintEvent(self, event: QPaintEvent) -> None:
         """Paint prompt fill bands without touching prompt text."""
 

@@ -234,6 +234,12 @@ def test_real_shell_scene_marker_typing_preserves_unmapped_source_caret(
 
         assert field.editor.toPlainText() == expected_text
         assert field.editor.textCursor().position() == expected_cursor
+        snapshot = harness.capture_state_snapshot(
+            field,
+            label=f"scene-marker-prefix-{expected_cursor}",
+        )
+        assert snapshot.caret_state_source_position == expected_cursor
+        assert snapshot.caret_rect_has_area
 
     QTest.keyClick(target, Qt.Key.Key_Return)
     expected_text = (
