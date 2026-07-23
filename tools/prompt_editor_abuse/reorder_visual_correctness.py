@@ -22,12 +22,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from PySide6.QtCore import QPoint, QPointF, QRect, QRectF
+from PySide6.QtCore import QElapsedTimer, QEventLoop, QPoint, QPointF, QRect, QRectF
 from PySide6.QtGui import QImage
+from PySide6.QtWidgets import QApplication
 
 from .action_driver import dispatch_action
 from .backing_store_capture import capture_editor_backing_store
-from .glyph_visual_match import fragment_has_expected_pixels
+from .glyph_visual_match import (
+    fragment_has_expected_pixels,
+    fragment_pixel_match_evidence,
+)
 from .models import PromptAbuseAction, PromptAbuseScenario
 from .real_shell_mount import (
     create_prompt_abuse_real_shell_harness,
@@ -54,6 +58,7 @@ _VISUAL_SCENARIOS = frozenset(
     }
 )
 _MINIMUM_RETAINED_TEXT_RATIO = 0.75
+_ANIMATION_SETTLE_TIMEOUT_MS = 1_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,12 +122,6 @@ def capture_prompt_reorder_visual_violations(
                 continue
             image = frame.image
             text_pixels = _neutral_bright_viewport_pixels(editor, image)
-            missing_chip_text = (
-                ()
-                if frame.reorder_animation_active
-                else _missing_reorder_chip_text(editor, image)
-            )
-            missing_scene_titles = _missing_scene_title_text(editor, image)
             minimum_pixels = round(baseline_text_pixels * _MINIMUM_RETAINED_TEXT_RATIO)
             if text_pixels < minimum_pixels:
                 violations.append(
@@ -130,10 +129,37 @@ def capture_prompt_reorder_visual_violations(
                     f"action={action_index}:pixels={text_pixels}:"
                     f"baseline={baseline_text_pixels}"
                 )
+            verification_frame = frame
+            if frame.reorder_animation_active:
+                if not _wait_for_reorder_animation_idle(editor):
+                    violations.append(
+                        "reorder_animation_did_not_settle:"
+                        f"action={action_index}:"
+                        f"timeout_ms={_ANIMATION_SETTLE_TIMEOUT_MS}"
+                    )
+                    continue
+                settled_frame = _capture_editor_backing_store(editor)
+                if settled_frame is None:
+                    violations.append(
+                        "reorder_backing_store_capture_unavailable:"
+                        f"action={action_index}:state=settled"
+                    )
+                    continue
+                verification_frame = settled_frame
+            verification_image = verification_frame.image
+            missing_chip_text, missing_chip_evidence = _missing_reorder_chip_text(
+                editor,
+                verification_image,
+            )
+            missing_scene_titles = _missing_scene_title_text(
+                editor,
+                verification_image,
+            )
             if missing_chip_text:
                 violations.append(
                     "reorder_rendered_chip_text_missing:"
-                    f"action={action_index}:indices={missing_chip_text!r}"
+                    f"action={action_index}:indices={missing_chip_text!r}:"
+                    f"evidence={missing_chip_evidence!r}"
                 )
             if missing_scene_titles:
                 violations.append(
@@ -150,7 +176,7 @@ def capture_prompt_reorder_visual_violations(
                 f"{scenario.name}-action-{action_index}-text-loss.png"
             )
             failure_path.parent.mkdir(parents=True, exist_ok=True)
-            image.save(str(failure_path))
+            verification_image.save(str(failure_path))
     finally:
         harness.close()
     return tuple(dict.fromkeys(violations))
@@ -197,6 +223,23 @@ def _reorder_animation_active(editor: Any) -> bool:
     )
 
 
+def _wait_for_reorder_animation_idle(editor: object) -> bool:
+    """Wait on the production animation owner before stable-frame validation."""
+
+    prompt_editor = cast(Any, editor)
+    elapsed = QElapsedTimer()
+    elapsed.start()
+    while (
+        _reorder_animation_active(prompt_editor)
+        and elapsed.elapsed() < _ANIMATION_SETTLE_TIMEOUT_MS
+    ):
+        QApplication.processEvents(
+            QEventLoop.ProcessEventsFlag.AllEvents,
+            16,
+        )
+    return not _reorder_animation_active(prompt_editor)
+
+
 def _neutral_bright_viewport_pixels(editor: object, image: QImage) -> int:
     """Count sampled light text pixels while excluding saturated chip chrome."""
 
@@ -228,7 +271,10 @@ def _neutral_bright_viewport_pixels(editor: object, image: QImage) -> int:
     return count
 
 
-def _missing_reorder_chip_text(editor: object, image: QImage) -> tuple[int, ...]:
+def _missing_reorder_chip_text(
+    editor: object,
+    image: QImage,
+) -> tuple[tuple[int, ...], tuple[str, ...]]:
     """Return visible chips lacking their own expected rendered text pixels."""
 
     prompt_editor = cast(Any, editor)
@@ -238,13 +284,14 @@ def _missing_reorder_chip_text(editor: object, image: QImage) -> tuple[int, ...]
         image.rect()
     )
     missing: list[int] = []
+    missing_evidence: list[str] = []
     for expected_chip in _expected_reorder_chip_text(prompt_editor):
         dx, dy = expected_chip.translation
-        visible_results = tuple(
-            result
+        visible_evidence = tuple(
+            evidence
             for fragment in expected_chip.fragments
             if (
-                result := fragment_has_expected_pixels(
+                evidence := fragment_pixel_match_evidence(
                     image,
                     fragment=fragment,
                     translation=QPointF(
@@ -252,14 +299,27 @@ def _missing_reorder_chip_text(editor: object, image: QImage) -> tuple[int, ...]
                         dy + viewport_origin.y(),
                     ),
                     visible_image_rect=visible_image_rect,
-                ),
-            )
+                )
+            ).result
             is not None
         )
+        visible_results = tuple(evidence.result for evidence in visible_evidence)
         if not visible_results or any(visible_results):
             continue
         missing.append(expected_chip.segment_index)
-    return tuple(missing)
+        strongest_evidence = max(
+            visible_evidence,
+            key=lambda evidence: evidence.matching_ratio or 0.0,
+        )
+        missing_evidence.append(
+            f"{expected_chip.segment_index}:"
+            f"ratio={strongest_evidence.matching_ratio or 0.0:.3f}:"
+            f"expected={strongest_evidence.expected_pixel_count}:"
+            f"matched={strongest_evidence.matching_pixel_count}:"
+            f"bounds={strongest_evidence.visible_bounds.getRect()!r}:"
+            f"translation=({dx:.1f},{dy:.1f})"
+        )
+    return tuple(missing), tuple(missing_evidence)
 
 
 def _missing_scene_title_text(editor: object, image: QImage) -> tuple[str, ...]:

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Protocol
 
 from PySide6.QtCore import QPointF, QRect, QRectF
@@ -58,6 +59,31 @@ class ExpectedGlyphFragment(Protocol):
         ...
 
 
+@dataclass(frozen=True, slots=True)
+class FragmentPixelMatchEvidence:
+    """Describe one expected fragment's visible glyph-pixel comparison."""
+
+    visible_bounds: QRect
+    expected_pixel_count: int
+    matching_pixel_count: int
+
+    @property
+    def result(self) -> bool | None:
+        """Return the thresholded result, or none when no glyph pixel is visible."""
+
+        if self.expected_pixel_count == 0:
+            return None
+        return self.matching_pixel_count / self.expected_pixel_count >= 0.2
+
+    @property
+    def matching_ratio(self) -> float | None:
+        """Return the matching fraction when the visible mask contains glyphs."""
+
+        if self.expected_pixel_count == 0:
+            return None
+        return self.matching_pixel_count / self.expected_pixel_count
+
+
 def fragment_has_expected_pixels(
     image: QImage,
     *,
@@ -67,11 +93,32 @@ def fragment_has_expected_pixels(
 ) -> bool | None:
     """Return whether one visible expected glyph footprint reached the screen."""
 
+    return fragment_pixel_match_evidence(
+        image,
+        fragment=fragment,
+        translation=translation,
+        visible_image_rect=visible_image_rect,
+    ).result
+
+
+def fragment_pixel_match_evidence(
+    image: QImage,
+    *,
+    fragment: ExpectedGlyphFragment,
+    translation: QPointF,
+    visible_image_rect: QRect,
+) -> FragmentPixelMatchEvidence:
+    """Measure one expected glyph footprint against captured screen pixels."""
+
     translated_rect = fragment.text_rect.translated(translation)
     bounds = translated_rect.toAlignedRect().adjusted(-1, -1, 1, 1)
     visible_bounds = bounds.intersected(visible_image_rect).intersected(image.rect())
     if visible_bounds.isEmpty():
-        return None
+        return FragmentPixelMatchEvidence(
+            visible_bounds=visible_bounds,
+            expected_pixel_count=0,
+            matching_pixel_count=0,
+        )
     glyph_mask = _render_fragment_glyph_mask(
         fragment,
         bounds=bounds,
@@ -97,9 +144,11 @@ def fragment_has_expected_pixels(
             )
             if color_distance <= 75**2:
                 matching_pixel_count += 1
-    if expected_pixel_count == 0:
-        return None
-    return matching_pixel_count / expected_pixel_count >= 0.2
+    return FragmentPixelMatchEvidence(
+        visible_bounds=visible_bounds,
+        expected_pixel_count=expected_pixel_count,
+        matching_pixel_count=matching_pixel_count,
+    )
 
 
 def _render_fragment_glyph_mask(
@@ -132,4 +181,9 @@ def _render_fragment_glyph_mask(
     return mask
 
 
-__all__ = ["ExpectedGlyphFragment", "fragment_has_expected_pixels"]
+__all__ = [
+    "ExpectedGlyphFragment",
+    "FragmentPixelMatchEvidence",
+    "fragment_has_expected_pixels",
+    "fragment_pixel_match_evidence",
+]

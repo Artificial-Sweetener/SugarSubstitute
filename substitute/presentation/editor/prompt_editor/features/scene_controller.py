@@ -32,6 +32,10 @@ from substitute.application.prompt_editor.prompt_document_semantics import (
     OrdinaryPromptDocumentSemantics,
     PromptDocumentSemantics,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 from ..commands import PromptFeatureSnapshotIdentity
 from .feature_profile_controller import PromptFeatureProfileController
@@ -322,6 +326,7 @@ class PromptSceneFeatureController:
         _ = self.prepare_position_context(source_position, reason=reason)
         return True
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.CONTEXT_MENU_SCENE_CONTEXT)
     def prepared_position_context(
         self,
         source_position: int,

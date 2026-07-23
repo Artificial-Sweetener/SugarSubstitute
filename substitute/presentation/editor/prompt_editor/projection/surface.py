@@ -61,7 +61,6 @@ from PySide6.QtWidgets import (
     QScrollBar,
     QWidget,
 )
-from substitute.application.prompt_editor import parse_prompt_scene_projection_document
 from substitute.application.prompt_editor import (
     PromptDocumentView,
     PromptRegionStructureView,
@@ -80,6 +79,12 @@ from substitute.presentation.widgets.text_caret import (
 from substitute.shared.logging.logger import (
     get_logger,
     log_debug,
+)
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_paint_cache_event,
+    prompt_editor_work_event,
+    prompt_editor_work_result_event,
 )
 
 from ..autocomplete_preview_state import PromptAutocompletePreviewState
@@ -141,6 +146,12 @@ from .display_mode_layout_cache import (
 from .freshness_controller import (
     ProjectionFreshness,
     PromptProjectionFreshnessBlockers,
+)
+from .fill_band_cache import (
+    PromptFillBandRect,
+    PromptProjectionFillBandBuildRequest,
+    PromptProjectionFillBandCache,
+    PromptProjectionFillBandCacheKey,
 )
 from .layout_engine import (
     PromptProjectionIncrementalLayoutResult,
@@ -292,27 +303,6 @@ class PromptProjectionUndoPayload:
 
 
 @dataclass(frozen=True, slots=True)
-class PromptProjectionFillBandCacheKey:
-    """Identify one committed projection view state for fill-band caching."""
-
-    source_revision: int
-    display_mode: PromptProjectionDisplayMode
-    viewport_width: int
-    viewport_height: int
-    scroll_offset: int
-    content_width: float
-    content_left_inset: float
-
-
-@dataclass(frozen=True, slots=True)
-class PromptProjectionFillBandCache:
-    """Cache visible fill-band rows for one committed projection view state."""
-
-    key: PromptProjectionFillBandCacheKey
-    rects: tuple["PromptFillBandRect", ...]
-
-
-@dataclass(frozen=True, slots=True)
 class _RefreshGeometryPaintSignature:
     """Describe visual state that decides whether geometry refresh must repaint."""
 
@@ -329,14 +319,6 @@ class _RefreshGeometryPaintSignature:
     source_line_chrome_enabled: bool
     font_key: str
     palette_key: int
-
-
-@dataclass(frozen=True, slots=True)
-class PromptFillBandRect:
-    """Describe one visible prompt fill band row in projection viewport coordinates."""
-
-    rect: QRectF
-    band_index: int
 
 
 class PromptProjectionSurface(QAbstractScrollArea):
@@ -530,7 +512,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             source_state_owners.incremental_apply_controller
         )
         self._prompt_state_applier = source_state_owners.prompt_state_applier
-        self._fill_band_cache: PromptProjectionFillBandCache | None = None
+        self._fill_band_cache = PromptProjectionFillBandCache()
         self._diagnostic_painter = PromptDiagnosticPainter(
             parent=self,
             is_alive=lambda: qt_object_is_alive(self),
@@ -643,6 +625,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         focus_host.installEventFilter(self)
         self._schedule_caret_blink_sync(reset_cycle=False)
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_REFRESH_SCROLL)
     def refresh_scroll(self) -> None:
         """Repaint after the host scrollbar moves the visible projection window."""
 
@@ -816,139 +799,46 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 rect_count=0,
             )
             return ()
-        cache_key = self._fill_band_cache_key()
-        cached_bands = self._fill_band_cache
-        if cached_bands is not None and self._fill_band_cache_matches(
-            cached_bands,
-            cache_key,
-        ):
-            self._log_passive_metric_read(
-                metric="visible_prompt_fill_band_rects",
-                committed_revision=cached_bands.key.source_revision,
-                rect_count=len(cached_bands.rects),
-            )
-            return cached_bands.rects
-
-        source_text = self._fill_band_source_text()
-        scene_document = parse_prompt_scene_projection_document(source_text)
-        if not scene_document.has_scenes:
-            self._fill_band_cache = PromptProjectionFillBandCache(
-                key=cache_key,
-                rects=(),
-            )
-            self._log_passive_metric_read(
-                metric="visible_prompt_fill_band_rects",
-                committed_revision=cache_key.source_revision,
-                rect_count=0,
-            )
-            return ()
-        viewport_rect = QRectF(self.viewport().rect())
-        scroll_offset = self._scroll_offset()
-        band_rects: list[PromptFillBandRect] = []
-        band_sources: list[tuple[int, int, int]] = []
-        next_band_index = 0
-        if scene_document.universal_text.strip():
-            band_sources.append(
-                (
-                    next_band_index,
-                    scene_document.universal_range.start,
-                    scene_document.universal_range.end,
+        key = PromptProjectionFillBandCacheKey(
+            source_revision=(
+                self._projection_freshness_controller.fill_band_source_revision(
+                    current_source_revision=self._source_revision
                 )
-            )
-            band_rects.extend(
-                PromptFillBandRect(rect=rect, band_index=next_band_index)
-                for rect in self._layout.source_range_row_rects(
-                    scene_document.universal_range.start,
-                    scene_document.universal_range.end,
-                    viewport_rect=viewport_rect,
-                    scroll_offset=scroll_offset,
-                )
-            )
-            next_band_index += 1
-        for scene_index, scene in enumerate(scene_document.scenes):
-            band_index = next_band_index + scene_index
-            band_sources.append(
-                (
-                    band_index,
-                    scene.marker.title_range.start,
-                    scene.content_range.end,
-                )
-            )
-            band_rects.extend(
-                PromptFillBandRect(rect=rect, band_index=band_index)
-                for rect in self._layout.source_range_row_rects(
-                    scene.marker.title_range.start,
-                    scene.content_range.end,
-                    viewport_rect=viewport_rect,
-                    scroll_offset=scroll_offset,
-                )
-            )
-        result = tuple(band_rects)
-        self._fill_band_cache = PromptProjectionFillBandCache(
-            key=cache_key,
-            rects=result,
-        )
-        self._log_passive_metric_read(
-            metric="visible_prompt_fill_band_rects",
-            committed_revision=cache_key.source_revision,
-            rect_count=len(result),
-        )
-        return result
-
-    def _fill_band_source_text(self) -> str:
-        """Return the source text that matches passive fill-band layout freshness."""
-
-        return self._projection_freshness_controller.fill_band_source_text(
-            committed_source_text=self._projection_document.source_text,
-            live_source_text=self.toPlainText(),
-        )
-
-    def _fill_band_cache_key(self) -> PromptProjectionFillBandCacheKey:
-        """Return the view-state key for passive fill-band cache lookups."""
-
-        source_revision = (
-            self._projection_freshness_controller.fill_band_source_revision(
-                current_source_revision=self._source_revision
-            )
-        )
-        content_width = self._projection_freshness_controller.fill_band_content_width(
-            current_content_width=self._layout.content_size().width()
-        )
-        return PromptProjectionFillBandCacheKey(
-            source_revision=source_revision,
+            ),
             display_mode=self._display_mode,
             viewport_width=self.viewport().width(),
             viewport_height=self.viewport().height(),
             scroll_offset=int(round(self._scroll_offset())),
-            content_width=content_width,
+            content_width=(
+                self._projection_freshness_controller.fill_band_content_width(
+                    current_content_width=self._layout.content_size().width()
+                )
+            ),
             content_left_inset=self._source_line_chrome.content_left_inset,
         )
-
-    def _fill_band_cache_matches(
-        self,
-        cache: PromptProjectionFillBandCache,
-        key: PromptProjectionFillBandCacheKey,
-    ) -> bool:
-        """Return whether a cached fill-band result matches the current view state."""
-
-        mismatch_reason: str | None = None
-        if cache.key.source_revision != key.source_revision:
-            mismatch_reason = "source_revision"
-        elif cache.key.display_mode is not key.display_mode:
-            mismatch_reason = "display_mode"
-        elif cache.key.viewport_width != key.viewport_width:
-            mismatch_reason = "viewport_width"
-        elif cache.key.viewport_height != key.viewport_height:
-            mismatch_reason = "viewport_height"
-        elif cache.key.scroll_offset != key.scroll_offset:
-            mismatch_reason = "scroll_offset"
-        elif abs(cache.key.content_width - key.content_width) >= 0.01:
-            mismatch_reason = "content_width"
-        elif abs(cache.key.content_left_inset - key.content_left_inset) >= 0.01:
-            mismatch_reason = "content_left_inset"
-        if mismatch_reason is None:
-            return True
-        return False
+        cached_rects = self._fill_band_cache.cached_rects(key)
+        rects = cached_rects
+        if rects is None:
+            rects = self._fill_band_cache.build_and_store(
+                key,
+                PromptProjectionFillBandBuildRequest(
+                    source_text=(
+                        self._projection_freshness_controller.fill_band_source_text(
+                            committed_source_text=self._projection_document.source_text,
+                            live_source_text=self.toPlainText(),
+                        )
+                    ),
+                    viewport_rect=QRectF(self.viewport().rect()),
+                    scroll_offset=self._scroll_offset(),
+                ),
+                layout=self._layout,
+            )
+        self._log_passive_metric_read(
+            metric="visible_prompt_fill_band_rects",
+            committed_revision=key.source_revision,
+            rect_count=len(rects),
+        )
+        return rects
 
     def prompt_fill_band_color(self) -> QColor:
         """Return the alternating prompt fill color used beneath projection painting."""
@@ -3115,6 +3005,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         weight_metrics = QFontMetricsF(emphasis_weight_font(self.font()))
         return max(0.0, weight_metrics.horizontalAdvance(token.value_text or ""))
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_REFRESH_GEOMETRY)
     def refresh_geometry(self) -> None:
         """Refresh layout width, scrollbars, and viewport painting."""
 
@@ -3672,6 +3563,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._insert_viewport_text(text, origin=PromptSourceEditOrigin.PASTE)
         event.acceptProposedAction()
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_RESIZE_EVENT)
     def resizeEvent(self, event: QResizeEvent) -> None:
         """Keep the projection layout width in sync with the viewport."""
 
@@ -3716,6 +3608,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._update_caret_paint(previous_caret_rect)
         super().hideEvent(event)
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_PAINT_EVENT)
     def paintEvent(self, event: QPaintEvent) -> None:
         """Paint either the live projection or the active reorder preview projection."""
 
@@ -3822,6 +3715,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 surface=surface_probe_state(self),
             )
 
+    @prompt_editor_work_result_event(prompt_editor_paint_cache_event)
     def _paint_projection_content(
         self,
         painter: QPainter,
@@ -4131,6 +4025,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         painter.drawText(QPointF(text_rect.left(), baseline), overlay.text)
         painter.restore()
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTIC_FRAGMENT_LOOKUP)
     def _diagnostic_fragments_for_paint(
         self,
         diagnostic: PromptDiagnostic,
@@ -4148,11 +4043,13 @@ class PromptProjectionSurface(QAbstractScrollArea):
             source_revision=self._source_revision,
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTIC_CACHE_CLEAR)
     def _clear_diagnostic_fragment_cache(self, *, reason: str) -> None:
         """Discard cached diagnostic underline fragments after geometry changes."""
 
         self._diagnostic_painter.clear_fragment_cache(reason=reason)
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTIC_CACHE_PRESERVE)
     def _preserve_diagnostic_fragment_cache_for_incremental_edit(
         self,
         *,
@@ -4375,6 +4272,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             cursor_position=selection.cursor_position,
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.PROJECTION_REBUILD)
     def _rebuild_projection(self) -> None:
         """Rebuild the visible projection and resynchronize layout and scrollbars."""
 
@@ -4508,6 +4406,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             parent = parent.parentWidget()
         return None
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_SYNC_LAYOUT)
     def _sync_layout_state(self, *, commit_projection: bool = False) -> None:
         """Keep layout metrics in sync and optionally commit rebuilt projection freshness."""
 

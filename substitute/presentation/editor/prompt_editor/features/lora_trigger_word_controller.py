@@ -25,6 +25,10 @@ from substitute.application.prompt_editor import (
     PromptScheduledLora,
     PromptScheduledLoraService,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 from ..async_work import PromptScheduledLoraContextProvider
 from ..commands import PromptCommandSourceIdentity, PromptFeatureSnapshotIdentity
@@ -102,6 +106,7 @@ class PromptLoraTriggerWordController:
         context = self._scheduled_lora_context
         return False if context is None else context.prewarm(prompt_text)
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.CONTEXT_MENU_LORA_ACTIONS)
     def snapshot_for_prompt(self, *, prompt_text: str) -> PromptLoraActionSnapshot:
         """Project trigger actions from the authoritative context snapshot."""
 

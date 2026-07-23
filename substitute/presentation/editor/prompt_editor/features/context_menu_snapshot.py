@@ -24,6 +24,10 @@ from enum import StrEnum
 from typing import Protocol
 
 from substitute.shared.logging.logger import get_logger, log_debug
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
@@ -334,6 +338,7 @@ class PromptContextMenuSnapshotController:
         self._source_identity_provider = source_identity_provider
         self._feature_profile_id_provider = feature_profile_id_provider
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.CONTEXT_MENU_SNAPSHOT)
     def snapshot_for_menu(
         self,
         request: PromptContextMenuSnapshotRequest,

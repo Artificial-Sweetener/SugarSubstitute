@@ -91,6 +91,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     "substitute/application/prompt_editor/prompt_syntax_service.py": frozenset(
         {"threading.RLock"}
     ),
+    "substitute/devtools/prompt_editor_performance/instrumentation.py": frozenset(
+        {"threading.Lock"}
+    ),
     "substitute/application/recipes/model_hash_lookup.py": frozenset(
         {"threading.RLock"}
     ),
@@ -120,6 +123,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     ),
     "substitute/presentation/shell/model_metadata_context_action_handler.py": (
         frozenset({"threading.RLock"})
+    ),
+    "substitute/shared/diagnostics/prompt_editor_work.py": frozenset(
+        {"threading.RLock"}
     ),
     "substitute/presentation/cube_picker/cube_stack_cart_modal.py": frozenset(
         {"QEventLoop"}

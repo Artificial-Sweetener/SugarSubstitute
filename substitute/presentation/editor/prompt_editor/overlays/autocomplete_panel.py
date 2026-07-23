@@ -54,6 +54,10 @@ from substitute.presentation.widgets.model_picker import (
     MODEL_PICKER_POPUP_MIN_WIDTH,
     MODEL_PICKER_POPUP_WIDTH,
 )
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 
 _ROW_HEIGHT: Final[int] = 33
 _MAX_VISIBLE_ITEMS: Final[int] = 10
@@ -610,6 +614,7 @@ class PromptAutocompletePanel(AttachedFluentPopupFrame):
 
         self.updateGeometry()
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.AUTOCOMPLETE_LORA_WALL_UPDATE)
     def _set_lora_wall_state(
         self,
         state: PromptAutocompleteLoraWallRenderState,

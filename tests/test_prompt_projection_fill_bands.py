@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -27,8 +28,11 @@ from PySide6.QtCore import QRectF
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
-from substitute.presentation.editor.prompt_editor.projection.surface import (
-    PromptProjectionFillBandCache,
+from substitute.presentation.editor.prompt_editor.projection.fill_band_cache import (
+    PromptProjectionFillBandCacheKey,
+)
+from substitute.presentation.editor.prompt_editor.projection.model import (
+    PromptProjectionDisplayMode,
 )
 from tests.prompt_projection_test_helpers import (
     ensure_qapp,
@@ -318,14 +322,16 @@ def test_projection_surface_fill_bands_reuse_cache_for_same_view_state(
     second = surface.visible_prompt_fill_band_rects()
 
     assert first
+    assert second is first
     assert second == first
     assert row_rect_call_count == first_call_count
 
 
-def test_projection_surface_fill_band_cache_key_tracks_view_state(
+def test_projection_surface_fill_band_cache_hit_does_not_materialize_source(
     widgets: list[QWidget],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Fill-band cache identity should change with passive view metrics."""
+    """Keep full prompt source preparation out of the passive cache-hit path."""
 
     box = show_prompt_editor(
         widgets,
@@ -333,15 +339,31 @@ def test_projection_surface_fill_band_cache_key_tracks_view_state(
         width=360,
     )
     surface = surface_for(box)
+    expected = surface.visible_prompt_fill_band_rects()
 
-    first_key = surface._fill_band_cache_key()  # noqa: SLF001
-    cached_bands = PromptProjectionFillBandCache(key=first_key, rects=())
+    def fail_source_read() -> str:
+        """Fail when a matching cache read reaches full source materialization."""
 
-    assert surface._fill_band_cache_matches(cached_bands, first_key) is True  # noqa: SLF001
+        raise AssertionError("fill-band cache hit materialized prompt source")
 
-    surface.set_source_line_content_left_inset(24.0)
-    inset_key = surface._fill_band_cache_key()  # noqa: SLF001
+    monkeypatch.setattr(surface, "toPlainText", fail_source_read)
+
+    assert surface.visible_prompt_fill_band_rects() is expected
+
+
+def test_projection_fill_band_cache_key_tracks_view_state() -> None:
+    """Fill-band cache identity should change with passive view metrics."""
+
+    first_key = PromptProjectionFillBandCacheKey(
+        source_revision=4,
+        display_mode=PromptProjectionDisplayMode.PROJECTED,
+        viewport_width=360,
+        viewport_height=240,
+        scroll_offset=0,
+        content_width=360.0,
+        content_left_inset=0.0,
+    )
+    inset_key = replace(first_key, content_left_inset=24.0)
 
     assert inset_key != first_key
     assert inset_key.content_left_inset == 24.0
-    assert surface._fill_band_cache_matches(cached_bands, inset_key) is False  # noqa: SLF001
