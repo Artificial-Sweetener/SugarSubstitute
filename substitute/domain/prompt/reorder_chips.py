@@ -40,6 +40,7 @@ class PromptReorderChip:
     """Represent one reorderable chip, including transparent emphasis envelopes."""
 
     index: int
+    partition_index: int
     text: str
     content_range: SourceRange
     separator_range: SourceRange | None
@@ -98,9 +99,41 @@ def build_reorder_chips(document: PromptDocument) -> tuple[PromptReorderChip, ..
             )
         )
 
+    separator_ranges = tuple(
+        separator.token_range for separator in document.region_structure.separators
+    )
+    content_chips: list[PromptReorderChip] = []
+    for chip in raw_chips:
+        if chip.content_range not in separator_ranges:
+            content_chips.append(chip)
+            continue
+        if not content_chips:
+            continue
+        separator_end = (
+            chip.separator_range.end
+            if chip.separator_range is not None
+            else chip.content_range.end
+        )
+        preceding_chip = content_chips[-1]
+        separator_start = (
+            preceding_chip.separator_range.start
+            if preceding_chip.separator_range is not None
+            else preceding_chip.content_range.end
+        )
+        content_chips[-1] = replace(
+            preceding_chip,
+            separator_range=SourceRange(separator_start, separator_end),
+        )
     return tuple(
-        _reorder_chip_with_index(chip, index=index)
-        for index, chip in enumerate(raw_chips)
+        _reorder_chip_with_index(
+            chip,
+            index=index,
+            partition_index=_partition_index_for_source_position(
+                document,
+                chip.content_range.start,
+            ),
+        )
+        for index, chip in enumerate(content_chips)
     )
 
 
@@ -108,11 +141,13 @@ def _reorder_chip_with_index(
     chip: PromptReorderChip,
     *,
     index: int,
+    partition_index: int,
 ) -> PromptReorderChip:
     """Return one chip with its final stable index without reflective copying."""
 
     return PromptReorderChip(
         index=index,
+        partition_index=partition_index,
         text=chip.text,
         content_range=chip.content_range,
         separator_range=chip.separator_range,
@@ -128,13 +163,17 @@ def build_reorder_state_from_chips(
 ) -> PromptReorderState:
     """Project reorder chips into the canonical separator-slot state."""
 
+    prefix_text, suffix_text = _regional_edge_text(document, chips)
     return PromptReorderState(
         ordered_segment_indices=tuple(chip.index for chip in chips),
+        partition_index_by_segment_index=tuple(chip.partition_index for chip in chips),
         separator_slots=tuple(
             normalize_reorder_separator_text(chip.separator_text(document.source_text))
             for chip in chips[:-1]
         ),
         has_trailing_comma=document.has_trailing_comma,
+        prefix_text=prefix_text,
+        suffix_text=suffix_text,
     )
 
 
@@ -145,13 +184,13 @@ def serialize_reorder_state_for_chips(
 ) -> PromptReorderSerialization:
     """Serialize one chip reorder state while preserving transparent emphasis shells."""
 
-    serialized_parts: list[str] = []
+    serialized_parts: list[str] = [state.prefix_text]
     chip_ranges_by_index: dict[int, SourceRange] = {}
     rendered_ranges_by_index: dict[int, SourceRange] = {}
     owned_ranges_by_index: dict[int, tuple[SourceRange, ...]] = {}
     slot_ranges_by_index: dict[int, SourceRange] = {}
     open_envelopes: tuple[PromptReorderEnvelope, ...] = ()
-    cursor = 0
+    cursor = len(state.prefix_text)
 
     for chip_offset, chip_index in enumerate(state.ordered_segment_indices):
         chip = chips_by_index[chip_index]
@@ -222,6 +261,7 @@ def serialize_reorder_state_for_chips(
 
     if state.has_trailing_comma:
         serialized_parts.append(", ")
+    serialized_parts.append(state.suffix_text)
 
     return PromptReorderSerialization(
         text="".join(serialized_parts),
@@ -245,6 +285,44 @@ def serialize_reorder_chip(chip: PromptReorderChip) -> str:
     if chip.trailing_text:
         parts.append(chip.trailing_text)
     return "".join(parts)
+
+
+def _partition_index_for_source_position(
+    document: PromptDocument,
+    source_position: int,
+) -> int:
+    """Return the authoritative regional partition containing one source position."""
+
+    for partition in document.region_structure.partitions:
+        if partition.source_range.start <= source_position < partition.source_range.end:
+            return partition.index
+    return document.region_structure.partitions[-1].index
+
+
+def _regional_edge_text(
+    document: PromptDocument,
+    chips: tuple[PromptReorderChip, ...],
+) -> tuple[str, str]:
+    """Return immutable separator text outside the first and last reorder chips."""
+
+    separators = document.region_structure.separators
+    if not separators:
+        return "", ""
+    if not chips:
+        return document.source_text, ""
+    first_chip = chips[0]
+    last_chip = chips[-1]
+    prefix_text = (
+        document.source_text[: first_chip.content_range.start]
+        if first_chip.partition_index > 0
+        else ""
+    )
+    suffix_text = (
+        document.source_text[last_chip.content_range.end :]
+        if separators[-1].token_range.start > last_chip.content_range.start
+        else ""
+    )
+    return prefix_text, suffix_text
 
 
 def _expand_segment_to_reorder_chips(
@@ -278,6 +356,7 @@ def _expand_segment_to_reorder_chips(
             )
         fallback_chip = PromptReorderChip(
             index=-1,
+            partition_index=-1,
             text=segment.text,
             content_range=segment.content_range,
             separator_range=segment.separator_range,
@@ -298,6 +377,7 @@ def _expand_segment_to_reorder_chips(
         return [
             PromptReorderChip(
                 index=-1,
+                partition_index=-1,
                 text=segment.text,
                 content_range=segment.content_range,
                 separator_range=segment.separator_range,
@@ -332,6 +412,7 @@ def _expand_segment_to_reorder_chips(
         return [
             PromptReorderChip(
                 index=-1,
+                partition_index=-1,
                 text=segment.text,
                 content_range=segment.content_range,
                 separator_range=segment.separator_range,
@@ -389,6 +470,7 @@ def _expand_hard_line_segment_to_reorder_chips(
             chips.append(
                 PromptReorderChip(
                     index=-1,
+                    partition_index=-1,
                     text=line_text,
                     content_range=SourceRange(line_start, line_end),
                     separator_range=separator_range,
@@ -458,6 +540,7 @@ def _expand_reorder_chip_around_loras(
         child_chips.append(
             PromptReorderChip(
                 index=-1,
+                partition_index=-1,
                 text=lora_span.outer_range.slice(source_text),
                 content_range=lora_span.outer_range,
                 separator_range=None,
@@ -513,6 +596,7 @@ def _append_text_reorder_chip_if_visible(
     chips.append(
         PromptReorderChip(
             index=-1,
+            partition_index=-1,
             text=trimmed_range.slice(source_text),
             content_range=trimmed_range,
             separator_range=SourceRange(trimmed_range.end, next_content_start),

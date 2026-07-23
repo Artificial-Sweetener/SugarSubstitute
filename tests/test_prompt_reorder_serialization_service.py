@@ -27,11 +27,15 @@ from substitute.application.prompt_editor.prompt_document_projector import (
 from substitute.application.prompt_editor.prompt_reorder_projection_service import (
     PromptReorderProjectionService,
 )
+from substitute.application.prompt_editor.prompt_reorder_drop_service import (
+    PromptReorderDropService,
+)
 from substitute.application.prompt_editor.prompt_reorder_serialization_service import (
     PromptReorderSerializationService,
     blank_line_drop_offsets,
 )
 from substitute.application.prompt_editor.prompt_reorder_views import (
+    PromptLineDropTarget,
     PromptReorderGapPlacement,
     PromptReorderGapView,
     PromptReorderLayoutView,
@@ -132,6 +136,40 @@ def test_prompt_reorder_serialization_service_serializes_authoritative_state() -
     )
 
     assert serialized_text == "alpha, beta, gamma"
+
+
+def test_prompt_reorder_serialization_service_preserves_regional_boundary() -> None:
+    """Application reorder should move a chip only inside its source partition."""
+
+    document_projector = PromptDocumentProjector()
+    projection_service = PromptReorderProjectionService(
+        document_projector=document_projector,
+    )
+    drop_service = PromptReorderDropService(document_projector=document_projector)
+    serialization_service = PromptReorderSerializationService(
+        document_projector=document_projector,
+    )
+    document_view = document_projector.build_document_view(
+        "global a, global b\n[SEP]\nregion a, region b"
+    )
+    session = projection_service.build_reorder_session_view(document_view)
+
+    updated_state = drop_service.build_preview_drop_reorder_state_from_state(
+        document_view,
+        session.reorder_state,
+        current_layout_view=session.layout_view,
+        base_drag_layout_view=None,
+        dragged_segment_index=2,
+        drop_target=PromptLineDropTarget(row_index=1, insertion_index=1),
+    )
+
+    assert (
+        serialization_service.serialize_reorder_state_view(
+            document_view,
+            updated_state,
+        )
+        == "global a, global b\n[SEP]\nregion b, region a"
+    )
 
 
 def test_prompt_reorder_serialization_service_exposes_blank_line_offsets() -> None:

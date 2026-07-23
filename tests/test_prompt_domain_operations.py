@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
+
 from substitute.domain.prompt import (
     PromptReorderState,
     PromptGapBlankLineDropTarget,
@@ -174,8 +176,11 @@ def test_build_base_drag_state_merges_adjacent_separator_slots_when_hiding_an_in
 
     assert base_drag_state == PromptReorderState(
         ordered_segment_indices=(0, 2),
+        partition_index_by_segment_index=(0, 0, 0),
         separator_slots=(",\n\n\n",),
         has_trailing_comma=False,
+        prefix_text="",
+        suffix_text="",
     )
 
 
@@ -188,8 +193,11 @@ def test_build_reorder_state_preserves_no_space_comma_separator_slots() -> None:
 
     assert state == PromptReorderState(
         ordered_segment_indices=(0, 1, 2),
+        partition_index_by_segment_index=(0, 0, 0),
         separator_slots=(",", ","),
         has_trailing_comma=False,
+        prefix_text="",
+        suffix_text="",
     )
 
 
@@ -207,8 +215,11 @@ def test_build_base_drag_state_drops_exposed_edge_separator_when_hiding_first_ch
 
     assert base_drag_state == PromptReorderState(
         ordered_segment_indices=(1, 2),
+        partition_index_by_segment_index=(0, 0, 0),
         separator_slots=(", ",),
         has_trailing_comma=False,
+        prefix_text="",
+        suffix_text="",
     )
 
 
@@ -226,8 +237,11 @@ def test_build_base_drag_state_drops_exposed_edge_separator_when_hiding_last_chi
 
     assert base_drag_state == PromptReorderState(
         ordered_segment_indices=(0, 1),
+        partition_index_by_segment_index=(0, 0, 0),
         separator_slots=(",\n",),
         has_trailing_comma=False,
+        prefix_text="",
+        suffix_text="",
     )
 
 
@@ -362,6 +376,85 @@ def test_reorder_chips_split_uncommaed_hard_lines() -> None:
         "\n",
         ",",
     ]
+
+
+def test_reorder_chips_exclude_region_separator_and_preserve_partition_boundary() -> (
+    None
+):
+    """Regional separators should remain structural boundaries rather than drag chips."""
+
+    document = parse_prompt_document(
+        "global one, global two\n[SEP]\nregion one, region two"
+    )
+    chips = build_reorder_chips(document)
+    state = build_reorder_state_from_chips(document, chips)
+
+    assert [chip.text for chip in chips] == [
+        "global one",
+        "global two",
+        "region one",
+        "region two",
+    ]
+    assert [chip.partition_index for chip in chips] == [0, 0, 1, 1]
+    assert state.separator_slots == (", ", "\n[SEP]\n", ", ")
+    assert (
+        serialize_reorder_state_for_chips(state, chips_by_index=chips).text
+        == document.source_text
+    )
+
+
+def test_reorder_chips_move_only_within_their_regional_partition() -> None:
+    """Regional reorder should preserve separators and reject cross-partition targets."""
+
+    document = parse_prompt_document("global a, global b\n[SEP]\nregion a, region b")
+    chips = build_reorder_chips(document)
+    base_state = build_base_drag_state(
+        build_reorder_state_from_chips(document, chips),
+        dragged_segment_index=2,
+    )
+
+    updated_state = apply_line_drop_target_to_state(
+        base_state,
+        dragged_segment_index=2,
+        target=PromptLineDropTarget(row_index=1, insertion_index=1),
+    )
+    assert (
+        serialize_reorder_state_for_chips(updated_state, chips_by_index=chips).text
+        == "global a, global b\n[SEP]\nregion b, region a"
+    )
+
+    with pytest.raises(ValueError, match="cannot cross"):
+        apply_line_drop_target_to_state(
+            base_state,
+            dragged_segment_index=2,
+            target=PromptLineDropTarget(row_index=0, insertion_index=0),
+        )
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    (
+        "[SEP]\nregion",
+        "global\n[SEP]",
+        "[SEP]\n[SEP]\nregion",
+        "global\n[SEP]\n[SEP]",
+    ),
+)
+def test_reorder_serialization_preserves_empty_regional_partitions(
+    source_text: str,
+) -> None:
+    """Leading, adjacent, and trailing empty partitions should remain exact source."""
+
+    document = parse_prompt_document(source_text)
+    chips = build_reorder_chips(document)
+
+    assert (
+        serialize_reorder_state_for_chips(
+            build_reorder_state_from_chips(document, chips),
+            chips_by_index=chips,
+        ).text
+        == source_text
+    )
 
 
 def test_reorder_chips_keep_blank_line_breaks_as_separator_text() -> None:
@@ -511,8 +604,11 @@ def test_base_drag_state_hides_hard_line_split_chip_without_comma_separator() ->
     ]
     assert base_drag_state == PromptReorderState(
         ordered_segment_indices=(0, 2, 3),
+        partition_index_by_segment_index=(0, 0, 0, 0),
         separator_slots=("\n", ", "),
         has_trailing_comma=False,
+        prefix_text="",
+        suffix_text="",
     )
 
 
@@ -526,8 +622,11 @@ def test_reorder_serialization_preserves_owned_ranges_when_grouped_emphasis_chip
     serialization = serialize_reorder_state_for_chips(
         PromptReorderState(
             ordered_segment_indices=(0, 2, 1),
+            partition_index_by_segment_index=(0, 0, 0),
             separator_slots=(", ", ", "),
             has_trailing_comma=False,
+            prefix_text="",
+            suffix_text="",
         ),
         chips_by_index=chips,
     )

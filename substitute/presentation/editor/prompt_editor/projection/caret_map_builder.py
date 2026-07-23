@@ -110,15 +110,61 @@ def build_prompt_projection_caret_map(
             ),
         )
 
-    for run in runs:
+    for run_index, run in enumerate(runs):
+        if run.kind is PromptProjectionRunKind.STRUCTURAL_ROW:
+            assert run.token_id is not None
+            token = tokens_by_id[run.token_id]
+            follows_structural_row = (
+                run_index > 0
+                and runs[run_index - 1].kind is PromptProjectionRunKind.STRUCTURAL_ROW
+            )
+            if not follows_structural_row:
+                pop_plain_boundary_if_present(
+                    projection_position=run.projection_start,
+                    source_position=token.source_start,
+                )
+            append_stop(
+                run.projection_start,
+                PromptProjectionCaretState(
+                    source_position=token.source_start,
+                    placement=PromptProjectionCaretPlacement.TOKEN_LEADING_EDGE,
+                    token_id=token.token_id,
+                    run_id=run.run_id,
+                ),
+            )
+            append_stop(
+                run.projection_end,
+                PromptProjectionCaretState(
+                    source_position=token.source_end,
+                    placement=PromptProjectionCaretPlacement.TOKEN_TRAILING_EDGE,
+                    token_id=token.token_id,
+                    run_id=run.run_id,
+                ),
+            )
+            if run.source_end > token.source_end:
+                append_stop(
+                    run.projection_end,
+                    PromptProjectionCaretState(
+                        source_position=run.source_end,
+                        placement=PromptProjectionCaretPlacement.PLAIN_TEXT,
+                    ),
+                )
+            continue
         if run.kind is PromptProjectionRunKind.TEXT:
             if not run.source_backed:
                 append_inline_preview_boundary_if_missing(run)
                 continue
             if run.token_id is None:
+                last_stop = stop_builder.last_stop
+                boundary_start_index = (
+                    1
+                    if last_stop is not None
+                    and last_stop.state.source_position == run.source_start
+                    else 0
+                )
                 stop_builder.append_plain_text_run(
                     run,
-                    boundary_start_index=0 if not stop_builder.has_stops else 1,
+                    boundary_start_index=boundary_start_index,
                 )
                 continue
 

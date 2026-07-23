@@ -31,6 +31,7 @@ from substitute.application.prompt_editor.prompt_document_service import (
 from substitute.application.prompt_editor.prompt_document_views import (
     PromptDocumentView,
     PromptEmphasisView,
+    PromptRegionStructureView,
     PromptSegmentView,
     PromptSyntaxSpanView,
 )
@@ -78,6 +79,7 @@ def test_prompt_document_view_models_are_immutable_value_objects() -> None:
         wildcard_spans=(),
         lora_spans=(),
         syntax_spans=(PromptSyntaxSpanView(kind="emphasis", start=0, end=11, depth=0),),
+        region_structure=PromptRegionStructureView.empty(len("(alpha:1.2)")),
         has_trailing_comma=False,
     )
 

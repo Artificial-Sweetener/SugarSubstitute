@@ -433,6 +433,7 @@ def dispatch_action(
 
     if action.kind == "type":
         return _dispatch_typed_text(
+            host,
             editor,
             target,
             action,
@@ -614,6 +615,7 @@ def dispatch_action(
 
 
 def _dispatch_typed_text(
+    host: PromptAbuseActionHost,
     editor: object,
     target: QWidget,
     action: PromptAbuseAction,
@@ -633,6 +635,7 @@ def _dispatch_typed_text(
     samples: list[PromptAbuseDispatchSample] = []
     with PromptAbuseRuntimeProbe(enabled=runtime_telemetry) as runtime_probe:
         for unit_index, character in enumerate(action.value):
+            is_final_unit = unit_index == len(action.value) - 1
             expected_source = (
                 expected_source[:expected_start]
                 + character
@@ -653,8 +656,28 @@ def _dispatch_typed_text(
             actual_cursor_position, actual_anchor_position = (
                 capture_prompt_cursor_positions(editor)
             )
-            source_exact = actual_source == expected_source
-            caret_exact = actual_cursor_position == expected_start
+            checkpoint_source = (
+                action.expected_source
+                if is_final_unit and action.expected_source is not None
+                else expected_source
+            )
+            checkpoint_cursor = (
+                action.expected_cursor_position
+                if is_final_unit and action.expected_cursor_position is not None
+                else expected_start
+            )
+            checkpoint_anchor = (
+                action.expected_anchor_position
+                if is_final_unit and action.expected_anchor_position is not None
+                else expected_start
+            )
+            source_exact = actual_source == checkpoint_source
+            caret_exact = actual_cursor_position == checkpoint_cursor
+            feature_exact, feature_mismatch = (
+                host.capture_feature_checkpoint(editor, action)
+                if is_final_unit
+                else (True, None)
+            )
             owner_state = capture_prompt_editor_owner_state(editor)
             samples.append(
                 PromptAbuseDispatchSample(
@@ -664,13 +687,15 @@ def _dispatch_typed_text(
                     dispatch_ms=dispatch_ms,
                     source_exact=source_exact,
                     caret_exact=caret_exact,
-                    selection_exact=actual_anchor_position == expected_start,
+                    selection_exact=actual_anchor_position == checkpoint_anchor,
+                    feature_exact=feature_exact,
                     latency_class="text_input",
                     actual_source_on_mismatch=(None if source_exact else actual_source),
                     actual_cursor_position=actual_cursor_position,
-                    expected_cursor_position=expected_start,
+                    expected_cursor_position=checkpoint_cursor,
                     actual_anchor_position=actual_anchor_position,
-                    expected_anchor_position=expected_start,
+                    expected_anchor_position=checkpoint_anchor,
+                    feature_mismatch=feature_mismatch,
                     projection_current_after_dispatch=owner_state.projection_current,
                     semantic_current_after_dispatch=owner_state.semantic_current,
                     visible_source_current_after_dispatch=(

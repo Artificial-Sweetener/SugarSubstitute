@@ -29,6 +29,7 @@ from substitute.application.prompt_editor import (
     PromptLoraRendererSpanView,
     PromptLoraRendererView,
     PromptLoraView,
+    PromptRegionStructureView,
     PromptSegmentView,
     PromptSyntaxRendererView,
     PromptSyntaxRenderPlan,
@@ -36,6 +37,11 @@ from substitute.application.prompt_editor import (
     PromptWildcardRendererSpanView,
     PromptWildcardRendererView,
     PromptWildcardView,
+)
+from substitute.application.prompt_editor.prompt_region_structure_edits import (
+    rebuild_region_structure_after_edit,
+    region_structure_edit_requires_rebuild,
+    remap_region_structure_after_edit,
 )
 
 from .diagnostic_remap import remap_diagnostics_after_source_edit
@@ -62,6 +68,27 @@ _OPTIMISTIC_IMMEDIATE_DEFERRAL_REASONS = frozenset(
 class PromptProjectionSemanticRemapper:
     """Remap prepared semantic snapshots without depending on Qt or the surface."""
 
+    def region_structure_edit_requires_rebuild(
+        self,
+        *,
+        current_document_view: PromptDocumentView,
+        previous_text: str,
+        next_text: str,
+        start: int,
+        end: int,
+    ) -> bool:
+        """Return whether one edit changes regional separator ownership."""
+
+        if current_document_view.source_text != previous_text:
+            return True
+        return region_structure_edit_requires_rebuild(
+            previous_text,
+            next_text,
+            current_document_view.region_structure,
+            start=start,
+            end=end,
+        )
+
     def optimistic_prompt_state_for_edit(
         self,
         *,
@@ -72,6 +99,7 @@ class PromptProjectionSemanticRemapper:
         start: int,
         end: int,
         replacement_text: str,
+        region_structure_requires_rebuild: bool | None = None,
     ) -> PromptProjectionOptimisticPromptState | None:
         """Return remapped semantic state for one exact source edit."""
 
@@ -82,14 +110,34 @@ class PromptProjectionSemanticRemapper:
             return None
         if current_document_view.source_text != previous_text:
             return None
-
+        requires_region_rebuild = region_structure_requires_rebuild
+        if requires_region_rebuild is None:
+            requires_region_rebuild = self.region_structure_edit_requires_rebuild(
+                current_document_view=current_document_view,
+                previous_text=previous_text,
+                next_text=next_text,
+                start=start,
+                end=end,
+            )
         delta = len(replacement_text) - (end - start)
+        region_structure = (
+            rebuild_region_structure_after_edit(
+                previous_text,
+                next_text,
+                current_document_view.region_structure,
+                start=start,
+                end=end,
+            )
+            if requires_region_rebuild
+            else None
+        )
         document_view = _optimistic_document_view_for_edit(
             current_document_view,
             next_text=next_text,
             start=start,
             end=end,
             delta=delta,
+            region_structure=region_structure,
         )
         render_plan = _optimistic_render_plan_for_edit(
             current_render_plan,
@@ -109,6 +157,7 @@ class PromptProjectionSemanticRemapper:
         start: int | None,
         end: int | None,
         replacement_text: str | None,
+        region_structure_requires_rebuild: bool | None = None,
     ) -> PromptProjectionOptimisticPromptState | None:
         """Return remapped semantic state when source-edit metadata is exact."""
 
@@ -130,6 +179,7 @@ class PromptProjectionSemanticRemapper:
             start=start,
             end=end,
             replacement_text=replacement_text,
+            region_structure_requires_rebuild=region_structure_requires_rebuild,
         )
 
     def should_use_optimistic_prompt_state_for_immediate_edit(
@@ -190,6 +240,7 @@ def _optimistic_document_view_for_edit(
     start: int,
     end: int,
     delta: int,
+    region_structure: PromptRegionStructureView | None = None,
 ) -> PromptDocumentView:
     """Return a document view with non-overlapping semantic spans remapped."""
 
@@ -224,6 +275,16 @@ def _optimistic_document_view_for_edit(
             start=start,
             end=end,
             delta=delta,
+        ),
+        region_structure=(
+            region_structure
+            if region_structure is not None
+            else remap_region_structure_after_edit(
+                document_view.region_structure,
+                start=start,
+                end=end,
+                replacement_text=next_text[start : start + (end - start + delta)],
+            )
         ),
         has_trailing_comma=next_text.rstrip().endswith(","),
     )

@@ -58,6 +58,14 @@ _FORBIDDEN_POINTER_COUNTERS = frozenset(
         "projection_snapshot_rebuild_count",
     }
 )
+_CANVAS_FORBIDDEN_COUNTERS = frozenset(
+    {
+        "instrumented_editing_replace_full_source_count",
+        "instrumented_layout_snapshot_count",
+        "instrumented_projection_rebuild_count",
+        "region_chrome_prepare_count",
+    }
+)
 
 
 def prompt_abuse_structural_violations(
@@ -73,7 +81,58 @@ def prompt_abuse_structural_violations(
             violations.extend(_direct_reorder_move_violations(delta, counters))
         elif action_kind in {"event_turn", "drain_events"}:
             violations.extend(_queued_reorder_work_violations(delta, counters))
+        elif action_kind == "canvas_round_trip":
+            violations.extend(
+                _forbidden_counter_violations(
+                    delta,
+                    counters,
+                    _CANVAS_FORBIDDEN_COUNTERS,
+                )
+            )
+        if action_kind in {"request_paint", "mouse_caret"} or _is_navigation_key(
+            delta.label
+        ):
+            violations.extend(
+                _maximum_counter_violations(
+                    delta,
+                    counters,
+                    counter_name="region_chrome_prepare_count",
+                    maximum=0.0,
+                )
+            )
+        if action_kind in {"type", "paste", "display_mode"}:
+            violations.extend(
+                _maximum_counter_violations(
+                    delta,
+                    counters,
+                    counter_name="region_chrome_prepare_count",
+                    maximum=1.0,
+                )
+            )
     return tuple(dict.fromkeys(violations))
+
+
+def _is_navigation_key(label: str) -> bool:
+    """Return whether one measured key action is caret-only navigation."""
+
+    return any(
+        label.startswith(f"key:'{key_name}'")
+        for key_name in ("left", "right", "up", "down", "home", "end")
+    )
+
+
+def _forbidden_counter_violations(
+    delta: PromptAbuseActionOwnerDelta,
+    counters: Mapping[str, float],
+    forbidden_counters: frozenset[str],
+) -> tuple[str, ...]:
+    """Return violations for counters forbidden on one operation path."""
+
+    return tuple(
+        _violation(delta, counter_name, expected="0", actual=actual)
+        for counter_name in sorted(forbidden_counters)
+        if (actual := counters.get(counter_name, 0.0)) != 0.0
+    )
 
 
 def _direct_reorder_move_violations(

@@ -32,6 +32,7 @@ from ..models import (
     PromptReorderKeyboardMoveIntent,
 )
 from .clipboard_history_controller import PromptClipboardHistoryActions
+from .deletion_controller import PromptSurfaceDeletionController
 
 
 class _PromptSurfaceEmphasisShortcutSignal(Protocol):
@@ -81,12 +82,6 @@ class PromptSurfaceKeyHost(Protocol):
     def _move_vertically(self, direction: int, *, keep_anchor: bool) -> None:
         """Move the caret vertically through projection-aware geometry."""
 
-    def _backspace(self) -> None:
-        """Delete the previous source boundary."""
-
-    def _delete(self) -> None:
-        """Delete the next source boundary."""
-
 
 class PromptSurfaceKeyHandler:
     """Route surface key events while preserving existing edit boundaries."""
@@ -95,6 +90,7 @@ class PromptSurfaceKeyHandler:
         self,
         host: PromptSurfaceKeyHost,
         *,
+        deletion_controller: PromptSurfaceDeletionController,
         clipboard_history_actions: Callable[
             [],
             PromptClipboardHistoryActions | None,
@@ -107,6 +103,7 @@ class PromptSurfaceKeyHandler:
         """Bind the handler to the surface operations it may delegate to."""
 
         self._host = host
+        self._deletion_controller = deletion_controller
         self._clipboard_history_actions = clipboard_history_actions
         self._undo_coalescing_actions = undo_coalescing_actions
 
@@ -229,7 +226,7 @@ class PromptSurfaceKeyHandler:
                 key=event.key(),
                 autorepeat=event.isAutoRepeat(),
             )
-            host._backspace()
+            self._deletion_controller.backspace()
             event.accept()
             return True
         if event.key() == Qt.Key.Key_Delete:
@@ -241,7 +238,7 @@ class PromptSurfaceKeyHandler:
                 key=event.key(),
                 autorepeat=event.isAutoRepeat(),
             )
-            host._delete()
+            self._deletion_controller.delete()
             event.accept()
             return True
         if event.key() in {Qt.Key.Key_Return, Qt.Key.Key_Enter}:

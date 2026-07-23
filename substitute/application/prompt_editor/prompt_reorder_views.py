@@ -51,6 +51,8 @@ class PromptReorderRowView:
     row_index: int
     chip_indices: tuple[int, ...]
     separator_slots: tuple[str, ...] = field(default=(), compare=False)
+    partition_index: int = 0
+    boundary_separator_before: str = ""
 
 
 class PromptReorderGapPlacement(Enum):
@@ -68,6 +70,7 @@ class PromptReorderGapView:
     separator_text: str
     blank_line_count: int
     placement: PromptReorderGapPlacement = PromptReorderGapPlacement.BETWEEN_ROWS
+    partition_index: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +79,9 @@ class PromptReorderLayoutView:
 
     rows: tuple[PromptReorderRowView, ...]
     gaps: tuple[PromptReorderGapView, ...]
+    partition_index_by_chip_index: tuple[int, ...] = field(default=(), compare=False)
+    prefix_text: str = field(default="", compare=False)
+    suffix_text: str = field(default="", compare=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +91,9 @@ class PromptReorderStateView:
     ordered_chip_indices: tuple[int, ...]
     separator_slots: tuple[str, ...]
     has_trailing_comma: bool
+    partition_index_by_chip_index: tuple[int, ...] = ()
+    prefix_text: str = ""
+    suffix_text: str = ""
 
 
 @dataclass(frozen=True, slots=True)

@@ -178,18 +178,29 @@ def state_view_from_domain(
 
     return PromptReorderStateView(
         ordered_chip_indices=reorder_state.ordered_segment_indices,
+        partition_index_by_chip_index=reorder_state.partition_index_by_segment_index,
         separator_slots=reorder_state.separator_slots,
         has_trailing_comma=reorder_state.has_trailing_comma,
+        prefix_text=reorder_state.prefix_text,
+        suffix_text=reorder_state.suffix_text,
     )
 
 
 def domain_state_from_view(state_view: PromptReorderStateView) -> PromptReorderState:
     """Return the domain reorder state represented by an application view."""
 
+    partition_indices = state_view.partition_index_by_chip_index
+    if not partition_indices and state_view.ordered_chip_indices:
+        partition_indices = tuple(
+            0 for _index in range(max(state_view.ordered_chip_indices) + 1)
+        )
     return PromptReorderState(
         ordered_segment_indices=state_view.ordered_chip_indices,
+        partition_index_by_segment_index=partition_indices,
         separator_slots=state_view.separator_slots,
         has_trailing_comma=state_view.has_trailing_comma,
+        prefix_text=state_view.prefix_text,
+        suffix_text=state_view.suffix_text,
     )
 
 
@@ -203,7 +214,9 @@ def layout_view_from_state(
         rows=tuple(
             PromptReorderRowView(
                 row_index=row.row_index,
+                partition_index=row.partition_index,
                 chip_indices=row.segment_indices,
+                boundary_separator_before=row.boundary_separator_before,
                 separator_slots=reorder_state.separator_slots[
                     row.start_segment_offset : row.start_segment_offset
                     + max(0, len(row.segment_indices) - 1)
@@ -217,9 +230,13 @@ def layout_view_from_state(
                 separator_text=gap.separator_text,
                 blank_line_count=len(gap.blank_line_offsets),
                 placement=PromptReorderGapPlacement.BETWEEN_ROWS,
+                partition_index=gap.partition_index,
             )
             for gap in gaps
         ),
+        partition_index_by_chip_index=reorder_state.partition_index_by_segment_index,
+        prefix_text=reorder_state.prefix_text,
+        suffix_text=reorder_state.suffix_text,
     )
 
 
@@ -234,6 +251,8 @@ def state_from_layout_view(
     separator_slots: list[str] = []
     between_gaps = _between_row_gaps(layout_view)
     for row_index, row in enumerate(layout_view.rows):
+        if row.boundary_separator_before:
+            separator_slots.append(row.boundary_separator_before)
         if len(row.chip_indices) > 1:
             row_separator_slots = (
                 row.separator_slots
@@ -246,8 +265,14 @@ def state_from_layout_view(
 
     return PromptReorderState(
         ordered_segment_indices=ordered_segment_indices,
+        partition_index_by_segment_index=(
+            layout_view.partition_index_by_chip_index
+            or _partition_indices_from_layout_view(layout_view)
+        ),
         separator_slots=tuple(separator_slots),
         has_trailing_comma=has_trailing_comma,
+        prefix_text=layout_view.prefix_text,
+        suffix_text=layout_view.suffix_text,
     )
 
 
@@ -258,6 +283,24 @@ def ordered_chip_indices_from_layout_view(
 
     return tuple(
         chip_index for row in layout_view.rows for chip_index in row.chip_indices
+    )
+
+
+def _partition_indices_from_layout_view(
+    layout_view: PromptReorderLayoutView,
+) -> tuple[int, ...]:
+    """Return a stable chip-indexed partition catalog from one layout."""
+
+    partition_by_chip_index = {
+        chip_index: row.partition_index
+        for row in layout_view.rows
+        for chip_index in row.chip_indices
+    }
+    if not partition_by_chip_index:
+        return ()
+    return tuple(
+        partition_by_chip_index.get(chip_index, -1)
+        for chip_index in range(max(partition_by_chip_index) + 1)
     )
 
 

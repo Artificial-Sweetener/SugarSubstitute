@@ -28,6 +28,7 @@ from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor import (
     PromptDocumentView,
+    PromptRegionStructureView,
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.projection.line_layout import (
@@ -76,6 +77,7 @@ def test_projection_layout_keeps_short_tag_without_trailing_space_width() -> Non
         wildcard_spans=(),
         lora_spans=(),
         syntax_spans=(),
+        region_structure=PromptRegionStructureView.empty(len(source_text)),
         has_trailing_comma=True,
     )
 

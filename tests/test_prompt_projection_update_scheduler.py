@@ -35,6 +35,7 @@ from shiboken6 import delete
 
 from substitute.application.prompt_editor import (
     PromptDocumentView,
+    PromptRegionStructureView,
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.projection.surface import (
@@ -488,6 +489,7 @@ def _pending_update_at(
             wildcard_spans=(),
             lora_spans=(),
             syntax_spans=(),
+            region_structure=PromptRegionStructureView.empty(len(text)),
             has_trailing_comma=False,
         ),
         render_plan=PromptSyntaxRenderPlan(
