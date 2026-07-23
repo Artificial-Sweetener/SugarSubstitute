@@ -40,6 +40,7 @@ from .syntax import (
 )
 from .wildcard_syntax import PromptWildcardDelimiter, PromptWildcardSyntaxProfile
 from .structural_scanner import is_structural_quote
+from .region_structure_parser import PromptRegionStructureBuilder
 
 _VALID_WEIGHT_RE = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)")
 _VALID_LORA_WEIGHT_RE = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)")
@@ -86,6 +87,7 @@ def parse_prompt_document(
     escape = False
     segment_start = 0
     index = 0
+    region_structure_builder = PromptRegionStructureBuilder()
 
     while index < len(text):
         alternate_wildcard = alternate_wildcards_by_start.get(index)
@@ -132,6 +134,14 @@ def parse_prompt_document(
         ):
             in_quote = character
             index += 1
+            continue
+
+        if (
+            character == "["
+            and not bracket_stack
+            and region_structure_builder.accept_separator_at(text, index)
+        ):
+            index += len("[SEP]")
             continue
 
         if character == "\\":
@@ -245,6 +255,7 @@ def parse_prompt_document(
         emphasis_spans=emphasis_spans,
         wildcard_spans=ordered_wildcard_spans,
         lora_spans=ordered_lora_spans,
+        region_structure=region_structure_builder.build(len(text)),
         has_trailing_comma=has_trailing_comma,
     )
 

@@ -30,6 +30,7 @@ from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor import (
     PromptDocumentView,
+    PromptRegionStructureView,
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.projection import (
@@ -144,6 +145,7 @@ def test_projection_surface_prompt_state_ignores_deleted_qt_wrappers(
         wildcard_spans=(),
         lora_spans=(),
         syntax_spans=(),
+        region_structure=PromptRegionStructureView.empty(len("alpha")),
         has_trailing_comma=False,
     )
     render_plan = PromptSyntaxRenderPlan(syntax_spans=(), renderer_views=())

@@ -43,6 +43,7 @@ class PromptReorderChipView:
     """Expose one reorder chip without leaking domain imports to presentation."""
 
     index: int
+    partition_index: int
     text: str
     serialized_text: str
     display_text: str
@@ -117,6 +118,50 @@ class PromptSyntaxSpanView:
 
 
 @dataclass(frozen=True, slots=True)
+class PromptRegionSeparatorView:
+    """Expose one structural separator token and its consumed source line."""
+
+    token_start: int
+    token_end: int
+    line_start: int
+    line_end: int
+
+
+@dataclass(frozen=True, slots=True)
+class PromptRegionPartitionView:
+    """Expose one global or regional source partition to application consumers."""
+
+    index: int
+    source_start: int
+    source_end: int
+    is_global: bool
+
+
+@dataclass(frozen=True, slots=True)
+class PromptRegionStructureView:
+    """Expose authoritative regional prompt structure without domain coupling."""
+
+    separators: tuple[PromptRegionSeparatorView, ...]
+    partitions: tuple[PromptRegionPartitionView, ...]
+
+    @classmethod
+    def empty(cls, source_length: int) -> "PromptRegionStructureView":
+        """Return a separator-free structure spanning the supplied source length."""
+
+        return cls(
+            separators=(),
+            partitions=(
+                PromptRegionPartitionView(
+                    index=0,
+                    source_start=0,
+                    source_end=source_length,
+                    is_global=True,
+                ),
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class PromptDocumentView:
     """Expose one immutable prompt snapshot for presentation and application flows."""
 
@@ -126,6 +171,7 @@ class PromptDocumentView:
     wildcard_spans: Sequence[PromptWildcardView]
     lora_spans: Sequence[PromptLoraView]
     syntax_spans: Sequence[PromptSyntaxSpanView]
+    region_structure: PromptRegionStructureView
     has_trailing_comma: bool
 
 
@@ -134,6 +180,9 @@ __all__ = [
     "PromptEmphasisView",
     "PromptLoraView",
     "PromptReorderChipView",
+    "PromptRegionPartitionView",
+    "PromptRegionSeparatorView",
+    "PromptRegionStructureView",
     "PromptSegmentView",
     "PromptSyntaxSpanView",
     "PromptWildcardView",

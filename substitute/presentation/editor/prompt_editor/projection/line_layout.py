@@ -46,6 +46,7 @@ from .snapshot import (
 )
 from .text_style import projection_text_run_font
 from .tokens import PromptProjectionInlineObjectRendererRegistry
+from .region_line_layout import PromptRegionStructuralRowLayoutBuilder
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,7 +77,14 @@ class _ParagraphBreak:
     source_end: int
 
 
-_LayoutPiece = _TextPiece | _InlineObjectPiece | _ParagraphBreak
+@dataclass(frozen=True, slots=True)
+class _StructuralRowPiece:
+    """Describe one renderer-free structural row emitted by a projection run."""
+
+    run: PromptProjectionRun
+
+
+_LayoutPiece = _TextPiece | _InlineObjectPiece | _ParagraphBreak | _StructuralRowPiece
 
 
 @dataclass(frozen=True, slots=True)
@@ -292,6 +300,7 @@ class PromptProjectionLineLayoutBuilder:
 
         self._inline_object_renderers = inline_object_renderers
         self._measurement_cache = _TextMeasurementCache()
+        self._region_row_layout = PromptRegionStructuralRowLayoutBuilder()
 
     def build_snapshot(
         self,
@@ -707,6 +716,11 @@ class PromptProjectionLineLayoutBuilder:
 
             piece = layout_pieces[piece_index]
             if isinstance(piece, _ParagraphBreak):
+                next_piece = (
+                    layout_pieces[piece_index + 1]
+                    if piece_index + 1 < len(layout_pieces)
+                    else None
+                )
                 current_boundaries.append(
                     _LineBoundary(
                         piece.projection_start,
@@ -714,8 +728,56 @@ class PromptProjectionLineLayoutBuilder:
                         piece.source_start,
                     )
                 )
+                if isinstance(next_piece, _StructuralRowPiece):
+                    current_boundaries.append(
+                        _LineBoundary(
+                            piece.projection_end,
+                            content_left + line_width,
+                            next_piece.run.source_start,
+                        )
+                    )
                 finish_line(
                     [_LineStartBoundary(piece.projection_end, piece.source_end)]
+                )
+                piece_index += 1
+                continue
+
+            if isinstance(piece, _StructuralRowPiece):
+                follows_structural_row = piece_index > 0 and isinstance(
+                    layout_pieces[piece_index - 1], _StructuralRowPiece
+                )
+                leading_caret_rect = caret_rects_by_projection_position.get(
+                    piece.run.projection_start
+                )
+                if leading_caret_rect is None or follows_structural_row:
+                    finish_line(None)
+                    leading_caret_rect = caret_rects_by_projection_position[
+                        piece.run.projection_start
+                    ]
+                structural_layout = self._region_row_layout.build(
+                    piece.run,
+                    top=line_top,
+                    content_left=content_left,
+                    leading_caret_rect=leading_caret_rect,
+                    metrics=metrics,
+                )
+                lines.append(structural_layout.line)
+                caret_rects_by_projection_position.setdefault(
+                    piece.run.projection_start,
+                    leading_caret_rect,
+                )
+                caret_rects_by_projection_position[piece.run.projection_end] = (
+                    structural_layout.trailing_caret_rect
+                )
+                line_top += structural_layout.line.height
+                pending_fragments = []
+                open_line(
+                    [
+                        _LineStartBoundary(
+                            piece.run.projection_end,
+                            structural_layout.following_line_source_start,
+                        )
+                    ]
                 )
                 piece_index += 1
                 continue
@@ -958,6 +1020,9 @@ class PromptProjectionLineLayoutBuilder:
                         ),
                     )
                 )
+                continue
+            if run.kind is PromptProjectionRunKind.STRUCTURAL_ROW:
+                pieces.append(_StructuralRowPiece(run=run))
                 continue
 
             display_start = 0
@@ -1326,7 +1391,7 @@ class PromptProjectionLineLayoutBuilder:
         """Return a fitting keep group for an explicit piece-index span."""
 
         if any(
-            isinstance(piece, _ParagraphBreak)
+            isinstance(piece, (_ParagraphBreak, _StructuralRowPiece))
             for piece in layout_pieces[start_index:end_index]
         ):
             return None
@@ -1653,7 +1718,7 @@ def _piece_intersects_source_range(
 def _piece_source_range(piece: _LayoutPiece) -> tuple[int, int] | None:
     """Return the source range covered by a layout piece when it has one."""
 
-    if isinstance(piece, _ParagraphBreak):
+    if isinstance(piece, (_ParagraphBreak, _StructuralRowPiece)):
         return None
     if isinstance(piece, _TextPiece):
         return (min(piece.source_positions), max(piece.source_positions))
@@ -1679,7 +1744,7 @@ def _piece_width(
 ) -> float:
     """Return the unwrapped visual width of one layout piece."""
 
-    if isinstance(piece, _ParagraphBreak):
+    if isinstance(piece, (_ParagraphBreak, _StructuralRowPiece)):
         return 0.0
     if isinstance(piece, _InlineObjectPiece):
         return min(piece.size.width(), content_width)

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.application.prompt_editor import PromptRegionStructureView
+
 import os
 from typing import cast
 
@@ -152,6 +154,7 @@ def _document(
             source_length=0,
             projection_length=0,
         ),
+        region_structure=PromptRegionStructureView.empty(0),
     )
 
 

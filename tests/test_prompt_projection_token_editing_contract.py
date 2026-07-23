@@ -183,3 +183,81 @@ def test_projection_token_editing_invalid_raw_edit_stays_expanded_until_parse_re
 
     assert box.toPlainText() == "(broken, suffix"
     assert surface_for(box).projection_document().tokens == ()
+
+
+def test_projection_token_backspace_at_collapsed_emphasis_edge_preserves_expand_contract(
+    widgets: list[QWidget],
+) -> None:
+    """Existing collapsed inline tokens should still expand before shell deletion."""
+
+    app = ensure_qapp()
+    box = show_prompt_editor(
+        widgets,
+        text="(cat:1.05), suffix",
+        width=240,
+    )
+    token = _first_emphasis_token(box)
+    _set_cursor_position(box, token.source_end)
+
+    QTest.keyClick(box, Qt.Key.Key_Backspace)
+    process_events(app)
+
+    assert box.toPlainText() == "(cat:1.05), suffix"
+    assert box.textCursor().selectionStart() == token.source_start
+    assert box.textCursor().selectionEnd() == token.source_end
+
+
+def test_projection_region_separator_backspace_deletes_only_closing_bracket(
+    widgets: list[QWidget],
+) -> None:
+    """Backspace on the line below a separator should make the marker malformed."""
+
+    app = ensure_qapp()
+    box = show_prompt_editor(
+        widgets,
+        text="global\n[SEP]\nregional",
+        width=240,
+    )
+    token = next(
+        token
+        for token in surface_for(box).projection_document().tokens
+        if token.kind is PromptProjectionTokenKind.REGION_SEPARATOR
+    )
+    _set_cursor_position(box, token.source_end)
+
+    QTest.keyClick(box, Qt.Key.Key_Backspace)
+    process_events(app)
+
+    assert box.toPlainText() == "global\n[SEP\nregional"
+    assert not any(
+        item.kind is PromptProjectionTokenKind.REGION_SEPARATOR
+        for item in surface_for(box).projection_document().tokens
+    )
+
+
+def test_projection_region_separator_delete_removes_only_opening_bracket(
+    widgets: list[QWidget],
+) -> None:
+    """Delete on the line above a separator should make the marker malformed."""
+
+    app = ensure_qapp()
+    box = show_prompt_editor(
+        widgets,
+        text="global\n[SEP]\nregional",
+        width=240,
+    )
+    token = next(
+        token
+        for token in surface_for(box).projection_document().tokens
+        if token.kind is PromptProjectionTokenKind.REGION_SEPARATOR
+    )
+    _set_cursor_position(box, token.source_start)
+
+    QTest.keyClick(box, Qt.Key.Key_Delete)
+    process_events(app)
+
+    assert box.toPlainText() == "global\nSEP]\nregional"
+    assert not any(
+        item.kind is PromptProjectionTokenKind.REGION_SEPARATOR
+        for item in surface_for(box).projection_document().tokens
+    )

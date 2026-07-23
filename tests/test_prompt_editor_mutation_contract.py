@@ -23,6 +23,7 @@ from typing import cast
 
 from substitute.application.prompt_editor import (
     PromptDocumentView,
+    PromptRegionStructureView,
     PromptSourceNormalizationService,
     PromptSyntaxRenderPlan,
 )
@@ -88,6 +89,7 @@ def _empty_prompt_state(source_text: str) -> PromptOptimisticPromptState:
             wildcard_spans=(),
             lora_spans=(),
             syntax_spans=(),
+            region_structure=PromptRegionStructureView.empty(len(source_text)),
             has_trailing_comma=False,
         ),
         render_plan=PromptSyntaxRenderPlan(syntax_spans=(), renderer_views=()),

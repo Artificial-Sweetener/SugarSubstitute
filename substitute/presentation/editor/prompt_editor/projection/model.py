@@ -28,6 +28,9 @@ from sugarsubstitute_shared.localization import ApplicationText
 from substitute.application.prompt_editor.prompt_lora_resolution_service import (
     PromptLoraResolutionStatus,
 )
+from substitute.application.prompt_editor.prompt_document_views import (
+    PromptRegionStructureView,
+)
 
 
 _OBJECT_REPLACEMENT_CHARACTER = "\ufffc"
@@ -86,6 +89,7 @@ class PromptProjectionRunKind(str, Enum):
 
     TEXT = "text"
     INLINE_OBJECT = "inline_object"
+    STRUCTURAL_ROW = "structural_row"
 
 
 class PromptProjectionRunRole(str, Enum):
@@ -101,6 +105,7 @@ class PromptProjectionTokenKind(str, Enum):
 
     EMPHASIS = "emphasis"
     LORA = "lora"
+    REGION_SEPARATOR = "region_separator"
     SCENE = "scene"
     WILDCARD = "wildcard"
 
@@ -263,7 +268,7 @@ class PromptProjectionRun:
                 raise ValueError(
                     "Text run projection ranges must match the visible text length."
                 )
-        else:
+        elif self.kind is PromptProjectionRunKind.INLINE_OBJECT:
             if len(self.source_positions) < 2:
                 raise ValueError(
                     "Inline object runs must expose at least leading and trailing "
@@ -277,6 +282,13 @@ class PromptProjectionRun:
                 raise ValueError(
                     "Inline object runs must declare the renderer key that owns them."
                 )
+        else:
+            if self.projection_end - self.projection_start != 1:
+                raise ValueError("Structural rows must occupy one projection slot.")
+            if self.token_id is None:
+                raise ValueError("Structural rows must reference their source token.")
+            if self.renderer_key is not None:
+                raise ValueError("Structural rows cannot use inline-object renderers.")
 
     @property
     def is_text(self) -> bool:
@@ -289,6 +301,12 @@ class PromptProjectionRun:
         """Return whether this run contributes one inline object slot."""
 
         return self.kind is PromptProjectionRunKind.INLINE_OBJECT
+
+    @property
+    def is_structural_row(self) -> bool:
+        """Return whether this run contributes layout structure without content."""
+
+        return self.kind is PromptProjectionRunKind.STRUCTURAL_ROW
 
 
 @dataclass(frozen=True, slots=True)
@@ -1246,6 +1264,7 @@ class PromptProjectionDocument:
     tokens: Sequence[PromptProjectionToken]
     mapping: PromptProjectionMapping
     caret_map: PromptProjectionCaretMap
+    region_structure: PromptRegionStructureView
     _tokens_by_id: dict[str, PromptProjectionToken] | None = field(
         default=None,
         init=False,

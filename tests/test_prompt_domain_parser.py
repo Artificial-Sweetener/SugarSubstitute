@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
+
 from substitute.domain.prompt import WildcardForm, parse_prompt_document
 from substitute.domain.prompt import PromptWildcardSyntaxProfile
 
@@ -430,3 +432,64 @@ def test_parse_prompt_document_ignores_commas_inside_balanced_escaped_parenthese
         r"painting \(medium, oil\)",
         "beta",
     ]
+
+
+@pytest.mark.parametrize("line_ending", ["\n", "\r\n", "\r"])
+def test_parse_prompt_document_owns_exact_standalone_region_partitions(
+    line_ending: str,
+) -> None:
+    """Exact standalone separators should define lossless global and regional ranges."""
+
+    text = line_ending.join(("global", "[SEP]", "first", "[SEP]", "second"))
+
+    document = parse_prompt_document(text)
+
+    assert tuple(
+        separator.token_range.slice(text)
+        for separator in document.region_structure.separators
+    ) == ("[SEP]", "[SEP]")
+    assert tuple(
+        partition.source_range.slice(text)
+        for partition in document.region_structure.partitions
+    ) == ("global" + line_ending, "first" + line_ending, "second")
+    assert tuple(
+        partition.is_global for partition in document.region_structure.partitions
+    ) == (True, False, False)
+
+
+def test_parse_prompt_document_preserves_empty_region_partitions() -> None:
+    """Leading, adjacent, and trailing separators should retain every empty partition."""
+
+    text = "[SEP]\n[SEP]\nregional\n[SEP]"
+
+    document = parse_prompt_document(text)
+
+    assert tuple(
+        partition.source_range.slice(text)
+        for partition in document.region_structure.partitions
+    ) == ("", "", "regional\n", "")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "prefix [SEP]\nregional",
+        "[SEP] suffix\nregional",
+        " [SEP]\nregional",
+        "[sep]\nregional",
+        "[SEP\nregional",
+        "SEP]\nregional",
+    ],
+)
+def test_parse_prompt_document_treats_noncanonical_region_markers_as_plain_text(
+    text: str,
+) -> None:
+    """Only an exact uppercase marker occupying its whole line is structural."""
+
+    document = parse_prompt_document(text)
+
+    assert document.region_structure.separators == ()
+    assert tuple(
+        partition.source_range.slice(text)
+        for partition in document.region_structure.partitions
+    ) == (text,)

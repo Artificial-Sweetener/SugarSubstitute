@@ -113,6 +113,7 @@ class PromptProjectionSourceChangeApplyRequest:
     next_anchor_state: PromptProjectionCaretState
     can_preserve_diagnostic_fragment_cache: bool
     projection_deferral_reason: str
+    region_structure_requires_rebuild: bool
     restore_checkpoint: PromptProjectionLayoutCheckpoint | None = None
 
 
@@ -889,12 +890,27 @@ class PromptProjectionIncrementalApplyController:
         plain_apply_result: PromptProjectionPlainTextApplyResult | None = None
 
         apply_started_at = projection_observability_started_at()
+        if request.region_structure_requires_rebuild:
+            host._rebuild_projection()
+            log_projection_timing(
+                "incremental_apply.source_change",
+                started_at=apply_started_at,
+                text_length=len(request.text),
+                apply_path=PromptProjectionApplyPath.FULL_REBUILD.value,
+                fast_projection_applied=False,
+                wrap_reflow_deferred=False,
+                incremental_plain_edit_attempted=False,
+            )
+            return PromptProjectionSourceChangeApplyOutcome(
+                apply_path=PromptProjectionApplyPath.FULL_REBUILD,
+            )
+
         checkpoint_restored = self.try_restore_history_layout_checkpoint(
             request.restore_checkpoint
         )
         fast_projection_applied = checkpoint_restored or (
             self.try_apply_source_changed_prompt_state_without_geometry_rebuild(
-                previous_source_text=request.previous_source_text
+                previous_source_text=request.previous_source_text,
             )
         )
         apply_path = (

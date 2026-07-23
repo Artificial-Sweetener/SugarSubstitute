@@ -301,6 +301,30 @@ def test_structural_policy_rejects_heavy_pointer_work_and_unbounded_queueing() -
     assert all(item.startswith("structural_budget:") for item in violations)
 
 
+def test_structural_policy_rejects_editor_rebuild_work_on_canvas_round_trip() -> None:
+    """Canvas switching must not rebuild or prepare hidden prompt-editor state."""
+
+    deltas = (
+        PromptAbuseActionOwnerDelta(
+            action_index=2,
+            unit_index=0,
+            label="canvas_round_trip:",
+            counter_deltas=(
+                ("instrumented_layout_snapshot_count", 1.0),
+                ("instrumented_projection_rebuild_count", 1.0),
+                ("region_chrome_prepare_count", 1.0),
+            ),
+        ),
+    )
+
+    violations = prompt_abuse_structural_violations(deltas)
+
+    assert len(violations) == 3
+    assert any("instrumented_layout_snapshot_count" in item for item in violations)
+    assert any("instrumented_projection_rebuild_count" in item for item in violations)
+    assert any("region_chrome_prepare_count" in item for item in violations)
+
+
 def test_campaign_reports_structural_and_timing_evidence_independently() -> None:
     """Fast clocks must not conceal structurally unbounded editor work."""
 
@@ -429,6 +453,20 @@ def test_hostile_workloads_cover_typing_edits_lifecycle_and_layout_pressure() ->
         "autocomplete-race-churn",
         "seeded-mixed-abuse",
         "lifecycle-scroll-switch-churn",
+        "region-separator-horizontal-atomic-navigation",
+        "region-separator-vertical-navigation",
+        "region-separator-mouse-placement",
+        "region-separator-raw-rich-boundary",
+        "region-separator-topology-promotion",
+        "region-separator-adjacent-authoring",
+        "region-separator-adjacent-partition-population",
+        "region-separator-continued-authoring",
+        "region-separator-nearby-authoring",
+        "region-separator-delete-join-split",
+        "region-separator-paste-selection-resize",
+        "region-separator-multi-line-break",
+        "region-separator-seeded-churn",
+        "region-separator-canvas-lifecycle",
         "wildcard-txt-zebra-typing",
         "wildcard-scene-marker-error",
         "wildcard-csv-quoted-typing",
@@ -466,6 +504,18 @@ def test_hostile_workloads_cover_typing_edits_lifecycle_and_layout_pressure() ->
     assert {"type", "paste", "select", "resize", "drain_events"} <= {
         action.kind for action in seeded.actions
     }
+    separator_seeded = by_name["region-separator-seeded-churn"]
+    assert separator_seeded.seed == 7
+    assert len(separator_seeded.actions) >= 32
+    assert {
+        "key",
+        "mouse_caret",
+        "mouse_drag_selection",
+        "display_mode",
+        "resize",
+        "request_paint",
+        "drain_events",
+    } <= {action.kind for action in separator_seeded.actions}
 
 
 def test_operation_coverage_requires_every_editor_feature() -> None:

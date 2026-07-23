@@ -62,6 +62,9 @@ from tools.prompt_editor_abuse.models import PromptAbuseAction, PromptAbuseScena
 from tools.prompt_editor_abuse.prompt_workloads import prompt_scenarios
 from tools.prompt_editor_abuse.real_shell_driver import run_real_shell_scenario
 from tools.prompt_editor_abuse.replay import scenario_prefix
+from tools.prompt_editor_abuse.structural_instrumentation import (
+    prompt_abuse_structural_instrumentation,
+)
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
@@ -413,6 +416,65 @@ def test_real_shell_routine_typing_around_scenes_never_rebuilds_projection(
     )
     if label == "long-prompt-before-scene":
         assert probe.elapsed_ms < 750.0
+
+
+def test_real_shell_routine_regional_typing_stays_incremental_and_bounded(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Ordinary regional text edits must avoid topology rebuilds and line scans."""
+
+    regional_lines = "\n".join(
+        f"regional line {index}, detailed background and lighting"
+        for index in range(400)
+    )
+    initial_text = f"global\n[SEP]\n{regional_lines}"
+    cursor_position = initial_text.index("regional line 200") + len("regional line 200")
+    field = harness.add_prompt_workflow(
+        alias="regional-incremental-path",
+        initial_text=initial_text,
+    )
+    harness.set_source_cursor_position(field, cursor_position)
+    before = harness.capture_state_snapshot(field, label="regional-typing-before")
+
+    probe = harness.probe_typed_projection_paths(field, "abc")
+    after = harness.capture_state_snapshot(field, label="regional-typing-after")
+
+    assert probe.canonical_rebuild_count == 0, (
+        probe.apply_paths,
+        probe.incremental_rejection_reasons,
+        probe.layout_rejection_reasons,
+    )
+    assert "full_rebuild" not in probe.apply_paths
+    assert after.layout_line_count > 400
+    assert after.region_chrome_visited_line_count < 48
+    assert after.region_chrome_visited_line_count * 10 < after.layout_line_count
+    assert (
+        after.region_chrome_prepare_count - before.region_chrome_prepare_count
+        <= len(probe.typed_text)
+    )
+    assert not harness.invariant_violations(after)
+
+
+def test_real_shell_ordinary_typing_never_prepares_region_chrome(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Keep separator geometry entirely absent from ordinary typing."""
+
+    field = harness.add_prompt_workflow(
+        alias="ordinary-region-chrome-path",
+        initial_text="ordinary prompt\nwith several lines",
+    )
+    harness.move_cursor_to_end(field)
+    before = harness.capture_state_snapshot(field, label="ordinary-typing-before")
+
+    probe = harness.probe_typed_projection_paths(field, "abc")
+    after = harness.capture_state_snapshot(field, label="ordinary-typing-after")
+
+    assert probe.canonical_rebuild_count == 0
+    assert before.region_chrome_prepare_count == 0
+    assert after.region_chrome_prepare_count == 0
+    assert after.region_chrome_visited_line_count == 0
+    assert not harness.invariant_violations(after)
 
 
 def test_real_shell_scene_marker_formation_rebuilds_and_projects_immediately(
@@ -1656,6 +1718,129 @@ def test_seeded_abuse_selection_replace_keeps_fragment_owners(
     assert all(
         sample.layout_fragment_ownership_valid is not False
         for sample in result.dispatch_samples
+    )
+
+
+@pytest.mark.parametrize(
+    "scenario_name",
+    (
+        "region-separator-horizontal-atomic-navigation",
+        "region-separator-vertical-navigation",
+        "region-separator-mouse-placement",
+        "region-separator-raw-rich-boundary",
+        "region-separator-topology-promotion",
+        "region-separator-adjacent-authoring",
+        "region-separator-adjacent-partition-population",
+        "region-separator-continued-authoring",
+        "region-separator-nearby-authoring",
+        "region-separator-delete-join-split",
+        "region-separator-paste-selection-resize",
+        "region-separator-multi-line-break",
+        "region-separator-canvas-lifecycle",
+    ),
+)
+def test_real_shell_region_separator_abuse_scenarios_remain_exact(
+    tmp_path: Path,
+    scenario_name: str,
+) -> None:
+    """Separator abuse must retain exact source, caret, projection, and chrome owners."""
+
+    scenario = next(
+        candidate for candidate in prompt_scenarios() if candidate.name == scenario_name
+    )
+
+    with prompt_abuse_structural_instrumentation(enabled=True):
+        result = run_real_shell_scenario(
+            scenario,
+            repetition=0,
+            artifact_root=tmp_path,
+        )
+
+    assert result.correct, (
+        result.invariant_violations,
+        tuple(
+            (
+                sample.label,
+                sample.actual_source_on_mismatch,
+                sample.actual_cursor_position,
+                sample.expected_cursor_position,
+                sample.feature_mismatch,
+                sample.layout_fragment_ownership_mismatch,
+            )
+            for sample in result.dispatch_samples
+            if not (
+                sample.source_exact
+                and sample.caret_exact
+                and sample.selection_exact
+                and sample.feature_exact
+                and sample.layout_fragment_ownership_valid is not False
+            )
+        ),
+    )
+    if scenario_name == "region-separator-adjacent-partition-population":
+        rebuild_actions = {
+            delta.action_index
+            for delta in result.action_owner_deltas
+            if dict(delta.counter_deltas).get(
+                "instrumented_projection_rebuild_count",
+                0.0,
+            )
+            != 0.0
+        }
+        assert rebuild_actions == {0}
+    if scenario_name == "region-separator-canvas-lifecycle":
+        canvas_delta = next(
+            delta
+            for delta in result.action_owner_deltas
+            if delta.label == "canvas_round_trip"
+        )
+        canvas_counters = dict(canvas_delta.counter_deltas)
+        assert canvas_counters.get("region_chrome_prepare_count", 0.0) == 0.0
+        assert canvas_counters.get("instrumented_projection_rebuild_count", 0.0) == 0.0
+        assert canvas_counters.get("instrumented_layout_snapshot_count", 0.0) == 0.0
+
+
+@pytest.mark.parametrize("seed", (7, 19, 73))
+def test_real_shell_seeded_region_separator_abuse_remains_exact(
+    tmp_path: Path,
+    seed: int,
+) -> None:
+    """Vary mixed separator abuse while retaining every owner invariant."""
+
+    scenario = next(
+        candidate
+        for candidate in prompt_scenarios(seed=seed)
+        if candidate.name == "region-separator-seeded-churn"
+    )
+
+    with prompt_abuse_structural_instrumentation(enabled=True):
+        result = run_real_shell_scenario(
+            scenario,
+            repetition=0,
+            artifact_root=tmp_path,
+        )
+
+    assert result.correct, (
+        result.invariant_violations,
+        result.structural_violations,
+        tuple(
+            (
+                sample.label,
+                sample.actual_source_on_mismatch,
+                sample.actual_cursor_position,
+                sample.expected_cursor_position,
+                sample.feature_mismatch,
+                sample.layout_fragment_ownership_mismatch,
+            )
+            for sample in result.dispatch_samples
+            if not (
+                sample.source_exact
+                and sample.caret_exact
+                and sample.selection_exact
+                and sample.feature_exact
+                and sample.layout_fragment_ownership_valid is not False
+            )
+        ),
     )
 
 

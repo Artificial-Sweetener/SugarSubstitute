@@ -26,10 +26,14 @@ from substitute.application.prompt_editor import (
     PromptDocumentView,
     PromptEmphasisRendererView,
     PromptLoraRendererView,
+    PromptRegionStructureView,
     PromptSyntaxRenderPlan,
     PromptSyntaxRendererView,
     PromptSyntaxSpanView,
     PromptWildcardRendererView,
+)
+from substitute.application.prompt_editor.prompt_region_structure_edits import (
+    region_structure_edit_requires_rebuild,
 )
 
 from .caret_map_builder import build_prompt_projection_caret_map
@@ -510,6 +514,14 @@ class PromptProjectionIncrementalEditor:
             != edit.next_source_text
         ):
             return self._reject("edit_text_mismatch")
+        if region_structure_edit_requires_rebuild(
+            edit.previous_source_text,
+            edit.next_source_text,
+            previous_document.region_structure,
+            start=edit.start,
+            end=edit.end,
+        ):
+            return self._reject("region_structure_topology_changed")
         if not _is_supported_plain_text_incremental_edit(edit):
             return self._reject("unsupported_plain_text_incremental_edit")
         edited_run = _source_backed_plain_text_run_for_edit(
@@ -561,6 +573,7 @@ class PromptProjectionIncrementalEditor:
             projection_document = _apply_plain_text_document_edit(
                 edit,
                 previous_document=previous_document,
+                region_structure=document_view.region_structure,
                 edited_run=edited_run,
                 first_dirty_projection_position=first_dirty_projection_position,
                 editable_token_id=editable_token_id,
@@ -737,6 +750,7 @@ def _apply_plain_text_document_edit(
     edit: PromptProjectionIncrementalEdit,
     *,
     previous_document: PromptProjectionDocument,
+    region_structure: PromptRegionStructureView,
     edited_run: PromptProjectionRun,
     first_dirty_projection_position: int,
     editable_token_id: str | None = None,
@@ -859,6 +873,7 @@ def _apply_plain_text_document_edit(
         tokens=next_tokens,
         mapping=next_mapping,
         caret_map=next_caret_map,
+        region_structure=region_structure,
     )
 
 

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.application.prompt_editor import PromptRegionStructureView
+
 from substitute.presentation.editor.prompt_editor.projection.fragment_ownership_reflow import (
     PromptProjectionReflowEdit,
     reflow_edit_including_fragment_identity_changes,
@@ -111,4 +113,5 @@ def _document(text: str, *, run_id: str) -> PromptProjectionDocument:
             source_length=len(text),
             projection_length=len(text),
         ),
+        region_structure=PromptRegionStructureView.empty(len(text)),
     )

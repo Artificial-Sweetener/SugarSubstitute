@@ -30,6 +30,7 @@ from substitute.application.prompt_editor.prompt_document_cache import (
 )
 from substitute.application.prompt_editor.prompt_document_views import (
     PromptDocumentView,
+    PromptRegionStructureView,
 )
 
 _FORBIDDEN_IMPORT_ROOTS = {
@@ -131,5 +132,6 @@ def _document_view(text: str) -> PromptDocumentView:
         wildcard_spans=(),
         lora_spans=(),
         syntax_spans=(),
+        region_structure=PromptRegionStructureView.empty(len(text)),
         has_trailing_comma=False,
     )

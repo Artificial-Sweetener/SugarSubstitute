@@ -25,6 +25,7 @@ from substitute.application.prompt_editor import (
     PromptDiagnosticKind,
     PromptDiagnosticSeverity,
     PromptDocumentView,
+    PromptRegionStructureView,
     PromptEmphasisRendererView,
     PromptEmphasisView,
     PromptLoraRendererSpanView,
@@ -194,6 +195,7 @@ def _prompt_state(text: str) -> tuple[PromptDocumentView, PromptSyntaxRenderPlan
         wildcard_spans=(_wildcard(),),
         lora_spans=(_lora(),),
         syntax_spans=(_syntax_span(),),
+        region_structure=PromptRegionStructureView.empty(len(text)),
         has_trailing_comma=False,
     )
     render_plan = PromptSyntaxRenderPlan(

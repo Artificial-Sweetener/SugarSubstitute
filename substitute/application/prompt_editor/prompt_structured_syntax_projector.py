@@ -83,6 +83,7 @@ class PromptStructuredSyntaxProjector:
                 for mapping, local_view in local_views
                 for span in local_view.syntax_spans
             ),
+            region_structure=document_view.region_structure,
             has_trailing_comma=document_view.has_trailing_comma,
         )
 

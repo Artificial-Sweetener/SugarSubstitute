@@ -33,6 +33,7 @@ class PromptAbuseActionCounterProbe:
         self._editor = editor
         self._overlay_before: Any | None = None
         self._counters_before: dict[str, float] = {}
+        self._editor_counters_before: dict[str, float] = {}
         self._structural_counters_before: dict[str, float] = {}
 
     def begin_unit(self) -> None:
@@ -40,6 +41,7 @@ class PromptAbuseActionCounterProbe:
 
         self._overlay_before = _active_reorder_overlay(self._editor)
         self._counters_before = _numeric_reorder_counters(self._overlay_before)
+        self._editor_counters_before = _prompt_editor_counters(self._editor)
         self._structural_counters_before = active_structural_counter_counts()
 
     def finish_unit(
@@ -63,6 +65,12 @@ class PromptAbuseActionCounterProbe:
             if value > counters_before.get(name, 0.0)
         }
         structural_counters_after = active_structural_counter_counts()
+        editor_counters_after = _prompt_editor_counters(self._editor)
+        editor_deltas = {
+            name: value - self._editor_counters_before.get(name, 0.0)
+            for name, value in editor_counters_after.items()
+            if value > self._editor_counters_before.get(name, 0.0)
+        }
         structural_deltas = {
             name: value - self._structural_counters_before.get(name, 0.0)
             for name, value in structural_counters_after.items()
@@ -73,6 +81,7 @@ class PromptAbuseActionCounterProbe:
             for name, value in sorted(
                 {
                     **reorder_deltas,
+                    **editor_deltas,
                     **structural_deltas,
                 }.items()
             )
@@ -108,6 +117,17 @@ def _numeric_reorder_counters(overlay: Any | None) -> dict[str, float]:
         for name, value in counters.items()
         if isinstance(value, int | float) and not isinstance(value, bool)
     }
+
+
+def _prompt_editor_counters(editor: object) -> dict[str, float]:
+    """Return existing editor counters without triggering owner preparation."""
+
+    surface = getattr(editor, "_surface", None)
+    region_chrome = getattr(surface, "_region_chrome", None)
+    prepare_count = getattr(region_chrome, "prepare_count", None)
+    if not isinstance(prepare_count, int):
+        return {}
+    return {"region_chrome_prepare_count": float(prepare_count)}
 
 
 __all__ = ["PromptAbuseActionCounterProbe"]

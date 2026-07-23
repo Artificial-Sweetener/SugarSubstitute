@@ -29,6 +29,7 @@ from PySide6.QtGui import QFont
 from substitute.application.prompt_editor import (
     PromptDiagnostic,
     PromptDocumentView,
+    PromptRegionStructureView,
     PromptSyntaxRenderPlan,
 )
 from substitute.application.prompt_editor.prompt_literal_parenthesis_normalizer import (
@@ -655,6 +656,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         refresh_caret_after_prompt_state: bool = False,
         projection_deferral_reason: str = "",
         origin: PromptSourceEditOrigin = PromptSourceEditOrigin.PROGRAMMATIC,
+        region_structure_requires_rebuild: bool | None = None,
     ) -> None:
         """Mirror an editing-session source change into projection-owned state."""
 
@@ -697,6 +699,9 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                     start=source_edit_start,
                     end=source_edit_end,
                     replacement_text=source_edit_replacement_text,
+                    region_structure_requires_rebuild=(
+                        region_structure_requires_rebuild
+                    ),
                 )
             )
         if optimistic_prompt_state is None:
@@ -707,6 +712,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                 wildcard_spans=(),
                 lora_spans=(),
                 syntax_spans=(),
+                region_structure=PromptRegionStructureView.empty(len(text)),
                 has_trailing_comma=False,
             )
             host._render_plan = PromptSyntaxRenderPlan(
@@ -788,6 +794,9 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                     can_preserve_diagnostic_fragment_cache
                 ),
                 projection_deferral_reason=projection_deferral_reason,
+                region_structure_requires_rebuild=bool(
+                    region_structure_requires_rebuild
+                ),
             )
         else:
             self._apply_deferred_projection(
@@ -820,6 +829,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         next_anchor_state: PromptProjectionCaretState,
         can_preserve_diagnostic_fragment_cache: bool,
         projection_deferral_reason: str,
+        region_structure_requires_rebuild: bool = False,
         restore_checkpoint: PromptProjectionLayoutCheckpoint | None = None,
     ) -> None:
         """Apply immediate projection refresh, preserving the existing ordering."""
@@ -843,6 +853,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                     can_preserve_diagnostic_fragment_cache
                 ),
                 projection_deferral_reason=projection_deferral_reason,
+                region_structure_requires_rebuild=region_structure_requires_rebuild,
                 restore_checkpoint=restore_checkpoint,
             )
         )
@@ -937,10 +948,13 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         previous_source_text: str,
         updated_text: str,
         normalized_text: str,
+        region_structure_requires_rebuild: bool,
     ) -> tuple[bool, str]:
         """Return whether one edit can wait for controller-owned prompt state."""
 
         host = self._host
+        if region_structure_requires_rebuild:
+            return False, "region_structure_topology_changed"
         if host._source_edit_requires_canonical_rebuild(
             previous_source_text,
             normalized_text,
@@ -1173,16 +1187,35 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         result = source_change
         self._emit_undo_availability_change(undo_availability_change)
         source_result = result.source_result
-        start = source_result.requested_start
-        end = source_result.requested_end
-        replacement_text = source_result.requested_replacement_text
-        updated_text = previous_text[:start] + replacement_text + previous_text[end:]
         if not result.source_changed:
             host.set_cursor_positions(
                 cursor_position=result.cursor_state.cursor_position,
                 anchor_position=result.cursor_state.anchor_position,
             )
             return
+        source_edit = source_result.source_edit
+        if source_edit is None:
+            raise RuntimeError("Changed prompt source is missing its applied edit.")
+        requested_start = source_result.requested_start
+        requested_end = source_result.requested_end
+        requested_replacement_text = source_result.requested_replacement_text
+        updated_text = (
+            previous_text[:requested_start]
+            + requested_replacement_text
+            + previous_text[requested_end:]
+        )
+        start = source_edit.start
+        end = source_edit.end
+        replacement_text = source_edit.replacement_text
+        region_structure_requires_rebuild = (
+            self._semantic_remapper.region_structure_edit_requires_rebuild(
+                current_document_view=host._document_view,
+                previous_text=previous_text,
+                next_text=result.next_snapshot.source_text,
+                start=start,
+                end=end,
+            )
+        )
         can_defer_projection, deferral_reason = self._can_defer_source_rebuild_for_edit(
             start=start,
             end=end,
@@ -1192,6 +1225,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             previous_source_text=previous_text,
             updated_text=updated_text,
             normalized_text=result.next_snapshot.source_text,
+            region_structure_requires_rebuild=(region_structure_requires_rebuild),
         )
         insertion_overlay_can_defer = (
             not replacement_text
@@ -1275,6 +1309,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             refresh_caret_after_prompt_state=refresh_caret_after_prompt_state,
             projection_deferral_reason=deferral_reason,
             origin=origin,
+            region_structure_requires_rebuild=(region_structure_requires_rebuild),
         )
 
     def _restore_undo_state(
@@ -1306,6 +1341,9 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                 wildcard_spans=(),
                 lora_spans=(),
                 syntax_spans=(),
+                region_structure=PromptRegionStructureView.empty(
+                    len(state.source_text)
+                ),
                 has_trailing_comma=False,
             )
             host._render_plan = PromptSyntaxRenderPlan(

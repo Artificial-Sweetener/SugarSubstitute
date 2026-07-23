@@ -22,6 +22,7 @@ from PySide6.QtCore import QRectF
 
 from substitute.application.prompt_editor import (
     PromptDocumentView,
+    PromptRegionStructureView,
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
     PromptReorderDropTarget,
@@ -249,6 +250,7 @@ def _document_view() -> PromptDocumentView:
         wildcard_spans=(),
         lora_spans=(),
         syntax_spans=(),
+        region_structure=PromptRegionStructureView.empty(len("alpha, beta, gamma")),
         has_trailing_comma=False,
     )
 

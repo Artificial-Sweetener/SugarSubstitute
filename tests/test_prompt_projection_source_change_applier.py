@@ -27,9 +27,14 @@ from PySide6.QtWidgets import QApplication
 
 from substitute.application.prompt_editor import (
     PromptDocumentView,
+    PromptRegionStructureView,
     PromptSyntaxRenderPlan,
 )
 from substitute.application.prompt_editor import PromptSourceNormalizationService
+from substitute.application.prompt_editor.prompt_document_view_mapper import (
+    prompt_document_view_from_domain,
+)
+from substitute.domain.prompt import parse_prompt_document
 from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptSourceEditOrigin,
     PromptCursorState,
@@ -367,6 +372,7 @@ class _SourceChangeHost:
             wildcard_spans=(),
             lora_spans=(),
             syntax_spans=(),
+            region_structure=PromptRegionStructureView.empty(len("alpha")),
             has_trailing_comma=False,
         )
         self._render_plan = PromptSyntaxRenderPlan(
@@ -683,6 +689,7 @@ def _projection_payload(source_text: str) -> _ProjectionPayload:
             wildcard_spans=(),
             lora_spans=(),
             syntax_spans=(),
+            region_structure=PromptRegionStructureView.empty(len(source_text)),
             has_trailing_comma=False,
         ),
         render_plan=PromptSyntaxRenderPlan(
@@ -843,6 +850,52 @@ def test_source_change_applier_uses_semantic_remapper_for_optimistic_state() -> 
     assert host._document_view.source_text == "alpha!"
     assert host._render_plan.renderer_views == ()
     assert host._session.expanded_source_range == (0, 6)
+
+
+def test_source_change_applier_uses_applied_normalized_edit_for_region_topology() -> (
+    None
+):
+    """Normalized separator completion should publish every region immediately."""
+
+    source = "global\n[SEP]\n[SEPregional"
+    completion_position = source.index("regional")
+    session = _projection_session(source)
+    source_change = session.replace_source_range(
+        start=completion_position,
+        end=completion_position,
+        replacement_text="]",
+        normalizer=PromptSourceNormalizationService(),
+        origin=PromptSourceEditOrigin.TYPED,
+        exact_source=False,
+        record_undo=True,
+        undo_snapshot=_projection_undo_snapshot(source),
+    )
+    application = PromptProjectionSourceChangeApplication(
+        source_change=source_change,
+        previous_source_text=source,
+        origin=PromptSourceEditOrigin.TYPED,
+        signal_intent=PromptMutationSignalIntent(emit_text_changed=True),
+    )
+    host = _SourceChangeHost()
+    host._document_view = prompt_document_view_from_domain(
+        parse_prompt_document(source)
+    )
+    host._projection_document = _ProjectionDocument(source)
+    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+
+    applier.apply_source_change_application(application)
+
+    normalized_source = "global\n[SEP]\n[SEP]\nregional"
+    request = host._incremental_apply_controller.requests[-1]
+    assert request.source_edit_start == completion_position
+    assert request.source_edit_end == completion_position
+    assert request.source_edit_replacement_text == "]\n"
+    assert host._document_view.source_text == normalized_source
+    assert len(host._document_view.region_structure.separators) == 2
+    assert len(host._document_view.region_structure.partitions) == 3
+    assert host._source_document_adapter.range_fallback_calls == [
+        (normalized_source, source, completion_position)
+    ]
 
 
 def test_source_change_applier_rebuilds_source_derived_projection_structure() -> None:

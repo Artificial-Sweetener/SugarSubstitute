@@ -200,6 +200,19 @@ class PromptReorderDropService:
         """Build one preview layout from the current in-session reorder layout."""
 
         started_at = time.perf_counter()
+        if document_view.region_structure.separators:
+            preview_state = apply_drop_target_to_state(
+                build_base_drag_state(
+                    state_from_layout_view(
+                        layout_view,
+                        has_trailing_comma=document_view.has_trailing_comma,
+                    ),
+                    dragged_segment_index=dragged_segment_index,
+                ),
+                dragged_segment_index=dragged_segment_index,
+                target=domain_target_from_view(drop_target),
+            )
+            return layout_view_from_state(preview_state)
         base_drag_layout = self.build_base_drag_layout_view_from_layout(
             document_view,
             layout_view,
@@ -307,8 +320,11 @@ def append_chip_to_after_last_gap_state(
     ordered_segment_indices.append(dragged_segment_index)
     return PromptReorderState(
         ordered_segment_indices=tuple(ordered_segment_indices),
+        partition_index_by_segment_index=base_drag_state.partition_index_by_segment_index,
         separator_slots=tuple(separator_slots),
         has_trailing_comma=base_drag_state.has_trailing_comma,
+        prefix_text=base_drag_state.prefix_text,
+        suffix_text=base_drag_state.suffix_text,
     )
 
 

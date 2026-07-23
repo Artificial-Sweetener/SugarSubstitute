@@ -95,6 +95,7 @@ def _chip_view(index: int = 1) -> PromptReorderChipView:
 
     return PromptReorderChipView(
         index=index,
+        partition_index=0,
         text="beta",
         serialized_text="beta",
         display_text="beta",

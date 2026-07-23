@@ -167,6 +167,7 @@ class PromptStructuredReorderDocument:
         )
         return PromptReorderChipView(
             index=chip.index,
+            partition_index=chip.partition_index,
             text=chip.text,
             serialized_text=chip.serialized_text,
             display_text=chip.display_text,

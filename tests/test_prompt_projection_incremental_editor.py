@@ -25,6 +25,7 @@ import pytest
 
 from substitute.application.prompt_editor import (
     PromptDocumentService,
+    PromptRegionStructureView,
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.projection import incremental_editor
@@ -102,6 +103,7 @@ def test_incremental_plain_text_edit_rejects_invalid_projection_document(
             source_length=len(previous_text),
             projection_length=len(previous_text),
         ),
+        region_structure=PromptRegionStructureView.empty(len(previous_text)),
     )
 
     def fail_incremental_apply(
@@ -138,6 +140,35 @@ def test_incremental_plain_text_edit_rejects_invalid_projection_document(
 
     assert result is None
     assert editor.last_rejection_reason == "invalid_incremental_projection_document"
+
+
+def test_incremental_plain_text_edit_rejects_region_topology_change() -> None:
+    """A separator-invalidating newline deletion must use canonical projection."""
+
+    previous_text = "global\n[SEP]\npink witch hat"
+    next_text = "global[SEP]\npink witch hat"
+    editor = PromptProjectionIncrementalEditor()
+
+    result = editor.try_build_plain_text_edit(
+        PromptProjectionIncrementalEdit(
+            start=6,
+            end=7,
+            replacement_text="",
+            previous_source_text=previous_text,
+            next_source_text=next_text,
+        ),
+        previous_document=_scene_projection_document(previous_text),
+        document_view=PromptDocumentService().build_document_view(next_text),
+        render_plan=PromptSyntaxRenderPlan(syntax_spans=(), renderer_views=()),
+        display_mode=PromptProjectionDisplayMode.PROJECTED,
+        session=PromptProjectionSession(),
+        active_span_range=None,
+        decoration_accent_ranges=(),
+        scene_error_keys=frozenset(),
+    )
+
+    assert result is None
+    assert editor.last_rejection_reason == "region_structure_topology_changed"
 
 
 def test_incremental_plain_text_insert_preserves_caret_navigation() -> None:
@@ -1080,6 +1111,7 @@ def _plain_text_projection_document_with_run(
             source_length=len(text),
             projection_length=len(text),
         ),
+        region_structure=PromptRegionStructureView.empty(len(text)),
     )
 
 

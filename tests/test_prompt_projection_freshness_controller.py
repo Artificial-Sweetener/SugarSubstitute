@@ -22,6 +22,7 @@ from collections.abc import Callable
 
 from substitute.application.prompt_editor import (
     PromptDocumentView,
+    PromptRegionStructureView,
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.projection.update_scheduler import (
@@ -313,5 +314,6 @@ def _document_view(source_text: str) -> PromptDocumentView:
         wildcard_spans=(),
         lora_spans=(),
         syntax_spans=(),
+        region_structure=PromptRegionStructureView.empty(len(source_text)),
         has_trailing_comma=False,
     )

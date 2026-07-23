@@ -21,6 +21,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, cast
 
+from substitute.presentation.editor.prompt_editor.projection.model import (
+    PromptProjectionDisplayMode,
+    PromptProjectionRunKind,
+    PromptProjectionTokenKind,
+)
 from substitute.presentation.editor.prompt_editor.projection.plain_edit_caret_sequence import (
     MAX_PLAIN_EDIT_CARET_TRANSFORM_DEPTH,
 )
@@ -218,6 +223,13 @@ def _layout_fragment_ownership(surface: Any) -> tuple[bool | None, str | None]:
         if layout is None:
             continue
         document = layout.projection_document
+        region_mismatch = _region_projection_ownership(
+            surface,
+            layout,
+            layout_name=layout_name,
+        )
+        if region_mismatch is not None:
+            return False, region_mismatch
         for line_index, line in enumerate(layout._snapshot.lines):
             for fragment_index, fragment in enumerate(line.fragments):
                 run = document.run_by_id(fragment.run_id)
@@ -244,6 +256,161 @@ def _layout_fragment_ownership(surface: Any) -> tuple[bool | None, str | None]:
                     ):
                         return False, f"{location}:inline_owner_mismatch:{run.run_id}"
     return True, None
+
+
+def _region_projection_ownership(
+    surface: Any,
+    layout: Any,
+    *,
+    layout_name: str,
+) -> str | None:
+    """Return a cross-layer regional projection mismatch for one live layout."""
+
+    document = layout.projection_document
+    if document.display_mode is not PromptProjectionDisplayMode.PROJECTED:
+        return _raw_region_projection_mismatch(
+            surface,
+            layout,
+            layout_name=layout_name,
+        )
+    separators = document.region_structure.separators
+    expected_token_ranges = tuple(
+        (separator.token_start, separator.token_end) for separator in separators
+    )
+    region_tokens = tuple(
+        token
+        for token in document.tokens
+        if token.kind is PromptProjectionTokenKind.REGION_SEPARATOR
+    )
+    actual_token_ranges = tuple(
+        (token.source_start, token.source_end) for token in region_tokens
+    )
+    if actual_token_ranges != expected_token_ranges:
+        return (
+            f"{layout_name}:region_token_ranges:"
+            f"actual={actual_token_ranges!r}:expected={expected_token_ranges!r}"
+        )
+    for caret_name, state in (
+        ("cursor", getattr(surface, "_cursor_state", None)),
+        ("anchor", getattr(surface, "_anchor_state", None)),
+    ):
+        source_position = getattr(state, "source_position", None)
+        if isinstance(source_position, int) and any(
+            start < source_position < end for start, end in expected_token_ranges
+        ):
+            return (
+                f"{layout_name}:region_{caret_name}_inside_hidden_source:"
+                f"{source_position}"
+            )
+
+    structural_runs = tuple(
+        run
+        for run in document.runs
+        if run.kind is PromptProjectionRunKind.STRUCTURAL_ROW
+    )
+    expected_line_ranges = tuple(
+        (separator.line_start, separator.line_end) for separator in separators
+    )
+    actual_line_ranges = tuple(
+        (run.source_start, run.source_end) for run in structural_runs
+    )
+    if actual_line_ranges != expected_line_ranges:
+        return (
+            f"{layout_name}:region_run_ranges:"
+            f"actual={actual_line_ranges!r}:expected={expected_line_ranges!r}"
+        )
+
+    token_ids = {token.token_id for token in region_tokens}
+    for run in structural_runs:
+        location = f"{layout_name}:region_run:{run.run_id}"
+        if run.token_id not in token_ids:
+            return f"{location}:missing_region_token:{run.token_id}"
+        if (
+            document.projection_text[run.projection_start : run.projection_end]
+            != "\ufffc"
+        ):
+            return f"{location}:missing_structural_projection_slot"
+        matching_lines = tuple(
+            line
+            for line in layout._snapshot.lines
+            if (line.source_start, line.source_end)
+            == (run.source_start, run.source_end)
+        )
+        if len(matching_lines) != 1:
+            return f"{location}:layout_line_count:{len(matching_lines)}"
+        structural_line = matching_lines[0]
+        if structural_line.fragments:
+            return f"{location}:structural_fragments_present"
+        if structural_line.caret_stops:
+            return f"{location}:structural_caret_stops_present"
+
+    chrome = getattr(surface, "_region_chrome", None)
+    snapshot = None if chrome is None else chrome.snapshot_for(layout)
+    if not separators:
+        if snapshot is not None:
+            return f"{layout_name}:ordinary_region_chrome_snapshot_present"
+        return None
+    if snapshot is None:
+        return f"{layout_name}:region_chrome_snapshot_missing"
+    if len(snapshot.divider_lines) != len(separators):
+        return (
+            f"{layout_name}:region_divider_count:"
+            f"actual={len(snapshot.divider_lines)}:expected={len(separators)}"
+        )
+    expected_rail_count = sum(
+        not partition.is_global for partition in document.region_structure.partitions
+    )
+    if len(snapshot.rail_lines) != expected_rail_count:
+        return (
+            f"{layout_name}:region_rail_count:"
+            f"actual={len(snapshot.rail_lines)}:expected={expected_rail_count}"
+        )
+    expected_center = layout.metrics.content_left + layout.metrics.content_width / 2.0
+    if any(
+        abs(divider.center().x() - expected_center) > 0.001
+        for divider in snapshot.divider_lines
+    ):
+        return f"{layout_name}:region_divider_not_centered"
+    return None
+
+
+def _raw_region_projection_mismatch(
+    surface: Any,
+    layout: Any,
+    *,
+    layout_name: str,
+) -> str | None:
+    """Return raw-mode structure or chrome that should not have been prepared."""
+
+    document = layout.projection_document
+    region_tokens = tuple(
+        token
+        for token in document.tokens
+        if token.kind is PromptProjectionTokenKind.REGION_SEPARATOR
+    )
+    if region_tokens:
+        return f"{layout_name}:raw_region_tokens_present:{len(region_tokens)}"
+    structural_runs = tuple(
+        run
+        for run in document.runs
+        if run.kind is PromptProjectionRunKind.STRUCTURAL_ROW
+    )
+    if structural_runs:
+        return f"{layout_name}:raw_structural_runs_present:{len(structural_runs)}"
+    if document.projection_text != document.source_text:
+        return f"{layout_name}:raw_projection_not_literal"
+    chrome = getattr(surface, "_region_chrome", None)
+    snapshot = None if chrome is None else chrome.snapshot_for(layout)
+    if snapshot is None:
+        return None
+    if snapshot.paint_lines or snapshot.divider_lines or snapshot.rail_lines:
+        return f"{layout_name}:raw_region_chrome_present"
+    if snapshot.visited_line_count != 0:
+        return (
+            f"{layout_name}:raw_region_chrome_lines_visited:"
+            f"{snapshot.visited_line_count}"
+        )
+    return None
 
 
 def _caret_transform_depth(projection_document: Any) -> int | None:

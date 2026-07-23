@@ -60,6 +60,7 @@ from .model import (
     PromptProjectionTokenNavigationMode,
     PromptProjectionTransientState,
 )
+from .region_projection import PromptRegionProjectionBuilder
 from .session import PromptProjectionSession
 from .scene_projection import PromptSceneProjectionPlanner
 from .scene_title_projection import build_scene_title_projection_run
@@ -124,6 +125,7 @@ class PromptProjectionBuilder:
             document_semantics or OrdinaryPromptDocumentSemantics()
         )
         self._scene_projection = PromptSceneProjectionPlanner(self._document_semantics)
+        self._region_projection = PromptRegionProjectionBuilder()
 
     def source_edit_requires_canonical_rebuild(
         self,
@@ -176,6 +178,17 @@ class PromptProjectionBuilder:
                 source_text,
                 collapse_candidates=collapse_candidates,
             )
+            region_projection = self._region_projection.build(
+                runs,
+                document_view.region_structure,
+            )
+            runs = region_projection.runs
+            tokens = tuple(
+                sorted(
+                    (*tokens, *region_projection.tokens),
+                    key=lambda token: (token.source_start, token.source_end),
+                )
+            )
         runs = self._runs_with_transient_state(
             runs,
             source_text=source_text,
@@ -207,6 +220,7 @@ class PromptProjectionBuilder:
             tokens=tokens,
             mapping=mapping,
             caret_map=caret_map,
+            region_structure=document_view.region_structure,
         )
         return projection_document
 

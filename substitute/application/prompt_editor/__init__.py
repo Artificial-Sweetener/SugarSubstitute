@@ -70,6 +70,9 @@ if TYPE_CHECKING:
         PromptDocumentView,
         PromptEmphasisView,
         PromptLoraView,
+        PromptRegionPartitionView,
+        PromptRegionSeparatorView,
+        PromptRegionStructureView,
         PromptReorderChipView,
         PromptSegmentView,
         PromptSyntaxSpanView,
@@ -351,6 +354,15 @@ _LAZY_EXPORTS = {
         "substitute.application.prompt_editor.prompt_reorder_views"
     ),
     "PromptLoraView": "substitute.application.prompt_editor.prompt_document_views",
+    "PromptRegionPartitionView": (
+        "substitute.application.prompt_editor.prompt_document_views"
+    ),
+    "PromptRegionSeparatorView": (
+        "substitute.application.prompt_editor.prompt_document_views"
+    ),
+    "PromptRegionStructureView": (
+        "substitute.application.prompt_editor.prompt_document_views"
+    ),
     "PromptLoraAutocompleteCandidate": (
         "substitute.application.prompt_editor.prompt_lora_autocomplete_service"
     ),
@@ -663,6 +675,9 @@ __all__ = [
     "PromptFeatureProfileService",
     "PromptLineDropTarget",
     "PromptLoraView",
+    "PromptRegionPartitionView",
+    "PromptRegionSeparatorView",
+    "PromptRegionStructureView",
     "PromptLoraAutocompleteCandidate",
     "PromptLoraAutocompleteQuery",
     "PromptLoraAutocompleteService",

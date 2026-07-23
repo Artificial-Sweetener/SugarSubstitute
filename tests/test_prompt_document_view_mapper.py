@@ -94,6 +94,23 @@ def test_prompt_document_view_mapper_projects_reorder_chips() -> None:
     assert chip_view.separator_text_after == ", "
 
 
+def test_prompt_document_view_mapper_projects_authoritative_region_structure() -> None:
+    """Region separators and empty partitions should cross the domain boundary exactly."""
+
+    source = "[SEP]\n[SEP]\nregional"
+
+    document_view = prompt_document_view_from_domain(parse_prompt_document(source))
+
+    assert tuple(
+        (separator.token_start, separator.token_end)
+        for separator in document_view.region_structure.separators
+    ) == ((0, 5), (6, 11))
+    assert tuple(
+        (partition.source_start, partition.source_end, partition.is_global)
+        for partition in document_view.region_structure.partitions
+    ) == ((0, 0, True), (6, 6, False), (12, 20, False))
+
+
 def test_prompt_document_view_mapper_has_no_qt_presentation_or_adapter_imports() -> (
     None
 ):

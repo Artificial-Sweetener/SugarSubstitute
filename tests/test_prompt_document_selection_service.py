@@ -69,6 +69,7 @@ def test_prompt_document_selection_service_finds_reorder_chip_at_cursor() -> Non
     selection_service = PromptDocumentSelectionService()
     chip = PromptReorderChipView(
         index=2,
+        partition_index=0,
         text=" beta",
         serialized_text=" beta",
         display_text="beta",

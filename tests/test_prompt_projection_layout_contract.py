@@ -62,12 +62,16 @@ from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
     PromptProjectionRun,
+    PromptProjectionRunKind,
     PromptProjectionSelection,
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
 from substitute.presentation.editor.prompt_editor.projection.paint_state import (
     PromptProjectionPaintStateBuilder,
+)
+from substitute.presentation.editor.prompt_editor.projection.region_chrome import (
+    PromptRegionChrome,
 )
 from substitute.presentation.editor.prompt_editor.projection.session import (
     PromptProjectionSession,
@@ -2355,3 +2359,279 @@ def test_projection_layout_uses_qfluent_document_margin_for_plain_text_geometry(
 
     assert layout.document_margin == 4.0
     assert fragments[0].left() >= 4.0
+
+
+def test_projection_layout_uses_half_height_separator_rows_without_row_carets() -> None:
+    """Separator rows should be compact while their edge carets stay on adjacent lines."""
+
+    layout, projection = _layout_for("global\n[SEP]\nregional")
+    token = next(
+        token
+        for token in projection.tokens
+        if token.kind is PromptProjectionTokenKind.REGION_SEPARATOR
+    )
+    structural_line = next(
+        line
+        for line in layout._snapshot.lines  # noqa: SLF001
+        if line.source_start == token.source_start and not line.fragments
+    )
+    content_lines = [
+        line
+        for line in layout._snapshot.lines
+        if line.fragments  # noqa: SLF001
+    ]
+
+    assert structural_line.height == pytest.approx(content_lines[0].height * 0.5)
+    assert structural_line.caret_stops == ()
+    leading_state = projection.caret_map.state_for_source_position(token.source_start)
+    trailing_state = projection.caret_map.state_for_source_position(
+        token.source_end,
+        prefer_after=True,
+    )
+    leading_rect = layout.cursor_rect(leading_state, scroll_offset=0.0)
+    trailing_rect = layout.cursor_rect(trailing_state, scroll_offset=0.0)
+    assert leading_rect.center().y() < structural_line.top
+    assert trailing_rect.center().y() > structural_line.top + structural_line.height
+
+
+def test_projection_layout_vertical_navigation_crosses_separator_rows() -> None:
+    """Vertical navigation should treat non-caret separator rows as line breaks."""
+
+    text = "alpha\n[SEP]\nbravo"
+    layout, projection = _layout_for(text)
+    global_position = text.index("alpha") + 3
+    regional_position = text.index("bravo") + 3
+    regional_state = projection.caret_map.state_for_source_position(regional_position)
+    regional_rect = layout.cursor_rect(regional_state, scroll_offset=0.0)
+
+    upward_target = layout.vertical_caret_target(
+        regional_state,
+        direction=-1,
+        preferred_x=regional_rect.center().x(),
+    )
+
+    assert upward_target is not None
+    assert upward_target.state.source_position == global_position
+
+    global_state = projection.caret_map.state_for_source_position(global_position)
+    global_rect = layout.cursor_rect(global_state, scroll_offset=0.0)
+    downward_target = layout.vertical_caret_target(
+        global_state,
+        direction=1,
+        preferred_x=global_rect.center().x(),
+    )
+
+    assert downward_target is not None
+    assert downward_target.state.source_position == regional_position
+
+
+@pytest.mark.parametrize(
+    ("source", "separator_count"),
+    (
+        ("ordinary prompt", 0),
+        ("[SEP]\n", 1),
+        ("global\n[SEP]\nregional", 1),
+        ("global\n[SEP]\n[SEP]\nregional", 2),
+        ("[SEP]\nfirst\n[SEP]\n", 2),
+        ("global\n\n[SEP]\n\nfirst\n\n[SEP]\n\nsecond", 2),
+    ),
+    ids=(
+        "ordinary",
+        "terminal",
+        "single",
+        "adjacent",
+        "leading-and-terminal",
+        "multiple-with-blanks",
+    ),
+)
+@pytest.mark.parametrize(
+    "display_mode",
+    (PromptProjectionDisplayMode.PROJECTED, PromptProjectionDisplayMode.RAW),
+)
+def test_region_structure_mode_and_topology_matrix(
+    source: str,
+    separator_count: int,
+    display_mode: PromptProjectionDisplayMode,
+) -> None:
+    """Raw and rich owners must agree for every separator topology shape."""
+
+    layout, projection = _layout_for(source, display_mode=display_mode)
+    chrome = PromptRegionChrome()
+    snapshot = chrome.prepare(
+        layout,
+        semantic_palette=SemanticPalette(
+            accent=RgbColor(20, 80, 160),
+            error_foreground=RgbColor(180, 20, 20),
+            warning_foreground=RgbColor(180, 140, 20),
+        ),
+    )
+    region_tokens = tuple(
+        token
+        for token in projection.tokens
+        if token.kind is PromptProjectionTokenKind.REGION_SEPARATOR
+    )
+    structural_runs = tuple(
+        run
+        for run in projection.runs
+        if run.kind is PromptProjectionRunKind.STRUCTURAL_ROW
+    )
+
+    if display_mode is PromptProjectionDisplayMode.RAW:
+        assert projection.projection_text == source
+        assert region_tokens == ()
+        assert structural_runs == ()
+        assert snapshot.divider_lines == ()
+        assert snapshot.rail_lines == ()
+        assert snapshot.visited_line_count == 0
+        return
+
+    assert len(region_tokens) == separator_count
+    assert len(structural_runs) == separator_count
+    assert len(snapshot.divider_lines) == separator_count
+    assert len(snapshot.rail_lines) == separator_count
+    assert projection.projection_text.count("\ufffc") == separator_count
+    assert "[SEP]" not in projection.projection_text
+
+
+def test_region_chrome_prepares_centered_dividers_and_continuous_rails_once() -> None:
+    """Chrome geometry should be centered and derived in one pass over visual lines."""
+
+    layout, _projection = _layout_for(
+        "global\n[SEP]\nfirst line that wraps across width\n[SEP]\nsecond"
+    )
+    chrome = PromptRegionChrome()
+
+    snapshot = chrome.prepare(
+        layout,
+        semantic_palette=SemanticPalette(
+            accent=RgbColor(20, 80, 160),
+            error_foreground=RgbColor(180, 20, 20),
+            warning_foreground=RgbColor(180, 140, 20),
+        ),
+    )
+
+    assert len(snapshot.divider_lines) == 2
+    assert len(snapshot.rail_lines) == 2
+    assert snapshot.visited_line_count == layout.line_count()
+    expected_center = layout.metrics.content_left + layout.metrics.content_width / 2.0
+    expected_width = min(36.0, layout.metrics.content_width * 0.2)
+    assert all(
+        divider.center().x() == pytest.approx(expected_center)
+        and divider.length() == pytest.approx(expected_width)
+        for divider in snapshot.divider_lines
+    )
+    assert all(rail.x1() == rail.x2() for rail in snapshot.rail_lines)
+    assert chrome.prepare_count == 1
+
+
+def test_region_chrome_renders_rail_for_empty_terminal_partition() -> None:
+    """A terminal separator should expose its empty regional input row."""
+
+    layout, _projection = _layout_for("global\n[SEP]\n")
+    chrome = PromptRegionChrome()
+
+    snapshot = chrome.prepare(
+        layout,
+        semantic_palette=SemanticPalette(
+            accent=RgbColor(20, 80, 160),
+            error_foreground=RgbColor(180, 20, 20),
+            warning_foreground=RgbColor(180, 140, 20),
+        ),
+    )
+
+    assert len(snapshot.divider_lines) == 1
+    assert len(snapshot.rail_lines) == 1
+    assert snapshot.rail_lines[0].length() == pytest.approx(
+        layout.metrics.initial_row_height()
+    )
+
+
+def test_region_chrome_skips_line_scan_for_ordinary_prompts() -> None:
+    """Prompts without regional structure should add no line-walking cost."""
+
+    layout, _projection = _layout_for("ordinary prompt\nwith several lines")
+    chrome = PromptRegionChrome()
+
+    snapshot = chrome.prepare(
+        layout,
+        semantic_palette=SemanticPalette(
+            accent=RgbColor(20, 80, 160),
+            error_foreground=RgbColor(180, 20, 20),
+            warning_foreground=RgbColor(180, 140, 20),
+        ),
+    )
+
+    assert snapshot.visited_line_count == 0
+    assert snapshot.paint_lines == ()
+
+
+def test_region_chrome_uses_boundary_lookups_for_long_regional_prompts() -> None:
+    """Regional chrome preparation must not scan every visual content line."""
+
+    regional_lines = "\n".join(
+        f"regional line {index}, detailed background and lighting"
+        for index in range(400)
+    )
+    layout, _projection = _layout_for(
+        f"global\n[SEP]\n{regional_lines}\n[SEP]\nterminal",
+        text_width=180.0,
+    )
+    chrome = PromptRegionChrome()
+
+    snapshot = chrome.prepare(
+        layout,
+        semantic_palette=SemanticPalette(
+            accent=RgbColor(20, 80, 160),
+            error_foreground=RgbColor(180, 20, 20),
+            warning_foreground=RgbColor(180, 140, 20),
+        ),
+    )
+
+    assert len(snapshot.divider_lines) == 2
+    assert len(snapshot.rail_lines) == 2
+    assert layout.line_count() > 800
+    assert snapshot.visited_line_count < 64
+    assert snapshot.visited_line_count * 10 < layout.line_count()
+
+
+def test_region_chrome_skips_raw_region_structure_without_preparation() -> None:
+    """Raw source mode must not derive or retain any regional paint geometry."""
+
+    layout, _projection = _layout_for(
+        "global\n[SEP]\nregional",
+        display_mode=PromptProjectionDisplayMode.RAW,
+    )
+    chrome = PromptRegionChrome()
+
+    snapshot = chrome.prepare(
+        layout,
+        semantic_palette=SemanticPalette(
+            accent=RgbColor(20, 80, 160),
+            error_foreground=RgbColor(180, 20, 20),
+            warning_foreground=RgbColor(180, 140, 20),
+        ),
+    )
+
+    assert snapshot.divider_lines == ()
+    assert snapshot.rail_lines == ()
+    assert snapshot.paint_lines == ()
+    assert snapshot.visited_line_count == 0
+    assert chrome.prepare_count == 0
+
+
+def test_region_chrome_reuses_empty_snapshot_for_ordinary_prompt_syncs() -> None:
+    """Repeated ordinary layout syncs should add no separator preparation work."""
+
+    layout, _projection = _layout_for("ordinary prompt\nwith several lines")
+    chrome = PromptRegionChrome()
+    palette = SemanticPalette(
+        accent=RgbColor(20, 80, 160),
+        error_foreground=RgbColor(180, 20, 20),
+        warning_foreground=RgbColor(180, 140, 20),
+    )
+
+    first_snapshot = chrome.prepare(layout, semantic_palette=palette)
+    second_snapshot = chrome.prepare(layout, semantic_palette=palette)
+
+    assert second_snapshot is first_snapshot
+    assert chrome.prepare_count == 1

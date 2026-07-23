@@ -23,6 +23,7 @@ import random
 from substitute.application.prompt_editor import PromptDocumentService
 
 from .models import PromptAbuseScenario
+from .region_separator_workloads import prompt_region_separator_scenarios
 from .reorder_workloads import prompt_reorder_scenarios
 from .scenario_builder import PromptAbuseScenarioBuilder
 from .workload_constants import KEY_SLAM, PUNCTUATION_SLAM
@@ -81,6 +82,7 @@ def prompt_scenarios(*, seed: int = 7) -> tuple[PromptAbuseScenario, ...]:
         _resize_churn_scenario(long_prompt),
         _autocomplete_churn_scenario(long_prompt),
         _lifecycle_scroll_scenario(long_prompt),
+        *prompt_region_separator_scenarios(seed=seed),
         *prompt_reorder_scenarios(),
         _seeded_mixed_scenario(decorated_unit, seed=seed),
     ]
