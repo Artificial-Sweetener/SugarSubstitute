@@ -43,15 +43,19 @@ from substitute.application.prompt_editor.editing.syntax_actions import (
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandDispatcher,
+from substitute.presentation.editor.prompt_editor.commands.weight_commands import (
     PromptWeightActionRequest,
     PromptWeightCommandResult,
     build_weight_action_command,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from tests.prompt_editor_command_test_helpers import execute_prompt_command
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
 from tests.prompt_autocomplete_test_helpers import (
@@ -122,7 +126,7 @@ def _execute_weight_request(
     )
     return cast(
         PromptWeightCommandResult[str],
-        PromptCommandDispatcher(session).execute(command),
+        execute_prompt_command(session, command),
     )
 
 

@@ -57,7 +57,7 @@ from tests.prompt_projection_surface_test_helpers import (
     first_emphasis_token,
     new_projection_surface,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
-    surface_router,
+    surface_source_commands,
 )
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
@@ -152,7 +152,7 @@ def test_projection_surface_prompt_state_ignores_deleted_qt_wrappers(
         has_trailing_comma=False,
     )
     render_plan = PromptSyntaxRenderPlan(syntax_spans=(), renderer_views=())
-    surface_router(surface).set_source_text(document_view.source_text)
+    surface_source_commands(surface).set_source_text(document_view.source_text)
     surface_snapshot = surface.editor_state.prepare_semantic(
         document_view,
         render_plan,

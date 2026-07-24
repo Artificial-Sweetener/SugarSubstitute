@@ -31,7 +31,9 @@ from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
 )
 from substitute.application.prompt_editor.lora.schedule import PromptLoraScheduleService
-from substitute.presentation.editor.prompt_editor.commands import PromptCommandResult
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
+    PromptCommandResult,
+)
 from substitute.presentation.editor.prompt_editor.features import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,

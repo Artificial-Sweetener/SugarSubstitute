@@ -29,14 +29,14 @@ from substitute.application.danbooru import (
 from substitute.presentation.editor.prompt_editor.async_work import (
     log_prompt_async_warning,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
     PromptCommandSourceRange,
+)
+from substitute.presentation.editor.prompt_editor.commands.paste_import_commands import (
     PromptPasteImportCommandResult,
     PromptPreparedDanbooruImportRequest,
-    normalized_clipboard_paste_text,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptSourceNormalizer,
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
 from substitute.shared.diagnostics.prompt_editor_work import (
@@ -102,16 +102,14 @@ class PromptDanbooruPasteImportHandler(Generic[TPayload]):
         paste_executor: PromptDanbooruPasteExecutor[TPayload],
         *,
         import_executor: PromptPreparedDanbooruImportExecutor[TPayload],
-        normalizer: PromptSourceNormalizer,
-        exact_source_enabled: Callable[[], bool],
+        normalize_paste_text: Callable[[str], str],
         dispatcher: DanbooruUrlImportDispatcher,
     ) -> None:
         """Bind paste/import scheduling to command-backed host operations."""
 
         self._paste_executor = paste_executor
         self._import_executor = import_executor
-        self._normalizer = normalizer
-        self._exact_source_enabled = exact_source_enabled
+        self._normalize_paste_text = normalize_paste_text
         self._dispatcher = dispatcher
         self._service: DanbooruUrlImportService | None = None
         self._enabled = False
@@ -200,7 +198,7 @@ class PromptDanbooruPasteImportHandler(Generic[TPayload]):
                 )
             return
 
-        if command_result.source_change is not None:
+        if command_result.edit_commit is not None:
             log_debug(
                 _LOGGER,
                 "Prompt paste replaced Danbooru URL with imported tags.",
@@ -227,11 +225,7 @@ class PromptDanbooruPasteImportHandler(Generic[TPayload]):
     def normalized_paste_text(self, text: str) -> str:
         """Return the literal text form that a normal paste inserts for matching."""
 
-        return normalized_clipboard_paste_text(
-            text,
-            normalizer=self._normalizer,
-            exact_source=self._exact_source_enabled(),
-        )
+        return self._normalize_paste_text(text)
 
 
 __all__ = [

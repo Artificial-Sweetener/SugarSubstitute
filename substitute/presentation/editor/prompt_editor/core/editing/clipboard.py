@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .selection_state import PromptSelection
+from .selection import PromptSelection
 
 
 @dataclass(frozen=True, slots=True)

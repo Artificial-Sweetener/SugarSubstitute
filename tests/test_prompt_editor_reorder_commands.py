@@ -40,15 +40,19 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderRowView,
     PromptReorderStateView,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandDispatcher,
+from substitute.presentation.editor.prompt_editor.commands.reorder_commands import (
     PromptReorderCommandResult,
     PromptReorderLayoutCommitRequest,
     build_reorder_layout_commit_command,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from tests.prompt_editor_command_test_helpers import execute_prompt_command
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
 from tests.prompt_autocomplete_test_helpers import (
@@ -134,7 +138,7 @@ def _execute_reorder_request(
     )
     return cast(
         PromptReorderCommandResult[str],
-        PromptCommandDispatcher(session).execute(command),
+        execute_prompt_command(session, command),
     )
 
 

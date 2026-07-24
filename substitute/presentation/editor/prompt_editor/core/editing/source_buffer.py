@@ -28,7 +28,7 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     prompt_source_revision,
 )
 
-from .parenthesis_intent import PromptParenthesisIntent
+from .parenthesis import PromptParenthesisIntent
 
 
 @dataclass(frozen=True, slots=True)

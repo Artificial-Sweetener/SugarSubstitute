@@ -33,17 +33,29 @@ from substitute.application.prompt_editor.editing.source_normalization import (
 from substitute.application.prompt_editor.editing.structured_text import (
     PromptStructuredTextMutationService,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandDispatcher,
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
     PromptCommandSourceRange,
+)
+from substitute.presentation.editor.prompt_editor.commands.paste_import_commands import (
     PromptPasteImportCommandResult,
     PromptPreparedDanbooruImportRequest,
     build_prepared_danbooru_import_command,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptSourceEditOrigin,
+from tests.prompt_editor_command_test_helpers import execute_prompt_command
+from substitute.presentation.editor.prompt_editor.core.editing.commands import (
+    PromptReplaceRangeEdit,
+    PromptUndoEdit,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
+    PromptSourceEditOrigin,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
 
@@ -99,15 +111,17 @@ def _seed_literal_url_paste(
     """Apply the literal URL paste state that precedes async import completion."""
 
     paste_start = len(session.source_text)
-    session.replace_source_range(
-        start=paste_start,
-        end=paste_start,
-        replacement_text=url,
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.PASTE,
-        exact_source=False,
-        record_undo=True,
-        undo_snapshot=_undo_snapshot(session),
+    session.execute(
+        PromptReplaceRangeEdit(
+            start=paste_start,
+            end=paste_start,
+            replacement_text=url,
+            normalizer=PromptSourceNormalizationService(),
+            origin=PromptSourceEditOrigin.PASTE,
+            exact_source=False,
+            record_undo=True,
+            undo_snapshot=_undo_snapshot(session),
+        )
     )
     return _undo_snapshot(session)
 
@@ -127,7 +141,7 @@ def _execute_import_request(
     )
     return cast(
         PromptPasteImportCommandResult[str],
-        PromptCommandDispatcher(session).execute(command),
+        execute_prompt_command(session, command),
     )
 
 
@@ -209,7 +223,7 @@ def test_prepared_danbooru_import_preserves_csv_value_structure() -> None:
 
     result = cast(
         PromptPasteImportCommandResult[str],
-        PromptCommandDispatcher(session).execute(command),
+        execute_prompt_command(session, command),
     )
 
     assert result.status == "applied"
@@ -313,7 +327,9 @@ def test_prepared_danbooru_import_undo_skips_intermediate_url() -> None:
             pasted_undo_snapshot=pasted_snapshot,
         ),
     )
-    restore_result = session.undo(_undo_snapshot(session))
+    restore_result = session.execute(
+        PromptUndoEdit(current_snapshot=_undo_snapshot(session))
+    )
 
     assert result.status == "applied"
     assert restore_result is not None

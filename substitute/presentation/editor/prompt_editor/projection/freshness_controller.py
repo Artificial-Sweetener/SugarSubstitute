@@ -38,7 +38,7 @@ from substitute.shared.diagnostics.prompt_editor_work import (
 )
 
 from .model import PromptProjectionDisplayMode
-from ..editing_session import PromptSourceEditOrigin
+from ..core.editing.source_commands import PromptSourceEditOrigin
 from .update_scheduler import PendingProjectionUpdate, PromptProjectionUpdateScheduler
 
 MINIMUM_VALID_PROJECTION_LAYOUT_WIDTH = 120

@@ -22,24 +22,27 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
 
-from dataclasses import dataclass, replace
-from typing import Generic, TypeVar
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Generic, TypeVar, cast
 
 from substitute.application.prompt_editor.editing.structured_text import (
     PromptStructuredTextMutationService,
 )
 from substitute.domain.prompt.document.ranges import SourceRange
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptEditingSession,
+from ..core.editing.commands import PromptReplaceRangeEdit
+from ..core.editing.session import PromptEditingSession
+from ..core.editing.source_commands import (
     PromptSourceEditOrigin,
     PromptSourceNormalizer,
-    PromptUndoSnapshot,
 )
+from ..core.editing.transactions import PromptUndoSnapshot
 
-from . import (
+from .contracts import (
     PromptCommandResult,
     PromptCommandSourceRange,
 )
+from .execution import PromptEditExecution
 
 TPayload = TypeVar("TPayload")
 
@@ -130,39 +133,77 @@ class PromptApplyPreparedDanbooruImportCommand(Generic[TPayload]):
             exact_source = structured_replacement.exact_source
             cursor_position = structured_replacement.cursor_position
 
-        source_change = session.replace_source_range(
-            start=replacement_start,
-            end=replacement_end,
-            replacement_text=replacement_text,
-            normalizer=self.normalizer,
-            origin=PromptSourceEditOrigin.PASTE,
-            exact_source=exact_source,
-            record_undo=self.record_undo,
-            undo_snapshot=self.undo_snapshot,
-        )
-        if cursor_position is not None:
-            cursor_state = session.set_cursor_positions(
+        edit_commit = session.execute(
+            PromptReplaceRangeEdit(
+                start=replacement_start,
+                end=replacement_end,
+                replacement_text=replacement_text,
+                normalizer=self.normalizer,
+                origin=PromptSourceEditOrigin.PASTE,
+                exact_source=exact_source,
+                record_undo=self.record_undo,
+                undo_snapshot=self.undo_snapshot,
                 cursor_position=cursor_position,
                 anchor_position=cursor_position,
             )
-            source_change = replace(source_change, cursor_state=cursor_state)
+        )
         discard_availability_change = None
-        if source_change.source_changed:
+        if edit_commit.source_changed:
             discard_availability_change = session.discard_trailing_undo_state(
                 self.request.pasted_undo_snapshot
             )
         return PromptPasteImportCommandResult(
             command_name=self.name,
-            status="applied" if source_change.source_changed else "noop",
-            source_change=source_change,
-            cursor_state=source_change.cursor_state,
+            status="applied" if edit_commit.source_changed else "noop",
+            edit_commit=edit_commit,
+            cursor_state=edit_commit.cursor_state,
             undo_availability_change=(
                 discard_availability_change
                 if discard_availability_change is not None
-                else source_change.undo_availability_change
+                else edit_commit.undo_availability_change
             ),
-            reason=None if source_change.source_changed else "same_source",
+            reason=None if edit_commit.source_changed else "same_source",
             discarded_intermediate_undo_state=discard_availability_change is not None,
+        )
+
+
+class PromptPasteImportCommandService(Generic[TPayload]):
+    """Execute prepared Danbooru import replacement commands."""
+
+    def __init__(
+        self,
+        *,
+        execution: PromptEditExecution[TPayload],
+        normalizer: PromptSourceNormalizer,
+        exact_source_enabled: Callable[[], bool],
+        structured_text_mutations: PromptStructuredTextMutationService | None,
+    ) -> None:
+        """Store paste-import command dependencies."""
+
+        self._execution = execution
+        self._normalizer = normalizer
+        self._exact_source_enabled = exact_source_enabled
+        self._structured_text_mutations = structured_text_mutations
+
+    def execute_prepared_danbooru_import(
+        self,
+        request: PromptPreparedDanbooruImportRequest[TPayload],
+    ) -> PromptPasteImportCommandResult[TPayload]:
+        """Commit one prepared Danbooru import result."""
+
+        self._execution.finish_pending_key_edit_block(reason="danbooru_import_result")
+        return cast(
+            PromptPasteImportCommandResult[TPayload],
+            self._execution.execute(
+                build_prepared_danbooru_import_command(
+                    request,
+                    normalizer=self._normalizer,
+                    exact_source=self._exact_source_enabled(),
+                    record_undo=True,
+                    undo_snapshot=self._execution.current_undo_snapshot(),
+                    structured_text_mutations=self._structured_text_mutations,
+                )
+            ),
         )
 
 
@@ -212,6 +253,7 @@ def _stale_result(
 __all__ = [
     "PromptApplyPreparedDanbooruImportCommand",
     "PromptPasteImportCommandResult",
+    "PromptPasteImportCommandService",
     "PromptPreparedDanbooruImportRequest",
     "build_prepared_danbooru_import_command",
 ]

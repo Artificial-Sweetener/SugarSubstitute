@@ -18,16 +18,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Generic, TypeVar
 
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptEditingSession,
-    PromptSourceNormalizer,
-    PromptUndoSnapshot,
+from ..core.editing.commands import (
+    PromptReplaceDocumentEdit,
+    PromptReplaceRangeEdit,
 )
+from ..core.editing.session import PromptEditingSession
+from ..core.editing.source_commands import PromptSourceNormalizer
+from ..core.editing.transactions import PromptUndoSnapshot
 
-from . import (
+from .contracts import (
     PromptCommandResult,
     PromptCommandSourceRange,
     PromptCommandTextReplacement,
@@ -60,27 +62,21 @@ class PromptReplaceSourceRangeCommand(Generic[TPayload]):
     ) -> PromptCommandResult[TPayload]:
         """Apply this replacement through the supplied editing session."""
 
-        source_change = session.replace_source_range(
-            start=self.replacement.source_range.start,
-            end=self.replacement.source_range.end,
-            replacement_text=self.replacement.replacement_text,
-            normalizer=self.normalizer,
-            origin=self.replacement.origin,
-            exact_source=self.replacement.exact_source,
-            record_undo=self.replacement.record_undo,
-            undo_snapshot=self.undo_snapshot,
-        )
-        if self.replacement.cursor_position is not None:
-            cursor_state = session.set_cursor_positions(
+        edit_commit = session.execute(
+            PromptReplaceRangeEdit(
+                start=self.replacement.source_range.start,
+                end=self.replacement.source_range.end,
+                replacement_text=self.replacement.replacement_text,
+                normalizer=self.normalizer,
+                origin=self.replacement.origin,
+                exact_source=self.replacement.exact_source,
+                record_undo=self.replacement.record_undo,
+                undo_snapshot=self.undo_snapshot,
                 cursor_position=self.replacement.cursor_position,
-                anchor_position=(
-                    self.replacement.cursor_position
-                    if self.replacement.anchor_position is None
-                    else self.replacement.anchor_position
-                ),
+                anchor_position=self.replacement.anchor_position,
             )
-            source_change = replace(source_change, cursor_state=cursor_state)
-        return PromptCommandResult.from_source_change(self.name, source_change)
+        )
+        return PromptCommandResult.from_edit_commit(self.name, edit_commit)
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,17 +99,19 @@ class PromptReplaceFullSourceCommand(Generic[TPayload]):
     ) -> PromptCommandResult[TPayload]:
         """Apply this full-source replacement through the supplied session."""
 
-        source_change = session.replace_full_source(
-            self.text,
-            cursor_position=self.cursor_position,
-            anchor_position=self.anchor_position,
-            normalizer=self.normalizer,
-            exact_source=self.exact_source,
-            record_undo=self.record_undo,
-            clear_history=self.clear_history,
-            undo_snapshot=self.undo_snapshot,
+        edit_commit = session.execute(
+            PromptReplaceDocumentEdit(
+                text=self.text,
+                cursor_position=self.cursor_position,
+                anchor_position=self.anchor_position,
+                normalizer=self.normalizer,
+                exact_source=self.exact_source,
+                record_undo=self.record_undo,
+                clear_history=self.clear_history,
+                undo_snapshot=self.undo_snapshot,
+            )
         )
-        return PromptCommandResult.from_source_change(self.name, source_change)
+        return PromptCommandResult.from_edit_commit(self.name, edit_commit)
 
 
 @dataclass(frozen=True, slots=True)

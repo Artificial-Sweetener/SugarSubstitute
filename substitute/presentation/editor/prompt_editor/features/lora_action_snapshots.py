@@ -31,7 +31,7 @@ from ..async_work.scheduled_lora_dispatcher import (
     PromptScheduledLoraCachedContextSnapshot,
     scheduled_lora_signature,
 )
-from ..commands import PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 from .catalog_snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,

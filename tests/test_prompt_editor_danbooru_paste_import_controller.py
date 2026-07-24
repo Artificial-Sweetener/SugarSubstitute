@@ -38,20 +38,29 @@ from substitute.application.prompt_editor.editing.source_normalization import (
 from substitute.presentation.editor.prompt_editor.danbooru_paste_import import (
     PromptDanbooruPasteRequest,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptSourceEditOrigin,
+from substitute.presentation.editor.prompt_editor.commands.execution import (
+    PromptEditExecution,
+)
+from substitute.presentation.editor.prompt_editor.commands.paste_import_commands import (
+    PromptPasteImportCommandService,
+)
+from substitute.presentation.editor.prompt_editor.commands.source_service import (
+    PromptSourceCommandService,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.commit import (
+    PromptEditCommit,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
 )
-from substitute.presentation.editor.prompt_editor.editing_session.edit_controller import (
-    PromptEditController,
-    PromptEditControllerResult,
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
+    PromptSourceEditOrigin,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptDanbooruPasteImportController,
-)
-from substitute.presentation.editor.prompt_editor.interactions import (
-    PromptEditCommandRouter,
 )
 
 
@@ -144,17 +153,17 @@ class _AvailabilitySink:
 
 @dataclass(slots=True)
 class _MutationSink:
-    """Record projection mutation results published by the router."""
+    """Record committed edit results."""
 
-    results: list[PromptEditControllerResult[str, object]] = field(default_factory=list)
+    commits: list[PromptEditCommit[str]] = field(default_factory=list)
 
-    def apply_edit_controller_result(
+    def apply_edit_commit(
         self,
-        result: PromptEditControllerResult[str, object],
+        commit: PromptEditCommit[str],
     ) -> None:
-        """Record one router-published mutation result."""
+        """Record one published edit commit."""
 
-        self.results.append(result)
+        self.commits.append(commit)
 
 
 @dataclass(slots=True)
@@ -164,7 +173,8 @@ class _Harness:
     session: PromptEditingSession[str]
     controller: PromptDanbooruPasteImportController[str]
     dispatcher: _RecordingDanbooruImportDispatcher
-    router: PromptEditCommandRouter[str]
+    edit_execution: PromptEditExecution[str]
+    source_commands: PromptSourceCommandService[str]
     exact_source: dict[str, bool]
 
 
@@ -241,7 +251,7 @@ def test_stale_pasted_text_skips_successful_import_replacement() -> None:
     harness = _harness("", service=service, complete_immediately=False)
 
     assert harness.controller.try_schedule_clipboard_danbooru_paste(_URL)
-    harness.router.replace_source_range(
+    harness.source_commands.replace_source_range(
         start=0,
         end=len(_URL),
         replacement_text="edited url",
@@ -252,7 +262,7 @@ def test_stale_pasted_text_skips_successful_import_replacement() -> None:
         pasted_text=_URL,
         start=0,
         end=len(_URL),
-        pasted_undo_state=harness.router.current_undo_snapshot(),
+        pasted_undo_state=harness.edit_execution.current_undo_snapshot(),
     )
 
     harness.controller.apply_import_result(request, _success_result())
@@ -331,32 +341,33 @@ def _harness(
         max_undo_states=100,
         max_redo_states=100,
     )
-    edit_controller = PromptEditController[str](
+    mutation_sink = _MutationSink()
+    edit_execution = PromptEditExecution[str](
         session=session,
         undo_payload_provider=_PayloadProvider(session),
         availability_signal_sink=_AvailabilitySink(),
+        commit_sink=mutation_sink,
     )
     normalizer = PromptSourceNormalizationService()
-    mutation_sink = _MutationSink()
     exact_source = {"enabled": False}
-    router = PromptEditCommandRouter[str](
-        edit_controller=edit_controller,
+    source_commands = PromptSourceCommandService[str](
+        execution=edit_execution,
         normalizer=normalizer,
-        mutation_sink=mutation_sink,
-        source_text_provider=lambda: session.source_text,
-        cursor_position_provider=lambda: session.cursor_position,
-        anchor_position_provider=lambda: session.anchor_position,
-        exact_source_provider=lambda: exact_source["enabled"],
+        exact_source_enabled=lambda: exact_source["enabled"],
+    )
+    paste_import_commands = PromptPasteImportCommandService[str](
+        execution=edit_execution,
+        normalizer=normalizer,
+        exact_source_enabled=lambda: exact_source["enabled"],
+        structured_text_mutations=None,
     )
     dispatcher = _RecordingDanbooruImportDispatcher(
         complete_immediately=complete_immediately
     )
     controller = PromptDanbooruPasteImportController[str](
-        edit_controller=edit_controller,
-        source_replacement_executor=router,
-        import_executor=router,
-        normalizer=normalizer,
-        exact_source_enabled=lambda: exact_source["enabled"],
+        edit_execution=edit_execution,
+        source_commands=source_commands,
+        import_commands=paste_import_commands,
         dispatcher=dispatcher,
     )
     controller.configure_danbooru_url_import(
@@ -367,7 +378,8 @@ def _harness(
         session=session,
         controller=controller,
         dispatcher=dispatcher,
-        router=router,
+        edit_execution=edit_execution,
+        source_commands=source_commands,
         exact_source=exact_source,
     )
 

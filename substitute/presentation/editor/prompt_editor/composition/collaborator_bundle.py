@@ -77,7 +77,7 @@ if TYPE_CHECKING:
         PromptLoraThumbnailPreloader,
         PromptScheduledLoraContextProvider,
     )
-    from ..editing_session.edit_controller import PromptEditController
+    from ..commands.execution import PromptEditExecution
     from ..features import (
         PromptDanbooruActionController,
         PromptFeatureProfileController,
@@ -141,7 +141,7 @@ class PromptEditorCollaborators:
     lora_thumbnail_cache: PromptLoraThumbnailCache
     lora_thumbnail_preloader: PromptLoraThumbnailPreloader
     surface: PromptProjectionSurface
-    edit_controller: PromptEditController[PromptProjectionUndoPayload]
+    edit_execution: PromptEditExecution[PromptProjectionUndoPayload]
     shell_padding_fill_plane: QWidget
     fill_plane: QWidget
     lora_schedule_service: PromptLoraScheduleService

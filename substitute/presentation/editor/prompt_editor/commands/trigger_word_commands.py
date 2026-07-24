@@ -22,7 +22,8 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
 
-from dataclasses import dataclass, replace
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Generic, TypeVar
 
 from substitute.application.prompt_editor.editing.structured_text import (
@@ -31,14 +32,16 @@ from substitute.application.prompt_editor.editing.structured_text import (
 )
 from substitute.domain.prompt.document.ranges import SourceRange
 
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptEditingSession,
+from ..core.editing.commands import PromptReplaceRangeEdit
+from ..core.editing.session import PromptEditingSession
+from ..core.editing.source_commands import (
     PromptSourceEditOrigin,
     PromptSourceNormalizer,
-    PromptUndoSnapshot,
 )
+from ..core.editing.transactions import PromptUndoSnapshot
 
-from . import PromptCommandResult
+from .contracts import PromptCommandResult
+from .execution import PromptEditExecution
 
 TPayload = TypeVar("TPayload")
 
@@ -116,23 +119,21 @@ class PromptInsertTriggerWordsCommand(Generic[TPayload]):
                 )
             start, end, replacement_text = prepared
             exact_source = self.exact_source
-        source_change = session.replace_source_range(
-            start=start,
-            end=end,
-            replacement_text=replacement_text,
-            normalizer=self.normalizer,
-            origin=PromptSourceEditOrigin.PROGRAMMATIC,
-            exact_source=exact_source,
-            record_undo=True,
-            undo_snapshot=self.undo_snapshot,
-        )
-        if cursor_position is not None:
-            cursor_state = session.set_cursor_positions(
+        edit_commit = session.execute(
+            PromptReplaceRangeEdit(
+                start=start,
+                end=end,
+                replacement_text=replacement_text,
+                normalizer=self.normalizer,
+                origin=PromptSourceEditOrigin.PROGRAMMATIC,
+                exact_source=exact_source,
+                record_undo=True,
+                undo_snapshot=self.undo_snapshot,
                 cursor_position=cursor_position,
                 anchor_position=cursor_position,
             )
-            source_change = replace(source_change, cursor_state=cursor_state)
-        return PromptCommandResult.from_source_change(self.name, source_change)
+        )
+        return PromptCommandResult.from_edit_commit(self.name, edit_commit)
 
     def _structured_replacement(
         self,
@@ -159,6 +160,44 @@ class PromptInsertTriggerWordsCommand(Generic[TPayload]):
             source_text,
             position,
             self.request.trigger_words,
+        )
+
+
+class PromptTriggerWordCommandService(Generic[TPayload]):
+    """Execute identity-safe trigger-word insertion commands."""
+
+    def __init__(
+        self,
+        *,
+        execution: PromptEditExecution[TPayload],
+        normalizer: PromptSourceNormalizer,
+        exact_source_enabled: Callable[[], bool],
+        structured_text_mutations: PromptStructuredTextMutationService | None,
+    ) -> None:
+        """Store trigger-word command dependencies."""
+
+        self._execution = execution
+        self._normalizer = normalizer
+        self._exact_source_enabled = exact_source_enabled
+        self._structured_text_mutations = structured_text_mutations
+
+    def execute(
+        self,
+        request: PromptTriggerWordInsertionRequest,
+    ) -> PromptCommandResult[TPayload]:
+        """Commit one prepared trigger-word insertion."""
+
+        self._execution.finish_pending_key_edit_block(
+            reason="lora_insert_trigger_words"
+        )
+        return self._execution.execute(
+            build_trigger_word_insertion_command(
+                request,
+                normalizer=self._normalizer,
+                exact_source=self._exact_source_enabled(),
+                undo_snapshot=self._execution.current_undo_snapshot(),
+                structured_text_mutations=self._structured_text_mutations,
+            )
         )
 
 
@@ -242,6 +281,7 @@ def _delimited_trigger_words(
 __all__ = [
     "PromptInsertTriggerWordsCommand",
     "PromptTriggerWordInsertionRequest",
+    "PromptTriggerWordCommandService",
     "build_trigger_word_insertion_command",
     "prepare_trigger_word_insertion",
 ]

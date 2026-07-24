@@ -18,71 +18,49 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Generic, Protocol, TypeVar
+from typing import Generic, TypeVar
 
 from substitute.application.danbooru import (
     DanbooruPromptImportResult,
     DanbooruUrlImportService,
 )
 
-from ..commands import (
-    PromptCommandResult,
-)
+from ..commands.execution import PromptEditExecution
+from ..commands.paste_import_commands import PromptPasteImportCommandService
+from ..commands.source_service import PromptSourceCommandService
+from ..core.editing.source_commands import PromptSourceEditOrigin
 from ..danbooru_paste_import import (
     DanbooruUrlImportDispatcher,
     PromptDanbooruPasteExecutor,
     PromptDanbooruPasteImportHandler,
     PromptDanbooruPasteRequest,
-    PromptPreparedDanbooruImportExecutor,
 )
-from ..editing_session import PromptSourceEditOrigin, PromptSourceNormalizer
-from ..editing_session.edit_controller import PromptEditController
 
 TPayload = TypeVar("TPayload")
-
-
-class PromptDanbooruSourceReplacementExecutor(Protocol[TPayload]):
-    """Replace source ranges for Danbooru paste/import scheduling."""
-
-    def replace_source_range(
-        self,
-        *,
-        start: int,
-        end: int,
-        replacement_text: str,
-        origin: PromptSourceEditOrigin,
-        command_name: str = "replace_source_range",
-        record_undo: bool = True,
-    ) -> PromptCommandResult[TPayload]:
-        """Replace one source range through the edit-command router."""
 
 
 class PromptDanbooruPasteImportController(
     Generic[TPayload],
     PromptDanbooruPasteExecutor[TPayload],
 ):
-    """Own Danbooru paste/import scheduling and edit-controller callbacks."""
+    """Own Danbooru paste/import scheduling around focused editing services."""
 
     def __init__(
         self,
         *,
-        edit_controller: PromptEditController[TPayload],
-        source_replacement_executor: PromptDanbooruSourceReplacementExecutor[TPayload],
-        import_executor: PromptPreparedDanbooruImportExecutor[TPayload],
-        normalizer: PromptSourceNormalizer,
-        exact_source_enabled: Callable[[], bool],
+        edit_execution: PromptEditExecution[TPayload],
+        source_commands: PromptSourceCommandService[TPayload],
+        import_commands: PromptPasteImportCommandService[TPayload],
         dispatcher: DanbooruUrlImportDispatcher,
     ) -> None:
         """Bind Danbooru paste/import behavior to command-backed editors."""
 
-        self._edit_controller = edit_controller
-        self._source_replacement_executor = source_replacement_executor
+        self._edit_execution = edit_execution
+        self._source_commands = source_commands
         self._handler = PromptDanbooruPasteImportHandler(
             self,
-            import_executor=import_executor,
-            normalizer=normalizer,
-            exact_source_enabled=exact_source_enabled,
+            import_executor=import_commands,
+            normalize_paste_text=source_commands.normalized_paste_text,
             dispatcher=dispatcher,
         )
 
@@ -110,8 +88,8 @@ class PromptDanbooruPasteImportController(
     ) -> PromptDanbooruPasteRequest[TPayload] | None:
         """Insert a literal Danbooru URL and return its async replacement request."""
 
-        selection = self._edit_controller.session.selection()
-        command_result = self._source_replacement_executor.replace_source_range(
+        selection = self._edit_execution.session.selection()
+        command_result = self._source_commands.replace_source_range(
             start=selection.start,
             end=selection.end,
             replacement_text=text,
@@ -126,7 +104,7 @@ class PromptDanbooruPasteImportController(
             pasted_text=pasted_text,
             start=end - len(pasted_text),
             end=end,
-            pasted_undo_state=self._edit_controller.current_undo_snapshot(),
+            pasted_undo_state=self._edit_execution.current_undo_snapshot(),
         )
 
     def apply_import_result(
@@ -155,5 +133,4 @@ class PromptDanbooruPasteImportController(
 
 __all__ = [
     "PromptDanbooruPasteImportController",
-    "PromptDanbooruSourceReplacementExecutor",
 ]

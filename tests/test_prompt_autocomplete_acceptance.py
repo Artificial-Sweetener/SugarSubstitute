@@ -34,12 +34,14 @@ from substitute.application.prompt_editor.lora.autocomplete import (
 from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandResult,
+from substitute.presentation.editor.prompt_editor.commands.autocomplete_commands import (
     PromptLoraAutocompleteAcceptance,
     PromptSceneAutocompleteAcceptance,
     PromptTagAutocompleteAcceptance,
     PromptWildcardAutocompleteAcceptance,
+)
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
+    PromptCommandResult,
 )
 from substitute.presentation.editor.prompt_editor.models import AutocompleteSession
 from tests.prompt_autocomplete_test_helpers import build_test_autocomplete_coordinator

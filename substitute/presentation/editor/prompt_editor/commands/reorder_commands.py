@@ -22,8 +22,9 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, cast
 
 from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutation,
@@ -40,14 +41,14 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderLayoutView,
     PromptReorderStateView,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptEditingSession,
-    PromptSourceNormalizer,
-    PromptUndoSnapshot,
-)
+from ..core.editing.commands import PromptReplaceDocumentEdit
+from ..core.editing.session import PromptEditingSession
+from ..core.editing.source_commands import PromptSourceNormalizer
+from ..core.editing.transactions import PromptUndoSnapshot
 from substitute.shared.logging.logger import get_logger, log_warning_exception
 
-from . import PromptCommandResult
+from .contracts import PromptCommandResult, PromptEditApplicationState
+from .execution import PromptEditExecution
 
 TPayload = TypeVar("TPayload")
 
@@ -72,6 +73,53 @@ class PromptReorderCommandResult(PromptCommandResult[TPayload]):
 
     mutation: PromptMutation | None = None
     render_plan: PromptSyntaxRenderPlan | None = None
+
+
+class PromptReorderCommandService(Generic[TPayload]):
+    """Execute reorder commits through one grouped editing transaction."""
+
+    def __init__(
+        self,
+        *,
+        execution: PromptEditExecution[TPayload],
+        normalizer: PromptSourceNormalizer,
+        exact_source_enabled: Callable[[], bool],
+    ) -> None:
+        """Store reorder command dependencies."""
+
+        self._execution = execution
+        self._normalizer = normalizer
+        self._exact_source_enabled = exact_source_enabled
+
+    def execute(
+        self,
+        request: PromptReorderLayoutCommitRequest,
+        *,
+        mutation_service: PromptMutationService,
+        syntax_service: PromptSyntaxService,
+        syntax_profile: PromptSyntaxProfile,
+    ) -> PromptReorderCommandResult[TPayload]:
+        """Commit one prepared reorder layout."""
+
+        command = build_reorder_layout_commit_command(
+            request,
+            mutation_service=mutation_service,
+            syntax_service=syntax_service,
+            syntax_profile=syntax_profile,
+            normalizer=self._normalizer,
+            exact_source=self._exact_source_enabled(),
+            record_undo=False,
+            undo_snapshot=self._execution.current_undo_snapshot(),
+        )
+        self._execution.finish_pending_key_edit_block(reason="reorder_commit")
+        self._execution.begin_edit_block(finish_typing=False)
+        try:
+            return cast(
+                PromptReorderCommandResult[TPayload],
+                self._execution.execute(command),
+            )
+        finally:
+            self._execution.end_edit_block()
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,23 +168,31 @@ class PromptCommitReorderLayoutCommand(Generic[TPayload]):
             session=session,
             mutation=adjusted_mutation,
         )
-        source_change = session.replace_full_source(
-            adjusted_mutation.text,
-            cursor_position=cursor_position,
-            anchor_position=anchor_position,
-            normalizer=self.normalizer,
-            exact_source=self.exact_source,
-            record_undo=self.record_undo,
-            clear_history=False,
-            undo_snapshot=self.undo_snapshot,
+        edit_commit = session.execute(
+            PromptReplaceDocumentEdit(
+                text=adjusted_mutation.text,
+                cursor_position=cursor_position,
+                anchor_position=anchor_position,
+                normalizer=self.normalizer,
+                exact_source=self.exact_source,
+                record_undo=self.record_undo,
+                clear_history=False,
+                undo_snapshot=self.undo_snapshot,
+            )
+        )
+        edit_commit = edit_commit.with_prepared_state(
+            PromptEditApplicationState(
+                document_view=adjusted_mutation.document_view,
+                render_plan=render_plan,
+            )
         )
         return PromptReorderCommandResult(
             command_name=self.name,
-            status="applied" if source_change.source_changed else "noop",
-            source_change=source_change,
-            cursor_state=source_change.cursor_state,
-            undo_availability_change=source_change.undo_availability_change,
-            reason=None if source_change.source_changed else "same_source",
+            status="applied" if edit_commit.source_changed else "noop",
+            edit_commit=edit_commit,
+            cursor_state=edit_commit.cursor_state,
+            undo_availability_change=edit_commit.undo_availability_change,
+            reason=None if edit_commit.source_changed else "same_source",
             mutation=adjusted_mutation,
             render_plan=render_plan,
         )
@@ -273,6 +329,7 @@ def _stale_result(
 __all__ = [
     "PromptCommitReorderLayoutCommand",
     "PromptReorderCommandResult",
+    "PromptReorderCommandService",
     "PromptReorderLayoutCommitRequest",
     "build_reorder_layout_commit_command",
 ]

@@ -31,10 +31,24 @@ from substitute.application.prompt_editor.editing.literal_parentheses import (
 from substitute.infrastructure.persistence.file_prompt_autocomplete_gateway import (
     FilePromptAutocompleteGateway,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from substitute.presentation.editor.prompt_editor.core.editing.commands import (
+    PromptRedoEdit,
+    PromptReplaceRangeEdit,
+    PromptUndoEdit,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.commit import (
+    PromptEditCommit,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
     PromptSourceEditOrigin,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
 
@@ -59,6 +73,34 @@ def _session(source_text: str) -> PromptEditingSession[str]:
         cursor_state=PromptCursorState(len(source_text), len(source_text)),
         max_undo_states=10,
         max_redo_states=10,
+    )
+
+
+def _replace_source_range(
+    session: PromptEditingSession[str],
+    *,
+    start: int,
+    end: int,
+    replacement_text: str,
+    normalizer: PromptSourceNormalizationService,
+    origin: PromptSourceEditOrigin,
+    exact_source: bool,
+    record_undo: bool,
+    undo_snapshot: PromptUndoSnapshot[str],
+) -> PromptEditCommit[str]:
+    """Execute one range edit through the typed session boundary."""
+
+    return session.execute(
+        PromptReplaceRangeEdit(
+            start=start,
+            end=end,
+            replacement_text=replacement_text,
+            normalizer=normalizer,
+            origin=origin,
+            exact_source=exact_source,
+            record_undo=record_undo,
+            undo_snapshot=undo_snapshot,
+        )
     )
 
 
@@ -123,7 +165,8 @@ def test_manual_unescape_is_preserved_until_complete_segment_replacement() -> No
     source = r"\(blue laces\)"
     session = _session(source)
     normalizer = PromptSourceNormalizationService()
-    first = session.replace_source_range(
+    first = _replace_source_range(
+        session,
         start=0,
         end=1,
         replacement_text="",
@@ -134,7 +177,8 @@ def test_manual_unescape_is_preserved_until_complete_segment_replacement() -> No
         undo_snapshot=_undo_snapshot(session),
     )
     closing_slash = first.next_snapshot.source_text.index(r"\)")
-    session.replace_source_range(
+    _replace_source_range(
+        session,
         start=closing_slash,
         end=closing_slash + 1,
         replacement_text="",
@@ -144,7 +188,8 @@ def test_manual_unescape_is_preserved_until_complete_segment_replacement() -> No
         record_undo=True,
         undo_snapshot=_undo_snapshot(session),
     )
-    session.replace_source_range(
+    _replace_source_range(
+        session,
         start=len(session.source_text) - 1,
         end=len(session.source_text) - 1,
         replacement_text="!",
@@ -158,7 +203,8 @@ def test_manual_unescape_is_preserved_until_complete_segment_replacement() -> No
     assert session.source_text == "(blue laces!)"
     assert session.source_snapshot().parenthesis_intents
 
-    session.replace_source_range(
+    _replace_source_range(
+        session,
         start=0,
         end=len(session.source_text),
         replacement_text="(fresh)",
@@ -178,7 +224,8 @@ def test_manual_escapement_intent_round_trips_with_undo_redo() -> None:
 
     session = _session(r"\(blue laces\)")
     normalizer = PromptSourceNormalizationService()
-    session.replace_source_range(
+    _replace_source_range(
+        session,
         start=0,
         end=1,
         replacement_text="",
@@ -189,7 +236,8 @@ def test_manual_escapement_intent_round_trips_with_undo_redo() -> None:
         undo_snapshot=_undo_snapshot(session),
     )
     closing_slash = session.source_text.index(r"\)")
-    session.replace_source_range(
+    _replace_source_range(
+        session,
         start=closing_slash,
         end=closing_slash + 1,
         replacement_text="",
@@ -200,13 +248,17 @@ def test_manual_escapement_intent_round_trips_with_undo_redo() -> None:
         undo_snapshot=_undo_snapshot(session),
     )
 
-    undo_result = session.undo(_undo_snapshot(session))
+    undo_result = session.execute(
+        PromptUndoEdit(current_snapshot=_undo_snapshot(session))
+    )
 
     assert undo_result is not None
     assert session.source_text == r"(blue laces\)"
     assert session.source_snapshot().parenthesis_intents
 
-    redo_result = session.redo(_undo_snapshot(session))
+    redo_result = session.execute(
+        PromptRedoEdit(current_snapshot=_undo_snapshot(session))
+    )
 
     assert redo_result is not None
     assert session.source_text == "(blue laces)"
@@ -218,7 +270,8 @@ def test_generated_emphasis_provenance_round_trips_with_undo_redo() -> None:
 
     session = _session("(test")
     normalizer = PromptSourceNormalizationService()
-    session.replace_source_range(
+    _replace_source_range(
+        session,
         start=len(session.source_text),
         end=len(session.source_text),
         replacement_text=")",
@@ -230,11 +283,17 @@ def test_generated_emphasis_provenance_round_trips_with_undo_redo() -> None:
     )
     generated_snapshot = _undo_snapshot(session)
 
-    assert session.undo(generated_snapshot) is not None
-    assert session.redo(_undo_snapshot(session)) is not None
+    assert (
+        session.execute(PromptUndoEdit(current_snapshot=generated_snapshot)) is not None
+    )
+    assert (
+        session.execute(PromptRedoEdit(current_snapshot=_undo_snapshot(session)))
+        is not None
+    )
     assert session.source_snapshot().generated_emphases
 
-    session.replace_source_range(
+    _replace_source_range(
+        session,
         start=0,
         end=0,
         replacement_text="(",
@@ -244,7 +303,8 @@ def test_generated_emphasis_provenance_round_trips_with_undo_redo() -> None:
         record_undo=True,
         undo_snapshot=_undo_snapshot(session),
     )
-    session.replace_source_range(
+    _replace_source_range(
+        session,
         start=len(session.source_text),
         end=len(session.source_text),
         replacement_text=")",

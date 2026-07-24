@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Protocol, cast
+from typing import Callable, cast
 
 from PySide6.QtCore import (
     QEvent,
@@ -91,23 +91,21 @@ from substitute.shared.logging.logger import (
 )
 
 from ..autocomplete_preview_state import PromptAutocompletePreviewState
+from ..commands.execution import PromptEditExecution
+from ..commands.source_service import PromptSourceCommandService
 from ..core.state.revisions import PromptLayoutIdentity
 from ..core.state.semantic_state import PromptEditorSemanticSnapshot
 from ..debug_probe import log_prompt_editor_probe, surface_probe_state
-from ..editing_session import (
+from ..core.editing.commit import PromptEditCommit
+from ..core.editing.cursor_state import PromptCursorState
+from ..core.editing.session import PromptEditingSession
+from ..core.editing.source_buffer import PromptSourceSnapshot
+from ..core.editing.source_commands import PromptSourceEditOrigin
+from ..interactions.cursor_adapter import (
     PromptCursorAdapter,
-    PromptCursorState,
-    PromptEditingSession,
-    PromptEditingSessionRestoreResult,
-    PromptSourceEditOrigin,
-    PromptSourceSnapshot,
 )
-from ..editing_session.edit_controller import (
-    PromptEditControllerResult,
-)
-from ..editing_session.undo_coalescing import PromptUndoCoalescingActions
+from ..interactions.clipboard_history_controller import PromptClipboardHistoryActions
 from ..interactions import (
-    PromptClipboardHistoryActions,
     PromptSurfaceKeyHandler,
     PromptSurfaceKeyHost,
     PromptSurfaceMouseHandler,
@@ -116,10 +114,6 @@ from ..interactions import (
     PromptSurfaceWheelHost,
     PromptWheelScrollResult,
     prompt_word_bounds,
-)
-from ..interactions.deletion_controller import (
-    PromptSurfaceDeletionController,
-    PromptSurfaceDeletionHost,
 )
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
 from ..mime_data_policy import (
@@ -132,7 +126,6 @@ from .autocomplete_preview_projection_owner import (
     PromptAutocompletePreviewProjectionHost,
     PromptAutocompletePreviewProjectionOwner,
 )
-from .builder import PromptProjectionBuilder
 from .caret_autocomplete_preview_coordinator import (
     PromptCaretAutocompletePreviewCoordinator,
     PromptCaretAutocompletePreviewHost,
@@ -150,6 +143,7 @@ from .display_mode_layout_cache import (
     PromptProjectionDisplayModeLayoutCache,
     PromptProjectionDisplayModeLayoutIdentity,
 )
+from .editing_runtime import PromptProjectionEditingRuntimeFactory
 from .fill_band_cache import (
     PromptFillBandRect,
     PromptProjectionFillBandBuildRequest,
@@ -266,38 +260,16 @@ from .transient_edit_overlays import (
     PromptProjectionTransientDeletionOverlay,
     PromptProjectionTransientInsertionOverlay,
 )
+from ..interactions.deletion_controller import (
+    PromptDeletionContext,
+    PromptDeletionContextProvider,
+    PromptDeletionProjectionEffects,
+    PromptSurfaceDeletionController,
+)
+from .builder import PromptProjectionBuilder
 
 _SLOW_REORDER_PROJECTION_LAYOUT_MS = 8.0
 _LOGGER = get_logger("presentation.editor.prompt_editor.projection_surface")
-
-
-class PromptSurfaceSourceMutationActions(Protocol):
-    """Replace viewport-local source ranges through the composed mutation owner."""
-
-    def replace_source_range(
-        self,
-        *,
-        start: int,
-        end: int,
-        replacement_text: str,
-        origin: PromptSourceEditOrigin,
-        command_name: str = "replace_source_range",
-        record_undo: bool = True,
-    ) -> object:
-        """Replace one prepared source range through the command router."""
-
-
-class PromptSurfaceEditBlockActions(Protocol):
-    """Expose edit-block lifecycle operations owned outside the surface."""
-
-    def begin_surface_edit_block(self, *, finish_typing: bool = True) -> None:
-        """Start a grouped source edit block."""
-
-    def end_surface_edit_block(self) -> None:
-        """Finish a grouped source edit block."""
-
-    def finish_surface_pending_key_edit_block(self, *, reason: str) -> None:
-        """Commit any pending key-owned edit block."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -358,6 +330,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
         parent: QWidget | None = None,
         *,
         editing_session: PromptEditingSession[PromptProjectionUndoPayload],
+        editing_runtime_factory: PromptProjectionEditingRuntimeFactory[
+            "PromptProjectionSurface",
+            PromptProjectionUndoPayload,
+        ],
         document_semantics: PromptDocumentSemantics | None = None,
         lora_thumbnail_cache: PromptLoraThumbnailCache | None = None,
         lora_thumbnail_preloader: PromptSurfaceLoraThumbnailPreloader | None = None,
@@ -445,15 +421,20 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         self._cursor_state = initial_state
         self._anchor_state = initial_state
+        self._editing_enabled = True
+        editing_runtime = editing_runtime_factory(self)
+        self._edit_execution = editing_runtime.execution
+        self._source_commands = editing_runtime.source_commands
+        self._clipboard_history_actions = editing_runtime.clipboard_history
+        self._undo_coalescing_actions = editing_runtime.undo_coalescing
         self._input_method_controller = PromptInputMethodController(
-            cast(PromptInputMethodHost, self)
+            cast(PromptInputMethodHost, self),
+            source_commands=self._source_commands,
         )
-        self._source_mutation_actions: PromptSurfaceSourceMutationActions | None = None
-        self._edit_block_actions: PromptSurfaceEditBlockActions | None = None
-        self._clipboard_history_actions: PromptClipboardHistoryActions | None = None
-        self._undo_coalescing_actions: PromptUndoCoalescingActions | None = None
         self._deletion_controller = PromptSurfaceDeletionController(
-            cast(PromptSurfaceDeletionHost, self)
+            context_provider=cast(PromptDeletionContextProvider, self),
+            projection_effects=cast(PromptDeletionProjectionEffects, self),
+            source_commands=self._source_commands,
         )
         self._key_handler = PromptSurfaceKeyHandler(
             cast(PromptSurfaceKeyHost, self),
@@ -486,7 +467,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._emphasis_feedback_timer.timeout.connect(
             self._clear_pulsed_emphasis_accent_range
         )
-        self._editing_enabled = True
         self._caret_visibility_prompt_state_revision: int | None = None
         self._projection_freshness_controller = source_state_owners.freshness_controller
         self._layout_width_resolver = PromptProjectionLayoutWidthResolver(
@@ -588,37 +568,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         return self._editing_session.anchor_position
 
-    def attach_runtime_mutation_actions(
-        self,
-        *,
-        source_mutation_actions: PromptSurfaceSourceMutationActions,
-        edit_block_actions: PromptSurfaceEditBlockActions,
-        clipboard_history_actions: PromptClipboardHistoryActions,
-        undo_coalescing_actions: PromptUndoCoalescingActions,
-    ) -> None:
-        """Attach composition-owned mutation actions needed by viewport events."""
-
-        self._source_mutation_actions = source_mutation_actions
-        self._edit_block_actions = edit_block_actions
-        self._clipboard_history_actions = clipboard_history_actions
-        self._undo_coalescing_actions = undo_coalescing_actions
-
-    def _require_source_mutation_actions(self) -> PromptSurfaceSourceMutationActions:
-        """Return viewport source mutation actions after composition wiring."""
-
-        if self._source_mutation_actions is None:
-            raise RuntimeError(
-                "Prompt projection source mutation actions are not wired."
-            )
-        return self._source_mutation_actions
-
-    def _require_edit_block_actions(self) -> PromptSurfaceEditBlockActions:
-        """Return edit-block actions after composition wiring."""
-
-        if self._edit_block_actions is None:
-            raise RuntimeError("Prompt projection edit-block actions are not wired.")
-        return self._edit_block_actions
-
     def document(self) -> QTextDocument:
         """Return the plain-text source document kept for compatibility helpers."""
 
@@ -633,6 +582,28 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return whether the custom prompt redo stack can restore a reverted edit."""
 
         return self._editing_session.can_redo()
+
+    @property
+    def edit_execution(
+        self,
+    ) -> PromptEditExecution[PromptProjectionUndoPayload]:
+        """Return the construction-owned editing execution service."""
+
+        return self._edit_execution
+
+    @property
+    def source_commands(
+        self,
+    ) -> PromptSourceCommandService[PromptProjectionUndoPayload]:
+        """Return the focused source command service."""
+
+        return self._source_commands
+
+    @property
+    def clipboard_history_actions(self) -> PromptClipboardHistoryActions:
+        """Return the composed clipboard/history action owner."""
+
+        return self._clipboard_history_actions
 
     def attach_external_scroll_bar(self, scroll_bar: QScrollBar) -> None:
         """Mirror layout range and scroll offset onto one host-owned scrollbar."""
@@ -2399,13 +2370,13 @@ class PromptProjectionSurface(QAbstractScrollArea):
             enabled
         )
 
-    def apply_edit_controller_result(
+    def apply_edit_commit(
         self,
-        result: PromptEditControllerResult[PromptProjectionUndoPayload, object],
+        commit: PromptEditCommit[PromptProjectionUndoPayload],
     ) -> None:
-        """Apply committed mutation results produced outside the projection surface."""
+        """Apply the sole committed editing result to projection state."""
 
-        self._source_change_applier.apply_edit_controller_result(result)
+        self._source_change_applier.apply_edit_commit(commit)
 
     def textCursor(self) -> PromptCursorAdapter:  # noqa: N802
         """Return a Qt-like cursor wrapper backed by the surface state."""
@@ -2502,14 +2473,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def cursor_adapter_begin_edit_block(self, *, finish_typing: bool = True) -> None:
         """Begin an edit block requested by the source cursor adapter."""
 
-        self._require_edit_block_actions().begin_surface_edit_block(
-            finish_typing=finish_typing
-        )
+        self._edit_execution.begin_edit_block(finish_typing=finish_typing)
 
     def cursor_adapter_end_edit_block(self) -> None:
         """End an edit block requested by the source cursor adapter."""
 
-        self._require_edit_block_actions().end_surface_edit_block()
+        self._edit_execution.end_edit_block()
 
     def cursor_adapter_delete_selection(self) -> None:
         """Delete the live selection requested by the source cursor adapter."""
@@ -2555,27 +2524,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         return self._layout.cursor_rect(
             caret_state,
             scroll_offset=self._scroll_offset(),
-        )
-
-    def replace_input_method_range(
-        self,
-        *,
-        start: int,
-        end: int,
-        replacement_text: str,
-    ) -> None:
-        """Commit one input-method edit through the authoritative command router."""
-
-        if not self._editing_enabled:
-            return
-        self._finish_pending_key_edit_block(reason="input_method_commit")
-        self._require_source_mutation_actions().replace_source_range(
-            start=start,
-            end=end,
-            replacement_text=replacement_text,
-            origin=PromptSourceEditOrigin.TYPED,
-            command_name="input_method_commit",
-            record_undo=True,
         )
 
     def set_prompt_state(
@@ -3109,14 +3057,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             anchor_position=cursor_state.anchor_position,
         )
 
-    def restore_clipboard_history_state(
-        self,
-        restore_result: PromptEditingSessionRestoreResult[PromptProjectionUndoPayload],
-    ) -> None:
-        """Apply an undo or redo restoration requested by the history owner."""
-
-        self._source_change_applier.apply_restore_result(restore_result)
-
     def _insert_viewport_text(
         self,
         text: str,
@@ -3167,6 +3107,50 @@ class PromptProjectionSurface(QAbstractScrollArea):
             return
         self._finish_pending_key_edit_block(reason="delete_selection")
         self._replace_viewport_range(selection.start, selection.end, "")
+
+    def deletion_context(self) -> PromptDeletionContext:
+        """Capture the immutable state consumed by deletion resolution."""
+
+        token = self.focused_token()
+        return PromptDeletionContext(
+            source_text=self._editing_session.source_text,
+            cursor_position=self.cursor_position,
+            cursor_state=self._cursor_state,
+            anchor_state=self._anchor_state,
+            selection=self._selection(),
+            projection_document=self._editor_state.projection.document,
+            focused_token=token,
+            focused_token_expanded=(
+                token is not None and self._session.is_expanded(token)
+            ),
+            stale_projection_geometry=(
+                self._projection_freshness_controller.has_stale_projection_geometry()
+            ),
+        )
+
+    def synchronize_deletion_projection(
+        self,
+        *,
+        reason: str,
+        cancel_stale_safe_first: bool,
+    ) -> None:
+        """Make projection state authoritative for one deletion decision."""
+
+        if cancel_stale_safe_first and self._cancel_stale_safe_projection_update(
+            reason=reason
+        ):
+            return
+        self._flush_pending_projection_update(reason=reason)
+
+    def expand_token_for_deletion(self, token: PromptProjectionToken) -> None:
+        """Expand and select one structural token targeted by deletion."""
+
+        self._session.expand_token(token)
+        self._rebuild_projection()
+        self.set_cursor_positions(
+            cursor_position=token.source_end,
+            anchor_position=token.source_start,
+        )
 
     def set_cursor_positions(
         self,
@@ -3405,9 +3389,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def _finish_pending_key_edit_block(self, *, reason: str) -> None:
         """Commit any pending key-owned edit block."""
 
-        self._require_edit_block_actions().finish_surface_pending_key_edit_block(
-            reason=reason
-        )
+        self._edit_execution.finish_pending_key_edit_block(reason=reason)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Delegate projection-aware pointer press handling."""
@@ -4204,7 +4186,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         if syntax_replacement_range is not None:
             start, end = syntax_replacement_range
-        self._require_source_mutation_actions().replace_source_range(
+        self._source_commands.replace_source_range(
             start=start,
             end=end,
             replacement_text=replacement_text,

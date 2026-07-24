@@ -19,9 +19,11 @@
 from __future__ import annotations
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandResult,
+from substitute.presentation.editor.prompt_editor.commands.autocomplete_commands import (
     PromptTagAutocompleteAcceptance,
+)
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
+    PromptCommandResult,
 )
 from substitute.presentation.editor.prompt_editor.interactions.autocomplete_acceptance import (
     PromptAutocompleteAcceptanceController,

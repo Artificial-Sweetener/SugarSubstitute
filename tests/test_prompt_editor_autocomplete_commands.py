@@ -31,21 +31,25 @@ from substitute.application.managed_text_assets.wildcard_csv_document_semantics 
 from substitute.application.prompt_editor.editing.structured_text import (
     PromptStructuredTextMutationService,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
+from substitute.presentation.editor.prompt_editor.commands.autocomplete_commands import (
     PromptAcceptLoraAutocompleteCommand,
     PromptAcceptSceneAutocompleteCommand,
     PromptAcceptTagAutocompleteCommand,
     PromptAcceptWildcardAutocompleteCommand,
-    PromptCommandDispatcher,
     PromptLoraAutocompleteAcceptance,
     PromptSceneAutocompleteAcceptance,
     PromptTagAutocompleteAcceptance,
     PromptWildcardAutocompleteAcceptance,
     build_autocomplete_acceptance_command,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from tests.prompt_editor_command_test_helpers import execute_prompt_command
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
 
@@ -100,7 +104,8 @@ def test_tag_autocomplete_command_escapes_parentheses_and_adds_comma() -> None:
     """Tag acceptance should preserve canonical tag insertion formatting."""
 
     session = _session("xx cat_", cursor_position=7)
-    result = PromptCommandDispatcher(session).execute(
+    result = execute_prompt_command(
+        session,
         PromptAcceptTagAutocompleteCommand(
             acceptance=PromptTagAutocompleteAcceptance(
                 tag="cat_(animal)",
@@ -114,7 +119,7 @@ def test_tag_autocomplete_command_escapes_parentheses_and_adds_comma() -> None:
             normalizer=PromptSourceNormalizationService(),
             exact_source=False,
             undo_snapshot=_undo_snapshot(session),
-        )
+        ),
     )
 
     assert result.status == "applied"
@@ -131,7 +136,8 @@ def test_tag_autocomplete_command_preserves_unquoted_csv_cell_structure() -> Non
 
     source = "Prompt\ncat_"
     session = _session(source)
-    result = PromptCommandDispatcher(session).execute(
+    result = execute_prompt_command(
+        session,
         PromptAcceptTagAutocompleteCommand(
             acceptance=PromptTagAutocompleteAcceptance(
                 tag="cat animal",
@@ -148,7 +154,7 @@ def test_tag_autocomplete_command_preserves_unquoted_csv_cell_structure() -> Non
             structured_text_mutations=PromptStructuredTextMutationService(
                 WildcardCsvDocumentSemantics()
             ),
-        )
+        ),
     )
 
     assert result.status == "applied"
@@ -160,7 +166,8 @@ def test_tag_autocomplete_command_consumes_existing_matching_right_text() -> Non
     """Tag acceptance should consume already-typed compatible suffix text."""
 
     session = _session("long hir", cursor_position=6)
-    result = PromptCommandDispatcher(session).execute(
+    result = execute_prompt_command(
+        session,
         PromptAcceptTagAutocompleteCommand(
             acceptance=PromptTagAutocompleteAcceptance(
                 tag="long hair",
@@ -174,7 +181,7 @@ def test_tag_autocomplete_command_consumes_existing_matching_right_text() -> Non
             normalizer=PromptSourceNormalizationService(),
             exact_source=False,
             undo_snapshot=_undo_snapshot(session),
-        )
+        ),
     )
 
     assert result.status == "applied"
@@ -185,7 +192,8 @@ def test_tag_autocomplete_command_preserves_unrelated_right_text() -> None:
     """Tag acceptance should not consume incompatible text after the caret."""
 
     session = _session("long hx", cursor_position=6)
-    result = PromptCommandDispatcher(session).execute(
+    result = execute_prompt_command(
+        session,
         PromptAcceptTagAutocompleteCommand(
             acceptance=PromptTagAutocompleteAcceptance(
                 tag="long hair",
@@ -199,7 +207,7 @@ def test_tag_autocomplete_command_preserves_unrelated_right_text() -> None:
             normalizer=PromptSourceNormalizationService(),
             exact_source=False,
             undo_snapshot=_undo_snapshot(session),
-        )
+        ),
     )
 
     assert result.status == "applied"
@@ -210,7 +218,8 @@ def test_wildcard_autocomplete_command_replaces_placeholder_range() -> None:
     """Wildcard acceptance should wrap the accepted name in braces."""
 
     session = _session("{ani}", cursor_position=5)
-    result = PromptCommandDispatcher(session).execute(
+    result = execute_prompt_command(
+        session,
         PromptAcceptWildcardAutocompleteCommand(
             acceptance=PromptWildcardAutocompleteAcceptance(
                 wildcard_name="animal",
@@ -221,7 +230,7 @@ def test_wildcard_autocomplete_command_replaces_placeholder_range() -> None:
             normalizer=PromptSourceNormalizationService(),
             exact_source=False,
             undo_snapshot=_undo_snapshot(session),
-        )
+        ),
     )
 
     assert result.status == "applied"
@@ -232,7 +241,8 @@ def test_scene_autocomplete_command_replaces_only_scene_title() -> None:
     """Scene acceptance should leave the marker and following body intact."""
 
     session = _session("**po\nbody", cursor_position=4)
-    result = PromptCommandDispatcher(session).execute(
+    result = execute_prompt_command(
+        session,
         PromptAcceptSceneAutocompleteCommand(
             acceptance=PromptSceneAutocompleteAcceptance(
                 title="portrait (close)",
@@ -243,7 +253,7 @@ def test_scene_autocomplete_command_replaces_only_scene_title() -> None:
             normalizer=PromptSourceNormalizationService(),
             exact_source=True,
             undo_snapshot=_undo_snapshot(session),
-        )
+        ),
     )
 
     assert result.status == "applied"
@@ -255,7 +265,8 @@ def test_lora_autocomplete_command_preserves_scheduler_safe_replacement() -> Non
 
     source_text = "<lora:Civ:1.2>"
     session = _session(source_text, cursor_position=9)
-    result = PromptCommandDispatcher(session).execute(
+    result = execute_prompt_command(
+        session,
         PromptAcceptLoraAutocompleteCommand(
             acceptance=PromptLoraAutocompleteAcceptance(
                 replacement_text=r"<lora:illustrious\characters\raw_midna:1.2>",
@@ -266,7 +277,7 @@ def test_lora_autocomplete_command_preserves_scheduler_safe_replacement() -> Non
             normalizer=PromptSourceNormalizationService(),
             exact_source=True,
             undo_snapshot=_undo_snapshot(session),
-        )
+        ),
     )
 
     assert result.status == "applied"
@@ -295,7 +306,7 @@ def test_autocomplete_command_rejects_stale_source_identity() -> None:
         undo_snapshot=_undo_snapshot(session),
     )
 
-    result = PromptCommandDispatcher(session).execute(command)
+    result = execute_prompt_command(session, command)
 
     assert result.status == "rejected"
     assert result.reason == "stale_source"
@@ -307,7 +318,8 @@ def test_autocomplete_command_rejects_invalid_source_range() -> None:
     """Prepared autocomplete acceptance should reject ranges outside current text."""
 
     session = _session("cat", cursor_position=3)
-    result = PromptCommandDispatcher(session).execute(
+    result = execute_prompt_command(
+        session,
         PromptAcceptWildcardAutocompleteCommand(
             acceptance=PromptWildcardAutocompleteAcceptance(
                 wildcard_name="animal",
@@ -318,7 +330,7 @@ def test_autocomplete_command_rejects_invalid_source_range() -> None:
             normalizer=PromptSourceNormalizationService(),
             exact_source=False,
             undo_snapshot=_undo_snapshot(session),
-        )
+        ),
     )
 
     assert result.status == "rejected"

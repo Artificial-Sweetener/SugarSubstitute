@@ -38,7 +38,7 @@ from tests.prompt_projection_surface_test_helpers import (
     delay_projection_update_scheduler,
     first_emphasis_token,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
-    surface_edit_controller,
+    surface_edit_execution,
     valid_transient_insertion_overlay,
 )
 
@@ -181,7 +181,7 @@ def test_projection_surface_idle_separated_typing_keeps_separate_undo_steps(
     surface.set_cursor_positions(cursor_position=1, anchor_position=1)
 
     QTest.keyClicks(box, "b")
-    surface_edit_controller(surface).finish_pending_key_edit_block(reason="test_idle")
+    surface_edit_execution(surface).finish_pending_key_edit_block(reason="test_idle")
     QTest.keyClicks(box, "c")
 
     assert box.toPlainText() == "abc"
@@ -282,7 +282,7 @@ def test_projection_surface_idle_backspace_groups_stay_separate_undo_steps(
     )
 
     QTest.keyClick(box, Qt.Key.Key_Backspace)
-    surface_edit_controller(surface).finish_pending_key_edit_block(reason="test_idle")
+    surface_edit_execution(surface).finish_pending_key_edit_block(reason="test_idle")
     QTest.keyClick(box, Qt.Key.Key_Backspace)
 
     assert box.toPlainText() == "alp"

@@ -18,11 +18,19 @@
 
 from __future__ import annotations
 
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from substitute.presentation.editor.prompt_editor.core.editing.clipboard import (
     PromptClipboardController,
+)
+from substitute.presentation.editor.prompt_editor.interactions.cursor_adapter import (
     PromptCursorAdapter,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.cursor import (
     PromptCursorSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.selection import (
     PromptSelection,
 )
 

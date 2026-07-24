@@ -44,7 +44,7 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 from substitute.presentation.editor.prompt_editor.core.state.semantic_state import (
     PromptEditorSemanticSnapshot,
 )
-from substitute.presentation.editor.prompt_editor.editing_session.source_buffer import (
+from substitute.presentation.editor.prompt_editor.core.editing.source_buffer import (
     PromptSourceSnapshot,
 )
 from substitute.presentation.editor.prompt_editor.projection.model import (

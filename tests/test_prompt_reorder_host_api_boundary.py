@@ -90,10 +90,10 @@ class _PromptEditorHostDouble:
     """Provide only the collaborators used by reorder forwarding methods."""
 
     def __init__(self) -> None:
-        """Create surface and command-adapter fakes."""
+        """Create surface and reorder-command fakes."""
 
         self._surface = _RecordingCollaborator()
-        self._command_adapter = _RecordingCollaborator()
+        self._reorder_commands = _RecordingCollaborator()
 
 
 def test_prompt_editor_forwards_reorder_surface_methods_to_projection_surface() -> None:
@@ -169,7 +169,7 @@ def test_prompt_editor_forwards_reorder_surface_methods_to_projection_surface() 
         == "result:reorder_placement_at_rect"
     )
 
-    assert host._command_adapter.calls == []
+    assert host._reorder_commands.calls == []
     assert host._surface.calls == [
         ("set_reorder_preview_state", ("preview-state",), {}),
         ("clear_reorder_preview_state", (), {}),
@@ -214,8 +214,8 @@ def test_prompt_editor_forwards_reorder_surface_methods_to_projection_surface() 
     ]
 
 
-def test_prompt_editor_forwards_reorder_commits_to_command_adapter() -> None:
-    """Reorder source mutation should stay on the command adapter boundary."""
+def test_prompt_editor_forwards_reorder_commits_to_focused_command_owner() -> None:
+    """Reorder source mutation should stay on its focused command boundary."""
 
     host = _PromptEditorHostDouble()
 
@@ -227,11 +227,11 @@ def test_prompt_editor_forwards_reorder_commits_to_command_adapter() -> None:
         syntax_profile="syntax-profile",
     )
 
-    assert result == "result:execute_reorder_action"
+    assert result == "result:execute"
     assert host._surface.calls == []
-    assert host._command_adapter.calls == [
+    assert host._reorder_commands.calls == [
         (
-            "execute_reorder_action",
+            "execute",
             ("request",),
             {
                 "mutation_service": "mutation-service",
