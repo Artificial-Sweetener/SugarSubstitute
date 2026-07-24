@@ -20,18 +20,26 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
-    PromptGapBlankLineDropTarget,
-    PromptLineDropTarget,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutation,
     PromptMutationService,
+)
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.reorder.views import (
+    PromptGapBlankLineDropTarget,
+    PromptLineDropTarget,
     PromptReorderGapView,
     PromptReorderLayoutView,
     PromptReorderRowView,
-    PromptSourceNormalizationService,
-    PromptSyntaxProfile,
-    PromptSyntaxService,
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandDispatcher,

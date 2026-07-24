@@ -29,10 +29,14 @@ from substitute.application.ports import (
     PromptAutocompleteSuggestion,
     PromptWildcardCatalogGateway,
 )
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.coordinator import (
+    PromptDiagnosticProvider,
+)
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnostic,
     PromptDiagnosticKind,
-    PromptDiagnosticProvider,
+)
+from substitute.application.prompt_editor.diagnostics.wildcard import (
     PromptWildcardDiagnosticProvider,
 )
 from substitute.shared.logging.logger import get_logger

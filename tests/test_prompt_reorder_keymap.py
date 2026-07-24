@@ -24,8 +24,8 @@ from typing import Any, cast
 
 from PySide6.QtCore import Qt
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
 )
 from substitute.presentation.editor.prompt_editor.models import (

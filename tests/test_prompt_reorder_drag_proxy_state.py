@@ -31,9 +31,11 @@ from substitute.application.ports import (
     PromptWildcardReference,
     PromptWildcardResolution,
 )
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfileService,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
 from substitute.presentation.editor.prompt_editor.reorder_drag_proxy_state import (

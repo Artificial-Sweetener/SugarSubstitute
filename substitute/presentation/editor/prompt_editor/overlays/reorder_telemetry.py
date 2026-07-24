@@ -25,7 +25,7 @@ from typing import Protocol
 
 from PySide6.QtCore import QRectF
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
     PromptReorderDropTarget,

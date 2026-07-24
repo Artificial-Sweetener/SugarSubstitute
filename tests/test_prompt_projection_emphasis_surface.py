@@ -28,9 +28,9 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
-    PromptDocumentView,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )

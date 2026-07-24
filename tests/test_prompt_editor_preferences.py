@@ -21,14 +21,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from substitute.application.prompt_editor import (
-    PromptEditorPreferenceService,
+from substitute.application.prompt_editor.features.definitions import (
     default_prompt_feature_preferences,
     prompt_feature_definitions,
 )
-from substitute.domain.prompt import (
+from substitute.application.prompt_editor.features.preferences import (
+    PromptEditorPreferenceService,
+)
+from substitute.domain.prompt.features.models import PromptEditorFeature
+from substitute.domain.prompt.preferences.models import (
     PROMPT_EDITOR_PREFERENCES_SCHEMA_VERSION,
-    PromptEditorFeature,
     PromptEditorPreferences,
     PromptWheelAdjustmentMode,
 )

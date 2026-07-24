@@ -29,7 +29,7 @@ from PySide6.QtCore import QRectF
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptReorderGapPlacement,
     PromptReorderGapView,
     PromptReorderLayoutView,

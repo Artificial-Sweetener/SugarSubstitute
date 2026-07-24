@@ -26,9 +26,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import pytest
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.projection.line_layout import (

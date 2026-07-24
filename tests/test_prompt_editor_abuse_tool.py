@@ -28,7 +28,7 @@ from typing import Any
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSizeF
 import pytest
 
-from substitute.application.prompt_editor import PromptLineDropTarget
+from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
 from tools.prompt_editor_abuse import reorder_action_host
 from tools.prompt_editor_abuse.action_counter_probe import (
     PromptAbuseActionCounterProbe,

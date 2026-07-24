@@ -168,7 +168,7 @@ def test_configure_prompt_observability_logging_targets_prompt_debug_records(
     assert application_logger.level == logging.DEBUG
     assert presentation_logger.level == logging.DEBUG
     prompt_record = logging.LogRecord(
-        "sugarsubstitute.application.prompt_editor.prompt_syntax_service",
+        "sugarsubstitute.application.prompt_editor.projection.syntax_service",
         logging.DEBUG,
         "",
         1,

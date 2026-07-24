@@ -22,15 +22,17 @@ from collections.abc import Hashable
 from dataclasses import dataclass
 from typing import Protocol
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteQuery,
-    PromptDocumentService,
-    PromptDocumentView,
-    PromptEditorFeature,
-    PromptLoraAutocompleteQuery,
     PromptSceneAutocompleteQuery,
     PromptWildcardAutocompleteQuery,
 )
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.lora.autocomplete import (
+    PromptLoraAutocompleteQuery,
+)
+from substitute.domain.prompt.features.models import PromptEditorFeature
 from substitute.presentation.editor.prompt_editor.autocomplete_refresh_intent import (
     PromptAutocompleteRefreshIntent,
 )

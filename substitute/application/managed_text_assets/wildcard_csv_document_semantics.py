@@ -20,12 +20,12 @@ from __future__ import annotations
 
 from typing import Hashable
 
-from substitute.application.prompt_editor.prompt_document_semantics import (
+from substitute.application.prompt_editor.document.semantics import (
     PromptValueMapping,
     leading_scene_marker_ranges,
     value_mapping_at_source_position,
 )
-from substitute.domain.prompt import SourceRange
+from substitute.domain.prompt.document.ranges import SourceRange
 
 from .wildcard_csv_document_parser import (
     WildcardCsvCell,

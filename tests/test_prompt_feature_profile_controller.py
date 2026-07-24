@@ -23,11 +23,13 @@ from pathlib import Path
 
 import pytest
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfile,
+)
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
     PromptFeatureDecision,
-    PromptSyntaxProfile,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptFeatureActionState,

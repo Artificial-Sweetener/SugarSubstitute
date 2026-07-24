@@ -19,10 +19,12 @@
 from __future__ import annotations
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.autocomplete.queries import (
+    PromptWildcardAutocompleteQuery,
+)
+from substitute.application.prompt_editor.lora.autocomplete import (
     PromptLoraAutocompleteCandidate,
     PromptLoraAutocompleteQuery,
-    PromptWildcardAutocompleteQuery,
 )
 from substitute.presentation.editor.prompt_editor.models import AutocompleteSession
 from tests.prompt_editor_controller_test_helpers import (

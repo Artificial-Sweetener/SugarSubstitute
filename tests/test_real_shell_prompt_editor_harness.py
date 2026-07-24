@@ -36,7 +36,7 @@ from substitute.application.model_metadata import ModelCatalogItem, ModelCatalog
 from substitute.application.managed_text_assets.wildcard_text_document_semantics import (
     WildcardTextDocumentSemantics,
 )
-from substitute.application.prompt_editor import PromptDiagnosticKind
+from substitute.application.prompt_editor.diagnostics.models import PromptDiagnosticKind
 from substitute.application.user_presets import UserPresetService
 from substitute.domain.user_presets import UserPreset
 from substitute.presentation.editor.catalog.snapshots import CatalogSnapshotReadiness

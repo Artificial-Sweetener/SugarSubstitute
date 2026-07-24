@@ -18,11 +18,13 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.duplicate_segments import (
+    PromptDuplicateSegmentDiagnosticProvider,
+)
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnostic,
     PromptDiagnosticKind,
     PromptDuplicateSegmentDiagnosticPayload,
-    PromptDuplicateSegmentDiagnosticProvider,
 )
 
 

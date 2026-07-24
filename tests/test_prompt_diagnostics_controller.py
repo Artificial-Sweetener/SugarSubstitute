@@ -25,18 +25,24 @@ from typing import Any, Generic, TypeVar, cast
 from PySide6.QtGui import QTextCursor
 
 from substitute.application.ports import PromptWildcardCatalogGateway
-from substitute.application.prompt_editor import (
-    PromptEditorFeature,
-    PromptEditorFeatureProfile,
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnostic,
     PromptDiagnosticKind,
     PromptDiagnosticSeverity,
     PromptDiagnosticSnapshot,
     PromptDuplicateSegmentDiagnosticPayload,
-    PromptSourceNormalizationService,
     PromptSpellingDiagnosticPayload,
-    PromptSpellingSuggestionSet,
     PromptWildcardDiagnosticPayload,
+)
+from substitute.application.prompt_editor.diagnostics.spellcheck_models import (
+    PromptSpellingSuggestionSet,
+)
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
+from substitute.domain.prompt.features.models import (
+    PromptEditorFeature,
+    PromptEditorFeatureProfile,
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandDispatcher,

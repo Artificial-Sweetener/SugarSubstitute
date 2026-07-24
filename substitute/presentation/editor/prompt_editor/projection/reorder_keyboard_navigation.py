@@ -21,8 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Protocol, cast
 
-from substitute.application.prompt_editor import (
-    PromptDocumentView,
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.reorder.views import (
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
     PromptReorderDropTarget,

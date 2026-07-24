@@ -22,8 +22,9 @@ from decimal import Decimal
 
 import pytest
 
-from substitute.domain.prompt import WildcardForm, parse_prompt_document
-from substitute.domain.prompt import PromptWildcardSyntaxProfile
+from substitute.domain.prompt.document.parser import parse_prompt_document
+from substitute.domain.prompt.document.syntax import WildcardForm
+from substitute.domain.prompt.wildcards.syntax import PromptWildcardSyntaxProfile
 
 
 def test_parse_prompt_document_splits_top_level_segments_and_ranges() -> None:

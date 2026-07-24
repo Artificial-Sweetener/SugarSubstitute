@@ -21,10 +21,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
+)
+from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.commands import (

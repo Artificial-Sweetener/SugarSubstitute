@@ -25,7 +25,7 @@ from typing import Protocol, cast
 from PySide6.QtCore import QTimer
 
 from substitute.application.node_behavior import EditorBehaviorSnapshot
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.scenes.workflow_analysis import (
     PromptSceneAnalysisService,
     PromptSceneWorkflowCube,
     WorkflowSceneAnalysis,

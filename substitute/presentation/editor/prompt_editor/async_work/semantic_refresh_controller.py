@@ -23,11 +23,13 @@ from dataclasses import dataclass, replace
 from time import perf_counter
 from typing import Protocol
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
-    PromptDocumentView,
-    PromptLoraRendererView,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptLoraRendererView,
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )

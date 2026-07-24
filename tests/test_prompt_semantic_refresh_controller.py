@@ -25,10 +25,12 @@ from typing import Any
 
 import pytest
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
-    PromptDocumentView,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )

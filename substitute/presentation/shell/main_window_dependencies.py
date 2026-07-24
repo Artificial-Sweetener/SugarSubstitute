@@ -83,13 +83,23 @@ if TYPE_CHECKING:
     from substitute.application.onboarding import ComfyConnectionSettingsService
     from substitute.application.overrides import PinnedOverrideService
     from substitute.application.ports import DanbooruCacheRepository
-    from substitute.application.prompt_editor import (
-        PromptEditorPreferenceService,
-        PromptFeatureProfileService,
-        PromptLoraCatalogService,
-        PromptScheduledLoraService,
+    from substitute.application.prompt_editor.diagnostics.spellcheck import (
         PromptSpellcheckService,
+    )
+    from substitute.application.prompt_editor.features.preferences import (
+        PromptEditorPreferenceService,
+    )
+    from substitute.application.prompt_editor.features.profile import (
+        PromptFeatureProfileService,
+    )
+    from substitute.application.prompt_editor.lora.catalog import (
+        PromptLoraCatalogService,
+    )
+    from substitute.application.prompt_editor.lora.effective_provider import (
         ScheduledLoraProvider,
+    )
+    from substitute.application.prompt_editor.lora.scheduled import (
+        PromptScheduledLoraService,
     )
     from substitute.application.prompt_wildcards import (
         PromptWildcardFileManagementService,

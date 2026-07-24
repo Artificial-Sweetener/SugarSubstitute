@@ -18,8 +18,8 @@
 
 from __future__ import annotations
 
-from substitute.domain.prompt import (
-    materialize_scene_prompt,
+from substitute.domain.prompt.scenes.materialization import materialize_scene_prompt
+from substitute.domain.prompt.scenes.parser import (
     normalize_scene_title,
     parse_prompt_scene_document,
     scene_block_at_source_position,

@@ -21,8 +21,10 @@ from __future__ import annotations
 import pytest
 
 from substitute.application.ports import PromptTagLexiconSnapshot
-from substitute.application.prompt_editor import PromptSourceNormalizationService
-from substitute.application.prompt_editor.prompt_literal_parenthesis_normalizer import (
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.editing.literal_parentheses import (
     PromptParenthesisTransitionKind,
     canonicalize_prompt_parentheses,
 )

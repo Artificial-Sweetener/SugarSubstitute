@@ -22,7 +22,7 @@ from collections.abc import Callable, Hashable
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
     PromptLoraCatalogLookup,
 )

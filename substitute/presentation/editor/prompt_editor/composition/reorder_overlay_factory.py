@@ -24,9 +24,11 @@ from typing import Protocol, cast
 
 from PySide6.QtWidgets import QScrollBar, QWidget
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
 

@@ -30,7 +30,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QDialog, QWidget
 from qfluentwidgets import SearchLineEdit  # type: ignore[import-untyped]
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
     PromptLoraThumbnailVariant,
 )

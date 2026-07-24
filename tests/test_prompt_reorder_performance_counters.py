@@ -36,11 +36,13 @@ from substitute.application.ports import (
     PromptWildcardReference,
     PromptWildcardResolution,
 )
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.reorder.views import (
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
-    PromptSyntaxService,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.overlays import (

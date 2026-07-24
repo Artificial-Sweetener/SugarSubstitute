@@ -26,7 +26,7 @@ from typing import Protocol, TypeGuard
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QKeyEvent
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptAdjustEmphasisAction,
     PromptAdjustEmphasisContentAction,
     PromptAdjustLoraWeightAction,

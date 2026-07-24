@@ -44,21 +44,35 @@ if TYPE_CHECKING:
         PromptAutocompleteGateway,
         PromptWildcardCatalogGateway,
     )
-    from substitute.application.prompt_editor import (
-        PromptDocumentService,
-        PromptEditorFeatureProfile,
-        PromptLoraCatalogLookup,
-        PromptLoraScheduleService,
-        PromptMutationService,
-        PromptScheduledLora,
-        PromptScheduledLoraService,
+    from substitute.application.prompt_editor.diagnostics.spellcheck import (
         PromptSpellcheckService,
-        PromptSyntaxProfile,
-        PromptSyntaxService,
     )
-    from substitute.application.prompt_editor.prompt_document_semantics import (
+    from substitute.application.prompt_editor.document.semantics import (
         PromptDocumentSemanticsController,
     )
+    from substitute.application.prompt_editor.document.service import (
+        PromptDocumentService,
+    )
+    from substitute.application.prompt_editor.editing.mutation_service import (
+        PromptMutationService,
+    )
+    from substitute.application.prompt_editor.features.syntax_profile import (
+        PromptSyntaxProfile,
+    )
+    from substitute.application.prompt_editor.lora.catalog_models import (
+        PromptLoraCatalogLookup,
+    )
+    from substitute.application.prompt_editor.lora.schedule import (
+        PromptLoraScheduleService,
+    )
+    from substitute.application.prompt_editor.lora.scheduled import (
+        PromptScheduledLora,
+        PromptScheduledLoraService,
+    )
+    from substitute.application.prompt_editor.projection.syntax_service import (
+        PromptSyntaxService,
+    )
+    from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
     from ..async_work import (
         PromptLoraThumbnailPreloader,
         PromptScheduledLoraContextProvider,

@@ -20,12 +20,12 @@ from __future__ import annotations
 
 import pytest
 
-from substitute.application.prompt_editor.prompt_document_views import (
+from substitute.application.prompt_editor.document.views import (
     PromptRegionPartitionView,
     PromptRegionSeparatorView,
     PromptRegionStructureView,
 )
-from substitute.application.prompt_editor.prompt_region_structure_edits import (
+from substitute.application.prompt_editor.editing.region_structure_edits import (
     rebuild_region_structure_after_edit,
     region_structure_edit_requires_rebuild,
     remap_region_structure_after_edit,

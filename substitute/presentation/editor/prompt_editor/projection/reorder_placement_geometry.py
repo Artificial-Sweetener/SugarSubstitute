@@ -22,7 +22,7 @@ from dataclasses import dataclass, replace
 
 from PySide6.QtCore import QPointF, QRectF, QSizeF
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptLineDropTarget,
     PromptReorderDropTarget,
 )

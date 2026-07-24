@@ -26,10 +26,8 @@ from substitute.application.prompt_wildcards.resolver import (
 from substitute.application.prompt_wildcards.seed_policy import (
     PromptWildcardSeedSelection,
 )
-from substitute.domain.prompt import (
-    PromptWildcardResolution,
-    PromptWildcardSyntaxProfile,
-)
+from substitute.domain.prompt.wildcards.models import PromptWildcardResolution
+from substitute.domain.prompt.wildcards.syntax import PromptWildcardSyntaxProfile
 
 
 @dataclass(frozen=True, slots=True)

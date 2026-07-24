@@ -21,17 +21,21 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, Protocol, cast
 
-from substitute.application.prompt_editor import (
-    PromptDocumentView,
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
-from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+from substitute.application.prompt_editor.editing.structured_text import (
     PromptStructuredTextMutationService,
 )
-from substitute.domain.prompt import SourceRange
+from substitute.domain.prompt.document.ranges import SourceRange
 
 from ..commands import (
     PromptAutocompleteAcceptance,

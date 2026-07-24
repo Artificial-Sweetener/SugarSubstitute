@@ -20,9 +20,11 @@ from __future__ import annotations
 
 from PySide6.QtCore import QRectF
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
+)
+from substitute.application.prompt_editor.reorder.views import (
     PromptLineDropTarget,
     PromptReorderGapView,
     PromptReorderDropTarget,

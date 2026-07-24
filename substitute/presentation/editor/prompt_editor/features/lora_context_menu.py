@@ -23,7 +23,7 @@ from sugarsubstitute_shared.presentation.localization import app_text
 
 from dataclasses import dataclass
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
     PromptScheduledLoraService,
 )

@@ -29,14 +29,14 @@ import pytest
 from PySide6.QtCore import QPoint, QPointF
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import (
-    PromptLineDropTarget,
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptLoraRendererView,
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
-from substitute.application.prompt_editor.prompt_lora_resolution_service import (
+from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
+from substitute.application.prompt_editor.lora.resolution import (
     PromptLoraResolutionStatus,
 )
 from substitute.domain.model_metadata import BANNER_THUMBNAIL_ROLE

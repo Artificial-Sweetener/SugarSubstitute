@@ -27,13 +27,13 @@ from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import PromptEditorFeature
-from substitute.application.prompt_editor import PromptDiagnosticKind
+from substitute.domain.prompt.features.models import PromptEditorFeature
+from substitute.application.prompt_editor.diagnostics.models import PromptDiagnosticKind
 from substitute.application.managed_text_assets.wildcard_csv_document_parser import (
     parse_wildcard_csv_document,
 )
 from substitute.application.prompt_wildcards import PromptWildcardFileManagementService
-from substitute.domain.prompt import PromptWheelAdjustmentMode
+from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
 from substitute.infrastructure.persistence import FilePromptWildcardFileRepository
 from substitute.presentation.managed_text_assets import (
     WildcardManagementModal,

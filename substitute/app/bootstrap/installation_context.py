@@ -79,7 +79,9 @@ if TYPE_CHECKING:
     from substitute.application.onboarding.preference_setup_service import (
         OnboardingPreferenceSetupService,
     )
-    from substitute.application.prompt_editor import PromptEditorPreferenceService
+    from substitute.application.prompt_editor.features.preferences import (
+        PromptEditorPreferenceService,
+    )
 
 _LOGGER = get_logger("app.bootstrap.installation_context")
 
@@ -296,7 +298,9 @@ def _build_preference_setup_services(
     from substitute.application.onboarding.preference_setup_service import (
         OnboardingPreferenceSetupService,
     )
-    from substitute.application.prompt_editor import PromptEditorPreferenceService
+    from substitute.application.prompt_editor.features.preferences import (
+        PromptEditorPreferenceService,
+    )
     from substitute.infrastructure.persistence.file_civitai_preference_repository import (
         FileCivitaiPreferenceRepository,
     )

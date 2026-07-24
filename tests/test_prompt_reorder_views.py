@@ -21,13 +21,13 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptReorderLayoutView as FacadePromptReorderLayoutView,
 )
-from substitute.application.prompt_editor.prompt_document_service import (
+from substitute.application.prompt_editor.document.service import (
     PromptReorderLayoutView as ServicePromptReorderLayoutView,
 )
-from substitute.application.prompt_editor.prompt_reorder_views import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
     PromptReorderDropTarget,
@@ -95,7 +95,8 @@ def test_prompt_reorder_views_have_no_qt_presentation_or_adapter_imports() -> No
         / "substitute"
         / "application"
         / "prompt_editor"
-        / "prompt_reorder_views.py"
+        / "reorder"
+        / "views.py"
     )
     syntax_tree = ast.parse(source_path.read_text(encoding="utf-8"))
 

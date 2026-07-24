@@ -24,11 +24,13 @@ from typing import Protocol, cast
 from PySide6.QtCore import QPoint, QRect
 
 from substitute.application.ports import PromptWildcardCatalogGateway
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.reorder.views import (
     PromptLineDropTarget,
     PromptReorderLayoutView,
-    PromptSyntaxService,
 )
 from substitute.devtools.prompt_editor_performance.fakes import (
     wildcard_gateway,

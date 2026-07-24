@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import PromptRegionStructureView
+from substitute.application.prompt_editor.document.views import (
+    PromptRegionStructureView,
+)
 
 import os
 

@@ -23,7 +23,7 @@ import hashlib
 import json
 
 from substitute.application.cubes import LoadedCubeDefinition
-from substitute.domain.prompt import PromptEditorFeatureProfile
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.domain.workflow import WorkflowDocumentKind
 from substitute.domain.workspace_snapshot import WorkflowSnapshot, WorkspaceSnapshot
 

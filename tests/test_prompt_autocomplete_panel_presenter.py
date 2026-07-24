@@ -28,11 +28,13 @@ from PySide6.QtCore import QRect, Signal
 from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.lora.autocomplete import (
     PromptLoraAutocompleteCandidate,
-    PromptLoraCatalogItem,
-    PromptLoraScheduleService,
 )
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogItem,
+)
+from substitute.application.prompt_editor.lora.schedule import PromptLoraScheduleService
 from substitute.presentation.editor.prompt_editor.models import AutocompleteSession
 from substitute.presentation.editor.prompt_editor.overlays import (
     PromptAutocompleteActivationIntent,

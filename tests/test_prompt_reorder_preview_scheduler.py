@@ -23,11 +23,11 @@ from typing import Any
 
 import pytest
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
-    PromptReorderLayoutView,
 )
+from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
 from substitute.presentation.editor.prompt_editor.interactions.reorder_preview_sync import (
     PromptReorderPreviewScheduler,
 )

@@ -21,10 +21,10 @@ from __future__ import annotations
 from collections.abc import Callable, Hashable
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteQuery,
-    PromptScheduledLora,
 )
+from substitute.application.prompt_editor.lora.scheduled import PromptScheduledLora
 from substitute.presentation.editor.prompt_editor.async_work import (
     PromptAutocompleteTriggerWordResult as AsyncTriggerWordResult,
     scheduled_lora_signature,

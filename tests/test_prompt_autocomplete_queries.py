@@ -21,16 +21,16 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteQuery as FacadePromptAutocompleteQuery,
 )
-from substitute.application.prompt_editor.prompt_autocomplete_queries import (
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteFallbackQuery,
     PromptAutocompleteQuery,
     PromptSceneAutocompleteQuery,
     PromptWildcardAutocompleteQuery,
 )
-from substitute.application.prompt_editor.prompt_document_service import (
+from substitute.application.prompt_editor.document.service import (
     PromptAutocompleteQuery as ServicePromptAutocompleteQuery,
 )
 
@@ -104,7 +104,8 @@ def test_prompt_autocomplete_queries_have_no_qt_presentation_or_adapter_imports(
         / "substitute"
         / "application"
         / "prompt_editor"
-        / "prompt_autocomplete_queries.py"
+        / "autocomplete"
+        / "queries.py"
     )
     syntax_tree = ast.parse(source_path.read_text(encoding="utf-8"))
 

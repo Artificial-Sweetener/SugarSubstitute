@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable, Hashable
 from typing import Protocol
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
     PromptScheduledLoraService,
 )

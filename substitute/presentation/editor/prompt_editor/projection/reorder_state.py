@@ -23,7 +23,7 @@ from hashlib import blake2b
 
 from PySide6.QtCore import QPoint, QPointF, QRectF, QSizeF
 
-from substitute.application.prompt_editor import PromptReorderDropTarget
+from substitute.application.prompt_editor.reorder.views import PromptReorderDropTarget
 
 
 type ReorderSourceFingerprint = tuple[int, str]

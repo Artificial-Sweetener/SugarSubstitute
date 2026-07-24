@@ -23,7 +23,9 @@ from typing import Protocol
 
 from PySide6.QtCore import QRectF
 
-from substitute.application.prompt_editor import parse_prompt_scene_projection_document
+from substitute.application.prompt_editor.scenes.projection import (
+    parse_prompt_scene_projection_document,
+)
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
     record_prompt_editor_work_count,

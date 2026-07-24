@@ -29,11 +29,13 @@ from substitute.application.model_metadata import (
 from substitute.application.localization import NodePresentationService
 from substitute.application.node_behavior import NodeBehaviorService
 from substitute.application.ports import NodeDefinitionGateway
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.features.profile import (
     PromptFeatureProfileService,
-    PromptScheduledLora,
+)
+from substitute.application.prompt_editor.lora.effective_provider import (
     ScheduledLoraProvider,
 )
+from substitute.application.prompt_editor.lora.scheduled import PromptScheduledLora
 from substitute.application.user_presets import UserPresetService
 from substitute.presentation.editor.panel.execution_factories import (
     DanbooruWikiLookupDispatcherFactory as DanbooruWikiLookupDispatcherFactory,

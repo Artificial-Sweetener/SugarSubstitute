@@ -112,7 +112,7 @@ def test_generation_package_queue_export_does_not_load_dispatch_service() -> Non
     assert completed.stdout.strip() == '["GenerationJobQueueService", []]'
 
 
-def test_prompt_editor_preference_export_does_not_load_editor_feature_stack() -> None:
+def test_prompt_editor_preference_owner_does_not_load_editor_feature_stack() -> None:
     """Prompt-editor preference imports should not load document and LoRA stacks."""
 
     code = textwrap.dedent(
@@ -120,15 +120,17 @@ def test_prompt_editor_preference_export_does_not_load_editor_feature_stack() ->
         import json
         import sys
 
-        from substitute.application.prompt_editor import PromptEditorPreferenceService
+        from substitute.application.prompt_editor.features.preferences import (
+            PromptEditorPreferenceService,
+        )
 
         loaded = sorted(
             name
             for name in sys.modules
             if name in {
-                "substitute.application.prompt_editor.prompt_document_service",
-                "substitute.application.prompt_editor.prompt_lora_catalog_service",
-                "substitute.application.prompt_editor.prompt_syntax_service",
+                "substitute.application.prompt_editor.document.service",
+                "substitute.application.prompt_editor.lora.catalog",
+                "substitute.application.prompt_editor.projection.syntax_service",
             }
         )
         print(json.dumps([PromptEditorPreferenceService.__name__, loaded]))
@@ -604,7 +606,7 @@ def test_lazy_scheduled_lora_provider_defers_effective_lora_imports() -> None:
             output_dir=Path("."),
         )
         module_name = (
-            "substitute.application.prompt_editor.effective_scheduled_lora_provider"
+            "substitute.application.prompt_editor.lora.effective_provider"
         )
         print(json.dumps([provider.__class__.__name__, module_name in sys.modules]))
         """

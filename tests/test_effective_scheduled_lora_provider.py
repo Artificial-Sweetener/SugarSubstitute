@@ -33,11 +33,15 @@ from substitute.application.node_behavior import (
     FieldBehavior,
     ResolvedFieldSpec,
 )
-from substitute.application.prompt_editor import (
-    EffectiveScheduledLoraProvider,
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
-    PromptScheduledLoraService,
+)
+from substitute.application.prompt_editor.lora.effective_provider import (
+    EffectiveScheduledLoraProvider,
     WorkflowPromptContext,
+)
+from substitute.application.prompt_editor.lora.scheduled import (
+    PromptScheduledLoraService,
 )
 
 

@@ -29,7 +29,10 @@ from substitute.application.ports import (
     PromptWildcardReference,
     PromptWildcardResolution,
 )
-from substitute.domain.prompt import PromptWildcardCsvSource, PromptWildcardTextSource
+from substitute.domain.prompt.wildcards.models import (
+    PromptWildcardCsvSource,
+    PromptWildcardTextSource,
+)
 from substitute.shared.logging.logger import get_logger, log_debug, log_warning
 from substitute.shared.util.path_safety import ensure_within_root
 

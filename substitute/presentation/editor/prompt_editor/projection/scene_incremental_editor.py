@@ -20,7 +20,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from substitute.domain.prompt import normalize_scene_title, parse_prompt_scene_document
+from substitute.domain.prompt.scenes.parser import (
+    normalize_scene_title,
+    parse_prompt_scene_document,
+)
 
 from .caret_map_builder import build_prompt_projection_caret_map
 from .model import (

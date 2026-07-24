@@ -29,53 +29,67 @@ from substitute.application.managed_text_assets.wildcard_csv_document_semantics 
 from substitute.application.managed_text_assets.wildcard_text_document_semantics import (
     WildcardTextDocumentSemantics,
 )
-from substitute.application.prompt_editor.prompt_document_semantics import (
+from substitute.application.prompt_editor.document.semantics import (
     OrdinaryPromptDocumentSemantics,
 )
-from substitute.application.prompt_editor.prompt_diagnostics_models import (
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnostic,
     PromptDiagnosticKind,
     PromptDiagnosticSeverity,
     PromptSpellingDiagnosticPayload,
 )
-from substitute.application.prompt_editor.prompt_diagnostics_service import (
+from substitute.application.prompt_editor.diagnostics.coordinator import (
     PromptDiagnosticProviderResult,
 )
-from substitute.application.prompt_editor.prompt_structured_value_diagnostic_provider import (
+from substitute.application.prompt_editor.diagnostics.structured_values import (
     PromptStructuredValueDiagnosticProvider,
 )
-from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+from substitute.application.prompt_editor.editing.structured_text import (
     PromptStructuredTextMutationService,
 )
-from substitute.application.prompt_editor.prompt_spellcheck_diagnostic_provider import (
+from substitute.application.prompt_editor.diagnostics.spellcheck_provider import (
     PromptSpellcheckDiagnosticProvider,
 )
-from substitute.application.prompt_editor.prompt_autocomplete_query_service import (
+from substitute.application.prompt_editor.autocomplete.query_service import (
     PromptAutocompleteQueryService,
 )
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
-    PromptEmphasisRendererView,
-    PromptLoraRendererView,
-    PromptMutationService,
-    PromptSyntaxProfile,
-    PromptSyntaxService,
-    PromptWildcardRendererView,
-    PromptReorderStateView,
-    PromptDuplicateSegmentDiagnosticPayload,
-    PromptSetEmphasisWeightAction,
-    PromptSetWildcardTagAction,
-    PromptSpellcheckCandidateService,
-    PromptSpellcheckService,
+from substitute.application.prompt_editor.diagnostics.duplicate_mutations import (
     remove_duplicate_segment_edits,
 )
-from substitute.application.prompt_editor.prompt_duplicate_segment_diagnostic_provider import (
+from substitute.application.prompt_editor.diagnostics.models import (
+    PromptDuplicateSegmentDiagnosticPayload,
+)
+from substitute.application.prompt_editor.diagnostics.spellcheck import (
+    PromptSpellcheckService,
+)
+from substitute.application.prompt_editor.diagnostics.spellcheck_candidates import (
+    PromptSpellcheckCandidateService,
+)
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.editing.mutation_service import (
+    PromptMutationService,
+)
+from substitute.application.prompt_editor.editing.syntax_actions import (
+    PromptSetEmphasisWeightAction,
+    PromptSetWildcardTagAction,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptEmphasisRendererView,
+    PromptLoraRendererView,
+    PromptSyntaxService,
+    PromptWildcardRendererView,
+)
+from substitute.application.prompt_editor.reorder.views import PromptReorderStateView
+from substitute.application.prompt_editor.diagnostics.duplicate_segments import (
     PromptDuplicateSegmentDiagnosticProvider,
 )
-from substitute.application.prompt_editor.prompt_unsupported_scene_marker_diagnostic_provider import (
+from substitute.application.prompt_editor.diagnostics.unsupported_scenes import (
     PromptUnsupportedSceneMarkerDiagnosticProvider,
 )
-from substitute.domain.prompt import SourceRange
+from substitute.domain.prompt.document.ranges import SourceRange
 from substitute.presentation.editor.prompt_editor.features.diagnostic_menu_actions import (
     actions_for_unsupported_scene_marker_diagnostic,
 )

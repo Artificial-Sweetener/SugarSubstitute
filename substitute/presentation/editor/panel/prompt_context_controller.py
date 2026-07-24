@@ -24,12 +24,12 @@ from dataclasses import dataclass
 from typing import Protocol, cast
 
 from substitute.application.node_behavior import EditorBehaviorSnapshot
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
-    PromptScheduledLora,
+from substitute.application.prompt_editor.lora.effective_provider import (
     ScheduledLoraProvider,
     WorkflowPromptContext,
 )
+from substitute.application.prompt_editor.lora.scheduled import PromptScheduledLora
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.editor.panel.prompt_profile_policy import (
     PanelPromptFieldProfileDecision,
     PanelPromptProfilePolicy,

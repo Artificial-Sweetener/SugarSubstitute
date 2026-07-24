@@ -20,13 +20,15 @@ from __future__ import annotations
 
 from typing import cast
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnostic,
     PromptDiagnosticKind,
     PromptDiagnosticSeverity,
     PromptDuplicateSegmentDiagnosticPayload,
-    PromptSourceNormalizationService,
     PromptSpellingDiagnosticPayload,
+)
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptAddSpellingDiagnosticToDictionaryCommand,

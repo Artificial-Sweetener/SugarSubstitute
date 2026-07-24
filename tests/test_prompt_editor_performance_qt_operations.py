@@ -27,7 +27,9 @@ from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.application.prompt_editor import PromptSpellingDiagnosticPayload
+from substitute.application.prompt_editor.diagnostics.models import (
+    PromptSpellingDiagnosticPayload,
+)
 from substitute.devtools.prompt_editor_performance.metrics import Instrumentation
 from substitute.devtools.prompt_editor_performance.qt_operations import (
     QT_REORDER_ARROW_KEYS,

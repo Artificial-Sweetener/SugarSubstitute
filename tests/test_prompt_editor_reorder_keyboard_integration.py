@@ -29,7 +29,9 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
-from substitute.application.prompt_editor import PromptSyntaxProfileService
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfileService,
+)
 from substitute.application.ports import (
     PromptAutocompleteSuggestion,
     PromptWildcardReference,

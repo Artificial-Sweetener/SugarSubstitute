@@ -26,16 +26,22 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteFallbackQuery,
     PromptAutocompleteQuery,
-    PromptDocumentService,
-    PromptEditorFeature,
-    PromptEditorFeatureProfile,
+)
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.lora.autocomplete import (
     PromptLoraAutocompleteCandidate,
     PromptLoraAutocompleteQuery,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
-    PromptScheduledLora,
+)
+from substitute.application.prompt_editor.lora.scheduled import PromptScheduledLora
+from substitute.domain.prompt.features.models import (
+    PromptEditorFeature,
+    PromptEditorFeatureProfile,
 )
 from substitute.presentation.editor.prompt_editor.async_work import (
     PromptAsyncRequest,

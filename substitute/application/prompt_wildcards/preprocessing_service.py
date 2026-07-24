@@ -23,10 +23,8 @@ from copy import deepcopy
 from typing import Any, Protocol, TypeVar, cast
 
 from substitute.domain.links import PromptEndpointIndex
-from substitute.domain.prompt import (
-    PromptWildcardSyntaxProfile,
-    parse_prompt_document,
-)
+from substitute.domain.prompt.document.parser import parse_prompt_document
+from substitute.domain.prompt.wildcards.syntax import PromptWildcardSyntaxProfile
 from substitute.shared.logging.logger import get_logger, log_debug
 
 from .resolver import (

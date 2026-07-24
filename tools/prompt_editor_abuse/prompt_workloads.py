@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import random
 
-from substitute.application.prompt_editor import PromptDocumentService
+from substitute.application.prompt_editor.document.service import PromptDocumentService
 
 from .models import PromptAbuseScenario
 from .region_separator_workloads import prompt_region_separator_scenarios

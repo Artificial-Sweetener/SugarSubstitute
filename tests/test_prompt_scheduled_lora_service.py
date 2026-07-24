@@ -18,13 +18,15 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
+)
+from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
     PromptScheduledLoraService,
     PromptTriggerWordIndex,
 )
-from substitute.application.prompt_editor.prompt_document_projector import (
+from substitute.application.prompt_editor.document.projector import (
     PromptDocumentProjector,
 )
 

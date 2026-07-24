@@ -23,16 +23,18 @@ from typing import Protocol, TypeAlias, TypeGuard, cast
 
 from PySide6.QtGui import QTextCursor
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import (
+    PromptDocumentView,
+    PromptSyntaxSpanView,
+)
+from substitute.application.prompt_editor.editing.mutation_service import PromptMutation
+from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptAdjustEmphasisAction,
     PromptAdjustEmphasisContentAction,
-    PromptDocumentService,
-    PromptDocumentView,
-    PromptMutation,
     PromptSetEmphasisWeightAction,
     PromptSetEmphasisWeightContentAction,
     PromptSyntaxAction,
-    PromptSyntaxSpanView,
 )
 
 from ..commands import PromptWeightCommandResult, PromptWeightCursorPolicy

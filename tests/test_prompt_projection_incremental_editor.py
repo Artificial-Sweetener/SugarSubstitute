@@ -23,9 +23,11 @@ from typing import overload
 
 import pytest
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import (
     PromptRegionStructureView,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.projection import incremental_editor
