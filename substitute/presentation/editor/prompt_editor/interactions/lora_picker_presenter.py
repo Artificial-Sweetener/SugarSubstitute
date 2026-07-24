@@ -24,7 +24,9 @@ from typing import Protocol
 from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import PromptLoraCatalogItem
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogItem,
+)
 
 from ..features import PromptLoraPickerSnapshot
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache

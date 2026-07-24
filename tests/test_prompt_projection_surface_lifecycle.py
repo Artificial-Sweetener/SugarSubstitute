@@ -28,9 +28,11 @@ from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.projection import (

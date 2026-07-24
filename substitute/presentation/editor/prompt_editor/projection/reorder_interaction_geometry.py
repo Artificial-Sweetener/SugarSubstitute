@@ -23,8 +23,8 @@ from typing import Protocol, cast
 
 from PySide6.QtCore import QRectF
 
-from substitute.application.prompt_editor import (
-    PromptDocumentView,
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.reorder.views import (
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
     PromptReorderDropTarget,

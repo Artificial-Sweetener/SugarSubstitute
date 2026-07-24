@@ -26,13 +26,15 @@ from typing import Any
 from PySide6.QtCore import Qt
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
-    PromptScheduledLora,
-    PromptTriggerWordIndex,
     PromptLoraThumbnailVariant,
 )
+from substitute.application.prompt_editor.lora.scheduled import (
+    PromptScheduledLora,
+    PromptTriggerWordIndex,
+)
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptAutocompleteAcceptance,
     PromptCommandResult,

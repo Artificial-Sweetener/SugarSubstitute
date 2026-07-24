@@ -22,13 +22,13 @@ import ast
 from decimal import Decimal
 from pathlib import Path
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView as FacadePromptDocumentView,
 )
-from substitute.application.prompt_editor.prompt_document_service import (
+from substitute.application.prompt_editor.document.service import (
     PromptDocumentView as ServicePromptDocumentView,
 )
-from substitute.application.prompt_editor.prompt_document_views import (
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptEmphasisView,
     PromptRegionStructureView,
@@ -103,7 +103,8 @@ def test_prompt_document_views_have_no_qt_presentation_or_adapter_imports() -> N
         / "substitute"
         / "application"
         / "prompt_editor"
-        / "prompt_document_views.py"
+        / "document"
+        / "views.py"
     )
     syntax_tree = ast.parse(source_path.read_text(encoding="utf-8"))
 

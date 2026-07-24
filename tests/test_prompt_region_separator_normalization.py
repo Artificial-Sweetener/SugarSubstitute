@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from substitute.application.prompt_editor.prompt_source_normalization_service import (
+from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
 )
 

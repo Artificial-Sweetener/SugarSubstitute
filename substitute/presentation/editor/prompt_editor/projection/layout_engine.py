@@ -24,11 +24,11 @@ from typing import TYPE_CHECKING, cast, overload
 
 from PySide6.QtCore import QPointF, QRectF, QSizeF
 from PySide6.QtGui import QFont, QFontMetricsF, QPalette
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
-    PromptReorderLayoutView,
 )
+from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
 from substitute.application.appearance import SemanticPalette
 
 from .line_layout import (

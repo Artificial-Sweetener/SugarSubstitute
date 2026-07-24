@@ -31,7 +31,7 @@ from PySide6.QtGui import QPainter, QPixmap, QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnostic,
     PromptDiagnosticKind,
     PromptDiagnosticSeverity,

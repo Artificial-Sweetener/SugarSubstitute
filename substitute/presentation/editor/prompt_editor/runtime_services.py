@@ -32,10 +32,14 @@ from substitute.application.ports import (
     PromptAutocompleteGateway,
     PromptWildcardCatalogGateway,
 )
-from substitute.application.prompt_editor import (
-    PromptLoraCatalogLookup,
-    PromptScheduledLoraService,
+from substitute.application.prompt_editor.diagnostics.spellcheck import (
     PromptSpellcheckService,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogLookup,
+)
+from substitute.application.prompt_editor.lora.scheduled import (
+    PromptScheduledLoraService,
 )
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,

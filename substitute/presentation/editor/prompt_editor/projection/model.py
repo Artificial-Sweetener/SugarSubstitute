@@ -25,10 +25,10 @@ from typing import Protocol
 
 from sugarsubstitute_shared.localization import ApplicationText
 
-from substitute.application.prompt_editor.prompt_lora_resolution_service import (
+from substitute.application.prompt_editor.lora.resolution import (
     PromptLoraResolutionStatus,
 )
-from substitute.application.prompt_editor.prompt_document_views import (
+from substitute.application.prompt_editor.document.views import (
     PromptRegionStructureView,
 )
 

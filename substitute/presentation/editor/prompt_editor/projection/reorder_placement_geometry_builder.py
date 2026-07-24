@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QRectF
 
-from substitute.application.prompt_editor import PromptLineDropTarget
+from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
 
 from .reorder_chip_geometry import (
     PromptReorderChipGeometry,

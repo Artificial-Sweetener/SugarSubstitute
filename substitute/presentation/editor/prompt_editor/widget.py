@@ -56,20 +56,30 @@ from substitute.application.danbooru import (
     DanbooruUrlImportService,
     DanbooruWikiContentService,
 )
-from substitute.application.prompt_editor import (
-    PromptDocumentView,
-    PromptEditorFeatureProfile,
-    PromptLoraCatalogLookup,
+from substitute.application.prompt_editor.diagnostics.spellcheck import (
+    PromptSpellcheckService,
+)
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
-    PromptReorderLayoutView,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogLookup,
+)
+from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
     PromptScheduledLoraService,
-    PromptSpellcheckService,
-    PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
-from substitute.application.prompt_editor.prompt_document_semantics import (
+from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
+from substitute.application.prompt_editor.document.semantics import (
     OrdinaryPromptDocumentSemantics,
     PromptDocumentSemantics,
     PromptDocumentSemanticsController,

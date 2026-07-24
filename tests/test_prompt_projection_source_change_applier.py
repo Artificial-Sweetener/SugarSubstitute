@@ -25,16 +25,20 @@ from PySide6.QtCore import QRectF, QSizeF
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
-from substitute.application.prompt_editor import PromptSourceNormalizationService
-from substitute.application.prompt_editor.prompt_document_view_mapper import (
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.document.view_mapper import (
     prompt_document_view_from_domain,
 )
-from substitute.domain.prompt import parse_prompt_document
+from substitute.domain.prompt.document.parser import parse_prompt_document
 from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptSourceEditOrigin,
     PromptCursorState,

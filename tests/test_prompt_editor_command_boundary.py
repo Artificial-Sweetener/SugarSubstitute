@@ -22,7 +22,9 @@ from dataclasses import dataclass
 
 import pytest
 
-from substitute.application.prompt_editor import PromptSourceNormalizationService
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandDispatcher,
     PromptCommandResult,

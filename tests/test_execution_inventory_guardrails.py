@@ -82,13 +82,13 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     "substitute/application/model_metadata/scoped_metadata_refresh_service.py": (
         frozenset({"threading.RLock"})
     ),
-    "substitute/application/prompt_editor/prompt_document_cache.py": frozenset(
+    "substitute/application/prompt_editor/document/cache.py": frozenset(
         {"threading.RLock"}
     ),
-    "substitute/application/prompt_editor/prompt_lora_catalog_service.py": frozenset(
+    "substitute/application/prompt_editor/lora/catalog.py": frozenset(
         {"threading.RLock"}
     ),
-    "substitute/application/prompt_editor/prompt_syntax_service.py": frozenset(
+    "substitute/application/prompt_editor/projection/syntax_service.py": frozenset(
         {"threading.RLock"}
     ),
     "substitute/devtools/prompt_editor_performance/instrumentation.py": frozenset(

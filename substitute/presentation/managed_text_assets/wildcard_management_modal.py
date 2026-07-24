@@ -31,11 +31,9 @@ from substitute.application.managed_text_assets.wildcard_text_document_semantics
 )
 from substitute.application.managed_text_assets.models import ManagedTextAsset
 from substitute.application.managed_text_assets.models import ManagedTextAssetKind
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
-    PromptWheelAdjustmentMode,
-)
-from substitute.application.prompt_editor.prompt_document_semantics import (
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
+from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
+from substitute.application.prompt_editor.document.semantics import (
     PromptDocumentSemantics,
 )
 from substitute.presentation.editor.prompt_editor.runtime_services import (

@@ -28,7 +28,7 @@ from typing import Any
 
 from PySide6.QtCore import QPoint, QPointF, QRectF, QSize, QSizeF
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptReorderDropTarget,
     PromptReorderLayoutView,
 )

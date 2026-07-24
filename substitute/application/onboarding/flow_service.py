@@ -72,7 +72,8 @@ from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.domain.comfy_environment import ComfyModelRootStatus
 from substitute.domain.danbooru.preferences import DanbooruPreferences
 from substitute.domain.generation import OutputPreferences
-from substitute.domain.prompt import PromptEditorFeature, PromptEditorPreferences
+from substitute.domain.prompt.features.models import PromptEditorFeature
+from substitute.domain.prompt.preferences.models import PromptEditorPreferences
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
 _LOGGER = get_logger("application.onboarding.flow_service")

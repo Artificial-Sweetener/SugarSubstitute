@@ -27,14 +27,18 @@ from PySide6.QtCore import QRectF
 from PySide6.QtGui import QFont, QPalette
 
 from substitute.application.appearance import SemanticPalette
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
-    PromptDocumentView,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.reorder.views import (
     PromptReorderLayoutView,
     PromptReorderPreviewSnapshot,
     PromptReorderStateView,
-    PromptSyntaxProfile,
-    PromptSyntaxService,
 )
 from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
     PromptLoraThumbnailCache,

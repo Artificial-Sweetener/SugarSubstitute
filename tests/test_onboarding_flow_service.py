@@ -73,7 +73,7 @@ from substitute.domain.onboarding import (
     SetupTransactionMode,
     SetupTransactionStatus,
 )
-from substitute.domain.prompt import PromptEditorPreferences
+from substitute.domain.prompt.preferences.models import PromptEditorPreferences
 from substitute.infrastructure.persistence.file_prompt_editor_preference_repository import (
     _default_preferences as _default_prompt_preferences,
 )

@@ -33,7 +33,7 @@ from PySide6.QtGui import (
 )
 from qfluentwidgets.common.style_sheet import isDarkTheme, themeColor  # type: ignore[import-untyped]
 
-from substitute.application.prompt_editor.prompt_lora_resolution_service import (
+from substitute.application.prompt_editor.lora.resolution import (
     PromptLoraResolutionStatus,
 )
 from substitute.presentation.semantic_colors import semantic_error_color

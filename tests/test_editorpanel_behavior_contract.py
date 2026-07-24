@@ -28,10 +28,10 @@ from substitute.application.node_behavior import (
     PromptRole,
     ResolvedFieldSpec,
 )
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.application.editor_search import (
     EditorSearchMode,
     EditorSearchService,

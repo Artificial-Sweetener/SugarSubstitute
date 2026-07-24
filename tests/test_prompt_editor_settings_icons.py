@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import prompt_feature_definitions
-from substitute.domain.prompt.features import PromptEditorFeature
+from substitute.application.prompt_editor.features.definitions import (
+    prompt_feature_definitions,
+)
+from substitute.domain.prompt.features.models import PromptEditorFeature
 from substitute.presentation.resources.app_icon import AppIcon
 from substitute.presentation.settings.prompt_editor_icons import (
     PROMPT_DANBOORU_BACKGROUND_REFRESH_SETTINGS_ICON,

@@ -25,11 +25,13 @@ from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteQuery,
-    PromptLoraAutocompleteQuery,
     PromptSceneAutocompleteQuery,
     PromptWildcardAutocompleteQuery,
+)
+from substitute.application.prompt_editor.lora.autocomplete import (
+    PromptLoraAutocompleteQuery,
 )
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,

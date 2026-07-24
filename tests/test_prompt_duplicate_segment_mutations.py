@@ -18,11 +18,13 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.duplicate_mutations import (
     PromptDiagnosticTextEdit,
-    PromptDuplicateSegmentDiagnosticPayload,
     emphasize_first_duplicate_segment_edits,
     remove_duplicate_segment_edits,
+)
+from substitute.application.prompt_editor.diagnostics.models import (
+    PromptDuplicateSegmentDiagnosticPayload,
 )
 
 

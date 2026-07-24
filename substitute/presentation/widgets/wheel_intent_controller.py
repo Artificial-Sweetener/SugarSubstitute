@@ -24,7 +24,7 @@ from PySide6.QtCore import QElapsedTimer, QEvent, QObject, QPoint, QPointF
 from PySide6.QtGui import QCursor, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.application.prompt_editor import PromptWheelAdjustmentMode
+from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
 from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.widgets.wheel_intent import (
     WheelIntentArbiter,

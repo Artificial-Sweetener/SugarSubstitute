@@ -21,8 +21,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from substitute.domain.prompt import PromptWheelAdjustmentMode
-from substitute.domain.prompt import PromptEditorFeatureProfile
+from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.application.prompt_wildcards import PromptWildcardFileManagementService
 
 if TYPE_CHECKING:
@@ -73,7 +73,7 @@ class WildcardManagementOpener:
         from substitute.application.managed_text_assets import (
             WildcardManagedTextAssetService,
         )
-        from substitute.application.prompt_editor.prompt_feature_profile_service import (
+        from substitute.application.prompt_editor.features.profile import (
             wildcard_management_prompt_feature_profile,
         )
 

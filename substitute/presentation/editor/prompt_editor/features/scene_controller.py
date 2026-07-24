@@ -23,12 +23,14 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptSceneAutocompleteQuery,
+)
+from substitute.application.prompt_editor.scenes.projection import (
     effective_prompt_text_at_source_position,
     prompt_scene_key_at_projection_source_position,
 )
-from substitute.application.prompt_editor.prompt_document_semantics import (
+from substitute.application.prompt_editor.document.semantics import (
     OrdinaryPromptDocumentSemantics,
     PromptDocumentSemantics,
 )

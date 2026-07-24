@@ -26,7 +26,7 @@ from PySide6.QtCore import QEventLoop, QPoint, QPointF, QRect, QTimer, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.application.prompt_editor import PromptLineDropTarget
+from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
 
 from .action_driver import PromptAbuseActionHost
 from .models import PromptAbuseAction

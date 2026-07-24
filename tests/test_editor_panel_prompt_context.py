@@ -28,12 +28,17 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 from substitute.application.node_behavior import NodeBehaviorService
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.features.profile import (
     PromptFeatureProfileService,
+)
+from substitute.application.prompt_editor.lora.effective_provider import (
     ScheduledLoraProvider,
 )
-from substitute.domain.prompt import PromptEditorFeature, PromptFeatureDecision
-from substitute.domain.prompt.features import PromptEditorFeatureProfile
+from substitute.domain.prompt.features.models import (
+    PromptEditorFeature,
+    PromptFeatureDecision,
+)
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.editor.panel.view import EditorPanel
 from tests.execution_test_helpers import immediate_editor_panel_execution_factories
 from tests.localization_testing import empty_node_presentation_service

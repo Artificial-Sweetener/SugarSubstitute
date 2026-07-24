@@ -27,12 +27,15 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import SwitchButton  # type: ignore[import-untyped]
 
-from substitute.application.prompt_editor import (
-    PromptEditorPreferenceService,
+from substitute.application.prompt_editor.features.definitions import (
     prompt_feature_definitions,
 )
+from substitute.application.prompt_editor.features.preferences import (
+    PromptEditorPreferenceService,
+)
 from substitute.application.prompt_wildcards import PromptWildcardPreferenceService
-from substitute.domain.prompt import PromptEditorFeature, PromptWheelAdjustmentMode
+from substitute.domain.prompt.features.models import PromptEditorFeature
+from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
 from substitute.infrastructure.persistence import (
     FilePromptEditorPreferenceRepository,
     FilePromptWildcardPreferenceRepository,

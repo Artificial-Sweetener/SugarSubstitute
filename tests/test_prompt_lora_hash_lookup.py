@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
     PromptLoraCatalogLookupResult,
 )

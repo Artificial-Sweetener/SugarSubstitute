@@ -29,16 +29,24 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QTextCursor
 from PySide6.QtWidgets import QScrollBar
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
+    PromptSyntaxSpanView,
+)
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutation,
     PromptMutationService,
+)
+from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptSyntaxAction,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
-    PromptSyntaxSpanView,
 )
 
 from ..features import (

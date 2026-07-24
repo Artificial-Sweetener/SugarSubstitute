@@ -22,40 +22,17 @@ import ast
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROMPT_APPLICATION_ROOT = PROJECT_ROOT / "substitute" / "application" / "prompt_editor"
 
 _PROJECTION_ONLY_MODULES = (
-    PROJECT_ROOT
-    / "substitute"
-    / "application"
-    / "prompt_editor"
-    / "prompt_wildcard_diagnostic_provider.py",
-    PROJECT_ROOT
-    / "substitute"
-    / "application"
-    / "prompt_editor"
-    / "prompt_duplicate_segment_diagnostic_provider.py",
-    PROJECT_ROOT
-    / "substitute"
-    / "application"
-    / "prompt_editor"
-    / "prompt_spellcheck_candidates.py",
-    PROJECT_ROOT
-    / "substitute"
-    / "application"
-    / "prompt_editor"
-    / "prompt_scheduled_lora_service.py",
-    PROJECT_ROOT
-    / "substitute"
-    / "application"
-    / "prompt_editor"
-    / "effective_scheduled_lora_provider.py",
+    PROMPT_APPLICATION_ROOT / "diagnostics" / "wildcard.py",
+    PROMPT_APPLICATION_ROOT / "diagnostics" / "duplicate_segments.py",
+    PROMPT_APPLICATION_ROOT / "diagnostics" / "spellcheck_candidates.py",
+    PROMPT_APPLICATION_ROOT / "lora" / "scheduled.py",
+    PROMPT_APPLICATION_ROOT / "lora" / "effective_provider.py",
 )
 _FOCUSED_COLLABORATOR_MODULES = _PROJECTION_ONLY_MODULES + (
-    PROJECT_ROOT
-    / "substitute"
-    / "application"
-    / "prompt_editor"
-    / "prompt_mutation_service.py",
+    PROMPT_APPLICATION_ROOT / "editing" / "mutation_service.py",
 )
 
 

@@ -32,21 +32,35 @@ from substitute.application.danbooru import (
     DanbooruUrlImportService,
     DanbooruWikiContentService,
 )
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.spellcheck import (
+    PromptSpellcheckService,
+)
+from substitute.application.prompt_editor.document.semantics import (
+    PromptDocumentSemantics,
+)
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
-    PromptEditorFeatureProfile,
-    PromptLoraCatalogLookup,
+    PromptSyntaxSpanView,
+)
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogLookup,
+)
+from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
     PromptScheduledLoraService,
-    PromptSpellcheckService,
-    PromptSyntaxSpanView,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
-from substitute.application.prompt_editor import PromptSyntaxProfile
-from substitute.application.prompt_editor.prompt_document_semantics import (
-    PromptDocumentSemantics,
+from substitute.domain.prompt.features.models import (
+    PromptEditorFeatureProfile,
 )
 from substitute.application.model_metadata import ThumbnailAssetRepository
 from substitute.presentation.widgets.model_metadata_context_menu import (

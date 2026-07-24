@@ -23,10 +23,10 @@ from typing import Protocol
 
 from PySide6.QtCore import QPointF, QRect, QRectF, QSize, QSizeF
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.views import PromptReorderChipView
+from substitute.application.prompt_editor.reorder.views import (
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
-    PromptReorderChipView,
     PromptReorderDropTarget,
 )
 

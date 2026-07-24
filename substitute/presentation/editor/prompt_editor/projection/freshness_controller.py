@@ -24,8 +24,8 @@ from enum import Enum
 
 from PySide6.QtCore import QObject
 
-from substitute.application.prompt_editor import (
-    PromptDocumentView,
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
 from substitute.shared.diagnostics.prompt_editor_work import (

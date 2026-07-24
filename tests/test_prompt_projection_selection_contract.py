@@ -31,7 +31,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QTextEdit, QWidget
 
 from substitute.application.ports import PromptWildcardResolution
-from substitute.application.prompt_editor import PromptSyntaxSpanView
+from substitute.application.prompt_editor.document.views import PromptSyntaxSpanView
 from substitute.presentation.editor.prompt_editor.projection.session import (
     PromptTransientNeutralEmphasisOwner,
 )

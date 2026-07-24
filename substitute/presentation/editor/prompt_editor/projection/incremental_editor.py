@@ -22,17 +22,19 @@ from dataclasses import dataclass, replace
 from enum import Enum
 from collections.abc import Sequence
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
+    PromptRegionStructureView,
+    PromptSyntaxSpanView,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptEmphasisRendererView,
     PromptLoraRendererView,
-    PromptRegionStructureView,
     PromptSyntaxRenderPlan,
     PromptSyntaxRendererView,
-    PromptSyntaxSpanView,
     PromptWildcardRendererView,
 )
-from substitute.application.prompt_editor.prompt_region_structure_edits import (
+from substitute.application.prompt_editor.editing.region_structure_edits import (
     region_structure_edit_requires_rebuild,
 )
 

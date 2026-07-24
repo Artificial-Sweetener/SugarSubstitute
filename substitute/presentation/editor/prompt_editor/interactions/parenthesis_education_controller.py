@@ -30,7 +30,7 @@ from substitute.application.ports.prompt_parenthesis_education_state import (
 from sugarsubstitute_shared.presentation.localization import (
     translate_application_message,
 )
-from substitute.domain.prompt.emphasis_semantics import (
+from substitute.domain.prompt.emphasis.semantics import (
     format_generated_emphasis_weight,
     implicit_emphasis_weight,
 )

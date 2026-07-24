@@ -23,7 +23,7 @@ from typing import cast
 
 from PySide6.QtCore import QPointF, QRectF, QSizeF
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
     PromptReorderDropTarget,

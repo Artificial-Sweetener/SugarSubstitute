@@ -26,11 +26,13 @@ from substitute.application.danbooru import (
     DanbooruWikiContentService,
 )
 from substitute.application.ports import PromptWildcardCatalogGateway
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
-    PromptLoraCatalogLookup,
+from substitute.application.prompt_editor.diagnostics.spellcheck import (
     PromptSpellcheckService,
 )
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogLookup,
+)
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.devtools.prompt_editor_performance.fakes import (
     danbooru_url_import_service,
     danbooru_wiki_service_for_scenario,
@@ -40,7 +42,7 @@ from substitute.devtools.prompt_editor_performance.fakes import (
 )
 from substitute.devtools.prompt_editor_performance.metrics import OperationCounter
 from substitute.devtools.prompt_editor_performance.scenarios import Scenario
-from substitute.domain.prompt.features import PromptEditorFeature
+from substitute.domain.prompt.features.models import PromptEditorFeature
 
 from .models import PromptAbuseScenario
 

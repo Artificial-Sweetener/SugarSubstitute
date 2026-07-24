@@ -22,13 +22,17 @@ from collections.abc import Hashable
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.features.definitions import (
+    prompt_syntax_field_features,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfile,
+    prompt_syntax_profile_from_feature_profile,
+)
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
     PromptFeatureDecision,
-    PromptSyntaxProfile,
-    prompt_syntax_field_features,
-    prompt_syntax_profile_from_feature_profile,
 )
 from substitute.presentation.editor.prompt_editor.commands.feature_commands import (
     PromptFeatureCommandRequest,

@@ -18,11 +18,11 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptSceneAutocompleteQuery,
 )
-from substitute.application.prompt_editor.prompt_scene_projection_service import (
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
+from substitute.application.prompt_editor.scenes.projection import (
     clear_prompt_scene_projection_cache,
 )
 from substitute.presentation.editor.prompt_editor.commands import (

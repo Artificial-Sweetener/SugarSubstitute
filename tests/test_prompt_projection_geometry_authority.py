@@ -30,7 +30,7 @@ from PySide6.QtGui import QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import PromptSyntaxSpanView
+from substitute.application.prompt_editor.document.views import PromptSyntaxSpanView
 from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.projection.snapshot import (
     PromptProjectionInlineObjectFragment,

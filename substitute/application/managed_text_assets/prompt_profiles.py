@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from substitute.domain.prompt import (
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
     PromptFeatureDecision,

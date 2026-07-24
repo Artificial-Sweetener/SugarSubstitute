@@ -37,8 +37,10 @@ from substitute.application.ports import (
     PromptAutocompleteSuggestion,
     PromptWildcardCatalogGateway,
 )
-from substitute.application.prompt_editor import PromptSyntaxProfile
-from substitute.domain.prompt import (
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfile,
+)
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
     PromptFeatureDecision,

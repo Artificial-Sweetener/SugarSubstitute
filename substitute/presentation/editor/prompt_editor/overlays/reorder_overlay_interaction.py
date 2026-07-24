@@ -27,7 +27,7 @@ from typing import Any
 
 from PySide6.QtCore import QPoint
 
-from substitute.application.prompt_editor import PromptReorderDropTarget
+from substitute.application.prompt_editor.reorder.views import PromptReorderDropTarget
 
 from ..projection.observability import (
     next_reorder_drag_gesture_id,

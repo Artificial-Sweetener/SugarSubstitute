@@ -61,16 +61,20 @@ from PySide6.QtWidgets import (
     QScrollBar,
     QWidget,
 )
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.models import PromptDiagnostic
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
-    PromptDiagnostic,
-    PromptReorderLayoutView,
-    PromptSyntaxAction,
-    PromptSyntaxRenderPlan,
     PromptSyntaxSpanView,
 )
-from substitute.application.prompt_editor.prompt_document_semantics import (
+from substitute.application.prompt_editor.editing.syntax_actions import (
+    PromptSyntaxAction,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxRenderPlan,
+)
+from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
+from substitute.application.prompt_editor.document.semantics import (
     PromptDocumentSemantics,
 )
 from substitute.presentation.widgets.text_caret import (

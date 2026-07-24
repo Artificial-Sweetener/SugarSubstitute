@@ -69,8 +69,12 @@ from substitute.application.onboarding import (
     ComfyConnectionSettingsService,
     ComfyConnectionSettingsSnapshot,
 )
-from substitute.application.prompt_editor import default_prompt_feature_preferences
-from substitute.application.prompt_editor import PromptEditorPreferenceService
+from substitute.application.prompt_editor.features.definitions import (
+    default_prompt_feature_preferences,
+)
+from substitute.application.prompt_editor.features.preferences import (
+    PromptEditorPreferenceService,
+)
 from substitute.domain.appearance import (
     DEFAULT_CUSTOM_ACCENT_COLOR,
     AppearanceAccentSource,
@@ -97,7 +101,7 @@ from substitute.domain.generation import (
     default_generation_preview_preferences,
 )
 from substitute.domain.civitai import CivitaiThumbnailSafetyPolicy
-from substitute.domain.prompt.preferences import (
+from substitute.domain.prompt.preferences.models import (
     PROMPT_EDITOR_PREFERENCES_SCHEMA_VERSION,
     PromptEditorPreferences,
 )

@@ -33,7 +33,7 @@ from substitute.application.danbooru import (
     DanbooruRecentPostsService,
     DanbooruWikiContentService,
 )
-from substitute.application.prompt_editor import (
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
 )

@@ -39,7 +39,7 @@ from substitute.application.generation.prompt_scene_preparation_plan import (
     PromptScenePreparationPlan,
     PromptScenePreparationPlanBuilder,
 )
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.scenes.workflow_analysis import (
     PromptSceneAnalysisService,
     WorkflowScene,
     WorkflowSceneAnalysis,

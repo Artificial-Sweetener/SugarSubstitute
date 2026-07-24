@@ -24,12 +24,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnostic,
     PromptDiagnosticKind,
+)
+from substitute.application.prompt_editor.diagnostics.spellcheck_models import (
     PromptSpellingSuggestionSet,
 )
-from substitute.application.prompt_editor.prompt_unsupported_scene_marker_diagnostic_provider import (
+from substitute.application.prompt_editor.diagnostics.unsupported_scenes import (
     UNSUPPORTED_SCENE_MARKER_MESSAGE,
 )
 

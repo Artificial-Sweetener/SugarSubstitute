@@ -21,18 +21,18 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Generic, TypeAlias, TypeVar
 
-from substitute.application.prompt_editor.prompt_autocomplete_query_service import (
+from substitute.application.prompt_editor.autocomplete.query_service import (
     autocomplete_replacement_text,
 )
-from substitute.application.prompt_editor.prompt_autocomplete_text import (
+from substitute.application.prompt_editor.autocomplete.text import (
     autocomplete_characters_match,
     autocomplete_completion_suffix,
     autocomplete_suffix_without_existing_right_text,
 )
-from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+from substitute.application.prompt_editor.editing.structured_text import (
     PromptStructuredTextMutationService,
 )
-from substitute.domain.prompt import SourceRange
+from substitute.domain.prompt.document.ranges import SourceRange
 from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptEditingSession,
     PromptSourceEditOrigin,

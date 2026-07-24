@@ -43,42 +43,62 @@ from substitute.application.ports import (
     PromptWildcardReference,
     PromptWildcardResolution,
 )
-from substitute.application.prompt_editor import (
-    clear_prompt_document_caches,
-    clear_prompt_scene_projection_cache,
-    clear_prompt_syntax_render_plan_cache,
-    effective_prompt_text_at_source_position,
-    normalize_literal_parentheses_for_storage,
-    parse_prompt_scene_projection_document,
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteQuery,
-    PromptDocumentService,
-    PromptEditorPreferenceService,
-    PromptFeatureProfileService,
-    PromptLoraCatalogItem,
-    PromptScheduledLora,
+)
+from substitute.application.prompt_editor.diagnostics.spellcheck_models import (
     PromptSpellcheckSnapshot,
+)
+from substitute.application.prompt_editor.document.service import (
+    clear_prompt_document_caches,
+    PromptDocumentService,
+)
+from substitute.application.prompt_editor.editing.literal_parentheses import (
+    normalize_literal_parentheses_for_storage,
+)
+from substitute.application.prompt_editor.features.preferences import (
+    PromptEditorPreferenceService,
+)
+from substitute.application.prompt_editor.features.profile import (
+    PromptFeatureProfileService,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfileService,
-    PromptSyntaxService,
     prompt_syntax_profile_from_feature_profile,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogItem,
+)
+from substitute.application.prompt_editor.lora.effective_provider import (
     WorkflowPromptContext,
 )
-from substitute.application.prompt_editor import (
-    prompt_document_cache as document_cache_module,
+from substitute.application.prompt_editor.lora.scheduled import PromptScheduledLora
+from substitute.application.prompt_editor.projection.syntax_service import (
+    clear_prompt_syntax_render_plan_cache,
+    PromptSyntaxService,
 )
-from substitute.application.prompt_editor import (
-    prompt_scene_projection_service as scene_module,
+from substitute.application.prompt_editor.scenes.projection import (
+    clear_prompt_scene_projection_cache,
+    effective_prompt_text_at_source_position,
+    parse_prompt_scene_projection_document,
 )
-from substitute.application.prompt_editor import prompt_syntax_service as syntax_module
-from substitute.application.prompt_editor.prompt_feature_registry import (
+from substitute.application.prompt_editor.document import cache as document_cache_module
+from substitute.application.prompt_editor.scenes import projection as scene_module
+from substitute.application.prompt_editor.projection import (
+    syntax_service as syntax_module,
+)
+from substitute.application.prompt_editor.features.definitions import (
     default_prompt_feature_preferences,
     prompt_feature_definitions,
 )
-from substitute.domain.prompt import (
-    PROMPT_EDITOR_PREFERENCES_SCHEMA_VERSION,
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
-    PromptEditorPreferences,
     PromptFeatureDisabledReason,
+)
+from substitute.domain.prompt.preferences.models import (
+    PROMPT_EDITOR_PREFERENCES_SCHEMA_VERSION,
+    PromptEditorPreferences,
     PromptWheelAdjustmentMode,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor

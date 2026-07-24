@@ -64,7 +64,9 @@ from substitute.domain.generation.seed_control import (
     SeedMode,
     seed_mode_from_value,
 )
-from substitute.application.prompt_editor import PromptLoraCatalogLookup
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogLookup,
+)
 from substitute.application.model_metadata import (
     ThumbnailAssetRepository,
     model_kind_for_field,

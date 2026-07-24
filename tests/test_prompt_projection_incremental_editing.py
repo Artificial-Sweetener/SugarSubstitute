@@ -28,8 +28,8 @@ from PySide6.QtCore import QRect, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
 from substitute.presentation.editor.prompt_editor.projection.model import (

@@ -27,7 +27,7 @@ from substitute.application.danbooru import (
     DanbooruUrlImportService,
     DanbooruWikiContentService,
 )
-from substitute.application.prompt_editor import (
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
 )

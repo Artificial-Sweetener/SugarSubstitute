@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from substitute.domain.prompt.features import PromptEditorFeature
+from substitute.domain.prompt.features.models import PromptEditorFeature
 
 
 ScenarioOperation = Literal[

@@ -27,18 +27,26 @@ from substitute.application.ports import (
     PromptAutocompleteSuggestion,
     PromptWildcardCatalogGateway,
 )
-from substitute.application.prompt_editor import (
-    PromptEditorFeature,
-    PromptEditorFeatureProfile,
-    PromptScheduledLora,
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteFallbackQuery,
     PromptAutocompleteQuery,
-    effective_prompt_text_at_source_position,
-    PromptLoraAutocompleteQuery,
-    PromptLoraCatalogItem,
-    PromptLoraThumbnailVariant,
     PromptSceneAutocompleteQuery,
     PromptWildcardAutocompleteQuery,
+)
+from substitute.application.prompt_editor.lora.autocomplete import (
+    PromptLoraAutocompleteQuery,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogItem,
+    PromptLoraThumbnailVariant,
+)
+from substitute.application.prompt_editor.lora.scheduled import PromptScheduledLora
+from substitute.application.prompt_editor.scenes.projection import (
+    effective_prompt_text_at_source_position,
+)
+from substitute.domain.prompt.features.models import (
+    PromptEditorFeature,
+    PromptEditorFeatureProfile,
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandSourceIdentity,

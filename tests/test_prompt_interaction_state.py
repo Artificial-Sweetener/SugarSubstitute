@@ -20,8 +20,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutation,
     PromptMutationService,
 )

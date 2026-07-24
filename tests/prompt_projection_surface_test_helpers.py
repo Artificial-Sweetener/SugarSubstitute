@@ -27,12 +27,16 @@ from PySide6.QtCore import QPoint, QPointF
 from PySide6.QtGui import QImage, QPainter
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
-    PromptDocumentView,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
     PromptLoraThumbnailVariant,
-    PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )

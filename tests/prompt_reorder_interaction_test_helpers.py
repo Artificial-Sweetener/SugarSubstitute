@@ -23,15 +23,21 @@ from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any, cast
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import PromptSyntaxSpanView
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
-    PromptReorderLayoutView,
-    PromptReorderStateView,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
-    PromptSyntaxSpanView,
+)
+from substitute.application.prompt_editor.reorder.views import (
+    PromptReorderLayoutView,
+    PromptReorderStateView,
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandSourceIdentity,

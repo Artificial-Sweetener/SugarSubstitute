@@ -30,7 +30,7 @@ from substitute.application.managed_text_assets.prompt_profiles import (
 from substitute.application.prompt_autocomplete_lists import (
     PromptAutocompleteListService,
 )
-from substitute.domain.prompt import PromptWheelAdjustmentMode
+from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget

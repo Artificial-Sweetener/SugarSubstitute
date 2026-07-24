@@ -22,26 +22,34 @@ from decimal import Decimal
 
 import pytest
 
-from substitute.domain.prompt import (
+from substitute.domain.prompt.document.ranges import SourceRange
+from substitute.domain.prompt.document.parser import parse_prompt_document
+from substitute.domain.prompt.emphasis.operations import (
+    decrease_emphasis,
+    increase_emphasis,
+    replace_span_content,
+    set_emphasis_weight,
+)
+from substitute.domain.prompt.reorder.mutations import reorder_segments
+from substitute.domain.prompt.reorder.derivation import (
+    build_reorder_chips,
+    build_reorder_state_from_chips,
+)
+from substitute.domain.prompt.reorder.serialization import (
+    serialize_reorder_state_for_chips,
+)
+from substitute.domain.prompt.reorder.derivation import build_reorder_state
+from substitute.domain.prompt.reorder.models import (
     PromptReorderState,
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
-    SourceRange,
+)
+from substitute.domain.prompt.reorder.mutations import (
     apply_blank_line_drop_target_to_state,
     apply_line_drop_target_to_state,
     build_base_drag_state,
-    build_reorder_chips,
-    build_reorder_state,
-    build_reorder_state_from_chips,
-    decrease_emphasis,
-    increase_emphasis,
-    parse_prompt_document,
-    reorder_segments,
-    replace_span_content,
-    set_emphasis_weight,
-    serialize_reorder_state_for_chips,
-    serialize_reorder_state,
 )
+from substitute.domain.prompt.reorder.serialization import serialize_reorder_state
 
 
 def test_reorder_segments_preserves_nested_content_and_restores_selection() -> None:

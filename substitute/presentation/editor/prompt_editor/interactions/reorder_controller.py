@@ -24,19 +24,27 @@ from typing import Protocol, cast
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
+    PromptReorderChipView,
+)
+from substitute.application.prompt_editor.editing.mutation_service import (
+    PromptMutationService,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.reorder.views import (
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
-    PromptMutationService,
-    PromptReorderChipView,
     PromptReorderLayoutView,
     PromptReorderPreviewSnapshot,
     PromptReorderSessionView,
     PromptReorderStateView,
-    PromptSyntaxProfile,
-    PromptSyntaxService,
 )
 
 from ..commands import (

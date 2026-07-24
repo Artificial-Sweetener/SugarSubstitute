@@ -26,13 +26,15 @@ from typing import Generic, Protocol, TypeVar, cast
 from PySide6.QtCore import QRectF
 from PySide6.QtGui import QFont
 
-from substitute.application.prompt_editor import (
-    PromptDiagnostic,
+from substitute.application.prompt_editor.diagnostics.models import PromptDiagnostic
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
-from substitute.application.prompt_editor.prompt_literal_parenthesis_normalizer import (
+from substitute.application.prompt_editor.editing.literal_parentheses import (
     PromptParenthesisTransitionKind,
 )
 from substitute.shared.diagnostics.prompt_editor_work import (

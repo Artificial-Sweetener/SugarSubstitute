@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from substitute.domain.prompt import normalize_prompt_weights
+from substitute.domain.prompt.emphasis.normalization import normalize_prompt_weights
 
 
 def test_normalize_prompt_weights_formats_emphasis_weights() -> None:

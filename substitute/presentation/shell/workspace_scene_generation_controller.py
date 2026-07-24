@@ -45,7 +45,7 @@ from substitute.application.ports import (
     PreviewImageUpdate,
     ProgressUpdate,
 )
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.scenes.workflow_analysis import (
     PromptSceneAnalysisService,
     WorkflowScene,
     WorkflowSceneAnalysis,

@@ -20,7 +20,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from substitute.application.prompt_editor import PromptSceneAnalysisService
+from substitute.application.prompt_editor.scenes.workflow_analysis import (
+    PromptSceneAnalysisService,
+)
 from substitute.domain.links import PromptEndpoint, PromptEndpointIndex
 from substitute.domain.node_behavior import PromptRole
 

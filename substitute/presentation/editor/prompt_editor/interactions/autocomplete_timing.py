@@ -25,7 +25,7 @@ from typing import Literal, Protocol, cast
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeyEvent
 
-from substitute.application.prompt_editor import PromptDocumentView
+from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.presentation.editor.prompt_editor.autocomplete_refresh_intent import (
     PromptAutocompleteRefreshIntent,
 )

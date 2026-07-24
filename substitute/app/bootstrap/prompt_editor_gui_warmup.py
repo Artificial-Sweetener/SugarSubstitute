@@ -25,10 +25,12 @@ from typing import Any
 
 from sugarsubstitute_shared.localization import opaque_text
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.features.syntax_profile import (
+    prompt_syntax_profile_from_feature_profile,
+)
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
-    prompt_syntax_profile_from_feature_profile,
 )
 from substitute.app.bootstrap.startup_trace import trace_mark, trace_span
 from substitute.shared.logging.logger import get_logger, log_exception, log_timing

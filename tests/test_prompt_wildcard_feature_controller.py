@@ -26,13 +26,15 @@ from substitute.application.ports import (
     PromptWildcardReference,
     PromptWildcardResolution,
 )
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnostic,
     PromptDiagnosticKind,
     PromptDiagnosticSeverity,
+    PromptWildcardDiagnosticPayload,
+)
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
-    PromptWildcardDiagnosticPayload,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     CatalogSnapshotReadiness,

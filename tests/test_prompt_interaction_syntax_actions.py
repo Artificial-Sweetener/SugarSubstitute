@@ -24,17 +24,25 @@ from typing import Any, cast
 
 from PySide6.QtCore import Qt
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.editing.mutation_service import (
+    PromptMutation,
+    PromptMutationService,
+)
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptAdjustEmphasisAction,
     PromptAdjustEmphasisContentAction,
     PromptConsumeSyntaxAction,
-    PromptDocumentService,
-    PromptMutation,
-    PromptMutationService,
     PromptSetEmphasisWeightAction,
     PromptSetEmphasisWeightContentAction,
-    PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
 from substitute.presentation.editor.prompt_editor.commands import (

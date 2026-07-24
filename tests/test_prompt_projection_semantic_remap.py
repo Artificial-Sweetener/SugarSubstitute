@@ -20,26 +20,32 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnostic,
     PromptDiagnosticKind,
     PromptDiagnosticSeverity,
+    PromptSpellingDiagnosticPayload,
+)
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
-    PromptEmphasisRendererView,
     PromptEmphasisView,
-    PromptLoraRendererSpanView,
-    PromptLoraRendererView,
-    PromptLoraResolutionStatus,
     PromptLoraView,
     PromptSegmentView,
-    PromptSpellingDiagnosticPayload,
+    PromptSyntaxSpanView,
+    PromptWildcardView,
+)
+from substitute.application.prompt_editor.lora.resolution import (
+    PromptLoraResolutionStatus,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptEmphasisRendererView,
+    PromptLoraRendererSpanView,
+    PromptLoraRendererView,
     PromptSyntaxRendererView,
     PromptSyntaxRenderPlan,
-    PromptSyntaxSpanView,
     PromptWildcardRendererSpanView,
     PromptWildcardRendererView,
-    PromptWildcardView,
 )
 from substitute.presentation.editor.prompt_editor.projection.semantic_remap import (
     PromptProjectionSemanticRemapper,

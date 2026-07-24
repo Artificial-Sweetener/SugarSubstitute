@@ -18,11 +18,13 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfile,
+)
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
     PromptFeatureDecision,
-    PromptSyntaxProfile,
 )
 from substitute.presentation.editor.panel.prompt_profile_policy import (
     PanelPromptProfilePolicy,

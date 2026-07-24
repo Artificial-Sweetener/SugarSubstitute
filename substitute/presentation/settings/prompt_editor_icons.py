@@ -23,7 +23,7 @@ from typing import Final
 
 from qfluentwidgets.common.icon import FluentIconBase  # type: ignore[import-untyped]
 
-from substitute.domain.prompt.features import PromptEditorFeature
+from substitute.domain.prompt.features.models import PromptEditorFeature
 from substitute.presentation.resources.app_icon import AppIcon
 
 PROMPT_WHEEL_ADJUSTMENT_SETTINGS_ICON: Final = AppIcon.CURSOR_HOVER_20_REGULAR

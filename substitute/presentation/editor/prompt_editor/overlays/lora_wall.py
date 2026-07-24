@@ -25,7 +25,7 @@ from typing import Protocol
 from PySide6.QtCore import QPoint, QRect, QSize, Signal
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
     PromptLoraThumbnailVariant,
 )

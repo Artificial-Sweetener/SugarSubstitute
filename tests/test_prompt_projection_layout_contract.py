@@ -32,14 +32,20 @@ from PySide6.QtCore import QPointF, QRectF, QSizeF
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPalette
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
-    PromptDocumentService,
-    PromptLineDropTarget,
     PromptReorderChipView,
-    PromptReorderLayoutView,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfileService,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.reorder.views import (
+    PromptLineDropTarget,
+    PromptReorderLayoutView,
 )
 from substitute.domain.appearance import RgbColor, SemanticPalette
 from substitute.presentation.editor.prompt_editor.projection.builder import (

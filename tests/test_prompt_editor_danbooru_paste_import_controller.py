@@ -32,7 +32,9 @@ from substitute.application.danbooru import (
     DanbooruUrlImportService,
     DanbooruUrlKind,
 )
-from substitute.application.prompt_editor import PromptSourceNormalizationService
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
 from substitute.presentation.editor.prompt_editor.danbooru_paste_import import (
     PromptDanbooruPasteRequest,
 )

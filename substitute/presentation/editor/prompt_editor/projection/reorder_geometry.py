@@ -24,11 +24,13 @@ from typing import Protocol
 
 from PySide6.QtCore import QRectF, QSizeF
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.service import (
+    blank_line_drop_offsets,
+)
+from substitute.application.prompt_editor.reorder.views import (
     PromptGapBlankLineDropTarget,
     PromptReorderGapView,
     PromptReorderLayoutView,
-    blank_line_drop_offsets,
 )
 
 from .model import PromptProjectionDocument, PromptProjectionSelection

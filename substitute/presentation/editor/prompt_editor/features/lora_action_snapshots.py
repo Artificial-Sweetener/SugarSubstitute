@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass
 
-from substitute.application.prompt_editor import PromptScheduledLora
+from substitute.application.prompt_editor.lora.scheduled import PromptScheduledLora
 
 from ..async_work.scheduled_lora_dispatcher import (
     PromptScheduledLoraCachedContextSnapshot,

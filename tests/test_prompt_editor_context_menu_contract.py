@@ -39,13 +39,19 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
     TextEditMenu,
 )
 
-from substitute.application.prompt_editor import (
-    PromptEditorFeature,
-    PromptEditorFeatureProfile,
+from substitute.application.prompt_editor.diagnostics.wildcard import (
+    PromptWildcardDiagnosticProvider,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
+)
+from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
     PromptScheduledLoraService,
-    PromptWildcardDiagnosticProvider,
+)
+from substitute.domain.prompt.features.models import (
+    PromptEditorFeature,
+    PromptEditorFeatureProfile,
 )
 from substitute.application.danbooru import DanbooruWikiContentService
 from substitute.application.ports import (

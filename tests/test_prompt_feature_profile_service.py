@@ -21,16 +21,22 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.features.preferences import (
     PromptEditorPreferenceService,
+)
+from substitute.application.prompt_editor.features.profile import (
     PromptFeatureProfileService,
+)
+from substitute.application.prompt_editor.lora.effective_provider import (
     WorkflowPromptContext,
 )
-from substitute.domain.prompt import (
-    PROMPT_EDITOR_PREFERENCES_SCHEMA_VERSION,
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
-    PromptEditorPreferences,
     PromptFeatureDisabledReason,
+)
+from substitute.domain.prompt.preferences.models import (
+    PROMPT_EDITOR_PREFERENCES_SCHEMA_VERSION,
+    PromptEditorPreferences,
 )
 
 

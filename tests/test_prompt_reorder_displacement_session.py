@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QRectF
 
-from substitute.application.prompt_editor import PromptLineDropTarget
+from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
 from substitute.presentation.editor.prompt_editor.overlays.reorder_displacement_intent import (
     ReorderDisplacementIntent,
 )

@@ -30,17 +30,23 @@ from PySide6.QtGui import QPixmap, QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnostic,
     PromptDiagnosticKind,
     PromptDiagnosticSeverity,
     PromptDiagnosticSnapshot,
     PromptDuplicateSegmentDiagnosticPayload,
+    PromptSpellingDiagnosticPayload,
+)
+from substitute.application.prompt_editor.diagnostics.spellcheck_models import (
+    PromptSpellingSuggestionSet,
+)
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
-    PromptSourceNormalizationService,
-    PromptSpellingDiagnosticPayload,
-    PromptSpellingSuggestionSet,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.autocomplete_preview_state import (

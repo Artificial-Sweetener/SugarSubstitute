@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from substitute.application.prompt_editor import PromptEditorFeatureProfile
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandSourceIdentity,
 )

@@ -22,7 +22,7 @@ from collections.abc import Hashable
 from dataclasses import dataclass, field
 from typing import Generic, TypeVar
 
-from substitute.application.prompt_editor.prompt_literal_parenthesis_normalizer import (
+from substitute.application.prompt_editor.editing.literal_parentheses import (
     PromptGeneratedEmphasis,
 )
 

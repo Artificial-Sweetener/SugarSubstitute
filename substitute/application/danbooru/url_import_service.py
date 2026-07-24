@@ -29,7 +29,9 @@ from substitute.application.danbooru.models import (
     DanbooruUrlClassification,
     DanbooruUrlKind,
 )
-from substitute.application.prompt_editor import autocomplete_replacement_text
+from substitute.application.prompt_editor.autocomplete.query_service import (
+    autocomplete_replacement_text,
+)
 from substitute.domain.danbooru import (
     DanbooruLookupStatus,
     DanbooruPostLookupResult,

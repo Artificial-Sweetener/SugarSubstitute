@@ -27,7 +27,7 @@ from substitute.devtools.prompt_editor_performance.scenarios import (
     Scenario,
     scenarios,
 )
-from substitute.domain.prompt.features import PromptEditorFeature
+from substitute.domain.prompt.features.models import PromptEditorFeature
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]

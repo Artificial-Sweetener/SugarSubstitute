@@ -49,14 +49,20 @@ from substitute.application.ports import (
     PromptAutocompleteGateway,
     PromptWildcardCatalogGateway,
 )
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
-    PromptLoraCatalogLookup,
-    PromptScheduledLora,
-    PromptScheduledLoraService,
+from substitute.application.prompt_editor.diagnostics.spellcheck import (
     PromptSpellcheckService,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogLookup,
+)
+from substitute.application.prompt_editor.lora.scheduled import (
+    PromptScheduledLora,
+    PromptScheduledLoraService,
+)
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.editor.panel.factories import (
     choice_factory as _choice_factory,
 )

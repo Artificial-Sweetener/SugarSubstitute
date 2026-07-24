@@ -23,15 +23,15 @@ import random
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from substitute.domain.prompt import (
+from substitute.domain.prompt.document.parser import parse_prompt_document
+from substitute.domain.prompt.document.syntax import WildcardForm
+from substitute.domain.prompt.wildcards.models import (
     PromptWildcardCsvSource,
     PromptWildcardReplacementDetail,
     PromptWildcardResolution,
-    PromptWildcardSyntaxProfile,
     PromptWildcardTextSource,
-    WildcardForm,
-    parse_prompt_document,
 )
+from substitute.domain.prompt.wildcards.syntax import PromptWildcardSyntaxProfile
 
 
 class PromptWildcardSourceProvider(Protocol):

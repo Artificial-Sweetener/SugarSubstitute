@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from sugarsubstitute_shared.localization import render_source_application_text
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
     PromptScheduledLoraService,
 )

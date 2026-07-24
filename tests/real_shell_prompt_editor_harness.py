@@ -91,18 +91,20 @@ from substitute.application.ports import (
     PromptAutocompleteSuggestion,
     PromptWildcardCatalogGateway,
 )
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
-    PromptLoraCatalogLookup,
+from substitute.application.prompt_editor.diagnostics.spellcheck import (
     PromptSpellcheckService,
 )
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogLookup,
+)
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.application.user_presets import UserPresetService
 from substitute.application.workflows import WorkflowSessionService
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
 from substitute.domain.workflow import CubeState, WorkflowState
-from substitute.domain.prompt import PromptWheelAdjustmentMode
+from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
 from substitute.presentation.editor.panel.view import EditorPanel
 from substitute.presentation.editor.panel.overrides_controller import (
     GlobalOverridesManager,

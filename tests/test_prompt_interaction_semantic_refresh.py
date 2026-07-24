@@ -23,8 +23,8 @@ from typing import Any, cast
 
 import pytest
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
 )
 from substitute.presentation.editor.prompt_editor.async_work import (

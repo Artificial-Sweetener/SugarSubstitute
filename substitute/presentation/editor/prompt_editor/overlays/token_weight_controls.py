@@ -35,10 +35,12 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QApplication, QWidget
 from shiboken6 import isValid
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
-    PromptSyntaxRenderPlan,
     PromptSyntaxSpanView,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxRenderPlan,
 )
 
 from ..projection.model import (

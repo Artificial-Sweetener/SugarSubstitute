@@ -26,7 +26,7 @@ from PySide6.QtCore import QPoint, QPointF, QRect, QSize, Qt
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QApplication
 
-from substitute.application.prompt_editor import PromptReorderChipView
+from substitute.application.prompt_editor.document.views import PromptReorderChipView
 
 
 @dataclass(slots=True)

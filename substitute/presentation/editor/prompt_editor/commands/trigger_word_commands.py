@@ -21,11 +21,11 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Generic, TypeVar
 
-from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+from substitute.application.prompt_editor.editing.structured_text import (
     PromptStructuredTextReplacement,
     PromptStructuredTextMutationService,
 )
-from substitute.domain.prompt import SourceRange
+from substitute.domain.prompt.document.ranges import SourceRange
 
 from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptEditingSession,

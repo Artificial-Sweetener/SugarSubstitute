@@ -45,7 +45,7 @@ from .source_edit_commands import (
     PromptSourceTextEdit,
 )
 from .undo_stack import PromptUndoStack
-from substitute.application.prompt_editor.prompt_literal_parenthesis_normalizer import (
+from substitute.application.prompt_editor.editing.literal_parentheses import (
     PromptParenthesisTransition,
 )
 from substitute.shared.diagnostics.prompt_editor_work import (

@@ -21,7 +21,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from substitute.application.prompt_editor.prompt_text_ranges import (
+from substitute.application.prompt_editor.editing.text_ranges import (
     line_end_within_bounds,
     line_start_within_bounds,
     line_visible_start,
@@ -88,7 +88,8 @@ def test_prompt_text_ranges_has_no_qt_or_presentation_imports() -> None:
         / "substitute"
         / "application"
         / "prompt_editor"
-        / "prompt_text_ranges.py"
+        / "editing"
+        / "text_ranges.py"
     )
     syntax_tree = ast.parse(source_path.read_text(encoding="utf-8"))
 

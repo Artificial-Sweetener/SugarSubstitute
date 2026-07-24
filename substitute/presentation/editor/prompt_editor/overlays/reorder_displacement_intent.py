@@ -23,7 +23,7 @@ from typing import Literal
 
 from PySide6.QtCore import QPoint
 
-from substitute.application.prompt_editor import PromptReorderDropTarget
+from substitute.application.prompt_editor.reorder.views import PromptReorderDropTarget
 
 
 ReorderDisplacementInputSource = Literal["pointer", "keyboard"]

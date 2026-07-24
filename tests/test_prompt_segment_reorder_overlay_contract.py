@@ -30,9 +30,11 @@ from PySide6.QtCore import QElapsedTimer, QPoint, QPointF, QRect, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QScrollArea, QVBoxLayout, QWidget
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfileService,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
 from substitute.application.ports import (

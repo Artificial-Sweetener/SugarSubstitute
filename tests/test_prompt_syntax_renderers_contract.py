@@ -20,15 +20,21 @@ from __future__ import annotations
 
 from PySide6.QtCore import QPointF
 
-from substitute.application.prompt_editor import (
-    PromptAdjustEmphasisAction,
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
+    PromptSyntaxSpanView,
+)
+from substitute.application.prompt_editor.editing.syntax_actions import (
+    PromptAdjustEmphasisAction,
     PromptSyntaxAction,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfileService,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
-    PromptSyntaxSpanView,
-    PromptSyntaxProfileService,
 )
 from substitute.presentation.editor.prompt_editor.syntax_renderers import (
     PromptSyntaxRendererCoordinator,

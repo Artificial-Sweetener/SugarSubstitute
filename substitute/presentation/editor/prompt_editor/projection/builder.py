@@ -26,19 +26,19 @@ from hashlib import blake2s
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
 
-from substitute.application.prompt_editor.prompt_lora_diagnostics import (
+from substitute.application.prompt_editor.lora.diagnostics import (
     lora_prompt_context,
     lora_source_range_context,
 )
-from substitute.application.prompt_editor import (
-    PromptDocumentView,
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptEmphasisRendererView,
     PromptLoraRendererSpanView,
     PromptLoraRendererView,
     PromptSyntaxRenderPlan,
     PromptWildcardRendererView,
 )
-from substitute.application.prompt_editor.prompt_document_semantics import (
+from substitute.application.prompt_editor.document.semantics import (
     OrdinaryPromptDocumentSemantics,
     PromptDocumentSemantics,
 )

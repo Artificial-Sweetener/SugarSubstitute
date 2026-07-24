@@ -20,8 +20,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from substitute.application.prompt_editor import (
-    PromptReorderChipView,
+from substitute.application.prompt_editor.document.views import PromptReorderChipView
+from substitute.application.prompt_editor.reorder.views import (
     PromptReorderGapPlacement,
     PromptReorderLayoutView,
 )

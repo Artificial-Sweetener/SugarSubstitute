@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, Protocol, cast
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
     PromptTriggerWordIndex,
     PromptTriggerWordSuggestion,

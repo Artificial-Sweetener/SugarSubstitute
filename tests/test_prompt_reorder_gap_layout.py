@@ -21,14 +21,14 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from substitute.application.prompt_editor.prompt_reorder_gap_layout import (
+from substitute.application.prompt_editor.reorder.gap_layout import (
     gap_by_index,
     layout_view_from_rows_and_gaps,
     split_after_last_row_gap_for_insert,
     trailing_edge_separator_text_for_hidden_chip,
     with_trailing_edge_gap,
 )
-from substitute.application.prompt_editor.prompt_reorder_views import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptReorderGapPlacement,
     PromptReorderGapView,
     PromptReorderLayoutView,
@@ -41,7 +41,8 @@ GAP_LAYOUT_SOURCE = (
     / "substitute"
     / "application"
     / "prompt_editor"
-    / "prompt_reorder_gap_layout.py"
+    / "reorder"
+    / "gap_layout.py"
 )
 _FORBIDDEN_IMPORT_ROOTS = {
     "PySide6",

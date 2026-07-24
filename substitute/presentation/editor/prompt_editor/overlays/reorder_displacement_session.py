@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 
 from PySide6.QtCore import QRectF
 
-from substitute.application.prompt_editor import PromptReorderDropTarget
+from substitute.application.prompt_editor.reorder.views import PromptReorderDropTarget
 
 from .reorder_displacement_intent import (
     ReorderDisplacementInputSource,

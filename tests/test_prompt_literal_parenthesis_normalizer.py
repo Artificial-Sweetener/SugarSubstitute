@@ -21,10 +21,10 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.editing.literal_parentheses import (
     normalize_literal_parentheses_for_storage as facade_normalize_for_storage,
 )
-from substitute.application.prompt_editor.prompt_literal_parenthesis_normalizer import (
+from substitute.application.prompt_editor.editing.literal_parentheses import (
     normalize_literal_parentheses_for_storage,
     normalize_literal_parentheses_for_typed_edit,
 )
@@ -82,7 +82,8 @@ def test_literal_parenthesis_normalizer_has_no_qt_presentation_or_adapter_import
         / "substitute"
         / "application"
         / "prompt_editor"
-        / "prompt_literal_parenthesis_normalizer.py"
+        / "editing"
+        / "literal_parentheses.py"
     )
     syntax_tree = ast.parse(source_path.read_text(encoding="utf-8"))
 

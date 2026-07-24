@@ -25,8 +25,8 @@ from time import perf_counter
 from PySide6.QtCore import QObject, QTimer, Slot
 from shiboken6 import isValid
 
-from substitute.application.prompt_editor import (
-    PromptDocumentView,
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.ui_load_activity import (

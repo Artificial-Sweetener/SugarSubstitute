@@ -162,16 +162,18 @@ if TYPE_CHECKING:
         CivitaiMetadataGateway,
         RichChoiceResolver,
     )
-    from substitute.application.prompt_editor.effective_scheduled_lora_provider import (
-        RecipeWorkflowSerializer,
-        WorkflowPayloadCompiler,
-    )
-    from substitute.application.prompt_editor import (
+    from substitute.application.prompt_editor.lora.catalog_models import (
         PromptLoraCatalogLookup,
+    )
+    from substitute.application.prompt_editor.lora.effective_provider import (
+        RecipeWorkflowSerializer,
+        ScheduledLoraProvider,
+        WorkflowPayloadCompiler,
+        WorkflowPromptContext,
+    )
+    from substitute.application.prompt_editor.lora.scheduled import (
         PromptScheduledLora,
         PromptScheduledLoraService,
-        ScheduledLoraProvider,
-        WorkflowPromptContext,
     )
     from substitute.application.ports import (
         DanbooruCacheRepository,
@@ -619,7 +621,7 @@ class _LazyScheduledLoraProvider:
         """Build and cache the concrete scheduled-LoRA provider."""
 
         if self._provider is None:
-            from substitute.application.prompt_editor.effective_scheduled_lora_provider import (
+            from substitute.application.prompt_editor.lora.effective_provider import (
                 EffectiveScheduledLoraProvider,
             )
 
@@ -1325,43 +1327,43 @@ def _build_main_window_dependencies(
 
     record_dependency_phase("imports.application.model_metadata")
 
-    from substitute.application.prompt_editor.prompt_editor_preference_service import (
+    from substitute.application.prompt_editor.features.preferences import (
         PromptEditorPreferenceService,
     )
 
     record_dependency_phase("imports.application.prompt_editor.preferences")
 
-    from substitute.application.prompt_editor.prompt_feature_profile_service import (
+    from substitute.application.prompt_editor.features.profile import (
         PromptFeatureProfileService,
     )
 
     record_dependency_phase("imports.application.prompt_editor.feature_profile")
 
-    from substitute.application.prompt_editor.prompt_lora_catalog_service import (
+    from substitute.application.prompt_editor.lora.catalog import (
         PromptLoraCatalogService,
     )
 
     record_dependency_phase("imports.application.prompt_editor.lora_catalog")
 
-    from substitute.application.prompt_editor.prompt_scheduled_lora_service import (
+    from substitute.application.prompt_editor.lora.scheduled import (
         PromptScheduledLoraService,
     )
 
     record_dependency_phase("imports.application.prompt_editor.scheduled_lora")
 
-    from substitute.application.prompt_editor.prompt_spellcheck_candidates import (
+    from substitute.application.prompt_editor.diagnostics.spellcheck_candidates import (
         PromptSpellcheckCandidateService,
     )
 
     record_dependency_phase("imports.application.prompt_editor.spellcheck_candidates")
 
-    from substitute.application.prompt_editor.prompt_spellcheck_service import (
+    from substitute.application.prompt_editor.diagnostics.spellcheck import (
         PromptSpellcheckService,
     )
 
     record_dependency_phase("imports.application.prompt_editor.spellcheck")
 
-    from substitute.domain.prompt import PromptEditorFeature
+    from substitute.domain.prompt.features.models import PromptEditorFeature
 
     record_dependency_phase("imports.application.prompt_editor.domain_feature")
 

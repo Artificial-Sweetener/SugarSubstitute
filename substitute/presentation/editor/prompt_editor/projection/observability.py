@@ -26,7 +26,7 @@ import time
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QColor
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptLoraRendererView,
     PromptSyntaxRenderPlan,
 )

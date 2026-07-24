@@ -29,11 +29,11 @@ from PySide6.QtCore import QRectF
 from PySide6.QtGui import QRegion
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
-    PromptLineDropTarget,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
+from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
 from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionDisplayMode,
 )

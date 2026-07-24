@@ -23,12 +23,16 @@ from typing import Any, cast
 
 import pytest
 
-from substitute.application.prompt_editor import (
-    PromptEditorFeature,
-    PromptScheduledLoraService,
+from substitute.application.prompt_editor.diagnostics.spellcheck_models import (
     PromptSpellcheckSnapshot,
+)
+from substitute.application.prompt_editor.features.profile import (
     wildcard_management_prompt_feature_profile,
 )
+from substitute.application.prompt_editor.lora.scheduled import (
+    PromptScheduledLoraService,
+)
+from substitute.domain.prompt.features.models import PromptEditorFeature
 from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,

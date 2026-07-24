@@ -21,13 +21,13 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from substitute.application.prompt_editor.prompt_document_cache import (
+from substitute.application.prompt_editor.document.cache import (
     clear_prompt_document_caches,
 )
-from substitute.application.prompt_editor.prompt_document_projector import (
+from substitute.application.prompt_editor.document.projector import (
     PromptDocumentProjector,
 )
-from substitute.domain.prompt import parse_prompt_document
+from substitute.domain.prompt.document.parser import parse_prompt_document
 
 PROJECT_ROOT = Path(__file__).parents[1]
 PROJECTOR_SOURCE = (
@@ -35,7 +35,8 @@ PROJECTOR_SOURCE = (
     / "substitute"
     / "application"
     / "prompt_editor"
-    / "prompt_document_projector.py"
+    / "document"
+    / "projector.py"
 )
 _FORBIDDEN_IMPORT_ROOTS = {
     "PySide6",

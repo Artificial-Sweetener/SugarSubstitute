@@ -48,7 +48,9 @@ from substitute.application.onboarding import ComfyConnectionSettingsService
 from substitute.application.ports.danbooru_cache_repository import (
     DanbooruCacheRepository,
 )
-from substitute.application.prompt_editor import PromptEditorPreferenceService
+from substitute.application.prompt_editor.features.preferences import (
+    PromptEditorPreferenceService,
+)
 from substitute.presentation.resources.app_icon import AppIcon
 from substitute.presentation.settings.appearance_runtime_protocol import (
     AppearanceRuntimeProtocol,

@@ -23,13 +23,17 @@ from enum import Enum, auto
 from typing import Literal
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor import (
-    PromptLoraAutocompleteCandidate,
-    PromptLoraAutocompleteQuery,
-    PromptReorderLayoutView,
-    PromptReorderStateView,
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptSceneAutocompleteQuery,
     PromptWildcardAutocompleteQuery,
+)
+from substitute.application.prompt_editor.lora.autocomplete import (
+    PromptLoraAutocompleteCandidate,
+    PromptLoraAutocompleteQuery,
+)
+from substitute.application.prompt_editor.reorder.views import (
+    PromptReorderLayoutView,
+    PromptReorderStateView,
 )
 
 

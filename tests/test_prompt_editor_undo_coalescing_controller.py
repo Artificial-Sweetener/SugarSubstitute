@@ -21,7 +21,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from substitute.application.prompt_editor import PromptSourceNormalizationService
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandSourceRange,
     PromptCommandTextReplacement,

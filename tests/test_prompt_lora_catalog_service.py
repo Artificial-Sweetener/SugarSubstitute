@@ -23,14 +23,12 @@ from pathlib import Path
 from types import MappingProxyType
 
 from substitute.application.model_metadata import ModelCatalogService
-from substitute.application.prompt_editor import (
-    PromptLoraCatalogService,
+from substitute.application.prompt_editor.lora.catalog import PromptLoraCatalogService
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraThumbnailVariant,
 )
-from substitute.application.prompt_editor.prompt_lora_catalog_service import (
-    _find_lora_in_snapshot,
-)
-from substitute.application.prompt_editor.prompt_lora_diagnostics import (
+from substitute.application.prompt_editor.lora.catalog import _find_lora_in_snapshot
+from substitute.application.prompt_editor.lora.diagnostics import (
     lora_prompt_context,
     lora_source_range_context,
 )

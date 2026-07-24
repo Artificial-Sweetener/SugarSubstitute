@@ -71,11 +71,9 @@ from substitute.application.managed_text_assets import (
 )
 from substitute.presentation.widgets.menu_model import MenuItem, MenuModel
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
-    PromptWheelAdjustmentMode,
-)
-from substitute.application.prompt_editor.prompt_document_semantics import (
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
+from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
+from substitute.application.prompt_editor.document.semantics import (
     PromptDocumentSemantics,
 )
 from substitute.application.errors import SubstituteOperationContext

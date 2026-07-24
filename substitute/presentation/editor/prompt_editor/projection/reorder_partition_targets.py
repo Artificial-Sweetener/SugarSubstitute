@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
     PromptReorderLayoutView,

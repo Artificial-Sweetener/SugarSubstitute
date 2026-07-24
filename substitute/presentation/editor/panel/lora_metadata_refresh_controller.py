@@ -24,8 +24,8 @@ from typing import Any, Protocol, cast
 from PySide6.QtCore import QObject, Slot
 
 from substitute.application.model_metadata import ModelCatalogSnapshot
-from substitute.application.prompt_editor import (
-    PromptLoraCatalogService,
+from substitute.application.prompt_editor.lora.catalog import PromptLoraCatalogService
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogSnapshot,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor

@@ -24,7 +24,7 @@ from typing import Literal
 
 from PySide6.QtCore import QRectF
 
-from substitute.application.prompt_editor import PromptReorderLayoutView
+from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
 
 
 PromptReorderAnimationFallbackDisposition = Literal["immediate", "skipped"]

@@ -33,7 +33,7 @@ from PySide6.QtGui import (
     QPixmap,
 )
 
-from substitute.application.prompt_editor import PromptDiagnostic
+from substitute.application.prompt_editor.diagnostics.models import PromptDiagnostic
 
 from .layout_engine import PromptProjectionLayout
 from .model import PromptProjectionSelection

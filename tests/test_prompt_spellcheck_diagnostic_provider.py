@@ -20,13 +20,19 @@ from __future__ import annotations
 
 from typing import cast
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnosticKind,
-    PromptSpellcheckDiagnosticProvider,
-    PromptSpellcheckService,
-    PromptSpellcheckSnapshot,
     PromptSpellingDiagnosticPayload,
+)
+from substitute.application.prompt_editor.diagnostics.spellcheck import (
+    PromptSpellcheckService,
+)
+from substitute.application.prompt_editor.diagnostics.spellcheck_models import (
+    PromptSpellcheckSnapshot,
     PromptSpellingIssue,
+)
+from substitute.application.prompt_editor.diagnostics.spellcheck_provider import (
+    PromptSpellcheckDiagnosticProvider,
 )
 
 

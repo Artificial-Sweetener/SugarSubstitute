@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor.prompt_workflow_graph import (
+from substitute.application.prompt_editor.features.workflow_graph import (
     downstream_node_ids,
     prompt_node_ids,
     upstream_node_ids,

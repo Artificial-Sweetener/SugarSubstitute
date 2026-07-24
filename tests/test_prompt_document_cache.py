@@ -21,14 +21,14 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from substitute.application.prompt_editor.prompt_document_cache import (
+from substitute.application.prompt_editor.document.cache import (
     cached_prompt_document,
     cached_prompt_document_view,
     clear_prompt_document_caches,
     prewarm_prompt_document_views,
     store_prompt_document_view,
 )
-from substitute.application.prompt_editor.prompt_document_views import (
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
 )
@@ -98,7 +98,8 @@ def test_prompt_document_cache_has_no_qt_presentation_or_adapter_imports() -> No
         / "substitute"
         / "application"
         / "prompt_editor"
-        / "prompt_document_cache.py"
+        / "document"
+        / "cache.py"
     )
     syntax_tree = ast.parse(source_path.read_text(encoding="utf-8"))
 

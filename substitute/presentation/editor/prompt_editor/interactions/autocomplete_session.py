@@ -22,12 +22,14 @@ from dataclasses import dataclass
 from typing import Literal, cast
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteQuery,
-    PromptLoraAutocompleteCandidate,
-    PromptLoraAutocompleteQuery,
     PromptSceneAutocompleteQuery,
     PromptWildcardAutocompleteQuery,
+)
+from substitute.application.prompt_editor.lora.autocomplete import (
+    PromptLoraAutocompleteCandidate,
+    PromptLoraAutocompleteQuery,
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandSourceIdentity,

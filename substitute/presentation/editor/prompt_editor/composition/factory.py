@@ -26,24 +26,34 @@ from typing import Any, Protocol, cast
 from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
-    PromptLoraCatalogItem,
-    PromptLoraScheduleService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
+)
+from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogItem,
+)
+from substitute.application.prompt_editor.lora.schedule import PromptLoraScheduleService
+from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
     PromptScheduledLoraService,
-    PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
-from substitute.application.prompt_editor.prompt_document_projector import (
+from substitute.application.prompt_editor.document.projector import (
     PromptDocumentProjector,
 )
-from substitute.application.prompt_editor.prompt_autocomplete_query_service import (
+from substitute.application.prompt_editor.autocomplete.query_service import (
     PromptAutocompleteQueryService,
 )
-from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+from substitute.application.prompt_editor.editing.structured_text import (
     PromptStructuredTextMutationService,
 )
 from substitute.application.ports import (

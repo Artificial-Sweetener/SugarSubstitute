@@ -18,11 +18,15 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
-    PromptLoraResolutionStatus,
     PromptLoraThumbnailVariant,
+)
+from substitute.application.prompt_editor.lora.resolution import (
+    PromptLoraResolutionStatus,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
 from substitute.application.managed_text_assets.wildcard_text_document_semantics import (

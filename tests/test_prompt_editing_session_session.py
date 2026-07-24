@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import PromptSourceNormalizationService
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
 from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptSourceEditOrigin,
     PromptCursorState,

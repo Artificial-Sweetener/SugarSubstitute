@@ -21,24 +21,26 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import replace
 
-from substitute.application.prompt_editor import (
-    PromptDiagnostic,
+from substitute.application.prompt_editor.diagnostics.models import PromptDiagnostic
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
-    PromptEmphasisRendererView,
     PromptEmphasisView,
-    PromptLoraRendererSpanView,
-    PromptLoraRendererView,
     PromptLoraView,
     PromptRegionStructureView,
     PromptSegmentView,
-    PromptSyntaxRendererView,
-    PromptSyntaxRenderPlan,
     PromptSyntaxSpanView,
-    PromptWildcardRendererSpanView,
-    PromptWildcardRendererView,
     PromptWildcardView,
 )
-from substitute.application.prompt_editor.prompt_region_structure_edits import (
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptEmphasisRendererView,
+    PromptLoraRendererSpanView,
+    PromptLoraRendererView,
+    PromptSyntaxRendererView,
+    PromptSyntaxRenderPlan,
+    PromptWildcardRendererSpanView,
+    PromptWildcardRendererView,
+)
+from substitute.application.prompt_editor.editing.region_structure_edits import (
     rebuild_region_structure_after_edit,
     region_structure_edit_requires_rebuild,
     remap_region_structure_after_edit,

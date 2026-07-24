@@ -21,14 +21,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Generic, TypeAlias, TypeVar
 
-from substitute.application.prompt_editor import (
-    PromptDiagnostic,
-    PromptDiagnosticKind,
+from substitute.application.prompt_editor.diagnostics.duplicate_mutations import (
     PromptDiagnosticTextEdit,
-    PromptDuplicateSegmentDiagnosticPayload,
-    PromptSpellingDiagnosticPayload,
     emphasize_first_duplicate_segment_edits,
     remove_duplicate_segment_edits,
+)
+from substitute.application.prompt_editor.diagnostics.models import (
+    PromptDiagnostic,
+    PromptDiagnosticKind,
+    PromptDuplicateSegmentDiagnosticPayload,
+    PromptSpellingDiagnosticPayload,
 )
 from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptEditingSession,

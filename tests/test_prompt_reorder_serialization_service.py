@@ -21,20 +21,18 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from substitute.application.prompt_editor.prompt_document_projector import (
+from substitute.application.prompt_editor.document.projector import (
     PromptDocumentProjector,
 )
-from substitute.application.prompt_editor.prompt_reorder_projection_service import (
+from substitute.application.prompt_editor.reorder.projection import (
     PromptReorderProjectionService,
 )
-from substitute.application.prompt_editor.prompt_reorder_drop_service import (
-    PromptReorderDropService,
-)
-from substitute.application.prompt_editor.prompt_reorder_serialization_service import (
+from substitute.application.prompt_editor.reorder.drop import PromptReorderDropService
+from substitute.application.prompt_editor.reorder.serialization import (
     PromptReorderSerializationService,
     blank_line_drop_offsets,
 )
-from substitute.application.prompt_editor.prompt_reorder_views import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptLineDropTarget,
     PromptReorderGapPlacement,
     PromptReorderGapView,
@@ -48,7 +46,8 @@ SERIALIZATION_SERVICE_SOURCE = (
     / "substitute"
     / "application"
     / "prompt_editor"
-    / "prompt_reorder_serialization_service.py"
+    / "reorder"
+    / "serialization.py"
 )
 _FORBIDDEN_IMPORT_ROOTS = {
     "PySide6",

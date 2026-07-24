@@ -25,7 +25,9 @@ from typing import Any, Generic, TypeVar, cast
 from PySide6.QtWidgets import QApplication
 
 from substitute.application.model_metadata import ModelCatalogItem, ModelCatalogSnapshot
-from substitute.application.prompt_editor import PromptLoraCatalogSnapshot
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogSnapshot,
+)
 from substitute.presentation.editor.panel.lora_metadata_refresh_controller import (
     EditorPanelLoraMetadataRefreshController,
     EditorPanelLoraMetadataRefreshHost,

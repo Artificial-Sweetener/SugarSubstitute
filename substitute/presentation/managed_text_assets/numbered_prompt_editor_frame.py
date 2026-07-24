@@ -23,11 +23,9 @@ from PySide6.QtGui import QColor, QPainter, QPainterPath, QPaintEvent, QPen
 from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QWidget
 from qfluentwidgets import isDarkTheme, themeColor  # type: ignore[import-untyped]
 
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
-    PromptWheelAdjustmentMode,
-)
-from substitute.application.prompt_editor.prompt_document_semantics import (
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
+from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
+from substitute.application.prompt_editor.document.semantics import (
     PromptDocumentSemantics,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor
