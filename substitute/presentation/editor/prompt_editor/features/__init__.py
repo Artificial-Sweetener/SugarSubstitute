@@ -140,7 +140,6 @@ from .prompt_segment_preset_models import (
     PromptSegmentPresetSource,
     PromptSegmentPresetSourceSnapshot,
 )
-from .prompt_segment_preset_source import EditorPromptSegmentPresetMenuSource
 from .prompt_segment_selection import (
     PromptSegmentContextInsertState,
     PromptSegmentPresetHost,
@@ -261,7 +260,6 @@ __all__ = [
     "PromptLoraTokenContext",
     "PromptLoraTriggerWordsAction",
     "PromptLoraTriggerWordsPayload",
-    "EditorPromptSegmentPresetMenuSource",
     "PromptSegmentContextInsertState",
     "PromptSegmentPresetController",
     "PromptSegmentPresetDialogResult",

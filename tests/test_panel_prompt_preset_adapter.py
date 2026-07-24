@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Contract tests for editor saved prompt segment menu source composition."""
+"""Contract tests for the panel prompt-segment preset adapter."""
 
 from __future__ import annotations
 
@@ -33,11 +33,11 @@ from substitute.domain.user_presets import (
 from substitute.presentation.editor.panel.context.active_model_context import (
     PanelActiveModelContextController,
 )
-from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_source import (
-    EditorPromptSegmentPresetMenuSource,
-)
 from substitute.presentation.editor.panel.context.active_model_snapshot import (
     PanelActiveModelSnapshotController,
+)
+from substitute.presentation.editor.panel.prompt.preset_adapter import (
+    PanelPromptSegmentPresetAdapter,
 )
 
 
@@ -300,7 +300,7 @@ def _source(
     catalog: tuple[ModelCatalogItem, ...] = (),
     fail_catalog: bool = False,
     catalog_service: _Catalog | None = None,
-) -> EditorPromptSegmentPresetMenuSource:
+) -> PanelPromptSegmentPresetAdapter:
     """Return one menu source with deterministic service behavior."""
 
     ids = iter(("prompt:test-1", "prompt:test-2"))
@@ -315,7 +315,7 @@ def _source(
         model_catalog_service=catalog_lookup,
     )
     active_model_snapshots.refresh_from_cache()
-    return EditorPromptSegmentPresetMenuSource(
+    return PanelPromptSegmentPresetAdapter(
         user_preset_service=service,
         active_model_snapshots=active_model_snapshots,
     )

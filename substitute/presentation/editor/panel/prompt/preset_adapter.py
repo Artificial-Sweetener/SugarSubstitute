@@ -14,10 +14,16 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Adapt user prompt presets and prepared model scopes into menu data."""
+"""Adapt panel model context and persisted presets to the prompt-editor port."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
+from substitute.application.model_metadata import (
+    prompt_preset_listing_associations_for_catalog_item,
+    prompt_preset_scope_options_for_catalog_item,
+)
 from substitute.application.user_presets import (
     PromptStringPresetPayload,
     UserPreset,
@@ -25,10 +31,8 @@ from substitute.application.user_presets import (
     UserPresetService,
 )
 from substitute.presentation.editor.panel.context.active_model_snapshot import (
+    PanelActiveModelSnapshot,
     PanelActiveModelSnapshotController,
-)
-from substitute.presentation.editor.panel.menus.preset_model_scope_policy import (
-    prompt_segment_model_scopes,
 )
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
     PromptSegmentPresetMenuItem,
@@ -40,8 +44,16 @@ from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset
 from substitute.presentation.widgets.save_preset_dialog import PresetSaveScope
 
 
-class EditorPromptSegmentPresetMenuSource(PromptSegmentPresetSource):
-    """Provide saved prompt segment menu data for one live editor panel."""
+@dataclass(frozen=True, slots=True)
+class _PromptSegmentModelScopes:
+    """Describe panel-derived prompt-segment listing and saving scopes."""
+
+    listing_associations: tuple[UserPresetAssociation, ...]
+    save_scopes: tuple[PresetSaveScope, ...]
+
+
+class PanelPromptSegmentPresetAdapter(PromptSegmentPresetSource):
+    """Provide prompt segment presets for one panel's prepared model context."""
 
     def __init__(
         self,
@@ -49,7 +61,7 @@ class EditorPromptSegmentPresetMenuSource(PromptSegmentPresetSource):
         user_preset_service: UserPresetService,
         active_model_snapshots: PanelActiveModelSnapshotController,
     ) -> None:
-        """Store persistence and prepared active-model collaborators."""
+        """Store persistence and prepared panel-context collaborators."""
 
         self._user_preset_service = user_preset_service
         self._active_model_snapshots = active_model_snapshots
@@ -58,7 +70,7 @@ class EditorPromptSegmentPresetMenuSource(PromptSegmentPresetSource):
         """Return prompt segments for prepared exact, family, and Global scopes."""
 
         active_model_snapshot = self._active_model_snapshots.snapshot
-        scopes = prompt_segment_model_scopes(active_model_snapshot)
+        scopes = _prompt_segment_model_scopes(active_model_snapshot)
         scope_titles = {
             _association_key(scope.association): scope.title
             for scope in scopes.save_scopes
@@ -101,6 +113,30 @@ class EditorPromptSegmentPresetMenuSource(PromptSegmentPresetSource):
         )
 
 
+def _prompt_segment_model_scopes(
+    snapshot: PanelActiveModelSnapshot,
+) -> _PromptSegmentModelScopes:
+    """Derive prompt preset scopes from one prepared panel model snapshot."""
+
+    options = prompt_preset_scope_options_for_catalog_item(
+        snapshot.catalog_item,
+        model_kind=snapshot.model_kind,
+    )
+    return _PromptSegmentModelScopes(
+        listing_associations=prompt_preset_listing_associations_for_catalog_item(
+            snapshot.catalog_item
+        ),
+        save_scopes=tuple(
+            PresetSaveScope(
+                title=option.title,
+                full_label=option.full_label,
+                association=option.association,
+            )
+            for option in options
+        ),
+    )
+
+
 def _menu_items_for_presets(
     presets: tuple[UserPreset, ...],
 ) -> tuple[PromptSegmentPresetMenuItem, ...]:
@@ -132,4 +168,4 @@ def _association_key(
     return (association.scope, association.provider, association.key)
 
 
-__all__ = ["EditorPromptSegmentPresetMenuSource"]
+__all__ = ["PanelPromptSegmentPresetAdapter"]
