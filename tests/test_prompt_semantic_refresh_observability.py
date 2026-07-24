@@ -29,6 +29,9 @@ from substitute.presentation.editor.prompt_editor.async_work import (
     PromptSemanticRefreshRequest,
     semantic_refresh_request_context,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 from tests.prompt_autocomplete_test_helpers import (
     EmptyPromptWildcardCatalogGateway,
     prompt_syntax_profile,
@@ -47,8 +50,10 @@ def test_semantic_refresh_context_counts_lora_document_and_render_spans() -> Non
         identity=PromptAsyncResultIdentity(
             request_id=3,
             editor_session_id="editor-session",
-            source_revision=7,
-            source_length=len(text),
+            source_identity=PromptSourceIdentity(
+                source_revision=7,
+                source_length=len(text),
+            ),
             feature_profile_id=("lora",),
             scene_context_id="scene-a",
             cube_context_id="cube-a",

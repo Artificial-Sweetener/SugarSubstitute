@@ -40,6 +40,14 @@ from substitute.application.prompt_editor.document.views import (
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
+from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
+    PromptSemanticSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSemanticIdentity,
+    PromptSemanticRevision,
+    PromptSourceIdentity,
+)
 from substitute.presentation.editor.prompt_editor.projection.surface import (
     PromptProjectionSurface,
 )
@@ -483,32 +491,38 @@ def _pending_update_at(
 ) -> PendingProjectionUpdate:
     """Build a pending update with an optional explicit queue time."""
 
-    update = PendingProjectionUpdate.create(
-        document_view=PromptDocumentView(
-            source_text=text,
-            segments=(),
-            emphasis_spans=(),
-            wildcard_spans=(),
-            lora_spans=(),
-            syntax_spans=(),
-            region_structure=PromptRegionStructureView.empty(len(text)),
-            has_trailing_comma=False,
+    document_view = PromptDocumentView(
+        source_text=text,
+        segments=(),
+        emphasis_spans=(),
+        wildcard_spans=(),
+        lora_spans=(),
+        syntax_spans=(),
+        region_structure=PromptRegionStructureView.empty(len(text)),
+        has_trailing_comma=False,
+    )
+    snapshot = PromptSemanticSnapshot(
+        identity=PromptSemanticIdentity(
+            source=PromptSourceIdentity(source_revision, len(text)),
+            semantic_revision=PromptSemanticRevision(source_revision),
         ),
+        document=document_view,
         render_plan=PromptSyntaxRenderPlan(
             syntax_spans=(),
             renderer_views=(),
         ),
+    )
+    update = PendingProjectionUpdate.create(
+        snapshot=snapshot,
         reason="test",
-        source_revision=source_revision,
     )
     if queued_at is None:
         return update
     return PendingProjectionUpdate(
-        document_view=update.document_view,
-        render_plan=update.render_plan,
+        snapshot=update.snapshot,
         reason="safe_typing",
-        source_revision=update.source_revision,
         queued_at=queued_at,
+        previous_snapshot=update.previous_snapshot,
     )
 
 

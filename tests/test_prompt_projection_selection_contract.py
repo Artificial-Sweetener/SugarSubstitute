@@ -1371,7 +1371,7 @@ def test_projection_selection_paints_selected_empty_lines_for_clarity(
     surface = surface_for(box)
     blank_line = next(
         line
-        for line in surface._layout._snapshot.lines
+        for line in surface._layout.snapshot.lines
         if not line.fragments  # noqa: SLF001
     )
     selection_rects = surface._layout.selection_rects(surface._selection())  # noqa: SLF001
@@ -1414,7 +1414,7 @@ def test_projection_selection_shift_up_from_empty_line_paints_one_break_marker(
 
     assert box.textCursor().selectedText() == "\n"
     assert len(painted_line_tops) == 1
-    assert painted_line_tops == {round(surface._layout._snapshot.lines[0].top, 1)}  # noqa: SLF001
+    assert painted_line_tops == {round(surface._layout.snapshot.lines[0].top, 1)}  # noqa: SLF001
 
 
 def test_projection_selection_does_not_paint_blank_line_above_next_line_selection(
@@ -1437,7 +1437,7 @@ def test_projection_selection_does_not_paint_blank_line_above_next_line_selectio
     selection_rects = surface._layout.selection_rects(surface._selection())  # noqa: SLF001
     empty_line = next(
         line
-        for line in surface._layout._snapshot.lines
+        for line in surface._layout.snapshot.lines
         if not line.fragments and line.source_start < line_start  # noqa: SLF001
     )
 
@@ -1512,7 +1512,7 @@ def test_projection_selection_paints_empty_line_when_drag_endpoint_lands_on_it(
     surface = surface_for(box)
     blank_line = next(
         line
-        for line in surface._layout._snapshot.lines
+        for line in surface._layout.snapshot.lines
         if not line.fragments  # noqa: SLF001
     )
     selection_rects = surface._layout.selection_rects(surface._selection())  # noqa: SLF001

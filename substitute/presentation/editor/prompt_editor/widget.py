@@ -50,14 +50,25 @@ from PySide6.QtWidgets import QScrollBar, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     TextEdit as QFluentTextEdit,
 )
+
 from substitute.application.danbooru import (
     DanbooruImagePreviewService,
     DanbooruRecentPostsService,
     DanbooruUrlImportService,
     DanbooruWikiContentService,
 )
+from substitute.application.model_metadata import ThumbnailAssetRepository
+from substitute.application.ports import (
+    PromptAutocompleteGateway,
+    PromptWildcardCatalogGateway,
+)
 from substitute.application.prompt_editor.diagnostics.spellcheck import (
     PromptSpellcheckService,
+)
+from substitute.application.prompt_editor.document.semantics import (
+    OrdinaryPromptDocumentSemantics,
+    PromptDocumentSemantics,
+    PromptDocumentSemanticsController,
 )
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.editing.mutation_service import (
@@ -79,27 +90,17 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 )
 from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
-from substitute.application.prompt_editor.document.semantics import (
-    OrdinaryPromptDocumentSemantics,
-    PromptDocumentSemantics,
-    PromptDocumentSemanticsController,
-)
-from substitute.application.ports import (
-    PromptAutocompleteGateway,
-    PromptWildcardCatalogGateway,
-)
-from substitute.application.model_metadata import ThumbnailAssetRepository
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
 from substitute.presentation.widgets.wheel_permission import wheel_event_is_allowed
 from substitute.shared.logging.logger import get_logger
 
+from .autocomplete_preview_state import PromptAutocompletePreviewState
 from .commands import (
     PromptAutocompleteAcceptance,
     PromptCommandResult,
     PromptCommandSourceRange,
-    PromptCommandSourceIdentity,
     PromptCommandTextReplacement,
     PromptDiagnosticAction,
     PromptDiagnosticCommandResult,
@@ -107,11 +108,6 @@ from .commands import (
     PromptReorderLayoutCommitRequest,
     PromptWeightActionRequest,
     PromptWeightCommandResult,
-)
-from .editing_session import PromptSourceEditOrigin
-from .overlays import (
-    PromptAutocompletePanel,
-    PromptTokenWeightControls,
 )
 from .composition import (
     DanbooruWikiLookupDispatcherFactory,
@@ -127,12 +123,18 @@ from .composition import (
     qt_object_is_alive,
     wire_prompt_editor_construction_lifecycle,
 )
-from .autocomplete_preview_state import PromptAutocompletePreviewState
+from .core.state.revisions import PromptSourceIdentity
+from .editing_session import PromptSourceEditOrigin
 from .features import (
     PromptContextMenuActionController,
     PromptDanbooruPasteImportController,
+    PromptDiagnosticsFeatureController,
+    PromptFeatureProfileController,
     PromptLoraMetadataFeatureController,
     PromptLoraTriggerWordController,
+    PromptSceneFeatureController,
+    PromptSearchFeatureController,
+    PromptSegmentPresetSource,
 )
 from .interactions import (
     PromptContextMenuRequestPresenter,
@@ -144,44 +146,41 @@ from .interactions import (
     PromptReorderOverlayPort,
     PromptWheelScrollResult,
 )
+from .mime_data_policy import (
+    mime_data_has_prompt_plain_text,
+    prompt_plain_text_from_mime_data,
+)
+from .overlays import (
+    PromptAutocompletePanel,
+    PromptTokenWeightControls,
+)
 from .projection.model import (
     PromptProjectionDisplayMode,
     PromptProjectionToken,
     PromptWeightControlIdentity,
 )
+from .projection.reorder_chip_geometry import PromptReorderChipGeometrySnapshot
+from .projection.reorder_placement_geometry import PromptReorderPlacementSnapshot
+from .projection.reorder_preview import PromptReorderPreviewState
+from .projection.reorder_surface_chrome import PromptReorderSurfaceChromeChip
+from .projection.reorder_visual_snapshot import PromptReorderProjectionPaintSnapshot
+from .projection.selection_geometry import PromptProjectionSourceLineRect
 from .projection.session import (
     PromptEmphasisAdjustmentOwner,
     PromptEmphasisAdjustmentSession,
     PromptEmphasisCaretBoundary,
     PromptTransientNeutralEmphasisOwner,
 )
-from .mime_data_policy import (
-    mime_data_has_prompt_plain_text,
-    prompt_plain_text_from_mime_data,
-)
-from .projection.selection_geometry import PromptProjectionSourceLineRect
-from .projection.reorder_chip_geometry import PromptReorderChipGeometrySnapshot
-from .projection.reorder_placement_geometry import PromptReorderPlacementSnapshot
-from .projection.reorder_preview import PromptReorderPreviewState
-from .projection.reorder_visual_snapshot import PromptReorderProjectionPaintSnapshot
-from .projection.reorder_surface_chrome import PromptReorderSurfaceChromeChip
 from .shell import (
     PromptEditorShell,
     PromptFillPlane,
     PromptResizeHandle,
-    PromptShellContextMenuController,
     PromptShellChromeSurface,
+    PromptShellContextMenuController,
     PromptShellQFluentChrome,
     PromptShellScrollDelegate,
     PromptShellScrollSurface,
     PromptShellSizingController,
-)
-from .features import (
-    PromptDiagnosticsFeatureController,
-    PromptFeatureProfileController,
-    PromptSegmentPresetSource,
-    PromptSceneFeatureController,
-    PromptSearchFeatureController,
 )
 
 _LOGGER = get_logger("presentation.editor.prompt_editor")
@@ -917,7 +916,7 @@ class PromptEditor(QFluentTextEdit):
 
         return self._surface.textCursor()
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return the current source identity for prepared prompt commands."""
 
         return self._command_adapter.prompt_command_source_identity()
@@ -2020,33 +2019,6 @@ class PromptEditor(QFluentTextEdit):
 
         resize_handle = getattr(self, "_resize_handle", None)
         return resize_handle if isinstance(resize_handle, QWidget) else None
-
-
-def _prompt_editor_key_category(event: QKeyEvent) -> str:
-    """Return a compact diagnostic category for one prompt-editor key event."""
-
-    key = event.key()
-    if key in {Qt.Key.Key_Backspace, Qt.Key.Key_Delete}:
-        return "backspace"
-    if key in {Qt.Key.Key_Return, Qt.Key.Key_Enter}:
-        return "enter"
-    if key in {
-        Qt.Key.Key_Left,
-        Qt.Key.Key_Right,
-        Qt.Key.Key_Up,
-        Qt.Key.Key_Down,
-        Qt.Key.Key_Home,
-        Qt.Key.Key_End,
-        Qt.Key.Key_PageUp,
-        Qt.Key.Key_PageDown,
-    }:
-        return "line_navigation"
-    text = event.text()
-    if text in {"(", ")", "{", "}", "[", "]", "<", ">", ":", "\\", "*", ","}:
-        return "syntax_sensitive"
-    if len(text) == 1 and text.isprintable():
-        return "plain_text"
-    return "other"
 
 
 def _emphasis_shortcut_should_mute_autocomplete(event: QKeyEvent) -> bool:

@@ -27,6 +27,21 @@ from substitute.application.prompt_editor.document.views import (
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
+from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
+    PromptSemanticSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptLayoutIdentity,
+    PromptLayoutRevision,
+    PromptProjectionIdentity,
+    PromptProjectionRevision,
+    PromptSemanticIdentity,
+    PromptSemanticRevision,
+    PromptSourceIdentity,
+)
+from substitute.presentation.editor.prompt_editor.core.state.semantic_state import (
+    PromptEditorSemanticSnapshot,
+)
 from substitute.presentation.editor.prompt_editor.projection.update_scheduler import (
     PendingProjectionUpdate,
 )
@@ -56,7 +71,7 @@ def test_freshness_controller_preserves_committed_metrics_while_stale_safe() -> 
         controller.sync_layout_metrics(
             commit_projection=True,
             reorder_preview_active=False,
-            source_revision=1,
+            layout_identity=_layout_identity(source_revision=1),
             content_height=100.0,
             content_width=220.0,
             layout_width=320.0,
@@ -69,7 +84,9 @@ def test_freshness_controller_preserves_committed_metrics_while_stale_safe() -> 
     controller.mark_source_text_changed(deferrable_projection=True, source_revision=2)
 
     assert _freshness(controller) is ProjectionFreshness.STALE_SAFE
-    assert controller.fill_band_source_revision(current_source_revision=2) == 1
+    assert controller.fill_band_source_identity(
+        current_source_identity=PromptSourceIdentity(source_revision=2),
+    ) == PromptSourceIdentity(source_revision=1, source_length=0)
     assert (
         controller.fill_band_source_text(
             committed_source_text="committed",
@@ -82,7 +99,7 @@ def test_freshness_controller_preserves_committed_metrics_while_stale_safe() -> 
         controller.sync_layout_metrics(
             commit_projection=False,
             reorder_preview_active=False,
-            source_revision=2,
+            layout_identity=_layout_identity(source_revision=2),
             content_height=150.0,
             content_width=240.0,
             layout_width=360.0,
@@ -97,7 +114,7 @@ def test_freshness_controller_preserves_committed_metrics_while_stale_safe() -> 
         controller.sync_layout_metrics(
             commit_projection=True,
             reorder_preview_active=False,
-            source_revision=2,
+            layout_identity=_layout_identity(source_revision=2),
             content_height=150.0,
             content_width=240.0,
             layout_width=360.0,
@@ -119,7 +136,7 @@ def test_freshness_controller_schedules_safe_typing_only_when_unblocked() -> Non
     controller.sync_layout_metrics(
         commit_projection=True,
         reorder_preview_active=False,
-        source_revision=1,
+        layout_identity=_layout_identity(source_revision=1),
         content_height=100.0,
         content_width=220.0,
         layout_width=320.0,
@@ -136,13 +153,15 @@ def test_freshness_controller_schedules_safe_typing_only_when_unblocked() -> Non
     )
 
     controller.schedule_safe_typing_update(
-        document_view=_document_view("alpha beta"),
-        render_plan=PromptSyntaxRenderPlan(syntax_spans=(), renderer_views=()),
-        source_revision=2,
-        previous_document_view=_document_view("alpha"),
-        previous_render_plan=PromptSyntaxRenderPlan(
-            syntax_spans=(),
-            renderer_views=(),
+        snapshot=_semantic_snapshot(
+            "alpha beta",
+            source_revision=2,
+            semantic_revision=2,
+        ),
+        previous_snapshot=_semantic_snapshot(
+            "alpha",
+            source_revision=1,
+            semantic_revision=1,
         ),
     )
 
@@ -179,7 +198,7 @@ def test_freshness_controller_source_rebuild_deferral_reasons() -> None:
     controller.sync_layout_metrics(
         commit_projection=True,
         reorder_preview_active=False,
-        source_revision=1,
+        layout_identity=_layout_identity(source_revision=1),
         content_height=100.0,
         content_width=220.0,
         layout_width=320.0,
@@ -224,7 +243,7 @@ def test_freshness_controller_fallback_deferral_requires_safe_context() -> None:
     controller.sync_layout_metrics(
         commit_projection=True,
         reorder_preview_active=False,
-        source_revision=1,
+        layout_identity=_layout_identity(source_revision=1),
         content_height=100.0,
         content_width=220.0,
         layout_width=320.0,
@@ -318,4 +337,42 @@ def _document_view(source_text: str) -> PromptDocumentView:
         syntax_spans=(),
         region_structure=PromptRegionStructureView.empty(len(source_text)),
         has_trailing_comma=False,
+    )
+
+
+def _semantic_snapshot(
+    source_text: str,
+    *,
+    source_revision: int,
+    semantic_revision: int,
+) -> PromptEditorSemanticSnapshot:
+    """Return one semantic publication with explicit source lineage."""
+
+    return PromptSemanticSnapshot(
+        identity=PromptSemanticIdentity(
+            source=PromptSourceIdentity(source_revision, len(source_text)),
+            semantic_revision=PromptSemanticRevision(semantic_revision),
+        ),
+        document=_document_view(source_text),
+        render_plan=PromptSyntaxRenderPlan(
+            syntax_spans=(),
+            renderer_views=(),
+        ),
+    )
+
+
+def _layout_identity(*, source_revision: int) -> PromptLayoutIdentity:
+    """Return layout lineage representing one committed source revision."""
+
+    semantic = PromptSemanticIdentity(
+        source=PromptSourceIdentity(source_revision, 0),
+        semantic_revision=PromptSemanticRevision(source_revision),
+    )
+    projection = PromptProjectionIdentity(
+        semantic=semantic,
+        projection_revision=PromptProjectionRevision(source_revision),
+    )
+    return PromptLayoutIdentity(
+        projection=projection,
+        layout_revision=PromptLayoutRevision(source_revision),
     )

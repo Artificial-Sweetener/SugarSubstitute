@@ -122,9 +122,9 @@ def _editor_is_current(editor: Any, expected_source: str) -> bool:
     semantic_refresh = interaction._semantic_refresh
     return bool(
         editor.toPlainText() == expected_source
-        and surface._projection_document.source_text == expected_source
+        and surface.projection_document().source_text == expected_source
         and not surface._projection_freshness_controller.has_pending_update()
-        and interaction._syntax_state.document_view.source_text == expected_source
+        and surface.editor_state.semantic.document.source_text == expected_source
         and semantic_refresh._pending_request is None
         and semantic_refresh._active_task_identity is None
     )

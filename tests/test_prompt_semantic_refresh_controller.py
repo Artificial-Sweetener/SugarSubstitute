@@ -44,6 +44,9 @@ from substitute.presentation.editor.prompt_editor.async_work import (
     PromptSemanticRefreshResult,
     PromptStaleResultGuard,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 from tests.prompt_autocomplete_test_helpers import (
     EmptyPromptWildcardCatalogGateway,
     prompt_syntax_profile,
@@ -60,10 +63,12 @@ class _FakeSemanticHost:
         self.document_source_text = source_text
         self.editor_session_id = "editor-session"
         self.source_revision = 1
+        self.document_source_revision = 1
         self.feature_profile_id = ("emphasis", "wildcard")
         self.scene_context_id: str | None = "scene-a"
         self.cube_context_id: str | None = "cube-a"
         self.applied_requests: list[PromptSemanticRefreshRequest] = []
+        self.rebase_calls = 0
 
     def current_semantic_source_text(self) -> str:
         """Return the current source text."""
@@ -75,6 +80,20 @@ class _FakeSemanticHost:
 
         return self.document_source_text
 
+    def current_semantic_is_current(self) -> bool:
+        """Return whether cached semantics use the live source revision."""
+
+        return self.document_source_revision == self.source_revision
+
+    def rebase_current_semantic_source_identity(self) -> bool:
+        """Rebase exact same-text semantics without rebuilding them."""
+
+        self.rebase_calls += 1
+        if self.document_source_text != self.source_text:
+            return False
+        self.document_source_revision = self.source_revision
+        return True
+
     def current_semantic_async_identity(
         self,
         *,
@@ -85,8 +104,10 @@ class _FakeSemanticHost:
         return PromptAsyncResultIdentity(
             request_id=request_id,
             editor_session_id=self.editor_session_id,
-            source_revision=self.source_revision,
-            source_length=len(self.source_text),
+            source_identity=PromptSourceIdentity(
+                source_revision=self.source_revision,
+                source_length=len(self.source_text),
+            ),
             feature_profile_id=self.feature_profile_id,
             scene_context_id=self.scene_context_id,
             cube_context_id=self.cube_context_id,
@@ -100,6 +121,7 @@ class _FakeSemanticHost:
 
         self.applied_requests.append(request)
         self.document_source_text = request.source_text
+        self.document_source_revision = self.source_revision
 
 
 class _FakeSemanticDebouncer:
@@ -305,7 +327,10 @@ def test_semantic_refresh_coalesces_latest_request_identity_and_reason() -> None
     assert applied.source_text == "gamma"
     assert applied.reason == "second_edit"
     assert applied.coalesced_count == 1
-    assert applied.identity.source_revision == 3
+    assert applied.identity.source_identity == PromptSourceIdentity(
+        source_revision=3,
+        source_length=len(host.source_text),
+    )
     assert applied.identity.feature_profile_id == ("emphasis", "wildcard")
     assert applied.identity.scene_context_id == "scene-a"
     assert applied.identity.cube_context_id == "cube-a"
@@ -330,6 +355,37 @@ def test_semantic_refresh_rejects_stale_source_revision_even_when_text_matches(
     assert "prompt_semantic_refresh.dropped" in caplog.text
     assert "identity_mismatch" in caplog.text
     assert "source_revision" in caplog.text
+
+
+def test_semantic_refresh_flush_rebases_same_text_under_new_source_identity() -> None:
+    """Avoid parsing when undo restores exact semantic text at a new revision."""
+
+    host = _FakeSemanticHost(source_text="alpha")
+    controller, debouncer, channel = _build_controller(host)
+    host.source_revision = 2
+
+    controller.flush(reason="same_text_undo")
+
+    assert host.rebase_calls == 1
+    assert host.current_semantic_is_current()
+    assert not debouncer.is_pending
+    assert channel.handles == []
+
+
+def test_same_text_rebase_cancels_queued_work_before_adopting_source_identity() -> None:
+    """Keep a same-text source advance from retaining obsolete async work."""
+
+    host = _FakeSemanticHost(source_text="alpha")
+    controller, debouncer, channel = _build_controller(host)
+    controller.queue_source_changed("alpha", reason="edit")
+    host.source_revision = 2
+
+    controller.rebase_same_text_source_identity()
+
+    assert host.rebase_calls == 1
+    assert host.current_semantic_is_current()
+    assert debouncer.cancel_reasons == ["same_text_source_identity_changed"]
+    assert channel.cancel_reasons == ["same_text_source_identity_changed"]
 
 
 def test_semantic_refresh_rejects_stale_scene_context(

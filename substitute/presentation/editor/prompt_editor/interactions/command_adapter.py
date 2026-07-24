@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable
 from typing import Any, Protocol, cast
 
@@ -40,7 +44,6 @@ from substitute.domain.prompt.document.ranges import SourceRange
 from ..commands import (
     PromptAutocompleteAcceptance,
     PromptCommandResult,
-    PromptCommandSourceIdentity,
     PromptCommandSourceRange,
     PromptCommandTextReplacement,
     PromptDiagnosticAction,
@@ -85,7 +88,7 @@ class PromptCommandContextInsertState(Protocol):
 class PromptCommandExecutionPort(Protocol):
     """Describe the current executor behind host-facing prompt commands."""
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return the current source identity for prepared commands."""
 
     def execute_autocomplete_acceptance(
@@ -175,7 +178,7 @@ class PromptTriggerWordInsertionExecutor(Protocol):
         self,
         *,
         trigger_words: str,
-        source_identity: PromptCommandSourceIdentity,
+        source_identity: PromptSourceIdentity,
     ) -> PromptCommandResult[object]:
         """Insert trigger words through the identity-safe command boundary."""
 
@@ -187,8 +190,7 @@ class PromptEditorCommandAdapter:
         self,
         *,
         executor: PromptCommandExecutionPort,
-        source_identity_provider: Callable[[], PromptCommandSourceIdentity]
-        | None = None,
+        source_identity_provider: Callable[[], PromptSourceIdentity] | None = None,
         cursor_provider: Callable[[], PromptCommandCursor],
         context_insert_state_provider: Callable[[], PromptCommandContextInsertState],
         focus_restorer: Callable[[], None],
@@ -205,7 +207,7 @@ class PromptEditorCommandAdapter:
         self._source_text_provider = source_text_provider
         self._structured_text_mutations = structured_text_mutations
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return the current source identity for prepared prompt commands."""
 
         if self._source_identity_provider is not None:
@@ -294,7 +296,7 @@ class PromptEditorCommandAdapter:
         self,
         *,
         trigger_words: str,
-        source_identity: PromptCommandSourceIdentity,
+        source_identity: PromptSourceIdentity,
     ) -> PromptCommandResult[object]:
         """Insert trigger words at a prompt-safe context-menu boundary."""
 

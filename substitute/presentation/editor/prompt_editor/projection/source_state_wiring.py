@@ -24,6 +24,7 @@ from typing import cast
 from PySide6.QtCore import QObject
 
 from .freshness_controller import PromptProjectionFreshnessController
+from .frame_state import PromptProjectionFrameStatePublisher
 from .incremental_apply_controller import (
     PromptProjectionIncrementalApplyController,
     PromptProjectionIncrementalApplyHost,
@@ -75,6 +76,7 @@ def build_prompt_projection_source_state_owners(
     host: object,
     *,
     parent: QObject,
+    frame_state: PromptProjectionFrameStatePublisher,
 ) -> PromptProjectionSourceStateOwners:
     """Build projection source-state owners around a viewport/paint host."""
 
@@ -86,10 +88,12 @@ def build_prompt_projection_source_state_owners(
         parent=parent,
     )
     incremental_apply_controller = PromptProjectionIncrementalApplyController(
-        cast(PromptProjectionIncrementalApplyHost, host)
+        cast(PromptProjectionIncrementalApplyHost, host),
+        frame_state=frame_state,
     )
     prompt_state_applier = PromptProjectionPromptStateApplier(
-        cast(PromptProjectionPromptStateHost, host)
+        cast(PromptProjectionPromptStateHost, host),
+        frame_state=frame_state,
     )
     scheduled_update_sink.wire(prompt_state_applier)
     source_change_applier = PromptProjectionSourceChangeApplier[object](host)

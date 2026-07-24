@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass
 
@@ -27,7 +31,7 @@ from ..async_work.scheduled_lora_dispatcher import (
     PromptScheduledLoraCachedContextSnapshot,
     scheduled_lora_signature,
 )
-from ..commands import PromptCommandSourceIdentity, PromptFeatureSnapshotIdentity
+from ..commands import PromptFeatureSnapshotIdentity
 from .catalog_snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
@@ -62,7 +66,7 @@ class PromptLoraTriggerWordProjector:
         self,
         *,
         context_actions: PromptLoraContextActionController,
-        source_identity_provider: Callable[[], PromptCommandSourceIdentity | None],
+        source_identity_provider: Callable[[], PromptSourceIdentity | None],
         feature_profile_id_provider: Callable[[], Hashable | None],
         catalog_revision_provider: Callable[[], Hashable | None],
         trigger_words_enabled: Callable[[], bool],

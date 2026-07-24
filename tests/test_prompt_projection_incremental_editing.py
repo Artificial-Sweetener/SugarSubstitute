@@ -32,6 +32,9 @@ from substitute.application.prompt_editor.document.service import PromptDocument
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
+from substitute.presentation.editor.prompt_editor.editing_session import (
+    PromptSourceSnapshot,
+)
 from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionCaretState,
     PromptProjectionTokenKind,
@@ -83,12 +86,26 @@ if os.environ.get("PYTEST_XDIST_WORKER"):
 def _projection_line_texts(surface: PromptProjectionSurface) -> tuple[str, ...]:
     """Return visible text grouped by projection visual line."""
 
-    snapshot = cast(Any, surface)._layout._snapshot
+    snapshot = cast(Any, surface)._layout.snapshot
     return tuple(
         "".join(
             fragment.text for fragment in line.fragments if hasattr(fragment, "text")
         )
         for line in snapshot.lines
+    )
+
+
+def _publish_test_source(
+    surface: PromptProjectionSurface,
+    source_text: str,
+) -> None:
+    """Advance authoritative source state before applying prepared semantics."""
+
+    surface.editor_state.publish_source(
+        PromptSourceSnapshot(
+            source_text=source_text,
+            source_revision=surface.editor_state.source.source_revision + 1,
+        )
     )
 
 
@@ -99,7 +116,7 @@ def _projection_lines(
 
     return cast(
         tuple[PromptProjectionLineSnapshot, ...],
-        cast(Any, surface)._layout._snapshot.lines,
+        cast(Any, surface)._layout.snapshot.lines,
     )
 
 
@@ -110,7 +127,7 @@ def _valid_transient_deletion_overlay(
 
     return surface._transient_edit_overlays.valid_deletion_overlay(  # noqa: SLF001
         freshness_is_stale_safe=surface.has_stale_projection_geometry(),
-        source_revision=surface._source_revision,  # noqa: SLF001
+        source_identity=surface.editor_state.source_identity,
     )
 
 
@@ -326,7 +343,7 @@ def test_projection_surface_scheduled_middle_plain_edit_uses_incremental_apply(
         StaticPromptWildcardCatalogGateway({}),
         prompt_lora_catalog_service=StaticPromptLoraCatalog(()),
     )
-    previous_render_plan = cast(Any, surface)._render_plan
+    previous_render_plan = surface.editor_state.projection_semantic.render_plan
     next_text = "alphax beta"
     next_document_view = document_service.build_document_view(next_text)
     next_render_plan = syntax_service.build_render_plan(
@@ -345,9 +362,13 @@ def test_projection_surface_scheduled_middle_plain_edit_uses_incremental_apply(
 
     monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
 
+    _publish_test_source(surface, next_text)
     cast(Any, surface)._prompt_state_applier.apply_prompt_state_projection(
-        next_document_view,
-        next_render_plan,
+        surface.editor_state.prepare_semantic(
+            next_document_view,
+            next_render_plan,
+            source_identity=surface.editor_state.source_identity,
+        ),
         previous_render_plan_for_fast_path=previous_render_plan,
     )
 
@@ -381,7 +402,7 @@ def test_projection_surface_long_middle_plain_edit_uses_incremental_apply(
         StaticPromptWildcardCatalogGateway({}),
         prompt_lora_catalog_service=StaticPromptLoraCatalog(()),
     )
-    previous_render_plan = cast(Any, surface)._render_plan
+    previous_render_plan = surface.editor_state.projection_semantic.render_plan
     next_document_view = document_service.build_document_view(next_text)
     next_render_plan = syntax_service.build_render_plan(
         next_document_view,
@@ -399,9 +420,13 @@ def test_projection_surface_long_middle_plain_edit_uses_incremental_apply(
 
     monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
 
+    _publish_test_source(surface, next_text)
     cast(Any, surface)._prompt_state_applier.apply_prompt_state_projection(
-        next_document_view,
-        next_render_plan,
+        surface.editor_state.prepare_semantic(
+            next_document_view,
+            next_render_plan,
+            source_identity=surface.editor_state.source_identity,
+        ),
         previous_render_plan_for_fast_path=previous_render_plan,
     )
 
@@ -426,7 +451,7 @@ def test_projection_surface_scheduled_plain_replacement_uses_incremental_apply(
         StaticPromptWildcardCatalogGateway({}),
         prompt_lora_catalog_service=StaticPromptLoraCatalog(()),
     )
-    previous_render_plan = cast(Any, surface)._render_plan
+    previous_render_plan = surface.editor_state.projection_semantic.render_plan
     next_text = "alpha zeta"
     next_document_view = document_service.build_document_view(next_text)
     next_render_plan = syntax_service.build_render_plan(
@@ -445,9 +470,13 @@ def test_projection_surface_scheduled_plain_replacement_uses_incremental_apply(
 
     monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
 
+    _publish_test_source(surface, next_text)
     cast(Any, surface)._prompt_state_applier.apply_prompt_state_projection(
-        next_document_view,
-        next_render_plan,
+        surface.editor_state.prepare_semantic(
+            next_document_view,
+            next_render_plan,
+            source_identity=surface.editor_state.source_identity,
+        ),
         previous_render_plan_for_fast_path=previous_render_plan,
     )
 
@@ -472,7 +501,7 @@ def test_projection_surface_scheduled_plain_selection_delete_uses_incremental_ap
         StaticPromptWildcardCatalogGateway({}),
         prompt_lora_catalog_service=StaticPromptLoraCatalog(()),
     )
-    previous_render_plan = cast(Any, surface)._render_plan
+    previous_render_plan = surface.editor_state.projection_semantic.render_plan
     next_text = "alpha beta"
     next_document_view = document_service.build_document_view(next_text)
     next_render_plan = syntax_service.build_render_plan(
@@ -491,9 +520,13 @@ def test_projection_surface_scheduled_plain_selection_delete_uses_incremental_ap
 
     monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
 
+    _publish_test_source(surface, next_text)
     cast(Any, surface)._prompt_state_applier.apply_prompt_state_projection(
-        next_document_view,
-        next_render_plan,
+        surface.editor_state.prepare_semantic(
+            next_document_view,
+            next_render_plan,
+            source_identity=surface.editor_state.source_identity,
+        ),
         previous_render_plan_for_fast_path=previous_render_plan,
     )
 
@@ -1004,7 +1037,9 @@ def test_projection_surface_backspace_updates_for_immediate_visibility(
         Any, surface
     )._projection_freshness_controller.committed_metrics
     assert committed_metrics is not None
-    assert committed_metrics.source_revision == cast(Any, surface)._source_revision
+    assert (
+        committed_metrics.source_revision == surface.editor_state.source.source_revision
+    )
 
 
 def test_projection_surface_expanded_token_enter_preserves_semantic_projection(
@@ -1170,7 +1205,9 @@ def test_projection_surface_backspace_rebuilds_after_pending_typing_projection(
         Any, surface
     )._projection_freshness_controller.committed_metrics
     assert committed_metrics is not None
-    assert committed_metrics.source_revision == cast(Any, surface)._source_revision
+    assert (
+        committed_metrics.source_revision == surface.editor_state.source.source_revision
+    )
 
 
 def test_projection_surface_applies_local_middle_comma_without_rebuild(
@@ -1371,7 +1408,7 @@ def test_projection_surface_fallback_backspace_uses_canonical_reflow_without_ove
     monkeypatch.setattr(
         cast(Any, surface)._source_change_applier,
         "_transient_single_character_deletion_overlay",
-        lambda *, start, end, source_revision: None,
+        lambda *, start, end, source_identity: None,
     )
     monkeypatch.setattr(
         cast(Any, surface)._source_change_applier,
@@ -1452,13 +1489,16 @@ def test_projection_surface_backspace_newline_uses_incremental_layout(
         anchor_position=cursor_position,
     )
     rebuild_count = 0
-    previous_line_count = cast(Any, surface)._layout.line_count()  # noqa: SLF001
+    previous_line_count = cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
 
     QTest.keyClick(box, Qt.Key.Key_Backspace)
 
     assert box.toPlainText() == "alphabeta"
     assert rebuild_count == 0
-    assert cast(Any, surface)._layout.line_count() == previous_line_count - 1  # noqa: SLF001
+    assert (
+        cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
+        == previous_line_count - 1
+    )
     assert cast(Any, surface)._caret_visibility_prompt_state_revision is None
     assert surface.has_stale_projection_geometry() is False
     flush_projection_update_scheduler(surface)
@@ -1494,13 +1534,16 @@ def test_projection_surface_middle_enter_uses_incremental_layout(
         anchor_position=cursor_position,
     )
     rebuild_count = 0
-    previous_line_count = cast(Any, surface)._layout.line_count()  # noqa: SLF001
+    previous_line_count = cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
 
     QTest.keyClick(box, Qt.Key.Key_Return)
 
     assert box.toPlainText() == "alpha\nbeta"
     assert rebuild_count == 0
-    assert cast(Any, surface)._layout.line_count() == previous_line_count + 1  # noqa: SLF001
+    assert (
+        cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
+        == previous_line_count + 1
+    )
     assert surface.has_stale_projection_geometry() is False
     flush_projection_update_scheduler(surface)
 
@@ -1690,13 +1733,16 @@ def test_projection_surface_trailing_enter_uses_incremental_newline_layout(
         anchor_position=cursor_position,
     )
     rebuild_count = 0
-    previous_line_count = cast(Any, surface)._layout.line_count()  # noqa: SLF001
+    previous_line_count = cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
 
     QTest.keyClick(box, Qt.Key.Key_Return)
 
     assert box.toPlainText() == "alpha\n"
     assert rebuild_count == 0
-    assert cast(Any, surface)._layout.line_count() == previous_line_count + 1  # noqa: SLF001
+    assert (
+        cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
+        == previous_line_count + 1
+    )
     assert surface.has_stale_projection_geometry() is False
 
 
@@ -1730,13 +1776,16 @@ def test_projection_surface_trailing_newline_backspace_uses_incremental_layout(
         anchor_position=cursor_position,
     )
     rebuild_count = 0
-    previous_line_count = cast(Any, surface)._layout.line_count()  # noqa: SLF001
+    previous_line_count = cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
 
     QTest.keyClick(box, Qt.Key.Key_Backspace)
 
     assert box.toPlainText() == "alpha"
     assert rebuild_count == 0
-    assert cast(Any, surface)._layout.line_count() == previous_line_count - 1  # noqa: SLF001
+    assert (
+        cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
+        == previous_line_count - 1
+    )
     assert surface.has_stale_projection_geometry() is False
 
 

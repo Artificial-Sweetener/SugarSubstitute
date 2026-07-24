@@ -18,15 +18,26 @@
 
 from __future__ import annotations
 
+import logging
+
 from substitute.shared.logging.logger import get_logger, log_debug
 
 _LOGGER = get_logger("presentation.editor.prompt_editor.debug_probe")
 _MAX_TEXT_LENGTH = 1800
+_EMPTY_PROBE_STATE: dict[str, object] = {}
+
+
+def prompt_editor_probe_enabled() -> bool:
+    """Return whether expensive prompt owner-state diagnostics are requested."""
+
+    return _LOGGER.isEnabledFor(logging.DEBUG)
 
 
 def log_prompt_editor_probe(event: str, **payload: object) -> None:
     """Log one prompt editor owner-state event when debug logging is enabled."""
 
+    if not prompt_editor_probe_enabled():
+        return
     log_debug(
         _LOGGER,
         event,
@@ -37,11 +48,22 @@ def log_prompt_editor_probe(event: str, **payload: object) -> None:
 def surface_probe_state(surface: object) -> dict[str, object]:
     """Return compact projection, paint-cache, and caret state."""
 
+    if not prompt_editor_probe_enabled():
+        return _EMPTY_PROBE_STATE
     session = getattr(surface, "_session", None)
     preview = getattr(session, "autocomplete_preview", None)
-    document_view = getattr(surface, "_document_view", None)
-    projection_document = getattr(surface, "_projection_document", None)
-    active_projection_document = getattr(surface, "_active_projection_document", None)
+    editor_state = getattr(surface, "editor_state", None)
+    semantic = getattr(editor_state, "semantic", None)
+    edit_semantic = getattr(editor_state, "edit_semantic", None)
+    projection_semantic = getattr(editor_state, "projection_semantic", None)
+    projection = getattr(editor_state, "projection", None)
+    revision_graph = getattr(editor_state, "revisions", None)
+    layout_snapshot = getattr(editor_state, "layout", None)
+    viewport_snapshot = getattr(editor_state, "viewport", None)
+    paint_snapshot = getattr(editor_state, "paint", None)
+    document_view = getattr(edit_semantic, "document", None)
+    projection_document = getattr(projection, "document", None)
+    active_projection_document = _call(surface, "active_projection_document")
     layout = getattr(surface, "_layout", None)
     paint_cache = getattr(surface, "_projection_paint_cache", None)
     freshness_controller = getattr(surface, "_projection_freshness_controller", None)
@@ -58,6 +80,9 @@ def surface_probe_state(surface: object) -> dict[str, object]:
         "anchor_position": _safe_int(getattr(surface, "anchor_position", None)),
         "preview": preview_probe_state(preview),
         "document_view_source_text": _text(getattr(document_view, "source_text", "")),
+        "authoritative_semantic_source_text": _text(
+            getattr(getattr(semantic, "document", None), "source_text", "")
+        ),
         "projection_source_text": _text(
             getattr(projection_document, "source_text", "")
         ),
@@ -75,6 +100,22 @@ def surface_probe_state(surface: object) -> dict[str, object]:
         "active_projection_document_id": id(active_projection_document),
         "paint_cache_key_present": getattr(paint_cache, "cache_key", None) is not None,
         "paint_cache_key": repr(getattr(paint_cache, "cache_key", None)),
+        "semantic_identity": repr(getattr(semantic, "identity", None)),
+        "projection_semantic_identity": repr(
+            getattr(projection_semantic, "identity", None)
+        ),
+        "projection_identity": repr(getattr(projection, "identity", None)),
+        "layout_identity": repr(getattr(layout_snapshot, "identity", None)),
+        "viewport_identity": repr(getattr(viewport_snapshot, "identity", None)),
+        "paint_identity": repr(getattr(paint_snapshot, "identity", None)),
+        "semantic_is_current": bool(
+            getattr(revision_graph, "semantic_is_current", False)
+        ),
+        "projection_is_current": bool(
+            getattr(revision_graph, "projection_is_current", False)
+        ),
+        "layout_is_current": bool(getattr(revision_graph, "layout_is_current", False)),
+        "paint_is_current": bool(getattr(revision_graph, "paint_is_current", False)),
         "projection_pending": bool(pending_update())
         if callable(pending_update)
         else False,
@@ -87,6 +128,8 @@ def surface_probe_state(surface: object) -> dict[str, object]:
 def autocomplete_probe_state(coordinator: object) -> dict[str, object]:
     """Return compact autocomplete lifecycle and presenter state."""
 
+    if not prompt_editor_probe_enabled():
+        return _EMPTY_PROBE_STATE
     sessions = getattr(coordinator, "_sessions", None)
     state = getattr(sessions, "state", None)
     session = getattr(state, "session", None)
@@ -117,7 +160,7 @@ def autocomplete_probe_state(coordinator: object) -> dict[str, object]:
 def preview_probe_state(preview: object | None) -> dict[str, object] | None:
     """Return compact autocomplete preview state."""
 
-    if preview is None:
+    if preview is None or not prompt_editor_probe_enabled():
         return None
     return {
         "source_position": _safe_int(getattr(preview, "source_position", None)),
@@ -176,6 +219,7 @@ def _enum_value(value: object) -> str:
 __all__ = [
     "autocomplete_probe_state",
     "log_prompt_editor_probe",
+    "prompt_editor_probe_enabled",
     "preview_probe_state",
     "surface_probe_state",
 ]

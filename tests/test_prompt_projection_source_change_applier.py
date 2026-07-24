@@ -41,9 +41,16 @@ from substitute.application.prompt_editor.document.view_mapper import (
 from substitute.domain.prompt.document.parser import parse_prompt_document
 from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptSourceEditOrigin,
+    PromptSourceSnapshot,
     PromptCursorState,
     PromptEditingSession,
     PromptUndoSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
+    PromptEditorState,
+)
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.editing_session.edit_controller import (
     PromptMutationSignalIntent,
@@ -262,14 +269,14 @@ class _FreshnessControllerRecorder:
 
         return self.freshness is ProjectionFreshness.STALE_SAFE
 
-    def transient_committed_source_revision(
+    def transient_committed_source_identity(
         self,
         *,
-        current_source_revision: int,
-    ) -> int:
-        """Return the committed source revision for transient overlays."""
+        current_source_identity: PromptSourceIdentity,
+    ) -> PromptSourceIdentity:
+        """Return the committed source identity for transient overlays."""
 
-        return current_source_revision
+        return current_source_identity
 
     def can_defer_source_rebuild_for_edit(
         self,
@@ -369,7 +376,7 @@ class _SourceChangeHost:
         self._source_document_adapter = _SourceDocumentRecorder()
         self._projection_freshness_controller = _FreshnessControllerRecorder()
         self._incremental_apply_controller = _IncrementalApplyControllerRecorder()
-        self._document_view = PromptDocumentView(
+        document_view = PromptDocumentView(
             source_text="alpha",
             segments=(),
             emphasis_spans=(),
@@ -379,13 +386,23 @@ class _SourceChangeHost:
             region_structure=PromptRegionStructureView.empty(len("alpha")),
             has_trailing_comma=False,
         )
-        self._render_plan = PromptSyntaxRenderPlan(
+        render_plan = PromptSyntaxRenderPlan(
             syntax_spans=(),
             renderer_views=(),
         )
-        self._projection_document = _ProjectionDocument("alpha")
+        self._editor_state = PromptEditorState[
+            PromptDocumentView,
+            PromptSyntaxRenderPlan,
+            _ProjectionDocument,
+            object,
+            object,
+        ](
+            source=PromptSourceSnapshot(source_text="alpha", source_revision=7),
+            semantic_document=document_view,
+            render_plan=render_plan,
+            projection_document=_ProjectionDocument("alpha"),
+        )
         self._layout = _LayoutRecorder()
-        self._source_revision = 7
         self._caret_visibility_prompt_state_revision = 0
         self._cursor_state = PromptProjectionCaretState(source_position=0)
         self._anchor_state = PromptProjectionCaretState(source_position=0)
@@ -453,7 +470,7 @@ class _SourceChangeHost:
     def toPlainText(self) -> str:  # noqa: N802
         """Return the live source text for transient overlay decisions."""
 
-        return self._document_view.source_text
+        return self._editor_state.semantic.document.source_text
 
     def clear_autocomplete_preview_state(self) -> None:
         """Record authoritative autocomplete preview owner clears."""
@@ -543,14 +560,16 @@ class _SourceChangeHost:
         self,
         *,
         deferrable_projection: bool,
-        source_revision: int,
+        source_snapshot: PromptSourceSnapshot,
         clear_diagnostic_fragment_cache: bool = True,
     ) -> None:
         """Record source change freshness inputs."""
 
         _ = clear_diagnostic_fragment_cache
-        self._source_revision = source_revision
-        self.marked_source_changes.append((deferrable_projection, source_revision))
+        source_identity = self._editor_state.publish_source(source_snapshot)
+        self.marked_source_changes.append(
+            (deferrable_projection, source_identity.source_revision)
+        )
 
     def _rebuild_projection(self) -> None:
         """Record a projection rebuild."""
@@ -851,8 +870,9 @@ def test_source_change_applier_uses_semantic_remapper_for_optimistic_state() -> 
 
     applier.apply_source_change_application(application)
 
-    assert host._document_view.source_text == "alpha!"
-    assert host._render_plan.renderer_views == ()
+    assert host._editor_state.semantic.document.source_text == "alpha"
+    assert host._editor_state.edit_semantic.document.source_text == "alpha!"
+    assert host._editor_state.semantic.render_plan.renderer_views == ()
     assert host._session.expanded_source_range == (0, 6)
 
 
@@ -881,10 +901,20 @@ def test_source_change_applier_uses_applied_normalized_edit_for_region_topology(
         signal_intent=PromptMutationSignalIntent(emit_text_changed=True),
     )
     host = _SourceChangeHost()
-    host._document_view = prompt_document_view_from_domain(
-        parse_prompt_document(source)
+    host._editor_state = PromptEditorState[
+        PromptDocumentView,
+        PromptSyntaxRenderPlan,
+        _ProjectionDocument,
+        object,
+        object,
+    ](
+        source=PromptSourceSnapshot(source_text=source, source_revision=7),
+        semantic_document=prompt_document_view_from_domain(
+            parse_prompt_document(source)
+        ),
+        render_plan=host._editor_state.semantic.render_plan,
+        projection_document=_ProjectionDocument(source),
     )
-    host._projection_document = _ProjectionDocument(source)
     applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
 
     applier.apply_source_change_application(application)
@@ -894,9 +924,11 @@ def test_source_change_applier_uses_applied_normalized_edit_for_region_topology(
     assert request.source_edit_start == completion_position
     assert request.source_edit_end == completion_position
     assert request.source_edit_replacement_text == "]\n"
-    assert host._document_view.source_text == normalized_source
-    assert len(host._document_view.region_structure.separators) == 2
-    assert len(host._document_view.region_structure.partitions) == 3
+    assert host._editor_state.semantic.document.source_text == source
+    assert host._editor_state.edit_semantic.document.source_text == normalized_source
+    projection_document = host._editor_state.edit_semantic.document
+    assert len(projection_document.region_structure.separators) == 2
+    assert len(projection_document.region_structure.partitions) == 3
     assert host._source_document_adapter.range_fallback_calls == [
         (normalized_source, source, completion_position)
     ]
@@ -936,7 +968,8 @@ def test_source_change_applier_rebuilds_source_derived_projection_structure() ->
         False,
         source_change.next_snapshot.source_revision,
     )
-    assert host._document_view.source_text == "alphax"
+    assert host._editor_state.semantic.document.source_text == "alpha"
+    assert host._editor_state.edit_semantic.document.source_text == "alphax"
 
 
 def test_source_change_applier_preserves_no_op_source_change_as_cursor_update() -> None:
@@ -1111,7 +1144,7 @@ def test_source_change_applier_restores_undo_state_through_ports() -> None:
     applier.apply_restore_application(application)
 
     assert host._source_document_adapter.replacements == ["alpha"]
-    assert host._document_view.source_text == "alpha"
+    assert host._editor_state.semantic.document.source_text == "alpha"
     assert host._session.expanded_source_range == (0, 5)
     assert host.marked_source_changes == [(False, 9)]
     assert host.rebuilds == 0

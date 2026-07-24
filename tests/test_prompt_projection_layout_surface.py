@@ -56,7 +56,7 @@ if os.environ.get("PYTEST_XDIST_WORKER"):
 def _projection_line_texts(surface: PromptProjectionSurface) -> tuple[str, ...]:
     """Return visible text grouped by projection visual line."""
 
-    snapshot = cast(Any, surface)._layout._snapshot
+    snapshot = cast(Any, surface)._layout.snapshot
     return tuple(
         "".join(
             fragment.text for fragment in line.fragments if hasattr(fragment, "text")
@@ -96,17 +96,24 @@ def test_projection_layout_keeps_short_tag_without_trailing_space_width() -> Non
     )
     try:
         surface = surface_for(box)
-        surface._document_view = document_view  # noqa: SLF001
-        surface._render_plan = PromptSyntaxRenderPlan(  # noqa: SLF001
+        render_plan = PromptSyntaxRenderPlan(
             syntax_spans=(),
             renderer_views=(),
         )
+        surface.editor_state.adopt_semantic(
+            surface.editor_state.prepare_semantic(
+                document_view,
+                render_plan,
+                source_identity=surface.editor_state.source_identity,
+            )
+        )
+        surface.editor_state.stage_edit_semantic(surface.editor_state.semantic)
         box.setGeometry(20, 20, 240, box.height())
         process_events(app)
         surface._rebuild_projection()  # noqa: SLF001
 
         line_texts = _projection_line_texts(surface)
-        snapshot = cast(Any, surface)._layout._snapshot
+        snapshot = cast(Any, surface)._layout.snapshot
 
         assert "test test test," in "\n".join(line_texts)
         for range_start, range_end in tag_keep_source_ranges_for_layout(document_view):

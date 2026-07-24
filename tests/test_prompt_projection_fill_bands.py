@@ -31,6 +31,9 @@ from PySide6.QtWidgets import QWidget
 from substitute.presentation.editor.prompt_editor.projection.fill_band_cache import (
     PromptProjectionFillBandCacheKey,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionDisplayMode,
 )
@@ -190,7 +193,7 @@ def test_projection_surface_reuses_committed_width_for_transient_invalid_viewpor
 
     monkeypatch.setattr(surface.viewport(), "width", lambda: 1)
 
-    assert surface._layout_width_for_projection_rebuild() == pytest.approx(  # noqa: SLF001
+    assert surface._layout_width_resolver.resolve() == pytest.approx(  # noqa: SLF001
         committed_width
     )
 
@@ -211,7 +214,7 @@ def test_projection_surface_uses_parent_width_for_hidden_uncommitted_viewport(
     surface._projection_freshness_controller.committed_metrics = None  # noqa: SLF001
 
     assert surface._projection_freshness_controller.committed_metrics is None  # noqa: SLF001
-    assert surface._layout_width_for_projection_rebuild() == pytest.approx(  # noqa: SLF001
+    assert surface._layout_width_resolver.resolve() == pytest.approx(  # noqa: SLF001
         520
     )
 
@@ -230,7 +233,7 @@ def test_projection_surface_uses_realistic_fallback_for_hidden_unparented_viewpo
     surface._projection_freshness_controller.committed_metrics = None  # noqa: SLF001
 
     assert surface._projection_freshness_controller.committed_metrics is None  # noqa: SLF001
-    assert surface._layout_width_for_projection_rebuild() == pytest.approx(  # noqa: SLF001
+    assert surface._layout_width_resolver.resolve() == pytest.approx(  # noqa: SLF001
         760.0
     )
 
@@ -355,7 +358,7 @@ def test_projection_fill_band_cache_key_tracks_view_state() -> None:
     """Fill-band cache identity should change with passive view metrics."""
 
     first_key = PromptProjectionFillBandCacheKey(
-        source_revision=4,
+        source_identity=PromptSourceIdentity(source_revision=4),
         display_mode=PromptProjectionDisplayMode.PROJECTED,
         viewport_width=360,
         viewport_height=240,

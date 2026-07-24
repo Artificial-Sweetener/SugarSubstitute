@@ -127,6 +127,21 @@ class PromptProjectionLayoutSnapshot:
     def __post_init__(self) -> None:
         """Leave run-fragment indexes lazy so typing does not pay for hit-test caches."""
 
+    def text_fragment_count(self) -> int:
+        """Return the number of text fragments in this snapshot."""
+
+        return len(self.text_fragments)
+
+    def inline_object_fragment_count(self) -> int:
+        """Return the number of inline-object fragments in this snapshot."""
+
+        return len(self.inline_object_fragments)
+
+    def line_count(self) -> int:
+        """Return the number of wrapped lines in this snapshot."""
+
+        return len(self.lines)
+
     def text_fragments_for_run(
         self,
         run_id: str | None,

@@ -348,7 +348,7 @@ def _missing_scene_title_text(editor: object, image: QImage) -> tuple[str, ...]:
     fragments_by_run: dict[str, list[PromptProjectionTextFragment]] = {
         run_id: [] for run_id in scene_run_ids
     }
-    for line in layout._snapshot.lines:
+    for line in layout.snapshot.lines:
         for fragment in line.fragments:
             if (
                 isinstance(fragment, PromptProjectionTextFragment)

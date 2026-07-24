@@ -130,9 +130,10 @@ def test_controller_initialization_pushes_cached_prompt_state_into_syntax_render
     )
 
     assert controller.document_view.source_text == "(cat:1.05)"
-    assert syntax_renderers.prompt_state_calls == [
-        (controller.document_view, controller.syntax_render_plan)
-    ]
+    assert len(syntax_renderers.prompt_state_calls) == 1
+    snapshot = syntax_renderers.prompt_state_calls[0]
+    assert snapshot.document is controller.document_view
+    assert snapshot.render_plan is controller.syntax_render_plan
     assert syntax_renderers.active_span_calls[-1] == (
         controller.active_syntax_span,
         3,

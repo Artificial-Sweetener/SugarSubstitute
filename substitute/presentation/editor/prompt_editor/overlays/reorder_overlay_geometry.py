@@ -1715,7 +1715,11 @@ class PromptReorderOverlayGeometryMixin(_OverlayShellAccess):
             PromptReorderDragProxyRenderInputs(
                 segment_index=dragged_segment.index,
                 segment_text=dragged_segment.serialized_text,
-                source_revision=self._source_revision,
+                source_revision=(
+                    None
+                    if self._source_identity is None
+                    else self._source_identity.source_revision
+                ),
                 fill_color=chip_state.style.fill_color,
                 border_color=chip_state.style.border_color,
                 font=self._drag_proxy.font(),

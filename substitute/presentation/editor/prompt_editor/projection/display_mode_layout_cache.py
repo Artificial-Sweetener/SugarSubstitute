@@ -20,9 +20,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSemanticIdentity,
 )
 
 from .applicator import PromptProjectionRebuildResult
@@ -39,9 +38,7 @@ from .session import PromptProjectionSession
 class PromptProjectionDisplayModeLayoutIdentity:
     """Identify every canonical input that can change mode-specific geometry."""
 
-    source_revision: int
-    document_view_identity: int
-    render_plan_identity: int
+    semantic_identity: PromptSemanticIdentity
     expanded_source_range: tuple[int, int] | None
     transient_neutral_emphasis: object | None
     exact_weight_edit: object | None
@@ -52,9 +49,7 @@ class PromptProjectionDisplayModeLayoutIdentity:
     def from_projection_state(
         cls,
         *,
-        source_revision: int,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
+        semantic_identity: PromptSemanticIdentity,
         session: PromptProjectionSession,
         decoration_accent_ranges: tuple[tuple[int, int], ...],
         scene_error_keys: frozenset[str],
@@ -62,9 +57,7 @@ class PromptProjectionDisplayModeLayoutIdentity:
         """Build a strict identity without materializing source or syntax data."""
 
         return cls(
-            source_revision=source_revision,
-            document_view_identity=id(document_view),
-            render_plan_identity=id(render_plan),
+            semantic_identity=semantic_identity,
             expanded_source_range=session.expanded_source_range,
             transient_neutral_emphasis=session.transient_neutral_emphasis,
             exact_weight_edit=session.exact_weight_edit,

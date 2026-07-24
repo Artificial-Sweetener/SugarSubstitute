@@ -68,11 +68,12 @@ def capture_prompt_editor_owner_state(editor: object) -> PromptAbuseOwnerState:
     prompt_editor = cast(Any, editor)
     source_text = str(prompt_editor.toPlainText())
     surface = getattr(prompt_editor, "_surface", None)
-    projection_document = getattr(surface, "_projection_document", None)
+    editor_state = getattr(surface, "editor_state", None)
+    projection_snapshot = getattr(editor_state, "projection", None)
+    projection_document = getattr(projection_snapshot, "document", None)
     projection_source = getattr(projection_document, "source_text", None)
-    interaction = getattr(prompt_editor, "_interaction_controller", None)
-    syntax_state = getattr(interaction, "_syntax_state", None)
-    document_view = getattr(syntax_state, "document_view", None)
+    semantic_snapshot = getattr(editor_state, "semantic", None)
+    document_view = getattr(semantic_snapshot, "document", None)
     semantic_source = getattr(document_view, "source_text", None)
     projection_current = (
         None if projection_source is None else projection_source == source_text
@@ -157,19 +158,19 @@ def _capture_transient_owner_state(
     overlays = surface._transient_edit_overlays
     stale_safe = bool(freshness.has_stale_projection_geometry())
     freshness_name = str(freshness.freshness.value)
-    source_revision = int(surface._source_revision)
+    source_identity = surface.editor_state.source_identity
     insertion = overlays.valid_insertion_overlay(
         freshness_is_stale_safe=stale_safe,
-        source_revision=source_revision,
+        source_identity=source_identity,
     )
     deletion = overlays.valid_deletion_overlay(
         freshness_is_stale_safe=stale_safe,
-        source_revision=source_revision,
+        source_identity=source_identity,
     )
     cursor = editor.textCursor()
     caret = overlays.valid_caret_geometry(
         freshness_is_stale_safe=stale_safe,
-        source_revision=source_revision,
+        source_identity=source_identity,
         cursor_position=int(cursor.position()),
         anchor_position=int(surface.anchor_position),
     )
@@ -231,7 +232,7 @@ def _layout_fragment_ownership(surface: Any) -> tuple[bool | None, str | None]:
         )
         if region_mismatch is not None:
             return False, region_mismatch
-        for line_index, line in enumerate(layout._snapshot.lines):
+        for line_index, line in enumerate(layout.snapshot.lines):
             for fragment_index, fragment in enumerate(line.fragments):
                 run = document.run_by_id(fragment.run_id)
                 location = f"{layout_name}:{line_index}:{fragment_index}"
@@ -333,7 +334,7 @@ def _region_projection_ownership(
             return f"{location}:missing_structural_projection_slot"
         matching_lines = tuple(
             line
-            for line in layout._snapshot.lines
+            for line in layout.snapshot.lines
             if (line.source_start, line.source_end)
             == (run.source_start, run.source_end)
         )
@@ -459,7 +460,7 @@ def _active_projection_ownership_is_valid(
 ) -> bool:
     """Return whether active projection divergence has a live transient owner."""
 
-    active_projection = surface._active_projection_document
+    active_projection = surface.active_projection_document()
     if bool(surface._active_projection_requires_layout()):
         return str(active_projection.source_text) == str(
             projection_document.source_text
@@ -480,7 +481,7 @@ def _layout_projection_ownership_is_valid(
     if reorder_preview_active:
         return True
     if bool(surface._active_projection_requires_layout()):
-        return layout_projection is surface._active_projection_document
+        return layout_projection is surface.active_projection_document()
     return str(layout_projection.projection_text) == str(
         projection_document.projection_text
     )

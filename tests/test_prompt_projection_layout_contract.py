@@ -2518,7 +2518,7 @@ def test_region_chrome_prepares_centered_dividers_and_continuous_rails_once() ->
 
     assert len(snapshot.divider_lines) == 2
     assert len(snapshot.rail_lines) == 2
-    assert snapshot.visited_line_count == layout.line_count()
+    assert snapshot.visited_line_count == layout.snapshot.line_count()
     expected_center = layout.metrics.content_left + layout.metrics.content_width / 2.0
     expected_width = min(36.0, layout.metrics.content_width * 0.2)
     assert all(
@@ -2595,9 +2595,9 @@ def test_region_chrome_uses_boundary_lookups_for_long_regional_prompts() -> None
 
     assert len(snapshot.divider_lines) == 2
     assert len(snapshot.rail_lines) == 2
-    assert layout.line_count() > 800
+    assert layout.snapshot.line_count() > 800
     assert snapshot.visited_line_count < 64
-    assert snapshot.visited_line_count * 10 < layout.line_count()
+    assert snapshot.visited_line_count * 10 < layout.snapshot.line_count()
 
 
 def test_region_chrome_skips_raw_region_structure_without_preparation() -> None:

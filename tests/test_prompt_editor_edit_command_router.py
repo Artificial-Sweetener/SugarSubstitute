@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass, field
 from decimal import Decimal
 
@@ -45,7 +49,6 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderStateView,
 )
 from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
     PromptCommandSourceRange,
     PromptPreparedDanbooruImportRequest,
     PromptReorderLayoutCommitRequest,
@@ -182,10 +185,10 @@ def _harness(
     )
 
 
-def _source_identity(session: PromptEditingSession[str]) -> PromptCommandSourceIdentity:
+def _source_identity(session: PromptEditingSession[str]) -> PromptSourceIdentity:
     """Return the current source identity for prepared command requests."""
 
-    return PromptCommandSourceIdentity(
+    return PromptSourceIdentity(
         source_revision=session.source_revision,
         source_length=len(session.source_text),
     )

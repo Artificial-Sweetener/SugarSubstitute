@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from time import perf_counter
@@ -81,7 +85,6 @@ from ..async_work import (
     prompt_async_outcome_log_fields,
 )
 from ..commands import (
-    PromptCommandSourceIdentity,
     PromptDiagnosticAction,
     PromptDiagnosticCommandResult,
     PromptDuplicateEmphasisDiagnosticAction,
@@ -131,7 +134,7 @@ class PromptDiagnosticsHost(Protocol):
     def setFocus(self) -> None:
         """Focus the prompt editor after accepted diagnostic actions."""
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return the current source identity for prepared diagnostic commands."""
 
     def execute_diagnostic_action(
@@ -505,7 +508,7 @@ class PromptDiagnosticsFeatureController:
 
     def source_identity_for_diagnostic_action(
         self,
-    ) -> PromptCommandSourceIdentity | None:
+    ) -> PromptSourceIdentity | None:
         """Return the current source identity for menu-built diagnostic actions."""
 
         return self._host.prompt_command_source_identity()
@@ -515,7 +518,7 @@ class PromptDiagnosticsFeatureController:
         diagnostic: PromptDiagnostic,
         replacement: str,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
     ) -> None:
         """Replace one spelling diagnostic range in the prompt editor."""
 
@@ -533,7 +536,7 @@ class PromptDiagnosticsFeatureController:
         self,
         diagnostic: PromptDiagnostic,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
     ) -> None:
         """Ignore one spelling diagnostic word for the current session."""
 
@@ -555,7 +558,7 @@ class PromptDiagnosticsFeatureController:
         self,
         diagnostic: PromptDiagnostic,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
     ) -> None:
         """Persist one spelling diagnostic word when supported by the backend."""
 
@@ -583,7 +586,7 @@ class PromptDiagnosticsFeatureController:
         self,
         diagnostic: PromptDiagnostic,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
     ) -> None:
         """Remove one duplicate-segment diagnostic occurrence from the prompt."""
 
@@ -600,7 +603,7 @@ class PromptDiagnosticsFeatureController:
         self,
         diagnostic: PromptDiagnostic,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
     ) -> None:
         """Remove the duplicate occurrence and emphasize the first occurrence."""
 
@@ -617,7 +620,7 @@ class PromptDiagnosticsFeatureController:
         self,
         diagnostic: PromptDiagnostic,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
     ) -> None:
         """Suppress one duplicate diagnostic for the current editor session."""
 
@@ -703,8 +706,8 @@ class PromptDiagnosticsFeatureController:
 
     def _diagnostic_action_identity(
         self,
-        source_identity: PromptCommandSourceIdentity | None,
-    ) -> PromptCommandSourceIdentity | None:
+        source_identity: PromptSourceIdentity | None,
+    ) -> PromptSourceIdentity | None:
         """Return the supplied or current source identity for a diagnostic action."""
 
         if source_identity is not None:
@@ -740,8 +743,8 @@ class PromptDiagnosticsFeatureController:
             "request_id",
             "feature_profile_id",
         ]
-        if current_identity.source_revision is not None:
-            required_fields.append("source_revision")
+        if current_identity.source_identity is not None:
+            required_fields.append("source_identity")
         freshness = self._stale_guard.validate(
             result_identity=outcome.identity,
             current_identity=current_identity,
@@ -762,7 +765,7 @@ class PromptDiagnosticsFeatureController:
         self,
         snapshot: ApplicationPromptDiagnosticSnapshot,
         *,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
     ) -> None:
         """Prepare diagnostic menu action data outside context-menu opening."""
 
@@ -853,16 +856,20 @@ class PromptDiagnosticsFeatureController:
         *,
         request_id: int,
         source_text: str,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
     ) -> PromptAsyncResultIdentity:
         """Return stale-result identity for one diagnostics request."""
 
         return PromptAsyncResultIdentity(
             request_id=request_id,
-            source_revision=(
-                None if source_identity is None else source_identity.source_revision
+            source_identity=(
+                PromptSourceIdentity(
+                    source_revision=source_identity.source_revision,
+                    source_length=len(source_text),
+                )
+                if source_identity is not None
+                else None
             ),
-            source_length=len(source_text),
             feature_profile_id=self._feature_profile.identity.feature_profile_id,
         )
 

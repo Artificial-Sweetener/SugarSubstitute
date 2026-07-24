@@ -62,6 +62,13 @@ from substitute.presentation.editor.prompt_editor.async_work import (
     prompt_async_request_log_fields,
     semantic_refresh_request_context,
 )
+from substitute.presentation.editor.prompt_editor.async_work.execution import (
+    prompt_async_identity_from_task,
+    prompt_task_identity_from_async,
+)
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 
 
 def test_async_work_phase4_3_exports_execution_and_dispatch_boundary_types() -> None:
@@ -177,8 +184,6 @@ def test_async_execution_value_types_are_frozen_slotted(type_object: object) -> 
     ("field_name", "identity_kwargs"),
     [
         ("request_id", {"request_id": -1}),
-        ("source_revision", {"request_id": 1, "source_revision": -1}),
-        ("source_length", {"request_id": 1, "source_length": -1}),
         (
             "cancellation_generation",
             {"request_id": 1, "cancellation_generation": -1},
@@ -192,7 +197,7 @@ def test_async_result_identity_rejects_negative_integer_fields(
     """Async result identity should reject invalid revision-like values."""
 
     with pytest.raises(ValueError, match=field_name):
-        PromptAsyncResultIdentity(**identity_kwargs)
+        cast(Any, PromptAsyncResultIdentity)(**identity_kwargs)
 
 
 @pytest.mark.parametrize(
@@ -234,8 +239,10 @@ def test_async_request_does_not_execute_work_during_construction() -> None:
         identity=PromptAsyncResultIdentity(
             request_id=4,
             editor_session_id="session",
-            source_revision=12,
-            source_length=32,
+            source_identity=PromptSourceIdentity(
+                source_revision=12,
+                source_length=32,
+            ),
             feature_profile_id="features",
             scene_context_id="scene",
             cube_context_id="cube",
@@ -251,10 +258,33 @@ def test_async_request_does_not_execute_work_during_construction() -> None:
     )
 
     assert executed is False
-    assert request.identity.source_revision == 12
+    assert request.identity.source_identity == PromptSourceIdentity(
+        source_revision=12,
+        source_length=32,
+    )
     assert request.context.safe_fields == (("source_length", 32),)
     assert request.work(PromptEditorCancellationSource(generation=1)) == 7
     assert executed is True
+
+
+def test_async_source_identity_round_trips_through_shared_execution_parts() -> None:
+    """Preserve typed source lineage across the generic executor boundary."""
+
+    identity = PromptAsyncResultIdentity(
+        request_id=9,
+        editor_session_id="session",
+        source_identity=PromptSourceIdentity(
+            source_revision=21,
+            source_length=144,
+        ),
+        cancellation_generation=5,
+    )
+
+    task_identity = prompt_task_identity_from_async(identity)
+
+    assert task_identity.field_value("source_revision") == 21
+    assert task_identity.field_value("source_length") == 144
+    assert prompt_async_identity_from_task(task_identity) == identity
 
 
 def test_async_task_outcome_rejects_ambiguous_states() -> None:

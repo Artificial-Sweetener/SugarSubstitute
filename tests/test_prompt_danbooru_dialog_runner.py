@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 import os
 from collections.abc import Callable
 from collections.abc import Iterator
@@ -36,9 +40,6 @@ from substitute.application.danbooru import (
 from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.composition import (
     PromptEditorCompositionContext,
@@ -108,7 +109,7 @@ def test_runner_executes_dialog_with_prepared_services_and_exact_selection() -> 
     image_preview_service = cast(DanbooruImagePreviewService, object())
     recent_posts_service = cast(DanbooruRecentPostsService, object())
     host = PromptDanbooruDialogHostAdapter(
-        source_identity_provider=lambda: PromptCommandSourceIdentity(
+        source_identity_provider=lambda: PromptSourceIdentity(
             source_revision=12,
             source_length=40,
         ),
@@ -185,7 +186,7 @@ def test_dialog_host_adapter_selects_window_parent_and_url_opener(
         opened_urls.append(url)
         return True
 
-    source_identity = PromptCommandSourceIdentity(source_revision=7, source_length=11)
+    source_identity = PromptSourceIdentity(source_revision=7, source_length=11)
     adapter = PromptEditorCompositionFactory().build_danbooru_dialog_host_adapter(
         _composition_context(editor),
         source_identity_provider=lambda: source_identity,

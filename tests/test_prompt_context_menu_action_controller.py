@@ -18,13 +18,14 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from sugarsubstitute_shared.localization import app_text
 
 from typing import Any, cast
 
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
-)
 from substitute.presentation.editor.prompt_editor.features import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
@@ -416,7 +417,7 @@ def test_context_menu_action_controller_composes_prepared_snapshot() -> None:
         scene=cast(PromptSceneFeatureController, _Scene()),
         segment_presets=cast(PromptSegmentPresetController, _Segments()),
         danbooru=cast(PromptDanbooruActionController, _Danbooru()),
-        source_identity_provider=lambda: PromptCommandSourceIdentity(
+        source_identity_provider=lambda: PromptSourceIdentity(
             source_revision=9,
             source_length=40,
         ),
@@ -474,7 +475,7 @@ def test_phase24_1_context_menu_snapshot_records_unavailable_concerns() -> None:
             _Segments(source_available=False, insert_ready=False),
         ),
         danbooru=cast(PromptDanbooruActionController, _Danbooru()),
-        source_identity_provider=lambda: PromptCommandSourceIdentity(
+        source_identity_provider=lambda: PromptSourceIdentity(
             source_revision=9,
             source_length=40,
         ),

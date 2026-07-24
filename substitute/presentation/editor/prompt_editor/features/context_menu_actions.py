@@ -18,9 +18,12 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable, Hashable
 
-from ..commands import PromptCommandSourceIdentity
 from .context_menu_snapshot import (
     PromptContextMenuActionSnapshot,
     PromptContextMenuSnapshot,
@@ -51,7 +54,7 @@ class PromptContextMenuActionController:
         danbooru: PromptDanbooruActionController,
         source_identity_provider: Callable[
             [],
-            PromptCommandSourceIdentity | None,
+            PromptSourceIdentity | None,
         ],
         feature_profile_id_provider: Callable[[], Hashable | None],
     ) -> None:

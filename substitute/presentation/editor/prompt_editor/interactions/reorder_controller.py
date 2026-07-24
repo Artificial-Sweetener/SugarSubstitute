@@ -46,9 +46,11 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderSessionView,
     PromptReorderStateView,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 
 from ..commands import (
-    PromptCommandSourceIdentity,
     PromptReorderCommandResult,
     PromptReorderLayoutCommitRequest,
 )
@@ -121,7 +123,7 @@ class PromptReorderOverlayPort(Protocol):
         *,
         chips: tuple[PromptReorderChipView, ...],
         active_chip_index: int | None = None,
-        source_revision: int | None = None,
+        source_identity: PromptSourceIdentity | None = None,
     ) -> None:
         """Populate overlay hotspots from the current reorder-chip snapshot."""
 
@@ -269,7 +271,7 @@ class PromptReorderEditorHost(Protocol):
     def toPlainText(self) -> str:
         """Return the editor's plain-text contents."""
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return the current source identity used by prepared commands."""
 
     def execute_reorder_action(
@@ -1213,7 +1215,7 @@ class PromptReorderController:
             reorder_state=reorder_session_view.reorder_state,
             chips=chips,
             active_chip_index=active_segment_index,
-            source_revision=self._current_source_revision(),
+            source_identity=self._editor.prompt_command_source_identity(),
         )
         set_chips_elapsed_ms = log_reorder_drag_timing(
             "interaction.show_segment_overlay.set_chips",

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -35,7 +39,6 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptAutocompleteAcceptance,
     PromptCommandResult,
-    PromptCommandSourceIdentity,
     PromptCommandSourceRange,
     PromptCommandTextReplacement,
     PromptDiagnosticAction,
@@ -97,7 +100,7 @@ class _Executor:
     def __init__(self) -> None:
         """Prepare fake command results and observations."""
 
-        self.source_identity = PromptCommandSourceIdentity(
+        self.source_identity = PromptSourceIdentity(
             source_revision=7,
             source_length=12,
         )
@@ -127,7 +130,7 @@ class _Executor:
             tuple[PromptMutationService, PromptSyntaxService, PromptSyntaxProfile]
         ] = []
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return the fake source identity."""
 
         self.calls.append(("source_identity", self.source_identity))

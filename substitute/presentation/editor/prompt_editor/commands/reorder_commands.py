@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
@@ -43,7 +47,7 @@ from substitute.presentation.editor.prompt_editor.editing_session import (
 )
 from substitute.shared.logging.logger import get_logger, log_warning_exception
 
-from . import PromptCommandResult, PromptCommandSourceIdentity
+from . import PromptCommandResult
 
 TPayload = TypeVar("TPayload")
 
@@ -57,7 +61,7 @@ class PromptReorderLayoutCommitRequest:
     selected_chip_index: int | None
     reorder_state: PromptReorderStateView
     layout_view: PromptReorderLayoutView | None = None
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
     selection_start_offset_within_selected_chip: int | None = None
     selection_end_offset_within_selected_chip: int | None = None
 
@@ -248,7 +252,7 @@ def _stale_result(
     *,
     command_name: str,
     session: PromptEditingSession[TPayload],
-    source_identity: PromptCommandSourceIdentity | None,
+    source_identity: PromptSourceIdentity | None,
 ) -> PromptReorderCommandResult[TPayload] | None:
     """Return a stale rejection for a mismatched prepared source identity."""
 

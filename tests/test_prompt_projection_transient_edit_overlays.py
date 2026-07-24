@@ -23,6 +23,9 @@ from typing import cast
 from PySide6.QtCore import QRectF, QSizeF
 from PySide6.QtGui import QFont, QRegion
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 from substitute.presentation.editor.prompt_editor.projection.layout_engine import (
     PromptProjectionLayout,
 )
@@ -91,22 +94,22 @@ def test_transient_edit_overlays_validate_against_live_source_state() -> None:
 
     controller = PromptProjectionTransientEditOverlayController()
     caret_geometry = PromptProjectionTransientCaretGeometry(
-        source_revision=3,
+        source_identity=PromptSourceIdentity(source_revision=3),
         cursor_position=4,
         anchor_position=4,
         document_rect=QRectF(1.0, 2.0, 3.0, 4.0),
-        committed_source_revision=2,
+        committed_source_identity=PromptSourceIdentity(source_revision=2),
     )
     insertion_overlay = PromptProjectionTransientInsertionOverlay(
-        source_revision=3,
-        committed_source_revision=2,
+        source_identity=PromptSourceIdentity(source_revision=3),
+        committed_source_identity=PromptSourceIdentity(source_revision=2),
         source_start=10,
         text="x",
         document_rect=QRectF(10.0, 6.0, 1.0, 14.0),
     )
     deletion_overlay = PromptProjectionTransientDeletionOverlay(
-        source_revision=3,
-        committed_source_revision=2,
+        source_identity=PromptSourceIdentity(source_revision=3),
+        committed_source_identity=PromptSourceIdentity(source_revision=2),
         source_start=9,
         source_end=10,
         document_rects=(QRectF(9.0, 6.0, 6.0, 14.0),),
@@ -121,7 +124,7 @@ def test_transient_edit_overlays_validate_against_live_source_state() -> None:
     assert (
         controller.valid_caret_geometry(
             freshness_is_stale_safe=True,
-            source_revision=3,
+            source_identity=PromptSourceIdentity(source_revision=3),
             cursor_position=4,
             anchor_position=4,
         )
@@ -130,21 +133,21 @@ def test_transient_edit_overlays_validate_against_live_source_state() -> None:
     assert (
         controller.valid_insertion_overlay(
             freshness_is_stale_safe=True,
-            source_revision=3,
+            source_identity=PromptSourceIdentity(source_revision=3),
         )
         == insertion_overlay
     )
     assert (
         controller.valid_deletion_overlay(
             freshness_is_stale_safe=True,
-            source_revision=3,
+            source_identity=PromptSourceIdentity(source_revision=3),
         )
         == deletion_overlay
     )
     assert (
         controller.valid_caret_geometry(
             freshness_is_stale_safe=False,
-            source_revision=3,
+            source_identity=PromptSourceIdentity(source_revision=3),
             cursor_position=4,
             anchor_position=4,
         )
@@ -153,7 +156,7 @@ def test_transient_edit_overlays_validate_against_live_source_state() -> None:
     assert (
         controller.valid_insertion_overlay(
             freshness_is_stale_safe=True,
-            source_revision=4,
+            source_identity=PromptSourceIdentity(source_revision=4),
         )
         is None
     )
@@ -172,11 +175,11 @@ def test_transient_edit_overlays_extend_and_trim_pending_insertions() -> None:
     first_overlay = controller.single_character_insertion_overlay(
         start=10,
         replacement_text="x",
-        source_revision=3,
-        committed_source_revision=2,
+        source_identity=PromptSourceIdentity(source_revision=3),
+        committed_source_identity=PromptSourceIdentity(source_revision=2),
         current_caret_document_rect=QRectF(30.0, 6.0, 1.0, 14.0),
         freshness_is_stale_safe=True,
-        current_source_revision=2,
+        current_source_identity=PromptSourceIdentity(source_revision=2),
     )
     assert first_overlay is not None
     controller.set_overlays(
@@ -188,11 +191,11 @@ def test_transient_edit_overlays_extend_and_trim_pending_insertions() -> None:
     next_overlay = controller.single_character_insertion_overlay(
         start=11,
         replacement_text="y",
-        source_revision=4,
-        committed_source_revision=2,
+        source_identity=PromptSourceIdentity(source_revision=4),
+        committed_source_identity=PromptSourceIdentity(source_revision=2),
         current_caret_document_rect=QRectF(31.0, 6.0, 1.0, 14.0),
         freshness_is_stale_safe=True,
-        current_source_revision=3,
+        current_source_identity=PromptSourceIdentity(source_revision=3),
     )
     assert next_overlay is not None
     assert next_overlay.source_start == 10
@@ -208,18 +211,18 @@ def test_transient_edit_overlays_extend_and_trim_pending_insertions() -> None:
         start=10,
         end=11,
         freshness_is_stale_safe=True,
-        source_revision=4,
+        source_identity=PromptSourceIdentity(source_revision=4),
     )
     trimmed_overlay = controller.insertion_overlay_after_deletion(
         start=10,
         end=11,
-        source_revision=5,
+        source_identity=PromptSourceIdentity(source_revision=5),
         freshness_is_stale_safe=True,
-        current_source_revision=4,
+        current_source_identity=PromptSourceIdentity(source_revision=4),
     )
 
     assert trimmed_overlay is not None
-    assert trimmed_overlay.source_revision == 5
+    assert trimmed_overlay.source_identity.source_revision == 5
     assert trimmed_overlay.source_start == 10
     assert trimmed_overlay.text == "y"
 
@@ -234,8 +237,8 @@ def test_transient_edit_overlays_merge_delete_geometry_and_repaint_bounds() -> N
     first_overlay = controller.deletion_overlay_for_single_character_range(
         start=4,
         end=5,
-        source_revision=3,
-        committed_source_revision=2,
+        source_identity=PromptSourceIdentity(source_revision=3),
+        committed_source_identity=PromptSourceIdentity(source_revision=2),
         previous_overlay=None,
         layout=typed_layout,
         viewport_width=100.0,
@@ -245,8 +248,8 @@ def test_transient_edit_overlays_merge_delete_geometry_and_repaint_bounds() -> N
     second_overlay = controller.deletion_overlay_for_single_character_range(
         start=3,
         end=4,
-        source_revision=4,
-        committed_source_revision=2,
+        source_identity=PromptSourceIdentity(source_revision=4),
+        committed_source_identity=PromptSourceIdentity(source_revision=2),
         previous_overlay=first_overlay,
         layout=typed_layout,
         viewport_width=100.0,
@@ -299,7 +302,7 @@ def test_transient_edit_overlays_gate_single_character_insertion_by_width() -> N
         content_right=80.0,
         metrics=metrics,
         freshness_is_stale_safe=True,
-        source_revision=1,
+        source_identity=PromptSourceIdentity(source_revision=1),
     )
     assert not controller.can_defer_insertion_overlay(
         start=3,
@@ -311,5 +314,5 @@ def test_transient_edit_overlays_gate_single_character_insertion_by_width() -> N
         content_right=80.0,
         metrics=metrics,
         freshness_is_stale_safe=True,
-        source_revision=1,
+        source_identity=PromptSourceIdentity(source_revision=1),
     )

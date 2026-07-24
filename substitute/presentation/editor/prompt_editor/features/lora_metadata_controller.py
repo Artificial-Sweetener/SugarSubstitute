@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Hashable
 from dataclasses import dataclass
 from functools import partial
@@ -41,7 +45,7 @@ from ..async_work import (
     PromptEditorMainThreadDispatcher,
     QtPromptEditorMainThreadDispatcher,
 )
-from ..commands import PromptCommandSourceIdentity, PromptFeatureSnapshotIdentity
+from ..commands import PromptFeatureSnapshotIdentity
 from .catalog_snapshots import CatalogSnapshotIdentity, CatalogSnapshotStatus
 from .feature_profile_controller import PromptFeatureProfileController
 from .lora_context_menu import (
@@ -67,7 +71,7 @@ class PromptLoraMetadataHost(Protocol):
     def isVisible(self) -> bool:  # noqa: N802
         """Return whether this editor is currently visible."""
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return current source identity for prepared feature snapshots."""
 
     def has_lora_spans_for_metadata(self) -> bool:

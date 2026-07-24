@@ -22,6 +22,10 @@ from dataclasses import dataclass
 from PySide6.QtCore import QRectF
 from PySide6.QtGui import QRegion
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from .layout_engine import PromptProjectionLayout
 from .metrics import PromptProjectionMetrics
 from .model import PromptProjectionCaretState, PromptProjectionDocument
@@ -32,19 +36,19 @@ from .selection_geometry import merge_same_row_rects
 class PromptProjectionTransientCaretGeometry:
     """Bridge source-caret geometry while projected layout catches up."""
 
-    source_revision: int
+    source_identity: PromptSourceIdentity
     cursor_position: int
     anchor_position: int
     document_rect: QRectF
-    committed_source_revision: int
+    committed_source_identity: PromptSourceIdentity
 
 
 @dataclass(frozen=True, slots=True)
 class PromptProjectionTransientInsertionOverlay:
     """Paint newly typed source text while projected layout catches up."""
 
-    source_revision: int
-    committed_source_revision: int
+    source_identity: PromptSourceIdentity
+    committed_source_identity: PromptSourceIdentity
     source_start: int
     text: str
     document_rect: QRectF
@@ -54,8 +58,8 @@ class PromptProjectionTransientInsertionOverlay:
 class PromptProjectionTransientDeletionOverlay:
     """Hide freshly deleted source text while projected layout catches up."""
 
-    source_revision: int
-    committed_source_revision: int
+    source_identity: PromptSourceIdentity
+    committed_source_identity: PromptSourceIdentity
     source_start: int
     source_end: int
     document_rects: tuple[QRectF, ...]
@@ -113,7 +117,7 @@ class PromptProjectionTransientEditOverlayController:
         self,
         *,
         freshness_is_stale_safe: bool,
-        source_revision: int,
+        source_identity: PromptSourceIdentity,
         cursor_position: int,
         anchor_position: int,
     ) -> PromptProjectionTransientCaretGeometry | None:
@@ -124,7 +128,7 @@ class PromptProjectionTransientEditOverlayController:
             return None
         if not freshness_is_stale_safe:
             return None
-        if geometry.source_revision != source_revision:
+        if geometry.source_identity != source_identity:
             return None
         if geometry.cursor_position != cursor_position:
             return None
@@ -136,7 +140,7 @@ class PromptProjectionTransientEditOverlayController:
         self,
         *,
         freshness_is_stale_safe: bool,
-        source_revision: int,
+        source_identity: PromptSourceIdentity,
     ) -> PromptProjectionTransientInsertionOverlay | None:
         """Return a typed-text overlay when it still matches live source state."""
 
@@ -145,7 +149,7 @@ class PromptProjectionTransientEditOverlayController:
             return None
         if not freshness_is_stale_safe:
             return None
-        if overlay.source_revision != source_revision:
+        if overlay.source_identity != source_identity:
             return None
         return overlay
 
@@ -153,7 +157,7 @@ class PromptProjectionTransientEditOverlayController:
         self,
         *,
         freshness_is_stale_safe: bool,
-        source_revision: int,
+        source_identity: PromptSourceIdentity,
     ) -> PromptProjectionTransientDeletionOverlay | None:
         """Return a deletion overlay when it still matches live source state."""
 
@@ -162,7 +166,7 @@ class PromptProjectionTransientEditOverlayController:
             return None
         if not freshness_is_stale_safe:
             return None
-        if overlay.source_revision != source_revision:
+        if overlay.source_identity != source_identity:
             return None
         return overlay
 
@@ -170,7 +174,7 @@ class PromptProjectionTransientEditOverlayController:
         self,
         *,
         freshness_is_stale_safe: bool,
-        source_revision: int,
+        source_identity: PromptSourceIdentity,
         cursor_position: int,
         anchor_position: int,
     ) -> QRectF | None:
@@ -178,7 +182,7 @@ class PromptProjectionTransientEditOverlayController:
 
         geometry = self.valid_caret_geometry(
             freshness_is_stale_safe=freshness_is_stale_safe,
-            source_revision=source_revision,
+            source_identity=source_identity,
             cursor_position=cursor_position,
             anchor_position=anchor_position,
         )
@@ -198,7 +202,7 @@ class PromptProjectionTransientEditOverlayController:
         content_right: float,
         metrics: PromptProjectionMetrics,
         freshness_is_stale_safe: bool,
-        source_revision: int,
+        source_identity: PromptSourceIdentity,
     ) -> bool:
         """Return whether an insertion can be painted without changing layout."""
 
@@ -213,7 +217,7 @@ class PromptProjectionTransientEditOverlayController:
             return False
         previous_overlay = self.valid_insertion_overlay(
             freshness_is_stale_safe=freshness_is_stale_safe,
-            source_revision=source_revision,
+            source_identity=source_identity,
         )
         if previous_overlay is None:
             if start != committed_source_length:
@@ -239,8 +243,8 @@ class PromptProjectionTransientEditOverlayController:
         replacement_text: str,
         cursor_position: int,
         anchor_position: int,
-        source_revision: int,
-        committed_source_revision: int,
+        source_identity: PromptSourceIdentity,
+        committed_source_identity: PromptSourceIdentity,
         current_caret_document_rect: QRectF,
         metrics: PromptProjectionMetrics,
         projection_document: PromptProjectionDocument,
@@ -261,10 +265,10 @@ class PromptProjectionTransientEditOverlayController:
         else:
             return None
         return PromptProjectionTransientCaretGeometry(
-            source_revision=source_revision,
+            source_identity=source_identity,
             cursor_position=cursor_position,
             anchor_position=anchor_position,
-            committed_source_revision=committed_source_revision,
+            committed_source_identity=committed_source_identity,
             document_rect=document_rect,
         )
 
@@ -273,11 +277,11 @@ class PromptProjectionTransientEditOverlayController:
         *,
         start: int,
         replacement_text: str,
-        source_revision: int,
-        committed_source_revision: int,
+        source_identity: PromptSourceIdentity,
+        committed_source_identity: PromptSourceIdentity,
         current_caret_document_rect: QRectF,
         freshness_is_stale_safe: bool,
-        current_source_revision: int,
+        current_source_identity: PromptSourceIdentity,
     ) -> PromptProjectionTransientInsertionOverlay | None:
         """Return text overlay for one deferred single-character insertion."""
 
@@ -285,23 +289,23 @@ class PromptProjectionTransientEditOverlayController:
             return None
         previous_overlay = self.valid_insertion_overlay(
             freshness_is_stale_safe=freshness_is_stale_safe,
-            source_revision=current_source_revision,
+            source_identity=current_source_identity,
         )
         if (
             previous_overlay is not None
-            and previous_overlay.committed_source_revision == committed_source_revision
+            and previous_overlay.committed_source_identity == committed_source_identity
             and previous_overlay.source_start + len(previous_overlay.text) == start
         ):
             return PromptProjectionTransientInsertionOverlay(
-                source_revision=source_revision,
-                committed_source_revision=committed_source_revision,
+                source_identity=source_identity,
+                committed_source_identity=committed_source_identity,
                 source_start=previous_overlay.source_start,
                 text=previous_overlay.text + replacement_text,
                 document_rect=QRectF(previous_overlay.document_rect),
             )
         return PromptProjectionTransientInsertionOverlay(
-            source_revision=source_revision,
-            committed_source_revision=committed_source_revision,
+            source_identity=source_identity,
+            committed_source_identity=committed_source_identity,
             source_start=start,
             text=replacement_text,
             document_rect=QRectF(current_caret_document_rect),
@@ -313,13 +317,13 @@ class PromptProjectionTransientEditOverlayController:
         start: int,
         end: int,
         freshness_is_stale_safe: bool,
-        source_revision: int,
+        source_identity: PromptSourceIdentity,
     ) -> bool:
         """Return whether one delete only removes pending inserted overlay text."""
 
         overlay = self.valid_insertion_overlay(
             freshness_is_stale_safe=freshness_is_stale_safe,
-            source_revision=source_revision,
+            source_identity=source_identity,
         )
         if overlay is None:
             return False
@@ -331,15 +335,15 @@ class PromptProjectionTransientEditOverlayController:
         *,
         start: int,
         end: int,
-        source_revision: int,
+        source_identity: PromptSourceIdentity,
         freshness_is_stale_safe: bool,
-        current_source_revision: int,
+        current_source_identity: PromptSourceIdentity,
     ) -> PromptProjectionTransientInsertionOverlay | None:
         """Return remaining pending insertion overlay after a deferred delete."""
 
         overlay = self.valid_insertion_overlay(
             freshness_is_stale_safe=freshness_is_stale_safe,
-            source_revision=current_source_revision,
+            source_identity=current_source_identity,
         )
         if overlay is None:
             return None
@@ -352,8 +356,8 @@ class PromptProjectionTransientEditOverlayController:
         if not text:
             return None
         return PromptProjectionTransientInsertionOverlay(
-            source_revision=source_revision,
-            committed_source_revision=overlay.committed_source_revision,
+            source_identity=source_identity,
+            committed_source_identity=overlay.committed_source_identity,
             source_start=overlay.source_start,
             text=text,
             document_rect=QRectF(overlay.document_rect),
@@ -364,8 +368,8 @@ class PromptProjectionTransientEditOverlayController:
         *,
         start: int,
         end: int,
-        source_revision: int,
-        committed_source_revision: int,
+        source_identity: PromptSourceIdentity,
+        committed_source_identity: PromptSourceIdentity,
         previous_overlay: PromptProjectionTransientDeletionOverlay | None,
         layout: PromptProjectionLayout,
         viewport_width: float,
@@ -378,8 +382,8 @@ class PromptProjectionTransientEditOverlayController:
         return self.deletion_overlay_for_single_character_range(
             start=start,
             end=end,
-            source_revision=source_revision,
-            committed_source_revision=committed_source_revision,
+            source_identity=source_identity,
+            committed_source_identity=committed_source_identity,
             previous_overlay=previous_overlay,
             layout=layout,
             viewport_width=viewport_width,
@@ -394,8 +398,8 @@ class PromptProjectionTransientEditOverlayController:
         replacement_text: str | None,
         cursor_state: PromptProjectionCaretState,
         anchor_state: PromptProjectionCaretState,
-        source_revision: int,
-        committed_source_revision: int,
+        source_identity: PromptSourceIdentity,
+        committed_source_identity: PromptSourceIdentity,
         current_caret_document_rect: QRectF,
         metrics: PromptProjectionMetrics,
         content_right: float,
@@ -432,10 +436,10 @@ class PromptProjectionTransientEditOverlayController:
         else:
             return None
         return PromptProjectionTransientCaretGeometry(
-            source_revision=source_revision,
+            source_identity=source_identity,
             cursor_position=cursor_state.source_position,
             anchor_position=anchor_state.source_position,
-            committed_source_revision=committed_source_revision,
+            committed_source_identity=committed_source_identity,
             document_rect=document_rect,
         )
 
@@ -445,8 +449,8 @@ class PromptProjectionTransientEditOverlayController:
         start: int | None,
         end: int | None,
         replacement_text: str | None,
-        source_revision: int,
-        committed_source_revision: int,
+        source_identity: PromptSourceIdentity,
+        committed_source_identity: PromptSourceIdentity,
         current_caret_document_rect: QRectF,
         metrics: PromptProjectionMetrics,
         content_right: float,
@@ -474,8 +478,8 @@ class PromptProjectionTransientEditOverlayController:
             )
             document_rect.moveTop(document_rect.top() + metrics.text_line_height)
         return PromptProjectionTransientInsertionOverlay(
-            source_revision=source_revision,
-            committed_source_revision=committed_source_revision,
+            source_identity=source_identity,
+            committed_source_identity=committed_source_identity,
             source_start=start,
             text=replacement_text,
             document_rect=document_rect,
@@ -487,8 +491,8 @@ class PromptProjectionTransientEditOverlayController:
         start: int | None,
         end: int | None,
         replacement_text: str | None,
-        source_revision: int,
-        committed_source_revision: int,
+        source_identity: PromptSourceIdentity,
+        committed_source_identity: PromptSourceIdentity,
         previous_overlay: PromptProjectionTransientDeletionOverlay | None,
         layout: PromptProjectionLayout,
         viewport_width: float,
@@ -501,8 +505,8 @@ class PromptProjectionTransientEditOverlayController:
         return self.deletion_overlay_for_single_character_range(
             start=start,
             end=end,
-            source_revision=source_revision,
-            committed_source_revision=committed_source_revision,
+            source_identity=source_identity,
+            committed_source_identity=committed_source_identity,
             previous_overlay=previous_overlay,
             layout=layout,
             viewport_width=viewport_width,
@@ -514,8 +518,8 @@ class PromptProjectionTransientEditOverlayController:
         *,
         start: int,
         end: int,
-        source_revision: int,
-        committed_source_revision: int,
+        source_identity: PromptSourceIdentity,
+        committed_source_identity: PromptSourceIdentity,
         previous_overlay: PromptProjectionTransientDeletionOverlay | None,
         layout: PromptProjectionLayout,
         viewport_width: float,
@@ -530,7 +534,7 @@ class PromptProjectionTransientEditOverlayController:
         previous_rects: tuple[QRectF, ...] = ()
         if (
             previous_overlay is not None
-            and previous_overlay.committed_source_revision == committed_source_revision
+            and previous_overlay.committed_source_identity == committed_source_identity
         ):
             previous_rects = previous_overlay.document_rects
             if previous_overlay.source_start == end:
@@ -563,8 +567,8 @@ class PromptProjectionTransientEditOverlayController:
         if not document_rects:
             return None
         return PromptProjectionTransientDeletionOverlay(
-            source_revision=source_revision,
-            committed_source_revision=committed_source_revision,
+            source_identity=source_identity,
+            committed_source_identity=committed_source_identity,
             source_start=source_start,
             source_end=source_end,
             document_rects=document_rects,

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from typing import cast
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
@@ -38,7 +42,6 @@ from substitute.application.prompt_editor.reorder.views import (
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandDispatcher,
-    PromptCommandSourceIdentity,
     PromptReorderCommandResult,
     PromptReorderLayoutCommitRequest,
     build_reorder_layout_commit_command,
@@ -89,10 +92,10 @@ def _undo_snapshot(session: PromptEditingSession[str]) -> PromptUndoSnapshot[str
     )
 
 
-def _source_identity(session: PromptEditingSession[str]) -> PromptCommandSourceIdentity:
+def _source_identity(session: PromptEditingSession[str]) -> PromptSourceIdentity:
     """Return the current source identity for stale-command tests."""
 
-    return PromptCommandSourceIdentity(
+    return PromptSourceIdentity(
         source_revision=session.source_revision,
         source_length=len(session.source_text),
     )
@@ -275,7 +278,7 @@ def test_reorder_layout_command_rejects_stale_source_identity() -> None:
             selected_chip_index=1,
             reorder_state=_state((1, 0), (", ",)),
             layout_view=layout_view,
-            source_identity=PromptCommandSourceIdentity(
+            source_identity=PromptSourceIdentity(
                 source_revision=session.source_revision + 1,
                 source_length=len(session.source_text),
             ),

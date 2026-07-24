@@ -85,6 +85,7 @@ from tests.prompt_projection_surface_test_helpers import (
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
     RecordingThumbnailAssetRepository,
     render_surface_viewport,
+    set_surface_prompt_state,
     StaticPromptLoraCatalog,
     surface_router,
     valid_transient_insertion_overlay,
@@ -304,7 +305,8 @@ def test_projection_surface_rebuilds_when_lora_renderer_span_completes_plain_suf
         renderer_views=(replace(lora_renderer_view, syntax_spans=()),),
     )
 
-    surface.set_prompt_state(document_view, renderer_only_render_plan)
+    set_surface_prompt_state(surface, document_view, renderer_only_render_plan)
+    surface.flush_pending_projection_update(reason="test_renderer_only_state")
 
     projection_document = surface.projection_document()
     assert [
@@ -316,7 +318,7 @@ def test_projection_surface_rebuilds_when_lora_renderer_span_completes_plain_suf
         for run in projection_document.runs
         if run.token_id is not None
     ] == [("INLINE_OBJECT", "lora_chip")]
-    assert cast(Any, surface)._layout.inline_object_fragment_count() == 1
+    assert cast(Any, surface)._layout.snapshot.inline_object_fragment_count() == 1
 
 
 def test_projection_surface_lora_chip_stays_within_text_row_height(
@@ -468,7 +470,7 @@ def test_projection_surface_reorder_preview_suppresses_lora_banner_reads(
     text = "<lora:midna:0.80>, alpha, beta"
     document_view = document_service.build_document_view(text)
     render_plan = syntax_service.build_render_plan(document_view, syntax_profile)
-    surface.set_prompt_state(document_view, render_plan)
+    set_surface_prompt_state(surface, document_view, render_plan)
     normal_range = (
         document_view.lora_spans[0].outer_start,
         document_view.lora_spans[0].outer_end,
@@ -614,7 +616,7 @@ def test_projection_surface_schedules_metadata_only_prompt_state(
             (lora_catalog_item_with_banner(),)
         ),
     ).build_render_plan(document_view, syntax_profile)
-    surface.set_prompt_state(document_view, initial_render_plan)
+    set_surface_prompt_state(surface, document_view, initial_render_plan)
     surface.flush_pending_projection_update(reason="test_initial_metadata_state")
     surface.set_cursor_positions(
         cursor_position=len(text),
@@ -632,7 +634,7 @@ def test_projection_surface_schedules_metadata_only_prompt_state(
         original_rebuild_projection()
 
     monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
-    surface.set_prompt_state(document_view, metadata_render_plan)
+    set_surface_prompt_state(surface, document_view, metadata_render_plan)
 
     assert rebuild_count == 0
     assert surface.has_pending_projection_update() is True
@@ -675,7 +677,7 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
             (lora_catalog_item_with_banner(),)
         ),
     ).build_render_plan(document_view, syntax_profile)
-    surface.set_prompt_state(document_view, original_render_plan)
+    set_surface_prompt_state(surface, document_view, original_render_plan)
     surface.flush_pending_projection_update(reason="test_initial_metadata_state")
     surface.set_cursor_positions(
         cursor_position=len(text),
@@ -705,9 +707,11 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
     )
 
     surface._projection_freshness_controller.schedule_metadata_update(  # noqa: SLF001
-        document_view=document_view,
-        render_plan=metadata_render_plan,
-        source_revision=surface._source_revision,  # noqa: SLF001
+        snapshot=surface.editor_state.prepare_semantic(
+            document_view,
+            metadata_render_plan,
+            source_identity=surface.editor_state.source_identity,
+        ),
     )
 
     assert surface.has_pending_projection_update() is True
@@ -715,16 +719,16 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
     flush_projection_update_scheduler(surface)
 
     assert rebuild_attempts == 1
-    assert surface._render_plan == original_render_plan  # noqa: SLF001
+    assert surface.editor_state.projection_semantic.render_plan == original_render_plan
     assert surface.has_pending_projection_update() is False
 
     monkeypatch.setattr(surface, "_rebuild_projection", original_rebuild_projection)
     monkeypatch.undo()
-    surface.set_prompt_state(document_view, metadata_render_plan)
+    set_surface_prompt_state(surface, document_view, metadata_render_plan)
 
     flush_projection_update_scheduler(surface)
 
-    assert surface._render_plan == metadata_render_plan  # noqa: SLF001
+    assert surface.editor_state.projection_semantic.render_plan == metadata_render_plan
     assert surface.has_pending_projection_update() is False
 
 

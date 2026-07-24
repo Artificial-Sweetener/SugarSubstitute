@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass, replace
 from typing import Generic, TypeAlias, TypeVar
 
@@ -42,7 +46,6 @@ from substitute.presentation.editor.prompt_editor.editing_session import (
 
 from . import (
     PromptCommandResult,
-    PromptCommandSourceIdentity,
 )
 
 TPayload = TypeVar("TPayload")
@@ -58,7 +61,7 @@ class PromptTagAutocompleteAcceptance:
     word_end: int
     active_tag_end: int
     add_comma: bool
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,7 +71,7 @@ class PromptSceneAutocompleteAcceptance:
     title: str
     title_start: int
     replacement_end: int
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +81,7 @@ class PromptWildcardAutocompleteAcceptance:
     wildcard_name: str
     opener_start: int
     replacement_end: int
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +91,7 @@ class PromptLoraAutocompleteAcceptance:
     replacement_text: str
     replacement_start: int
     replacement_end: int
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
 
 
 PromptAutocompleteAcceptance: TypeAlias = (
@@ -295,7 +298,7 @@ def _execute_autocomplete_replacement(
     *,
     command_name: str,
     session: PromptEditingSession[TPayload],
-    source_identity: PromptCommandSourceIdentity | None,
+    source_identity: PromptSourceIdentity | None,
     replacement: _SourceReplacement,
     normalizer: PromptSourceNormalizer,
     exact_source: bool,

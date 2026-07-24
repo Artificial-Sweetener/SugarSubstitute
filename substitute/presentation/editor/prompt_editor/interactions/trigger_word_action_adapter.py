@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from sugarsubstitute_shared.presentation.localization import (
     render_application_text,
     set_localized_tooltip,
@@ -29,7 +33,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QFontMetrics
 from PySide6.QtWidgets import QApplication, QWidget
 
-from ..commands import PromptCommandSourceIdentity, PromptFeatureSnapshotIdentity
+from ..commands import PromptFeatureSnapshotIdentity
 from ..features import PromptLoraTriggerWordsAction
 from .command_adapter import PromptTriggerWordInsertionExecutor
 
@@ -115,7 +119,7 @@ class PromptTriggerWordActionAdapter:
             return
         self._text_insertion_executor.execute_trigger_word_insertion(
             trigger_words=command_request.payload.insertion_text,
-            source_identity=PromptCommandSourceIdentity(identity.source_revision),
+            source_identity=PromptSourceIdentity(identity.source_revision),
         )
 
 

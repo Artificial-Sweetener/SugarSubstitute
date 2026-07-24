@@ -292,6 +292,64 @@ def test_prompt_editor_integration_roots_do_not_grow() -> None:
     assert violations == {}
 
 
+def test_revision_owner_replaces_obsolete_prompt_state_mirrors() -> None:
+    """Prevent deleted raw revision and derived-state authorities from returning."""
+
+    forbidden_fragments = {
+        PROMPT_PRESENTATION_ROOT / "projection" / "surface.py": (
+            "self._source_revision",
+            "self._projection_document",
+            "self._document_view",
+            "self._render_plan",
+        ),
+        PROMPT_PRESENTATION_ROOT / "projection" / "diagnostics_painter.py": (
+            "self._layout_revision",
+            "advance_layout_revision",
+        ),
+        PROMPT_PRESENTATION_ROOT / "async_work" / "execution.py": (
+            "source_revision: int | None",
+            "source_length: int | None",
+        ),
+        PROMPT_PRESENTATION_ROOT / "projection" / "transient_edit_overlays.py": (
+            "source_revision: int",
+            "committed_source_revision",
+        ),
+        PROMPT_PRESENTATION_ROOT / "overlays" / "reorder_overlay.py": (
+            "self._source_revision",
+            "source_revision: int | None",
+        ),
+        PROMPT_PRESENTATION_ROOT / "core" / "state" / "editor_state.py": (
+            "_require_source_text(",
+            "_require_matching_source_text(",
+            "derived.source_text != ",
+            "downstream.source_text != ",
+        ),
+        PROMPT_PRESENTATION_ROOT / "syntax_renderers.py": ("self._state.revisions",),
+        PROMPT_PRESENTATION_ROOT / "editing_session" / "source_edit_commands.py": (
+            "self._source_buffer.source_text =",
+            "self._source_buffer.source_revision +=",
+            "self._source_buffer.parenthesis_intents =",
+            "self._source_buffer.generated_emphases =",
+        ),
+        PROJECT_ROOT / "tests" / "real_shell_prompt_editor_harness.py": (
+            'getattr(surface, "_source_revision"',
+            'getattr(surface, "_projection_document"',
+            'getattr(surface, "_document_view"',
+            'getattr(surface, "_render_plan"',
+        ),
+    }
+    violations: list[str] = []
+    for source_path, fragments in forbidden_fragments.items():
+        source = source_path.read_text(encoding="utf-8")
+        violations.extend(
+            f"{source_path.relative_to(PROJECT_ROOT).as_posix()}:{fragment}"
+            for fragment in fragments
+            if fragment in source
+        )
+
+    assert violations == []
+
+
 def test_prompt_editor_private_and_protocol_debt_does_not_grow() -> None:
     """Freeze broad protocols, casts, and private-access exemptions for removal."""
 
@@ -326,7 +384,7 @@ def test_prompt_editor_private_and_protocol_debt_does_not_grow() -> None:
         "protocols": 201,
         "casts": 201,
         "production_private_exemptions": 11,
-        "test_private_exemptions": 319,
+        "test_private_exemptions": 310,
     }
 
 

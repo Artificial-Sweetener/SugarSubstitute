@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass, replace
 from typing import Generic, TypeVar
 
@@ -34,7 +38,7 @@ from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptUndoSnapshot,
 )
 
-from . import PromptCommandResult, PromptCommandSourceIdentity
+from . import PromptCommandResult
 
 TPayload = TypeVar("TPayload")
 
@@ -44,7 +48,7 @@ class PromptTriggerWordInsertionRequest:
     """Describe one prepared prompt-aware trigger-word insertion."""
 
     trigger_words: str
-    source_identity: PromptCommandSourceIdentity
+    source_identity: PromptSourceIdentity
     insert_position: int | None
     selection_start: int
     selection_end: int

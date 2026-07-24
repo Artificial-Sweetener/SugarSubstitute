@@ -3674,7 +3674,7 @@ def test_prompt_editor_real_widget_paints_preview_without_changing_projection_la
     )
     omega_fragment = next(
         fragment
-        for fragment in surface._layout._snapshot.text_fragments  # noqa: SLF001
+        for fragment in surface._layout.snapshot.text_fragments  # noqa: SLF001
         if fragment.text == "omega"
     )
 

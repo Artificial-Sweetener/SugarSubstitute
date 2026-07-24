@@ -415,6 +415,17 @@ class PromptEditorStateSnapshot:
     autocomplete_snapshot_source_length: int | None
     autocomplete_snapshot_cursor_position: int | None
     source_revision: int | None
+    semantic_source_revision: int | None
+    semantic_revision: int | None
+    projection_semantic_revision: int | None
+    projection_revision: int | None
+    layout_revision: int | None
+    viewport_revision: int | None
+    paint_revision: int | None
+    semantic_is_current: bool
+    projection_is_current: bool
+    layout_is_current: bool
+    paint_is_current: bool
     editing_session_source_revision: int | None
     editing_session_cursor_position: int | None
     editing_session_anchor_position: int | None
@@ -1726,7 +1737,7 @@ class RealShellPromptEditorHarness:
 
         editor = field.editor
         surface = getattr(editor, "_surface")
-        projection_document = getattr(surface, "_projection_document")
+        projection_document = surface.projection_document()
         token = next(
             (
                 candidate
@@ -2057,6 +2068,21 @@ class RealShellPromptEditorHarness:
                 autocomplete_state["snapshot_cursor_position"]
             ),
             source_revision=_optional_int(projection_state["source_revision"]),
+            semantic_source_revision=_optional_int(
+                projection_state["semantic_source_revision"]
+            ),
+            semantic_revision=_optional_int(projection_state["semantic_revision"]),
+            projection_semantic_revision=_optional_int(
+                projection_state["projection_semantic_revision"]
+            ),
+            projection_revision=_optional_int(projection_state["projection_revision"]),
+            layout_revision=_optional_int(projection_state["layout_revision"]),
+            viewport_revision=_optional_int(projection_state["viewport_revision"]),
+            paint_revision=_optional_int(projection_state["paint_revision"]),
+            semantic_is_current=bool(projection_state["semantic_is_current"]),
+            projection_is_current=bool(projection_state["projection_is_current"]),
+            layout_is_current=bool(projection_state["layout_is_current"]),
+            paint_is_current=bool(projection_state["paint_is_current"]),
             editing_session_source_revision=_optional_int(
                 projection_state["editing_session_source_revision"]
             ),
@@ -2399,6 +2425,15 @@ class RealShellPromptEditorHarness:
             snapshot.projection_has_pending_update
             and snapshot.projection_has_stale_geometry
         )
+        if not projection_is_allowed_to_lag:
+            if not snapshot.semantic_is_current:
+                violations.append("semantic_revision_lineage_stale")
+            if not snapshot.projection_is_current:
+                violations.append("projection_revision_lineage_stale")
+            if not snapshot.layout_is_current:
+                violations.append("layout_revision_lineage_stale")
+        if snapshot.paint_cache_key_present and not snapshot.paint_is_current:
+            violations.append("paint_revision_lineage_stale")
         if not selection_is_empty and not projection_is_allowed_to_lag:
             if not snapshot.selection_rects:
                 violations.append("selection_rects_missing_for_nonempty_selection")
@@ -4303,7 +4338,8 @@ def _scene_projection_timeline_sample(
     surface = cast(Any, editor)._surface
     interaction_controller = cast(Any, editor)._interaction_controller
     semantic_refresh = interaction_controller._semantic_refresh
-    projection_document = surface._projection_document
+    editor_state = surface.editor_state
+    projection_document = editor_state.projection.document
     scene_titles = tuple(
         str(token.display_text)
         for token in projection_document.tokens
@@ -4313,7 +4349,7 @@ def _scene_projection_timeline_sample(
         label=label,
         elapsed_ms=(perf_counter() - started_at) * 1000.0,
         source_text=editor.toPlainText(),
-        document_view_source_text=str(surface._document_view.source_text),
+        document_view_source_text=str(editor_state.semantic.document.source_text),
         projection_text=str(projection_document.projection_text),
         scene_titles=scene_titles,
         projection_freshness=str(surface._projection_freshness_controller.freshness),
@@ -4331,13 +4367,37 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     """Return source, caret, and projection state from the real projection owner."""
 
     surface = getattr(editor, "_surface", None)
+    editor_state = getattr(surface, "editor_state", None)
+    revision_graph = getattr(editor_state, "revisions", None)
+    semantic_snapshot = getattr(editor_state, "semantic", None)
+    edit_semantic_snapshot = getattr(editor_state, "edit_semantic", None)
+    projection_semantic_snapshot = getattr(
+        editor_state,
+        "projection_semantic",
+        None,
+    )
+    projection_snapshot = getattr(editor_state, "projection", None)
+    layout_state_snapshot = getattr(editor_state, "layout", None)
+    viewport_state_snapshot = getattr(editor_state, "viewport", None)
+    paint_state_snapshot = getattr(editor_state, "paint", None)
+    semantic_identity = getattr(semantic_snapshot, "identity", None)
+    projection_semantic_identity = getattr(
+        projection_semantic_snapshot,
+        "identity",
+        None,
+    )
+    projection_identity = getattr(projection_snapshot, "identity", None)
+    layout_identity = getattr(layout_state_snapshot, "identity", None)
+    viewport_identity = getattr(viewport_state_snapshot, "identity", None)
+    paint_identity = getattr(paint_state_snapshot, "identity", None)
     editing_session = getattr(surface, "_editing_session", None)
-    document_view = getattr(surface, "_document_view", None)
-    projection_document = getattr(surface, "_projection_document", None)
-    active_projection_document = getattr(surface, "_active_projection_document", None)
+    document_view = getattr(edit_semantic_snapshot, "document", None)
+    projection_document = getattr(projection_snapshot, "document", None)
+    active_projection_document = (
+        surface.active_projection_document() if surface is not None else None
+    )
     layout = getattr(surface, "_layout", None)
     layout_projection_document = getattr(layout, "projection_document", None)
-    layout_snapshot = getattr(layout, "_snapshot", None)
     region_chrome = getattr(surface, "_region_chrome", None)
     region_chrome_snapshot_for = getattr(region_chrome, "snapshot_for", None)
     region_chrome_snapshot = (
@@ -4347,7 +4407,12 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     )
     paint_cache = getattr(surface, "_projection_paint_cache", None)
     paint_cache_key = getattr(paint_cache, "cache_key", None)
-    paint_cache_state = getattr(paint_cache_key, "paint_state", None)
+    paint_cache_identity = getattr(paint_cache_key, "paint_identity", None)
+    paint_cache_state = (
+        getattr(paint_state_snapshot, "state", None)
+        if paint_cache_identity == paint_identity
+        else None
+    )
     ghosted_run_ids = tuple(
         str(run_id) for run_id in getattr(paint_cache_state, "ghosted_run_ids", ())
     )
@@ -4374,24 +4439,25 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     has_pending_update = bool(pending_update()) if callable(pending_update) else False
     has_stale_geometry = bool(stale_geometry()) if callable(stale_geometry) else False
     freshness_is_stale_safe = has_stale_geometry
-    source_revision = getattr(surface, "_source_revision", None)
+    source_identity = getattr(revision_graph, "source", None)
+    source_revision = getattr(source_identity, "source_revision", None)
     insertion_overlay = getattr(transient_overlays, "insertion_overlay", None)
     deletion_overlay = getattr(transient_overlays, "deletion_overlay", None)
     caret_geometry = getattr(transient_overlays, "caret_geometry", None)
     valid_insertion_overlay = _valid_transient_insertion_overlay(
         transient_overlays=transient_overlays,
         freshness_is_stale_safe=freshness_is_stale_safe,
-        source_revision=source_revision,
+        source_identity=source_identity,
     )
     valid_deletion_overlay = _valid_transient_deletion_overlay(
         transient_overlays=transient_overlays,
         freshness_is_stale_safe=freshness_is_stale_safe,
-        source_revision=source_revision,
+        source_identity=source_identity,
     )
     valid_caret_geometry = _valid_transient_caret_geometry(
         transient_overlays=transient_overlays,
         freshness_is_stale_safe=freshness_is_stale_safe,
-        source_revision=source_revision,
+        source_identity=source_identity,
         cursor_position=getattr(caret_state, "source_position", None),
         anchor_position=getattr(anchor_state, "source_position", None),
     )
@@ -4454,18 +4520,64 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     anchor_source_position = _optional_int(
         getattr(anchor_state, "source_position", None)
     )
+    paint_cache_layout_identity = getattr(
+        paint_cache_identity,
+        "layout",
+        None,
+    )
     paint_cache_projection_identity = getattr(
-        paint_cache_key,
-        "projection_document_identity",
+        paint_cache_layout_identity,
+        "projection",
         None,
     )
-    paint_cache_layout_snapshot_identity = getattr(
-        paint_cache_key,
-        "layout_snapshot_identity",
+    paint_cache_semantic_identity = getattr(
+        paint_cache_projection_identity,
+        "semantic",
         None,
     )
+    paint_cache_source_identity = getattr(
+        paint_cache_semantic_identity,
+        "source",
+        None,
+    )
+    semantic_source_identity = getattr(semantic_identity, "source", None)
+    semantic_revision = getattr(semantic_identity, "semantic_revision", None)
+    projection_semantic_revision = getattr(
+        projection_semantic_identity,
+        "semantic_revision",
+        None,
+    )
+    projection_revision = getattr(
+        projection_identity,
+        "projection_revision",
+        None,
+    )
+    layout_revision = getattr(layout_identity, "layout_revision", None)
+    viewport_revision = getattr(viewport_identity, "viewport_revision", None)
+    paint_revision = getattr(paint_identity, "paint_state_revision", None)
     return {
         "source_revision": source_revision,
+        "semantic_source_revision": getattr(
+            semantic_source_identity,
+            "source_revision",
+            None,
+        ),
+        "semantic_revision": semantic_revision,
+        "projection_semantic_revision": projection_semantic_revision,
+        "projection_revision": projection_revision,
+        "layout_revision": layout_revision,
+        "viewport_revision": viewport_revision,
+        "paint_revision": paint_revision,
+        "semantic_is_current": (
+            bool(getattr(revision_graph, "semantic_is_current", False))
+        ),
+        "projection_is_current": (
+            bool(getattr(revision_graph, "projection_is_current", False))
+        ),
+        "layout_is_current": (
+            bool(getattr(revision_graph, "layout_is_current", False))
+        ),
+        "paint_is_current": (bool(getattr(revision_graph, "paint_is_current", False))),
         "editing_session_source_revision": getattr(
             editing_session,
             "source_revision",
@@ -4532,15 +4644,17 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         ),
         "paint_cache_key_present": paint_cache_key is not None,
         "paint_cache_source_revision": getattr(
-            paint_cache_key, "source_revision", None
+            paint_cache_source_identity,
+            "source_revision",
+            None,
         ),
         "paint_cache_projection_document_identity_matches_layout": (
             paint_cache_key is None
-            or paint_cache_projection_identity == id(layout_projection_document)
+            or paint_cache_projection_identity
+            == getattr(layout_identity, "projection", None)
         ),
         "paint_cache_layout_snapshot_identity_matches_layout": (
-            paint_cache_key is None
-            or paint_cache_layout_snapshot_identity == id(layout_snapshot)
+            paint_cache_key is None or paint_cache_layout_identity == layout_identity
         ),
         "paint_cache_ghosted_run_ids": ghosted_run_ids,
         "autocomplete_ghost_paint_visible_by_owner_state": bool(
@@ -4735,7 +4849,7 @@ def _valid_transient_insertion_overlay(
     *,
     transient_overlays: object | None,
     freshness_is_stale_safe: bool,
-    source_revision: object,
+    source_identity: object,
 ) -> object | None:
     """Return insertion overlay validity from the production overlay owner."""
 
@@ -4744,11 +4858,11 @@ def _valid_transient_insertion_overlay(
         "valid_insertion_overlay",
         None,
     )
-    if not callable(valid_insertion_overlay) or not isinstance(source_revision, int):
+    if not callable(valid_insertion_overlay) or source_identity is None:
         return None
     result: object = valid_insertion_overlay(
         freshness_is_stale_safe=freshness_is_stale_safe,
-        source_revision=source_revision,
+        source_identity=source_identity,
     )
     return result
 
@@ -4757,7 +4871,7 @@ def _valid_transient_deletion_overlay(
     *,
     transient_overlays: object | None,
     freshness_is_stale_safe: bool,
-    source_revision: object,
+    source_identity: object,
 ) -> object | None:
     """Return deletion overlay validity from the production overlay owner."""
 
@@ -4766,11 +4880,11 @@ def _valid_transient_deletion_overlay(
         "valid_deletion_overlay",
         None,
     )
-    if not callable(valid_deletion_overlay) or not isinstance(source_revision, int):
+    if not callable(valid_deletion_overlay) or source_identity is None:
         return None
     result: object = valid_deletion_overlay(
         freshness_is_stale_safe=freshness_is_stale_safe,
-        source_revision=source_revision,
+        source_identity=source_identity,
     )
     return result
 
@@ -4779,7 +4893,7 @@ def _valid_transient_caret_geometry(
     *,
     transient_overlays: object | None,
     freshness_is_stale_safe: bool,
-    source_revision: object,
+    source_identity: object,
     cursor_position: object,
     anchor_position: object,
 ) -> object | None:
@@ -4792,27 +4906,26 @@ def _valid_transient_caret_geometry(
     )
     if (
         not callable(valid_caret_geometry)
-        or not isinstance(source_revision, int)
+        or source_identity is None
         or not isinstance(cursor_position, int)
         or not isinstance(anchor_position, int)
     ):
         return None
     result: object = valid_caret_geometry(
         freshness_is_stale_safe=freshness_is_stale_safe,
-        source_revision=source_revision,
+        source_identity=source_identity,
         cursor_position=cursor_position,
         anchor_position=anchor_position,
     )
     return result
 
 
-def _layout_count(layout: object | None, method_name: str) -> int:
-    """Return one layout metric count from a no-arg layout method."""
+def _layout_count(layout: object | None, metric_name: str) -> int:
+    """Return one prepared geometry count from the public layout snapshot."""
 
-    method = getattr(layout, method_name, None)
-    if not callable(method):
-        return 0
-    result = method()
+    snapshot = getattr(layout, "snapshot", None)
+    metric = getattr(snapshot, metric_name, None)
+    result = metric() if callable(metric) else None
     return int(result) if isinstance(result, int) else 0
 
 
@@ -4841,7 +4954,7 @@ def _visible_layout_rows(
 ) -> tuple[PromptEditorVisibleLayoutRow, ...]:
     """Return projection rows that should be visible in the current viewport."""
 
-    snapshot = getattr(layout, "_snapshot", None)
+    snapshot = getattr(layout, "snapshot", None)
     lines = getattr(snapshot, "lines", ())
     if not isinstance(lines, Sequence):
         return ()
@@ -4929,7 +5042,7 @@ def _visible_text_fragments(
 ) -> tuple[PromptEditorVisibleTextFragment, ...]:
     """Return projection text fragments visible in the current viewport."""
 
-    snapshot = getattr(layout, "_snapshot", None)
+    snapshot = getattr(layout, "snapshot", None)
     fragments = getattr(snapshot, "text_fragments", ())
     if not isinstance(fragments, Sequence):
         return ()
@@ -5032,7 +5145,7 @@ def _projection_metrics_content_height(
 ) -> float | None:
     """Return the content height implied by metrics and current layout rows."""
 
-    snapshot = getattr(layout, "_snapshot", None)
+    snapshot = getattr(layout, "snapshot", None)
     lines = getattr(snapshot, "lines", ())
     content_height_for_rows = getattr(metrics, "content_height_for_rows", None)
     if not isinstance(lines, Sequence) or not callable(content_height_for_rows):
@@ -6244,6 +6357,17 @@ def _snapshot_json(snapshot: PromptEditorStateSnapshot) -> dict[str, object]:
             snapshot.autocomplete_snapshot_cursor_position
         ),
         "source_revision": snapshot.source_revision,
+        "semantic_source_revision": snapshot.semantic_source_revision,
+        "semantic_revision": snapshot.semantic_revision,
+        "projection_semantic_revision": snapshot.projection_semantic_revision,
+        "projection_revision": snapshot.projection_revision,
+        "layout_revision": snapshot.layout_revision,
+        "viewport_revision": snapshot.viewport_revision,
+        "paint_revision": snapshot.paint_revision,
+        "semantic_is_current": snapshot.semantic_is_current,
+        "projection_is_current": snapshot.projection_is_current,
+        "layout_is_current": snapshot.layout_is_current,
+        "paint_is_current": snapshot.paint_is_current,
         "editing_session_source_revision": snapshot.editing_session_source_revision,
         "editing_session_cursor_position": snapshot.editing_session_cursor_position,
         "editing_session_anchor_position": snapshot.editing_session_anchor_position,

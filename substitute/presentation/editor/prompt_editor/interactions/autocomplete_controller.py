@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Hashable
 from typing import Protocol, cast
 
@@ -51,9 +55,6 @@ from substitute.presentation.editor.prompt_editor.features import (
 )
 from substitute.presentation.editor.prompt_editor.autocomplete_preview_state import (
     PromptAutocompletePreviewState,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.debug_probe import (
     autocomplete_probe_state,
@@ -104,7 +105,7 @@ class PromptAutocompleteQueryEditor(Protocol):
     def textCursor(self) -> PromptAutocompleteCursor:
         """Return the editor's live text cursor."""
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return the current source identity used to reject stale commands."""
 
 
@@ -303,7 +304,7 @@ class PromptAutocompleteCoordinator:
         query: PromptAutocompleteQuery | None,
         *,
         source_text: str,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         feature_profile_identity: PromptFeatureSnapshotIdentity | None = None,
         query_identity: Hashable | None = None,
         ghost_text_source_snapshot: (
@@ -328,7 +329,7 @@ class PromptAutocompleteCoordinator:
         query: PromptAutocompleteQuery | None,
         *,
         source_text: str,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         feature_profile_identity: PromptFeatureSnapshotIdentity | None,
         query_identity: Hashable | None,
         ghost_text_source_snapshot: PromptAutocompleteGhostTextSourceSnapshot | None,
@@ -393,7 +394,7 @@ class PromptAutocompleteCoordinator:
         self,
         query: PromptSceneAutocompleteQuery | None,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         ghost_text_source_snapshot: (
             PromptAutocompleteGhostTextSourceSnapshot | None
         ) = None,
@@ -412,7 +413,7 @@ class PromptAutocompleteCoordinator:
         self,
         query: PromptSceneAutocompleteQuery | None,
         *,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         ghost_text_source_snapshot: PromptAutocompleteGhostTextSourceSnapshot | None,
         refresh_intent: PromptAutocompleteRefreshIntent,
     ) -> None:
@@ -449,7 +450,7 @@ class PromptAutocompleteCoordinator:
         self,
         query: PromptWildcardAutocompleteQuery | None,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         ghost_text_source_snapshot: (
             PromptAutocompleteGhostTextSourceSnapshot | None
         ) = None,
@@ -468,7 +469,7 @@ class PromptAutocompleteCoordinator:
         self,
         query: PromptWildcardAutocompleteQuery | None,
         *,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         ghost_text_source_snapshot: PromptAutocompleteGhostTextSourceSnapshot | None,
         refresh_intent: PromptAutocompleteRefreshIntent,
     ) -> None:
@@ -545,7 +546,7 @@ class PromptAutocompleteCoordinator:
             return None
         return self._result_controller.safe_tag_query_identity(query)
 
-    def current_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def current_source_identity(self) -> PromptSourceIdentity | None:
         """Return the current editor source identity for async freshness checks."""
 
         return self._editor.prompt_command_source_identity()
@@ -632,7 +633,7 @@ class PromptAutocompleteCoordinator:
         self,
         query: PromptLoraAutocompleteQuery | None,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         ghost_text_source_snapshot: (
             PromptAutocompleteGhostTextSourceSnapshot | None
         ) = None,
@@ -651,7 +652,7 @@ class PromptAutocompleteCoordinator:
         self,
         query: PromptLoraAutocompleteQuery | None,
         *,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         ghost_text_source_snapshot: PromptAutocompleteGhostTextSourceSnapshot | None,
         refresh_intent: PromptAutocompleteRefreshIntent,
     ) -> None:
@@ -1024,7 +1025,7 @@ class PromptAutocompleteController(Protocol):
         query: PromptAutocompleteQuery | None,
         *,
         source_text: str,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         feature_profile_identity: PromptFeatureSnapshotIdentity | None = None,
         query_identity: Hashable | None = None,
         ghost_text_source_snapshot: (
@@ -1038,7 +1039,7 @@ class PromptAutocompleteController(Protocol):
         self,
         query: PromptSceneAutocompleteQuery | None,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         ghost_text_source_snapshot: (
             PromptAutocompleteGhostTextSourceSnapshot | None
         ) = None,
@@ -1050,7 +1051,7 @@ class PromptAutocompleteController(Protocol):
         self,
         query: PromptWildcardAutocompleteQuery | None,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         ghost_text_source_snapshot: (
             PromptAutocompleteGhostTextSourceSnapshot | None
         ) = None,
@@ -1062,7 +1063,7 @@ class PromptAutocompleteController(Protocol):
         self,
         query: PromptLoraAutocompleteQuery | None,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         ghost_text_source_snapshot: (
             PromptAutocompleteGhostTextSourceSnapshot | None
         ) = None,
@@ -1149,7 +1150,7 @@ class PromptAutocompleteQueryRefreshController:
         query_state = self._query_controller.query_state_from_source_snapshot(snapshot)
         self._latest_query_state = query_state
         source_identity = cast(
-            PromptCommandSourceIdentity | None,
+            PromptSourceIdentity | None,
             query_state.source_identity,
         )
         ghost_text_source_snapshot = self._ghost_text_source_snapshot(query_state)

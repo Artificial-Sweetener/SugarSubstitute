@@ -33,6 +33,9 @@ from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 from substitute.shared.logging.logger import get_logger, log_debug
 
 from .debounce import PromptEditorDebouncer, QtPromptEditorDebouncer
@@ -47,16 +50,16 @@ from .observability import (
     prompt_async_freshness_log_fields,
 )
 from .request_channel import PromptEditorRequestChannel, PromptLatestWinsRequestChannel
+from .semantic_refresh_result import (
+    PromptSemanticRefreshResult,
+    build_semantic_refresh_result,
+)
 from .stale_result_guard import (
     PromptFreshnessDecision,
     PromptFreshnessField,
     PromptStaleResultGuard,
 )
 from .task_executor import PromptEditorTaskExecutor
-from .semantic_refresh_result import (
-    PromptSemanticRefreshResult,
-    build_semantic_refresh_result,
-)
 
 _LOGGER = get_logger(
     "presentation.editor.prompt_editor.async_work.semantic_refresh_controller"
@@ -91,6 +94,12 @@ class PromptSemanticRefreshHost(Protocol):
 
     def current_semantic_document_source_text(self) -> str:
         """Return the source text represented by the current semantic snapshot."""
+
+    def current_semantic_is_current(self) -> bool:
+        """Return whether semantic identity matches the live source identity."""
+
+    def rebase_current_semantic_source_identity(self) -> bool:
+        """Republish exact same-text semantics under the live source identity."""
 
     def current_semantic_async_identity(
         self,
@@ -176,7 +185,10 @@ class PromptSemanticRefreshController:
         if request is None:
             source_text = self._host.current_semantic_source_text()
             if source_text == self._host.current_semantic_document_source_text():
-                return
+                if self._host.current_semantic_is_current():
+                    return
+                if self._host.rebase_current_semantic_source_identity():
+                    return
             request = self._build_request(
                 reason=reason,
                 source_text=source_text,
@@ -203,6 +215,14 @@ class PromptSemanticRefreshController:
         self._debouncer.cancel(reason=reason)
         self._request_channel.cancel_pending(reason=reason)
         self._active_task_identity = None
+
+    def rebase_same_text_source_identity(self) -> None:
+        """Rebase unchanged semantic content after source identity advances."""
+
+        if self._host.current_semantic_is_current():
+            return
+        self.cancel_pending(reason="same_text_source_identity_changed")
+        self._host.rebase_current_semantic_source_identity()
 
     def shutdown(self) -> None:
         """Cancel semantic work and release owned execution resources."""
@@ -399,8 +419,15 @@ class PromptSemanticRefreshController:
         request_id = self._next_request_id + 1
         self._next_request_id = request_id
         identity = self._host.current_semantic_async_identity(request_id=request_id)
-        if identity.source_length is None:
-            identity = replace(identity, source_length=len(source_text))
+        source_identity = identity.source_identity
+        if source_identity is not None and source_identity.source_length is None:
+            identity = replace(
+                identity,
+                source_identity=PromptSourceIdentity(
+                    source_revision=source_identity.source_revision,
+                    source_length=len(source_text),
+                ),
+            )
         return PromptSemanticRefreshRequest(
             identity=identity,
             reason=reason,
@@ -484,7 +511,11 @@ def semantic_refresh_request_context(
         "request_id": request.identity.request_id,
         "request_reason": request.reason,
         "editor_session_id": request.identity.editor_session_id,
-        "source_revision": request.identity.source_revision,
+        "source_revision": (
+            None
+            if request.identity.source_identity is None
+            else request.identity.source_identity.source_revision
+        ),
         "source_length": len(request.source_text),
         "feature_profile_id": request.identity.feature_profile_id,
         "scene_context_id": request.identity.scene_context_id,
@@ -515,10 +546,10 @@ def _required_freshness_fields(
 
     fields: list[PromptFreshnessField] = ["request_id", "editor_session_id"]
     if (
-        result_identity.source_revision is not None
-        or current_identity.source_revision is not None
+        result_identity.source_identity is not None
+        or current_identity.source_identity is not None
     ):
-        fields.append("source_revision")
+        fields.append("source_identity")
     if (
         result_identity.feature_profile_id is not None
         or current_identity.feature_profile_id is not None

@@ -51,6 +51,9 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderPreviewSnapshot,
     PromptReorderStateView,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 
 from ..geometry import (
     autocomplete_panel_host,
@@ -220,7 +223,7 @@ class SegmentReorderOverlay(
         self._visual_style = PromptReorderVisualStyle.from_current_theme()
         self._content_rect = QRect()
         self._document_view: PromptDocumentView | None = None
-        self._source_revision: int | None = None
+        self._source_identity: PromptSourceIdentity | None = None
         self._original_layout_view: PromptReorderLayoutView | None = None
         self._current_layout_view: PromptReorderLayoutView | None = None
         self._base_drag_layout_view: PromptReorderLayoutView | None = None
@@ -450,7 +453,7 @@ class SegmentReorderOverlay(
         *,
         chips: tuple[PromptReorderChipView, ...],
         active_chip_index: int | None = None,
-        source_revision: int | None = None,
+        source_identity: PromptSourceIdentity | None = None,
     ) -> None:
         """Populate overlay hotspots from the current reorder-chip snapshot."""
 
@@ -462,7 +465,7 @@ class SegmentReorderOverlay(
         self._clear_pending_autoscroll_invalidation()
         self._delete_existing_chips()
         self._document_view = document_view
-        self._source_revision = source_revision
+        self._source_identity = source_identity
         self._original_layout_view = reorder_layout_view
         self._current_layout_view = reorder_layout_view
         self._original_reorder_state = reorder_state

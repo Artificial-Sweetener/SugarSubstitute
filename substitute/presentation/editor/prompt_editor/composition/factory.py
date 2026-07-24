@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Hashable, Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from itertools import count
 from typing import Any, Protocol, cast
@@ -26,12 +26,25 @@ from typing import Any, Protocol, cast
 from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QApplication, QWidget
 
+from substitute.application.ports import (
+    PromptTagLexiconSnapshot,
+    PromptTagLexiconSnapshotProvider,
+)
+from substitute.application.prompt_editor.autocomplete.query_service import (
+    PromptAutocompleteQueryService,
+)
+from substitute.application.prompt_editor.document.projector import (
+    PromptDocumentProjector,
+)
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
 )
 from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.editing.structured_text import (
+    PromptStructuredTextMutationService,
 )
 from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
@@ -47,48 +60,56 @@ from substitute.application.prompt_editor.lora.scheduled import (
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
-from substitute.application.prompt_editor.document.projector import (
-    PromptDocumentProjector,
-)
-from substitute.application.prompt_editor.autocomplete.query_service import (
-    PromptAutocompleteQueryService,
-)
-from substitute.application.prompt_editor.editing.structured_text import (
-    PromptStructuredTextMutationService,
-)
-from substitute.application.ports import (
-    PromptTagLexiconSnapshot,
-    PromptTagLexiconSnapshotProvider,
-)
-from substitute.presentation.widgets.model_metadata_context_menu import (
-    ModelMetadataContextActionHandler,
-)
 from substitute.infrastructure.persistence.qt_prompt_parenthesis_education_state import (
     QtPromptParenthesisEducationState,
 )
 from substitute.presentation.dialogs.danbooru_wiki_dialog import (
     QtDanbooruWikiLookupDispatcher,
 )
+from substitute.presentation.widgets.model_metadata_context_menu import (
+    ModelMetadataContextActionHandler,
+)
+
 from ..async_work import (
-    QtDanbooruUrlImportDispatcher,
-    PromptLoraThumbnailPreloader,
     PromptEditorTaskExecutor,
     PromptLatestWinsRequestChannel,
+    PromptLoraThumbnailPreloader,
     PromptScheduledLoraContextProvider,
+    QtDanbooruUrlImportDispatcher,
     build_prompt_scheduled_lora_context_coordinator,
     build_prompt_semantic_refresh_controller,
 )
+from ..commands import PromptFeatureSnapshotIdentity
 from ..editing_session import PromptCursorState, PromptEditingSession
 from ..editing_session.edit_controller import PromptEditController
 from ..editing_session.undo_coalescing import (
     DELETE_UNDO_COALESCE_IDLE_MS,
-    PromptUndoCoalescingController,
     TYPING_UNDO_COALESCE_IDLE_MS,
+    PromptUndoCoalescingController,
+)
+from ..features import (
+    PromptAutocompleteQueryController,
+    PromptAutocompleteResultController,
+    PromptAutocompleteSceneContextController,
+    PromptAutocompleteScheduledLoraContextController,
+    PromptAutocompleteWildcardResultProvider,
+    PromptContextMenuActionController,
+    PromptDanbooruActionController,
+    PromptDanbooruPasteImportController,
+    PromptFeatureProfileController,
+    PromptLoraMetadataFeatureController,
+    PromptLoraTriggerWordController,
+    PromptSceneFeatureController,
+    PromptScenePositionContextSnapshot,
+    PromptSearchFeatureController,
+    PromptSegmentPresetController,
+    PromptWildcardFeatureController,
+    prompt_feature_profile_from_legacy_syntax,
 )
 from ..interactions import (
     PromptAutocompleteAcceptanceController,
-    PromptAutocompleteCoordinator,
     PromptAutocompleteController,
+    PromptAutocompleteCoordinator,
     PromptAutocompleteQueryRefreshController,
     PromptAutocompleteSessionController,
     PromptAutocompleteSourceSnapshotController,
@@ -117,42 +138,8 @@ from ..interactions import (
 from ..interactions.parenthesis_education_controller import (
     PromptParenthesisEducationController,
 )
-from ..projection.autocomplete_ghost_text import PromptAutocompleteGhostTextPublisher
 from ..interactions.undo_coalescing_timer import PromptQtUndoCoalescingTimer
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
-from ..commands import PromptCommandSourceIdentity, PromptFeatureSnapshotIdentity
-from ..features import (
-    PromptAutocompleteQueryController,
-    PromptAutocompleteResultController,
-    PromptAutocompleteSceneContextController,
-    PromptAutocompleteScheduledLoraContextController,
-    PromptAutocompleteScheduledLoraCurrentContext,
-    PromptAutocompleteWildcardResultProvider,
-    PromptContextMenuActionController,
-    PromptDanbooruActionController,
-    PromptDanbooruPasteImportController,
-    PromptFeatureProfileController,
-    PromptLoraMetadataFeatureController,
-    PromptLoraTriggerWordController,
-    PromptSegmentPresetController,
-    PromptSceneFeatureController,
-    PromptScenePositionContextSnapshot,
-    PromptSearchFeatureController,
-    PromptWildcardFeatureController,
-    prompt_feature_profile_from_legacy_syntax,
-)
-from ..projection.surface import (
-    PromptProjectionSurface,
-    PromptProjectionUndoPayload,
-)
-from ..projection.reorder_preview_projection import (
-    PromptReorderPreviewProjectionProvider,
-)
-from ..qt_lifecycle import qt_object_is_alive
-from ..syntax_renderers import (
-    PromptSyntaxRendererCoordinator,
-    PromptSyntaxStateController,
-)
 from ..overlays import (
     PromptAutocompleteLoraWall,
     PromptAutocompletePanel,
@@ -161,6 +148,20 @@ from ..overlays import (
     PromptTokenWeightControls,
     show_lora_picker_popup,
 )
+from ..projection.autocomplete_ghost_text import PromptAutocompleteGhostTextPublisher
+from ..projection.reorder_preview_projection import (
+    PromptReorderPreviewProjectionProvider,
+)
+from ..projection.surface import (
+    PromptProjectionSurface,
+    PromptProjectionUndoPayload,
+)
+from ..qt_lifecycle import qt_object_is_alive
+from ..syntax_renderers import (
+    PromptSyntaxRendererCoordinator,
+    PromptSyntaxStateController,
+)
+from .autocomplete_context_bridge import PromptAutocompleteCurrentContextBridge
 from .collaborator_bundle import (
     PromptEditorCollaborators,
     PromptEditorConstructionInputs,
@@ -293,45 +294,6 @@ class _PromptSurfaceEditBlockActions:
         """Flush pending key edits through the composed edit controller."""
 
         self.edit_controller.finish_pending_key_edit_block(reason=reason)
-
-
-class _PromptAutocompleteCurrentContextBridge:
-    """Bind scheduled-LoRA autocomplete context to the composed coordinator."""
-
-    def __init__(self) -> None:
-        """Initialize an unbound current-context bridge."""
-
-        self._current_context: PromptAutocompleteScheduledLoraCurrentContext | None = (
-            None
-        )
-
-    def bind(
-        self,
-        current_context: PromptAutocompleteScheduledLoraCurrentContext,
-    ) -> None:
-        """Attach the live autocomplete current-context provider."""
-
-        self._current_context = current_context
-
-    def current_source_identity(self) -> PromptCommandSourceIdentity | None:
-        """Return the bound autocomplete source identity."""
-
-        if self._current_context is None:
-            return None
-        return self._current_context.current_source_identity()
-
-    def current_query_identity(self) -> Hashable | None:
-        """Return the bound autocomplete query identity."""
-
-        if self._current_context is None:
-            return None
-        return self._current_context.current_query_identity()
-
-    def refresh_current_query(self) -> None:
-        """Refresh the bound autocomplete query when available."""
-
-        if self._current_context is not None:
-            self._current_context.refresh_current_query()
 
 
 def _build_projection_editing_session() -> PromptEditingSession[
@@ -870,7 +832,7 @@ class PromptEditorCompositionFactory:
         autocomplete_acceptance_controller = PromptAutocompleteAcceptanceController(
             editor=cast(Any, context.editor),
         )
-        autocomplete_current_context = _PromptAutocompleteCurrentContextBridge()
+        autocomplete_current_context = PromptAutocompleteCurrentContextBridge()
         autocomplete_scene_context_controller = (
             PromptAutocompleteSceneContextController(
                 scene_context_provider=service_collaborators.scene_feature_controller,
@@ -965,6 +927,7 @@ class PromptEditorCompositionFactory:
             document_service=document_service,
             syntax_service=syntax_service,
             syntax_profile=syntax_profile,
+            state=projection_collaborators.surface.editor_state,
             source_changed_callback=lambda reason: (
                 reorder_preview_projection_provider.clear_cache(reason=reason)
             ),

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass
 from typing import Generic, Literal, TypeAlias, TypeVar
 
@@ -49,7 +53,7 @@ from substitute.presentation.editor.prompt_editor.editing_session import (
 )
 from substitute.shared.logging.logger import get_logger, log_warning_exception
 
-from . import PromptCommandResult, PromptCommandSourceIdentity
+from . import PromptCommandResult
 
 TPayload = TypeVar("TPayload")
 
@@ -77,7 +81,7 @@ class PromptWeightActionRequest:
     """Describe one prepared prompt weight mutation request."""
 
     action: PromptSyntaxWeightAction
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
     cursor_policy: PromptWeightCursorPolicy = "mutation_selection"
 
 
@@ -300,7 +304,7 @@ def _stale_result(
     *,
     command_name: str,
     session: PromptEditingSession[TPayload],
-    source_identity: PromptCommandSourceIdentity | None,
+    source_identity: PromptSourceIdentity | None,
 ) -> PromptWeightCommandResult[TPayload] | None:
     """Return a stale rejection for a mismatched prepared source identity."""
 

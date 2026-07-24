@@ -24,9 +24,12 @@ from enum import Enum
 
 from PySide6.QtCore import QObject
 
-from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
+from substitute.presentation.editor.prompt_editor.core.state.semantic_state import (
+    PromptEditorSemanticSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptLayoutIdentity,
+    PromptSourceIdentity,
 )
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
@@ -38,7 +41,7 @@ from .model import PromptProjectionDisplayMode
 from ..editing_session import PromptSourceEditOrigin
 from .update_scheduler import PendingProjectionUpdate, PromptProjectionUpdateScheduler
 
-_MINIMUM_VALID_LAYOUT_WIDTH = 120
+MINIMUM_VALID_PROJECTION_LAYOUT_WIDTH = 120
 _FALLBACK_LAYOUT_WIDTH = 760.0
 
 
@@ -54,11 +57,17 @@ class ProjectionFreshness(Enum):
 class PromptProjectionCommittedMetrics:
     """Cache passive layout metrics from the latest committed projection."""
 
-    source_revision: int
+    layout_identity: PromptLayoutIdentity
     content_height: float
     content_width: float
     viewport_width: int
     display_mode: PromptProjectionDisplayMode
+
+    @property
+    def source_revision(self) -> int:
+        """Return the source revision represented by committed layout."""
+
+        return self.layout_identity.projection.semantic.source.source_revision
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,22 +177,16 @@ class PromptProjectionFreshnessController:
     def schedule_safe_typing_update(
         self,
         *,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
-        source_revision: int,
-        previous_document_view: PromptDocumentView,
-        previous_render_plan: PromptSyntaxRenderPlan,
+        snapshot: PromptEditorSemanticSnapshot,
+        previous_snapshot: PromptEditorSemanticSnapshot,
     ) -> None:
         """Schedule one source-changing prompt-state update after safe typing."""
 
         self._update_scheduler.schedule(
             PendingProjectionUpdate.create(
-                document_view=document_view,
-                render_plan=render_plan,
+                snapshot=snapshot,
                 reason="safe_typing",
-                source_revision=source_revision,
-                previous_document_view=previous_document_view,
-                previous_render_plan=previous_render_plan,
+                previous_snapshot=previous_snapshot,
             )
         )
         self._last_source_edit_deferrable_for_projection = False
@@ -191,18 +194,14 @@ class PromptProjectionFreshnessController:
     def schedule_metadata_update(
         self,
         *,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
-        source_revision: int,
+        snapshot: PromptEditorSemanticSnapshot,
     ) -> None:
         """Schedule one same-source metadata projection update."""
 
         self._update_scheduler.schedule(
             PendingProjectionUpdate.create(
-                document_view=document_view,
-                render_plan=render_plan,
+                snapshot=snapshot,
                 reason="metadata",
-                source_revision=source_revision,
             )
         )
         self._last_source_edit_deferrable_for_projection = False
@@ -288,11 +287,12 @@ class PromptProjectionFreshnessController:
     ) -> float:
         """Return a non-pathological layout width for projection wrapping."""
 
-        if viewport_width >= _MINIMUM_VALID_LAYOUT_WIDTH:
+        if viewport_width >= MINIMUM_VALID_PROJECTION_LAYOUT_WIDTH:
             return float(viewport_width)
         if (
             self._committed_metrics is not None
-            and self._committed_metrics.viewport_width >= _MINIMUM_VALID_LAYOUT_WIDTH
+            and self._committed_metrics.viewport_width
+            >= MINIMUM_VALID_PROJECTION_LAYOUT_WIDTH
         ):
             return float(self._committed_metrics.viewport_width)
         if parent_width is not None:
@@ -304,7 +304,7 @@ class PromptProjectionFreshnessController:
         *,
         commit_projection: bool,
         reorder_preview_active: bool,
-        source_revision: int,
+        layout_identity: PromptLayoutIdentity | None,
         content_height: float,
         content_width: float,
         layout_width: float,
@@ -313,11 +313,13 @@ class PromptProjectionFreshnessController:
         """Commit passive layout metrics and return whether height is publishable."""
 
         projection_was_stale_safe = self._freshness is ProjectionFreshness.STALE_SAFE
-        if not reorder_preview_active and (
-            commit_projection or not projection_was_stale_safe
+        if (
+            not reorder_preview_active
+            and (commit_projection or not projection_was_stale_safe)
+            and layout_identity is not None
         ):
             self._committed_metrics = PromptProjectionCommittedMetrics(
-                source_revision=source_revision,
+                layout_identity=layout_identity,
                 content_height=content_height,
                 content_width=content_width,
                 viewport_width=int(round(layout_width)),
@@ -338,15 +340,19 @@ class PromptProjectionFreshnessController:
             return committed_source_text
         return live_source_text
 
-    def fill_band_source_revision(self, *, current_source_revision: int) -> int:
-        """Return the revision matching passive fill-band layout freshness."""
+    def fill_band_source_identity(
+        self,
+        *,
+        current_source_identity: PromptSourceIdentity,
+    ) -> PromptSourceIdentity:
+        """Return the source identity matching passive fill-band layout freshness."""
 
         if (
             self._freshness is ProjectionFreshness.STALE_SAFE
             and self._committed_metrics is not None
         ):
-            return self._committed_metrics.source_revision
-        return current_source_revision
+            return self._committed_metrics.layout_identity.projection.semantic.source
+        return current_source_identity
 
     def fill_band_content_width(self, *, current_content_width: float) -> float:
         """Return the content width matching passive fill-band layout freshness."""
@@ -355,27 +361,29 @@ class PromptProjectionFreshnessController:
             return self._committed_metrics.content_width
         return current_content_width
 
-    def transient_committed_source_revision(
+    def transient_committed_source_identity(
         self,
         *,
-        current_source_revision: int,
-    ) -> int:
-        """Return the source revision owned by committed projection geometry."""
+        current_source_identity: PromptSourceIdentity,
+    ) -> PromptSourceIdentity:
+        """Return the source identity owned by committed projection geometry."""
 
         if self._committed_metrics is not None:
-            return self._committed_metrics.source_revision
-        return current_source_revision
+            return self._committed_metrics.layout_identity.projection.semantic.source
+        return current_source_identity
 
-    def transient_fallback_committed_source_revision(
+    def transient_fallback_committed_source_identity(
         self,
         *,
-        current_source_revision: int,
-    ) -> int:
-        """Return committed source revision for fallback overlay estimates."""
+        current_source_identity: PromptSourceIdentity,
+    ) -> PromptSourceIdentity:
+        """Return committed source identity for fallback overlay estimates."""
 
         if self._committed_metrics is not None:
-            return self._committed_metrics.source_revision
-        return max(0, current_source_revision - 1)
+            return self._committed_metrics.layout_identity.projection.semantic.source
+        return PromptSourceIdentity(
+            source_revision=max(0, current_source_identity.source_revision - 1),
+        )
 
     def can_defer_source_rebuild_for_edit(
         self,

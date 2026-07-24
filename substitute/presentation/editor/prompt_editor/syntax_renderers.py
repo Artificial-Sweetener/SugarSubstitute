@@ -42,7 +42,12 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 from substitute.shared.logging.logger import get_logger, log_warning_exception
 
 from .async_work import PromptAsyncResultIdentity, PromptSemanticRefreshRequest
-from .commands import PromptCommandSourceIdentity
+from .core.state.editor_state import PromptEditorDocumentState
+from .core.state.revisions import (
+    PromptSourceIdentity,
+)
+from .core.state.semantic_state import PromptEditorSemanticSnapshot
+from .projection.model import PromptProjectionDocument
 
 _LOGGER = get_logger("presentation.editor.prompt_editor.syntax_renderers")
 
@@ -52,8 +57,7 @@ class PromptSyntaxRenderer(Protocol):
 
     def set_prompt_state(
         self,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
+        snapshot: PromptEditorSemanticSnapshot,
     ) -> None:
         """Replace the cached prompt snapshot used for syntax-aware rendering."""
 
@@ -90,13 +94,12 @@ class PromptSyntaxRendererCoordinator:
 
     def set_prompt_state(
         self,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
+        snapshot: PromptEditorSemanticSnapshot,
     ) -> None:
         """Push one prompt snapshot and render plan into every registered renderer."""
 
         for renderer in self._renderers:
-            renderer.set_prompt_state(document_view, render_plan)
+            renderer.set_prompt_state(snapshot)
 
     def set_active_span(
         self,
@@ -147,7 +150,7 @@ class PromptSyntaxStateEditor(Protocol):
     def textCursor(self) -> _PromptSyntaxStateCursor:
         """Return the editor cursor used for active syntax lookup."""
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return the current source identity for stale-result checks."""
 
     def active_syntax_span(self) -> PromptSyntaxSpanView | None:
@@ -165,6 +168,11 @@ class PromptSyntaxStateController:
         document_service: PromptDocumentService,
         syntax_service: PromptSyntaxService,
         syntax_profile: PromptSyntaxProfile,
+        state: PromptEditorDocumentState[
+            PromptDocumentView,
+            PromptSyntaxRenderPlan,
+            PromptProjectionDocument,
+        ],
         source_changed_callback: Callable[[str], None] | None = None,
     ) -> None:
         """Build the initial prompt snapshot and store publication collaborators."""
@@ -174,30 +182,33 @@ class PromptSyntaxStateController:
         self._document_service = document_service
         self._syntax_service = syntax_service
         self._syntax_profile = syntax_profile
+        self._state = state
         self._source_changed_callback = source_changed_callback
         self._pending_document_view: PromptDocumentView | None = None
-        self._document_view = self._document_service.build_document_view(
+        initial_document_view = self._document_service.build_document_view(
             self._editor.toPlainText()
         )
-        self._render_plan = PromptSyntaxRenderPlan(
-            syntax_spans=(),
-            renderer_views=(),
-        )
         self._active_syntax_span: PromptSyntaxSpanView | None = None
-        self.replace_prompt_state(self._document_view)
+        self.replace_prompt_state(initial_document_view)
         self.refresh_active_span()
 
     @property
     def document_view(self) -> PromptDocumentView:
         """Return the current application-owned prompt document view."""
 
-        return self._document_view
+        return self._state.semantic.document
 
     @property
     def render_plan(self) -> PromptSyntaxRenderPlan:
         """Return the current syntax render plan."""
 
-        return self._render_plan
+        return self._state.semantic.render_plan
+
+    @property
+    def semantic_snapshot(self) -> PromptEditorSemanticSnapshot:
+        """Return the atomic semantic snapshot published to renderers."""
+
+        return self._state.semantic
 
     @property
     def active_syntax_span(self) -> PromptSyntaxSpanView | None:
@@ -230,7 +241,7 @@ class PromptSyntaxStateController:
         """Register and initialize one renderer with the current syntax state."""
 
         self._renderers.add_renderer(renderer)
-        renderer.set_prompt_state(self._document_view, self._render_plan)
+        renderer.set_prompt_state(self._state.semantic)
         renderer.set_active_span(
             self._active_syntax_span,
             cursor_position=self._editor.textCursor().position(),
@@ -249,7 +260,28 @@ class PromptSyntaxStateController:
     def current_semantic_document_source_text(self) -> str:
         """Return the source text represented by the cached semantic snapshot."""
 
-        return self._document_view.source_text
+        return self._state.semantic.document.source_text
+
+    def current_semantic_is_current(self) -> bool:
+        """Return whether semantic identity matches the live source identity."""
+
+        return self._state.semantic.identity.source is self._state.source_identity
+
+    def rebase_current_semantic_source_identity(self) -> bool:
+        """Republish exact same-text semantics under the live source identity."""
+
+        semantic = self._state.semantic
+        if semantic.document.source_text != self._editor.toPlainText():
+            return False
+        if semantic.identity.source is self._state.source_identity:
+            return True
+        if not self.replace_prompt_state_with_render_plan(
+            semantic.document,
+            semantic.render_plan,
+        ):
+            return False
+        self._state.rebase_equivalent_downstream(self._state.semantic)
+        return True
 
     def current_semantic_async_identity(
         self,
@@ -259,19 +291,15 @@ class PromptSyntaxStateController:
         """Return current source identity for semantic stale-result checks."""
 
         source_identity = self._editor.prompt_command_source_identity()
-        source_revision = (
-            None if source_identity is None else source_identity.source_revision
-        )
-        source_length = (
-            len(self._editor.toPlainText())
-            if source_identity is None or source_identity.source_length is None
-            else source_identity.source_length
-        )
+        if source_identity is not None and source_identity.source_length is None:
+            source_identity = PromptSourceIdentity(
+                source_revision=source_identity.source_revision,
+                source_length=len(self._editor.toPlainText()),
+            )
         return PromptAsyncResultIdentity(
             request_id=request_id,
             editor_session_id=id(self._editor),
-            source_revision=source_revision,
-            source_length=source_length,
+            source_identity=source_identity,
             feature_profile_id=tuple(self._syntax_profile.enabled_syntaxes),
             scene_context_id=None,
             cube_context_id=None,
@@ -352,7 +380,7 @@ class PromptSyntaxStateController:
                 "Prompt syntax render-plan refresh failed",
                 error=error,
                 source_length=len(document_view.source_text),
-                previous_source_length=len(self._document_view.source_text),
+                previous_source_length=len(self._state.semantic.document.source_text),
             )
             return False
         return self.replace_prompt_state_with_render_plan(
@@ -367,25 +395,35 @@ class PromptSyntaxStateController:
     ) -> bool:
         """Replace cached prompt state using an already prepared render plan."""
 
-        previous_document_view = self._document_view
-        previous_render_plan = self._render_plan
+        if document_view.source_text != self._editor.toPlainText():
+            _LOGGER.warning(
+                "Prompt semantic publication rejected mismatched source"
+                " | prepared_source_length=%s live_source_length=%s",
+                len(document_view.source_text),
+                len(self._editor.toPlainText()),
+            )
+            return False
+        previous_snapshot = self._state.semantic
+        candidate = self._state.prepare_semantic(
+            document_view,
+            syntax_render_plan,
+            source_identity=self._state.source_identity,
+        )
         try:
-            self._document_view = document_view
-            self._render_plan = syntax_render_plan
-            self._renderers.set_prompt_state(document_view, syntax_render_plan)
+            self._renderers.set_prompt_state(candidate)
         except Exception as error:
-            self._document_view = previous_document_view
-            self._render_plan = previous_render_plan
+            self._state.restore_semantic(previous_snapshot)
             log_warning_exception(
                 _LOGGER,
                 "Prompt syntax render-plan refresh failed",
                 error=error,
                 source_length=len(document_view.source_text),
-                previous_source_length=len(previous_document_view.source_text),
+                previous_source_length=len(previous_snapshot.document.source_text),
             )
             return False
+        self._state.adopt_semantic(candidate)
         if (
-            document_view.source_text != previous_document_view.source_text
+            document_view.source_text != previous_snapshot.document.source_text
             and self._source_changed_callback is not None
         ):
             self._source_changed_callback("source_text_changed")
@@ -418,7 +456,7 @@ class PromptSyntaxStateController:
     ) -> PromptSyntaxSpanView | None:
         """Return the innermost syntax span matching one cursor position."""
 
-        for span in reversed(self._render_plan.syntax_spans):
+        for span in reversed(self._state.semantic.render_plan.syntax_spans):
             if span.start < position < span.end:
                 return span
         return None
@@ -429,4 +467,5 @@ __all__ = [
     "PromptSyntaxRendererCoordinator",
     "PromptSyntaxStateController",
     "PromptSyntaxStateEditor",
+    "PromptEditorSemanticSnapshot",
 ]

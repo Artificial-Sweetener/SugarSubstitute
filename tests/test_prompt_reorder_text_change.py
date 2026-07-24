@@ -230,6 +230,18 @@ class _DeferredSemanticRefreshHost:
             self._controller_provider().current_semantic_document_source_text(),
         )
 
+    def current_semantic_is_current(self) -> bool:
+        """Return whether semantic identity matches the live source."""
+
+        return bool(self._controller_provider().current_semantic_is_current())
+
+    def rebase_current_semantic_source_identity(self) -> bool:
+        """Republish exact same-text semantics under the live source identity."""
+
+        return bool(
+            self._controller_provider().rebase_current_semantic_source_identity()
+        )
+
     def current_semantic_async_identity(
         self,
         *,

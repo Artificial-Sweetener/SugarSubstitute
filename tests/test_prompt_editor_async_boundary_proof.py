@@ -42,6 +42,9 @@ from substitute.presentation.editor.prompt_editor.async_work import (
     prompt_async_freshness_log_fields,
     prompt_async_outcome_log_fields,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 from tests.execution_test_helpers import prompt_task_executor
 
 
@@ -53,7 +56,7 @@ def test_proof_adapter_submits_work_and_publishes_fresh_result() -> None:
     current_identity = PromptAsyncResultIdentity(
         request_id=2,
         editor_session_id="session",
-        source_revision=4,
+        source_identity=PromptSourceIdentity(source_revision=4),
         cancellation_generation=1,
     )
     adapter = _ProofAsyncFeatureAdapter(
@@ -88,7 +91,7 @@ def test_proof_adapter_rejects_stale_result_before_publication() -> None:
         identity=PromptAsyncResultIdentity(
             request_id=2,
             editor_session_id="session",
-            source_revision=4,
+            source_identity=PromptSourceIdentity(source_revision=4),
             cancellation_generation=1,
         )
     )
@@ -110,7 +113,7 @@ def test_proof_adapter_rejects_stale_result_before_publication() -> None:
     current_identity.identity = PromptAsyncResultIdentity(
         request_id=3,
         editor_session_id="session",
-        source_revision=5,
+        source_identity=PromptSourceIdentity(source_revision=5),
         cancellation_generation=1,
     )
     allow_work.set()
@@ -118,7 +121,7 @@ def test_proof_adapter_rejects_stale_result_before_publication() -> None:
     assert adapter.wait_for_completion()
     assert adapter.published_results == []
     assert adapter.stale_drop_reasons == ["identity_mismatch"]
-    assert adapter.stale_mismatch_fields == ["source_revision"]
+    assert adapter.stale_mismatch_fields == ["source_identity"]
     executor.shutdown()
 
 
@@ -131,7 +134,7 @@ def test_proof_adapter_latest_wins_cancels_superseded_work() -> None:
         identity=PromptAsyncResultIdentity(
             request_id=3,
             editor_session_id="session",
-            source_revision=2,
+            source_identity=PromptSourceIdentity(source_revision=2),
             cancellation_generation=1,
         )
     )
@@ -158,7 +161,7 @@ def test_proof_adapter_latest_wins_cancels_superseded_work() -> None:
     current_identity.identity = PromptAsyncResultIdentity(
         request_id=3,
         editor_session_id="session",
-        source_revision=2,
+        source_identity=PromptSourceIdentity(source_revision=2),
         cancellation_generation=2,
     )
     second_handle = adapter.submit(
@@ -190,7 +193,7 @@ def test_proof_adapter_cancel_pending_prevents_publication() -> None:
         current_identity=lambda: PromptAsyncResultIdentity(
             request_id=1,
             editor_session_id="session",
-            source_revision=1,
+            source_identity=PromptSourceIdentity(source_revision=1),
             cancellation_generation=1,
         ),
     )
@@ -246,8 +249,10 @@ def test_proof_adapter_logs_failure_without_prompt_content(
     current_identity = PromptAsyncResultIdentity(
         request_id=1,
         editor_session_id="session",
-        source_revision=1,
-        source_length=31,
+        source_identity=PromptSourceIdentity(
+            source_revision=1,
+            source_length=31,
+        ),
         cancellation_generation=1,
     )
     adapter = _ProofAsyncFeatureAdapter(
@@ -362,7 +367,7 @@ class _ProofAsyncFeatureAdapter:
                 current_identity=self._current_identity(),
                 required_fields=(
                     "editor_session_id",
-                    "source_revision",
+                    "source_identity",
                     "cancellation_generation",
                 ),
             )
@@ -396,8 +401,10 @@ def _request(
         identity=PromptAsyncResultIdentity(
             request_id=request_id,
             editor_session_id="session",
-            source_revision=source_revision,
-            source_length=source_length,
+            source_identity=PromptSourceIdentity(
+                source_revision=source_revision,
+                source_length=source_length,
+            ),
         ),
         context=PromptAsyncRequestContext(
             operation="proof_async_feature",

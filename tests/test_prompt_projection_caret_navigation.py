@@ -63,7 +63,7 @@ def _projection_lines(
 
     return cast(
         tuple[PromptProjectionLineSnapshot, ...],
-        cast(Any, surface)._layout._snapshot.lines,
+        cast(Any, surface)._layout.snapshot.lines,
     )
 
 

@@ -36,21 +36,32 @@ from substitute.application.prompt_editor.diagnostics.models import (
     PromptSpellingDiagnosticPayload,
     PromptWildcardDiagnosticPayload,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptLayoutIdentity,
+    PromptLayoutRevision,
+    PromptProjectionIdentity,
+    PromptProjectionRevision,
+    PromptSemanticIdentity,
+    PromptSemanticRevision,
+    PromptSourceIdentity,
+)
 from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionDisplayMode,
+)
+from tests.prompt_projection_surface_test_helpers import (
+    apply_source_range_to_projection,
+    delay_projection_update_scheduler,
+    flush_projection_update_scheduler,
+    render_surface_viewport,
+)
+from tests.prompt_projection_surface_test_helpers import (
+    projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
 )
 from tests.prompt_projection_test_helpers import (
     ensure_qapp,
     process_events,
     show_prompt_editor,
     surface_for,
-)
-from tests.prompt_projection_surface_test_helpers import (
-    apply_source_range_to_projection,
-    delay_projection_update_scheduler,
-    flush_projection_update_scheduler,
-    projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
-    render_surface_viewport,
 )
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
@@ -327,23 +338,30 @@ def test_projection_surface_preserves_diagnostic_fragments_after_hard_line_edit(
         source_end=word_end + 1,
     )
     cast(Any, surface)._session.set_diagnostics((remapped_diagnostic,))
-    next_layout_revision = cast(
-        int,
-        cast(Any, surface)._diagnostic_painter.advance_layout_revision(
-            reason="test_hard_line_edit"
-        ),
+    previous_layout_identity = cast(Any, surface)._frame_state.current_layout_identity(
+        cast(Any, surface)._layout,
     )
-    cast(Any, surface)._preserve_diagnostic_fragment_cache_for_incremental_edit(
+    assert previous_layout_identity is not None
+    next_layout_identity = _next_layout_identity(
+        previous_layout_identity,
+        next_source_length=len(text) + 1,
+    )
+    diagnostic_painter = cast(Any, surface)._diagnostic_painter
+    diagnostic_painter.preserve_fragment_cache_for_incremental_edit(
+        diagnostics=(remapped_diagnostic,),
         start=edit_start,
         end=edit_start,
         replacement_text="\n",
-        next_layout_revision=next_layout_revision,
+        previous_layout_identity=previous_layout_identity,
+        next_layout_identity=next_layout_identity,
         fragment_y_delta=20.0,
     )
-    remapped_fragments = cast(Any, surface)._diagnostic_fragments_for_paint(
+    remapped_fragments = diagnostic_painter.diagnostic_fragments_for_paint(
         remapped_diagnostic,
+        layout=layout,
         viewport_rect=viewport_rect,
         scroll_offset=scroll_offset,
+        layout_identity=next_layout_identity,
     )
 
     assert fragment_lookup_count == 1
@@ -352,6 +370,32 @@ def test_projection_surface_preserves_diagnostic_fragments_after_hard_line_edit(
     assert remapped_fragments
     assert remapped_fragments[0].top() > cached_fragments[0].top()
     flush_projection_update_scheduler(surface)
+
+
+def _next_layout_identity(
+    previous: PromptLayoutIdentity,
+    *,
+    next_source_length: int,
+) -> PromptLayoutIdentity:
+    """Return one exact successor lineage for cache-remap tests."""
+
+    previous_semantic = previous.projection.semantic
+    source = PromptSourceIdentity(
+        previous_semantic.source.source_revision + 1,
+        next_source_length,
+    )
+    semantic = PromptSemanticIdentity(
+        source,
+        PromptSemanticRevision(int(previous_semantic.semantic_revision) + 1),
+    )
+    projection = PromptProjectionIdentity(
+        semantic,
+        PromptProjectionRevision(int(previous.projection.projection_revision) + 1),
+    )
+    return PromptLayoutIdentity(
+        projection,
+        PromptLayoutRevision(int(previous.layout_revision) + 1),
+    )
 
 
 def test_projection_surface_preserves_diagnostic_fragments_after_fast_delete(

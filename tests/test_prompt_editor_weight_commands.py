@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from decimal import Decimal
 from typing import cast
 
@@ -41,7 +45,6 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandDispatcher,
-    PromptCommandSourceIdentity,
     PromptWeightActionRequest,
     PromptWeightCommandResult,
     build_weight_action_command,
@@ -92,10 +95,10 @@ def _undo_snapshot(session: PromptEditingSession[str]) -> PromptUndoSnapshot[str
     )
 
 
-def _source_identity(session: PromptEditingSession[str]) -> PromptCommandSourceIdentity:
+def _source_identity(session: PromptEditingSession[str]) -> PromptSourceIdentity:
     """Return the current source identity for stale-command tests."""
 
-    return PromptCommandSourceIdentity(
+    return PromptSourceIdentity(
         source_revision=session.source_revision,
         source_length=len(session.source_text),
     )
@@ -195,7 +198,7 @@ def test_stale_weight_identity_rejects_without_mutation() -> None:
                 outer_end=10,
                 weight=Decimal("1.20"),
             ),
-            source_identity=PromptCommandSourceIdentity(
+            source_identity=PromptSourceIdentity(
                 source_revision=session.source_revision + 1,
                 source_length=len(session.source_text),
             ),

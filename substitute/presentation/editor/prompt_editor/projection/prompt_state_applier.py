@@ -22,9 +22,16 @@ from dataclasses import dataclass
 from typing import Protocol, cast
 
 from PySide6.QtCore import QObject
+
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
+)
+from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
+    PromptEditorDocumentState,
+)
+from substitute.presentation.editor.prompt_editor.core.state.semantic_state import (
+    PromptEditorSemanticSnapshot,
 )
 from substitute.presentation.editor.prompt_editor.qt_lifecycle import qt_object_is_alive
 from substitute.shared.logging.logger import (
@@ -33,14 +40,15 @@ from substitute.shared.logging.logger import (
 )
 
 from .applicator import PromptProjectionApplicator
+from .frame_state import PromptProjectionFrameStatePublisher
 from .freshness_controller import (
     PromptProjectionFreshnessBlockers,
     PromptProjectionFreshnessController,
 )
 from .incremental_apply_controller import (
     PromptProjectionApplyPath,
-    PromptProjectionIncrementalApplyController,
     PromptProjectionApplyViewport,
+    PromptProjectionIncrementalApplyController,
 )
 from .layout_engine import PromptProjectionLayout
 from .model import (
@@ -71,14 +79,15 @@ class PromptProjectionPromptStateHost(Protocol):
     _projection_applicator: PromptProjectionApplicator
     _projection_freshness_controller: PromptProjectionFreshnessController
     _incremental_apply_controller: PromptProjectionIncrementalApplyController
-    _document_view: PromptDocumentView
-    _render_plan: PromptSyntaxRenderPlan
-    _projection_document: PromptProjectionDocument
+    _editor_state: PromptEditorDocumentState[
+        PromptDocumentView,
+        PromptSyntaxRenderPlan,
+        PromptProjectionDocument,
+    ]
     _active_projection_document: PromptProjectionDocument
     _display_mode: PromptProjectionDisplayMode
     _session: PromptProjectionSession
     _scene_error_keys: frozenset[str]
-    _source_revision: int
     _cursor_state: PromptProjectionCaretState
     _anchor_state: PromptProjectionCaretState
     _caret_visibility_prompt_state_revision: int | None
@@ -147,28 +156,38 @@ class PromptProjectionPromptStateHost(Protocol):
 class PromptProjectionPromptStateApplier:
     """Own prompt-state scheduling and apply-path selection."""
 
-    def __init__(self, host: PromptProjectionPromptStateHost) -> None:
+    def __init__(
+        self,
+        host: PromptProjectionPromptStateHost,
+        *,
+        frame_state: PromptProjectionFrameStatePublisher,
+    ) -> None:
         """Create an applier around a projection surface sink."""
 
         self._host = host
+        self._frame_state = frame_state
 
     def set_prompt_state(
         self,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
+        snapshot: PromptEditorSemanticSnapshot,
     ) -> PromptProjectionPromptStateApplyOutcome:
         """Apply or schedule a prepared prompt-state snapshot."""
 
         host = self._host
+        document_view = snapshot.document
+        render_plan = snapshot.render_plan
         if not qt_object_is_alive(cast(QObject, host)):
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=PromptProjectionApplyPath.DROPPED_STALE,
-                source_revision=host._source_revision,
+                source_revision=host._editor_state.source.source_revision,
             )
-        source_changed = document_view.source_text != host._document_view.source_text
+        projection_semantic = host._editor_state.projection_semantic
+        source_changed = (
+            document_view.source_text != projection_semantic.document.source_text
+        )
         semantics_changed = (
             render_plan.document_semantics_identity
-            != host._render_plan.document_semantics_identity
+            != projection_semantic.render_plan.document_semantics_identity
         )
         can_schedule_safe_typing = (
             host._projection_freshness_controller.can_schedule_prompt_state_projection(
@@ -187,17 +206,32 @@ class PromptProjectionPromptStateApplier:
             can_schedule_metadata=can_schedule_metadata,
             apply_path="received",
         )
-        if can_schedule_safe_typing:
-            previous_document_view = host._document_view
-            previous_render_plan = host._render_plan
-            host._document_view = document_view
-            host._render_plan = render_plan
-            host._projection_freshness_controller.schedule_safe_typing_update(
+        previous_snapshot = projection_semantic
+        if (
+            document_view is projection_semantic.document
+            and render_plan is projection_semantic.render_plan
+            and host._editor_state.projection.document.source_text
+            == document_view.source_text
+        ):
+            host._projection_freshness_controller.clear_pending_after_immediate_apply()
+            self._publish_rebased_projection_lineage(snapshot)
+            host._log_projection_state_event(
+                "prompt_projection_state.applied",
                 document_view=document_view,
                 render_plan=render_plan,
-                source_revision=host._source_revision,
-                previous_document_view=previous_document_view,
-                previous_render_plan=previous_render_plan,
+                source_changed=False,
+                can_schedule_safe_typing=can_schedule_safe_typing,
+                can_schedule_metadata=can_schedule_metadata,
+                apply_path="identity_rebase",
+            )
+            return PromptProjectionPromptStateApplyOutcome(
+                apply_path=PromptProjectionApplyPath.PAINT_ONLY,
+                source_revision=host._editor_state.source.source_revision,
+            )
+        if can_schedule_safe_typing:
+            host._projection_freshness_controller.schedule_safe_typing_update(
+                snapshot=snapshot,
+                previous_snapshot=previous_snapshot,
             )
             host._log_projection_state_event(
                 "prompt_projection_state.scheduled",
@@ -207,24 +241,23 @@ class PromptProjectionPromptStateApplier:
                 can_schedule_safe_typing=can_schedule_safe_typing,
                 can_schedule_metadata=can_schedule_metadata,
                 apply_path="scheduled_safe_typing",
-                update_source_revision=host._source_revision,
+                update_source_revision=host._editor_state.source.source_revision,
             )
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=PromptProjectionApplyPath.SCHEDULED,
-                source_revision=host._source_revision,
-                update_source_revision=host._source_revision,
+                source_revision=host._editor_state.source.source_revision,
+                update_source_revision=host._editor_state.source.source_revision,
             )
         if (
             not source_changed
-            and render_plan != host._render_plan
-            and render_plan.syntax_spans == host._render_plan.syntax_spans
-            and host._projection_document.source_text == document_view.source_text
+            and render_plan != projection_semantic.render_plan
+            and render_plan.syntax_spans == projection_semantic.render_plan.syntax_spans
+            and host._editor_state.projection.document.source_text
+            == document_view.source_text
             and can_schedule_metadata
         ):
             host._projection_freshness_controller.schedule_metadata_update(
-                document_view=document_view,
-                render_plan=render_plan,
-                source_revision=host._source_revision,
+                snapshot=snapshot,
             )
             host._log_projection_state_event(
                 "prompt_projection_state.scheduled",
@@ -234,22 +267,21 @@ class PromptProjectionPromptStateApplier:
                 can_schedule_safe_typing=can_schedule_safe_typing,
                 can_schedule_metadata=can_schedule_metadata,
                 apply_path="scheduled_metadata",
-                update_source_revision=host._source_revision,
+                update_source_revision=host._editor_state.source.source_revision,
             )
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=PromptProjectionApplyPath.SCHEDULED,
-                source_revision=host._source_revision,
-                update_source_revision=host._source_revision,
+                source_revision=host._editor_state.source.source_revision,
+                update_source_revision=host._editor_state.source.source_revision,
             )
         if (
             not source_changed
             and not semantics_changed
-            and render_plan.syntax_spans == host._render_plan.syntax_spans
-            and host._projection_document.source_text == document_view.source_text
+            and render_plan.syntax_spans == projection_semantic.render_plan.syntax_spans
+            and host._editor_state.projection.document.source_text
+            == document_view.source_text
             and host._projection_freshness_controller.has_pending_update()
         ):
-            host._document_view = document_view
-            host._render_plan = render_plan
             host._log_projection_state_event(
                 "prompt_projection_state.scheduled",
                 document_view=document_view,
@@ -258,30 +290,23 @@ class PromptProjectionPromptStateApplier:
                 can_schedule_safe_typing=can_schedule_safe_typing,
                 can_schedule_metadata=can_schedule_metadata,
                 apply_path="scheduled_pending_projection",
-                update_source_revision=host._source_revision,
+                update_source_revision=host._editor_state.source.source_revision,
             )
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=PromptProjectionApplyPath.SCHEDULED,
-                source_revision=host._source_revision,
-                update_source_revision=host._source_revision,
+                source_revision=host._editor_state.source.source_revision,
+                update_source_revision=host._editor_state.source.source_revision,
             )
         if (
             not source_changed
             and not semantics_changed
-            and render_plan.syntax_spans == host._render_plan.syntax_spans
+            and render_plan.syntax_spans == projection_semantic.render_plan.syntax_spans
             and host._projection_freshness_controller.has_pending_update()
             and host._projection_freshness_controller.has_stale_projection_geometry()
         ):
-            previous_document_view = host._document_view
-            previous_render_plan = host._render_plan
-            host._document_view = document_view
-            host._render_plan = render_plan
             host._projection_freshness_controller.schedule_safe_typing_update(
-                document_view=document_view,
-                render_plan=render_plan,
-                source_revision=host._source_revision,
-                previous_document_view=previous_document_view,
-                previous_render_plan=previous_render_plan,
+                snapshot=snapshot,
+                previous_snapshot=previous_snapshot,
             )
             host._log_projection_state_event(
                 "prompt_projection_state.scheduled",
@@ -291,22 +316,22 @@ class PromptProjectionPromptStateApplier:
                 can_schedule_safe_typing=can_schedule_safe_typing,
                 can_schedule_metadata=can_schedule_metadata,
                 apply_path="scheduled_stale_projection",
-                update_source_revision=host._source_revision,
+                update_source_revision=host._editor_state.source.source_revision,
             )
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=PromptProjectionApplyPath.SCHEDULED,
-                source_revision=host._source_revision,
-                update_source_revision=host._source_revision,
+                source_revision=host._editor_state.source.source_revision,
+                update_source_revision=host._editor_state.source.source_revision,
             )
         if (
             not source_changed
             and not semantics_changed
-            and render_plan.syntax_spans == host._render_plan.syntax_spans
-            and host._projection_document.source_text == document_view.source_text
+            and render_plan.syntax_spans == projection_semantic.render_plan.syntax_spans
+            and host._editor_state.projection.document.source_text
+            == document_view.source_text
         ):
             host._projection_freshness_controller.clear_pending_after_immediate_apply()
-            host._document_view = document_view
-            host._render_plan = render_plan
+            self._publish_rebased_projection_lineage(snapshot)
             host._log_projection_state_event(
                 "prompt_projection_state.applied",
                 document_view=document_view,
@@ -318,11 +343,10 @@ class PromptProjectionPromptStateApplier:
             )
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=PromptProjectionApplyPath.PAINT_ONLY,
-                source_revision=host._source_revision,
+                source_revision=host._editor_state.source.source_revision,
             )
         if self.try_apply_prompt_state_without_geometry_rebuild(
-            document_view,
-            render_plan,
+            snapshot,
             source_changed=source_changed,
         ):
             host._log_projection_state_event(
@@ -336,27 +360,31 @@ class PromptProjectionPromptStateApplier:
             )
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=PromptProjectionApplyPath.PAINT_ONLY,
-                source_revision=host._source_revision,
+                source_revision=host._editor_state.source.source_revision,
             )
         host._projection_freshness_controller.clear_pending_after_immediate_apply()
-        return self.apply_prompt_state_projection(document_view, render_plan)
+        return self.apply_prompt_state_projection(snapshot)
 
     def try_apply_prompt_state_without_geometry_rebuild(
         self,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
+        snapshot: PromptEditorSemanticSnapshot,
         *,
         source_changed: bool,
     ) -> bool:
         """Apply prompt state directly when projection geometry is identical."""
 
         host = self._host
+        document_view = snapshot.document
+        render_plan = snapshot.render_plan
         if (
             render_plan.document_semantics_identity
-            != host._render_plan.document_semantics_identity
+            != host._editor_state.projection_semantic.render_plan.document_semantics_identity
         ):
             return False
-        if render_plan.syntax_spans != host._render_plan.syntax_spans:
+        if (
+            render_plan.syntax_spans
+            != host._editor_state.projection_semantic.render_plan.syntax_spans
+        ):
             return False
         active_span_range = host._active_span_range()
         result = (
@@ -369,7 +397,7 @@ class PromptProjectionPromptStateApplier:
                 active_span_range=active_span_range,
                 decoration_accent_ranges=host._decoration_accent_ranges(),
                 scene_error_keys=host._scene_error_keys,
-                current_document=host._projection_document,
+                current_document=host._editor_state.projection.document,
                 layout=host._layout,
             )
         )
@@ -378,14 +406,29 @@ class PromptProjectionPromptStateApplier:
 
         host._visible_scroll_bar()
         host._projection_freshness_controller.clear_pending_after_immediate_apply()
-        host._document_view = document_view
-        host._render_plan = render_plan
-        host._projection_document = result.projection_document
+        host._editor_state.stage_edit_semantic(snapshot)
+        host._editor_state.publish_projection(result.projection_document)
         host._last_rendered_active_span_range = result.active_span_range
-        host._active_projection_document = host._projection_document
+        host._active_projection_document = host._editor_state.projection.document
+        self._frame_state.publish_layout(host._layout)
+        self._frame_state.publish_prepared_paint(host._layout)
         self._apply_pending_auto_exact_weight_edit()
         host.viewport().update()
         return True
+
+    def _publish_rebased_projection_lineage(
+        self,
+        snapshot: PromptEditorSemanticSnapshot,
+    ) -> None:
+        """Rebind unchanged projection and geometry to equivalent semantic state."""
+
+        host = self._host
+        projection_document = host._editor_state.projection.document
+        host._editor_state.stage_edit_semantic(snapshot)
+        host._editor_state.publish_projection(projection_document)
+        host._active_projection_document = projection_document
+        self._frame_state.publish_layout(host._layout)
+        self._frame_state.publish_prepared_paint(host._layout)
 
     def apply_scheduled_projection_update(
         self,
@@ -397,16 +440,17 @@ class PromptProjectionPromptStateApplier:
         if not qt_object_is_alive(cast(QObject, host)):
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=PromptProjectionApplyPath.DROPPED_STALE,
-                source_revision=host._source_revision,
+                source_revision=host._editor_state.source.source_revision,
                 update_source_revision=update.source_revision,
             )
-        if update.source_revision != host._source_revision:
+        if update.source_revision != host._editor_state.source.source_revision:
             host._log_projection_state_event(
                 "prompt_projection_state.dropped",
                 document_view=update.document_view,
                 render_plan=update.render_plan,
                 source_changed=(
-                    update.document_view.source_text != host._document_view.source_text
+                    update.document_view.source_text
+                    != host._editor_state.projection_semantic.document.source_text
                 ),
                 can_schedule_safe_typing=host._projection_freshness_controller.can_schedule_prompt_state_projection(
                     host._projection_freshness_blockers()
@@ -421,7 +465,7 @@ class PromptProjectionPromptStateApplier:
             )
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=PromptProjectionApplyPath.DROPPED_STALE,
-                source_revision=host._source_revision,
+                source_revision=host._editor_state.source.source_revision,
                 update_source_revision=update.source_revision,
             )
         host._visible_scroll_bar()
@@ -429,8 +473,7 @@ class PromptProjectionPromptStateApplier:
             if update.reason == "safe_typing":
                 applied_without_rebuild = (
                     self.try_apply_prompt_state_without_geometry_rebuild(
-                        update.document_view,
-                        update.render_plan,
+                        update.snapshot,
                         source_changed=False,
                     )
                 )
@@ -455,12 +498,11 @@ class PromptProjectionPromptStateApplier:
                     )
                     return PromptProjectionPromptStateApplyOutcome(
                         apply_path=PromptProjectionApplyPath.PAINT_ONLY,
-                        source_revision=host._source_revision,
+                        source_revision=host._editor_state.source.source_revision,
                         update_source_revision=update.source_revision,
                     )
             return self.apply_prompt_state_projection(
-                update.document_view,
-                update.render_plan,
+                update.snapshot,
                 previous_render_plan_for_fast_path=update.previous_render_plan,
                 update_source_revision=update.source_revision,
             )
@@ -471,24 +513,17 @@ class PromptProjectionPromptStateApplier:
                 error=error,
                 reason=update.reason,
                 source_revision=update.source_revision,
-                current_source_revision=host._source_revision,
+                current_source_revision=host._editor_state.source.source_revision,
             )
-            if (
-                update.previous_document_view is not None
-                and update.previous_render_plan is not None
-            ):
-                host._document_view = update.previous_document_view
-                host._render_plan = update.previous_render_plan
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=PromptProjectionApplyPath.FAILED,
-                source_revision=host._source_revision,
+                source_revision=host._editor_state.source.source_revision,
                 update_source_revision=update.source_revision,
             )
 
     def apply_prompt_state_projection(
         self,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
+        snapshot: PromptEditorSemanticSnapshot,
         *,
         previous_render_plan_for_fast_path: PromptSyntaxRenderPlan | None = None,
         update_source_revision: int | None = None,
@@ -496,21 +531,25 @@ class PromptProjectionPromptStateApplier:
         """Apply semantic prompt state through incremental-first fallbacks."""
 
         host = self._host
+        document_view = snapshot.document
+        render_plan = snapshot.render_plan
         if not qt_object_is_alive(cast(QObject, host)):
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=PromptProjectionApplyPath.DROPPED_STALE,
-                source_revision=host._source_revision,
+                source_revision=host._editor_state.source.source_revision,
                 update_source_revision=update_source_revision,
             )
         host._visible_scroll_bar()
-        previous_document_view = host._document_view
-        previous_render_plan = host._render_plan
-        host._document_view = document_view
-        host._render_plan = render_plan
+        previous_snapshot = host._editor_state.projection_semantic
+        previous_projection = host._editor_state.projection
+        previous_document_view = previous_snapshot.document
+        previous_render_plan = previous_snapshot.render_plan
+        host._editor_state.stage_edit_semantic(snapshot)
         fast_insert_applied = False
         scheduled_incremental_applied = False
         refresh_caret_visibility = (
-            host._caret_visibility_prompt_state_revision == host._source_revision
+            host._caret_visibility_prompt_state_revision
+            == host._editor_state.source.source_revision
         )
         try:
             host._session.collapse_if_cursor_left_token(
@@ -572,12 +611,12 @@ class PromptProjectionPromptStateApplier:
             self._apply_pending_auto_exact_weight_edit()
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=apply_path,
-                source_revision=host._source_revision,
+                source_revision=host._editor_state.source.source_revision,
                 update_source_revision=update_source_revision,
             )
         except Exception as error:
-            host._document_view = previous_document_view
-            host._render_plan = previous_render_plan
+            host._editor_state.restore_projection(previous_projection)
+            host._editor_state.restore_projection_semantic(previous_snapshot)
             log_warning_exception(
                 _LOGGER,
                 "Prompt projection state apply failed",
@@ -594,10 +633,10 @@ class PromptProjectionPromptStateApplier:
         pending = host._session.pending_auto_exact_weight_edit
         if pending is None:
             return
-        if pending.source_text != host._projection_document.source_text:
+        if pending.source_text != host._editor_state.projection.document.source_text:
             host._session.clear_pending_auto_exact_weight_edit()
             return
-        for token in host._projection_document.tokens:
+        for token in host._editor_state.projection.document.tokens:
             if (
                 token.kind is not PromptProjectionTokenKind.EMPHASIS
                 or token.content_start is None

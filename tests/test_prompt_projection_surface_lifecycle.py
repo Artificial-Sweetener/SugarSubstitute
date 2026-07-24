@@ -57,6 +57,7 @@ from tests.prompt_projection_surface_test_helpers import (
     first_emphasis_token,
     new_projection_surface,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
+    surface_router,
 )
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
@@ -151,27 +152,32 @@ def test_projection_surface_prompt_state_ignores_deleted_qt_wrappers(
         has_trailing_comma=False,
     )
     render_plan = PromptSyntaxRenderPlan(syntax_spans=(), renderer_views=())
+    surface_router(surface).set_source_text(document_view.source_text)
+    surface_snapshot = surface.editor_state.prepare_semantic(
+        document_view,
+        render_plan,
+        source_identity=surface.editor_state.source_identity,
+    )
+    previous_projection = surface.editor_state.projection
+    previous_projection_semantic = surface.editor_state.projection_semantic
     surface_view = cast(Any, surface)
     monkeypatch.setattr(prompt_surface_module, "qt_object_is_alive", lambda _obj: False)
     monkeypatch.setattr(
         prompt_state_applier_module, "qt_object_is_alive", lambda _obj: False
     )
 
-    surface.set_prompt_state(document_view, render_plan)
-    surface_view._prompt_state_applier.apply_prompt_state_projection(
-        document_view, render_plan
-    )
+    surface.set_prompt_state(surface_snapshot)
+    surface_view._prompt_state_applier.apply_prompt_state_projection(surface_snapshot)
     surface_view._prompt_state_applier.apply_scheduled_projection_update(
         PendingProjectionUpdate.create(
-            document_view=document_view,
-            render_plan=render_plan,
+            snapshot=surface_snapshot,
             reason="test",
-            source_revision=0,
         )
     )
     surface_view._rebuild_projection()
 
-    assert surface_view._document_view.source_text == ""
+    assert surface.editor_state.projection is previous_projection
+    assert surface.editor_state.projection_semantic is previous_projection_semantic
 
 
 def test_projection_surface_inherits_qfluent_font_and_document_margin_from_host(

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Hashable, Mapping
 from typing import Any, cast
 
@@ -31,9 +35,6 @@ from substitute.devtools.prompt_editor_performance.syntax_profile import (
 )
 from substitute.presentation.editor.prompt_editor.async_work import (
     PromptScheduledLoraContextProvider,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptAutocompleteLoraCatalogSnapshotProvider,
@@ -147,7 +148,7 @@ class _AutocompleteCurrentContextBridge:
 
         self._current_context = current_context
 
-    def current_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def current_source_identity(self) -> PromptSourceIdentity | None:
         """Return the bound autocomplete source identity."""
 
         if self._current_context is None:

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass
 
 import pytest
@@ -28,7 +32,6 @@ from substitute.application.prompt_editor.editing.source_normalization import (
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandDispatcher,
     PromptCommandResult,
-    PromptCommandSourceIdentity,
     PromptCommandSourceRange,
     PromptCommandTextReplacement,
 )
@@ -198,7 +201,7 @@ def test_rejected_command_result_does_not_mutate_session() -> None:
 def test_source_identity_matches_revision_and_optional_length() -> None:
     """Prepared command source identity should reject stale source snapshots."""
 
-    identity = PromptCommandSourceIdentity(source_revision=3, source_length=12)
+    identity = PromptSourceIdentity(source_revision=3, source_length=12)
 
     assert identity.matches(source_revision=3, source_length=12)
     assert not identity.matches(source_revision=4, source_length=12)

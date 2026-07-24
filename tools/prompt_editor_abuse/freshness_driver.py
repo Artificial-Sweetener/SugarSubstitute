@@ -128,7 +128,7 @@ def _projection_is_current(editor: Any, source_text: str) -> bool:
 
     surface = editor._surface
     return bool(
-        surface._projection_document.source_text == source_text
+        surface.projection_document().source_text == source_text
         and not surface._projection_freshness_controller.has_pending_update()
     )
 
@@ -139,7 +139,7 @@ def _semantics_are_current(editor: Any, source_text: str) -> bool:
     interaction = editor._interaction_controller
     refresh = interaction._semantic_refresh
     return bool(
-        interaction._syntax_state.document_view.source_text == source_text
+        editor._surface.editor_state.semantic.document.source_text == source_text
         and refresh._pending_request is None
         and refresh._active_task_identity is None
     )

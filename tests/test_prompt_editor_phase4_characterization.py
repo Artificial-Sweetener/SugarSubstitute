@@ -424,7 +424,10 @@ def test_phase4_clearing_autocomplete_preview_restores_base_projection_layout(
         painter.end()
 
     cache_key = cast(Any, surface)._projection_paint_cache.cache_key
-    assert cache_key is None or not cache_key.paint_state.ghosted_run_ids
+    current_paint = cast(Any, surface).editor_state.current_paint
+    assert current_paint is not None
+    assert not current_paint.state.ghosted_run_ids
+    assert cache_key is None or cache_key.paint_identity is current_paint.identity
 
 
 def test_phase4_projection_scheduling_and_small_repaint_paths_are_scoped(
@@ -576,7 +579,7 @@ def _flush_projection_update_scheduler(surface: PromptProjectionSurface) -> None
 def _projection_line_texts(surface: PromptProjectionSurface) -> tuple[str, ...]:
     """Return visible text grouped by projection visual line."""
 
-    snapshot = cast(Any, surface)._layout._snapshot
+    snapshot = cast(Any, surface)._layout.snapshot
     return tuple(
         "".join(
             fragment.text for fragment in line.fragments if hasattr(fragment, "text")

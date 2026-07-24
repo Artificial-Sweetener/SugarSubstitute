@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -28,9 +32,6 @@ from substitute.application.prompt_editor.document.service import PromptDocument
 from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptFeatureProfileController,
@@ -88,11 +89,11 @@ class _Editor:
         self.cursor_reads += 1
         return _Cursor(position=self.cursor_position, has_selection=self.has_selection)
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return source identity and record the read."""
 
         self.identity_reads += 1
-        return PromptCommandSourceIdentity(
+        return PromptSourceIdentity(
             source_revision=self.source_revision,
             source_length=len(self.text),
         )
@@ -204,7 +205,7 @@ def test_source_snapshot_carries_revision_cursor_document_and_feature_identity()
     assert snapshot.source_text == "alpha"
     assert snapshot.cursor_position == len("alpha")
     assert snapshot.has_selection is False
-    assert snapshot.source_identity == PromptCommandSourceIdentity(
+    assert snapshot.source_identity == PromptSourceIdentity(
         source_revision=3,
         source_length=len("alpha"),
     )

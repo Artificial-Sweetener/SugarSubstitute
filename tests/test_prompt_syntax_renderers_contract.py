@@ -22,7 +22,6 @@ from PySide6.QtCore import QPointF
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.document.views import (
-    PromptDocumentView,
     PromptSyntaxSpanView,
 )
 from substitute.application.prompt_editor.editing.syntax_actions import (
@@ -33,8 +32,18 @@ from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfileService,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
+    PromptSemanticSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSemanticIdentity,
+    PromptSemanticRevision,
+    PromptSourceIdentity,
+)
+from substitute.presentation.editor.prompt_editor.core.state.semantic_state import (
+    PromptEditorSemanticSnapshot,
 )
 from substitute.presentation.editor.prompt_editor.syntax_renderers import (
     PromptSyntaxRendererCoordinator,
@@ -49,9 +58,7 @@ class _RendererDouble:
         """Store the syntax action that hit-testing should return."""
 
         self.action = action
-        self.prompt_state_calls: list[
-            tuple[PromptDocumentView, PromptSyntaxRenderPlan]
-        ] = []
+        self.prompt_state_calls: list[PromptEditorSemanticSnapshot] = []
         self.active_span_calls: list[tuple[PromptSyntaxSpanView | None, int]] = []
         self.refresh_geometry_calls = 0
         self.clear_transient_state_calls = 0
@@ -59,12 +66,11 @@ class _RendererDouble:
 
     def set_prompt_state(
         self,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
+        snapshot: PromptEditorSemanticSnapshot,
     ) -> None:
         """Record one prompt-state update from the coordinator."""
 
-        self.prompt_state_calls.append((document_view, render_plan))
+        self.prompt_state_calls.append(snapshot)
 
     def set_active_span(
         self,
@@ -93,7 +99,7 @@ class _RendererDouble:
         return self.action
 
 
-def _document_state(text: str) -> tuple[PromptDocumentView, PromptSyntaxRenderPlan]:
+def _document_state(text: str) -> PromptEditorSemanticSnapshot:
     """Build one real prompt document view plus render plan for coordinator tests."""
 
     document_service = PromptDocumentService()
@@ -104,28 +110,35 @@ def _document_state(text: str) -> tuple[PromptDocumentView, PromptSyntaxRenderPl
         document_view,
         profile_service.build_profile({"prompt_syntaxes": ["emphasis", "wildcard"]}),
     )
-    return document_view, render_plan
+    return PromptSemanticSnapshot(
+        identity=PromptSemanticIdentity(
+            source=PromptSourceIdentity(0, len(text)),
+            semantic_revision=PromptSemanticRevision(0),
+        ),
+        document=document_view,
+        render_plan=render_plan,
+    )
 
 
 def test_coordinator_fans_prompt_state_to_each_registered_renderer() -> None:
     """Prompt-state refreshes should reach every registered syntax renderer."""
 
-    document_view, render_plan = _document_state("(cat:1.05)")
+    snapshot = _document_state("(cat:1.05)")
     first_renderer = _RendererDouble()
     second_renderer = _RendererDouble()
     coordinator = PromptSyntaxRendererCoordinator((first_renderer, second_renderer))
 
-    coordinator.set_prompt_state(document_view, render_plan)
+    coordinator.set_prompt_state(snapshot)
 
-    assert first_renderer.prompt_state_calls == [(document_view, render_plan)]
-    assert second_renderer.prompt_state_calls == [(document_view, render_plan)]
+    assert first_renderer.prompt_state_calls == [snapshot]
+    assert second_renderer.prompt_state_calls == [snapshot]
 
 
 def test_coordinator_fans_active_span_to_each_registered_renderer() -> None:
     """Caret-state refreshes should reach every registered syntax renderer."""
 
-    document_view, render_plan = _document_state("(cat:1.05)")
-    active_span = render_plan.syntax_spans[0]
+    snapshot = _document_state("(cat:1.05)")
+    active_span = snapshot.render_plan.syntax_spans[0]
     first_renderer = _RendererDouble()
     second_renderer = _RendererDouble()
     coordinator = PromptSyntaxRendererCoordinator((first_renderer, second_renderer))
@@ -134,7 +147,7 @@ def test_coordinator_fans_active_span_to_each_registered_renderer() -> None:
 
     assert first_renderer.active_span_calls == [(active_span, 3)]
     assert second_renderer.active_span_calls == [(active_span, 3)]
-    assert document_view.source_text == "(cat:1.05)"
+    assert snapshot.document.source_text == "(cat:1.05)"
 
 
 def test_coordinator_refreshes_geometry_and_clears_transient_state() -> None:

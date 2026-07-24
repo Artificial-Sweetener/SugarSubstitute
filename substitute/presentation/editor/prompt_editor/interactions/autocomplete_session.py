@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass
 from typing import Literal, cast
 
@@ -30,9 +34,6 @@ from substitute.application.prompt_editor.autocomplete.queries import (
 from substitute.application.prompt_editor.lora.autocomplete import (
     PromptLoraAutocompleteCandidate,
     PromptLoraAutocompleteQuery,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptAutocompleteQueryState,
@@ -62,7 +63,7 @@ class PromptAutocompleteSessionState:
 
     lifecycle: PromptAutocompleteLifecycleState = "idle"
     session: AutocompleteSession | None = None
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
     ghost_text_source_snapshot: PromptAutocompleteGhostTextSourceSnapshot | None = None
 
 
@@ -107,7 +108,7 @@ class PromptAutocompleteSessionController:
         return self.render_session()
 
     @property
-    def source_identity(self) -> PromptCommandSourceIdentity | None:
+    def source_identity(self) -> PromptSourceIdentity | None:
         """Return the source identity that prepared the current session."""
 
         return self._state.source_identity
@@ -137,7 +138,7 @@ class PromptAutocompleteSessionController:
         self,
         result: PromptAutocompleteResultSnapshot,
         *,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         ghost_text_source_snapshot: PromptAutocompleteGhostTextSourceSnapshot | None,
     ) -> bool:
         """Replace retained state with one ready result while preserving selection."""
@@ -186,7 +187,7 @@ class PromptAutocompleteSessionController:
             lifecycle="refreshing",
             session=next_session,
             source_identity=cast(
-                PromptCommandSourceIdentity | None, query_state.source_identity
+                PromptSourceIdentity | None, query_state.source_identity
             ),
             ghost_text_source_snapshot=PromptAutocompleteGhostTextSourceSnapshot(
                 source_revision=query_state.source_revision,

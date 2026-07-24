@@ -24,6 +24,9 @@ from substitute.presentation.editor.prompt_editor.async_work import (
     PromptAsyncResultIdentity,
     PromptStaleResultGuard,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 
 
 def test_stale_result_guard_accepts_matching_required_identity_fields() -> None:
@@ -33,13 +36,13 @@ def test_stale_result_guard_accepts_matching_required_identity_fields() -> None:
     result_identity = PromptAsyncResultIdentity(
         request_id=4,
         editor_session_id="session-a",
-        source_revision=12,
+        source_identity=PromptSourceIdentity(source_revision=12),
         cancellation_generation=2,
     )
     current_identity = PromptAsyncResultIdentity(
         request_id=5,
         editor_session_id="session-a",
-        source_revision=12,
+        source_identity=PromptSourceIdentity(source_revision=12),
         cancellation_generation=2,
     )
 
@@ -48,7 +51,7 @@ def test_stale_result_guard_accepts_matching_required_identity_fields() -> None:
         current_identity=current_identity,
         required_fields=(
             "editor_session_id",
-            "source_revision",
+            "source_identity",
             "cancellation_generation",
         ),
     )
@@ -67,14 +70,14 @@ def test_stale_result_guard_rejects_identity_mismatch() -> None:
         result_identity=PromptAsyncResultIdentity(
             request_id=4,
             editor_session_id="session-a",
-            source_revision=11,
+            source_identity=PromptSourceIdentity(source_revision=11),
         ),
         current_identity=PromptAsyncResultIdentity(
             request_id=5,
             editor_session_id="session-a",
-            source_revision=12,
+            source_identity=PromptSourceIdentity(source_revision=12),
         ),
-        required_fields=("editor_session_id", "source_revision"),
+        required_fields=("editor_session_id", "source_identity"),
     )
 
     assert decision.is_fresh is False
@@ -82,7 +85,13 @@ def test_stale_result_guard_rejects_identity_mismatch() -> None:
     assert [
         (mismatch.field_name, mismatch.expected, mismatch.actual)
         for mismatch in decision.mismatches
-    ] == [("source_revision", 12, 11)]
+    ] == [
+        (
+            "source_identity",
+            PromptSourceIdentity(source_revision=12),
+            PromptSourceIdentity(source_revision=11),
+        )
+    ]
 
 
 def test_stale_result_guard_fails_closed_when_required_identity_is_missing() -> None:
@@ -98,9 +107,9 @@ def test_stale_result_guard_fails_closed_when_required_identity_is_missing() -> 
         current_identity=PromptAsyncResultIdentity(
             request_id=5,
             editor_session_id="session-a",
-            source_revision=12,
+            source_identity=PromptSourceIdentity(source_revision=12),
         ),
-        required_fields=("editor_session_id", "source_revision"),
+        required_fields=("editor_session_id", "source_identity"),
     )
 
     assert decision.is_fresh is False
@@ -108,7 +117,13 @@ def test_stale_result_guard_fails_closed_when_required_identity_is_missing() -> 
     assert [
         (mismatch.field_name, mismatch.expected, mismatch.actual)
         for mismatch in decision.mismatches
-    ] == [("source_revision", 12, None)]
+    ] == [
+        (
+            "source_identity",
+            PromptSourceIdentity(source_revision=12),
+            None,
+        )
+    ]
 
 
 def test_stale_result_guard_ignores_optional_unrequested_identity_fields() -> None:

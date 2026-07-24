@@ -24,20 +24,24 @@ from typing import TYPE_CHECKING, cast, overload
 
 from PySide6.QtCore import QPointF, QRectF, QSizeF
 from PySide6.QtGui import QFont, QFontMetricsF, QPalette
+
+from substitute.application.appearance import SemanticPalette
 from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
 )
 from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
-from substitute.application.appearance import SemanticPalette
-
-from .line_layout import (
-    PromptProjectionLineLayoutBuilder,
-    tag_keep_source_range_at_position,
-    tag_keep_source_ranges_in_source_line,
+from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
+    PromptLayoutWidthKey,
 )
+
 from .fragment_ownership_reflow import (
     reflow_edit_including_fragment_identity_changes,
+)
+from .hit_testing import (
+    PromptProjectionCaretHit,
+    PromptProjectionDragSelectionTarget,
+    PromptProjectionHitTester,
 )
 from .incremental_text_layout import (
     build_edited_text_fragment,
@@ -47,6 +51,11 @@ from .incremental_text_layout import (
 from .layout_checkpoint import (
     PromptProjectionLayoutCheckpoint,
     PromptProjectionLayoutCheckpointKey,
+)
+from .line_layout import (
+    PromptProjectionLineLayoutBuilder,
+    tag_keep_source_range_at_position,
+    tag_keep_source_ranges_in_source_line,
 )
 from .metrics import PromptProjectionMetrics, PromptProjectionMetricsFactory
 from .model import (
@@ -65,50 +74,45 @@ from .paint_state import (
     PromptProjectionPaintState,
     empty_projection_paint_state,
 )
-from .region_caret_navigation import resolve_region_separator_line_caret_state
-from .snapshot import (
-    PromptProjectionInlineObjectFragment,
-    PromptProjectionLineCaretStopSnapshot,
-    PromptProjectionLineSnapshot,
-    PromptProjectionLayoutSnapshot,
-    PromptProjectionTextFragment,
-)
-from .source_line_geometry import PromptSourceLineGeometry, source_line_ranges
-from .text_style import projection_text_run_font
 from .painter import PromptProjectionPainter
-from .tokens import (
-    PromptEmphasisSuffixRenderer,
-    PromptLoraInlineObjectRenderer,
-    PromptProjectionInlineObjectRendererRegistry,
-    PromptWildcardInlineObjectRenderer,
-)
+from .region_caret_navigation import resolve_region_separator_line_caret_state
 from .reorder_chip_geometry import PromptReorderChipGeometrySnapshot
 from .reorder_geometry import (
     PromptProjectionReorderGeometry,
     PromptProjectionReorderGeometryState,
 )
+from .reorder_paint_snapshot_builder import PromptReorderPaintSnapshotBuilder
 from .reorder_placement_geometry import PromptReorderPlacementSnapshot
 from .reorder_visual_snapshot import (
     PromptReorderProjectionPaintSnapshot,
     PromptReorderProjectionSnapshotKey,
 )
-from .reorder_paint_snapshot_builder import PromptReorderPaintSnapshotBuilder
-from .reused_line_sequence import PromptProjectionReusedLineSequence
 from .reused_line_semantics import (
     PromptReusedFragmentIdentity,
     PromptReusedLineSemanticResolver,
     reusable_suffix_semantics_by_line,
 )
-from .hit_testing import (
-    PromptProjectionCaretHit,
-    PromptProjectionDragSelectionTarget,
-    PromptProjectionHitTester,
-)
+from .reused_line_sequence import PromptProjectionReusedLineSequence
 from .selection_geometry import (
     PromptProjectionHorizontalCaretTarget,
     PromptProjectionSelectionGeometry,
     PromptProjectionSourceLineRect,
     PromptProjectionVerticalCaretTarget,
+)
+from .snapshot import (
+    PromptProjectionInlineObjectFragment,
+    PromptProjectionLayoutSnapshot,
+    PromptProjectionLineCaretStopSnapshot,
+    PromptProjectionLineSnapshot,
+    PromptProjectionTextFragment,
+)
+from .source_line_geometry import PromptSourceLineGeometry, source_line_ranges
+from .text_style import projection_text_run_font
+from .tokens import (
+    PromptEmphasisSuffixRenderer,
+    PromptLoraInlineObjectRenderer,
+    PromptProjectionInlineObjectRendererRegistry,
+    PromptWildcardInlineObjectRenderer,
 )
 from .visible_line_range import (
     source_range_intersects_visual_line,
@@ -929,6 +933,23 @@ class PromptProjectionLayout:
         """Return the immutable visual-line sequence without copying it."""
 
         return self._snapshot.lines
+
+    @property
+    def snapshot(self) -> PromptProjectionLayoutSnapshot:
+        """Return the current immutable geometry snapshot."""
+
+        return self._snapshot
+
+    @property
+    def width_key(self) -> PromptLayoutWidthKey:
+        """Return compact layout-affecting width and font identity."""
+
+        return PromptLayoutWidthKey(
+            text_width=self._text_width,
+            content_left_inset=self._content_left_inset,
+            document_margin=self._document_margin,
+            font_key=self._base_font.toString(),
+        )
 
     def set_base_font(self, font: QFont) -> None:
         """Apply the base font used by plain text and inline object renderers."""
@@ -2128,37 +2149,6 @@ class PromptProjectionLayout:
         """Return the laid-out content size of the visible projection."""
 
         return self._snapshot.content_size
-
-    def text_fragment_count(self) -> int:
-        """Return the number of text fragments in the current layout snapshot."""
-
-        return len(self._snapshot.text_fragments)
-
-    def inline_object_fragment_count(self) -> int:
-        """Return the number of inline-object fragments in the current layout snapshot."""
-
-        return len(self._snapshot.inline_object_fragments)
-
-    def line_count(self) -> int:
-        """Return the number of wrapped lines in the current layout snapshot."""
-
-        return len(self._snapshot.lines)
-
-    def occupied_content_size(self) -> QSizeF:
-        """Return the visible projection size occupied by painted content plus margins."""
-
-        occupied_right = self._document_margin
-        occupied_bottom = self._document_margin
-        for line in self._snapshot.lines:
-            if not line.fragments:
-                occupied_bottom = max(occupied_bottom, line.top + line.height)
-                continue
-            occupied_right = max(occupied_right, line.rect.right())
-            occupied_bottom = max(occupied_bottom, line.top + line.height)
-        return QSizeF(
-            max(1.0, occupied_right + self._document_margin),
-            max(1.0, occupied_bottom + self._document_margin),
-        )
 
     def draw(
         self,

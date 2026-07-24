@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 import logging
 from collections.abc import Hashable
 from dataclasses import replace
@@ -31,9 +35,6 @@ from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptContextMenuAction,
@@ -771,7 +772,7 @@ def _controller(
                 )
             ),
         ),
-        source_identity_provider=lambda: PromptCommandSourceIdentity(
+        source_identity_provider=lambda: PromptSourceIdentity(
             source_revision=source_revision,
             source_length=100,
         ),
