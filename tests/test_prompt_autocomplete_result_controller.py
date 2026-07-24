@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -47,9 +51,6 @@ from substitute.application.prompt_editor.scenes.projection import (
 from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features.autocomplete_result_controller import (
     _AUTOCOMPLETE_RESULT_CACHE_LIMIT,
@@ -285,10 +286,10 @@ class _CountingThumbnailAssetRepository:
         self.reads += 1
 
 
-def _source_identity(revision: int, length: int) -> PromptCommandSourceIdentity:
+def _source_identity(revision: int, length: int) -> PromptSourceIdentity:
     """Return a command source identity for result freshness tests."""
 
-    return PromptCommandSourceIdentity(source_revision=revision, source_length=length)
+    return PromptSourceIdentity(source_revision=revision, source_length=length)
 
 
 def _tag_query(prefix: str) -> PromptAutocompleteQuery:

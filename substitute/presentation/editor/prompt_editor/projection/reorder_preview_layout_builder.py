@@ -213,7 +213,7 @@ class PromptReorderPreviewLayoutBuilder:
                 layout_width,
                 prompt_document_view=snapshot.document_view,
             )
-            reflowed_line_count = projection_layout.line_count()
+            reflowed_line_count = projection_layout.snapshot.line_count()
         layout_elapsed_ms = log_reorder_drag_timing(
             "surface.build_reorder_projection_snapshot.layout",
             started_at=phase_started_at,
@@ -226,9 +226,11 @@ class PromptReorderPreviewLayoutBuilder:
             segment_count=len(snapshot.document_view.segments),
             run_count=len(projection_document.runs),
             token_count=len(projection_document.tokens),
-            visual_line_count=projection_layout.line_count(),
-            text_fragment_count=projection_layout.text_fragment_count(),
-            inline_object_count=projection_layout.inline_object_fragment_count(),
+            visual_line_count=projection_layout.snapshot.line_count(),
+            text_fragment_count=projection_layout.snapshot.text_fragment_count(),
+            inline_object_count=(
+                projection_layout.snapshot.inline_object_fragment_count()
+            ),
             chip_count=len(snapshot.chip_rendered_ranges_by_index),
             layout_width=f"{layout_width:.2f}",
             content_width=f"{projection_layout.content_size().width():.2f}",
@@ -309,9 +311,9 @@ class PromptReorderPreviewLayoutBuilder:
             "reflowed_line_count": reflowed_line_count,
             "text_length": len(snapshot.document_view.source_text),
             "segment_count": len(snapshot.document_view.segments),
-            "visual_line_count": layout.line_count(),
-            "text_fragment_count": layout.text_fragment_count(),
-            "inline_object_count": layout.inline_object_fragment_count(),
+            "visual_line_count": layout.snapshot.line_count(),
+            "text_fragment_count": layout.snapshot.text_fragment_count(),
+            "inline_object_count": layout.snapshot.inline_object_fragment_count(),
             "chip_count": len(snapshot.chip_rendered_ranges_by_index),
             "layout_width": f"{layout_width:.2f}",
         }

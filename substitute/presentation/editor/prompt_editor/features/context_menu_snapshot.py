@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass
 from enum import StrEnum
@@ -34,7 +38,6 @@ from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotStatus,
 )
 
-from ..commands import PromptCommandSourceIdentity
 from .danbooru_actions import PromptDanbooruActionSnapshot
 from .diagnostics_controller import (
     PromptContextMenuAction,
@@ -324,7 +327,7 @@ class PromptContextMenuSnapshotController:
         scene: PromptContextMenuScenePort,
         segment_presets: PromptContextMenuSegmentPort,
         danbooru: PromptContextMenuDanbooruPort,
-        source_identity_provider: Callable[[], PromptCommandSourceIdentity | None],
+        source_identity_provider: Callable[[], PromptSourceIdentity | None],
         feature_profile_id_provider: Callable[[], Hashable | None],
     ) -> None:
         """Store feature snapshot publishers used to build menu snapshots."""

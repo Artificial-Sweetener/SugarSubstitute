@@ -26,10 +26,22 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QRectF
 from PySide6.QtGui import QColor, QFont, QPalette
 
 from substitute.domain.appearance import RgbColor, SemanticPalette
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptLayoutIdentity,
+    PromptLayoutRevision,
+    PromptPaintIdentity,
+    PromptPaintStateRevision,
+    PromptProjectionIdentity,
+    PromptProjectionRevision,
+    PromptSemanticIdentity,
+    PromptSemanticRevision,
+    PromptSourceIdentity,
+    PromptViewportIdentity,
+    PromptViewportRevision,
+)
 from substitute.presentation.editor.prompt_editor.projection.caret_map_builder import (
     build_prompt_projection_caret_map,
 )
@@ -52,8 +64,8 @@ from substitute.presentation.editor.prompt_editor.projection.tokens import (
 from tests.prompt_projection_test_helpers import ensure_qapp
 
 
-def test_projection_content_cache_key_tracks_revision_view_and_style_inputs() -> None:
-    """Paint-cache identity should include every visible cache input."""
+def test_projection_content_cache_key_tracks_prepared_and_style_inputs() -> None:
+    """Paint-cache identity should include prepared lineage and visible style."""
 
     ensure_qapp()
     font = QFont()
@@ -68,27 +80,18 @@ def test_projection_content_cache_key_tracks_revision_view_and_style_inputs() ->
         semantic_palette=semantic_palette,
     )
     cache = PromptProjectionPaintCache()
-    viewport = QRectF(0.0, 0.0, 240.0, 120.0)
+    paint_identity = _paint_identity(source_revision=7)
 
     key = cache.cache_key_for(
         layout=layout,
-        viewport_rect=viewport,
-        scroll_offset=4.0,
-        source_revision=7,
-        device_pixel_ratio=1.0,
+        paint_identity=paint_identity,
         font=font,
         palette=palette,
         semantic_palette=semantic_palette,
     )
 
-    assert key.source_revision == 7
-    assert key.projection_document_identity == id(layout.projection_document)
+    assert key.paint_identity == paint_identity
     assert key.display_mode is PromptProjectionDisplayMode.PROJECTED
-    assert key.layout_snapshot_identity == id(layout._snapshot)  # noqa: SLF001
-    assert key.viewport_width == 240
-    assert key.viewport_height == 120
-    assert key.scroll_offset == 4
-    assert key.device_pixel_ratio == 1.0
     assert key.font_key == font.toString()
     assert key.palette_cache_key == int(palette.cacheKey())
     assert key.semantic_accent == (1, 2, 3)
@@ -97,8 +100,7 @@ def test_projection_content_cache_key_tracks_revision_view_and_style_inputs() ->
         _cache_key_for(
             cache,
             layout=layout,
-            viewport=viewport,
-            source_revision=8,
+            paint_identity=_paint_identity(source_revision=8),
             font=font,
             palette=palette,
             semantic_palette=semantic_palette,
@@ -109,8 +111,7 @@ def test_projection_content_cache_key_tracks_revision_view_and_style_inputs() ->
         _cache_key_for(
             cache,
             layout=layout,
-            viewport=QRectF(0.0, 0.0, 260.0, 120.0),
-            source_revision=7,
+            paint_identity=_paint_identity(source_revision=7, viewport_revision=2),
             font=font,
             palette=palette,
             semantic_palette=semantic_palette,
@@ -121,8 +122,7 @@ def test_projection_content_cache_key_tracks_revision_view_and_style_inputs() ->
         _cache_key_for(
             cache,
             layout=layout,
-            viewport=viewport,
-            source_revision=7,
+            paint_identity=paint_identity,
             font=font,
             palette=palette,
             semantic_palette=_semantic_palette(accent=RgbColor(9, 8, 7)),
@@ -136,8 +136,7 @@ def test_projection_content_cache_key_tracks_revision_view_and_style_inputs() ->
         _cache_key_for(
             cache,
             layout=layout,
-            viewport=viewport,
-            source_revision=7,
+            paint_identity=paint_identity,
             font=next_font,
             palette=palette,
             semantic_palette=semantic_palette,
@@ -151,8 +150,7 @@ def test_projection_content_cache_key_tracks_revision_view_and_style_inputs() ->
         _cache_key_for(
             cache,
             layout=layout,
-            viewport=viewport,
-            source_revision=7,
+            paint_identity=paint_identity,
             font=font,
             palette=next_palette,
             semantic_palette=semantic_palette,
@@ -171,8 +169,7 @@ def test_projection_content_cache_key_tracks_revision_view_and_style_inputs() ->
         _cache_key_for(
             cache,
             layout=inset_layout,
-            viewport=viewport,
-            source_revision=7,
+            paint_identity=_paint_identity(source_revision=7, layout_revision=2),
             font=font,
             palette=palette,
             semantic_palette=semantic_palette,
@@ -185,8 +182,7 @@ def _cache_key_for(
     cache: PromptProjectionPaintCache,
     *,
     layout: PromptProjectionLayout,
-    viewport: QRectF,
-    source_revision: int,
+    paint_identity: PromptPaintIdentity,
     font: QFont,
     palette: QPalette,
     semantic_palette: SemanticPalette,
@@ -195,13 +191,40 @@ def _cache_key_for(
 
     return cache.cache_key_for(
         layout=layout,
-        viewport_rect=viewport,
-        scroll_offset=4.0,
-        source_revision=source_revision,
-        device_pixel_ratio=1.0,
+        paint_identity=paint_identity,
         font=font,
         palette=palette,
         semantic_palette=semantic_palette,
+    )
+
+
+def _paint_identity(
+    *,
+    source_revision: int,
+    layout_revision: int = 1,
+    viewport_revision: int = 1,
+) -> PromptPaintIdentity:
+    """Return explicit prepared paint lineage for cache-key tests."""
+
+    semantic = PromptSemanticIdentity(
+        source=PromptSourceIdentity(source_revision, 10),
+        semantic_revision=PromptSemanticRevision(source_revision),
+    )
+    projection = PromptProjectionIdentity(
+        semantic=semantic,
+        projection_revision=PromptProjectionRevision(source_revision),
+    )
+    layout = PromptLayoutIdentity(
+        projection=projection,
+        layout_revision=PromptLayoutRevision(layout_revision),
+    )
+    viewport = PromptViewportIdentity(
+        viewport_revision=PromptViewportRevision(viewport_revision),
+    )
+    return PromptPaintIdentity(
+        layout=layout,
+        viewport=viewport,
+        paint_state_revision=PromptPaintStateRevision(1),
     )
 
 

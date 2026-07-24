@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable, Iterator
 import os
 from typing import Any, Generic, TypeVar, cast
@@ -59,7 +63,6 @@ from substitute.presentation.editor.prompt_editor.async_work import (
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandDispatcher,
-    PromptCommandSourceIdentity,
     PromptDiagnosticAction,
     PromptDiagnosticCommandResult,
     PromptEditorCommand,
@@ -342,10 +345,10 @@ class _FakeEditor:
 
         self.focused = True
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return the current fake source identity for diagnostic commands."""
 
-        return PromptCommandSourceIdentity(
+        return PromptSourceIdentity(
             source_revision=self.source_revision,
             source_length=len(self.text),
         )

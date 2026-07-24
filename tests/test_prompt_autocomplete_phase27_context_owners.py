@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable, Hashable
 
 from substitute.application.ports import PromptAutocompleteSuggestion
@@ -31,9 +35,6 @@ from substitute.presentation.editor.prompt_editor.async_work import (
 )
 from substitute.presentation.editor.prompt_editor.async_work.scheduled_lora_dispatcher import (
     PromptScheduledLoraCachedContextSnapshot,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptAutocompleteSceneContextController,
@@ -62,14 +63,14 @@ class _ScheduledCurrentContext:
     def __init__(self) -> None:
         """Initialize deterministic live context state."""
 
-        self.source_identity = PromptCommandSourceIdentity(
+        self.source_identity = PromptSourceIdentity(
             source_revision=8,
             source_length=3,
         )
         self.query_identity: Hashable | None = ("tag", "mid")
         self.refresh_calls = 0
 
-    def current_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def current_source_identity(self) -> PromptSourceIdentity | None:
         """Return the live source identity."""
 
         return self.source_identity
@@ -92,8 +93,8 @@ class _ScheduledContextProvider:
         """Initialize provider call storage."""
 
         self.prewarm_calls: list[str] = []
-        self.trigger_source_identity: PromptCommandSourceIdentity | None = None
-        self.trigger_current_source_identity: PromptCommandSourceIdentity | None = None
+        self.trigger_source_identity: PromptSourceIdentity | None = None
+        self.trigger_current_source_identity: PromptSourceIdentity | None = None
         self.trigger_current_source_text: Callable[[], str] | None = None
         self.scheduled_lora = PromptScheduledLora(
             prompt_name="midna",
@@ -141,12 +142,12 @@ class _ScheduledContextProvider:
         prefix: str,
         prompt_text: str,
         source_text: str,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         query_identity: Hashable | None,
         current_source_text: Callable[[], str] | None,
         current_query_identity: Callable[[], Hashable | None],
         refresh_current_query: Callable[[], None],
-        current_source_identity: Callable[[], PromptCommandSourceIdentity | None]
+        current_source_identity: Callable[[], PromptSourceIdentity | None]
         | None = None,
     ) -> AsyncTriggerWordResult:
         """Return deterministic trigger rows and record stale-safety callbacks."""
@@ -184,7 +185,7 @@ def test_phase27_scene_context_owner_prepares_effective_prompt_text_and_identity
         scene_context_provider=_SceneIdentityProvider(),
     )
     feature_identity = PromptFeatureSnapshotIdentity(feature_profile_id=("profile", 1))
-    source_identity = PromptCommandSourceIdentity(
+    source_identity = PromptSourceIdentity(
         source_revision=4,
         source_length=len(source),
     )

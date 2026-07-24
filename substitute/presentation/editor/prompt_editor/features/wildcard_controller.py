@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from sugarsubstitute_shared.presentation.localization import app_text
 
 from collections import OrderedDict
@@ -50,7 +54,6 @@ from ..async_work import (
     PromptEditorRequestChannel,
     log_prompt_async_warning,
 )
-from ..commands import PromptCommandSourceIdentity
 
 from .catalog_snapshots import (
     CatalogSnapshotIdentity,
@@ -129,7 +132,7 @@ class PromptWildcardAutocompleteRequest:
     cache_key: PromptWildcardAutocompleteCacheKey
     prefix: str
     limit: int
-    source_identity: PromptCommandSourceIdentity | None
+    source_identity: PromptSourceIdentity | None
     current_query_identity: PromptWildcardAutocompleteQueryIdentityProvider | None
     refresh_current_query: PromptWildcardAutocompleteRefreshCallback | None
 
@@ -250,7 +253,7 @@ class PromptWildcardFeatureController:
         prefix: str,
         *,
         limit: int,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         query_identity: Hashable | None = None,
         current_query_identity: (
             PromptWildcardAutocompleteQueryIdentityProvider | None
@@ -276,7 +279,7 @@ class PromptWildcardFeatureController:
         *,
         prefix: str,
         limit: int,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         query_identity: Hashable | None = None,
         current_query_identity: (
             PromptWildcardAutocompleteQueryIdentityProvider | None
@@ -386,7 +389,7 @@ class PromptWildcardFeatureController:
         *,
         prefix: str,
         limit: int,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         query_identity: Hashable | None = None,
         current_query_identity: (
             PromptWildcardAutocompleteQueryIdentityProvider | None
@@ -471,7 +474,7 @@ class PromptWildcardFeatureController:
         prefix: str,
         limit: int,
         suggestions: tuple[PromptAutocompleteSuggestion, ...],
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         query_identity: Hashable | None = None,
         current_query_identity: (
             PromptWildcardAutocompleteQueryIdentityProvider | None
@@ -504,7 +507,7 @@ class PromptWildcardFeatureController:
         prefix: str,
         limit: int,
         error: BaseException,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         query_identity: Hashable | None = None,
     ) -> None:
         """Publish a wildcard autocomplete failure directly for deterministic tests."""
@@ -795,19 +798,14 @@ class PromptWildcardFeatureController:
         self,
         *,
         request_id: int,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         query_identity: Hashable | None,
     ) -> PromptAsyncResultIdentity:
         """Return prompt-safe async identity for one wildcard autocomplete request."""
 
         return PromptAsyncResultIdentity(
             request_id=request_id,
-            source_revision=None
-            if source_identity is None
-            else source_identity.source_revision,
-            source_length=None
-            if source_identity is None
-            else source_identity.source_length,
+            source_identity=source_identity,
             feature_profile_id=self._feature_profile.identity.feature_profile_id,
             query_identity=query_identity,
         )

@@ -18,13 +18,27 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
+    PromptEditorDocumentState,
+    PromptEditorState,
+)
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+from substitute.presentation.editor.prompt_editor.core.state.semantic_state import (
+    PromptEditorSemanticSnapshot,
+)
+
 import importlib
 from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any, cast
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
-from substitute.application.prompt_editor.document.views import PromptSyntaxSpanView
+from substitute.application.prompt_editor.document.views import (
+    PromptDocumentView,
+    PromptSyntaxSpanView,
+)
 from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
 )
@@ -40,12 +54,14 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderStateView,
 )
 from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
     PromptReorderLayoutCommitRequest,
 )
 from substitute.presentation.editor.prompt_editor.projection.session import (
     PromptEmphasisAdjustmentSession,
     PromptTransientNeutralEmphasisOwner,
+)
+from substitute.presentation.editor.prompt_editor.projection.model import (
+    PromptProjectionDocument,
 )
 from substitute.presentation.editor.prompt_editor.interactions.reorder_controller import (
     PromptReorderOverlayFactory,
@@ -179,6 +195,7 @@ class ControllerEditorDouble:
         self._reorder_preview_state: object | None = None
         self.clear_emphasis_adjustment_session_calls = 0
         self.executed_reorder_requests: list[PromptReorderLayoutCommitRequest] = []
+        self._source_publication_callback: Callable[[], None] | None = None
 
     def cursorForPosition(self, _pos: object) -> MenuCursorDouble:  # noqa: N802
         """Return the clicked cursor at the menu position."""
@@ -207,8 +224,15 @@ class ControllerEditorDouble:
         self._text = text
         self._clicked_cursor.sync_text(text)
         self._current_cursor.sync_text(text)
+        if self._source_publication_callback is not None:
+            self._source_publication_callback()
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def bind_source_publication(self, callback: Callable[[], None]) -> None:
+        """Bind the production-equivalent source publication boundary."""
+
+        self._source_publication_callback = callback
+
+    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return no source identity for direct controller tests."""
 
         return None
@@ -554,11 +578,11 @@ class OverlayDouble:
         *,
         chips: tuple[Any, ...],
         active_chip_index: int | None = None,
-        source_revision: int | None = None,
+        source_identity: PromptSourceIdentity | None = None,
     ) -> None:
         """Record chip publication from reorder mode entry."""
 
-        _ = source_revision
+        _ = source_identity
         chip_indices = tuple(segment.index for segment in chips)
         self._ordered_indices = list(chip_indices)
         self._current_layout_view = reorder_layout_view
@@ -748,7 +772,7 @@ class SyntaxRendererCoordinatorDouble:
     def __init__(self, action_result: object | None = None) -> None:
         """Initialize controller-to-renderer call tracking."""
 
-        self.prompt_state_calls: list[tuple[object, PromptSyntaxRenderPlan]] = []
+        self.prompt_state_calls: list[PromptEditorSemanticSnapshot] = []
         self.active_span_calls: list[tuple[PromptSyntaxSpanView | None, int]] = []
         self.refresh_geometry_calls = 0
         self.clear_transient_state_calls = 0
@@ -757,12 +781,11 @@ class SyntaxRendererCoordinatorDouble:
 
     def set_prompt_state(
         self,
-        document_view: object,
-        render_plan: PromptSyntaxRenderPlan,
+        snapshot: PromptEditorSemanticSnapshot,
     ) -> None:
         """Record one prompt snapshot replacement."""
 
-        self.prompt_state_calls.append((document_view, render_plan))
+        self.prompt_state_calls.append(snapshot)
 
     def set_active_span(
         self,
@@ -846,12 +869,46 @@ def prompt_interaction_controller(
         "emphasis",
         "wildcard",
     )
+    initial_document = PromptDocumentService().build_document_view(editor.toPlainText())
+    initial_render_plan = resolved_syntax_service.build_render_plan(
+        initial_document,
+        resolved_syntax_profile,
+    )
+    live_source = _LiveEditorSource(editor)
+    state: PromptEditorState[
+        PromptDocumentView,
+        PromptSyntaxRenderPlan,
+        PromptDocumentView,
+        Any,
+        Any,
+    ] = PromptEditorState(
+        source=live_source,
+        semantic_document=initial_document,
+        render_plan=initial_render_plan,
+        projection_document=initial_document,
+    )
+    if isinstance(editor, ControllerEditorDouble):
+
+        def publish_live_source() -> None:
+            """Publish the changed test source through the revision owner."""
+
+            state.publish_source(live_source)
+
+        editor.bind_source_publication(publish_live_source)
     syntax_state = PromptSyntaxStateController(
         editor=editor,
         renderers=cast(PromptSyntaxRendererCoordinator, syntax_renderers),
         document_service=resolved_document_service,
         syntax_service=resolved_syntax_service,
         syntax_profile=resolved_syntax_profile,
+        state=cast(
+            PromptEditorDocumentState[
+                PromptDocumentView,
+                PromptSyntaxRenderPlan,
+                PromptProjectionDocument,
+            ],
+            state,
+        ),
     )
     return interaction_module.PromptInteractionController(
         editor,
@@ -866,3 +923,53 @@ def prompt_interaction_controller(
         ),
         reorder_overlay_factory=reorder_overlay_factory or OverlayFactoryDouble(),
     )
+
+
+class _LiveEditorSource:
+    """Expose test-editor text as a monotonically revisioned source boundary."""
+
+    def __init__(self, editor: Any) -> None:
+        """Capture the initial editor text and revision."""
+
+        self._editor = editor
+        self._text = cast(str, editor.toPlainText())
+        self._revision = 0
+        self._identity = PromptSourceIdentity(0, len(self._text))
+
+    @property
+    def identity(self) -> PromptSourceIdentity:
+        """Return the identity cached for the current test source."""
+
+        self._sync()
+        return self._identity
+
+    @property
+    def source_text(self) -> str:
+        """Return current editor text after advancing its test revision."""
+
+        self._sync()
+        return self._text
+
+    @property
+    def source_revision(self) -> int:
+        """Return the revision assigned to current editor text."""
+
+        self._sync()
+        return self._revision
+
+    @property
+    def source_length(self) -> int:
+        """Return current editor text length."""
+
+        self._sync()
+        return len(self._text)
+
+    def _sync(self) -> None:
+        """Advance once whenever the editor exposes different source text."""
+
+        text = cast(str, self._editor.toPlainText())
+        if text == self._text:
+            return
+        self._text = text
+        self._revision += 1
+        self._identity = PromptSourceIdentity(self._revision, len(self._text))

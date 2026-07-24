@@ -112,11 +112,16 @@ def prompt_async_identity_log_fields(
 ) -> dict[str, object]:
     """Return prompt-safe structured fields from async result identity."""
 
+    source_identity = identity.source_identity
     return {
         "request_id": identity.request_id,
         "editor_session_id": identity.editor_session_id,
-        "source_revision": identity.source_revision,
-        "source_length": identity.source_length,
+        "source_revision": (
+            None if source_identity is None else source_identity.source_revision
+        ),
+        "source_length": (
+            None if source_identity is None else source_identity.source_length
+        ),
         "feature_profile_id": identity.feature_profile_id,
         "scene_context_id": identity.scene_context_id,
         "cube_context_id": identity.cube_context_id,

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from sugarsubstitute_shared.localization import app_text
 
 import os
@@ -32,7 +36,6 @@ from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandResult,
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptContextMenuAction,
@@ -505,7 +508,7 @@ def test_segment_host_adapter_restores_selection_and_parent() -> None:
     panel = EditorPanel()
     host = _Host()
     host.setParent(panel)
-    identity = PromptCommandSourceIdentity(source_revision=3, source_length=10)
+    identity = PromptSourceIdentity(source_revision=3, source_length=10)
     adapter = PromptSegmentPresetHostAdapter(
         host=cast(PromptMenuEditorHost, host),
         source_identity_provider=lambda: identity,

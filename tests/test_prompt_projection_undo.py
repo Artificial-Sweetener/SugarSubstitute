@@ -56,7 +56,7 @@ def _valid_transient_deletion_overlay(
 
     return surface._transient_edit_overlays.valid_deletion_overlay(  # noqa: SLF001
         freshness_is_stale_safe=surface.has_stale_projection_geometry(),
-        source_revision=surface._source_revision,  # noqa: SLF001
+        source_identity=surface.editor_state.source_identity,
     )
 
 

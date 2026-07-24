@@ -32,10 +32,12 @@ def test_source_snapshot_reports_revision_and_length() -> None:
     """Source snapshots should expose immutable source identity."""
 
     snapshot = PromptSourceSnapshot(source_text="alpha beta", source_revision=3)
+    identity = snapshot.identity
 
     assert snapshot.source_text == "alpha beta"
     assert snapshot.source_revision == 3
     assert snapshot.source_length == len("alpha beta")
+    assert snapshot.identity is identity
 
 
 def test_source_snapshot_rejects_negative_revision() -> None:
@@ -55,6 +57,31 @@ def test_source_buffer_returns_snapshot_without_edit_behavior() -> None:
         source_text="cat",
         source_revision=2,
     )
+
+
+def test_source_buffer_allocates_identity_only_when_source_changes() -> None:
+    """Keep repeated source identity reads allocation-free within one revision."""
+
+    buffer = PromptSourceBuffer(source_text="cat", source_revision=2)
+    initial_identity = buffer.identity
+
+    buffer.replace_state(
+        "cat",
+        parenthesis_intents=(),
+        generated_emphases=(),
+    )
+
+    assert buffer.identity is initial_identity
+
+    buffer.replace_state(
+        "cats",
+        parenthesis_intents=(),
+        generated_emphases=(),
+    )
+
+    assert buffer.identity is not initial_identity
+    assert buffer.identity.source_revision == 3
+    assert buffer.identity.source_length == 4
 
 
 def test_cursor_state_clamps_to_source_length_and_collapses_anchor() -> None:

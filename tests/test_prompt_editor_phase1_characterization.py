@@ -882,13 +882,14 @@ def test_phase1_stale_prompt_state_update_does_not_replace_newer_source(
     _set_cursor_position(box, len("alpha"))
     process_events(ensure_qapp())
     pending_document_view, pending_render_plan = _prompt_state_for_text("alpha")
-    source_revision = cast(Any, surface)._source_revision
     cast(Any, surface)._projection_freshness_controller.update_scheduler.schedule(
         PendingProjectionUpdate.create(
-            document_view=pending_document_view,
-            render_plan=pending_render_plan,
+            snapshot=surface.editor_state.prepare_semantic(
+                pending_document_view,
+                pending_render_plan,
+                source_identity=surface.editor_state.source_identity,
+            ),
             reason="test",
-            source_revision=source_revision,
         )
     )
 

@@ -34,6 +34,22 @@ from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
+from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
+    PromptEditorDocumentState,
+    PromptEditorState,
+)
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+from substitute.presentation.editor.prompt_editor.core.state.semantic_state import (
+    PromptEditorSemanticSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.editing_session.source_buffer import (
+    PromptSourceSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.projection.model import (
+    PromptProjectionDocument,
+)
 from substitute.presentation.editor.prompt_editor.syntax_renderers import (
     PromptSyntaxRendererCoordinator,
     PromptSyntaxStateController,
@@ -78,10 +94,10 @@ class _EditorDouble:
 
         return self._text
 
-    def prompt_command_source_identity(self) -> None:
-        """Return no source identity for direct projection-refresh tests."""
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
+        """Return the immutable source identity represented by this editor."""
 
-        return None
+        return PromptSourceIdentity(0, len(self._text))
 
     def active_syntax_span(self) -> PromptSyntaxSpanView | None:
         """Return no editor-owned active syntax span."""
@@ -130,21 +146,18 @@ class _SyntaxRendererCoordinatorDouble:
     def __init__(self) -> None:
         """Initialize renderer publication tracking."""
 
-        self.prompt_state_calls: list[
-            tuple[PromptDocumentView, PromptSyntaxRenderPlan]
-        ] = []
+        self.prompt_state_calls: list[PromptEditorSemanticSnapshot] = []
         self.active_span_calls: list[tuple[PromptSyntaxSpanView | None, int]] = []
         self.refresh_geometry_calls = 0
         self.clear_transient_state_calls = 0
 
     def set_prompt_state(
         self,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
+        snapshot: PromptEditorSemanticSnapshot,
     ) -> None:
         """Record one prompt-state publication."""
 
-        self.prompt_state_calls.append((document_view, render_plan))
+        self.prompt_state_calls.append(snapshot)
 
     def set_active_span(
         self,
@@ -197,9 +210,9 @@ def test_refresh_lora_render_metadata_republishes_lora_projection_state() -> Non
     assert refreshed is True
     assert editor.replace_document_text_calls == []
     assert renderers.prompt_state_calls
-    document_view, render_plan = renderers.prompt_state_calls[-1]
-    assert document_view is controller.document_view
-    assert render_plan.renderer_view_for_kind("lora") is not None
+    snapshot = renderers.prompt_state_calls[-1]
+    assert snapshot.document is controller.document_view
+    assert snapshot.render_plan.renderer_view_for_kind("lora") is not None
 
 
 def test_refresh_lora_render_metadata_ignores_prompts_without_lora_spans() -> None:
@@ -233,12 +246,37 @@ def _lora_projection_controller(
     syntax_profile = prompt_syntax_profile("lora")
     editor = _EditorDouble(text=text, cursor_position=cursor_position)
     renderers = _SyntaxRendererCoordinatorDouble()
+    initial_document = document_service.build_document_view(text)
+    initial_render_plan = syntax_service.build_render_plan(
+        initial_document,
+        syntax_profile,
+    )
+    state: PromptEditorState[
+        PromptDocumentView,
+        PromptSyntaxRenderPlan,
+        PromptDocumentView,
+        Any,
+        Any,
+    ] = PromptEditorState(
+        source=PromptSourceSnapshot(text, 0),
+        semantic_document=initial_document,
+        render_plan=initial_render_plan,
+        projection_document=initial_document,
+    )
     syntax_state = PromptSyntaxStateController(
         editor=editor,
         renderers=cast(PromptSyntaxRendererCoordinator, renderers),
         document_service=document_service,
         syntax_service=syntax_service,
         syntax_profile=syntax_profile,
+        state=cast(
+            PromptEditorDocumentState[
+                PromptDocumentView,
+                PromptSyntaxRenderPlan,
+                PromptProjectionDocument,
+            ],
+            state,
+        ),
     )
     controller = interaction_module.PromptInteractionController(
         editor,

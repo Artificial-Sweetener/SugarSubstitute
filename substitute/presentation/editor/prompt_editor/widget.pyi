@@ -16,6 +16,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable, Hashable
 from typing import Any
 
@@ -80,7 +84,6 @@ from .composition import (
 from .commands import (
     PromptAutocompleteAcceptance,
     PromptCommandResult,
-    PromptCommandSourceIdentity,
     PromptCommandTextReplacement,
     PromptDiagnosticAction,
     PromptDiagnosticCommandResult,
@@ -209,7 +212,7 @@ class PromptEditor(QWidget):
     def set_scene_autocomplete_titles(self, titles: tuple[str, ...]) -> None: ...
     def set_queueable_scene_keys(self, scene_keys: frozenset[str]) -> None: ...
     def textCursor(self) -> Any: ...
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity: ...
+    def prompt_command_source_identity(self) -> PromptSourceIdentity: ...
     def execute_autocomplete_acceptance(
         self,
         acceptance: PromptAutocompleteAcceptance,

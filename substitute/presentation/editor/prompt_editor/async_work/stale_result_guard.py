@@ -19,17 +19,20 @@
 from __future__ import annotations
 
 from collections.abc import Hashable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal, cast
 
 from substitute.application.execution import StaleResultGuard, TaskIdentity
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 
 from .execution import PromptAsyncResultIdentity
 
 PromptFreshnessField = Literal[
     "request_id",
     "editor_session_id",
-    "source_revision",
+    "source_identity",
     "feature_profile_id",
     "scene_context_id",
     "cube_context_id",
@@ -74,9 +77,26 @@ class PromptStaleResultGuard:
         """Return whether a result identity still matches current editor state."""
 
         fields = tuple(required_fields)
+        guarded_result = result_identity
+        guarded_current = current_identity
+        if "source_identity" in fields and _source_identities_match(
+            result_identity.source_identity,
+            current_identity.source_identity,
+        ):
+            source_identity = result_identity.source_identity
+            assert source_identity is not None
+            normalized_source = replace(source_identity, source_length=None)
+            guarded_result = replace(
+                guarded_result,
+                source_identity=normalized_source,
+            )
+            guarded_current = replace(
+                guarded_current,
+                source_identity=normalized_source,
+            )
         decision = self._guard.validate(
-            result_identity=_generic_identity_from_prompt(result_identity),
-            current_identity=_generic_identity_from_prompt(current_identity),
+            result_identity=_generic_identity_from_prompt(guarded_result),
+            current_identity=_generic_identity_from_prompt(guarded_current),
             required_fields=fields,
         )
         return PromptFreshnessDecision(
@@ -93,13 +113,27 @@ class PromptStaleResultGuard:
         )
 
 
+def _source_identities_match(
+    result_identity: PromptSourceIdentity | None,
+    current_identity: PromptSourceIdentity | None,
+) -> bool:
+    """Match typed source identities while allowing omitted optional lengths."""
+
+    if result_identity is None or current_identity is None:
+        return False
+    return result_identity.matches(
+        source_revision=current_identity.source_revision,
+        source_length=current_identity.source_length,
+    )
+
+
 def _generic_identity_from_prompt(identity: PromptAsyncResultIdentity) -> TaskIdentity:
     """Map prompt identity fields into generic execution identity parts."""
 
     parts: list[tuple[str, Hashable]] = []
     for field_name in (
         "editor_session_id",
-        "source_revision",
+        "source_identity",
         "feature_profile_id",
         "scene_context_id",
         "cube_context_id",

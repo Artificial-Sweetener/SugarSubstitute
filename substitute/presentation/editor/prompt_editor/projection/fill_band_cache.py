@@ -26,6 +26,9 @@ from PySide6.QtCore import QRectF
 from substitute.application.prompt_editor.scenes.projection import (
     parse_prompt_scene_projection_document,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
     record_prompt_editor_work_count,
@@ -60,7 +63,7 @@ class PromptFillBandRect:
 class PromptProjectionFillBandCacheKey:
     """Identify one committed projection view state for fill-band caching."""
 
-    source_revision: int
+    source_identity: PromptSourceIdentity
     display_mode: PromptProjectionDisplayMode
     viewport_width: int
     viewport_height: int
@@ -128,7 +131,7 @@ class PromptProjectionFillBandCache:
         """Return whether two keys address interchangeable visible geometry."""
 
         return bool(
-            cached.source_revision == requested.source_revision
+            cached.source_identity == requested.source_identity
             and cached.display_mode is requested.display_mode
             and cached.viewport_width == requested.viewport_width
             and cached.viewport_height == requested.viewport_height

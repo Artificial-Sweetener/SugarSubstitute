@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
 )
@@ -29,7 +33,6 @@ from substitute.application.prompt_editor.editing.structured_text import (
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandDispatcher,
-    PromptCommandSourceIdentity,
     PromptTriggerWordInsertionRequest,
     build_trigger_word_insertion_command,
     prepare_trigger_word_insertion,
@@ -54,7 +57,7 @@ def _request(
 
     return PromptTriggerWordInsertionRequest(
         trigger_words="imp princess, twili helmet",
-        source_identity=PromptCommandSourceIdentity(
+        source_identity=PromptSourceIdentity(
             source_revision=source_revision,
             source_length=len(source_text),
         ),

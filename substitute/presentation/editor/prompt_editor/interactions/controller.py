@@ -49,9 +49,39 @@ from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
 
+from ..commands import (
+    PromptReorderCommandResult,
+    PromptReorderLayoutCommitRequest,
+    PromptSyntaxWeightAction,
+    PromptWeightActionRequest,
+    PromptWeightCommandResult,
+    PromptWeightCursorPolicy,
+)
+from ..core.state.revisions import PromptSourceIdentity
 from ..features import (
     PromptAutocompleteQueryController,
     PromptFeatureProfileController,
+)
+from ..models import (
+    PromptEditorInteractionMode,
+    PromptReorderCancelIntent,
+    PromptReorderCommitIntent,
+    PromptReorderKeyboardMoveIntent,
+)
+from ..overlays.token_weight_gestures import (
+    PromptTokenWeightStepIntent,
+    PromptTokenWeightWheelStepIntent,
+)
+from ..projection.model import PromptProjectionToken, PromptWeightControlIdentity
+from ..projection.reorder_preview import PromptReorderPreviewState
+from ..projection.reorder_preview_projection import (
+    PromptReorderPreviewProjectionProvider,
+)
+from ..projection.session import (
+    PromptEmphasisAdjustmentOwner,
+    PromptEmphasisAdjustmentSession,
+    PromptEmphasisCaretBoundary,
+    PromptTransientNeutralEmphasisOwner,
 )
 from ..syntax_renderers import PromptSyntaxStateController
 from .autocomplete_controller import (
@@ -80,36 +110,6 @@ from .reorder_controller import (
     PromptReorderHost,
     PromptReorderOverlayFactory,
     PromptReorderOverlayPort,
-)
-from ..commands import (
-    PromptCommandSourceIdentity,
-    PromptReorderCommandResult,
-    PromptReorderLayoutCommitRequest,
-    PromptSyntaxWeightAction,
-    PromptWeightActionRequest,
-    PromptWeightCommandResult,
-    PromptWeightCursorPolicy,
-)
-from ..models import (
-    PromptEditorInteractionMode,
-    PromptReorderCancelIntent,
-    PromptReorderCommitIntent,
-    PromptReorderKeyboardMoveIntent,
-)
-from ..overlays.token_weight_gestures import (
-    PromptTokenWeightStepIntent,
-    PromptTokenWeightWheelStepIntent,
-)
-from ..projection.model import PromptProjectionToken, PromptWeightControlIdentity
-from ..projection.reorder_preview import PromptReorderPreviewState
-from ..projection.reorder_preview_projection import (
-    PromptReorderPreviewProjectionProvider,
-)
-from ..projection.session import (
-    PromptEmphasisAdjustmentOwner,
-    PromptEmphasisAdjustmentSession,
-    PromptEmphasisCaretBoundary,
-    PromptTransientNeutralEmphasisOwner,
 )
 
 
@@ -166,7 +166,7 @@ class _PromptEditingSurface(Protocol):
     def toPlainText(self) -> str:
         """Return the editor's plain-text contents."""
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return the current source identity used by prepared commands."""
 
     def execute_weight_action(
@@ -297,6 +297,9 @@ class PromptSemanticRefreshPort(Protocol):
 
     def cancel_pending(self, *, reason: str) -> None:
         """Cancel pending or active semantic refresh work."""
+
+    def rebase_same_text_source_identity(self) -> None:
+        """Rebase semantic lineage after an unchanged source publication."""
 
 
 class PromptInteractionController:
@@ -748,7 +751,7 @@ class PromptInteractionController:
         """Refresh cached prompt semantics after the editor text changes."""
 
         text = self._editor.toPlainText()
-        self._handle_text_changed_measured(text)
+        self._handle_text_changed_measured_uninstrumented(text)
 
     def handle_document_semantics_changed(self) -> None:
         """Rebuild prompt state when source interpretation changes in place."""
@@ -767,11 +770,6 @@ class PromptInteractionController:
         )
         self._semantic_refresh.flush(reason="document_semantics_changed")
 
-    def _handle_text_changed_measured(self, text: str) -> None:
-        """Queue prompt semantics after handle_text_changed starts probe timing."""
-
-        self._handle_text_changed_measured_uninstrumented(text)
-
     def _handle_text_changed_measured_uninstrumented(self, text: str) -> None:
         """Queue prompt semantics after temporary timing starts."""
 
@@ -788,6 +786,7 @@ class PromptInteractionController:
             pending_document_view is None
             and text == self._syntax_state.document_view.source_text
         ):
+            self._semantic_refresh.rebase_same_text_source_identity()
             self.handle_cursor_position_changed()
             return
         if pending_document_view is None:

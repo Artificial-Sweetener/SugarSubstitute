@@ -35,33 +35,6 @@ PromptCommandStatus = Literal["applied", "completed", "noop", "rejected"]
 
 
 @dataclass(frozen=True, slots=True)
-class PromptCommandSourceIdentity:
-    """Identify prepared command input against the source snapshot that produced it."""
-
-    source_revision: int
-    source_length: int | None = None
-
-    def __post_init__(self) -> None:
-        """Reject invalid source identities before commands trust them."""
-
-        if self.source_revision < 0:
-            raise ValueError("Source revision must be non-negative.")
-        if self.source_length is not None and self.source_length < 0:
-            raise ValueError("Source length must be non-negative.")
-
-    def matches(
-        self, *, source_revision: int, source_length: int | None = None
-    ) -> bool:
-        """Return whether this identity still matches the supplied source state."""
-
-        if self.source_revision != source_revision:
-            return False
-        if self.source_length is None or source_length is None:
-            return True
-        return self.source_length == source_length
-
-
-@dataclass(frozen=True, slots=True)
 class PromptCommandSourceRange:
     """Describe a half-open source range used by prepared command requests."""
 
@@ -323,7 +296,6 @@ __all__ = [
     "PromptClipboardCommandResult",
     "PromptCommandDispatcher",
     "PromptCommandResult",
-    "PromptCommandSourceIdentity",
     "PromptCommandSourceRange",
     "PromptCommandStatus",
     "PromptCommandTextReplacement",

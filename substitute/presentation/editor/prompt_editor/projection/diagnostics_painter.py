@@ -34,6 +34,9 @@ from PySide6.QtGui import (
 )
 
 from substitute.application.prompt_editor.diagnostics.models import PromptDiagnostic
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptLayoutIdentity,
+)
 
 from .layout_engine import PromptProjectionLayout
 from .model import PromptProjectionSelection
@@ -50,8 +53,7 @@ _DIAGNOSTIC_FRAGMENT_WARM_BATCH_LIMIT: Final[int] = 4
 
 type DiagnosticFragmentCacheKey = tuple[
     str,
-    int,
-    int,
+    PromptLayoutIdentity,
     int,
     int,
     int,
@@ -76,7 +78,6 @@ class PromptDiagnosticPainter:
 
         self._is_alive = is_alive
         self._request_update = request_update
-        self._layout_revision = 0
         self._fragment_cache: dict[DiagnosticFragmentCacheKey, tuple[QRectF, ...]] = {}
         self._warm_timer = QTimer(parent)
         self._warm_timer.setSingleShot(True)
@@ -85,30 +86,19 @@ class PromptDiagnosticPainter:
         self._warm_requested = False
         self._diagnostics: Sequence[PromptDiagnostic] = ()
         self._layout: PromptProjectionLayout | None = None
-        self._source_revision = 0
+        self._layout_identity: PromptLayoutIdentity | None = None
         self._viewport_rect = QRectF()
         self._scroll_offset = 0.0
         self._warm_index = 0
-        self._warm_context: tuple[int, int, int, int, int, int, int] | None = None
-
-    @property
-    def layout_revision(self) -> int:
-        """Return the diagnostic layout revision used in fragment cache keys."""
-
-        return self._layout_revision
+        self._warm_context: (
+            tuple[PromptLayoutIdentity, int, int, int, int, int] | None
+        ) = None
 
     @property
     def fragment_cache(self) -> dict[DiagnosticFragmentCacheKey, tuple[QRectF, ...]]:
         """Return cached diagnostic fragments for tests and guardrails."""
 
         return self._fragment_cache
-
-    def advance_layout_revision(self, *, reason: str) -> int:
-        """Advance diagnostic geometry revision after layout-affecting changes."""
-
-        del reason
-        self._layout_revision += 1
-        return self._layout_revision
 
     def stop_warm(self) -> None:
         """Stop pending diagnostic cache warming."""
@@ -128,7 +118,7 @@ class PromptDiagnosticPainter:
         preview_layout: PromptProjectionLayout | None,
         viewport_rect: QRectF,
         scroll_offset: float,
-        source_revision: int,
+        layout_identity: PromptLayoutIdentity,
         color: QColor,
     ) -> None:
         """Paint prepared diagnostic underline fragments."""
@@ -164,8 +154,7 @@ class PromptDiagnosticPainter:
                     continue
                 cache_key = _diagnostic_fragment_cache_key(
                     diagnostic=diagnostic,
-                    source_revision=source_revision,
-                    layout_revision=self._layout_revision,
+                    layout_identity=layout_identity,
                     viewport_rect=viewport_rect,
                     scroll_offset=scroll_offset,
                 )
@@ -184,7 +173,7 @@ class PromptDiagnosticPainter:
                 layout=layout,
                 viewport_rect=viewport_rect,
                 scroll_offset=scroll_offset,
-                source_revision=source_revision,
+                layout_identity=layout_identity,
             )
 
     def schedule_warm(
@@ -195,7 +184,7 @@ class PromptDiagnosticPainter:
         layout: PromptProjectionLayout,
         viewport_rect: QRectF,
         scroll_offset: float,
-        source_revision: int,
+        layout_identity: PromptLayoutIdentity,
     ) -> None:
         """Queue budgeted diagnostic fragment discovery outside paint events."""
 
@@ -211,8 +200,7 @@ class PromptDiagnosticPainter:
         if not visible_diagnostics:
             return
         warm_context = (
-            source_revision,
-            self._layout_revision,
+            layout_identity,
             _diagnostic_cache_coordinate(viewport_rect.x()),
             _diagnostic_cache_coordinate(viewport_rect.y()),
             _diagnostic_cache_coordinate(viewport_rect.width()),
@@ -226,7 +214,7 @@ class PromptDiagnosticPainter:
         self._layout = layout
         self._viewport_rect = QRectF(viewport_rect)
         self._scroll_offset = scroll_offset
-        self._source_revision = source_revision
+        self._layout_identity = layout_identity
         self._warm_index = 0
         self._warm_context = warm_context
         self._warm_requested = True
@@ -239,14 +227,13 @@ class PromptDiagnosticPainter:
         layout: PromptProjectionLayout,
         viewport_rect: QRectF,
         scroll_offset: float,
-        source_revision: int,
+        layout_identity: PromptLayoutIdentity,
     ) -> tuple[QRectF, ...]:
         """Return cached diagnostic underline fragments for one paint pass."""
 
         cache_key = _diagnostic_fragment_cache_key(
             diagnostic=diagnostic,
-            source_revision=source_revision,
-            layout_revision=self._layout_revision,
+            layout_identity=layout_identity,
             viewport_rect=viewport_rect,
             scroll_offset=scroll_offset,
         )
@@ -278,11 +265,11 @@ class PromptDiagnosticPainter:
         self,
         *,
         diagnostics: Sequence[PromptDiagnostic],
-        source_revision: int,
         start: int,
         end: int,
         replacement_text: str,
-        next_layout_revision: int,
+        previous_layout_identity: PromptLayoutIdentity,
+        next_layout_identity: PromptLayoutIdentity,
         fragment_y_delta: float = 0.0,
     ) -> None:
         """Keep unaffected diagnostic fragments after an accepted local edit."""
@@ -296,12 +283,10 @@ class PromptDiagnosticPainter:
             (diagnostic.source_start, diagnostic.source_end): diagnostic
             for diagnostic in diagnostics
         }
-        previous_layout_revision = next_layout_revision - 1
         for cache_key, fragments in previous_cache.items():
             (
                 _diagnostic_id,
-                _source_revision,
-                layout_revision,
+                layout_identity,
                 diagnostic_start,
                 diagnostic_end,
                 viewport_x,
@@ -310,7 +295,7 @@ class PromptDiagnosticPainter:
                 viewport_height,
                 scroll_offset,
             ) = cache_key
-            if layout_revision != previous_layout_revision:
+            if layout_identity != previous_layout_identity:
                 continue
             if _diagnostic_cache_range_intersects_edit(
                 diagnostic_start,
@@ -346,8 +331,7 @@ class PromptDiagnosticPainter:
             next_cache[
                 (
                     diagnostic.diagnostic_id,
-                    source_revision,
-                    next_layout_revision,
+                    next_layout_identity,
                     diagnostic.source_start,
                     diagnostic.source_end,
                     viewport_x,
@@ -363,7 +347,12 @@ class PromptDiagnosticPainter:
         """Populate missing diagnostic fragment cache entries in small GUI chunks."""
 
         self._warm_requested = False
-        if not self._is_alive() or not self._diagnostics or self._layout is None:
+        if (
+            not self._is_alive()
+            or not self._diagnostics
+            or self._layout is None
+            or self._layout_identity is None
+        ):
             return
         started_at = perf_counter()
         warmed_count = 0
@@ -372,8 +361,7 @@ class PromptDiagnosticPainter:
             self._warm_index += 1
             cache_key = _diagnostic_fragment_cache_key(
                 diagnostic=diagnostic,
-                source_revision=self._source_revision,
-                layout_revision=self._layout_revision,
+                layout_identity=self._layout_identity,
                 viewport_rect=self._viewport_rect,
                 scroll_offset=self._scroll_offset,
             )
@@ -391,7 +379,7 @@ class PromptDiagnosticPainter:
                 layout=self._layout,
                 viewport_rect=self._viewport_rect,
                 scroll_offset=self._scroll_offset,
-                source_revision=self._source_revision,
+                layout_identity=self._layout_identity,
             )
             warmed_count += 1
         if warmed_count:
@@ -547,8 +535,7 @@ def _diagnostic_wave_path(
 def _diagnostic_fragment_cache_key(
     *,
     diagnostic: PromptDiagnostic,
-    source_revision: int,
-    layout_revision: int,
+    layout_identity: PromptLayoutIdentity,
     viewport_rect: QRectF,
     scroll_offset: float,
 ) -> DiagnosticFragmentCacheKey:
@@ -556,8 +543,7 @@ def _diagnostic_fragment_cache_key(
 
     return (
         diagnostic.diagnostic_id,
-        source_revision,
-        layout_revision,
+        layout_identity,
         diagnostic.source_start,
         diagnostic.source_end,
         _diagnostic_cache_coordinate(viewport_rect.x()),

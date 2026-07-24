@@ -1907,7 +1907,7 @@ def test_real_shell_harness_reports_stale_visible_ghost_owner_state(
     surface.set_autocomplete_preview_state(None)
     cast(Any, surface)._layout.set_projection(
         stale_preview_document,
-        prompt_document_view=cast(Any, surface)._document_view,
+        prompt_document_view=surface.prompt_document_view(),
     )
     snapshot = harness.capture_state_snapshot(
         field,

@@ -26,10 +26,12 @@ from PySide6.QtCore import QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QFont, QPainter, QPalette, QPixmap, QRegion
 
 from substitute.application.appearance import SemanticPalette
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptPaintIdentity,
+)
 
 from ..debug_probe import log_prompt_editor_probe
 from .model import PromptProjectionDisplayMode, PromptProjectionSelection
-from .paint_state import PromptProjectionPaintState
 
 if TYPE_CHECKING:
     from .layout_engine import PromptProjectionLayout
@@ -39,28 +41,14 @@ if TYPE_CHECKING:
 class PromptProjectionContentCacheKey:
     """Identify one reusable viewport-local projection content pixmap."""
 
-    source_revision: int
-    projection_document_identity: int
+    paint_identity: PromptPaintIdentity
     display_mode: PromptProjectionDisplayMode
-    layout_snapshot_identity: int
-    viewport_width: int
-    viewport_height: int
-    scroll_offset: int
-    device_pixel_ratio: float
     font_key: str
     palette_cache_key: int
     text_color: int
     placeholder_color: int
     semantic_accent: tuple[int, int, int]
     semantic_error_foreground: tuple[int, int, int]
-    layout_width: int
-    content_left_inset: float
-    content_width: int
-    content_height: int
-    visual_line_count: int
-    text_fragment_count: int
-    inline_object_count: int
-    paint_state: PromptProjectionPaintState
 
 
 class PromptProjectionPaintCache:
@@ -101,7 +89,7 @@ class PromptProjectionPaintCache:
         clip_rect: QRectF,
         viewport_rect: QRectF,
         excluded_region: QRegion | None,
-        source_revision: int,
+        paint_identity: PromptPaintIdentity,
         device_pixel_ratio: float,
         font: QFont,
         palette: QPalette,
@@ -161,10 +149,7 @@ class PromptProjectionPaintCache:
 
         cache_key = self.cache_key_for(
             layout=base_layout,
-            viewport_rect=viewport_rect,
-            scroll_offset=scroll_offset,
-            source_revision=source_revision,
-            device_pixel_ratio=device_pixel_ratio,
+            paint_identity=paint_identity,
             font=font,
             palette=palette,
             semantic_palette=semantic_palette,
@@ -240,26 +225,16 @@ class PromptProjectionPaintCache:
         self,
         *,
         layout: PromptProjectionLayout,
-        viewport_rect: QRectF,
-        scroll_offset: float,
-        source_revision: int,
-        device_pixel_ratio: float,
+        paint_identity: PromptPaintIdentity,
         font: QFont,
         palette: QPalette,
         semantic_palette: SemanticPalette,
     ) -> PromptProjectionContentCacheKey:
         """Return the projection content cache identity for prepared state."""
 
-        content_size = layout.content_size()
         return PromptProjectionContentCacheKey(
-            source_revision=source_revision,
-            projection_document_identity=id(layout.projection_document),
+            paint_identity=paint_identity,
             display_mode=layout.projection_document.display_mode,
-            layout_snapshot_identity=id(layout._snapshot),
-            viewport_width=int(round(viewport_rect.width())),
-            viewport_height=int(round(viewport_rect.height())),
-            scroll_offset=int(round(scroll_offset)),
-            device_pixel_ratio=round(float(device_pixel_ratio), 3),
             font_key=font.toString(),
             palette_cache_key=int(palette.cacheKey()),
             text_color=palette.color(QPalette.ColorRole.Text).rgba(),
@@ -274,14 +249,6 @@ class PromptProjectionPaintCache:
                 semantic_palette.error_foreground.green,
                 semantic_palette.error_foreground.blue,
             ),
-            layout_width=int(round(layout._text_width)),
-            content_left_inset=round(layout._content_left_inset, 3),
-            content_width=int(round(content_size.width())),
-            content_height=int(round(content_size.height())),
-            visual_line_count=layout.line_count(),
-            text_fragment_count=layout.text_fragment_count(),
-            inline_object_count=layout.inline_object_fragment_count(),
-            paint_state=layout.paint_state,
         )
 
     def render_cache_pixmap(

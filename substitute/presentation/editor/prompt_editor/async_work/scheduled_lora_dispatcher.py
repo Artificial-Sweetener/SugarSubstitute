@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections import OrderedDict
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass
@@ -32,7 +36,6 @@ from substitute.application.prompt_editor.lora.scheduled import (
 from substitute.application.ports import PromptAutocompleteSuggestion
 from substitute.shared.logging.logger import get_logger
 
-from ..commands import PromptCommandSourceIdentity
 from .cancellation import PromptEditorCancellationController
 from .execution import (
     PromptAsyncRequest,
@@ -134,12 +137,12 @@ class PromptScheduledLoraContextProvider(Protocol):
         prefix: str,
         prompt_text: str,
         source_text: str,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         query_identity: Hashable | None,
         current_source_text: Callable[[], str] | None,
         current_query_identity: Callable[[], Hashable | None],
         refresh_current_query: Callable[[], None],
-        current_source_identity: Callable[[], PromptCommandSourceIdentity | None]
+        current_source_identity: Callable[[], PromptSourceIdentity | None]
         | None = None,
     ) -> PromptAutocompleteTriggerWordResult:
         """Return cached trigger words and queue a stale-safe refresh when cold."""
@@ -248,12 +251,12 @@ class PromptScheduledLoraContextCoordinator:
         prefix: str,
         prompt_text: str,
         source_text: str,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         query_identity: Hashable | None,
         current_source_text: Callable[[], str] | None,
         current_query_identity: Callable[[], Hashable | None],
         refresh_current_query: Callable[[], None],
-        current_source_identity: Callable[[], PromptCommandSourceIdentity | None]
+        current_source_identity: Callable[[], PromptSourceIdentity | None]
         | None = None,
     ) -> PromptAutocompleteTriggerWordResult:
         """Return cached trigger words and schedule a refresh when stale."""
@@ -321,10 +324,10 @@ class PromptScheduledLoraContextCoordinator:
         prompt_text: str,
         scheduled_loras: tuple[PromptScheduledLora, ...],
         source_text: str | None = None,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         query_identity: Hashable | None = None,
         current_source_text: Callable[[], str] | None = None,
-        current_source_identity: Callable[[], PromptCommandSourceIdentity | None]
+        current_source_identity: Callable[[], PromptSourceIdentity | None]
         | None = None,
         current_query_identity: Callable[[], Hashable | None] | None = None,
         refresh_current_query: Callable[[], None] | None = None,
@@ -354,7 +357,7 @@ class PromptScheduledLoraContextCoordinator:
         prompt_text: str,
         error: BaseException,
         source_text: str | None = None,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         query_identity: Hashable | None = None,
     ) -> None:
         """Publish a failed context refresh directly for deterministic tests."""
@@ -375,7 +378,11 @@ class PromptScheduledLoraContextCoordinator:
             reason="test_failure",
             request_id=request.identity.request_id,
             source_length=len(prompt_text),
-            source_revision=request.identity.source_revision,
+            source_revision=(
+                None
+                if request.identity.source_identity is None
+                else request.identity.source_identity.source_revision
+            ),
             query_identity=query_identity,
         )
 
@@ -397,12 +404,12 @@ class PromptScheduledLoraContextCoordinator:
         *,
         prompt_text: str,
         source_text: str | None,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         query_identity: Hashable | None,
         current_source_text: Callable[[], str] | None,
         current_query_identity: Callable[[], Hashable | None] | None,
         refresh_current_query: Callable[[], None] | None,
-        current_source_identity: Callable[[], PromptCommandSourceIdentity | None]
+        current_source_identity: Callable[[], PromptSourceIdentity | None]
         | None = None,
     ) -> bool:
         """Schedule one background scheduled-LoRA context refresh."""
@@ -460,22 +467,20 @@ class PromptScheduledLoraContextCoordinator:
         cache_key: PromptScheduledLoraContextCacheKey,
         prompt_text: str,
         source_text: str | None,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         query_identity: Hashable | None,
     ) -> PromptScheduledLoraContextRequest:
         """Build one request identity for shared scheduled-LoRA work."""
 
         self._request_id += 1
+        if source_identity is not None and source_identity.source_length is None:
+            source_identity = PromptSourceIdentity(
+                source_revision=source_identity.source_revision,
+                source_length=len(prompt_text),
+            )
         identity = PromptAsyncResultIdentity(
             request_id=self._request_id,
-            source_revision=(
-                None if source_identity is None else source_identity.source_revision
-            ),
-            source_length=(
-                len(prompt_text)
-                if source_identity is None or source_identity.source_length is None
-                else source_identity.source_length
-            ),
+            source_identity=source_identity,
             query_identity=query_identity,
         )
         return PromptScheduledLoraContextRequest(
@@ -499,8 +504,7 @@ class PromptScheduledLoraContextCoordinator:
         outcome: PromptAsyncTaskOutcome[tuple[PromptScheduledLora, ...]],
         *,
         current_source_text: Callable[[], str] | None,
-        current_source_identity: Callable[[], PromptCommandSourceIdentity | None]
-        | None,
+        current_source_identity: Callable[[], PromptSourceIdentity | None] | None,
         current_query_identity: Callable[[], Hashable | None] | None,
         refresh_current_query: Callable[[], None] | None,
     ) -> None:
@@ -555,8 +559,7 @@ class PromptScheduledLoraContextCoordinator:
         request: PromptScheduledLoraContextRequest,
         scheduled_loras: tuple[PromptScheduledLora, ...],
         current_source_text: Callable[[], str] | None,
-        current_source_identity: Callable[[], PromptCommandSourceIdentity | None]
-        | None,
+        current_source_identity: Callable[[], PromptSourceIdentity | None] | None,
         current_query_identity: Callable[[], Hashable | None] | None,
         refresh_current_query: Callable[[], None] | None,
     ) -> None:
@@ -587,8 +590,7 @@ class PromptScheduledLoraContextCoordinator:
         *,
         request: PromptScheduledLoraContextRequest,
         current_source_text: Callable[[], str] | None,
-        current_source_identity: Callable[[], PromptCommandSourceIdentity | None]
-        | None,
+        current_source_identity: Callable[[], PromptSourceIdentity | None] | None,
         current_query_identity: Callable[[], Hashable | None],
     ) -> bool:
         """Return whether a task result still matches the active tag query."""
@@ -597,15 +599,21 @@ class PromptScheduledLoraContextCoordinator:
             None if current_source_identity is None else current_source_identity()
         )
         if live_source_identity is not None:
+            request_source_identity = request.identity.source_identity
             current_source_length = (
-                request.identity.source_length
+                None
+                if request_source_identity is None
+                else request_source_identity.source_length
+            )
+            current_source_length = (
+                current_source_length
                 if live_source_identity.source_length is None
                 else live_source_identity.source_length
             )
             if (
-                request.identity.source_revision is not None
+                request_source_identity is not None
                 and live_source_identity.source_revision
-                != request.identity.source_revision
+                != request_source_identity.source_revision
             ):
                 return False
         elif current_source_text is not None:
@@ -617,16 +625,24 @@ class PromptScheduledLoraContextCoordinator:
             current_source_length = len(current_text)
         else:
             return False
+        request_source_identity = request.identity.source_identity
+        current_async_source_identity = (
+            None
+            if request_source_identity is None
+            else PromptSourceIdentity(
+                source_revision=request_source_identity.source_revision,
+                source_length=current_source_length,
+            )
+        )
         current_identity = PromptAsyncResultIdentity(
             request_id=request.identity.request_id,
-            source_revision=request.identity.source_revision,
-            source_length=current_source_length,
+            source_identity=current_async_source_identity,
             query_identity=current_query_identity(),
             cancellation_generation=request.identity.cancellation_generation,
         )
         required_fields: list[PromptFreshnessField] = ["query_identity"]
-        if request.identity.source_revision is not None:
-            required_fields.append("source_revision")
+        if request_source_identity is not None:
+            required_fields.append("source_identity")
         decision = self._stale_result_guard.validate(
             result_identity=request.identity,
             current_identity=current_identity,

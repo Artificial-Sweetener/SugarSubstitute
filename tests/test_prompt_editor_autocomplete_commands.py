@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
 )
@@ -33,7 +37,6 @@ from substitute.presentation.editor.prompt_editor.commands import (
     PromptAcceptTagAutocompleteCommand,
     PromptAcceptWildcardAutocompleteCommand,
     PromptCommandDispatcher,
-    PromptCommandSourceIdentity,
     PromptLoraAutocompleteAcceptance,
     PromptSceneAutocompleteAcceptance,
     PromptTagAutocompleteAcceptance,
@@ -84,10 +87,10 @@ def _undo_snapshot(session: PromptEditingSession[str]) -> PromptUndoSnapshot[str
 
 def _source_identity(
     session: PromptEditingSession[str],
-) -> PromptCommandSourceIdentity:
+) -> PromptSourceIdentity:
     """Return the current source identity for stale-command tests."""
 
-    return PromptCommandSourceIdentity(
+    return PromptSourceIdentity(
         source_revision=session.source_revision,
         source_length=len(session.source_text),
     )
@@ -282,7 +285,7 @@ def test_autocomplete_command_rejects_stale_source_identity() -> None:
             word_end=3,
             active_tag_end=3,
             add_comma=False,
-            source_identity=PromptCommandSourceIdentity(
+            source_identity=PromptSourceIdentity(
                 source_revision=session.source_revision + 1,
                 source_length=len(session.source_text),
             ),

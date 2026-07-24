@@ -22,8 +22,17 @@ from typing import Protocol
 
 from PySide6.QtCore import QRectF
 
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxRenderPlan,
+)
+
+from ..core.state.editor_state import PromptEditorDocumentState
 from ..debug_probe import log_prompt_editor_probe
-from .freshness_controller import ProjectionFreshness
+from .freshness_controller import (
+    ProjectionFreshness,
+    PromptProjectionFreshnessController,
+)
 from .layout_engine import PromptProjectionLayout
 from .model import (
     PromptProjectionCaretState,
@@ -37,12 +46,6 @@ from .selection_geometry import (
 )
 
 
-class PromptProjectionCaretMovementFreshnessController(Protocol):
-    """Expose freshness state needed before vertical movement."""
-
-    freshness: ProjectionFreshness
-
-
 class PromptProjectionCaretMovementHost(Protocol):
     """Expose surface state consumed by projection-aware caret movement."""
 
@@ -50,8 +53,12 @@ class PromptProjectionCaretMovementHost(Protocol):
     _cursor_state: PromptProjectionCaretState
     _layout: PromptProjectionLayout
     _preferred_x: float | None
-    _projection_document: PromptProjectionDocument
-    _projection_freshness_controller: PromptProjectionCaretMovementFreshnessController
+    _editor_state: PromptEditorDocumentState[
+        PromptDocumentView,
+        PromptSyntaxRenderPlan,
+        PromptProjectionDocument,
+    ]
+    _projection_freshness_controller: PromptProjectionFreshnessController
     _skip_next_same_source_soft_wrap_move: bool
 
     def _current_caret_document_rect(self) -> QRectF:
@@ -174,12 +181,16 @@ class PromptProjectionCaretMovementController:
                     )
                     return
             next_cursor_state = (
-                host._projection_document.caret_map.next_state(origin_state)
+                host._editor_state.projection.document.caret_map.next_state(
+                    origin_state
+                )
                 if direction > 0
-                else host._projection_document.caret_map.previous_state(origin_state)
+                else host._editor_state.projection.document.caret_map.previous_state(
+                    origin_state
+                )
             )
             next_cursor_state = skip_region_separator_caret_states(
-                host._projection_document.caret_map,
+                host._editor_state.projection.document.caret_map,
                 next_cursor_state,
                 direction=direction,
             )
@@ -204,7 +215,7 @@ class PromptProjectionCaretMovementController:
         """Return a layout target whose state does not belong to hidden `[SEP]`."""
 
         state = skip_region_separator_caret_states(
-            self._host._projection_document.caret_map,
+            self._host._editor_state.projection.document.caret_map,
             target.state,
             direction=direction,
         )
@@ -316,9 +327,11 @@ class PromptProjectionCaretMovementController:
         if keep_anchor or selection.is_empty:
             return host._cursor_state
         boundary_position = selection.start if direction < 0 else selection.end
-        return host._projection_document.caret_map.state_for_source_position(
-            boundary_position,
-            prefer_after=direction > 0,
+        return (
+            host._editor_state.projection.document.caret_map.state_for_source_position(
+                boundary_position,
+                prefer_after=direction > 0,
+            )
         )
 
     def _movement_origin_rect_for_arrow_key(

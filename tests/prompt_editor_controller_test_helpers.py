@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 import importlib
 from collections.abc import Callable, Hashable
 from types import SimpleNamespace
@@ -38,7 +42,6 @@ from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptAutocompleteAcceptance,
     PromptCommandResult,
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.async_work import (
     PromptAsyncRequest,
@@ -315,7 +318,7 @@ class AutocompleteEditorDouble:
         self,
         cursor: object,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         command_result: PromptCommandResult[object] | None = None,
     ) -> None:
         """Store cursor, source identity, and optional command result."""
@@ -349,7 +352,7 @@ class AutocompleteEditorDouble:
 
         self.lora_autocomplete_commit_calls += 1
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return the configured source identity for freshness checks."""
 
         return self.source_identity
@@ -382,9 +385,9 @@ class DeferredScheduledLoraContextProvider(PromptScheduledLoraContextProvider):
             tuple[
                 str,
                 str | None,
-                PromptCommandSourceIdentity | None,
+                PromptSourceIdentity | None,
                 Callable[[], str] | None,
-                Callable[[], PromptCommandSourceIdentity | None] | None,
+                Callable[[], PromptSourceIdentity | None] | None,
                 Callable[[], Hashable | None],
                 Callable[[], None],
             ]
@@ -444,12 +447,12 @@ class DeferredScheduledLoraContextProvider(PromptScheduledLoraContextProvider):
         prefix: str,
         prompt_text: str,
         source_text: str,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         query_identity: Hashable | None,
         current_source_text: Callable[[], str] | None,
         current_query_identity: Callable[[], Hashable | None],
         refresh_current_query: Callable[[], None],
-        current_source_identity: Callable[[], PromptCommandSourceIdentity | None]
+        current_source_identity: Callable[[], PromptSourceIdentity | None]
         | None = None,
     ) -> PromptAutocompleteTriggerWordResult:
         """Return cached trigger words and queue a cold context refresh."""
@@ -678,10 +681,10 @@ class TextAutocompleteEditorDouble:
         self.autocomplete_preview_state = preview_state
         self.autocomplete_preview_updates.append(preview_state)
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return source identity for ghost-text freshness tests."""
 
-        return PromptCommandSourceIdentity(
+        return PromptSourceIdentity(
             source_revision=self.source_revision,
             source_length=len(self.text),
         )

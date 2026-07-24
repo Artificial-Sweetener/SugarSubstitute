@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable
 from typing import Protocol, cast
 
@@ -29,7 +33,6 @@ from substitute.presentation.widgets.save_preset_dialog import (
     preset_dialog_result,
 )
 
-from ..commands import PromptCommandSourceIdentity
 from ..features import (
     PromptContextMenuActionController,
     PromptContextMenuActionSnapshot,
@@ -72,7 +75,7 @@ class PromptSegmentPresetHostAdapter:
         self,
         *,
         host: PromptMenuEditorHost,
-        source_identity_provider: Callable[[], PromptCommandSourceIdentity | None],
+        source_identity_provider: Callable[[], PromptSourceIdentity | None],
     ) -> None:
         """Store editor accessors used by prompt segment presentation logic."""
 
@@ -89,7 +92,7 @@ class PromptSegmentPresetHostAdapter:
 
         return self._host.toPlainText()
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return the current source identity when available."""
 
         return self._source_identity_provider()

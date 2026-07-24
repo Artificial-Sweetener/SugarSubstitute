@@ -69,7 +69,7 @@ class PromptProjectionPainter:
                 )
             self.paint_selection(selection, painter)
             for line in _visible_lines(
-                self._layout._snapshot.lines,
+                self._layout.snapshot.lines,
                 document_clip=document_clip,
             ):
                 for fragment in line.fragments:

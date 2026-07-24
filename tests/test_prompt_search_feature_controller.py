@@ -18,12 +18,13 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass
 
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
-)
 from substitute.presentation.editor.prompt_editor.features import (
     PromptFeatureProfileController,
     PromptSearchFeatureController,
@@ -38,10 +39,10 @@ class _SearchHost:
 
         self._source_revision = source_revision
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return a deterministic source identity."""
 
-        return PromptCommandSourceIdentity(source_revision=self._source_revision)
+        return PromptSourceIdentity(source_revision=self._source_revision)
 
 
 @dataclass(slots=True)

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass
 from typing import Generic, TypeAlias, TypeVar
 
@@ -40,7 +44,7 @@ from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptUndoSnapshot,
 )
 
-from . import PromptCommandResult, PromptCommandSourceIdentity
+from . import PromptCommandResult
 
 TPayload = TypeVar("TPayload")
 
@@ -51,7 +55,7 @@ class PromptSpellingReplacementDiagnosticAction:
 
     diagnostic: PromptDiagnostic
     replacement_text: str
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,7 +63,7 @@ class PromptSpellingIgnoreDiagnosticAction:
     """Describe one prepared session-scoped spelling ignore action."""
 
     diagnostic: PromptDiagnostic
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +71,7 @@ class PromptSpellingDictionaryAddDiagnosticAction:
     """Describe one prepared persistent spelling dictionary action."""
 
     diagnostic: PromptDiagnostic
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +79,7 @@ class PromptDuplicateRemovalDiagnosticAction:
     """Describe one prepared duplicate-segment removal action."""
 
     diagnostic: PromptDiagnostic
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +87,7 @@ class PromptDuplicateEmphasisDiagnosticAction:
     """Describe one prepared duplicate-segment emphasis transfer action."""
 
     diagnostic: PromptDiagnostic
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +95,7 @@ class PromptDuplicateIgnoreDiagnosticAction:
     """Describe one prepared session-scoped duplicate ignore action."""
 
     diagnostic: PromptDiagnostic
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
 
 
 PromptDiagnosticAction: TypeAlias = (
@@ -372,7 +376,7 @@ def _validate_spelling_diagnostic_action(
     command_name: str,
     session: PromptEditingSession[TPayload],
     diagnostic: PromptDiagnostic,
-    source_identity: PromptCommandSourceIdentity | None,
+    source_identity: PromptSourceIdentity | None,
 ) -> PromptDiagnosticCommandResult[TPayload] | None:
     """Return a rejection when a spelling diagnostic no longer matches source."""
 
@@ -406,7 +410,7 @@ def _validate_duplicate_diagnostic_action(
     command_name: str,
     session: PromptEditingSession[TPayload],
     diagnostic: PromptDiagnostic,
-    source_identity: PromptCommandSourceIdentity | None,
+    source_identity: PromptSourceIdentity | None,
 ) -> PromptDiagnosticCommandResult[TPayload] | None:
     """Return a rejection when a duplicate diagnostic no longer matches source."""
 
@@ -443,7 +447,7 @@ def _stale_result(
     *,
     command_name: str,
     session: PromptEditingSession[TPayload],
-    source_identity: PromptCommandSourceIdentity | None,
+    source_identity: PromptSourceIdentity | None,
 ) -> PromptDiagnosticCommandResult[TPayload] | None:
     """Return a stale rejection for a mismatched prepared source identity."""
 
