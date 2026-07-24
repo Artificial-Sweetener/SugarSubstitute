@@ -26,7 +26,9 @@ from PySide6.QtCore import QLineF, Qt
 from PySide6.QtGui import QPainter, QPen
 
 from substitute.application.appearance import SemanticPalette
-from substitute.application.prompt_editor import PromptRegionPartitionView
+from substitute.application.prompt_editor.document.views import (
+    PromptRegionPartitionView,
+)
 from substitute.domain.appearance import RgbColor
 
 from .metrics import PromptProjectionMetrics

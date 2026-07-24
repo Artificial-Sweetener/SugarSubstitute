@@ -18,9 +18,11 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import (
-    PromptDiagnostic,
+from substitute.application.prompt_editor.diagnostics.display_policy import (
     PromptDiagnosticDisplayPolicy,
+)
+from substitute.application.prompt_editor.diagnostics.models import (
+    PromptDiagnostic,
     PromptDiagnosticKind,
     PromptDiagnosticSeverity,
     PromptDiagnosticSnapshot,

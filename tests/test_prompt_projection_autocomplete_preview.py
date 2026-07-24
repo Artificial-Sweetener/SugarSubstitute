@@ -27,8 +27,8 @@ import pytest
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor

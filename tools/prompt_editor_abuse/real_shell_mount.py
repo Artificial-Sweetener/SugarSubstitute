@@ -23,7 +23,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QWidget
 
-from substitute.domain.prompt import PromptWheelAdjustmentMode
+from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
 from tests.real_shell_prompt_editor_harness import (
     PromptFieldHandle,
     RealShellPromptEditorHarness,

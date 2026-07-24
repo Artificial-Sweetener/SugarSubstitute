@@ -21,18 +21,28 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from decimal import Decimal
 
-from substitute.application.prompt_editor import (
-    PromptAdjustEmphasisContentAction,
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnostic,
     PromptDiagnosticKind,
     PromptDiagnosticSeverity,
+    PromptSpellingDiagnosticPayload,
+)
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
+)
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.editing.syntax_actions import (
+    PromptAdjustEmphasisContentAction,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.reorder.views import (
     PromptReorderLayoutView,
     PromptReorderRowView,
     PromptReorderStateView,
-    PromptSourceNormalizationService,
-    PromptSpellingDiagnosticPayload,
-    PromptSyntaxService,
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandSourceIdentity,

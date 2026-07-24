@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import pytest
 
-from substitute.domain.prompt import (
-    parse_prompt_document,
+from substitute.domain.prompt.document.parser import parse_prompt_document
+from substitute.domain.prompt.document.serializer import (
     serialize_prompt_document,
     serialize_segments,
 )

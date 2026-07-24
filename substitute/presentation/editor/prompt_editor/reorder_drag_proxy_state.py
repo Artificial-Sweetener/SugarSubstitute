@@ -23,9 +23,11 @@ from dataclasses import dataclass
 from PySide6.QtCore import QRectF, QSize
 from PySide6.QtGui import QColor, QFont, QPalette
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
 

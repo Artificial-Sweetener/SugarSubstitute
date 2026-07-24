@@ -38,7 +38,9 @@ from substitute.application.onboarding import (
     OnboardingPreferenceSetupFailure,
     OnboardingPreferenceSetupService,
 )
-from substitute.application.prompt_editor import PromptEditorPreferenceService
+from substitute.application.prompt_editor.features.preferences import (
+    PromptEditorPreferenceService,
+)
 from substitute.domain.civitai import (
     CivitaiPreferences,
     CivitaiThumbnailSafetyPolicy,
@@ -49,7 +51,8 @@ from substitute.domain.danbooru.preferences import (
     DanbooruPreferences,
     default_danbooru_preferences,
 )
-from substitute.domain.prompt import PromptEditorFeature, PromptEditorPreferences
+from substitute.domain.prompt.features.models import PromptEditorFeature
+from substitute.domain.prompt.preferences.models import PromptEditorPreferences
 from substitute.domain.generation import OutputOrganizationSettings, OutputPreferences
 from substitute.infrastructure.persistence.file_prompt_editor_preference_repository import (
     _default_preferences,

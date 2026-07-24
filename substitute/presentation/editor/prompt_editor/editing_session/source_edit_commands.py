@@ -22,12 +22,12 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Generic, Protocol, TypeVar
 
-from substitute.application.prompt_editor.prompt_literal_parenthesis_normalizer import (
+from substitute.application.prompt_editor.editing.literal_parentheses import (
     PromptGeneratedEmphasis,
     PromptParenthesisTransition,
     PromptParenthesisTransitionKind,
 )
-from substitute.domain.prompt import parse_prompt_document
+from substitute.domain.prompt.document.parser import parse_prompt_document
 
 from .cursor_state import PromptCursorState
 from .edit_transaction import PromptUndoAvailabilityChange, PromptUndoSnapshot

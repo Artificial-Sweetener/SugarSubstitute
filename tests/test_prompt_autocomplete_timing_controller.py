@@ -24,8 +24,8 @@ from typing import Any, cast
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
 )

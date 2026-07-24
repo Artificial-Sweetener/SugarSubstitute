@@ -22,12 +22,12 @@ from collections.abc import Mapping, MutableMapping, Sequence
 from copy import deepcopy
 from typing import Any, Protocol, TypeVar, cast
 
-from substitute.application.prompt_editor import WorkflowSceneAnalysis
-from substitute.domain.links import PromptEndpoint, PromptEndpointIndex
-from substitute.domain.prompt import (
-    materialize_scene_prompt,
-    parse_prompt_scene_document,
+from substitute.application.prompt_editor.scenes.workflow_analysis import (
+    WorkflowSceneAnalysis,
 )
+from substitute.domain.links import PromptEndpoint, PromptEndpointIndex
+from substitute.domain.prompt.scenes.materialization import materialize_scene_prompt
+from substitute.domain.prompt.scenes.parser import parse_prompt_scene_document
 from substitute.shared.logging.logger import get_logger, log_debug, log_warning
 
 _LOGGER = get_logger("application.generation.prompt_scene_materialization_service")

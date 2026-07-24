@@ -31,14 +31,18 @@ from substitute.application.execution import (
     TaskScope,
     TaskSubmitter,
 )
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.service import (
     PromptDocumentService,
-    PromptSyntaxService,
     prewarm_prompt_document_views,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.scenes.projection import (
     prewarm_prompt_scene_projection_documents,
 )
 from substitute.application.ports import PromptWildcardCatalogGateway
-from substitute.application.prompt_editor.prompt_syntax_profile_service import (
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfileService,
 )
 from substitute.app.bootstrap.startup_policy import LOCAL_EDITOR_WARMUP_BUDGET_SECONDS

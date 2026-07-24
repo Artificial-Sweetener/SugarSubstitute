@@ -22,8 +22,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 
-from substitute.application.prompt_editor import PromptDocumentView
-from substitute.application.prompt_editor import PromptDiagnostic
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.diagnostics.models import PromptDiagnostic
 from substitute.shared.logging.logger import get_logger, log_debug
 
 from ..autocomplete_preview_state import PromptAutocompletePreviewState

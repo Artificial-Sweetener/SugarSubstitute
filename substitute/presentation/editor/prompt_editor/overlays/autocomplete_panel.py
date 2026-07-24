@@ -39,7 +39,9 @@ from PySide6.QtWidgets import QWidget
 from qfluentwidgets.common.font import getFont  # type: ignore[import-untyped]
 from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import-untyped]
 
-from substitute.application.prompt_editor import PromptLoraCatalogItem
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogItem,
+)
 from substitute.presentation.editor.prompt_editor.geometry import (
     compute_autocomplete_panel_rect,
 )

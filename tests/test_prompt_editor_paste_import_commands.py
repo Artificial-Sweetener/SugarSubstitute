@@ -23,8 +23,10 @@ from typing import cast
 from substitute.application.managed_text_assets.wildcard_csv_document_semantics import (
     WildcardCsvDocumentSemantics,
 )
-from substitute.application.prompt_editor import PromptSourceNormalizationService
-from substitute.application.prompt_editor.prompt_structured_text_mutation_service import (
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.editing.structured_text import (
     PromptStructuredTextMutationService,
 )
 from substitute.presentation.editor.prompt_editor.commands import (

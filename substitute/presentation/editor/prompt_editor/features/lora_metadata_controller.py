@@ -23,10 +23,12 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Any, Protocol, cast
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
     PromptLoraCatalogLookup,
-    PromptLoraScheduleService,
+)
+from substitute.application.prompt_editor.lora.schedule import PromptLoraScheduleService
+from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLoraService,
 )
 from substitute.presentation.widgets.media_wall import MediaThumbnailReadiness

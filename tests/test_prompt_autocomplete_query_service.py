@@ -22,16 +22,16 @@ import ast
 from pathlib import Path
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor.prompt_autocomplete_queries import (
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteFallbackQuery,
     PromptAutocompleteQuery,
 )
-from substitute.application.prompt_editor.prompt_autocomplete_query_service import (
+from substitute.application.prompt_editor.autocomplete.query_service import (
     PromptAutocompleteQueryService,
     autocomplete_replacement_text,
     filter_noop_autocomplete_suggestions,
 )
-from substitute.application.prompt_editor.prompt_document_projector import (
+from substitute.application.prompt_editor.document.projector import (
     PromptDocumentProjector,
 )
 
@@ -41,14 +41,16 @@ QUERY_SERVICE_SOURCE = (
     / "substitute"
     / "application"
     / "prompt_editor"
-    / "prompt_autocomplete_query_service.py"
+    / "autocomplete"
+    / "query_service.py"
 )
 TAG_RANGES_SOURCE = (
     PROJECT_ROOT
     / "substitute"
     / "application"
     / "prompt_editor"
-    / "prompt_autocomplete_tag_ranges.py"
+    / "autocomplete"
+    / "tag_ranges.py"
 )
 _FORBIDDEN_IMPORT_ROOTS = {
     "PySide6",

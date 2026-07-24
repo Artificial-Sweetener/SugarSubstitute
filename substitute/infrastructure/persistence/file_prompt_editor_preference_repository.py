@@ -24,11 +24,11 @@ from pathlib import Path
 from substitute.application.ports.prompt_editor_preference_repository import (
     PromptEditorPreferenceRepository,
 )
-from substitute.application.prompt_editor.prompt_feature_registry import (
+from substitute.application.prompt_editor.features.definitions import (
     default_prompt_feature_preferences,
 )
-from substitute.domain.prompt.features import PromptEditorFeature
-from substitute.domain.prompt.preferences import (
+from substitute.domain.prompt.features.models import PromptEditorFeature
+from substitute.domain.prompt.preferences.models import (
     PROMPT_EDITOR_PREFERENCES_SCHEMA_VERSION,
     PromptEditorPreferences,
     PromptWheelAdjustmentMode,

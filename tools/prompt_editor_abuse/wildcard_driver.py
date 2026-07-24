@@ -32,7 +32,7 @@ from PySide6.QtGui import QGuiApplication
 from substitute.application.managed_text_assets.wildcard_csv_document_parser import (
     parse_wildcard_csv_document,
 )
-from substitute.application.prompt_editor import PromptDiagnosticKind
+from substitute.application.prompt_editor.diagnostics.models import PromptDiagnosticKind
 from .execution import execute_mounted_scenario
 from .models import (
     PromptAbuseCorrectnessSnapshot,

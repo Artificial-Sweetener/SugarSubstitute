@@ -19,12 +19,16 @@
 from __future__ import annotations
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor import (
-    PromptLoraAutocompleteCandidate,
-    PromptLoraCatalogItem,
-    PromptLoraAutocompleteQuery,
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptSceneAutocompleteQuery,
     PromptWildcardAutocompleteQuery,
+)
+from substitute.application.prompt_editor.lora.autocomplete import (
+    PromptLoraAutocompleteCandidate,
+    PromptLoraAutocompleteQuery,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogItem,
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandResult,

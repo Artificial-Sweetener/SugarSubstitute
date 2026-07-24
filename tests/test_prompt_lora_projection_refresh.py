@@ -22,13 +22,17 @@ import importlib
 from types import SimpleNamespace
 from typing import Any, cast
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
-    PromptDocumentService,
+    PromptSyntaxSpanView,
+)
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
-    PromptSyntaxSpanView,
 )
 from substitute.presentation.editor.prompt_editor.syntax_renderers import (
     PromptSyntaxRendererCoordinator,

@@ -11,14 +11,14 @@ verification result.
 
 - Refactor branch: `refactor/prompt-editor-architecture`
 - Behavioral baseline: `bc6c6a7b`
-- Current slice: 2, pure domain/application package ownership
+- Current slice: 3, panel dependency inversion
 - Completion state: active
 - Blocking regressions: none accepted
 
 | Slice | Authority transfer | Status | Evidence |
 |---:|---|---|---|
 | 1 | Architecture and measurement guardrails | Complete | Import/debt guards, stable owner hooks, 68/68 structural coverage, clean-root performance comparison, and complete repository gates |
-| 2 | Pure domain/application package ownership | Pending | — |
+| 2 | Pure domain/application package ownership | Complete | Direct-owner packages, deleted LoRA cycle and flat barrels, 68/68 structural coverage, paired performance evidence, and complete repository gates |
 | 3 | Panel dependency inversion | Pending | — |
 | 4 | Revisioned core state | Pending | — |
 | 5 | Editing ownership | Pending | — |
@@ -117,6 +117,81 @@ Ruff and strict mypy checks. The complete repository gates pass: repository
 format and lint, strict mypy over 2,858 source files, the full non-serial suite,
 and all 121 serial modules including prompt-editor and canvas real-shell
 coverage. Slice 1 is complete.
+
+### Slice 2 acceptance ledger
+
+Slice 2 is complete only when:
+
+- domain and application prompt owners live in cohesive responsibility
+  subpackages with inert package roots;
+- every internal caller imports its authoritative owner directly;
+- the application package has no lazy export registry, dynamic dispatch, or
+  service-locator barrel;
+- shared immutable LoRA catalog values live below catalog construction and
+  ranking, and the catalog/ranking cycle is deleted;
+- regional models, scene models/parsing/materialization, and reorder
+  models/derivation/mutations/serialization have distinct authoritative owners
+  rather than renamed mixed modules;
+- the canonical prompt parser still performs one structural scan and the
+  document cache retains identity reuse, prewarm, boundedness, and Qt-free
+  ownership;
+- no executable behavior is changed accidentally by the repository-wide import
+  transfer;
+- the complete structural matrix and representative baseline comparison show
+  no correctness, canvas/workflow, structural-work, or performance regression;
+- focused and complete repository gates pass for the exact slice worktree.
+
+### Slice 2 evidence
+
+All 57 flat application modules and 17 flat domain modules now live beneath
+cohesive responsibility packages. Both package roots are inert markers:
+internal consumers use direct module imports, and executable architecture tests
+reject future flat modules, root-barrel imports, lazy registries, new package
+names outside the declared ownership graph, and import-cycle growth.
+
+The LoRA catalog values and read port now live in `lora/catalog_models.py`.
+Catalog construction and ranking both depend on those immutable values, so the
+former catalog/ranking strongly connected component is gone. Domain ownership
+was completed rather than hidden by folders: `SourceRange` has a foundational
+range owner; regional models no longer live in the general document model;
+scenes have separate model, parser, and materialization owners; and the former
+1,354-line reorder pair is replaced by direct model, derivation, mutation, and
+serialization owners. Old modules, package exports, and internal compatibility
+paths are deleted.
+
+Repository-wide AST comparison proves that all 153 touched production modules
+outside the transferred prompt packages changed only import declarations.
+Equivalent comparison across 56 non-catalog application owners proves their
+executable bodies are unchanged apart from direct imports and module-accurate
+logger names. The catalog difference is the intentional immutable-value
+extraction. Focused strict mypy passes across all 100 domain/application prompt
+modules. The focused prompt domain, document, LoRA, scene, reorder, startup
+import, logging, and architecture suites pass.
+
+The complete real-shell structural campaign at
+`build/prompt-editor-slice2-structural.json` covers all 68 required operations
+with `correct=True` and `structural=True`. It includes unchanged canvas and
+workflow round trips, regional separators, ordinary editing/navigation,
+selection, paint/caches, diagnostics, autocomplete, LoRA, scenes, and reorder.
+
+Timing uses fresh processes that assert every loaded `substitute` module belongs
+to the selected worktree. The exact pre-slice baseline is `d40e920c`, and both
+roots use the same timing-only call path. Six short process pairs reverse
+baseline/candidate order and provide 30 samples per lane on fixed four-core
+affinity. Candidate total elapsed time and process CPU are lower in every pair.
+Median paired p95 deltas are -4.315 ms for 5k Enter, -3.272 ms for 5k Delete,
+-2.546 ms for horizontal Alt navigation, -1.829 ms for 5k selection,
+-0.854 ms for Danbooru paste/import, and -0.447 ms for prepared paint-cache
+composition. Longer non-interleaved runs showed large machine-wide swings in
+both directions across every unrelated lane; those invalid comparisons are
+retained as diagnostic artifacts and are not used as evidence.
+
+Repository format and lint, the license-header audit, strict mypy over 2,882
+source files, the complete non-serial suite, and all 121 serial modules pass.
+The serial run includes the prompt-editor real-shell harness, autocomplete,
+canvas abuse and scenarios, workflow scenarios, IME, caret, selection,
+paint-cache, reorder, diagnostics, history, and toolbar rendering. Slice 2 is
+complete.
 
 ## Review objective
 
@@ -731,18 +806,19 @@ substitute/
   domain/prompt/
     document/                 # source ranges, document/segment/span values
       models.py
+      ranges.py
       parser.py               # one canonical bounded scan
       structural_scan.py      # shared quote/escape/parenthesis scanner
       serializer.py
+      syntax.py
     emphasis/
       semantics.py
       operations.py
-      weights.py
+      formatting.py
+      normalization.py
     regions/
       models.py
       parser.py               # participates in canonical scan; no second scan
-      edits.py
-      normalization.py
     scenes/
       models.py
       parser.py
@@ -755,6 +831,8 @@ substitute/
     wildcards/
       models.py
       syntax.py
+    features/
+      models.py
     preferences/
       models.py
 
@@ -765,25 +843,38 @@ substitute/
       semantics.py
       selection.py
       cache.py
+      service.py
+      view_mapper.py
     editing/
       mutation_service.py
-      normalization.py
+      literal_parentheses.py
+      region_separator_normalization.py
+      region_structure_edits.py
+      source_normalization.py
       syntax_actions.py
-      structured_mapping.py
+      structured_syntax.py
+      structured_text.py
+      text_ranges.py
     projection/
-      semantic_snapshot.py    # semantic + render-plan revision
-      syntax_plan.py
+      structured_syntax.py
+      syntax_service.py
     autocomplete/
       queries.py
-      ranges.py
-      matching.py
+      query_service.py
+      tag_ranges.py
+      text.py
       structured_mapping.py
     diagnostics/
       models.py
       coordinator.py
       display_policy.py
+      duplicate_mutations.py
       duplicate_segments.py
+      spellcheck_candidates.py
+      spellcheck_models.py
+      spellcheck_provider.py
       spellcheck.py
+      structured_values.py
       wildcard.py
       unsupported_scenes.py
     lora/
@@ -792,14 +883,18 @@ substitute/
       ranking.py
       resolution.py
       autocomplete.py
-      scheduling.py
-      trigger_words.py
+      schedule.py
+      scheduled.py
+      diagnostics.py
+      effective_provider.py
     reorder/
       views.py
       projection.py
       drop.py
+      gap_layout.py
+      semantics.py
       serialization.py
-      structured.py
+      structured_document.py
     scenes/
       projection.py
       workflow_analysis.py
@@ -807,6 +902,8 @@ substitute/
       definitions.py
       profile.py
       preferences.py
+      syntax_profile.py
+      workflow_graph.py
     ports/
       autocomplete.py
       catalogs.py

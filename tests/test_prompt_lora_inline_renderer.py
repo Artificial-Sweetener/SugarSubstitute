@@ -31,7 +31,7 @@ from PySide6.QtCore import QRectF, QSize
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QImage, QPainter
 from PySide6.QtWidgets import QApplication
 
-from substitute.application.prompt_editor.prompt_lora_resolution_service import (
+from substitute.application.prompt_editor.lora.resolution import (
     PromptLoraResolutionStatus,
 )
 from tests.execution_testing import ImmediateTaskSubmitter

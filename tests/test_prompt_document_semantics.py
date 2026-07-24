@@ -16,11 +16,11 @@
 
 """Verify prompt document coordinate ownership and scalable identity mapping."""
 
-from substitute.application.prompt_editor.prompt_document_semantics import (
+from substitute.application.prompt_editor.document.semantics import (
     OrdinaryPromptDocumentSemantics,
     PromptIdentityCharacterRangeSequence,
 )
-from substitute.domain.prompt import SourceRange
+from substitute.domain.prompt.document.ranges import SourceRange
 
 
 def test_ordinary_prompt_mapping_keeps_large_identity_coordinates_lazy() -> None:

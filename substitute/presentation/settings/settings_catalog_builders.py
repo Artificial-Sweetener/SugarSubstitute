@@ -70,14 +70,16 @@ from substitute.application.ports.danbooru_cache_repository import (
     DanbooruCacheRepository,
 )
 from substitute.presentation.dialogs import LocalizedColorDialog
-from substitute.application.prompt_editor import (
-    PromptEditorFeature,
-    PromptEditorPreferenceService,
+from substitute.application.prompt_editor.features.definitions import (
     PromptFeatureDefinition,
-    PromptWheelAdjustmentMode,
     prompt_feature_definition,
     prompt_feature_definitions,
 )
+from substitute.application.prompt_editor.features.preferences import (
+    PromptEditorPreferenceService,
+)
+from substitute.domain.prompt.features.models import PromptEditorFeature
+from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
 from substitute.application.prompt_wildcards import (
     PromptWildcardFileManagementService,
     PromptWildcardPreferenceService,

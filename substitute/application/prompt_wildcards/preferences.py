@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from substitute.domain.prompt import PromptWildcardSyntaxProfile
+from substitute.domain.prompt.wildcards.syntax import PromptWildcardSyntaxProfile
 
 PROMPT_WILDCARD_PREFERENCES_SCHEMA_VERSION = 1
 

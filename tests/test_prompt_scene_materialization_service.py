@@ -27,7 +27,9 @@ from substitute.application.generation import (
     PromptSceneMaterializationService,
     PromptScenePreparationPlanBuilder,
 )
-from substitute.application.prompt_editor import PromptSceneAnalysisService
+from substitute.application.prompt_editor.scenes.workflow_analysis import (
+    PromptSceneAnalysisService,
+)
 from substitute.domain.links import PromptEndpoint, PromptEndpointIndex
 from substitute.domain.node_behavior import PromptRole
 from substitute.domain.workflow import CubeState, WorkflowState

@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import PromptScheduledLora
+from substitute.application.prompt_editor.lora.scheduled import PromptScheduledLora
 from tests.prompt_autocomplete_test_helpers import build_test_autocomplete_coordinator
 from tests.prompt_editor_controller_test_helpers import (
     DeferredScheduledLoraContextProvider,

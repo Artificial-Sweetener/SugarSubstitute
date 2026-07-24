@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
     PromptSyntaxProfileService,
 )

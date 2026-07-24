@@ -31,12 +31,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtGui import QFont, QPalette
 from PySide6.QtWidgets import QApplication
 
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
-    PromptLineDropTarget,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
+from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
 from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
     PromptLoraThumbnailCache,
 )

@@ -29,11 +29,13 @@ from substitute.application.ports import (
     PromptAutocompleteGateway,
     PromptWildcardCatalogGateway,
 )
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
-    PromptLoraCatalogLookup,
+from substitute.application.prompt_editor.diagnostics.spellcheck import (
     PromptSpellcheckService,
 )
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogLookup,
+)
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.devtools.prompt_editor_performance.fakes import (
     autocomplete_gateway,
     danbooru_url_import_service,

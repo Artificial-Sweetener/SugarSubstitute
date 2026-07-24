@@ -23,10 +23,8 @@ from collections.abc import Iterator
 from PySide6.QtCore import QPointF, QRect, QRectF, QSize
 from PySide6.QtGui import QColor
 
-from substitute.application.prompt_editor import (
-    PromptLineDropTarget,
-    PromptReorderChipView,
-)
+from substitute.application.prompt_editor.document.views import PromptReorderChipView
+from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
 from substitute.presentation.editor.prompt_editor.overlays.chip_visuals import (
     PromptChipVisual,
 )

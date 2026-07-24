@@ -31,7 +31,10 @@ from substitute.application.prompt_wildcards import (
 from substitute.application.prompt_wildcards.resolver import PromptWildcardResolver
 from substitute.domain.links import PromptEndpoint, PromptEndpointIndex
 from substitute.domain.node_behavior import PromptRole
-from substitute.domain.prompt import PromptWildcardCsvSource, PromptWildcardTextSource
+from substitute.domain.prompt.wildcards.models import (
+    PromptWildcardCsvSource,
+    PromptWildcardTextSource,
+)
 from substitute.infrastructure.persistence.file_prompt_wildcard_catalog_gateway import (
     FilePromptWildcardCatalogGateway,
 )

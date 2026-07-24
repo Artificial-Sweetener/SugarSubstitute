@@ -22,8 +22,8 @@ from dataclasses import dataclass
 from typing import Protocol, cast
 
 from PySide6.QtCore import QObject
-from substitute.application.prompt_editor import (
-    PromptDocumentView,
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.qt_lifecycle import qt_object_is_alive

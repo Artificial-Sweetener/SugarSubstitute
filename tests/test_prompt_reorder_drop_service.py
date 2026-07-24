@@ -21,13 +21,11 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from substitute.application.prompt_editor.prompt_document_projector import (
+from substitute.application.prompt_editor.document.projector import (
     PromptDocumentProjector,
 )
-from substitute.application.prompt_editor.prompt_reorder_drop_service import (
-    PromptReorderDropService,
-)
-from substitute.application.prompt_editor.prompt_reorder_views import (
+from substitute.application.prompt_editor.reorder.drop import PromptReorderDropService
+from substitute.application.prompt_editor.reorder.views import (
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
     PromptReorderGapPlacement,
@@ -42,7 +40,8 @@ DROP_SERVICE_SOURCE = (
     / "substitute"
     / "application"
     / "prompt_editor"
-    / "prompt_reorder_drop_service.py"
+    / "reorder"
+    / "drop.py"
 )
 _FORBIDDEN_IMPORT_ROOTS = {
     "PySide6",

@@ -25,10 +25,12 @@ from substitute.application.ports import (
     PromptWildcardReference,
     PromptWildcardResolution,
 )
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnosticKind,
     PromptDiagnosticSeverity,
     PromptWildcardDiagnosticPayload,
+)
+from substitute.application.prompt_editor.diagnostics.wildcard import (
     PromptWildcardDiagnosticProvider,
 )
 

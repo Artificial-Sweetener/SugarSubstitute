@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QRect, QRectF
 
-from substitute.application.prompt_editor import PromptReorderLayoutView
+from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
 
 from .reorder_chip_geometry import (
     PromptReorderChipGeometry,

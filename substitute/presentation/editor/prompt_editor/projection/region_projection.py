@@ -20,11 +20,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.views import (
     PromptRegionSeparatorView,
     PromptRegionStructureView,
 )
-from substitute.domain.prompt.region_structure_parser import REGION_SEPARATOR_TOKEN
+from substitute.domain.prompt.regions.parser import REGION_SEPARATOR_TOKEN
 
 from .model import (
     PromptProjectionRun,

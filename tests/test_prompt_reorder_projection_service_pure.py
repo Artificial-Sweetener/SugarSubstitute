@@ -21,21 +21,21 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from substitute.application.prompt_editor.prompt_document_projector import (
+from substitute.application.prompt_editor.document.projector import (
     PromptDocumentProjector,
 )
-from substitute.application.prompt_editor.prompt_reorder_projection_service import (
+from substitute.application.prompt_editor.reorder.projection import (
     PromptReorderProjectionService,
     domain_target_from_view,
     domain_state_from_view,
     ordered_chip_indices_from_layout_view,
     state_from_layout_view,
 )
-from substitute.application.prompt_editor.prompt_reorder_views import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptGapBlankLineDropTarget,
     PromptLineDropTarget,
 )
-from substitute.domain.prompt import (
+from substitute.domain.prompt.reorder.models import (
     PromptGapBlankLineDropTarget as DomainPromptGapBlankLineDropTarget,
     PromptLineDropTarget as DomainPromptLineDropTarget,
 )
@@ -46,7 +46,8 @@ PROJECTION_SOURCE = (
     / "substitute"
     / "application"
     / "prompt_editor"
-    / "prompt_reorder_projection_service.py"
+    / "reorder"
+    / "projection.py"
 )
 _FORBIDDEN_IMPORT_ROOTS = {
     "PySide6",

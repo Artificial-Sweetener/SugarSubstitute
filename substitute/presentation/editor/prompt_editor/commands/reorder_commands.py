@@ -21,14 +21,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutation,
     PromptMutationService,
-    PromptReorderLayoutView,
-    PromptReorderStateView,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.reorder.views import (
+    PromptReorderLayoutView,
+    PromptReorderStateView,
 )
 from substitute.presentation.editor.prompt_editor.editing_session import (
     PromptEditingSession,

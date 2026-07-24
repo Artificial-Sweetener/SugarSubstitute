@@ -27,17 +27,23 @@ from substitute.application.ports import (
     PromptAutocompleteGateway,
     PromptAutocompleteSuggestion,
 )
-from substitute.application.prompt_editor import (
-    filter_noop_autocomplete_suggestions,
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteQuery,
-    PromptLoraAutocompleteCandidate,
-    PromptLoraAutocompleteQuery,
-    PromptLoraAutocompleteService,
-    PromptLoraCatalogItem,
     PromptSceneAutocompleteQuery,
     PromptWildcardAutocompleteQuery,
 )
-from substitute.application.prompt_editor.prompt_autocomplete_query_service import (
+from substitute.application.prompt_editor.autocomplete.query_service import (
+    filter_noop_autocomplete_suggestions,
+)
+from substitute.application.prompt_editor.lora.autocomplete import (
+    PromptLoraAutocompleteCandidate,
+    PromptLoraAutocompleteQuery,
+    PromptLoraAutocompleteService,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogItem,
+)
+from substitute.application.prompt_editor.autocomplete.query_service import (
     autocomplete_replacement_text,
 )
 

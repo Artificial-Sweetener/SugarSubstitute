@@ -26,7 +26,7 @@ import pytest
 from PySide6.QtCore import QPointF, QRect, QRectF
 from PySide6.QtGui import QColor
 
-from substitute.application.prompt_editor import PromptLineDropTarget
+from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
 from substitute.presentation.editor.prompt_editor.overlays.chip_painter import (
     PromptChipPaintStyle,
 )

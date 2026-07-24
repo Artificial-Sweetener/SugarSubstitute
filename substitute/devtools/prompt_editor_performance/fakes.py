@@ -36,13 +36,15 @@ from substitute.application.ports import (
     PromptWildcardReference,
     PromptWildcardResolution,
 )
-from substitute.application.prompt_editor import (
-    PromptLoraCatalogItem,
-    PromptScheduledLora,
+from substitute.application.prompt_editor.diagnostics.spellcheck_models import (
     PromptSpellcheckSnapshot,
     PromptSpellingIssue,
     PromptSpellingSuggestionSet,
 )
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogItem,
+)
+from substitute.application.prompt_editor.lora.scheduled import PromptScheduledLora
 from substitute.devtools.prompt_editor_performance.metrics import OperationCounter
 from substitute.devtools.prompt_editor_performance.scenarios import (
     AutocompleteGatewayKind,

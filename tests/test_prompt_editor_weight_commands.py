@@ -21,16 +21,22 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import cast
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.editing.mutation_service import (
+    PromptMutationService,
+)
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptAdjustEmphasisContentAction,
     PromptAdjustLoraWeightAction,
     PromptAdjustWildcardTagAction,
-    PromptMutationService,
     PromptSetEmphasisWeightAction,
     PromptSetEmphasisWeightContentAction,
     PromptSetLoraWeightAction,
     PromptSetWildcardTagAction,
-    PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
 from substitute.presentation.editor.prompt_editor.commands import (

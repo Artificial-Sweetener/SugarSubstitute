@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from substitute.application.appearance import SemanticPalette
-from substitute.application.prompt_editor import PromptDocumentView
+from substitute.application.prompt_editor.document.views import PromptDocumentView
 
 from .model import PromptProjectionDocument
 from .snapshot import PromptProjectionLayoutSnapshot

@@ -25,7 +25,7 @@ from dataclasses import dataclass
 
 from PySide6.QtCore import QRectF
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptReorderLayoutView,
     PromptReorderPreviewSnapshot,
 )

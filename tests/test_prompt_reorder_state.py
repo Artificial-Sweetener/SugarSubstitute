@@ -23,7 +23,7 @@ from dataclasses import FrozenInstanceError, replace
 import pytest
 from PySide6.QtCore import QPoint, QPointF, QRectF, QSizeF
 
-from substitute.application.prompt_editor import PromptLineDropTarget
+from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
 from substitute.presentation.editor.prompt_editor.overlays.reorder_gesture_controller import (
     PromptReorderGestureController,
 )

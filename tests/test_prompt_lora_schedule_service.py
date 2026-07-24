@@ -18,9 +18,11 @@
 
 from __future__ import annotations
 
-from substitute.application.prompt_editor import (
-    DEFAULT_LORA_SCHEDULE_WEIGHT,
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
+)
+from substitute.application.prompt_editor.lora.schedule import (
+    DEFAULT_LORA_SCHEDULE_WEIGHT,
     PromptLoraScheduleService,
 )
 

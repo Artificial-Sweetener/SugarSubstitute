@@ -26,10 +26,14 @@ import pytest
 from PySide6.QtCore import Qt
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteQuery,
+)
+from substitute.application.prompt_editor.lora.autocomplete import (
     PromptLoraAutocompleteCandidate,
     PromptLoraAutocompleteQuery,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
 )
 from substitute.presentation.editor.prompt_editor.commands import (

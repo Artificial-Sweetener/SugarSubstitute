@@ -31,13 +31,15 @@ from substitute.application.danbooru.preferences_service import (
 from substitute.application.generation import (
     OutputPreferenceService,
 )
-from substitute.application.prompt_editor import PromptEditorPreferenceService
+from substitute.application.prompt_editor.features.preferences import (
+    PromptEditorPreferenceService,
+)
 from substitute.domain.civitai import CivitaiPreferences, CivitaiThumbnailSafetyPolicy
 from substitute.domain.danbooru.preferences import (
     DanbooruImageRatingPolicy,
     DanbooruPreferences,
 )
-from substitute.domain.prompt import PromptEditorFeature
+from substitute.domain.prompt.features.models import PromptEditorFeature
 
 
 @dataclass(frozen=True)

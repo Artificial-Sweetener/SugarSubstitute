@@ -23,8 +23,10 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor import PromptLoraAutocompleteCandidate
-from substitute.application.prompt_editor.prompt_autocomplete_text import (
+from substitute.application.prompt_editor.lora.autocomplete import (
+    PromptLoraAutocompleteCandidate,
+)
+from substitute.application.prompt_editor.autocomplete.text import (
     autocomplete_completion_suffix,
     autocomplete_suffix_without_existing_right_text,
 )

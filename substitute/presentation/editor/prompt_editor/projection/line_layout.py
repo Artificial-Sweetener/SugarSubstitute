@@ -26,7 +26,7 @@ from typing import cast
 from PySide6.QtCore import QRectF, QSizeF
 from PySide6.QtGui import QFont, QFontMetricsF, QTextLayout, QTextOption
 
-from substitute.application.prompt_editor import PromptDocumentView
+from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.presentation.text_coordinates import TextCoordinateMap
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,

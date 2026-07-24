@@ -26,7 +26,7 @@ from PySide6.QtCore import QRect
 from PySide6.QtGui import QTextDocument
 from PySide6.QtWidgets import QScrollBar, QWidget
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptReorderLayoutView,
     PromptReorderPreviewSnapshot,
 )

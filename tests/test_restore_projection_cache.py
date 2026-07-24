@@ -50,7 +50,7 @@ from substitute.application.workspace_state.restore_projection_validation import
     RestoreProjectionValidationService,
 )
 from substitute.domain.comfy_workflow import DirectWorkflowState
-from substitute.domain.prompt import (
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
     PromptFeatureDecision,

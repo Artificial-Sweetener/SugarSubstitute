@@ -19,9 +19,11 @@
 from __future__ import annotations
 
 from substitute.application.ports import PromptAutocompleteSuggestion
-from substitute.application.prompt_editor import (
-    PromptSpellcheckCandidateService,
+from substitute.application.prompt_editor.diagnostics.spellcheck import (
     PromptSpellcheckService,
+)
+from substitute.application.prompt_editor.diagnostics.spellcheck_candidates import (
+    PromptSpellcheckCandidateService,
 )
 from substitute.infrastructure.persistence.file_prompt_autocomplete_gateway import (
     FilePromptAutocompleteGateway,

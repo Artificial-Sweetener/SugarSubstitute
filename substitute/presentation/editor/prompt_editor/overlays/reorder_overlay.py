@@ -41,9 +41,11 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptReorderChipView,
+)
+from substitute.application.prompt_editor.reorder.views import (
     PromptReorderDropTarget,
     PromptReorderLayoutView,
     PromptReorderPreviewSnapshot,

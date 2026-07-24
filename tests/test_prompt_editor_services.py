@@ -20,47 +20,71 @@ from __future__ import annotations
 
 import pytest
 
-from substitute.application.prompt_editor import prompt_syntax_service as syntax_module
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.projection import (
+    syntax_service as syntax_module,
+)
+from substitute.application.prompt_editor.autocomplete.queries import (
+    PromptAutocompleteFallbackQuery,
+    PromptAutocompleteQuery,
+)
+from substitute.application.prompt_editor.autocomplete.query_service import (
     autocomplete_replacement_text,
-    clear_prompt_document_caches,
-    clear_prompt_scene_projection_cache,
-    clear_prompt_syntax_render_plan_cache,
-    effective_prompt_text_at_source_position,
     filter_noop_autocomplete_suggestions,
-    parse_prompt_scene_projection_document,
+)
+from substitute.application.prompt_editor.document.service import (
+    clear_prompt_document_caches,
+    PromptDocumentService,
+    blank_line_drop_offsets,
+)
+from substitute.application.prompt_editor.editing.mutation_service import (
+    PromptMutationService,
+)
+from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptAdjustEmphasisAction,
     PromptAdjustLoraWeightAction,
     PromptAdjustWildcardTagAction,
-    PromptAutocompleteFallbackQuery,
-    PromptAutocompleteQuery,
     PromptSetEmphasisWeightAction,
     PromptSetEmphasisWeightContentAction,
     PromptSetLoraWeightAction,
     PromptSetWildcardTagAction,
     PromptConsumeSyntaxAction,
-    PromptDocumentService,
-    PromptEmphasisRendererView,
-    PromptGapBlankLineDropTarget,
-    PromptLineDropTarget,
+)
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfileService,
+    prompt_syntax_profile_from_feature_profile,
+)
+from substitute.application.prompt_editor.lora.autocomplete import (
     PromptLoraAutocompleteQuery,
     PromptLoraAutocompleteService,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
-    PromptLoraResolutionStatus,
     PromptLoraThumbnailVariant,
+)
+from substitute.application.prompt_editor.lora.resolution import (
+    PromptLoraResolutionStatus,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    clear_prompt_syntax_render_plan_cache,
+    PromptEmphasisRendererView,
     PromptLoraRendererView,
-    PromptMutationService,
+    PromptSyntaxService,
+    PromptWildcardRendererView,
+)
+from substitute.application.prompt_editor.reorder.views import (
+    PromptGapBlankLineDropTarget,
+    PromptLineDropTarget,
     PromptReorderGapPlacement,
     PromptReorderGapView,
     PromptReorderLayoutView,
     PromptReorderRowView,
-    PromptSyntaxService,
-    PromptSyntaxProfileService,
-    PromptWildcardRendererView,
-    prompt_syntax_profile_from_feature_profile,
-    blank_line_drop_offsets,
 )
-from substitute.application.prompt_editor.prompt_syntax_service import (
+from substitute.application.prompt_editor.scenes.projection import (
+    clear_prompt_scene_projection_cache,
+    effective_prompt_text_at_source_position,
+    parse_prompt_scene_projection_document,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     _lora_render_plan_summary,
 )
 from substitute.application.ports import (
@@ -68,7 +92,7 @@ from substitute.application.ports import (
     PromptWildcardReference,
     PromptWildcardResolution,
 )
-from substitute.domain.prompt import (
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
     PromptFeatureDecision,

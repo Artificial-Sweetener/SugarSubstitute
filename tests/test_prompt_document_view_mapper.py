@@ -21,11 +21,12 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from substitute.application.prompt_editor.prompt_document_view_mapper import (
+from substitute.application.prompt_editor.document.view_mapper import (
     prompt_document_view_from_domain,
     prompt_reorder_chip_view_from_domain,
 )
-from substitute.domain.prompt import build_reorder_chips, parse_prompt_document
+from substitute.domain.prompt.document.parser import parse_prompt_document
+from substitute.domain.prompt.reorder.derivation import build_reorder_chips
 
 PROJECT_ROOT = Path(__file__).parents[1]
 MAPPER_SOURCE = (
@@ -33,7 +34,8 @@ MAPPER_SOURCE = (
     / "substitute"
     / "application"
     / "prompt_editor"
-    / "prompt_document_view_mapper.py"
+    / "document"
+    / "view_mapper.py"
 )
 _FORBIDDEN_IMPORT_ROOTS = {
     "PySide6",

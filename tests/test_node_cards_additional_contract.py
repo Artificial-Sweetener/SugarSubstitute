@@ -54,10 +54,10 @@ from substitute.domain.localization import (
     NodeTextSource,
 )
 from substitute.domain.workflow import CubeState
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
+from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.application.display_labels import beautify_label
 from substitute.presentation.editor.panel.node_card.accordion_motion import (
     AccordionChevronWidget,

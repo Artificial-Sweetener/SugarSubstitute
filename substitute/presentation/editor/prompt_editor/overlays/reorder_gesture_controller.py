@@ -24,7 +24,7 @@ from typing import Literal
 
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSize, QSizeF
 
-from substitute.application.prompt_editor import PromptReorderDropTarget
+from substitute.application.prompt_editor.reorder.views import PromptReorderDropTarget
 
 from ..models import PromptReorderCancelIntent, PromptReorderCommitIntent
 from ..projection.reorder_state import (

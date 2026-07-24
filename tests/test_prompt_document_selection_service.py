@@ -22,16 +22,14 @@ import ast
 from decimal import Decimal
 from pathlib import Path
 
-from substitute.application.prompt_editor.prompt_document_projector import (
+from substitute.application.prompt_editor.document.projector import (
     PromptDocumentProjector,
 )
-from substitute.application.prompt_editor.prompt_document_selection_service import (
+from substitute.application.prompt_editor.document.selection import (
     PromptDocumentSelectionService,
     emphasis_span_at_cursor,
 )
-from substitute.application.prompt_editor.prompt_document_views import (
-    PromptReorderChipView,
-)
+from substitute.application.prompt_editor.document.views import PromptReorderChipView
 
 PROJECT_ROOT = Path(__file__).parents[1]
 SELECTION_SOURCE = (
@@ -39,7 +37,8 @@ SELECTION_SOURCE = (
     / "substitute"
     / "application"
     / "prompt_editor"
-    / "prompt_document_selection_service.py"
+    / "document"
+    / "selection.py"
 )
 _FORBIDDEN_IMPORT_ROOTS = {
     "PySide6",

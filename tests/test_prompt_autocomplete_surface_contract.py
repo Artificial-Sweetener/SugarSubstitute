@@ -54,13 +54,17 @@ from substitute.application.ports import (
     PromptAutocompleteGateway,
     PromptAutocompleteSuggestion,
 )
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.lora.autocomplete import (
+    PromptLoraAutocompleteCandidate,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogItem,
+)
+from substitute.application.prompt_editor.lora.schedule import PromptLoraScheduleService
+from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
     PromptFeatureDecision,
-    PromptLoraAutocompleteCandidate,
-    PromptLoraCatalogItem,
-    PromptLoraScheduleService,
 )
 from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
     PromptLoraThumbnailCache,
@@ -110,7 +114,9 @@ from tests.prompt_reorder_pointer_test_helpers import (
     prompt_reorder_pointer_target,
     prompt_reorder_pointer_targets,
 )
-from substitute.application.prompt_editor import PromptGapBlankLineDropTarget
+from substitute.application.prompt_editor.reorder.views import (
+    PromptGapBlankLineDropTarget,
+)
 
 TResult = TypeVar("TResult")
 

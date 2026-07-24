@@ -35,9 +35,11 @@ from substitute.application.ports import (
     PromptWildcardReference,
     PromptWildcardResolution,
 )
-from substitute.application.prompt_editor import (
-    PromptAdjustWildcardTagAction,
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
+)
+from substitute.application.prompt_editor.editing.syntax_actions import (
+    PromptAdjustWildcardTagAction,
     PromptSetEmphasisWeightAction,
     PromptSetLoraWeightAction,
 )

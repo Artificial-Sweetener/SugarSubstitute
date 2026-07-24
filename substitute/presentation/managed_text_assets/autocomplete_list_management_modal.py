@@ -26,10 +26,8 @@ from substitute.application.managed_text_assets import (
     AutocompleteListManagedTextAssetService,
     ManagedTextAssetKind,
 )
-from substitute.application.prompt_editor import (
-    PromptEditorFeatureProfile,
-    PromptWheelAdjustmentMode,
-)
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
+from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
 from substitute.application.prompt_autocomplete_lists import (
     PromptAutocompleteListKind,
 )

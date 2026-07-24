@@ -22,12 +22,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from substitute.application.prompt_editor import WorkflowSceneAnalysis
-from substitute.domain.links import PromptEndpoint, PromptEndpointIndex
-from substitute.domain.prompt import (
-    materialize_scene_prompt,
-    parse_prompt_scene_document,
+from substitute.application.prompt_editor.scenes.workflow_analysis import (
+    WorkflowSceneAnalysis,
 )
+from substitute.domain.links import PromptEndpoint, PromptEndpointIndex
+from substitute.domain.prompt.scenes.materialization import materialize_scene_prompt
+from substitute.domain.prompt.scenes.parser import parse_prompt_scene_document
 
 
 class PromptScenePreparationCube(Protocol):

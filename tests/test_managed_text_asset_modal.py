@@ -32,7 +32,7 @@ from substitute.application.managed_text_assets import (
     ManagedTextAssetKind,
     RenameManagedTextAssetRequest,
 )
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.features.profile import (
     wildcard_management_prompt_feature_profile,
 )
 from substitute.presentation.managed_text_assets import (

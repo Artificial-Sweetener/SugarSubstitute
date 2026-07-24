@@ -23,7 +23,7 @@ from dataclasses import replace
 from PySide6.QtCore import QPointF, QRect, QRectF
 from PySide6.QtGui import QPainterPath
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.reorder.views import (
     PromptReorderGapPlacement,
     PromptReorderGapView,
     PromptReorderLayoutView,

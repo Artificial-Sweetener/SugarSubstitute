@@ -22,8 +22,10 @@ from collections.abc import Hashable
 from dataclasses import dataclass
 from typing import Protocol
 
-from substitute.application.prompt_editor import (
+from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteQuery,
+)
+from substitute.application.prompt_editor.scenes.projection import (
     effective_prompt_text_at_source_position,
 )
 

@@ -20,11 +20,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from substitute.application.prompt_editor import parse_prompt_scene_projection_document
-from substitute.application.prompt_editor.prompt_document_semantics import (
+from substitute.application.prompt_editor.scenes.projection import (
+    parse_prompt_scene_projection_document,
+)
+from substitute.application.prompt_editor.document.semantics import (
     PromptDocumentSemantics,
 )
-from substitute.domain.prompt import parse_prompt_scene_document
+from substitute.domain.prompt.scenes.parser import parse_prompt_scene_document
 
 from .model import (
     PromptProjectionToken,

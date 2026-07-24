@@ -26,7 +26,7 @@ from substitute.application.prompt_wildcards import (
     PromptWildcardResolutionContext,
     PromptWildcardResolver,
 )
-from substitute.domain.prompt import PromptWildcardSyntaxProfile
+from substitute.domain.prompt.wildcards.syntax import PromptWildcardSyntaxProfile
 from substitute.infrastructure.persistence.file_prompt_wildcard_catalog_gateway import (
     FilePromptWildcardCatalogGateway,
     _load_catalog,

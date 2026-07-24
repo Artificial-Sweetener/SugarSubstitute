@@ -35,15 +35,19 @@ from substitute.application.ports import (
     PromptAutocompleteSuggestion,
     PromptWildcardResolution,
 )
-from substitute.application.prompt_editor import (
-    PromptDocumentService,
-    PromptDocumentView,
-    PromptLineDropTarget,
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
+)
+from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptSetEmphasisWeightAction,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
+from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
 from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionDisplayMode,

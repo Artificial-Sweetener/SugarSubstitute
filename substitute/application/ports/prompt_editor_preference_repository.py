@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from substitute.domain.prompt.preferences import PromptEditorPreferences
+from substitute.domain.prompt.preferences.models import PromptEditorPreferences
 
 
 @runtime_checkable
