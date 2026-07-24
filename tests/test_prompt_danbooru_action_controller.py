@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable
 from typing import cast
 
@@ -30,9 +34,6 @@ from substitute.application.danbooru import (
 from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptDanbooruActionController,
@@ -50,10 +51,10 @@ class _Host:
         self.parent = object()
         self.opened_urls: list[str] = []
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return a stable fake source identity."""
 
-        return PromptCommandSourceIdentity(source_revision=4, source_length=18)
+        return PromptSourceIdentity(source_revision=4, source_length=18)
 
     def danbooru_wiki_dialog_parent(self) -> object:
         """Return the fake dialog parent."""

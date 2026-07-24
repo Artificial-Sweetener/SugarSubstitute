@@ -168,14 +168,12 @@ def _editor_is_current(editor: object, expected_source: str) -> bool:
     if prompt_editor.toPlainText() != expected_source:
         return False
     surface = prompt_editor._surface
-    if surface._projection_document.source_text != expected_source:
+    if surface.projection_document().source_text != expected_source:
         return False
     if surface._projection_freshness_controller.has_pending_update():
         return False
     semantic_refresh = prompt_editor._interaction_controller._semantic_refresh
-    semantic_source = (
-        prompt_editor._interaction_controller._syntax_state.document_view.source_text
-    )
+    semantic_source = surface.editor_state.semantic.document.source_text
     return (
         semantic_source == expected_source
         and semantic_refresh._pending_request is None
@@ -200,11 +198,11 @@ def _capture_real_shell_correctness(
     return PromptAbuseCorrectnessSnapshot(
         actual_text=snapshot.source_text,
         projection_current=(
-            prompt_editor._surface._projection_document.source_text
+            prompt_editor._surface.projection_document().source_text
             == scenario.expected_text
         ),
         semantic_current=(
-            prompt_editor._interaction_controller._syntax_state.document_view.source_text
+            prompt_editor._surface.editor_state.semantic.document.source_text
             == scenario.expected_text
         ),
         invariant_violations=harness.invariant_violations(snapshot),

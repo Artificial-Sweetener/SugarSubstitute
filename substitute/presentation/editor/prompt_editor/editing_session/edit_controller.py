@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Hashable
 from dataclasses import dataclass, field
 from enum import Enum
@@ -26,7 +30,6 @@ from typing import Generic, Protocol, TypeVar
 from ..commands import (
     PromptCommandDispatcher,
     PromptCommandResult,
-    PromptCommandSourceIdentity,
     PromptEditorCommand,
 )
 from .cursor_state import PromptCursorState
@@ -204,13 +207,10 @@ class PromptEditController(Generic[TPayload]):
 
         self._pending_key_flusher = pending_key_flusher
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return the source identity used by prepared prompt commands."""
 
-        return PromptCommandSourceIdentity(
-            source_revision=self._session.source_revision,
-            source_length=len(self._session.source_text),
-        )
+        return self._session.source_identity
 
     def current_undo_snapshot(self) -> PromptUndoSnapshot[TPayload]:
         """Capture the current source, cursor, and passive projection state."""

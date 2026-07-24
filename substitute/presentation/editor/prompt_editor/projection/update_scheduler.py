@@ -29,6 +29,9 @@ from substitute.application.prompt_editor.document.views import PromptDocumentVi
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
+from substitute.presentation.editor.prompt_editor.core.state.semantic_state import (
+    PromptEditorSemanticSnapshot,
+)
 from substitute.presentation.ui_load_activity import (
     default_prompt_projection_ui_load_activity,
 )
@@ -147,35 +150,60 @@ class PromptProjectionSchedulingPolicy:
 class PendingProjectionUpdate:
     """Capture the latest prompt projection inputs waiting for GUI flush."""
 
-    document_view: PromptDocumentView
-    render_plan: PromptSyntaxRenderPlan
+    snapshot: PromptEditorSemanticSnapshot
     reason: str
-    source_revision: int
     queued_at: float
-    previous_document_view: PromptDocumentView | None = None
-    previous_render_plan: PromptSyntaxRenderPlan | None = None
+    previous_snapshot: PromptEditorSemanticSnapshot | None = None
+
+    @property
+    def document_view(self) -> PromptDocumentView:
+        """Return the semantic document queued for projection."""
+
+        return self.snapshot.document
+
+    @property
+    def render_plan(self) -> PromptSyntaxRenderPlan:
+        """Return the syntax render plan queued for projection."""
+
+        return self.snapshot.render_plan
+
+    @property
+    def source_revision(self) -> int:
+        """Return the exact source revision that produced this update."""
+
+        return self.snapshot.identity.source.source_revision
+
+    @property
+    def previous_document_view(self) -> PromptDocumentView | None:
+        """Return the previous semantic document when rollback is available."""
+
+        if self.previous_snapshot is None:
+            return None
+        return self.previous_snapshot.document
+
+    @property
+    def previous_render_plan(self) -> PromptSyntaxRenderPlan | None:
+        """Return the previous render plan when rollback is available."""
+
+        if self.previous_snapshot is None:
+            return None
+        return self.previous_snapshot.render_plan
 
     @classmethod
     def create(
         cls,
         *,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
+        snapshot: PromptEditorSemanticSnapshot,
         reason: str,
-        source_revision: int,
-        previous_document_view: PromptDocumentView | None = None,
-        previous_render_plan: PromptSyntaxRenderPlan | None = None,
+        previous_snapshot: PromptEditorSemanticSnapshot | None = None,
     ) -> "PendingProjectionUpdate":
         """Build a pending update using the current monotonic timestamp."""
 
         return cls(
-            document_view=document_view,
-            render_plan=render_plan,
+            snapshot=snapshot,
             reason=reason,
-            source_revision=source_revision,
             queued_at=perf_counter(),
-            previous_document_view=previous_document_view,
-            previous_render_plan=previous_render_plan,
+            previous_snapshot=previous_snapshot,
         )
 
 

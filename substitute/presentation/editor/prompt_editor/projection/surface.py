@@ -18,18 +18,17 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from typing import Callable, Protocol, cast
 
 from PySide6.QtCore import (
     QEvent,
     QMimeData,
+    QObject,
     QPoint,
     QPointF,
     QRect,
     QRectF,
-    QObject,
     Qt,
     QTimer,
     Signal,
@@ -40,16 +39,16 @@ from PySide6.QtGui import (
     QDragMoveEvent,
     QDropEvent,
     QFocusEvent,
-    QKeyEvent,
     QFontMetricsF,
     QHideEvent,
     QInputMethodEvent,
+    QKeyEvent,
     QMouseEvent,
-    QPaintEvent,
     QPainter,
+    QPaintEvent,
     QPalette,
-    QResizeEvent,
     QRegion,
+    QResizeEvent,
     QShowEvent,
     QTextCursor,
     QTextDocument,
@@ -61,10 +60,13 @@ from PySide6.QtWidgets import (
     QScrollBar,
     QWidget,
 )
+
 from substitute.application.prompt_editor.diagnostics.models import PromptDiagnostic
+from substitute.application.prompt_editor.document.semantics import (
+    PromptDocumentSemantics,
+)
 from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
-    PromptRegionStructureView,
     PromptSyntaxSpanView,
 )
 from substitute.application.prompt_editor.editing.syntax_actions import (
@@ -74,15 +76,8 @@ from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
 from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
-from substitute.application.prompt_editor.document.semantics import (
-    PromptDocumentSemantics,
-)
 from substitute.presentation.widgets.text_caret import (
     paint_text_caret,
-)
-from substitute.shared.logging.logger import (
-    get_logger,
-    log_debug,
 )
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
@@ -90,30 +85,33 @@ from substitute.shared.diagnostics.prompt_editor_work import (
     prompt_editor_work_event,
     prompt_editor_work_result_event,
 )
+from substitute.shared.logging.logger import (
+    get_logger,
+    log_debug,
+)
 
 from ..autocomplete_preview_state import PromptAutocompletePreviewState
+from ..core.state.revisions import PromptLayoutIdentity
+from ..core.state.semantic_state import PromptEditorSemanticSnapshot
+from ..debug_probe import log_prompt_editor_probe, surface_probe_state
 from ..editing_session import (
     PromptCursorAdapter,
     PromptCursorState,
     PromptEditingSession,
     PromptEditingSessionRestoreResult,
     PromptSourceEditOrigin,
+    PromptSourceSnapshot,
 )
 from ..editing_session.edit_controller import (
     PromptEditControllerResult,
 )
 from ..editing_session.undo_coalescing import PromptUndoCoalescingActions
-from ..debug_probe import log_prompt_editor_probe, surface_probe_state
-from ..mime_data_policy import (
-    mime_data_has_prompt_plain_text,
-    prompt_plain_text_from_mime_data,
-)
 from ..interactions import (
     PromptClipboardHistoryActions,
-    PromptSurfaceMouseHandler,
-    PromptSurfaceMouseHost,
     PromptSurfaceKeyHandler,
     PromptSurfaceKeyHost,
+    PromptSurfaceMouseHandler,
+    PromptSurfaceMouseHost,
     PromptSurfaceWheelHandler,
     PromptSurfaceWheelHost,
     PromptWheelScrollResult,
@@ -122,6 +120,11 @@ from ..interactions import (
 from ..interactions.deletion_controller import (
     PromptSurfaceDeletionController,
     PromptSurfaceDeletionHost,
+)
+from ..lora_thumbnail_cache import PromptLoraThumbnailCache
+from ..mime_data_policy import (
+    mime_data_has_prompt_plain_text,
+    prompt_plain_text_from_mime_data,
 )
 from ..qt_lifecycle import qt_object_is_alive
 from .applicator import PromptProjectionApplicator, PromptProjectionRebuildResult
@@ -147,36 +150,36 @@ from .display_mode_layout_cache import (
     PromptProjectionDisplayModeLayoutCache,
     PromptProjectionDisplayModeLayoutIdentity,
 )
-from .freshness_controller import (
-    ProjectionFreshness,
-    PromptProjectionFreshnessBlockers,
-)
 from .fill_band_cache import (
     PromptFillBandRect,
     PromptProjectionFillBandBuildRequest,
     PromptProjectionFillBandCache,
     PromptProjectionFillBandCacheKey,
 )
-from .layout_engine import (
-    PromptProjectionIncrementalLayoutResult,
-    PromptProjectionLayout,
+from .frame_state import (
+    PromptProjectionEditorState,
+    PromptProjectionFrameStatePublisher,
+    PromptProjectionLayoutWidthResolver,
+    build_initial_prompt_projection_state,
+)
+from .frame_synchronizer import PromptProjectionFrameSynchronizer
+from .freshness_controller import (
+    ProjectionFreshness,
+    PromptProjectionFreshnessBlockers,
 )
 from .input_method_controller import (
     PromptInputMethodController,
     PromptInputMethodHost,
 )
 from .layout_checkpoint import PromptProjectionLayoutCheckpoint
+from .layout_engine import (
+    PromptProjectionIncrementalLayoutResult,
+    PromptProjectionLayout,
+)
 from .lora_surface_features import (
     PromptSurfaceLoraFeatureDelegate,
     PromptSurfaceLoraFeatureHost,
     PromptSurfaceLoraThumbnailPreloader,
-)
-from .paint_cache import PromptProjectionPaintCache
-from .region_chrome import PromptRegionChrome
-from .observability import (
-    log_projection_timing,
-    projection_observability_started_at,
-    render_plan_lora_span_count,
 )
 from .model import (
     PromptProjectionCaretPlacement,
@@ -190,6 +193,52 @@ from .model import (
     PromptProjectionTransientState,
     PromptWeightControlIdentity,
 )
+from .observability import (
+    log_projection_timing,
+    log_reorder_drag_event,
+    log_reorder_drag_timing,
+    projection_observability_started_at,
+    render_plan_lora_span_count,
+    reorder_drag_started_at,
+)
+from .paint_cache import PromptProjectionPaintCache
+from .region_chrome import PromptRegionChrome
+from .reorder_chip_geometry import (
+    PromptReorderChipGeometrySnapshot,
+    chip_geometry_snapshot_context,
+)
+from .reorder_geometry_cache import (
+    PromptReorderChipGeometryCacheKey,
+    PromptReorderGeometryCache,
+    PromptReorderPlacementGeometryCacheKey,
+    ReorderGeometrySnapshot,
+    reorder_geometry_viewport_rect,
+)
+from .reorder_paint_snapshot_reuse import reuse_reorder_paint_snapshots
+from .reorder_placement_geometry import (
+    PromptReorderPlacementGeometry,
+    PromptReorderPlacementId,
+    PromptReorderPlacementSnapshot,
+    duplicate_reorder_placement_targets,
+    placement_for_drag_rect,
+)
+from .reorder_preview import (
+    PromptReorderPreviewState,
+)
+from .reorder_preview_projection import (
+    PromptReorderPreviewProjectionContext,
+    PromptReorderPreviewProjectionService,
+)
+from .reorder_scroll_geometry import build_reorder_geometry_after_scroll
+from .reorder_surface_chrome import (
+    PromptReorderSurfaceChromeChip,
+    PromptReorderSurfaceChromePainter,
+    PromptReorderSurfaceChromeSnapshot,
+)
+from .reorder_visual_snapshot import (
+    PromptReorderProjectionPaintSnapshot,
+    PromptReorderProjectionSnapshotKey,
+)
 from .selection_geometry import (
     PromptProjectionSourceLineRect,
     selection_paints_changed,
@@ -202,8 +251,9 @@ from .session import (
     PromptTransientNeutralEmphasisOwner,
 )
 from .source_change_applier import PromptProjectionSourceChangeApplier
-from .source_state_wiring import build_prompt_projection_source_state_owners
 from .source_line_chrome import PromptSourceLineChrome
+from .source_state_wiring import build_prompt_projection_source_state_owners
+from .theme import qcolor_from_rgb, scene_zebra_color, semantic_palette_from_theme
 from .tokens import (
     PromptEmphasisPrefixRenderer,
     PromptEmphasisSuffixRenderer,
@@ -212,55 +262,11 @@ from .tokens import (
     PromptWildcardInlineObjectRenderer,
     emphasis_weight_font,
 )
-from ..lora_thumbnail_cache import PromptLoraThumbnailCache
-from .observability import (
-    log_reorder_drag_event,
-    log_reorder_drag_timing,
-    reorder_drag_started_at,
-)
-from .reorder_geometry_cache import (
-    PromptReorderChipGeometryCacheKey,
-    PromptReorderGeometryCache,
-    PromptReorderPlacementGeometryCacheKey,
-    ReorderGeometrySnapshot,
-    reorder_geometry_viewport_rect,
-)
-from .reorder_scroll_geometry import build_reorder_geometry_after_scroll
-from .reorder_chip_geometry import (
-    PromptReorderChipGeometrySnapshot,
-    chip_geometry_snapshot_context,
-)
-from .reorder_placement_geometry import (
-    PromptReorderPlacementGeometry,
-    PromptReorderPlacementId,
-    PromptReorderPlacementSnapshot,
-    duplicate_reorder_placement_targets,
-    placement_for_drag_rect,
-)
-from .theme import qcolor_from_rgb, scene_zebra_color, semantic_palette_from_theme
-from .reorder_preview import (
-    PromptReorderPreviewState,
-)
-from .reorder_preview_projection import (
-    PromptReorderPreviewProjectionContext,
-    PromptReorderPreviewProjectionService,
-)
-from .reorder_visual_snapshot import (
-    PromptReorderProjectionPaintSnapshot,
-    PromptReorderProjectionSnapshotKey,
-)
-from .reorder_surface_chrome import (
-    PromptReorderSurfaceChromeChip,
-    PromptReorderSurfaceChromePainter,
-    PromptReorderSurfaceChromeSnapshot,
-)
-from .reorder_paint_snapshot_reuse import reuse_reorder_paint_snapshots
 from .transient_edit_overlays import (
     PromptProjectionTransientDeletionOverlay,
     PromptProjectionTransientInsertionOverlay,
 )
 
-_MINIMUM_VALID_LAYOUT_WIDTH = 120
 _SLOW_REORDER_PROJECTION_LAYOUT_MS = 8.0
 _LOGGER = get_logger("presentation.editor.prompt_editor.projection_surface")
 
@@ -359,6 +365,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Initialize the custom prompt editing surface."""
 
         super().__init__(parent)
+        self._editing_session = editing_session
         self._projection_applicator = PromptProjectionApplicator(
             PromptProjectionBuilder(document_semantics=document_semantics)
         )
@@ -386,46 +393,27 @@ class PromptProjectionSurface(QAbstractScrollArea):
             self._lora_feature_delegate.update_lora_thumbnail_pixmap
         )
         self._focus_host: QWidget | None = None
+        self._scene_error_keys: frozenset[str] = frozenset()
+        self._editor_state = build_initial_prompt_projection_state(
+            source=self._editing_session.source_snapshot(),
+            applicator=self._projection_applicator,
+            document_semantics=document_semantics,
+            display_mode=self._display_mode,
+            session=self._session,
+            scene_error_keys=self._scene_error_keys,
+        )
+        self._frame_state = PromptProjectionFrameStatePublisher(self._editor_state)
         source_state_owners = build_prompt_projection_source_state_owners(
             self,
             parent=self,
+            frame_state=self._frame_state,
         )
         self._source_document_adapter = source_state_owners.source_document
         self._source_change_applier = cast(
             PromptProjectionSourceChangeApplier[PromptProjectionUndoPayload],
             source_state_owners.source_change_applier,
         )
-        self._document_view = PromptDocumentView(
-            source_text="",
-            segments=(),
-            emphasis_spans=(),
-            wildcard_spans=(),
-            lora_spans=(),
-            syntax_spans=(),
-            region_structure=PromptRegionStructureView.empty(0),
-            has_trailing_comma=False,
-        )
-        self._render_plan = PromptSyntaxRenderPlan(
-            syntax_spans=(),
-            renderer_views=(),
-            document_semantics_identity=(
-                document_semantics.identity
-                if document_semantics is not None
-                else "ordinary-prompt-v1"
-            ),
-        )
-        self._scene_error_keys: frozenset[str] = frozenset()
-        self._projection_document = self._projection_applicator.build_projection(
-            self._document_view,
-            self._render_plan,
-            display_mode=self._display_mode,
-            session=self._session,
-            active_span_range=None,
-            decoration_accent_ranges=(),
-            scene_error_keys=self._scene_error_keys,
-            transient_state=PromptProjectionTransientState(),
-        )
-        self._active_projection_document = self._projection_document
+        self._active_projection_document = self._editor_state.projection.document
         self._reorder_preview_projection = PromptReorderPreviewProjectionService(
             projection_applicator=self._projection_applicator,
             thumbnail_cache=thumbnail_cache,
@@ -450,13 +438,16 @@ class PromptProjectionSurface(QAbstractScrollArea):
         ) = None
         self._reorder_surface_chrome_painter = PromptReorderSurfaceChromePainter()
         self._reorder_geometry_cache = PromptReorderGeometryCache()
-        initial_state = self._projection_document.caret_map.state_for_source_position(0)
+        initial_state = (
+            self._editor_state.projection.document.caret_map.state_for_source_position(
+                0
+            )
+        )
         self._cursor_state = initial_state
         self._anchor_state = initial_state
         self._input_method_controller = PromptInputMethodController(
             cast(PromptInputMethodHost, self)
         )
-        self._editing_session = editing_session
         self._source_mutation_actions: PromptSurfaceSourceMutationActions | None = None
         self._edit_block_actions: PromptSurfaceEditBlockActions | None = None
         self._clipboard_history_actions: PromptClipboardHistoryActions | None = None
@@ -496,9 +487,13 @@ class PromptProjectionSurface(QAbstractScrollArea):
             self._clear_pulsed_emphasis_accent_range
         )
         self._editing_enabled = True
-        self._source_revision = self._editing_session.source_revision
         self._caret_visibility_prompt_state_revision: int | None = None
         self._projection_freshness_controller = source_state_owners.freshness_controller
+        self._layout_width_resolver = PromptProjectionLayoutWidthResolver(
+            host=self,
+            viewport=self.viewport(),
+            freshness=self._projection_freshness_controller,
+        )
         self._autocomplete_preview_projection_owner = (
             PromptAutocompletePreviewProjectionOwner(
                 cast(PromptAutocompletePreviewProjectionHost, self)
@@ -535,6 +530,26 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._source_line_chrome = PromptSourceLineChrome()
         self._region_chrome = PromptRegionChrome()
         self._layout.set_semantic_palette(semantic_palette_from_theme())
+        self._frame_synchronizer = PromptProjectionFrameSynchronizer(
+            host=self,
+            layout=self._layout,
+            applicator=self._projection_applicator,
+            reorder_preview=self._reorder_preview_projection,
+            frame_state=self._frame_state,
+            width_resolver=self._layout_width_resolver,
+            freshness=self._projection_freshness_controller,
+            region_chrome=self._region_chrome,
+            source_document=self._source_document_adapter,
+            source_line_chrome=self._source_line_chrome,
+            scroll_offset=self._scroll_offset,
+            scroll_range_sink=lambda page_step, scroll_range: (
+                self._wheel_handler.sync_external_scroll_range(
+                    page_step=page_step,
+                    scroll_range=scroll_range,
+                )
+            ),
+            content_height_sink=self.contentHeightChanged.emit,
+        )
 
         self.setFrameShape(QAbstractScrollArea.Shape.NoFrame)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
@@ -560,6 +575,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return the editing-session-owned raw source cursor position."""
 
         return self._editing_session.cursor_position
+
+    @property
+    def editor_state(self) -> PromptProjectionEditorState:
+        """Return the shared revisioned state owner used by composition."""
+
+        return self._editor_state
 
     @property
     def anchor_position(self) -> int:
@@ -633,6 +654,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def refresh_scroll(self) -> None:
         """Repaint after the host scrollbar moves the visible projection window."""
 
+        self._frame_state.publish_widget_viewport(
+            self.viewport(),
+            horizontal_scroll=int(self.horizontalScrollBar().value()),
+            vertical_scroll=int(round(self._scroll_offset())),
+        )
+        self._frame_state.publish_prepared_paint(self._layout)
         self._wheel_handler.refresh_scroll()
 
     def set_editing_enabled(self, editing_enabled: bool) -> None:
@@ -670,9 +697,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._flush_pending_projection_update(reason="set_display_mode")
         layout_identity = (
             PromptProjectionDisplayModeLayoutIdentity.from_projection_state(
-                source_revision=self._source_revision,
-                document_view=self._document_view,
-                render_plan=self._render_plan,
+                semantic_identity=self._editor_state.projection_semantic.identity,
                 session=self._session,
                 decoration_accent_ranges=self._decoration_accent_ranges(),
                 scene_error_keys=self._scene_error_keys,
@@ -694,7 +719,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
             display_mode,
             self._layout,
             identity=layout_identity,
-            expected_source_text=self._document_view.source_text,
+            expected_source_text=(
+                self._editor_state.projection_semantic.document.source_text
+            ),
             previous_cursor_state=previous_cursor_state,
             previous_anchor_state=previous_anchor_state,
         )
@@ -727,7 +754,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def projection_document(self) -> PromptProjectionDocument:
         """Return the committed token-aware projection document."""
 
-        return self._projection_document
+        return self._editor_state.projection.document
 
     def active_projection_document(self) -> PromptProjectionDocument:
         """Return the current geometry-bearing projection document."""
@@ -804,9 +831,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
             )
             return ()
         key = PromptProjectionFillBandCacheKey(
-            source_revision=(
-                self._projection_freshness_controller.fill_band_source_revision(
-                    current_source_revision=self._source_revision
+            source_identity=(
+                self._projection_freshness_controller.fill_band_source_identity(
+                    current_source_identity=self._editor_state.source_identity
                 )
             ),
             display_mode=self._display_mode,
@@ -828,7 +855,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 PromptProjectionFillBandBuildRequest(
                     source_text=(
                         self._projection_freshness_controller.fill_band_source_text(
-                            committed_source_text=self._projection_document.source_text,
+                            committed_source_text=self._editor_state.projection.document.source_text,
                             live_source_text=self.toPlainText(),
                         )
                     ),
@@ -839,7 +866,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             )
         self._log_passive_metric_read(
             metric="visible_prompt_fill_band_rects",
-            committed_revision=key.source_revision,
+            committed_revision=key.source_identity.source_revision,
             rect_count=len(rects),
         )
         return rects
@@ -998,8 +1025,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         self._last_rendered_active_span_range = active_span_range
         self._active_projection_document = self._projection_applicator.build_projection(
-            self._document_view,
-            self._render_plan,
+            self._editor_state.projection_semantic.document,
+            self._editor_state.projection_semantic.render_plan,
             display_mode=self._display_mode,
             session=self._session,
             active_span_range=active_span_range,
@@ -1009,7 +1036,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         self._layout.set_projection(
             self._active_projection_document,
-            prompt_document_view=self._document_view,
+            prompt_document_view=self._editor_state.projection_semantic.document,
         )
         self._sync_layout_state(commit_projection=commit_projection)
         self.viewport().update()
@@ -1035,8 +1062,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
             else self._active_span_range()
         )
         result = self._projection_applicator.apply_reusable_projection_paint_state(
-            self._document_view,
-            self._render_plan,
+            self._editor_state.projection_semantic.document,
+            self._editor_state.projection_semantic.render_plan,
             display_mode=self._display_mode,
             session=self._session,
             active_span_range=active_span_range,
@@ -1051,7 +1078,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
             )
             return
         self._last_rendered_active_span_range = result.active_span_range
-        self._active_projection_document = self._projection_document
+        self._active_projection_document = self._editor_state.projection.document
+        self._frame_state.publish_prepared_paint(self._layout)
         self.viewport().update()
         log_prompt_editor_probe(
             "surface.refresh_projection_paint_state.end",
@@ -1061,18 +1089,18 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def _restore_base_projection_layout_after_transient_state(self) -> None:
         """Restore canonical projection geometry after layout-affecting transient state."""
 
-        if self._layout.projection_document is self._projection_document:
-            self._active_projection_document = self._projection_document
+        if self._layout.projection_document is self._editor_state.projection.document:
+            self._active_projection_document = self._editor_state.projection.document
             return
         log_prompt_editor_probe(
             "surface.restore_base_projection_layout.begin",
             surface=surface_probe_state(self),
         )
         self._layout.set_projection(
-            self._projection_document,
-            prompt_document_view=self._document_view,
+            self._editor_state.projection.document,
+            prompt_document_view=self._editor_state.projection_semantic.document,
         )
-        self._active_projection_document = self._projection_document
+        self._active_projection_document = self._editor_state.projection.document
         self._sync_layout_state()
         self._invalidate_projection_content_cache(reason="restore_base_projection")
         self.viewport().update()
@@ -1239,7 +1267,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             font=self.font(),
             palette=self.palette(),
             semantic_palette=semantic_palette_from_theme(),
-            live_projection_document=self._projection_document,
+            live_projection_document=self._editor_state.projection.document,
             live_projection_layout=self._layout,
         )
         if invalidation.clear_all_geometry_reason is not None:
@@ -1351,7 +1379,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             projection_layout_identity=id(projection_layout),
             viewport_rect=viewport_rect,
             scroll_offset=scroll_offset,
-            layout_width=self._layout_width_for_projection_rebuild(),
+            layout_width=self._layout_width_resolver.resolve(),
         )
 
     def _reorder_placement_geometry_cache_key(
@@ -1371,7 +1399,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             projection_layout_identity=id(projection_layout),
             viewport_rect=viewport_rect,
             scroll_offset=scroll_offset,
-            layout_width=self._layout_width_for_projection_rebuild(),
+            layout_width=self._layout_width_resolver.resolve(),
         )
 
     def _reorder_geometry_cache_context(
@@ -1461,14 +1489,14 @@ class PromptProjectionSurface(QAbstractScrollArea):
         viewport_rect = QRectF(self.viewport().rect())
         scroll_offset = self._scroll_offset()
         cache_key = self._reorder_geometry_cache.live_chip_geometry_cache_key(
-            source_text=self._document_view.source_text,
+            source_text=self._editor_state.projection_semantic.document.source_text,
             chip_rendered_ranges_by_index=chip_rendered_ranges_by_index,
             chip_owned_ranges_by_index=chip_owned_ranges_by_index,
             layout_view=layout_view,
             projection_layout_identity=id(self._layout),
             viewport_rect=viewport_rect,
             scroll_offset=scroll_offset,
-            layout_width=self._layout_width_for_projection_rebuild(),
+            layout_width=self._layout_width_resolver.resolve(),
         )
         snapshot = self._reorder_geometry_cache.live_chip_snapshot(cache_key)
         cache_hit = snapshot is not None
@@ -1802,7 +1830,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             if not source_ranges:
                 continue
             keys_by_chip_index[segment_index] = PromptReorderProjectionSnapshotKey(
-                source_revision=self._source_revision,
+                source_revision=self._editor_state.source.source_revision,
                 viewport_rect=self.viewport().rect(),
                 scroll_offset=int(round(scroll_offset)),
                 font_key=self.font().toString(),
@@ -2300,13 +2328,17 @@ class PromptProjectionSurface(QAbstractScrollArea):
             return next(
                 (
                     span
-                    for span in reversed(self._render_plan.syntax_spans)
+                    for span in reversed(
+                        self._editor_state.projection_semantic.render_plan.syntax_spans
+                    )
                     if span.start == token.source_start and span.end == token.source_end
                 ),
                 None,
             )
         position = self.cursor_position
-        for span in reversed(self._render_plan.syntax_spans):
+        for span in reversed(
+            self._editor_state.projection_semantic.render_plan.syntax_spans
+        ):
             if span.start < position < span.end:
                 return span
         return None
@@ -2322,7 +2354,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def focused_token(self) -> PromptProjectionToken | None:
         """Return the token currently owning caret focus when present."""
 
-        return self._projection_document.token_by_id(self._cursor_state.token_id)
+        return self._editor_state.projection.document.token_by_id(
+            self._cursor_state.token_id
+        )
 
     def token_at_viewport_position(
         self,
@@ -2356,7 +2390,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def prompt_document_view(self) -> PromptDocumentView:
         """Return the current prepared prompt document view."""
 
-        return self._document_view
+        return self._editor_state.edit_semantic.document
 
     def set_defer_source_rebuilds_until_prompt_state(self, enabled: bool) -> None:
         """Set whether source edits wait for controller-owned prompt snapshots."""
@@ -2513,8 +2547,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return a viewport-local caret rectangle for input-method geometry."""
 
         self._flush_pending_projection_update(reason="input_method_caret_rect")
-        caret_state = self._projection_document.caret_map.state_for_source_position(
-            min(max(0, source_position), len(self.toPlainText()))
+        caret_state = (
+            self._editor_state.projection.document.caret_map.state_for_source_position(
+                min(max(0, source_position), len(self.toPlainText()))
+            )
         )
         return self._layout.cursor_rect(
             caret_state,
@@ -2544,14 +2580,13 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
     def set_prompt_state(
         self,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
+        snapshot: PromptEditorSemanticSnapshot,
     ) -> None:
         """Replace the source snapshot and rebuild the token-aware projection."""
 
         if not qt_object_is_alive(self):
             return
-        self._prompt_state_applier.set_prompt_state(document_view, render_plan)
+        self._prompt_state_applier.set_prompt_state(snapshot)
 
     def _log_projection_state_event(
         self,
@@ -2571,7 +2606,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             _LOGGER,
             event_name,
             source_changed=source_changed,
-            source_revision=self._source_revision,
+            source_revision=self._editor_state.source.source_revision,
             update_source_revision=update_source_revision,
             display_mode=self._display_mode.value,
             expanded_source_range_present=(
@@ -2611,7 +2646,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             return False
         cancelled = (
             self._projection_freshness_controller.cancel_stale_safe_projection_update(
-                source_text=self._projection_document.source_text
+                source_text=self._editor_state.projection.document.source_text
             )
         )
         return cancelled
@@ -2627,7 +2662,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self,
         *,
         deferrable_projection: bool,
-        source_revision: int,
+        source_snapshot: PromptSourceSnapshot,
         clear_diagnostic_fragment_cache: bool = True,
     ) -> None:
         """Record source revision and whether the next prompt state can be scheduled."""
@@ -2635,7 +2670,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._input_method_controller.source_changed()
         if not deferrable_projection:
             self._clear_transient_caret_geometry()
-        self._source_revision = source_revision
+        source_identity = self._editor_state.publish_source(source_snapshot)
         if self._reorder_preview_projection.preview_state is not None:
             self._clear_reorder_projection_and_geometry_caches(reason="source_changed")
         if clear_diagnostic_fragment_cache:
@@ -2644,7 +2679,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._projection_paint_cache.skip_next_cache_build()
         self._projection_freshness_controller.mark_source_text_changed(
             deferrable_projection=deferrable_projection,
-            source_revision=source_revision,
+            source_revision=source_identity.source_revision,
         )
 
     def _clear_transient_caret_geometry(self) -> None:
@@ -2659,7 +2694,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             freshness_is_stale_safe=(
                 self._projection_freshness_controller.has_stale_projection_geometry()
             ),
-            source_revision=self._source_revision,
+            source_identity=self._editor_state.source_identity,
             cursor_position=self.cursor_position,
             anchor_position=self.anchor_position,
         )
@@ -2858,8 +2893,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Apply session-only projection changes when layout geometry is unchanged."""
 
         result = self._projection_applicator.apply_reusable_projection_paint_state(
-            self._document_view,
-            self._render_plan,
+            self._editor_state.projection_semantic.document,
+            self._editor_state.projection_semantic.render_plan,
             display_mode=self._display_mode,
             session=self._session,
             active_span_range=self._active_span_range(),
@@ -2870,9 +2905,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if result is None:
             return False
         self._projection_freshness_controller.clear_pending_after_immediate_apply()
-        self._projection_document = result.projection_document
+        self._editor_state.publish_projection(result.projection_document)
         self._last_rendered_active_span_range = result.active_span_range
-        self._active_projection_document = self._projection_document
+        self._active_projection_document = self._editor_state.projection.document
+        self._frame_state.publish_prepared_paint(self._layout)
         self._clear_transient_caret_geometry()
         self.viewport().update()
         return True
@@ -2889,7 +2925,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         token = next(
             (
                 candidate
-                for candidate in self._projection_document.tokens
+                for candidate in self._editor_state.projection.document.tokens
                 if candidate.kind is PromptProjectionTokenKind.EMPHASIS
                 and candidate.supports_text_content_navigation
                 and candidate.content_range == (content_start, content_end)
@@ -2974,7 +3010,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         token_id = self._session.exact_weight_edit_token_id()
         if token_id is not None:
-            token = self._projection_document.token_by_id(token_id)
+            token = self._editor_state.projection.document.token_by_id(token_id)
             if token is not None:
                 return token
         edit_state = self._session.exact_weight_edit
@@ -2983,7 +3019,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         return next(
             (
                 token
-                for token in self._projection_document.tokens
+                for token in self._editor_state.projection.document.tokens
                 if token.kind
                 in {
                     PromptProjectionTokenKind.EMPHASIS,
@@ -3109,7 +3145,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             or self.cursor_position != self.anchor_position
         ):
             return
-        for token in self._projection_document.tokens:
+        for token in self._editor_state.projection.document.tokens:
             if (
                 token.kind is PromptProjectionTokenKind.EMPHASIS
                 and token.content_end == self.cursor_position
@@ -3149,12 +3185,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
         ).clamped(len(self.toPlainText()))
         self._clear_transient_caret_geometry()
         next_cursor_state = (
-            self._projection_document.caret_map.state_for_source_position(
+            self._editor_state.projection.document.caret_map.state_for_source_position(
                 cursor_state.cursor_position
             )
         )
         next_anchor_state = (
-            self._projection_document.caret_map.state_for_source_position(
+            self._editor_state.projection.document.caret_map.state_for_source_position(
                 cursor_state.anchor_position
             )
         )
@@ -3199,11 +3235,11 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         previous_caret_rect = self._current_caret_rect()
         previous_selection = self._selection()
-        resolved_cursor_state = self._projection_document.caret_map.resolve_state(
-            cursor_state
+        resolved_cursor_state = (
+            self._editor_state.projection.document.caret_map.resolve_state(cursor_state)
         )
-        resolved_anchor_state = self._projection_document.caret_map.resolve_state(
-            anchor_state
+        resolved_anchor_state = (
+            self._editor_state.projection.document.caret_map.resolve_state(anchor_state)
         )
         if (
             preserve_unmapped_source_positions
@@ -3577,7 +3613,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if not self._projection_freshness_controller.has_stale_projection_geometry():
             self._clear_transient_caret_geometry()
         self._clear_reorder_projection_and_geometry_caches(reason="resize")
-        self._diagnostic_painter.advance_layout_revision(reason="resize")
         self._clear_diagnostic_fragment_cache(reason="resize")
         self.refresh_geometry()
         self.viewport().update()
@@ -3662,9 +3697,11 @@ class PromptProjectionSurface(QAbstractScrollArea):
                     viewport_height=viewport_rect.height(),
                     scroll_offset=scroll_offset,
                     preview_active=True,
-                    line_count=preview_layout.line_count(),
-                    text_fragment_count=preview_layout.text_fragment_count(),
-                    inline_object_count=preview_layout.inline_object_fragment_count(),
+                    line_count=preview_layout.snapshot.line_count(),
+                    text_fragment_count=preview_layout.snapshot.text_fragment_count(),
+                    inline_object_count=(
+                        preview_layout.snapshot.inline_object_fragment_count()
+                    ),
                     clip_width=viewport_rect.width(),
                     clip_height=viewport_rect.height(),
                 )
@@ -3748,6 +3785,16 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 surface=surface_probe_state(self),
             )
             return "preview"
+        paint_snapshot = self._editor_state.current_paint
+        if paint_snapshot is None:
+            self._active_projection_paint_layout().draw(
+                painter,
+                selection=selection,
+                scroll_offset=scroll_offset,
+                clip_rect=clip_rect,
+                excluded_region=excluded_region,
+            )
+            return "bypass_unprepared"
         result = self._projection_paint_cache.paint_projection_content(
             painter,
             active_layout=self._active_projection_paint_layout(),
@@ -3757,7 +3804,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             clip_rect=clip_rect,
             viewport_rect=viewport_rect,
             excluded_region=excluded_region,
-            source_revision=self._source_revision,
+            paint_identity=paint_snapshot.identity,
             device_pixel_ratio=float(self.devicePixelRatioF()),
             font=self.font(),
             palette=self.palette(),
@@ -3916,7 +3963,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 freshness_is_stale_safe=(
                     self._projection_freshness_controller.has_stale_projection_geometry()
                 ),
-                source_revision=self._source_revision,
+                source_identity=self._editor_state.source_identity,
             ),
             viewport_region=QRegion(self.viewport().rect()),
             scroll_offset=self._scroll_offset(),
@@ -3941,6 +3988,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def _paint_diagnostics(self, painter: QPainter) -> None:
         """Paint diagnostic underlines using the semantic diagnostic palette."""
 
+        layout_snapshot = self._editor_state.layout
+        if (
+            layout_snapshot is None
+            or layout_snapshot.geometry is not self._layout.snapshot
+        ):
+            return
         viewport_rect = QRectF(self.viewport().rect())
         self._diagnostic_painter.paint(
             painter,
@@ -3950,20 +4003,26 @@ class PromptProjectionSurface(QAbstractScrollArea):
             preview_layout=None,
             viewport_rect=viewport_rect,
             scroll_offset=self._scroll_offset(),
-            source_revision=self._source_revision,
+            layout_identity=layout_snapshot.identity,
             color=qcolor_from_rgb(semantic_palette_from_theme().error_foreground),
         )
 
     def _schedule_diagnostic_fragment_cache_warm(self, *, reason: str) -> None:
         """Queue budgeted diagnostic fragment discovery outside paint events."""
 
+        layout_snapshot = self._editor_state.layout
+        if (
+            layout_snapshot is None
+            or layout_snapshot.geometry is not self._layout.snapshot
+        ):
+            return
         self._diagnostic_painter.schedule_warm(
             reason=reason,
             diagnostics=self._session.diagnostics,
             layout=self._layout,
             viewport_rect=QRectF(self.viewport().rect()),
             scroll_offset=self._scroll_offset(),
-            source_revision=self._source_revision,
+            layout_identity=layout_snapshot.identity,
         )
 
     def _schedule_projection_geometry_reuse_warm(self, *, reason: str) -> None:
@@ -3994,7 +4053,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             freshness_is_stale_safe=(
                 self._projection_freshness_controller.has_stale_projection_geometry()
             ),
-            source_revision=self._source_revision,
+            source_identity=self._editor_state.source_identity,
         )
         if overlay is None:
             return
@@ -4013,7 +4072,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             freshness_is_stale_safe=(
                 self._projection_freshness_controller.has_stale_projection_geometry()
             ),
-            source_revision=self._source_revision,
+            source_identity=self._editor_state.source_identity,
         )
         if overlay is None:
             return
@@ -4039,12 +4098,18 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> tuple[QRectF, ...]:
         """Return cached diagnostic underline fragments for one paint pass."""
 
+        layout_snapshot = self._editor_state.layout
+        if (
+            layout_snapshot is None
+            or layout_snapshot.geometry is not self._layout.snapshot
+        ):
+            return ()
         return self._diagnostic_painter.diagnostic_fragments_for_paint(
             diagnostic=diagnostic,
             layout=self._layout,
             viewport_rect=viewport_rect,
             scroll_offset=scroll_offset,
-            source_revision=self._source_revision,
+            layout_identity=layout_snapshot.identity,
         )
 
     @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTIC_CACHE_CLEAR)
@@ -4060,18 +4125,19 @@ class PromptProjectionSurface(QAbstractScrollArea):
         start: int,
         end: int,
         replacement_text: str,
-        next_layout_revision: int,
+        previous_layout_identity: PromptLayoutIdentity,
+        next_layout_identity: PromptLayoutIdentity,
         fragment_y_delta: float = 0.0,
     ) -> None:
         """Keep unaffected diagnostic fragments after an accepted local edit."""
 
         self._diagnostic_painter.preserve_fragment_cache_for_incremental_edit(
             diagnostics=self._session.diagnostics,
-            source_revision=self._source_revision,
             start=start,
             end=end,
             replacement_text=replacement_text,
-            next_layout_revision=next_layout_revision,
+            previous_layout_identity=previous_layout_identity,
+            next_layout_identity=next_layout_identity,
             fragment_y_delta=fragment_y_delta,
         )
 
@@ -4223,7 +4289,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         return any(
             start < token.source_end and token.source_start < end
-            for token in self._projection_document.tokens
+            for token in self._editor_state.projection.document.tokens
         )
 
     def _source_edit_requires_canonical_rebuild(
@@ -4293,8 +4359,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
         previous_anchor_state = self._anchor_state
         rebuild_started_at = projection_observability_started_at()
         rebuild_result = self._projection_applicator.rebuild_projection(
-            self._document_view,
-            self._render_plan,
+            self._editor_state.edit_semantic.document,
+            self._editor_state.edit_semantic.render_plan,
             display_mode=self._display_mode,
             session=self._session,
             active_span_range=None,
@@ -4311,7 +4377,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         log_projection_timing(
             "surface.rebuild_projection",
             started_at=rebuild_started_at,
-            text_length=len(self._document_view.source_text),
+            text_length=len(self._editor_state.edit_semantic.document.source_text),
             display_mode=self._display_mode.value,
             token_count=len(rebuild_result.projection_document.tokens),
             run_count=len(rebuild_result.projection_document.runs),
@@ -4329,9 +4395,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Publish one freshly built or exact-restored canonical projection."""
 
-        self._projection_document = rebuild_result.projection_document
+        self._editor_state.publish_projection(rebuild_result.projection_document)
         self._last_rendered_active_span_range = rebuild_result.active_span_range
-        self._diagnostic_painter.advance_layout_revision(reason=invalidation_reason)
         self._clear_diagnostic_fragment_cache(reason=invalidation_reason)
         self._cursor_state = rebuild_result.cursor_state
         self._anchor_state = rebuild_result.anchor_state
@@ -4389,86 +4454,14 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._refresh_projection_paint_state()
         self.viewport().update()
 
-    def _layout_width_for_projection_rebuild(self) -> float:
-        """Return a non-pathological layout width for projection wrapping."""
-
-        return (
-            self._projection_freshness_controller.layout_width_for_projection_rebuild(
-                viewport_width=self.viewport().width(),
-                parent_width=self._nearest_valid_parent_layout_width(),
-            )
-        )
-
-    def _nearest_valid_parent_layout_width(self) -> int | None:
-        """Return an ancestor width usable before a hidden viewport is polished."""
-
-        parent = self.parentWidget()
-        while parent is not None:
-            width = parent.width()
-            if width >= _MINIMUM_VALID_LAYOUT_WIDTH:
-                return width
-            parent = parent.parentWidget()
-        return None
-
     @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_SYNC_LAYOUT)
     def _sync_layout_state(self, *, commit_projection: bool = False) -> None:
         """Keep layout metrics in sync and optionally commit rebuilt projection freshness."""
 
-        layout_width = self._layout_width_for_projection_rebuild()
-        semantic_palette = semantic_palette_from_theme()
-        sync_result = self._projection_applicator.sync_layout_state(
-            layout=self._layout,
-            reorder_preview_layout=self._reorder_preview_projection.preview_layout,
-            reorder_base_drag_layout=self._reorder_preview_projection.base_drag_layout,
-            layout_width=layout_width,
-            font=self.font(),
-            palette=self.palette(),
-            semantic_palette=semantic_palette,
-            content_left_inset=self._source_line_chrome.content_left_inset,
-        )
-        if (
-            self._layout.projection_document.display_mode
-            is PromptProjectionDisplayMode.PROJECTED
-            and self._layout.projection_document.region_structure.separators
-        ):
-            self._region_chrome.prepare(
-                self._layout,
-                semantic_palette=semantic_palette,
-            )
-        preview_layout = self._reorder_preview_projection.preview_layout
-        if (
-            preview_layout is not None
-            and preview_layout.projection_document.display_mode
-            is PromptProjectionDisplayMode.PROJECTED
-            and preview_layout.projection_document.region_structure.separators
-        ):
-            self._region_chrome.prepare(
-                preview_layout,
-                semantic_palette=semantic_palette,
-            )
-        self._source_document_adapter.sync_default_font(self.font())
-        self._source_document_adapter.sync_text_width(layout_width)
-        content_height = sync_result.content_height
-        viewport_height = max(1, self.viewport().height())
-        scroll_range = max(0, math.ceil(content_height - viewport_height))
-        self.verticalScrollBar()
-        self.verticalScrollBar().setPageStep(viewport_height)
-        self.verticalScrollBar().setRange(0, scroll_range)
-        self._wheel_handler.sync_external_scroll_range(
-            page_step=viewport_height,
-            scroll_range=scroll_range,
-        )
-        should_emit_height = self._projection_freshness_controller.sync_layout_metrics(
-            commit_projection=commit_projection,
-            reorder_preview_active=self._reorder_preview_projection.is_active(),
-            source_revision=self._source_revision,
-            content_height=content_height,
-            content_width=sync_result.content_width,
-            layout_width=sync_result.layout_width,
+        self._frame_synchronizer.sync(
             display_mode=self._display_mode,
+            commit_projection=commit_projection,
         )
-        if should_emit_height:
-            self.contentHeightChanged.emit(content_height)
 
     def _reorder_preview_projection_context(
         self,
@@ -4477,8 +4470,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return non-widget inputs that identify one reorder preview projection."""
 
         return PromptReorderPreviewProjectionContext(
-            source_revision=self._source_revision,
-            layout_width=self._layout_width_for_projection_rebuild(),
+            source_revision=self._editor_state.source.source_revision,
+            layout_width=self._layout_width_resolver.resolve(),
             viewport_width=self.viewport().width(),
             preview_layout_key=None
             if preview_state is None
@@ -4520,7 +4513,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             None
             if not chips
             else PromptReorderSurfaceChromeSnapshot(
-                source_revision=self._source_revision,
+                source_revision=self._editor_state.source.source_revision,
                 viewport_rect=self.viewport().rect(),
                 scroll_offset=int(round(self._scroll_offset())),
                 preview_generation=(
@@ -4545,7 +4538,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         snapshot = self._reorder_surface_chrome_snapshot
         if snapshot is None or not snapshot.matches(
-            source_revision=self._source_revision,
+            source_revision=self._editor_state.source.source_revision,
             viewport_rect=self.viewport().rect(),
             scroll_offset=int(round(self._scroll_offset())),
             preview_generation=(
@@ -4590,7 +4583,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         key = snapshot.key
         return not (
-            key.source_revision != self._source_revision
+            key.source_revision != self._editor_state.source.source_revision
             or key.viewport_rect != self.viewport().rect()
             or key.scroll_offset != int(round(self._scroll_offset()))
             or key.preview_generation != self._reorder_preview_generation()
@@ -4605,8 +4598,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
             cursor_state=self._cursor_state,
             anchor_state=self._anchor_state,
             expanded_source_range=self._session.expanded_source_range,
-            document_view=self._document_view,
-            render_plan=self._render_plan,
+            document_view=self._editor_state.projection_semantic.document,
+            render_plan=self._editor_state.projection_semantic.render_plan,
             layout_checkpoint=self._layout.create_history_checkpoint(),
         )
 
@@ -4771,7 +4764,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Collapse the expanded token once caret ownership has left a still-valid span."""
 
         collapsed = self._session.collapse_if_cursor_left_token(
-            self._document_view,
+            self._editor_state.projection_semantic.document,
             selection_start=min(self.cursor_position, self.anchor_position),
             selection_end=max(self.cursor_position, self.anchor_position),
         )
@@ -4819,7 +4812,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> PromptProjectionToken | None:
         """Return the token currently painted beneath one viewport-local point."""
 
-        for token in reversed(self._projection_document.tokens):
+        for token in reversed(self._editor_state.projection.document.tokens):
             token_fragments = self._layout.token_fragments(
                 token,
                 scroll_offset=self._scroll_offset(),

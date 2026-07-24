@@ -18,14 +18,15 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Hashable
 from typing import Protocol, cast
 
 from substitute.presentation.editor.prompt_editor.async_work.scheduled_lora_dispatcher import (
     PromptScheduledLoraContextProvider,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 
 from .autocomplete_result_controller import (
@@ -37,7 +38,7 @@ from .autocomplete_result_controller import (
 class PromptAutocompleteScheduledLoraCurrentContext(Protocol):
     """Describe current autocomplete context used for stale-safe publication."""
 
-    def current_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def current_source_identity(self) -> PromptSourceIdentity | None:
         """Return the current source identity, if available."""
 
     def current_query_identity(self) -> Hashable | None:
@@ -93,7 +94,7 @@ class PromptAutocompleteScheduledLoraContextController:
                 prompt_text=prompt_text,
                 source_text=source_text,
                 source_identity=cast(
-                    PromptCommandSourceIdentity | None,
+                    PromptSourceIdentity | None,
                     source_identity,
                 ),
                 query_identity=query_identity,

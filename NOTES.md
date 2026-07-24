@@ -11,7 +11,7 @@ verification result.
 
 - Refactor branch: `refactor/prompt-editor-architecture`
 - Behavioral baseline: `bc6c6a7b`
-- Current slice: 4, revisioned core state
+- Current slice: 5, editing ownership
 - Completion state: active
 - Blocking regressions: none accepted
 
@@ -20,7 +20,7 @@ verification result.
 | 1 | Architecture and measurement guardrails | Complete | Import/debt guards, stable owner hooks, 68/68 structural coverage, clean-root performance comparison, and complete repository gates |
 | 2 | Pure domain/application package ownership | Complete | Direct-owner packages, deleted LoRA cycle and flat barrels, 68/68 structural coverage, paired performance evidence, and complete repository gates |
 | 3 | Panel dependency inversion | Complete | Caller-neutral prompt preset port, panel-owned adapter and scope policy, zero reverse imports, 68/68 structural coverage, paired performance evidence, and complete repository gates |
-| 4 | Revisioned core state | Pending | — |
+| 4 | Revisioned core state | Complete | Typed source-to-paint lineage, deleted state mirrors, focused frame synchronization, allocation-safe hot paths, 68/68 structural coverage, paired performance evidence, and complete repository gates |
 | 5 | Editing ownership | Pending | — |
 | 6 | Immutable geometry authority | Pending | — |
 | 7 | Canonical and incremental layout engines | Pending | — |
@@ -267,6 +267,148 @@ autocomplete, IME, caret, geometry, incremental editing, paint/cache, history,
 reorder, direct workflow scenarios, the output-canvas abuse matrix and canvas
 scenarios, the production real-shell harness, and toolbar rendering. Slice 3 is
 complete.
+
+### Slice 4 acceptance ledger
+
+Slice 4 is complete only when:
+
+- source, semantic, projection, layout, viewport, and paint revisions are
+  distinct typed identities with non-negative validation at their publication
+  boundaries;
+- one inspectable revision graph records the exact upstream lineage of every
+  published snapshot and rejects cross-source or stale-upstream publication;
+- `PromptEditingSession` remains the sole source-revision writer, and the
+  projection surface no longer mirrors that revision in independent mutable
+  state;
+- semantic document and render-plan references publish atomically under one
+  semantic identity rather than as independently assignable fields;
+- projection publication records the semantic identity it consumed, and layout
+  publication records the exact projection identity it laid out;
+- viewport identity changes only when its prepared geometry key changes, paint
+  identity records layout, viewport, and paint-state revisions, and ordinary
+  cache reads do not allocate or advance revisions;
+- committed/stale projection geometry is represented by recorded revision
+  lineage instead of inferred from unrelated source counters, object identities,
+  and manual diagnostic-layout counters;
+- validation compares identities and existing immutable references only: it
+  performs no full-source copy, hash, parser scan, layout walk, widget query, or
+  signal emission;
+- all live call sites use the authoritative state owner, while obsolete source
+  mirrors, diagnostic-only layout counters, and private harness reconstruction
+  of revision consistency are removed in the same slice;
+- owner tests characterize successful publication, no-op reuse, stale rejection,
+  rollback, deferred projection, paint-cache hits, and revision inspection;
+- the complete real-shell abuse matrix, structural budgets, unchanged
+  canvas/workflow round trips, and repeated pre-slice performance comparison
+  show no behavior, work, allocation, or latency regression;
+- focused and complete repository gates pass for the exact slice worktree.
+
+### Slice 4 ownership inventory
+
+The pre-transfer graph has six disconnected identity conventions:
+
+- `PromptEditingSession` and `PromptSourceBuffer` own the real source revision,
+  while `PromptProjectionSurface._source_revision`,
+  `PromptCommandSourceIdentity`, async identities, freshness metrics, transient
+  overlays, and paint keys copy the same raw integer;
+- `PromptSyntaxStateController` owns semantic publication but stores the
+  document view and render plan separately, so their atomic relationship and
+  source lineage cannot be inspected;
+- projection documents are immutable values, but publication has no identity;
+  the surface, active-preview path, and layout retain separate document
+  references without an explicit base/preview lineage;
+- layout snapshots are immutable geometry, but have no projection or width
+  identity. `PromptDiagnosticPainter` maintains a separate manually advanced
+  “layout revision” that is not the layout snapshot's identity;
+- viewport width, height, and scroll values are repeatedly folded into cache
+  keys without a prepared viewport identity;
+- paint state is immutable, but cache freshness combines raw source revision,
+  Python object identities, geometry metrics, palette values, and manual
+  invalidation. The real-shell harness reconstructs consistency by reading those
+  private fields independently.
+
+Slice 4 transfers identity and lineage ownership, not the layout and rendering
+algorithms assigned to later slices. Pure projection construction remains a
+pure value operation; the publication owner assigns identity only when a result
+becomes authoritative. Layout continues to build its existing immutable
+geometry snapshots, but every assignment goes through one publication boundary.
+Viewport and paint revisions are prepared and advanced on state transitions,
+never during a warm paint-cache lookup.
+
+### Slice 4 implementation evidence
+
+The candidate now has one typed source-to-paint publication graph in
+`core/state`. Source, semantic, projection, active-frame projection, layout,
+viewport, and paint identities retain exact upstream identity references.
+Publication validates non-negative revisions, authoritative upstream identity,
+and O(1) source length; it does not copy, hash, compare, or scan full prompt
+text. Deferred geometry records its committed semantic lineage explicitly, and
+exact same-text semantic refresh rebases retained projection, layout, and paint
+values without rebuilding them.
+
+The projection surface no longer owns `_source_revision`,
+`_document_view`, `_render_plan`, or `_projection_document`. The diagnostic
+layout counter and raw integer source mirrors in transient overlays and reorder
+state are also gone. The real-shell harness now inspects the public revision
+graph and active frame projection instead of reconstructing consistency from
+those private fields. Frame publication and width resolution live in focused
+`projection/frame_state.py`, while the complete layout/viewport/scroll/region
+chrome synchronization responsibility moved out of the surface into
+`projection/frame_synchronizer.py`; the old surface paths were deleted rather
+than retained as parallel authorities.
+
+Owner contracts cover initial and advanced lineage, staged optimistic semantics,
+committed versus transient frame projections, exact downstream rebasing,
+rollback, stale and foreign upstream rejection, unchanged layout/viewport/paint
+reuse, and warm frame synchronization. The stricter source identity boundary
+also exposed semantic-refresh tests that bypassed production source
+publication. Their shared editor double now publishes through the revision
+owner, preserving the production ownership path rather than weakening
+validation.
+
+Performance investigation rejected an initially adverse 5k Delete signal and
+traced added work instead of attributing it to host noise. Source buffer and
+snapshot identities are now cached per source revision, direct source-buffer
+mutation is prohibited, identity-chain validation uses authoritative reference
+comparisons, and semantic freshness no longer allocates a diagnostic revision
+graph. Disabled debug probes now return before owner traversal or
+serialization. In four profiled 5k Delete runs this removes all 420 transient
+revision-graph builds, reduces source-identity construction from 336 to 166,
+and lowers disabled probe self-work from 16.764 ms to 2.098 ms.
+
+The final 5k Delete comparison uses six fresh-process pairs, reverses process
+order, fixes affinity and priority, asserts module provenance for both roots,
+and includes 180 scenario samples per variant. Median paired edit latency is
+3.11% lower for the candidate, median process CPU is 3.36% lower, median wall
+time is 4.13% lower, and the paired mean-latency median is effectively equal at
+-0.11%. Large opposing outliers remain in the artifacts and correlate with
+approximately 48% competing CPU load; they are not removed or used to claim an
+improvement.
+
+The post-optimization six-lane comparison reports paired median deltas of
+-0.23 ms for 5k Enter, -0.16 ms for 5k selection, -0.11 ms for Danbooru
+paste/import, and -0.04 ms for prepared paint-cache composition. Its short
+5k Delete and horizontal Alt samples moved by +0.43 ms and +0.40 ms under
+bursty load. The longer Delete campaign above resolves its signal. A separate
+180-sample Alt campaign resolves the second signal with a -0.022 ms/-0.48%
+paired median, effectively unchanged process CPU at -0.12%, and large
+opposing per-pair outliers retained in the artifacts.
+
+The production-shell prompt editor, autocomplete scenarios, output-canvas
+scenarios, and output-canvas abuse matrix pass together. The final enforced
+structural report at `build/prompt-editor-slice4-structural.json` contains 204
+runs: all 68 operations repeated three times, with no missing operation,
+invariant violation, structural-budget violation, or stale final semantic or
+projection state. It includes the complete regional-separator hostile corpus,
+workflow and unchanged-canvas round trips, navigation, selection, history,
+paint/cache, autocomplete, diagnostics, LoRA, scenes, and reorder. Complete
+repository formatting and lint pass. Strict mypy passes all 2,893 checked
+source files, the complete non-serial suite passes, and all 121 serial modules
+pass on the exact final source tree. The serial gate includes prompt-editor
+characterization, IME, navigation, incremental editing, paint/cache, history,
+reorder, production real-shell prompt and autocomplete coverage, direct
+workflow scenarios, output-canvas scenarios and abuse, widget abuse, toolbar
+rendering, and workspace integration. Slice 4 is complete.
 
 ## Review objective
 

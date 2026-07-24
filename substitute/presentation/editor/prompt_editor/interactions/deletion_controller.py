@@ -37,7 +37,6 @@ from ..projection.session import PromptProjectionSession
 class PromptSurfaceDeletionHost(Protocol):
     """Expose source and projection state required by deletion semantics."""
 
-    _projection_document: PromptProjectionDocument
     _cursor_state: PromptProjectionCaretState
     _anchor_state: PromptProjectionCaretState
     _session: PromptProjectionSession
@@ -50,6 +49,10 @@ class PromptSurfaceDeletionHost(Protocol):
 
     def toPlainText(self) -> str:
         """Return the exact current prompt source."""
+        ...
+
+    def projection_document(self) -> PromptProjectionDocument:
+        """Return the committed projection document."""
         ...
 
     def focused_token(self) -> PromptProjectionToken | None:
@@ -128,7 +131,7 @@ class PromptSurfaceDeletionController:
         token = host.focused_token()
         if self._delete_region_separator_trailing_edge(token):
             return
-        previous_state = host._projection_document.caret_map.previous_state(
+        previous_state = host.projection_document().caret_map.previous_state(
             host._cursor_state
         )
         if (
@@ -191,7 +194,7 @@ class PromptSurfaceDeletionController:
         token = host.focused_token()
         if self._delete_region_separator_leading_edge(token):
             return
-        next_state = host._projection_document.caret_map.next_state(host._cursor_state)
+        next_state = host.projection_document().caret_map.next_state(host._cursor_state)
         if (
             token is not None
             and not host._session.is_expanded(token)
@@ -271,7 +274,7 @@ class PromptSurfaceDeletionController:
         if source_text[start:end] in {"\n", "\r", "\t"}:
             return False
         projection_source_is_stale = (
-            host._projection_document.source_text != source_text
+            host.projection_document().source_text != source_text
         )
         return bool(
             (

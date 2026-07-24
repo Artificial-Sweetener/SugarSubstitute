@@ -18,15 +18,16 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from substitute.application.prompt_editor.autocomplete.queries import (
     PromptSceneAutocompleteQuery,
 )
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.application.prompt_editor.scenes.projection import (
     clear_prompt_scene_projection_cache,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptFeatureProfileController,
@@ -50,12 +51,12 @@ class _SceneHost:
         self.read_count += 1
         return self._text
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return a command source identity matching the configured source."""
 
         if self._source_revision is None:
             return None
-        return PromptCommandSourceIdentity(
+        return PromptSourceIdentity(
             source_revision=self._source_revision,
             source_length=len(self._text),
         )

@@ -36,6 +36,9 @@ from substitute.presentation.editor.prompt_editor.async_work import (
     prompt_async_outcome_log_fields,
     prompt_async_request_log_fields,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 
 
 def test_async_identity_log_fields_include_allowed_prompt_safe_identity() -> None:
@@ -44,8 +47,10 @@ def test_async_identity_log_fields_include_allowed_prompt_safe_identity() -> Non
     identity = PromptAsyncResultIdentity(
         request_id=7,
         editor_session_id="session",
-        source_revision=12,
-        source_length=44,
+        source_identity=PromptSourceIdentity(
+            source_revision=12,
+            source_length=44,
+        ),
         feature_profile_id="feature-profile",
         scene_context_id="scene",
         cube_context_id="cube",
@@ -74,8 +79,10 @@ def test_async_request_log_fields_merge_safe_context_fields() -> None:
     request = PromptAsyncRequest(
         identity=PromptAsyncResultIdentity(
             request_id=8,
-            source_revision=13,
-            source_length=55,
+            source_identity=PromptSourceIdentity(
+                source_revision=13,
+                source_length=55,
+            ),
         ),
         context=PromptAsyncRequestContext(
             operation="semantic_refresh",
@@ -162,9 +169,9 @@ def test_async_freshness_log_fields_include_drop_reason_and_mismatch_names() -> 
         drop_reason="identity_mismatch",
         mismatches=(
             PromptFreshnessMismatch(
-                field_name="source_revision",
-                expected=12,
-                actual=11,
+                field_name="source_identity",
+                expected=PromptSourceIdentity(source_revision=12),
+                actual=PromptSourceIdentity(source_revision=11),
             ),
         ),
     )
@@ -175,7 +182,7 @@ def test_async_freshness_log_fields_include_drop_reason_and_mismatch_names() -> 
         "fresh": False,
         "drop_reason": "identity_mismatch",
         "freshness_mismatch_count": 1,
-        "freshness_mismatch_fields": "source_revision",
+        "freshness_mismatch_fields": "source_identity",
     }
 
 

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass, replace
 from typing import Generic, TypeVar
 
@@ -34,7 +38,6 @@ from substitute.presentation.editor.prompt_editor.editing_session import (
 
 from . import (
     PromptCommandResult,
-    PromptCommandSourceIdentity,
     PromptCommandSourceRange,
 )
 
@@ -49,7 +52,7 @@ class PromptPreparedDanbooruImportRequest(Generic[TPayload]):
     expected_pasted_text: str
     import_text: str
     pasted_undo_snapshot: PromptUndoSnapshot[TPayload]
-    source_identity: PromptCommandSourceIdentity | None = None
+    source_identity: PromptSourceIdentity | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,7 +191,7 @@ def _stale_result(
     *,
     command_name: str,
     session: PromptEditingSession[TPayload],
-    source_identity: PromptCommandSourceIdentity | None,
+    source_identity: PromptSourceIdentity | None,
 ) -> PromptPasteImportCommandResult[TPayload] | None:
     """Return a stale rejection for a mismatched prepared source identity."""
 

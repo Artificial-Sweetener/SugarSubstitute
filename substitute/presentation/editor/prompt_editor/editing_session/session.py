@@ -52,6 +52,9 @@ from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
     prompt_editor_work_event,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 
 TPayload = TypeVar("TPayload")
 
@@ -162,6 +165,12 @@ class PromptEditingSession(Generic[TPayload]):
         """Return the current source revision."""
 
         return self._source_edits.source_revision
+
+    @property
+    def source_identity(self) -> PromptSourceIdentity:
+        """Return the current source identity without copying source state."""
+
+        return self._source_edits.source_identity
 
     @property
     def cursor_state(self) -> PromptCursorState:

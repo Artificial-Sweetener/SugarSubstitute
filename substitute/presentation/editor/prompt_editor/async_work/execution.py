@@ -32,6 +32,9 @@ from substitute.application.execution import (
     TaskTimings,
     TaskWork,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 
 TResult = TypeVar("TResult")
 PromptEditorCancellationToken: TypeAlias = CancellationToken
@@ -86,8 +89,7 @@ class PromptAsyncResultIdentity:
 
     request_id: int
     editor_session_id: Hashable | None = None
-    source_revision: int | None = None
-    source_length: int | None = None
+    source_identity: PromptSourceIdentity | None = None
     feature_profile_id: Hashable | None = None
     scene_context_id: Hashable | None = None
     cube_context_id: Hashable | None = None
@@ -98,11 +100,6 @@ class PromptAsyncResultIdentity:
         """Reject negative identity components before async code trusts them."""
 
         _require_non_negative(self.request_id, field_name="request_id")
-        _require_optional_non_negative(
-            self.source_revision,
-            field_name="source_revision",
-        )
-        _require_optional_non_negative(self.source_length, field_name="source_length")
         _require_optional_non_negative(
             self.cancellation_generation,
             field_name="cancellation_generation",
@@ -201,8 +198,6 @@ def prompt_task_identity_from_async(
     parts: list[tuple[str, object]] = []
     for field_name in (
         "editor_session_id",
-        "source_revision",
-        "source_length",
         "feature_profile_id",
         "scene_context_id",
         "cube_context_id",
@@ -211,6 +206,11 @@ def prompt_task_identity_from_async(
         value = getattr(identity, field_name)
         if value is not None:
             parts.append((field_name, value))
+    source_identity = identity.source_identity
+    if source_identity is not None:
+        parts.append(("source_revision", source_identity.source_revision))
+        if source_identity.source_length is not None:
+            parts.append(("source_length", source_identity.source_length))
     return TaskIdentity(
         request_id=identity.request_id,
         domain=PROMPT_EDITOR_EXECUTION_DOMAIN,
@@ -226,11 +226,20 @@ def prompt_async_identity_from_task(
 
     if identity.domain != PROMPT_EDITOR_EXECUTION_DOMAIN:
         raise ValueError("task identity does not belong to the prompt editor domain.")
+    source_revision = _optional_int_field(identity, "source_revision")
+    source_length = _optional_int_field(identity, "source_length")
+    source_identity = (
+        None
+        if source_revision is None
+        else PromptSourceIdentity(
+            source_revision=source_revision,
+            source_length=source_length,
+        )
+    )
     return PromptAsyncResultIdentity(
         request_id=identity.request_id,
         editor_session_id=identity.field_value("editor_session_id"),
-        source_revision=_optional_int_field(identity, "source_revision"),
-        source_length=_optional_int_field(identity, "source_length"),
+        source_identity=source_identity,
         feature_profile_id=identity.field_value("feature_profile_id"),
         scene_context_id=identity.field_value("scene_context_id"),
         cube_context_id=identity.field_value("cube_context_id"),

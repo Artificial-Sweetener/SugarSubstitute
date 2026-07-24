@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable, Hashable
 from typing import Any, cast
 
@@ -53,7 +57,6 @@ from substitute.presentation.editor.prompt_editor.async_work import (
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandResult,
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptAutocompleteQueryController,
@@ -130,10 +133,10 @@ class _QueryEditor:
             has_selection=self.has_selection,
         )
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return source identity for stale-safe query snapshots."""
 
-        return PromptCommandSourceIdentity(
+        return PromptSourceIdentity(
             source_revision=self.source_revision,
             source_length=len(self.text),
         )
@@ -146,7 +149,7 @@ class _AutocompleteRecorder:
         """Initialize callback storage."""
 
         self.calls: list[
-            tuple[str, object, PromptCommandSourceIdentity | None, str | None]
+            tuple[str, object, PromptSourceIdentity | None, str | None]
         ] = []
         self.clear_calls = 0
         self.clear_unfocused_calls = 0
@@ -155,7 +158,7 @@ class _AutocompleteRecorder:
         self,
         query: object,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         ghost_text_source_snapshot: object | None = None,
         refresh_intent: object = "programmatic",
     ) -> None:
@@ -168,7 +171,7 @@ class _AutocompleteRecorder:
         self,
         query: object,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         ghost_text_source_snapshot: object | None = None,
         refresh_intent: object = "programmatic",
     ) -> None:
@@ -181,7 +184,7 @@ class _AutocompleteRecorder:
         self,
         query: object,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         ghost_text_source_snapshot: object | None = None,
         refresh_intent: object = "programmatic",
     ) -> None:
@@ -195,7 +198,7 @@ class _AutocompleteRecorder:
         query: object,
         *,
         source_text: str,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
         feature_profile_identity: object | None = None,
         query_identity: Hashable | None = None,
         ghost_text_source_snapshot: object | None = None,
@@ -518,7 +521,7 @@ def test_phase27_tag_results_preserve_suffix_fallback_noop_filter_and_merge_orde
             source_text=source_text,
             effective_prompt_text=source_text,
         ),
-        source_identity=PromptCommandSourceIdentity(
+        source_identity=PromptSourceIdentity(
             source_revision=4,
             source_length=len(source_text),
         ),
@@ -544,7 +547,7 @@ def test_phase27_tag_results_preserve_suffix_fallback_noop_filter_and_merge_orde
             source_text="1girl",
             effective_prompt_text="1girl",
         ),
-        source_identity=PromptCommandSourceIdentity(
+        source_identity=PromptSourceIdentity(
             source_revision=5,
             source_length=len("1girl"),
         ),
@@ -625,7 +628,7 @@ def test_phase27_scheduled_lora_context_warm_cold_stale_failed_and_disabled(
         nonlocal refresh_calls
         refresh_calls += 1
 
-    source_identity = PromptCommandSourceIdentity(source_revision=7, source_length=2)
+    source_identity = PromptSourceIdentity(source_revision=7, source_length=2)
     cold = provider.trigger_word_result(
         prefix="imp",
         prompt_text="mi",
@@ -663,7 +666,7 @@ def test_phase27_scheduled_lora_context_warm_cold_stale_failed_and_disabled(
         cache_key=stale_key,
         prompt_text="stale prompt",
         source_text="stale prompt",
-        source_identity=PromptCommandSourceIdentity(
+        source_identity=PromptSourceIdentity(
             source_revision=8,
             source_length=len("stale prompt"),
         ),
@@ -809,7 +812,7 @@ def test_phase27_query_timing_preserves_debounce_selection_and_lora_prefix() -> 
         (
             "tag",
             None,
-            PromptCommandSourceIdentity(
+            PromptSourceIdentity(
                 source_revision=0,
                 source_length=len("<lora:mid"),
             ),
@@ -837,12 +840,12 @@ def test_phase27_acceptance_rejects_stale_source_and_commits_lora_after_success(
         def __init__(self) -> None:
             """Initialize current source identity."""
 
-            self.identity = PromptCommandSourceIdentity(
+            self.identity = PromptSourceIdentity(
                 source_revision=2,
                 source_length=9,
             )
 
-        def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+        def prompt_command_source_identity(self) -> PromptSourceIdentity:
             """Return current source identity."""
 
             return self.identity
@@ -872,7 +875,7 @@ def test_phase27_acceptance_rejects_stale_source_and_commits_lora_after_success(
 
     stale = controller.accept_session(
         stale_session,
-        source_identity=PromptCommandSourceIdentity(source_revision=1, source_length=9),
+        source_identity=PromptSourceIdentity(source_revision=1, source_length=9),
         add_comma=False,
     )
 

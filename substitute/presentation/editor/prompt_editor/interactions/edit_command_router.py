@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Generic, TypeVar, cast
@@ -40,7 +44,6 @@ from substitute.application.prompt_editor.editing.structured_text import (
 from ..commands import (
     PromptAutocompleteAcceptance,
     PromptCommandResult,
-    PromptCommandSourceIdentity,
     PromptCommandSourceRange,
     PromptCommandTextReplacement,
     PromptDiagnosticAction,
@@ -118,7 +121,7 @@ class PromptEditCommandRouter(Generic[TPayload]):
         self._exact_source_provider = exact_source_provider
         self._structured_text_mutations = structured_text_mutations
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return the current source identity for prepared commands."""
 
         return self._edit_controller.prompt_command_source_identity()

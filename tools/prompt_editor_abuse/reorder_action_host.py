@@ -22,7 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, cast
 
-from PySide6.QtCore import QEventLoop, QPoint, QPointF, QRect, QTimer, Qt
+from PySide6.QtCore import QEventLoop, QPoint, QPointF, QRect, Qt, QTimer
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
@@ -381,7 +381,7 @@ def _reorder_render_state_mismatches(overlay: Any) -> tuple[str, ...]:
                 getattr(fragment, "text", ""),
                 fragment.projection_start,
             )
-            for line in active_layout._snapshot.lines
+            for line in active_layout.snapshot.lines
             for fragment in line.fragments
             if active_layout.effective_run_for_paint(fragment.run_id) is None
             or (

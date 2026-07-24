@@ -386,8 +386,27 @@ def install_lora_wildcard_prompt_state(
         prompt_syntax_profile("emphasis", "wildcard", "lora"),
     )
     surface_router(surface).set_source_text(text)
-    surface.set_prompt_state(document_view, render_plan)
+    set_surface_prompt_state(surface, document_view, render_plan)
     surface.flush_pending_projection_update(reason="test")
+
+
+def set_surface_prompt_state(
+    surface: PromptProjectionSurface,
+    document_view: PromptDocumentView,
+    render_plan: PromptSyntaxRenderPlan,
+) -> None:
+    """Publish semantic state through the surface revision authority."""
+
+    if surface.toPlainText() != document_view.source_text:
+        surface_router(surface).set_source_text(document_view.source_text)
+        process_events(ensure_qapp())
+    surface.set_prompt_state(
+        surface.editor_state.prepare_semantic(
+            document_view,
+            render_plan,
+            source_identity=surface.editor_state.source_identity,
+        )
+    )
 
 
 def projection_token_kinds(
@@ -448,7 +467,7 @@ def valid_transient_insertion_overlay(
 
     return surface._transient_edit_overlays.valid_insertion_overlay(  # noqa: SLF001
         freshness_is_stale_safe=surface.has_stale_projection_geometry(),
-        source_revision=surface._source_revision,  # noqa: SLF001
+        source_identity=surface.editor_state.source_identity,
     )
 
 
@@ -495,10 +514,10 @@ def configure_trailing_word_wrap_boundary(
         initial_text = f"{'a' * prefix_length} bl"
         box.setPlainText(initial_text)
         process_events(app)
-        initial_line_count = len(surface._layout._snapshot.lines)  # noqa: SLF001
+        initial_line_count = len(surface._layout.snapshot.lines)  # noqa: SLF001
         box.setPlainText(f"{initial_text}ush")
         process_events(app)
-        expanded_line_count = len(surface._layout._snapshot.lines)  # noqa: SLF001
+        expanded_line_count = len(surface._layout.snapshot.lines)  # noqa: SLF001
         if expanded_line_count > initial_line_count:
             box.setPlainText(initial_text)
             process_events(app)

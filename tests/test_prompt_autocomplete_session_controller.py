@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any
@@ -35,9 +39,6 @@ from substitute.application.prompt_editor.lora.autocomplete import (
 )
 from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptAutocompleteQueryState,
@@ -147,7 +148,7 @@ def test_session_controller_preserves_selected_tag_across_result_replacement() -
     """Tag result replacement should preserve the selected suggestion identity."""
 
     controller = PromptAutocompleteSessionController()
-    source_identity = PromptCommandSourceIdentity(source_revision=4, source_length=3)
+    source_identity = PromptSourceIdentity(source_revision=4, source_length=3)
     ghost_snapshot = PromptAutocompleteGhostTextSourceSnapshot(
         source_revision=4,
         source_length=3,
@@ -302,7 +303,7 @@ def test_session_controller_retargets_compatible_tag_without_replacing_rows() ->
             active_tag_end=2,
             prefix="1g",
         ),
-        source_identity=PromptCommandSourceIdentity(source_revision=1, source_length=2),
+        source_identity=PromptSourceIdentity(source_revision=1, source_length=2),
         ghost_text_source_snapshot=None,
     )
     controller.select_index(1)
@@ -314,7 +315,7 @@ def test_session_controller_retargets_compatible_tag_without_replacing_rows() ->
             source_text="1gi",
             cursor_position=3,
             has_selection=False,
-            source_identity=PromptCommandSourceIdentity(
+            source_identity=PromptSourceIdentity(
                 source_revision=2,
                 source_length=3,
             ),

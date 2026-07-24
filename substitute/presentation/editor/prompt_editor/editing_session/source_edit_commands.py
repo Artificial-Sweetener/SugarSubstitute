@@ -28,6 +28,9 @@ from substitute.application.prompt_editor.editing.literal_parentheses import (
     PromptParenthesisTransitionKind,
 )
 from substitute.domain.prompt.document.parser import parse_prompt_document
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 
 from .cursor_state import PromptCursorState
 from .edit_transaction import PromptUndoAvailabilityChange, PromptUndoSnapshot
@@ -145,6 +148,12 @@ class PromptSourceEditSession(Generic[TPayload]):
         """Return the current source revision."""
 
         return self._source_buffer.source_revision
+
+    @property
+    def source_identity(self) -> PromptSourceIdentity:
+        """Return the current source identity without snapshot allocation."""
+
+        return self._source_buffer.identity
 
     def snapshot(self) -> PromptSourceSnapshot:
         """Return a snapshot of the current source state."""
@@ -284,11 +293,11 @@ class PromptSourceEditSession(Generic[TPayload]):
     ) -> PromptSourceSnapshot:
         """Synchronize external source application into this session."""
 
-        if text != self._source_buffer.source_text:
-            self._source_buffer.source_text = text
-            self._source_buffer.source_revision += 1
-        self._source_buffer.parenthesis_intents = parenthesis_intents
-        self._source_buffer.generated_emphases = generated_emphases
+        self._source_buffer.replace_state(
+            text,
+            parenthesis_intents=parenthesis_intents,
+            generated_emphases=generated_emphases,
+        )
         return self._source_buffer.snapshot()
 
     def _apply_replacement(
@@ -329,10 +338,11 @@ class PromptSourceEditSession(Generic[TPayload]):
 
         if record_undo:
             availability_change = self._undo_stack.record_snapshot(undo_snapshot)
-        self._source_buffer.source_text = next_text
-        self._source_buffer.parenthesis_intents = next_parenthesis_intents
-        self._source_buffer.generated_emphases = next_generated_emphases
-        self._source_buffer.source_revision += 1
+        self._source_buffer.replace_state(
+            next_text,
+            parenthesis_intents=next_parenthesis_intents,
+            generated_emphases=next_generated_emphases,
+        )
         next_snapshot = self._source_buffer.snapshot()
         return PromptSourceEditResult(
             previous_snapshot=previous_snapshot,

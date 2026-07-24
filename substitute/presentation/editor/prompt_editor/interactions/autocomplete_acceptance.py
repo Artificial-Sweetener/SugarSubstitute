@@ -18,13 +18,16 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptAutocompleteAcceptance,
     PromptCommandResult,
-    PromptCommandSourceIdentity,
     PromptLoraAutocompleteAcceptance,
     PromptSceneAutocompleteAcceptance,
     PromptTagAutocompleteAcceptance,
@@ -94,7 +97,7 @@ class PromptAutocompleteAcceptanceEditor(
     def textCursor(self) -> PromptAutocompleteAcceptanceCursor:
         """Return the editor's live cursor for bounded acceptance fallback."""
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return the current source identity used to reject stale commands."""
 
     def commit_lora_autocomplete_replacement(self) -> None:
@@ -113,7 +116,7 @@ class PromptAutocompleteAcceptanceController:
         self,
         session: AutocompleteSession,
         *,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         add_comma: bool,
     ) -> PromptAutocompleteAcceptanceOutcome:
         """Accept the selected row for the active autocomplete session mode."""
@@ -143,7 +146,7 @@ class PromptAutocompleteAcceptanceController:
         self,
         session: AutocompleteSession,
         *,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
         add_comma: bool,
     ) -> PromptAutocompleteAcceptanceOutcome:
         """Accept a selected tag or trigger-word autocomplete suggestion."""
@@ -171,7 +174,7 @@ class PromptAutocompleteAcceptanceController:
         self,
         session: AutocompleteSession,
         *,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
     ) -> PromptAutocompleteAcceptanceOutcome:
         """Accept a selected workflow scene title suggestion."""
 
@@ -195,7 +198,7 @@ class PromptAutocompleteAcceptanceController:
         self,
         session: AutocompleteSession,
         *,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
     ) -> PromptAutocompleteAcceptanceOutcome:
         """Accept a selected wildcard placeholder suggestion."""
 
@@ -219,7 +222,7 @@ class PromptAutocompleteAcceptanceController:
         self,
         session: AutocompleteSession,
         *,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
     ) -> PromptAutocompleteAcceptanceOutcome:
         """Accept a selected scheduler-safe LoRA autocomplete candidate."""
 
@@ -243,7 +246,7 @@ class PromptAutocompleteAcceptanceController:
 
     def _prepared_identity_is_current(
         self,
-        source_identity: PromptCommandSourceIdentity | None,
+        source_identity: PromptSourceIdentity | None,
     ) -> bool:
         """Return whether the prepared query still matches current source identity."""
 

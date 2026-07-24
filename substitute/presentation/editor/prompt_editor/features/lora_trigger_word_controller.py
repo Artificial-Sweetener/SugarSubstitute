@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from collections.abc import Callable, Hashable
 from typing import Protocol
 
@@ -31,7 +35,7 @@ from substitute.shared.diagnostics.prompt_editor_work import (
 )
 
 from ..async_work import PromptScheduledLoraContextProvider
-from ..commands import PromptCommandSourceIdentity, PromptFeatureSnapshotIdentity
+from ..commands import PromptFeatureSnapshotIdentity
 from .lora_action_snapshots import (
     PromptLoraActionSnapshot,
     PromptLoraTriggerWordProjector,
@@ -49,7 +53,7 @@ class PromptLoraTriggerWordHost(Protocol):
     def toPlainText(self) -> str:
         """Return the current raw prompt source."""
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity | None:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return the current prompt command identity."""
 
 

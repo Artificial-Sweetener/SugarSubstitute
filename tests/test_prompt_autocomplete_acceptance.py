@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from substitute.application.ports import PromptAutocompleteSuggestion
 from substitute.application.prompt_editor.autocomplete.queries import (
     PromptSceneAutocompleteQuery,
@@ -32,7 +36,6 @@ from substitute.application.prompt_editor.lora.catalog_models import (
 )
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandResult,
-    PromptCommandSourceIdentity,
     PromptLoraAutocompleteAcceptance,
     PromptSceneAutocompleteAcceptance,
     PromptTagAutocompleteAcceptance,
@@ -214,10 +217,10 @@ def test_acceptance_controller_rejects_stale_source_before_command_execution() -
     """Fail closed when the prepared source identity is stale."""
 
     mod = import_autocomplete_acceptance_module()
-    prepared_identity = PromptCommandSourceIdentity(source_revision=2, source_length=5)
+    prepared_identity = PromptSourceIdentity(source_revision=2, source_length=5)
     editor = AutocompleteEditorDouble(
         MenuCursorDouble(text="midna", position=5),
-        source_identity=PromptCommandSourceIdentity(source_revision=3, source_length=5),
+        source_identity=PromptSourceIdentity(source_revision=3, source_length=5),
     )
     controller = mod.PromptAutocompleteAcceptanceController(editor=editor)
     session = AutocompleteSession(

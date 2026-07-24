@@ -18,12 +18,15 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from dataclasses import dataclass
 
 from substitute.domain.user_presets import GLOBAL_PRESET_ASSOCIATION
 from substitute.presentation.editor.prompt_editor.commands import (
     PromptCommandResult,
-    PromptCommandSourceIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     CatalogSnapshotIdentity,
@@ -96,10 +99,10 @@ class _Host:
 
         return self.text
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return a stable fake source identity."""
 
-        return PromptCommandSourceIdentity(
+        return PromptSourceIdentity(
             source_revision=self.source_revision,
             source_length=len(self.text),
         )

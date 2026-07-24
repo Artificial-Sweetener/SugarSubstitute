@@ -29,6 +29,16 @@ from substitute.application.prompt_editor.document.views import PromptDocumentVi
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
+from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
+    PromptEditorDocumentState,
+)
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptLayoutIdentity,
+    PromptSourceIdentity,
+)
+from substitute.presentation.editor.prompt_editor.core.state.semantic_state import (
+    PromptEditorSemanticSnapshot,
+)
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
     prompt_editor_work_result_event,
@@ -37,6 +47,8 @@ from substitute.shared.diagnostics.prompt_editor_work import (
 
 from .applicator import PromptProjectionApplicator
 from .canonical_edit_reflow import PromptProjectionCanonicalEditReflow
+from .diagnostics_painter import PromptDiagnosticPainter
+from .frame_state import PromptProjectionFrameStatePublisher
 from .freshness_controller import (
     ProjectionFreshness,
     PromptProjectionFreshnessBlockers,
@@ -45,18 +57,17 @@ from .freshness_controller import (
 from .incremental_editor import (
     PromptProjectionIncrementalEdit,
     PromptProjectionIncrementalEditor,
-    PromptProjectionPlainTextApplyStatus,
     PromptProjectionPlainTextApplyResult,
+    PromptProjectionPlainTextApplyStatus,
     projection_affecting_render_plan_ranges,
     render_plan_ranges_match_after_source_edit,
     single_source_text_edit,
 )
+from .layout_checkpoint import PromptProjectionLayoutCheckpoint
 from .layout_engine import (
     PromptProjectionIncrementalLayoutResult,
     PromptProjectionLayout,
 )
-from .layout_checkpoint import PromptProjectionLayoutCheckpoint
-from .diagnostics_painter import PromptDiagnosticPainter
 from .model import (
     PromptProjectionCaretState,
     PromptProjectionDisplayMode,
@@ -66,8 +77,9 @@ from .observability import (
     log_projection_timing,
     projection_observability_started_at,
 )
-from .session import PromptProjectionSession
 from .semantic_transition import semantic_projection_change_range
+from .session import PromptProjectionSession
+from .source_line_chrome import PromptSourceLineChrome
 from .transient_edit_overlays import (
     PromptProjectionTransientCaretGeometry,
     PromptProjectionTransientDeletionOverlay,
@@ -169,31 +181,26 @@ class PromptProjectionApplyViewport(Protocol):
         """Schedule a full or partial viewport repaint."""
 
 
-class PromptProjectionSourceLineChromeContext(Protocol):
-    """Expose source-line geometry context needed for transient fallback overlays."""
-
-    content_left_inset: float
-
-
 class PromptProjectionIncrementalApplyHost(Protocol):
     """Expose surface-owned state and sinks for incremental projection apply."""
 
     _projection_applicator: PromptProjectionApplicator
     _projection_freshness_controller: PromptProjectionFreshnessController
-    _document_view: PromptDocumentView
-    _render_plan: PromptSyntaxRenderPlan
-    _projection_document: PromptProjectionDocument
+    _editor_state: PromptEditorDocumentState[
+        PromptDocumentView,
+        PromptSyntaxRenderPlan,
+        PromptProjectionDocument,
+    ]
     _layout: PromptProjectionLayout
     _display_mode: PromptProjectionDisplayMode
     _session: PromptProjectionSession
     _scene_error_keys: frozenset[str]
     _diagnostic_painter: PromptDiagnosticPainter
-    _source_revision: int
     _cursor_state: PromptProjectionCaretState
     _anchor_state: PromptProjectionCaretState
     _caret_rect_override: QRectF | None
     _transient_edit_overlays: PromptProjectionTransientEditOverlayController
-    _source_line_chrome: PromptProjectionSourceLineChromeContext
+    _source_line_chrome: PromptSourceLineChrome
     _last_rendered_active_span_range: tuple[int, int] | None
     backingFillInvalidated: PromptProjectionRectSignal
 
@@ -236,7 +243,8 @@ class PromptProjectionIncrementalApplyHost(Protocol):
         start: int,
         end: int,
         replacement_text: str,
-        next_layout_revision: int,
+        previous_layout_identity: PromptLayoutIdentity,
+        next_layout_identity: PromptLayoutIdentity,
         fragment_y_delta: float = 0.0,
     ) -> None:
         """Preserve unaffected diagnostic fragments for a local edit."""
@@ -301,10 +309,16 @@ class PromptProjectionIncrementalApplyHost(Protocol):
 class PromptProjectionIncrementalApplyController:
     """Select and apply incremental projection catch-up paths."""
 
-    def __init__(self, host: PromptProjectionIncrementalApplyHost) -> None:
+    def __init__(
+        self,
+        host: PromptProjectionIncrementalApplyHost,
+        *,
+        frame_state: PromptProjectionFrameStatePublisher,
+    ) -> None:
         """Create the controller around a surface-owned effect sink."""
 
         self._host = host
+        self._frame_state = frame_state
         self._incremental_editor = PromptProjectionIncrementalEditor()
         self._canonical_edit_reflow = PromptProjectionCanonicalEditReflow(
             host._projection_applicator
@@ -337,15 +351,12 @@ class PromptProjectionIncrementalApplyController:
             or blockers.exact_weight_edit_active
             or blockers.expanded_source_range_active
             or checkpoint.projection_document.source_text
-            != host._document_view.source_text
+            != host._editor_state.edit_semantic.document.source_text
             or not host._layout.try_restore_history_checkpoint(checkpoint)
         ):
             return False
-        host._projection_document = checkpoint.projection_document
+        host._editor_state.publish_projection(checkpoint.projection_document)
         host._last_rendered_active_span_range = host._active_span_range()
-        host._diagnostic_painter.advance_layout_revision(
-            reason="projection_history_checkpoint_restore"
-        )
         host._clear_diagnostic_fragment_cache(
             reason="projection_history_checkpoint_restore"
         )
@@ -376,7 +387,9 @@ class PromptProjectionIncrementalApplyController:
             and render_ranges == previous_render_ranges
         ):
             return True
-        return len(render_ranges) <= len(self._host._projection_document.tokens)
+        return len(render_ranges) <= len(
+            self._host._editor_state.projection.document.tokens
+        )
 
     def try_apply_scheduled_incremental_prompt_state_projection(
         self,
@@ -387,7 +400,7 @@ class PromptProjectionIncrementalApplyController:
     ) -> bool:
         """Apply scheduled safe-typing state without rebuilding when still local."""
 
-        previous_text = self._host._projection_document.source_text
+        previous_text = self._host._editor_state.projection.document.source_text
         next_text = document_view.source_text
         edit = single_source_text_edit(previous_text, next_text)
         if edit is None:
@@ -433,7 +446,8 @@ class PromptProjectionIncrementalApplyController:
             or blockers.autocomplete_preview_active
             or blockers.exact_weight_edit_active
             or blockers.expanded_source_range_active
-            or host._projection_document.source_text != document_view.source_text
+            or host._editor_state.projection.document.source_text
+            != document_view.source_text
         ):
             return False
         changed_range = semantic_projection_change_range(
@@ -464,11 +478,8 @@ class PromptProjectionIncrementalApplyController:
             edit_end=end,
             replacement_text=document_view.source_text[start:end],
         )
-        host._projection_document = projection_document
+        host._editor_state.publish_projection(projection_document)
         host._last_rendered_active_span_range = host._active_span_range()
-        host._diagnostic_painter.advance_layout_revision(
-            reason="projection_local_semantic_transition"
-        )
         host._clear_diagnostic_fragment_cache(
             reason="projection_local_semantic_transition"
         )
@@ -498,7 +509,7 @@ class PromptProjectionIncrementalApplyController:
         """Apply a trailing plain-text insertion without full relayout."""
 
         host = self._host
-        previous_text = host._projection_document.source_text
+        previous_text = host._editor_state.projection.document.source_text
         if host._projection_applicator.source_edit_requires_canonical_rebuild(
             previous_text,
             document_view.source_text,
@@ -507,7 +518,7 @@ class PromptProjectionIncrementalApplyController:
         ):
             return False
         next_document = self._incremental_editor.fast_trailing_plain_insert_document(
-            previous_document=host._projection_document,
+            previous_document=host._editor_state.projection.document,
             next_text=document_view.source_text,
             render_plan=render_plan,
         )
@@ -521,11 +532,8 @@ class PromptProjectionIncrementalApplyController:
 
         previous_cursor_state = host._cursor_state
         previous_anchor_state = host._anchor_state
-        host._projection_document = next_document
+        host._editor_state.publish_projection(next_document)
         host._last_rendered_active_span_range = host._active_span_range()
-        host._diagnostic_painter.advance_layout_revision(
-            reason="projection_fast_insert"
-        )
         host._clear_diagnostic_fragment_cache(reason="projection_fast_insert")
         host._cursor_state = next_document.caret_map.resolve_state(
             previous_cursor_state
@@ -565,7 +573,7 @@ class PromptProjectionIncrementalApplyController:
         ):
             return False
         next_document = self._incremental_editor.fast_trailing_newline_insert_document(
-            previous_document=host._projection_document,
+            previous_document=host._editor_state.projection.document,
             previous_text=previous_text,
             next_text=document_view.source_text,
             start=start,
@@ -582,11 +590,8 @@ class PromptProjectionIncrementalApplyController:
 
         previous_cursor_state = host._cursor_state
         previous_anchor_state = host._anchor_state
-        host._projection_document = next_document
+        host._editor_state.publish_projection(next_document)
         host._last_rendered_active_span_range = host._active_span_range()
-        host._diagnostic_painter.advance_layout_revision(
-            reason="projection_fast_newline_insert"
-        )
         host._clear_diagnostic_fragment_cache(reason="projection_fast_newline_insert")
         host._cursor_state = next_document.caret_map.resolve_state(
             previous_cursor_state
@@ -625,7 +630,7 @@ class PromptProjectionIncrementalApplyController:
         ):
             return False
         next_document = self._incremental_editor.fast_trailing_plain_delete_document(
-            previous_document=host._projection_document,
+            previous_document=host._editor_state.projection.document,
             previous_text=previous_text,
             next_text=next_text,
             start=start,
@@ -633,25 +638,28 @@ class PromptProjectionIncrementalApplyController:
         )
         if next_document is None:
             return False
+        previous_layout_identity = self._frame_state.current_layout_identity(
+            host._layout
+        )
         if not host._layout.try_apply_trailing_plain_delete(
             next_document,
-            prompt_document_view=host._document_view,
+            prompt_document_view=host._editor_state.edit_semantic.document,
         ):
             return False
 
-        host._projection_document = next_document
+        host._editor_state.publish_projection(next_document)
         host._last_rendered_active_span_range = host._active_span_range()
-        next_diagnostic_layout_revision = (
-            host._diagnostic_painter.advance_layout_revision(
-                reason="projection_fast_delete"
+        next_layout_identity = self._frame_state.publish_layout(host._layout)
+        if previous_layout_identity is None or next_layout_identity is None:
+            host._clear_diagnostic_fragment_cache(reason="projection_fast_delete")
+        else:
+            host._preserve_diagnostic_fragment_cache_for_incremental_edit(
+                start=start,
+                end=end,
+                replacement_text="",
+                previous_layout_identity=previous_layout_identity,
+                next_layout_identity=next_layout_identity,
             )
-        )
-        host._preserve_diagnostic_fragment_cache_for_incremental_edit(
-            start=start,
-            end=end,
-            replacement_text="",
-            next_layout_revision=next_diagnostic_layout_revision,
-        )
         host._rebuild_active_projection(commit_projection=True)
         host._clear_transient_caret_geometry()
         host.viewport().update()
@@ -681,7 +689,7 @@ class PromptProjectionIncrementalApplyController:
         ):
             return False
         next_document = self._incremental_editor.fast_trailing_newline_delete_document(
-            previous_document=host._projection_document,
+            previous_document=host._editor_state.projection.document,
             previous_text=previous_text,
             next_text=next_text,
             start=start,
@@ -691,15 +699,12 @@ class PromptProjectionIncrementalApplyController:
             return False
         if not host._layout.try_apply_trailing_newline_delete(
             next_document,
-            prompt_document_view=host._document_view,
+            prompt_document_view=host._editor_state.edit_semantic.document,
         ):
             return False
 
-        host._projection_document = next_document
+        host._editor_state.publish_projection(next_document)
         host._last_rendered_active_span_range = host._active_span_range()
-        host._diagnostic_painter.advance_layout_revision(
-            reason="projection_fast_newline_delete"
-        )
         host._clear_diagnostic_fragment_cache(reason="projection_fast_newline_delete")
         host._rebuild_active_projection(commit_projection=True)
         host._clear_transient_caret_geometry()
@@ -735,13 +740,16 @@ class PromptProjectionIncrementalApplyController:
             previous_source_text=previous_text,
             next_source_text=next_text,
         )
+        previous_layout_identity = self._frame_state.current_layout_identity(
+            host._layout
+        )
         host._layout.content_size().height()
         apply_result = self._incremental_editor.try_apply_plain_text_layout_edit(
             edit,
             layout=host._layout,
-            previous_document=host._projection_document,
-            document_view=host._document_view,
-            render_plan=host._render_plan,
+            previous_document=host._editor_state.projection.document,
+            document_view=host._editor_state.edit_semantic.document,
+            render_plan=host._editor_state.edit_semantic.render_plan,
             display_mode=host._display_mode,
             session=host._session,
             active_span_range=None,
@@ -772,24 +780,26 @@ class PromptProjectionIncrementalApplyController:
                 status=PromptProjectionPlainTextApplyStatus.REJECTED
             )
 
-        host._projection_document = apply_result.projection_document
+        host._editor_state.publish_projection(apply_result.projection_document)
         host._last_rendered_active_span_range = host._active_span_range()
-        next_diagnostic_layout_revision = (
-            host._diagnostic_painter.advance_layout_revision(
+        next_layout_identity = self._frame_state.publish_layout(host._layout)
+        if previous_layout_identity is None or next_layout_identity is None:
+            host._clear_diagnostic_fragment_cache(
                 reason="projection_incremental_plain_text"
             )
-        )
-        host._preserve_diagnostic_fragment_cache_for_incremental_edit(
-            start=start,
-            end=end,
-            replacement_text=replacement_text,
-            next_layout_revision=next_diagnostic_layout_revision,
-            fragment_y_delta=(
-                apply_result.layout_result.content_height_delta
-                if apply_result.layout_result.content_height_changed
-                else 0.0
-            ),
-        )
+        else:
+            host._preserve_diagnostic_fragment_cache_for_incremental_edit(
+                start=start,
+                end=end,
+                replacement_text=replacement_text,
+                previous_layout_identity=previous_layout_identity,
+                next_layout_identity=next_layout_identity,
+                fragment_y_delta=(
+                    apply_result.layout_result.content_height_delta
+                    if apply_result.layout_result.content_height_changed
+                    else 0.0
+                ),
+            )
         host._rebuild_active_projection(commit_projection=True)
         host._clear_transient_caret_geometry()
         host._update_incremental_plain_text_projection_paint(apply_result.layout_result)
@@ -808,16 +818,13 @@ class PromptProjectionIncrementalApplyController:
         host = self._host
         layout_result = host._layout.set_projection_after_source_edit(
             projection_document,
-            prompt_document_view=host._document_view,
+            prompt_document_view=host._editor_state.edit_semantic.document,
             edit_start=start,
             edit_end=end,
             replacement_text=replacement_text,
         )
-        host._projection_document = projection_document
+        host._editor_state.publish_projection(projection_document)
         host._last_rendered_active_span_range = host._active_span_range()
-        host._diagnostic_painter.advance_layout_revision(
-            reason="projection_prebuilt_reflow"
-        )
         host._clear_diagnostic_fragment_cache(reason="projection_prebuilt_reflow")
         host._rebuild_active_projection(commit_projection=True)
         host._clear_transient_caret_geometry()
@@ -841,14 +848,15 @@ class PromptProjectionIncrementalApplyController:
             return False
         host._projection_freshness_controller.mark_source_text_changed(
             deferrable_projection=True,
-            source_revision=host._source_revision,
+            source_revision=host._editor_state.source.source_revision,
         )
         host._projection_freshness_controller.schedule_safe_typing_update(
-            document_view=host._document_view,
-            render_plan=host._render_plan,
-            source_revision=host._source_revision,
-            previous_document_view=previous_document_view,
-            previous_render_plan=previous_render_plan,
+            snapshot=host._editor_state.edit_semantic,
+            previous_snapshot=PromptEditorSemanticSnapshot(
+                identity=host._editor_state.projection.identity.semantic,
+                document=previous_document_view,
+                render_plan=previous_render_plan,
+            ),
         )
         return True
 
@@ -1011,8 +1019,8 @@ class PromptProjectionIncrementalApplyController:
             elif request.source_edit_replacement_text == "\n":
                 fast_projection_applied = (
                     self.try_apply_fast_trailing_newline_insert_projection(
-                        document_view=host._document_view,
-                        render_plan=host._render_plan,
+                        document_view=(host._editor_state.edit_semantic.document),
+                        render_plan=(host._editor_state.edit_semantic.render_plan),
                         previous_text=request.previous_source_text,
                         start=request.source_edit_start,
                         end=request.source_edit_end,
@@ -1039,8 +1047,8 @@ class PromptProjectionIncrementalApplyController:
                 fast_projection_applied = (
                     can_try_plain_insert_fast_path
                     and self.try_apply_fast_trailing_plain_insert_projection(
-                        document_view=host._document_view,
-                        render_plan=host._render_plan,
+                        document_view=(host._editor_state.edit_semantic.document),
+                        render_plan=(host._editor_state.edit_semantic.render_plan),
                     )
                 )
                 if fast_projection_applied:
@@ -1155,10 +1163,10 @@ class PromptProjectionIncrementalApplyController:
                 and (
                     canonical_document := (
                         self._canonical_edit_reflow.try_build_document(
-                            previous_document=host._projection_document,
+                            previous_document=host._editor_state.projection.document,
                             previous_source_text=request.previous_source_text,
-                            document_view=host._document_view,
-                            render_plan=host._render_plan,
+                            document_view=(host._editor_state.edit_semantic.document),
+                            render_plan=(host._editor_state.edit_semantic.render_plan),
                             start=request.source_edit_start,
                             end=request.source_edit_end,
                             replacement_text=(
@@ -1253,12 +1261,14 @@ class PromptProjectionIncrementalApplyController:
             )
         )
 
-    def _transient_fallback_committed_source_revision(self) -> int:
-        """Return committed source revision for fallback overlay estimates."""
+    def _transient_fallback_committed_source_identity(
+        self,
+    ) -> PromptSourceIdentity:
+        """Return committed source identity for fallback overlay estimates."""
 
         host = self._host
-        return host._projection_freshness_controller.transient_fallback_committed_source_revision(
-            current_source_revision=host._source_revision
+        return host._projection_freshness_controller.transient_fallback_committed_source_identity(
+            current_source_identity=host._editor_state.source_identity
         )
 
     def _transient_content_right(self) -> float:
@@ -1287,14 +1297,14 @@ class PromptProjectionIncrementalApplyController:
             replacement_text=replacement_text,
             cursor_state=cursor_state,
             anchor_state=anchor_state,
-            source_revision=host._source_revision,
-            committed_source_revision=self._transient_fallback_committed_source_revision(),
+            source_identity=host._editor_state.source_identity,
+            committed_source_identity=self._transient_fallback_committed_source_identity(),
             current_caret_document_rect=host._current_caret_document_rect(),
             metrics=host._layout.metrics,
             content_right=self._transient_content_right(),
             document_margin=host._layout.document_margin,
             source_line_content_left_inset=host._source_line_chrome.content_left_inset,
-            projection_document=host._projection_document,
+            projection_document=host._editor_state.projection.document,
             layout=host._layout,
         )
 
@@ -1312,8 +1322,8 @@ class PromptProjectionIncrementalApplyController:
             start=start,
             end=end,
             replacement_text=replacement_text,
-            source_revision=host._source_revision,
-            committed_source_revision=self._transient_fallback_committed_source_revision(),
+            source_identity=host._editor_state.source_identity,
+            committed_source_identity=self._transient_fallback_committed_source_identity(),
             current_caret_document_rect=host._current_caret_document_rect(),
             metrics=host._layout.metrics,
             content_right=self._transient_content_right(),
@@ -1336,8 +1346,8 @@ class PromptProjectionIncrementalApplyController:
             start=start,
             end=end,
             replacement_text=replacement_text,
-            source_revision=host._source_revision,
-            committed_source_revision=self._transient_fallback_committed_source_revision(),
+            source_identity=host._editor_state.source_identity,
+            committed_source_identity=self._transient_fallback_committed_source_identity(),
             previous_overlay=previous_overlay,
             layout=host._layout,
             viewport_width=float(host.viewport().width()),
@@ -1358,15 +1368,19 @@ class PromptProjectionIncrementalApplyController:
             start=start,
             end=end,
             replacement_text=replacement_text,
-            live_source_length=len(host._document_view.source_text),
-            committed_source_length=len(host._projection_document.source_text),
+            live_source_length=len(
+                host._editor_state.edit_semantic.document.source_text
+            ),
+            committed_source_length=len(
+                host._editor_state.projection.document.source_text
+            ),
             caret_rect=host._current_caret_document_rect(),
             content_right=self._transient_content_right(),
             metrics=host._layout.metrics,
             freshness_is_stale_safe=(
                 host._projection_freshness_controller.has_stale_projection_geometry()
             ),
-            source_revision=host._source_revision,
+            source_identity=host._editor_state.source_identity,
         )
 
     def _can_defer_immediate_projection_fallback_edit(
@@ -1453,7 +1467,7 @@ class PromptProjectionIncrementalApplyController:
 
         return any(
             token.source_start < source_position < token.source_end
-            for token in self._host._projection_document.tokens
+            for token in self._host._editor_state.projection.document.tokens
         )
 
 

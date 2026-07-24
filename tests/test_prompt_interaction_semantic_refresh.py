@@ -234,6 +234,18 @@ class DeferredSemanticRefreshHost:
             self._controller_provider().current_semantic_document_source_text(),
         )
 
+    def current_semantic_is_current(self) -> bool:
+        """Return whether semantic identity matches the live source."""
+
+        return bool(self._controller_provider().current_semantic_is_current())
+
+    def rebase_current_semantic_source_identity(self) -> bool:
+        """Republish exact same-text semantics under the live source identity."""
+
+        return bool(
+            self._controller_provider().rebase_current_semantic_source_identity()
+        )
+
     def current_semantic_async_identity(
         self,
         *,
@@ -390,10 +402,9 @@ def test_handle_text_changed_refreshes_syntax_renderers_from_rebuilt_document_vi
 
     refreshed_document_view = controller.document_view
     assert refreshed_document_view.source_text == "(cat:1.05)"
-    assert syntax_renderers.prompt_state_calls[-1] == (
-        refreshed_document_view,
-        controller.syntax_render_plan,
-    )
+    snapshot = syntax_renderers.prompt_state_calls[-1]
+    assert snapshot.document is refreshed_document_view
+    assert snapshot.render_plan is controller.syntax_render_plan
     assert syntax_renderers.active_span_calls[-1] == (
         refreshed_document_view.syntax_spans[0],
         3,

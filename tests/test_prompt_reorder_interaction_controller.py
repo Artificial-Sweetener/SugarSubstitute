@@ -31,6 +31,9 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderRowView,
     PromptReorderStateView,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 from substitute.presentation.editor.prompt_editor.models import (
     PromptReorderCommitIntent,
     PromptReorderCommitSnapshot,
@@ -69,7 +72,7 @@ def test_show_segment_overlay_clears_autocomplete_before_entering_reorder_mode()
             *,
             chips: tuple[Any, ...],
             active_chip_index: int | None = None,
-            source_revision: int | None = None,
+            source_identity: PromptSourceIdentity | None = None,
         ) -> None:
             super().set_chips(
                 document_view,
@@ -77,7 +80,7 @@ def test_show_segment_overlay_clears_autocomplete_before_entering_reorder_mode()
                 reorder_state,
                 chips=chips,
                 active_chip_index=active_chip_index,
-                source_revision=source_revision,
+                source_identity=source_identity,
             )
             call_order.append(
                 (

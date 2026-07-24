@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 import importlib
 from collections.abc import Callable
 from typing import Any, cast
@@ -53,9 +57,6 @@ from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
 )
 from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionThumbnailVariant,
-)
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceIdentity,
 )
 from tests.prompt_autocomplete_test_helpers import prompt_syntax_profile
 
@@ -99,10 +100,10 @@ class _LoraMetadataHost:
 
         return self.visible
 
-    def prompt_command_source_identity(self) -> PromptCommandSourceIdentity:
+    def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return a stable source identity for snapshot tests."""
 
-        return PromptCommandSourceIdentity(
+        return PromptSourceIdentity(
             source_revision=self.source_revision,
             source_length=len(self.toPlainText()),
         )

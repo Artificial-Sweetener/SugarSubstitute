@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+
 from sugarsubstitute_shared.presentation.localization import app_text
 
 from collections.abc import Callable
@@ -35,7 +39,7 @@ from substitute.application.prompt_editor.diagnostics.unsupported_scenes import 
     UNSUPPORTED_SCENE_MARKER_MESSAGE,
 )
 
-from ..commands import PromptCommandSourceIdentity, PromptFeatureSnapshotIdentity
+from ..commands import PromptFeatureSnapshotIdentity
 from .wildcard_controller import PromptWildcardContextAction
 
 
@@ -102,7 +106,7 @@ class PromptSpellingReplacementCallback(Protocol):
         diagnostic: PromptDiagnostic,
         replacement: str,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
     ) -> None:
         """Replace one spelling diagnostic."""
 
@@ -114,7 +118,7 @@ class PromptDiagnosticCallback(Protocol):
         self,
         diagnostic: PromptDiagnostic,
         *,
-        source_identity: PromptCommandSourceIdentity | None = None,
+        source_identity: PromptSourceIdentity | None = None,
     ) -> None:
         """Handle one prepared diagnostic action."""
 
@@ -132,7 +136,7 @@ class PromptWildcardActionSource(Protocol):
 def prepare_diagnostic_menu_action_entries(
     *,
     diagnostics: tuple[PromptDiagnostic, ...],
-    source_identity: PromptCommandSourceIdentity | None,
+    source_identity: PromptSourceIdentity | None,
     base_identity: PromptFeatureSnapshotIdentity,
     spelling_suggestions: dict[str, PromptSpellingSuggestionSet],
     dictionary_add_supported: bool,
@@ -190,7 +194,7 @@ def diagnostic_menu_action_snapshot_for_position(
     entries: tuple[PromptDiagnosticMenuActionEntry, ...],
     active_diagnostic_ids: frozenset[str],
     base_identity: PromptFeatureSnapshotIdentity,
-    current_source_identity: PromptCommandSourceIdentity | None,
+    current_source_identity: PromptSourceIdentity | None,
     unavailable_reason: str | None,
 ) -> PromptDiagnosticMenuActionSnapshot:
     """Return prepared diagnostic menu actions for one source position."""
@@ -256,7 +260,7 @@ def diagnostic_menu_action_snapshot_for_position(
 def actions_for_prepared_diagnostic(
     *,
     diagnostic: PromptDiagnostic,
-    source_identity: PromptCommandSourceIdentity | None,
+    source_identity: PromptSourceIdentity | None,
     spelling_suggestions: dict[str, PromptSpellingSuggestionSet],
     dictionary_add_supported: bool,
     wildcard_feature: PromptWildcardActionSource,
@@ -299,7 +303,7 @@ def diagnostic_action_entry_at_source_position(
 def _actions_for_diagnostic(
     *,
     diagnostic: PromptDiagnostic,
-    source_identity: PromptCommandSourceIdentity | None,
+    source_identity: PromptSourceIdentity | None,
     spelling_suggestions: dict[str, PromptSpellingSuggestionSet],
     dictionary_add_supported: bool,
     wildcard_feature: PromptWildcardActionSource,
@@ -362,7 +366,7 @@ def actions_for_unsupported_scene_marker_diagnostic(
 def _spelling_actions(
     *,
     diagnostic: PromptDiagnostic,
-    source_identity: PromptCommandSourceIdentity | None,
+    source_identity: PromptSourceIdentity | None,
     spelling_suggestions: dict[str, PromptSpellingSuggestionSet],
     dictionary_add_supported: bool,
     replace_spelling_diagnostic: PromptSpellingReplacementCallback,
@@ -430,7 +434,7 @@ def _spelling_actions(
 def _duplicate_segment_actions(
     *,
     diagnostic: PromptDiagnostic,
-    source_identity: PromptCommandSourceIdentity | None,
+    source_identity: PromptSourceIdentity | None,
     remove_duplicate_diagnostic: PromptDiagnosticCallback,
     emphasize_first_duplicate_diagnostic: PromptDiagnosticCallback,
     ignore_duplicate_diagnostic: PromptDiagnosticCallback,

@@ -37,6 +37,12 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 from substitute.application.prompt_editor.editing.literal_parentheses import (
     PromptParenthesisTransitionKind,
 )
+from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
+    PromptEditorDocumentState,
+)
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
     prompt_editor_work_event,
@@ -45,6 +51,7 @@ from substitute.shared.diagnostics.prompt_editor_work import (
 from ..editing_session import (
     PromptEditingSessionRestoreResult,
     PromptEditingSessionSourceChange,
+    PromptSourceSnapshot,
     PromptSourceEditOrigin,
     PromptUndoAvailabilityChange,
 )
@@ -326,11 +333,12 @@ class PromptProjectionSourceChangeHost(Protocol):
     _source_document_adapter: PromptProjectionSourceDocumentMirror
     _projection_freshness_controller: PromptProjectionFreshnessController
     _incremental_apply_controller: PromptProjectionIncrementalApplyController
-    _document_view: PromptDocumentView
-    _render_plan: PromptSyntaxRenderPlan
-    _projection_document: PromptProjectionDocument
+    _editor_state: PromptEditorDocumentState[
+        PromptDocumentView,
+        PromptSyntaxRenderPlan,
+        PromptProjectionDocument,
+    ]
     _layout: PromptProjectionLayout
-    _source_revision: int
     _caret_visibility_prompt_state_revision: int
     _cursor_state: PromptProjectionCaretState
     _anchor_state: PromptProjectionCaretState
@@ -417,7 +425,7 @@ class PromptProjectionSourceChangeHost(Protocol):
         self,
         *,
         deferrable_projection: bool,
-        source_revision: int,
+        source_snapshot: PromptSourceSnapshot,
         clear_diagnostic_fragment_cache: bool = True,
     ) -> None:
         """Record a source text change."""
@@ -670,9 +678,8 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         text = source_change.next_snapshot.source_text
         cursor_position = source_change.cursor_state.cursor_position
         anchor_position = source_change.cursor_state.anchor_position
-        source_revision = source_change.next_snapshot.source_revision
-        previous_document_view = host._document_view
-        previous_render_plan = host._render_plan
+        previous_document_view = host._editor_state.edit_semantic.document
+        previous_render_plan = host._editor_state.edit_semantic.render_plan
         previous_projection_freshness = host._projection_freshness_controller.freshness
         previous_deletion_overlay = self._valid_transient_deletion_overlay()
         if host._session.autocomplete_preview is not None:
@@ -687,19 +694,21 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         )
         host._mark_source_text_changed(
             deferrable_projection=deferrable_projection,
-            source_revision=source_revision,
+            source_snapshot=source_change.next_snapshot,
             clear_diagnostic_fragment_cache=(
                 not can_preserve_diagnostic_fragment_cache
             ),
         )
         if emit_text_changed and refresh_caret_after_prompt_state:
-            host._caret_visibility_prompt_state_revision = host._source_revision
+            host._caret_visibility_prompt_state_revision = (
+                host._editor_state.source.source_revision
+            )
         document_view_started_at = projection_observability_started_at()
         if optimistic_prompt_state is None:
             optimistic_prompt_state = (
                 self._semantic_remapper.optimistic_prompt_state_for_source_edit(
-                    current_document_view=host._document_view,
-                    current_render_plan=host._render_plan,
+                    current_document_view=(host._editor_state.edit_semantic.document),
+                    current_render_plan=(host._editor_state.edit_semantic.render_plan),
                     previous_text=previous_source_text,
                     next_text=text,
                     start=source_edit_start,
@@ -711,7 +720,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                 )
             )
         if optimistic_prompt_state is None:
-            host._document_view = PromptDocumentView(
+            next_document_view = PromptDocumentView(
                 source_text=text,
                 segments=(),
                 emphasis_spans=(),
@@ -721,15 +730,21 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                 region_structure=PromptRegionStructureView.empty(len(text)),
                 has_trailing_comma=False,
             )
-            host._render_plan = PromptSyntaxRenderPlan(
+            next_render_plan = PromptSyntaxRenderPlan(
                 syntax_spans=(),
                 renderer_views=(),
                 document_semantics_identity=(
-                    host._render_plan.document_semantics_identity
+                    host._editor_state.edit_semantic.render_plan.document_semantics_identity
                 ),
             )
         else:
-            host._document_view, host._render_plan = optimistic_prompt_state
+            next_document_view, next_render_plan = optimistic_prompt_state
+        next_projection_semantic = host._editor_state.prepare_semantic(
+            next_document_view,
+            next_render_plan,
+            source_identity=host._editor_state.source_identity,
+        )
+        host._editor_state.stage_edit_semantic(next_projection_semantic)
         self._remap_diagnostics_for_source_edit(
             start=source_edit_start,
             end=source_edit_end,
@@ -842,27 +857,39 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
 
         host = self._host
         projection_started_at = projection_observability_started_at()
-        outcome = host._incremental_apply_controller.apply_source_change_projection(
-            PromptProjectionSourceChangeApplyRequest(
-                text=text,
-                previous_source_text=previous_source_text,
-                source_edit_start=source_edit_start,
-                source_edit_end=source_edit_end,
-                source_edit_replacement_text=source_edit_replacement_text,
-                previous_projection_freshness=previous_projection_freshness,
-                previous_document_view=previous_document_view,
-                previous_render_plan=previous_render_plan,
-                previous_deletion_overlay=previous_deletion_overlay,
-                next_cursor_state=next_cursor_state,
-                next_anchor_state=next_anchor_state,
-                can_preserve_diagnostic_fragment_cache=(
-                    can_preserve_diagnostic_fragment_cache
-                ),
-                projection_deferral_reason=projection_deferral_reason,
-                region_structure_requires_rebuild=region_structure_requires_rebuild,
-                restore_checkpoint=restore_checkpoint,
+        previous_projection_semantic = host._editor_state.projection_semantic
+        previous_projection = host._editor_state.projection
+        try:
+            outcome = host._incremental_apply_controller.apply_source_change_projection(
+                PromptProjectionSourceChangeApplyRequest(
+                    text=text,
+                    previous_source_text=previous_source_text,
+                    source_edit_start=source_edit_start,
+                    source_edit_end=source_edit_end,
+                    source_edit_replacement_text=source_edit_replacement_text,
+                    previous_projection_freshness=previous_projection_freshness,
+                    previous_document_view=previous_document_view,
+                    previous_render_plan=previous_render_plan,
+                    previous_deletion_overlay=previous_deletion_overlay,
+                    next_cursor_state=next_cursor_state,
+                    next_anchor_state=next_anchor_state,
+                    can_preserve_diagnostic_fragment_cache=(
+                        can_preserve_diagnostic_fragment_cache
+                    ),
+                    projection_deferral_reason=projection_deferral_reason,
+                    region_structure_requires_rebuild=(
+                        region_structure_requires_rebuild
+                    ),
+                    restore_checkpoint=restore_checkpoint,
+                )
             )
-        )
+        except Exception:
+            host._editor_state.restore_projection(previous_projection)
+            host._editor_state.restore_projection_semantic(previous_projection_semantic)
+            raise
+        if outcome.wrap_reflow_deferred:
+            host._editor_state.restore_projection(previous_projection)
+            host._editor_state.restore_projection_semantic(previous_projection_semantic)
         log_projection_timing(
             "source_change.immediate_projection",
             started_at=projection_started_at,
@@ -933,7 +960,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         """Mark a deferred edit fresh when it returns to the committed projection."""
 
         host = self._host
-        if text != host._projection_document.source_text:
+        if text != host._editor_state.projection.document.source_text:
             return
         if host._transient_edit_overlays.insertion_overlay is not None:
             return
@@ -1012,16 +1039,16 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             freshness_is_stale_safe=(
                 host._projection_freshness_controller.has_stale_projection_geometry()
             ),
-            source_revision=host._source_revision,
+            source_identity=host._editor_state.source_identity,
         )
 
-    def _transient_committed_source_revision(self) -> int:
-        """Return the source revision owned by committed projection geometry."""
+    def _transient_committed_source_identity(self) -> PromptSourceIdentity:
+        """Return the source identity owned by committed projection geometry."""
 
         host = self._host
         return (
-            host._projection_freshness_controller.transient_committed_source_revision(
-                current_source_revision=host._source_revision
+            host._projection_freshness_controller.transient_committed_source_identity(
+                current_source_identity=host._editor_state.source_identity
             )
         )
 
@@ -1048,7 +1075,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             freshness_is_stale_safe=(
                 host._projection_freshness_controller.has_stale_projection_geometry()
             ),
-            source_revision=host._source_revision,
+            source_identity=host._editor_state.source_identity,
         )
 
     def _can_defer_transient_insertion_overlay(
@@ -1066,14 +1093,16 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             end=end,
             replacement_text=replacement_text,
             live_source_length=len(host.toPlainText()),
-            committed_source_length=len(host._projection_document.source_text),
+            committed_source_length=len(
+                host._editor_state.projection.document.source_text
+            ),
             caret_rect=host._current_caret_document_rect(),
             content_right=self._transient_content_right(),
             metrics=host._layout.metrics,
             freshness_is_stale_safe=(
                 host._projection_freshness_controller.has_stale_projection_geometry()
             ),
-            source_revision=host._source_revision,
+            source_identity=host._editor_state.source_identity,
         )
 
     def _transient_single_character_edit_caret_geometry(
@@ -1084,7 +1113,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         replacement_text: str,
         cursor_position: int,
         anchor_position: int,
-        source_revision: int,
+        source_identity: PromptSourceIdentity,
     ) -> PromptProjectionTransientCaretGeometry | None:
         """Return immediate caret geometry for one deferred single-character edit."""
 
@@ -1093,13 +1122,13 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             start=start,
             end=end,
             replacement_text=replacement_text,
-            source_revision=source_revision,
+            source_identity=source_identity,
             cursor_position=cursor_position,
             anchor_position=anchor_position,
-            committed_source_revision=self._transient_committed_source_revision(),
+            committed_source_identity=self._transient_committed_source_identity(),
             current_caret_document_rect=host._current_caret_document_rect(),
             metrics=host._layout.metrics,
-            projection_document=host._projection_document,
+            projection_document=host._editor_state.projection.document,
             layout=host._layout,
         )
 
@@ -1108,7 +1137,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         *,
         start: int,
         replacement_text: str,
-        source_revision: int,
+        source_identity: PromptSourceIdentity,
     ) -> PromptProjectionTransientInsertionOverlay | None:
         """Return text overlay for one deferred single-character insertion."""
 
@@ -1116,13 +1145,13 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         return host._transient_edit_overlays.single_character_insertion_overlay(
             start=start,
             replacement_text=replacement_text,
-            source_revision=source_revision,
-            committed_source_revision=self._transient_committed_source_revision(),
+            source_identity=source_identity,
+            committed_source_identity=self._transient_committed_source_identity(),
             current_caret_document_rect=host._current_caret_document_rect(),
             freshness_is_stale_safe=(
                 host._projection_freshness_controller.has_stale_projection_geometry()
             ),
-            current_source_revision=host._source_revision,
+            current_source_identity=host._editor_state.source_identity,
         )
 
     def _transient_insertion_overlay_after_deletion(
@@ -1130,7 +1159,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         *,
         start: int,
         end: int,
-        source_revision: int,
+        source_identity: PromptSourceIdentity,
     ) -> PromptProjectionTransientInsertionOverlay | None:
         """Return remaining pending insertion overlay after a deferred delete."""
 
@@ -1138,11 +1167,11 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         return host._transient_edit_overlays.insertion_overlay_after_deletion(
             start=start,
             end=end,
-            source_revision=source_revision,
+            source_identity=source_identity,
             freshness_is_stale_safe=(
                 host._projection_freshness_controller.has_stale_projection_geometry()
             ),
-            current_source_revision=host._source_revision,
+            current_source_identity=host._editor_state.source_identity,
         )
 
     def _transient_single_character_deletion_overlay(
@@ -1150,7 +1179,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         *,
         start: int,
         end: int,
-        source_revision: int,
+        source_identity: PromptSourceIdentity,
     ) -> PromptProjectionTransientDeletionOverlay | None:
         """Return erase geometry for one deferred single-character deletion."""
 
@@ -1158,8 +1187,8 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         return host._transient_edit_overlays.single_character_deletion_overlay(
             start=start,
             end=end,
-            source_revision=source_revision,
-            committed_source_revision=self._transient_committed_source_revision(),
+            source_identity=source_identity,
+            committed_source_identity=self._transient_committed_source_identity(),
             previous_overlay=self._valid_transient_deletion_overlay(),
             layout=host._layout,
             viewport_width=float(host.viewport().width()),
@@ -1176,7 +1205,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             getattr(token, "source_start", -1)
             < source_position
             < getattr(token, "source_end", -1)
-            for token in self._host._projection_document.tokens
+            for token in self._host._editor_state.projection.document.tokens
         )
 
     @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_SOURCE_APPLY)
@@ -1216,7 +1245,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         replacement_text = source_edit.replacement_text
         region_structure_requires_rebuild = (
             self._semantic_remapper.region_structure_edit_requires_rebuild(
-                current_document_view=host._document_view,
+                current_document_view=(host._editor_state.edit_semantic.document),
                 previous_text=previous_text,
                 next_text=result.next_snapshot.source_text,
                 start=start,
@@ -1259,7 +1288,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                 replacement_text=replacement_text,
                 cursor_position=result.cursor_state.cursor_position,
                 anchor_position=result.cursor_state.anchor_position,
-                source_revision=result.next_snapshot.source_revision,
+                source_identity=result.next_snapshot.identity,
             )
             if can_defer_projection
             else None
@@ -1268,7 +1297,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             self._transient_single_character_insertion_overlay(
                 start=start,
                 replacement_text=replacement_text,
-                source_revision=result.next_snapshot.source_revision,
+                source_identity=result.next_snapshot.identity,
             )
             if can_defer_projection and replacement_text
             else None
@@ -1276,8 +1305,8 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         transient_deletion_overlay = None
         optimistic_prompt_state = (
             self._semantic_remapper.optimistic_prompt_state_for_edit(
-                current_document_view=host._document_view,
-                current_render_plan=host._render_plan,
+                current_document_view=(host._editor_state.edit_semantic.document),
+                current_render_plan=(host._editor_state.edit_semantic.render_plan),
                 previous_text=previous_text,
                 next_text=result.next_snapshot.source_text,
                 start=start,
@@ -1328,20 +1357,21 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         host = self._host
         state = restore_result.snapshot
         payload = cast(PromptProjectionRestorePayload | None, state.restoration_payload)
-        previous_source_text = host._projection_document.source_text
-        previous_document_view = host._document_view
-        previous_render_plan = host._render_plan
+        previous_source_text = host._editor_state.projection.document.source_text
+        previous_document_view = host._editor_state.edit_semantic.document
+        previous_render_plan = host._editor_state.edit_semantic.render_plan
         previous_projection_freshness = host._projection_freshness_controller.freshness
         previous_deletion_overlay = self._valid_transient_deletion_overlay()
         source_edit = single_source_text_edit(previous_source_text, state.source_text)
+        host._editor_state.publish_source(restore_result.source_snapshot)
         if (
             payload is not None
             and payload.document_view.source_text == state.source_text
         ):
-            host._document_view = payload.document_view
-            host._render_plan = payload.render_plan
+            next_document_view = payload.document_view
+            next_render_plan = payload.render_plan
         else:
-            host._document_view = PromptDocumentView(
+            next_document_view = PromptDocumentView(
                 source_text=state.source_text,
                 segments=(),
                 emphasis_spans=(),
@@ -1353,13 +1383,19 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                 ),
                 has_trailing_comma=False,
             )
-            host._render_plan = PromptSyntaxRenderPlan(
+            next_render_plan = PromptSyntaxRenderPlan(
                 syntax_spans=(),
                 renderer_views=(),
                 document_semantics_identity=(
-                    host._render_plan.document_semantics_identity
+                    host._editor_state.edit_semantic.render_plan.document_semantics_identity
                 ),
             )
+        next_projection_semantic = host._editor_state.prepare_semantic(
+            next_document_view,
+            next_render_plan,
+            source_identity=host._editor_state.source_identity,
+        )
+        host._editor_state.stage_edit_semantic(next_projection_semantic)
         if payload is not None:
             host._cursor_state = payload.cursor_state
             host._anchor_state = payload.anchor_state
@@ -1380,7 +1416,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         host._source_document_adapter.replace_text(state.source_text)
         host._mark_source_text_changed(
             deferrable_projection=False,
-            source_revision=restore_result.source_snapshot.source_revision,
+            source_snapshot=restore_result.source_snapshot,
         )
         self._apply_immediate_projection(
             text=state.source_text,

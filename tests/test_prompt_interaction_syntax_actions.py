@@ -842,7 +842,7 @@ def test_modify_emphasis_uses_typed_mutation_result_to_refresh_cached_state() ->
     )
     assert replaced_text == "(cat:1.05)"
     assert replaced_document_view is updated_document_view
-    assert replaced_render_plan is syntax_renderers.prompt_state_calls[-1][1]
+    assert replaced_render_plan is syntax_renderers.prompt_state_calls[-1].render_plan
     assert editor.textCursor().selectionStart() == 4
     assert editor.textCursor().selectionEnd() == 4
     assert editor.pulse_emphasis_feedback_calls == [(0, 10)]

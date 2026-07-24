@@ -35,19 +35,14 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QApplication, QWidget
 from shiboken6 import isValid
 
-from substitute.application.prompt_editor.document.views import (
-    PromptDocumentView,
-    PromptSyntaxSpanView,
-)
-from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
-)
+from substitute.application.prompt_editor.document.views import PromptSyntaxSpanView
 
 from ..projection.model import (
     PromptProjectionDisplayMode,
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
+from ..core.state.semantic_state import PromptEditorSemanticSnapshot
 from ..projection.tokens import emphasis_weight_font
 from .token_weight_geometry import (
     PromptTokenWeightControlGeometry,
@@ -452,12 +447,11 @@ class PromptTokenWeightControls(QWidget):
 
     def set_prompt_state(
         self,
-        document_view: PromptDocumentView,
-        render_plan: PromptSyntaxRenderPlan,
+        snapshot: PromptEditorSemanticSnapshot,
     ) -> None:
         """Refresh controls after the prompt snapshot changes."""
 
-        _ = (document_view, render_plan)
+        _ = snapshot
         self.refresh_geometry()
 
     def set_active_span(
