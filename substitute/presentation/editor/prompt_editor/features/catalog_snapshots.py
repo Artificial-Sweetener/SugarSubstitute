@@ -109,7 +109,7 @@ PHASE23_CATALOG_FOREGROUND_INVENTORY: tuple[CatalogForegroundPathInventoryItem, 
     ),
     CatalogForegroundPathInventoryItem(
         consumer=CatalogForegroundConsumer.PROMPT_SEGMENT_PRESETS,
-        current_path="prompt_editor/features/prompt_segment_preset_source.py",
+        current_path="panel/prompt/preset_adapter.py",
         lookup_token="list_prompt_segment_presets(",
         classification=CatalogLookupClassification.EXPLICIT_REFRESH,
         snapshot_owner="features/prompt_segment_preset_models.py::PromptSegmentPresetSnapshot",

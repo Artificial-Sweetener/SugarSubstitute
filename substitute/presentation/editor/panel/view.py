@@ -193,8 +193,8 @@ from .menus.dimension_preset_menu_source import EditorDimensionPresetMenuSource
 from .menus.node_input_preset_menu_source import EditorNodeInputPresetMenuSource
 from .meta_registry import MetaRegistry
 from .node_card.mode_controller import NodeCardModeController
-from ..prompt_editor.features.prompt_segment_preset_source import (
-    EditorPromptSegmentPresetMenuSource,
+from .prompt.preset_adapter import (
+    PanelPromptSegmentPresetAdapter,
 )
 from .node_card_builder import NodeCardBuilder, NodeCardPromptFieldInputs
 from .widgets.cube_section import CubeSectionBuilder
@@ -760,7 +760,7 @@ class EditorPanel(QWidget):
             else None
         )
         self.prompt_segment_preset_source = (
-            EditorPromptSegmentPresetMenuSource(
+            PanelPromptSegmentPresetAdapter(
                 user_preset_service=user_preset_service,
                 active_model_snapshots=active_model_snapshots,
             )

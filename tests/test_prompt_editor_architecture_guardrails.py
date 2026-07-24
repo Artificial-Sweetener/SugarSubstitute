@@ -68,17 +68,7 @@ _TARGET_APPLICATION_PACKAGES = frozenset(
     }
 )
 
-_EXPECTED_PROMPT_TO_PANEL_IMPORTS = {
-    (
-        "substitute.presentation.editor.prompt_editor.features."
-        "prompt_segment_preset_source"
-    ): frozenset(
-        {
-            "substitute.presentation.editor.panel.context.active_model_snapshot",
-            "substitute.presentation.editor.panel.menus.preset_model_scope_policy",
-        }
-    )
-}
+_EXPECTED_PROMPT_TO_PANEL_IMPORTS: dict[str, frozenset[str]] = {}
 _EXPECTED_IMPORT_CYCLES = (
     (
         "substitute.presentation.editor.panel.view",
@@ -161,8 +151,8 @@ _INTEGRATION_ROOT_BUDGETS = (
 )
 
 
-def test_prompt_editor_does_not_add_panel_dependency_inversions() -> None:
-    """Freeze the known panel inversion until its migration slice removes it."""
+def test_prompt_editor_does_not_depend_on_its_panel_host() -> None:
+    """Keep every prompt-editor owner independent of its panel host."""
 
     module_paths = python_module_paths(PROJECT_ROOT, PROMPT_ARCHITECTURE_ROOTS)
     graph = internal_import_graph(module_paths)

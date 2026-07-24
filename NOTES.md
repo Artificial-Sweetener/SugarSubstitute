@@ -11,7 +11,7 @@ verification result.
 
 - Refactor branch: `refactor/prompt-editor-architecture`
 - Behavioral baseline: `bc6c6a7b`
-- Current slice: 3, panel dependency inversion
+- Current slice: 4, revisioned core state
 - Completion state: active
 - Blocking regressions: none accepted
 
@@ -19,7 +19,7 @@ verification result.
 |---:|---|---|---|
 | 1 | Architecture and measurement guardrails | Complete | Import/debt guards, stable owner hooks, 68/68 structural coverage, clean-root performance comparison, and complete repository gates |
 | 2 | Pure domain/application package ownership | Complete | Direct-owner packages, deleted LoRA cycle and flat barrels, 68/68 structural coverage, paired performance evidence, and complete repository gates |
-| 3 | Panel dependency inversion | Pending | — |
+| 3 | Panel dependency inversion | Complete | Caller-neutral prompt preset port, panel-owned adapter and scope policy, zero reverse imports, 68/68 structural coverage, paired performance evidence, and complete repository gates |
 | 4 | Revisioned core state | Pending | — |
 | 5 | Editing ownership | Pending | — |
 | 6 | Immutable geometry authority | Pending | — |
@@ -31,7 +31,7 @@ verification result.
 | 12 | Thin Qt integration roots | Pending | — |
 | 13 | Panel separation and migration cleanup | Pending | — |
 
-### Current slice acceptance ledger
+### Slice 1 acceptance ledger
 
 Slice 1 is complete only when:
 
@@ -191,6 +191,81 @@ source files, the complete non-serial suite, and all 121 serial modules pass.
 The serial run includes the prompt-editor real-shell harness, autocomplete,
 canvas abuse and scenarios, workflow scenarios, IME, caret, selection,
 paint-cache, reorder, diagnostics, history, and toolbar rendering. Slice 2 is
+complete.
+
+### Slice 3 acceptance ledger
+
+Slice 3 is complete only when:
+
+- the prompt feature exposes only a caller-neutral typed preset source and
+  immutable snapshot contract;
+- active-model context consumption, prompt-specific model-scope derivation,
+  persistence adaptation, and menu-model construction have one authoritative
+  panel adapter;
+- no prompt-editor module imports its panel host, and the zero-inversion rule is
+  executable architecture policy rather than a frozen exception;
+- the obsolete prompt-owned concrete source, exports, scope policy, imports,
+  tests, and inventory paths are deleted or transferred in the same slice;
+- existing exact, family, Global, unavailable-catalog, save, and cache-only
+  behavior remains characterized through the new owner;
+- active-model refresh, panel composition, context-menu behavior, and the
+  caller-neutral library source remain unchanged;
+- ordinary editing, navigation, rendering, workflow switching, and unchanged
+  canvas round trips perform no new preset work;
+- focused and complete repository gates pass for the exact slice worktree, and
+  repeated baseline comparison shows no performance regression.
+
+### Slice 3 evidence
+
+The caller-neutral `PromptSegmentPresetSource` and
+`PromptSegmentPresetSourceSnapshot` remain in the prompt feature contract.
+Their sole live-panel implementation is now
+`panel/prompt/preset_adapter.py`, which owns prompt-specific active-model
+snapshot consumption, model-scope derivation, persistence adaptation, and menu
+construction. The former prompt-owned concrete source is deleted rather than
+retained as a forwarding module. Prompt-specific policy was also removed from
+the shared panel menu policy, leaving that owner focused on dimension and
+node-input consumers.
+
+The import-graph guard now requires an empty prompt-editor-to-panel dependency
+set. The focused architecture, adapter, active-model, dimension/node-input
+preset, library-source, prompt-controller, catalog-snapshot, context-menu,
+panel-factory, panel-composition, and editor-panel behavior suites pass. The
+pre-transfer adapter characterization also passed before ownership moved,
+covering exact/family/Global ordering, checkpoint and diffusion-model scopes,
+catalog failure fallback, selected-scope persistence, and the prohibition on
+foreground model listing. Targeted strict mypy passes for the new adapter,
+remaining shared panel policy, caller-neutral contract, transferred tests, and
+architecture policy.
+
+The complete production-mounted structural campaign at
+`build/prompt-editor-slice3-structural.json` contains 204 runs: all 68 declared
+operations repeated three times. It reports no missing coverage, invariant
+failure, structural-budget violation, or stale final projection/semantic state.
+This includes ordinary editing, navigation, selection, paint/caches, prompt
+features, workflow switching, regional separators, and unchanged canvas round
+trips.
+
+Timing uses the exact pre-slice `b024d017` worktree and candidate in alternating
+fresh processes. Both roots execute the same timing-only path and assert that
+all loaded `substitute` modules belong to the selected worktree. Six pairs
+provide 30 samples per lane. Candidate total elapsed time is 15.148 seconds
+versus 15.690 seconds for baseline. Median p95 deltas are -0.169 ms for 5k
+Delete, -0.086 ms for horizontal Alt navigation, -0.035 ms for 5k Enter,
+-0.012 ms for prepared paint-cache composition, +0.007 ms for 5k selection,
+and +0.175 ms for Danbooru paste/import. Paired medians place 5k Enter at
++0.269 ms and Danbooru at +0.208 ms; both untouched paths move in opposite
+directions across pair order and remain below the observed sub-millisecond
+process-noise floor. The transfer adds no work to typing, editing, layout,
+paint, or canvas code and retains the cache-only/no-foreground-listing owner
+contract.
+
+Repository format and lint, the license-header audit, strict mypy over 2,883
+source files, the complete non-serial suite, and all 121 serial modules pass.
+The serial run includes prompt-editor characterization, context menus,
+autocomplete, IME, caret, geometry, incremental editing, paint/cache, history,
+reorder, direct workflow scenarios, the output-canvas abuse matrix and canvas
+scenarios, the production real-shell harness, and toolbar rendering. Slice 3 is
 complete.
 
 ## Review objective

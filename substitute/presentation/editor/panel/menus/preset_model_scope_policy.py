@@ -22,10 +22,6 @@ from sugarsubstitute_shared.presentation.localization import app_text
 
 from dataclasses import dataclass
 
-from substitute.application.model_metadata import (
-    prompt_preset_listing_associations_for_catalog_item,
-    prompt_preset_scope_options_for_catalog_item,
-)
 from substitute.application.user_presets import (
     GLOBAL_PRESET_ASSOCIATION,
     UserPresetAssociation,
@@ -34,14 +30,6 @@ from substitute.presentation.editor.panel.context.active_model_snapshot import (
     PanelActiveModelSnapshot,
 )
 from substitute.presentation.widgets.save_preset_dialog import PresetSaveScope
-
-
-@dataclass(frozen=True, slots=True)
-class PromptSegmentModelScopes:
-    """Describe prompt-segment listing and saving scopes."""
-
-    listing_associations: tuple[UserPresetAssociation, ...]
-    save_scopes: tuple[PresetSaveScope, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,30 +47,6 @@ class NodeInputPresetModelScopes:
 
     listing_associations: tuple[UserPresetAssociation, ...]
     save_scopes: tuple[PresetSaveScope, ...]
-
-
-def prompt_segment_model_scopes(
-    snapshot: PanelActiveModelSnapshot,
-) -> PromptSegmentModelScopes:
-    """Return prompt-segment policy for one resolved model snapshot."""
-
-    options = prompt_preset_scope_options_for_catalog_item(
-        snapshot.catalog_item,
-        model_kind=snapshot.model_kind,
-    )
-    return PromptSegmentModelScopes(
-        listing_associations=prompt_preset_listing_associations_for_catalog_item(
-            snapshot.catalog_item
-        ),
-        save_scopes=tuple(
-            PresetSaveScope(
-                title=option.title,
-                full_label=option.full_label,
-                association=option.association,
-            )
-            for option in options
-        ),
-    )
 
 
 def dimension_preset_model_scopes(
@@ -131,8 +95,6 @@ def node_input_preset_model_scopes(
 __all__ = [
     "DimensionPresetModelScopes",
     "NodeInputPresetModelScopes",
-    "PromptSegmentModelScopes",
     "dimension_preset_model_scopes",
     "node_input_preset_model_scopes",
-    "prompt_segment_model_scopes",
 ]
