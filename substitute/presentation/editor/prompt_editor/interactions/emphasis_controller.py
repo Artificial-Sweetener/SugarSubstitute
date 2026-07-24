@@ -37,7 +37,10 @@ from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptSyntaxAction,
 )
 
-from ..commands import PromptWeightCommandResult, PromptWeightCursorPolicy
+from ..commands.weight_commands import (
+    PromptWeightCommandResult,
+    PromptWeightCursorPolicy,
+)
 from ..projection.model import (
     PromptProjectionTokenKind,
     PromptWeightControlIdentity,

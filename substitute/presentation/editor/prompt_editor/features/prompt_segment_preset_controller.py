@@ -23,8 +23,7 @@ from sugarsubstitute_shared.presentation.localization import app_text
 import logging
 from collections.abc import Hashable
 
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandResult,
+from substitute.presentation.editor.prompt_editor.commands.feature_commands import (
     PromptFeatureSnapshotIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features.catalog_snapshots import (
@@ -49,6 +48,7 @@ from substitute.shared.diagnostics.prompt_editor_work import (
 )
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_selection import (
     PromptSegmentPresetHost,
+    PromptSegmentInsertionResult,
     PromptSegmentSelectionSnapshot,
     PromptSegmentTextInsertionExecutor,
 )
@@ -337,7 +337,7 @@ class PromptSegmentPresetController:
     def insert_saved_prompt_segment(
         self,
         insertion_text: str,
-    ) -> PromptCommandResult[object]:
+    ) -> PromptSegmentInsertionResult:
         """Insert a saved prompt segment at the active menu target."""
 
         result = self._text_insertion_executor.insert_context_menu_text(

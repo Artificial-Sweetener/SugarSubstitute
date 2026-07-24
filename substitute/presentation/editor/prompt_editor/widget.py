@@ -97,15 +97,22 @@ from substitute.presentation.widgets.wheel_permission import wheel_event_is_allo
 from substitute.shared.logging.logger import get_logger
 
 from .autocomplete_preview_state import PromptAutocompletePreviewState
-from .commands import (
-    PromptAutocompleteAcceptance,
+from .commands.autocomplete_commands import PromptAutocompleteAcceptance
+from .commands.context_insertion import PromptContextInsertionService
+from .commands.contracts import (
     PromptCommandResult,
     PromptCommandSourceRange,
     PromptCommandTextReplacement,
+)
+from .commands.diagnostic_commands import (
     PromptDiagnosticAction,
     PromptDiagnosticCommandResult,
+)
+from .commands.reorder_commands import (
     PromptReorderCommandResult,
     PromptReorderLayoutCommitRequest,
+)
+from .commands.weight_commands import (
     PromptWeightActionRequest,
     PromptWeightCommandResult,
 )
@@ -124,7 +131,7 @@ from .composition import (
     wire_prompt_editor_construction_lifecycle,
 )
 from .core.state.revisions import PromptSourceIdentity
-from .editing_session import PromptSourceEditOrigin
+from .core.editing.source_commands import PromptSourceEditOrigin
 from .features import (
     PromptContextMenuActionController,
     PromptDanbooruPasteImportController,
@@ -139,7 +146,6 @@ from .features import (
 from .interactions import (
     PromptContextMenuRequestPresenter,
     PromptDanbooruDialogRunner,
-    PromptEditorCommandAdapter,
     PromptExternalUrlActionRunner,
     PromptInlineLoraContextMenuPresenter,
     PromptLoraPickerPopupPresenter,
@@ -295,7 +301,7 @@ class PromptEditor(QFluentTextEdit):
             ),
             update_backing_fill=lambda rect: self._update_backing_fill_for_chrome(rect),
             finish_pending_key_edit_block=(
-                lambda reason: self._edit_controller.finish_pending_key_edit_block(
+                lambda reason: self._edit_execution.finish_pending_key_edit_block(
                     reason=reason
                 )
             ),
@@ -392,7 +398,12 @@ class PromptEditor(QFluentTextEdit):
         self._surface = projection_collaborators.surface
         self.setFocusProxy(self._surface)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._edit_controller = projection_collaborators.edit_controller
+        self._edit_execution = projection_collaborators.edit_execution
+        self._source_commands = projection_collaborators.source_commands
+        self._autocomplete_commands = projection_collaborators.autocomplete_commands
+        self._diagnostic_commands = projection_collaborators.diagnostic_commands
+        self._weight_commands = projection_collaborators.weight_commands
+        self._reorder_commands = projection_collaborators.reorder_commands
         self._clipboard_history_controller = (
             projection_collaborators.clipboard_history_controller
         )
@@ -408,14 +419,15 @@ class PromptEditor(QFluentTextEdit):
         self._qfluent_chrome.configure_owned_fill_plane()
         self._qfluent_chrome.bind_theme_refresh()
         self._surface.raise_()
-        self._command_adapter: PromptEditorCommandAdapter = (
-            composition_factory.build_command_adapter(
+        self._context_insertion: PromptContextInsertionService[object] = cast(
+            PromptContextInsertionService[object],
+            composition_factory.build_context_insertion_service(
                 composition_context,
                 projection_collaborators,
                 context_insert_state_provider=(
                     lambda: self._shell_context_menu.consume_context_insert_state()
                 ),
-            )
+            ),
         )
 
         construction_observer.log_timing(
@@ -432,7 +444,7 @@ class PromptEditor(QFluentTextEdit):
             construction_inputs,
             composition_context,
             projection_collaborators,
-            self._command_adapter,
+            self._context_insertion,
             external_url_actions=self._external_url_action_runner,
         )
         self._feature_profile_controller: PromptFeatureProfileController = (
@@ -573,9 +585,7 @@ class PromptEditor(QFluentTextEdit):
             scene=self._scene_feature_controller,
             segment_presets=self._segment_preset_controller,
             danbooru=self._danbooru_action_controller,
-            source_identity_provider=(
-                self._command_adapter.prompt_command_source_identity
-            ),
+            source_identity_provider=self._source_commands.source_identity,
             feature_profile_id_provider=(
                 lambda: self._feature_profile_controller.identity.feature_profile_id
             ),
@@ -585,7 +595,7 @@ class PromptEditor(QFluentTextEdit):
                 composition_context,
                 lora_metadata=self._lora_metadata_feature_controller,
                 lora_thumbnail_cache=self._lora_thumbnail_cache,
-                command_adapter=self._command_adapter,
+                context_insertion=self._context_insertion,
                 last_context_menu_global_pos=(
                     lambda: self._shell_context_menu.last_context_menu_global_pos()
                 ),
@@ -603,7 +613,7 @@ class PromptEditor(QFluentTextEdit):
                 composition_context,
                 action_snapshot_provider=self._context_menu_action_controller,
                 segment_presets=self._segment_preset_controller,
-                command_adapter=self._command_adapter,
+                context_insertion=self._context_insertion,
                 trigger_word_identity_validator=(
                     self._lora_trigger_word_controller.action_identity_is_current
                 ),
@@ -620,7 +630,7 @@ class PromptEditor(QFluentTextEdit):
         self._shell_context_menu = PromptShellContextMenuController(
             host=self,
             finish_pending_key_edit_block=(
-                lambda reason: self._edit_controller.finish_pending_key_edit_block(
+                lambda reason: self._edit_execution.finish_pending_key_edit_block(
                     reason=reason
                 )
             ),
@@ -655,10 +665,10 @@ class PromptEditor(QFluentTextEdit):
                         )
                     )
                 ),
-                command_adapter=self._command_adapter,
+                context_insertion=self._context_insertion,
                 shell_menu=self._shell_context_menu,
                 finish_pending_key_edit_block=(
-                    lambda reason: self._edit_controller.finish_pending_key_edit_block(
+                    lambda reason: self._edit_execution.finish_pending_key_edit_block(
                         reason=reason
                     )
                 ),
@@ -803,22 +813,22 @@ class PromptEditor(QFluentTextEdit):
     def setPlainText(self, text: str) -> None:  # noqa: N802
         """Replace the full prompt source text without touching the host document."""
 
-        self._command_adapter.set_plain_text(text)
+        self._source_commands.set_plain_text(text)
 
     def setSourceText(self, text: str) -> None:  # noqa: N802
         """Replace the full prompt source text exactly."""
 
-        self._command_adapter.set_source_text(text)
+        self._source_commands.set_source_text(text)
 
     def replaceBaselineText(self, text: str) -> None:  # noqa: N802
         """Replace restored prompt text and make it the editor undo baseline."""
 
-        self._command_adapter.replace_baseline_text(text)
+        self._source_commands.replace_baseline_text(text)
 
     def replaceBaselineSourceText(self, text: str) -> None:  # noqa: N802
         """Replace restored exact source text and make it the undo baseline."""
 
-        self._command_adapter.replace_baseline_text(text, exact_source=True)
+        self._source_commands.replace_baseline_text(text, exact_source=True)
 
     def replaceBaselineSourceDocument(  # noqa: N802
         self,
@@ -828,7 +838,7 @@ class PromptEditor(QFluentTextEdit):
         """Atomically replace document semantics, exact source, and undo baseline."""
 
         semantics_changed = self._document_semantics.replace(document_semantics)
-        self._command_adapter.replace_baseline_text(text, exact_source=True)
+        self._source_commands.replace_baseline_text(text, exact_source=True)
         if semantics_changed:
             self._interaction_controller.handle_document_semantics_changed()
             self._diagnostics_feature_controller.handle_document_semantics_changed()
@@ -919,7 +929,7 @@ class PromptEditor(QFluentTextEdit):
     def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return the current source identity for prepared prompt commands."""
 
-        return self._command_adapter.prompt_command_source_identity()
+        return self._source_commands.source_identity()
 
     def execute_autocomplete_acceptance(
         self,
@@ -929,7 +939,7 @@ class PromptEditor(QFluentTextEdit):
 
         return cast(
             PromptCommandResult[object],
-            self._command_adapter.execute_autocomplete_acceptance(acceptance),
+            self._autocomplete_commands.execute(acceptance),
         )
 
     def execute_diagnostic_action(
@@ -940,7 +950,7 @@ class PromptEditor(QFluentTextEdit):
 
         return cast(
             PromptDiagnosticCommandResult[object],
-            self._command_adapter.execute_diagnostic_action(action),
+            self._diagnostic_commands.execute(action),
         )
 
     def execute_weight_action(
@@ -955,7 +965,7 @@ class PromptEditor(QFluentTextEdit):
 
         return cast(
             PromptWeightCommandResult[object],
-            self._command_adapter.execute_weight_action(
+            self._weight_commands.execute(
                 request,
                 mutation_service=mutation_service,
                 syntax_service=syntax_service,
@@ -975,7 +985,7 @@ class PromptEditor(QFluentTextEdit):
 
         return cast(
             PromptReorderCommandResult[object],
-            self._command_adapter.execute_reorder_action(
+            self._reorder_commands.execute(
                 request,
                 mutation_service=mutation_service,
                 syntax_service=syntax_service,
@@ -993,7 +1003,7 @@ class PromptEditor(QFluentTextEdit):
 
         return cast(
             PromptCommandResult[object],
-            self._command_adapter.execute_source_replacement(
+            self._source_commands.execute_source_replacement(
                 replacement,
                 command_name=command_name,
             ),
@@ -1431,7 +1441,7 @@ class PromptEditor(QFluentTextEdit):
     def replace_document_text(self, text: str) -> None:
         """Replace the document text through one grouped edit."""
 
-        self._command_adapter.replace_document_text(text)
+        self._source_commands.replace_document_text(text)
 
     def replace_document_text_with_prompt_state(
         self,
@@ -1442,7 +1452,7 @@ class PromptEditor(QFluentTextEdit):
     ) -> None:
         """Replace document text using a known semantic prompt snapshot."""
 
-        self._command_adapter.replace_document_text_with_prompt_state(
+        self._source_commands.replace_document_text_with_prompt_state(
             text,
             document_view=document_view,
             render_plan=render_plan,
@@ -1533,7 +1543,7 @@ class PromptEditor(QFluentTextEdit):
         if viewport_position is not None:
             self.setTextCursor(self.cursorForPosition(viewport_position))
         cursor = self.textCursor()
-        self._command_adapter.execute_source_replacement(
+        self._source_commands.execute_source_replacement(
             PromptCommandTextReplacement(
                 source_range=PromptCommandSourceRange(
                     start=cursor.selectionStart(),

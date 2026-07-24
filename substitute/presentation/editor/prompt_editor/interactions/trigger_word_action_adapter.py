@@ -33,9 +33,9 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QFontMetrics
 from PySide6.QtWidgets import QApplication, QWidget
 
-from ..commands import PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import PromptFeatureSnapshotIdentity
+from ..commands.context_insertion import PromptTriggerWordInsertionExecutor
 from ..features import PromptLoraTriggerWordsAction
-from .command_adapter import PromptTriggerWordInsertionExecutor
 
 _TRIGGER_MENU_TEXT_WIDTH = 190
 _TRIGGER_MENU_FULL_LABEL_PROPERTY = "promptFullTriggerWordsLabel"

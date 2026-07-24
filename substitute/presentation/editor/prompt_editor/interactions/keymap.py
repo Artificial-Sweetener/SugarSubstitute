@@ -24,7 +24,7 @@ from typing import Protocol
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent, QKeySequence
 
-from ..editing_session.undo_coalescing import PromptUndoCoalescingActions
+from .undo_coalescing import PromptUndoCoalescingActions
 from ..models import (
     PromptEditorInteractionMode,
     PromptReorderCancelIntent,
@@ -32,7 +32,7 @@ from ..models import (
     PromptReorderKeyboardMoveIntent,
 )
 from .clipboard_history_controller import PromptClipboardHistoryActions
-from .deletion_controller import PromptSurfaceDeletionController
+from .deletion_controller import PromptDeletionActions
 
 
 class _PromptSurfaceEmphasisShortcutSignal(Protocol):
@@ -90,7 +90,7 @@ class PromptSurfaceKeyHandler:
         self,
         host: PromptSurfaceKeyHost,
         *,
-        deletion_controller: PromptSurfaceDeletionController,
+        deletion_controller: PromptDeletionActions,
         clipboard_history_actions: Callable[
             [],
             PromptClipboardHistoryActions | None,

@@ -45,7 +45,7 @@ from ..async_work import (
     PromptEditorMainThreadDispatcher,
     QtPromptEditorMainThreadDispatcher,
 )
-from ..commands import PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 from .catalog_snapshots import CatalogSnapshotIdentity, CatalogSnapshotStatus
 from .feature_profile_controller import PromptFeatureProfileController
 from .lora_context_menu import (

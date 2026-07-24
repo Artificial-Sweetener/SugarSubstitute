@@ -46,7 +46,7 @@ from tests.prompt_projection_test_helpers import (
 from tests.prompt_projection_surface_test_helpers import (
     first_emphasis_token,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
-    surface_router,
+    surface_source_commands,
 )
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
@@ -230,7 +230,7 @@ def test_projection_surface_applies_changed_emphasis_prompt_state_incrementally(
 
     cast(Any, surface)._rebuild_projection = record_rebuild
 
-    surface_router(surface).replace_document_text_with_prompt_state(
+    surface_source_commands(surface).replace_document_text_with_prompt_state(
         "(cat:1.10), suffix",
         document_view=document_view,
         render_plan=render_plan,
@@ -260,7 +260,7 @@ def test_projection_surface_reflows_when_emphasis_prompt_state_changes_geometry(
     rebuild_calls: list[str] = []
     cast(Any, surface)._rebuild_projection = lambda: rebuild_calls.append("rebuild")
 
-    surface_router(surface).replace_document_text_with_prompt_state(
+    surface_source_commands(surface).replace_document_text_with_prompt_state(
         "(cat:10.00), suffix",
         document_view=document_view,
         render_plan=render_plan,

@@ -158,7 +158,7 @@ def _flush_editor_projection(box: PromptEditor) -> None:
 def _finish_pending_key_edit_block(box: PromptEditor) -> None:
     """Commit pending key-owned undo groups before checking stack availability."""
 
-    cast(Any, box)._edit_controller.finish_pending_key_edit_block(reason="test")  # noqa: SLF001
+    surface_for(box).edit_execution.finish_pending_key_edit_block(reason="test")
     process_events(ensure_qapp())
 
 
@@ -726,18 +726,18 @@ def test_phase1_nested_edit_block_grouping_matches_current_behavior(
 
     box = show_prompt_editor(widgets, text="cat", width=240)
     box.replaceBaselineSourceText("cat")
-    edit_controller = cast(Any, box)._edit_controller  # noqa: SLF001
+    edit_execution = surface_for(box).edit_execution
 
-    edit_controller.begin_edit_block()
+    edit_execution.begin_edit_block()
     try:
-        edit_controller.begin_edit_block()
+        edit_execution.begin_edit_block()
         try:
             box.replace_document_text("cat, dog")
             box.replace_document_text("cat, dog, bird")
         finally:
-            edit_controller.end_edit_block()
+            edit_execution.end_edit_block()
     finally:
-        edit_controller.end_edit_block()
+        edit_execution.end_edit_block()
     process_events(ensure_qapp())
 
     assert box.toPlainText() == "cat, dog, bird"

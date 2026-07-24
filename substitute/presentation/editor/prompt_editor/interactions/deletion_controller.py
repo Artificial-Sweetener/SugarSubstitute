@@ -14,15 +14,18 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own projection-aware Backspace and Delete source mutations."""
+"""Resolve projection-aware deletion into one immutable source intent."""
 
 from __future__ import annotations
 
-from typing import Protocol
+from dataclasses import dataclass
+from enum import Enum
+from typing import Generic, Protocol, TypeVar
 
 from substitute.presentation.text_coordinates import TextCoordinateMap
 
-from ..projection.freshness_controller import PromptProjectionFreshnessController
+from ..commands.source_service import PromptSourceCommandService
+from ..core.editing.source_commands import PromptSourceEditOrigin
 from ..projection.model import (
     PromptProjectionCaretPlacement,
     PromptProjectionCaretState,
@@ -31,259 +34,339 @@ from ..projection.model import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
-from ..projection.session import PromptProjectionSession
+
+TPayload = TypeVar("TPayload")
 
 
-class PromptSurfaceDeletionHost(Protocol):
-    """Expose source and projection state required by deletion semantics."""
+class PromptDeletionDirection(Enum):
+    """Identify which adjacent source boundary a deletion targets."""
 
-    _cursor_state: PromptProjectionCaretState
-    _anchor_state: PromptProjectionCaretState
-    _session: PromptProjectionSession
-    _projection_freshness_controller: PromptProjectionFreshnessController
+    BACKWARD = "backward"
+    FORWARD = "forward"
 
-    @property
-    def cursor_position(self) -> int:
-        """Return the current source cursor boundary."""
-        ...
 
-    def toPlainText(self) -> str:
-        """Return the exact current prompt source."""
-        ...
+@dataclass(frozen=True, slots=True)
+class PromptDeletionContext:
+    """Capture the source and projection values needed for one deletion."""
 
-    def projection_document(self) -> PromptProjectionDocument:
-        """Return the committed projection document."""
-        ...
+    source_text: str
+    cursor_position: int
+    cursor_state: PromptProjectionCaretState
+    anchor_state: PromptProjectionCaretState
+    selection: PromptProjectionSelection
+    projection_document: PromptProjectionDocument
+    focused_token: PromptProjectionToken | None
+    focused_token_expanded: bool
+    stale_projection_geometry: bool
 
-    def focused_token(self) -> PromptProjectionToken | None:
-        """Return the token owning the current logical caret state."""
-        ...
 
-    def _selection(self) -> PromptProjectionSelection:
-        """Return the current projection selection."""
-        ...
+@dataclass(frozen=True, slots=True)
+class PromptDeletionIntent:
+    """Describe one exact source deletion or token-expansion interaction."""
 
-    def _delete_viewport_selection(self) -> None:
-        """Delete the selected source through the canonical mutation boundary."""
-        ...
+    start: int | None = None
+    end: int | None = None
+    token_to_expand: PromptProjectionToken | None = None
 
-    def _replace_viewport_range(self, start: int, end: int, text: str) -> None:
-        """Replace one exact source range through the canonical edit command."""
-        ...
+    def __post_init__(self) -> None:
+        """Reject ambiguous or invalid deletion outcomes."""
 
-    def _flush_pending_projection_update(self, *, reason: str) -> None:
-        """Commit pending projection work before token-sensitive deletion."""
-        ...
+        has_range = self.start is not None or self.end is not None
+        if has_range and (self.start is None or self.end is None):
+            raise ValueError("A deletion range requires both boundaries.")
+        if has_range and self.start is not None and self.end is not None:
+            if self.start < 0 or self.end <= self.start:
+                raise ValueError("A deletion range must be non-empty and ordered.")
+        if has_range == (self.token_to_expand is not None):
+            raise ValueError("A deletion intent must select exactly one action.")
 
-    def _cancel_stale_safe_projection_update(self, *, reason: str) -> bool:
-        """Cancel stale-safe projection work when raw deletion remains safe."""
-        ...
+    @classmethod
+    def delete_range(cls, start: int, end: int) -> "PromptDeletionIntent":
+        """Return one exact half-open source deletion."""
 
-    def _rebuild_projection(self) -> None:
-        """Rebuild projection after expanding an existing inline token."""
-        ...
+        return cls(start=start, end=end)
 
-    def set_cursor_positions(
+    @classmethod
+    def expand_token(cls, token: PromptProjectionToken) -> "PromptDeletionIntent":
+        """Return one structural-token expansion interaction."""
+
+        return cls(token_to_expand=token)
+
+
+class PromptDeletionContextProvider(Protocol):
+    """Provide one immutable view of live deletion state."""
+
+    def deletion_context(self) -> PromptDeletionContext:
+        """Return source and projection state captured at one instant."""
+
+
+class PromptDeletionProjectionEffects(Protocol):
+    """Apply projection-only preparation and token expansion effects."""
+
+    def synchronize_deletion_projection(
         self,
         *,
-        cursor_position: int,
-        anchor_position: int,
-    ) -> object:
-        """Persist source-backed cursor and anchor positions."""
-        ...
+        reason: str,
+        cancel_stale_safe_first: bool,
+    ) -> None:
+        """Make token geometry authoritative before projected deletion."""
+
+    def expand_token_for_deletion(self, token: PromptProjectionToken) -> None:
+        """Expand and select one structural token without changing source."""
 
 
-class PromptSurfaceDeletionController:
-    """Apply grapheme-safe deletion with explicit structural-token edge behavior."""
-
-    def __init__(self, host: PromptSurfaceDeletionHost) -> None:
-        """Bind deletion behavior to one prompt surface effect sink."""
-
-        self._host = host
+class PromptDeletionActions(Protocol):
+    """Expose direction-specific deletion actions to key decoding."""
 
     def backspace(self) -> None:
-        """Delete the previous raw source boundary or selection."""
-
-        host = self._host
-        selection = host._selection()
-        if not selection.is_empty:
-            host._flush_pending_projection_update(reason="backspace")
-            host._delete_viewport_selection()
-            return
-        if host.cursor_position <= 0:
-            host._flush_pending_projection_update(reason="backspace_at_start")
-            return
-        previous_grapheme_boundary = TextCoordinateMap(
-            host.toPlainText()
-        ).previous_grapheme_boundary(host.cursor_position)
-        if self._can_delete_raw_boundary_from_stale_projection(
-            start=previous_grapheme_boundary,
-            end=host.cursor_position,
-        ):
-            host._replace_viewport_range(
-                previous_grapheme_boundary,
-                host.cursor_position,
-                "",
-            )
-            return
-        if not host._cancel_stale_safe_projection_update(reason="backspace"):
-            host._flush_pending_projection_update(reason="backspace")
-        token = host.focused_token()
-        if self._delete_region_separator_trailing_edge(token):
-            return
-        previous_state = host.projection_document().caret_map.previous_state(
-            host._cursor_state
-        )
-        if (
-            token is not None
-            and not host._session.is_expanded(token)
-            and host._cursor_state.placement
-            is PromptProjectionCaretPlacement.TOKEN_CONTENT
-            and previous_state.token_id == token.token_id
-            and previous_state.placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
-        ):
-            host._replace_viewport_range(
-                previous_state.source_position,
-                host.cursor_position,
-                "",
-            )
-            return
-        if token is not None and not host._session.is_expanded(token):
-            host._session.expand_token(token)
-            host._rebuild_projection()
-            host.set_cursor_positions(
-                cursor_position=token.source_end,
-                anchor_position=token.source_start,
-            )
-            return
-        if previous_state.source_position >= host.cursor_position:
-            return
-        host._replace_viewport_range(
-            previous_state.source_position,
-            host.cursor_position,
-            "",
-        )
+        """Delete the previous source unit."""
 
     def delete(self) -> None:
-        """Delete the next raw source boundary or selection."""
+        """Delete the next source unit."""
 
-        host = self._host
-        selection = host._selection()
-        if not selection.is_empty:
-            host._flush_pending_projection_update(reason="delete")
-            host._delete_viewport_selection()
-            return
-        if host.cursor_position >= len(host.toPlainText()):
-            host._flush_pending_projection_update(reason="delete_at_end")
-            return
-        next_grapheme_boundary = TextCoordinateMap(
-            host.toPlainText()
-        ).next_grapheme_boundary(host.cursor_position)
-        if self._can_delete_raw_boundary_from_stale_projection(
-            start=host.cursor_position,
-            end=next_grapheme_boundary,
-        ):
-            host._replace_viewport_range(
-                host.cursor_position,
-                next_grapheme_boundary,
-                "",
-            )
-            return
-        if not host._cancel_stale_safe_projection_update(reason="delete"):
-            host._flush_pending_projection_update(reason="delete")
-        token = host.focused_token()
-        if self._delete_region_separator_leading_edge(token):
-            return
-        next_state = host.projection_document().caret_map.next_state(host._cursor_state)
+
+class PromptDeletionResolver:
+    """Resolve immutable deletion contexts without mutating editor state."""
+
+    def raw_boundary_intent(
+        self,
+        context: PromptDeletionContext,
+        direction: PromptDeletionDirection,
+    ) -> PromptDeletionIntent | None:
+        """Return a grapheme deletion that is safe against stale projection."""
+
+        start, end = self.adjacent_grapheme_range(context, direction)
+        if start == end or not self._can_use_stale_raw_boundary(context, start, end):
+            return None
+        return PromptDeletionIntent.delete_range(start, end)
+
+    def projected_intent(
+        self,
+        context: PromptDeletionContext,
+        direction: PromptDeletionDirection,
+    ) -> PromptDeletionIntent | None:
+        """Resolve one deletion against authoritative projection geometry."""
+
+        token = context.focused_token
+        separator_intent = self._separator_edge_intent(context, direction)
+        if separator_intent is not None:
+            return separator_intent
+        adjacent_state = (
+            context.projection_document.caret_map.previous_state(context.cursor_state)
+            if direction is PromptDeletionDirection.BACKWARD
+            else context.projection_document.caret_map.next_state(context.cursor_state)
+        )
         if (
             token is not None
-            and not host._session.is_expanded(token)
-            and host._cursor_state.placement
+            and not context.focused_token_expanded
+            and context.cursor_state.placement
             is PromptProjectionCaretPlacement.TOKEN_CONTENT
-            and next_state.token_id == token.token_id
-            and next_state.placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
+            and adjacent_state.token_id == token.token_id
+            and adjacent_state.placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
         ):
-            host._replace_viewport_range(
-                host.cursor_position,
-                next_state.source_position,
-                "",
+            return PromptDeletionIntent.delete_range(
+                min(adjacent_state.source_position, context.cursor_position),
+                max(adjacent_state.source_position, context.cursor_position),
             )
-            return
-        if token is not None and not host._session.is_expanded(token):
-            host._session.expand_token(token)
-            host._rebuild_projection()
-            host.set_cursor_positions(
-                cursor_position=token.source_end,
-                anchor_position=token.source_start,
+        if token is not None and not context.focused_token_expanded:
+            return PromptDeletionIntent.expand_token(token)
+        adjacent_position = adjacent_state.source_position
+        if (
+            direction is PromptDeletionDirection.BACKWARD
+            and adjacent_position < context.cursor_position
+        ):
+            return PromptDeletionIntent.delete_range(
+                adjacent_position,
+                context.cursor_position,
             )
-            return
-        if next_state.source_position <= host.cursor_position:
-            return
-        host._replace_viewport_range(
-            host.cursor_position,
-            next_state.source_position,
-            "",
+        if (
+            direction is PromptDeletionDirection.FORWARD
+            and adjacent_position > context.cursor_position
+        ):
+            return PromptDeletionIntent.delete_range(
+                context.cursor_position,
+                adjacent_position,
+            )
+        return None
+
+    @staticmethod
+    def adjacent_grapheme_range(
+        context: PromptDeletionContext,
+        direction: PromptDeletionDirection,
+    ) -> tuple[int, int]:
+        """Return the adjacent grapheme range in source coordinates."""
+
+        coordinates = TextCoordinateMap(context.source_text)
+        if direction is PromptDeletionDirection.BACKWARD:
+            return (
+                coordinates.previous_grapheme_boundary(context.cursor_position),
+                context.cursor_position,
+            )
+        return (
+            context.cursor_position,
+            coordinates.next_grapheme_boundary(context.cursor_position),
         )
 
-    def _delete_region_separator_trailing_edge(
-        self,
-        token: PromptProjectionToken | None,
-    ) -> bool:
-        """Delete only `]` when Backspace targets a separator's trailing edge."""
-
-        host = self._host
-        if (
-            token is None
-            or token.kind is not PromptProjectionTokenKind.REGION_SEPARATOR
-            or host._cursor_state.placement
-            is not PromptProjectionCaretPlacement.TOKEN_TRAILING_EDGE
-        ):
-            return False
-        host._replace_viewport_range(token.source_end - 1, token.source_end, "")
-        return True
-
-    def _delete_region_separator_leading_edge(
-        self,
-        token: PromptProjectionToken | None,
-    ) -> bool:
-        """Delete only `[` when Delete targets a separator's leading edge."""
-
-        host = self._host
-        if (
-            token is None
-            or token.kind is not PromptProjectionTokenKind.REGION_SEPARATOR
-            or host._cursor_state.placement
-            is not PromptProjectionCaretPlacement.TOKEN_LEADING_EDGE
-        ):
-            return False
-        host._replace_viewport_range(token.source_start, token.source_start + 1, "")
-        return True
-
-    def _can_delete_raw_boundary_from_stale_projection(
-        self,
-        *,
+    @staticmethod
+    def _can_use_stale_raw_boundary(
+        context: PromptDeletionContext,
         start: int,
         end: int,
     ) -> bool:
-        """Return whether deletion can avoid flushing a pending projection first."""
+        """Return whether raw deletion can bypass a pending projection flush."""
 
-        host = self._host
-        source_text = host.toPlainText()
-        if start < 0 or end > len(source_text):
+        if start < 0 or end > len(context.source_text):
             return False
-        if source_text[start:end] in {"\n", "\r", "\t"}:
+        if context.source_text[start:end] in {"\n", "\r", "\t"}:
             return False
         projection_source_is_stale = (
-            host.projection_document().source_text != source_text
+            context.projection_document.source_text != context.source_text
         )
         return bool(
-            (
-                projection_source_is_stale
-                or host._projection_freshness_controller.has_stale_projection_geometry()
+            (projection_source_is_stale or context.stale_projection_geometry)
+            and context.cursor_state.token_id is None
+            and context.anchor_state.token_id is None
+        )
+
+    @staticmethod
+    def _separator_edge_intent(
+        context: PromptDeletionContext,
+        direction: PromptDeletionDirection,
+    ) -> PromptDeletionIntent | None:
+        """Return the single-bracket edit that invalidates a separator token."""
+
+        token = context.focused_token
+        if (
+            token is None
+            or token.kind is not PromptProjectionTokenKind.REGION_SEPARATOR
+        ):
+            return None
+        if (
+            direction is PromptDeletionDirection.BACKWARD
+            and context.cursor_state.placement
+            is PromptProjectionCaretPlacement.TOKEN_TRAILING_EDGE
+        ):
+            return PromptDeletionIntent.delete_range(
+                token.source_end - 1,
+                token.source_end,
             )
-            and host._cursor_state.token_id is None
-            and host._anchor_state.token_id is None
+        if (
+            direction is PromptDeletionDirection.FORWARD
+            and context.cursor_state.placement
+            is PromptProjectionCaretPlacement.TOKEN_LEADING_EDGE
+        ):
+            return PromptDeletionIntent.delete_range(
+                token.source_start,
+                token.source_start + 1,
+            )
+        return None
+
+
+class PromptSurfaceDeletionController(Generic[TPayload]):
+    """Submit one resolved deletion through the focused source command owner."""
+
+    def __init__(
+        self,
+        *,
+        context_provider: PromptDeletionContextProvider,
+        projection_effects: PromptDeletionProjectionEffects,
+        source_commands: PromptSourceCommandService[TPayload],
+        resolver: PromptDeletionResolver | None = None,
+    ) -> None:
+        """Store focused read, projection-effect, and source-command owners."""
+
+        self._context_provider = context_provider
+        self._projection_effects = projection_effects
+        self._source_commands = source_commands
+        self._resolver = resolver if resolver is not None else PromptDeletionResolver()
+
+    def backspace(self) -> None:
+        """Delete the previous grapheme, selection, or structural edge."""
+
+        self._delete(PromptDeletionDirection.BACKWARD)
+
+    def delete(self) -> None:
+        """Delete the next grapheme, selection, or structural edge."""
+
+        self._delete(PromptDeletionDirection.FORWARD)
+
+    def _delete(self, direction: PromptDeletionDirection) -> None:
+        """Resolve and apply one direction-specific deletion interaction."""
+
+        context = self._context_provider.deletion_context()
+        reason = (
+            "backspace" if direction is PromptDeletionDirection.BACKWARD else "delete"
+        )
+        if not context.selection.is_empty:
+            self._projection_effects.synchronize_deletion_projection(
+                reason=reason,
+                cancel_stale_safe_first=False,
+            )
+            self._apply_intent(
+                PromptDeletionIntent.delete_range(
+                    context.selection.start,
+                    context.selection.end,
+                ),
+                command_name=f"{reason}_selection",
+            )
+            return
+        at_boundary = (
+            context.cursor_position <= 0
+            if direction is PromptDeletionDirection.BACKWARD
+            else context.cursor_position >= len(context.source_text)
+        )
+        if at_boundary:
+            self._projection_effects.synchronize_deletion_projection(
+                reason=f"{reason}_at_{'start' if direction is PromptDeletionDirection.BACKWARD else 'end'}",
+                cancel_stale_safe_first=False,
+            )
+            return
+        raw_intent = self._resolver.raw_boundary_intent(context, direction)
+        if raw_intent is not None:
+            self._apply_intent(raw_intent, command_name=reason)
+            return
+        self._projection_effects.synchronize_deletion_projection(
+            reason=reason,
+            cancel_stale_safe_first=True,
+        )
+        projected_intent = self._resolver.projected_intent(
+            self._context_provider.deletion_context(),
+            direction,
+        )
+        if projected_intent is not None:
+            self._apply_intent(projected_intent, command_name=reason)
+
+    def _apply_intent(
+        self,
+        intent: PromptDeletionIntent,
+        *,
+        command_name: str,
+    ) -> None:
+        """Apply exactly one source command or one projection expansion."""
+
+        token = intent.token_to_expand
+        if token is not None:
+            self._projection_effects.expand_token_for_deletion(token)
+            return
+        if intent.start is None or intent.end is None:
+            raise RuntimeError("Resolved source deletion is missing its range.")
+        self._source_commands.replace_source_range(
+            start=intent.start,
+            end=intent.end,
+            replacement_text="",
+            origin=PromptSourceEditOrigin.TYPED,
+            command_name=command_name,
+            finish_pending_key_edits=False,
         )
 
 
-__all__ = ["PromptSurfaceDeletionController", "PromptSurfaceDeletionHost"]
+__all__ = [
+    "PromptDeletionContext",
+    "PromptDeletionContextProvider",
+    "PromptDeletionActions",
+    "PromptDeletionDirection",
+    "PromptDeletionIntent",
+    "PromptDeletionProjectionEffects",
+    "PromptDeletionResolver",
+    "PromptSurfaceDeletionController",
+]

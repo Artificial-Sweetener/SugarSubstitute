@@ -34,7 +34,7 @@ import pytest
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.presentation.editor.prompt_editor.commands import (
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
     PromptCommandResult,
 )
 from substitute.presentation.editor.prompt_editor.features import (

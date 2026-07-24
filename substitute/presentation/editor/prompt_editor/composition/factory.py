@@ -24,7 +24,7 @@ from itertools import count
 from typing import Any, Protocol, cast
 
 from PySide6.QtCore import QPoint
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QWidget
 
 from substitute.application.ports import (
     PromptTagLexiconSnapshot,
@@ -79,14 +79,20 @@ from ..async_work import (
     build_prompt_scheduled_lora_context_coordinator,
     build_prompt_semantic_refresh_controller,
 )
-from ..commands import PromptFeatureSnapshotIdentity
-from ..editing_session import PromptCursorState, PromptEditingSession
-from ..editing_session.edit_controller import PromptEditController
-from ..editing_session.undo_coalescing import (
-    DELETE_UNDO_COALESCE_IDLE_MS,
-    TYPING_UNDO_COALESCE_IDLE_MS,
-    PromptUndoCoalescingController,
+from ..commands.autocomplete_commands import PromptAutocompleteCommandService
+from ..commands.context_insertion import (
+    PromptCommandContextInsertState,
+    PromptContextInsertionService,
 )
+from ..commands.diagnostic_commands import PromptDiagnosticCommandService
+from ..commands.execution import PromptEditExecution
+from ..commands.feature_commands import PromptFeatureSnapshotIdentity
+from ..commands.reorder_commands import PromptReorderCommandService
+from ..commands.source_service import PromptSourceCommandService
+from ..commands.trigger_word_commands import PromptTriggerWordCommandService
+from ..commands.weight_commands import PromptWeightCommandService
+from ..core.editing.cursor_state import PromptCursorState
+from ..core.editing.session import PromptEditingSession
 from ..features import (
     PromptAutocompleteQueryController,
     PromptAutocompleteResultController,
@@ -114,14 +120,9 @@ from ..interactions import (
     PromptAutocompleteSessionController,
     PromptAutocompleteSourceSnapshotController,
     PromptAutocompleteTimingController,
-    PromptClipboardHistoryController,
-    PromptCommandContextInsertState,
     PromptContextMenuRequestPresenter,
-    PromptContextMenuTextInsertionExecutor,
     PromptDanbooruDialogHostAdapter,
     PromptDanbooruDialogRunner,
-    PromptEditCommandRouter,
-    PromptEditorCommandAdapter,
     PromptExternalUrlActionRunner,
     PromptExternalUrlOpener,
     PromptInlineLoraContextMenuPresenter,
@@ -132,13 +133,12 @@ from ..interactions import (
     PromptSegmentPresetHostAdapter,
     PromptTokenWeightWheelIntentController,
     PromptTriggerWordActionAdapter,
-    PromptTriggerWordInsertionExecutor,
     PromptWheelController,
 )
 from ..interactions.parenthesis_education_controller import (
     PromptParenthesisEducationController,
 )
-from ..interactions.undo_coalescing_timer import PromptQtUndoCoalescingTimer
+from ..interactions.clipboard_history_controller import PromptClipboardHistoryActions
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
 from ..overlays import (
     PromptAutocompleteLoraWall,
@@ -166,6 +166,7 @@ from .collaborator_bundle import (
     PromptEditorCollaborators,
     PromptEditorConstructionInputs,
 )
+from .editing_runtime_factory import PromptProjectionEditingRuntimeBuilder
 from .reorder_overlay_factory import PromptSegmentReorderOverlayFactory
 from .token_weight_controls_factory import PromptTokenWeightControlsFactory
 
@@ -212,11 +213,16 @@ class PromptEditorProjectionCollaborators:
     lora_thumbnail_cache: PromptLoraThumbnailCache
     lora_thumbnail_preloader: PromptLoraThumbnailPreloader
     surface: PromptProjectionSurface
-    edit_controller: PromptEditController[PromptProjectionUndoPayload]
-    edit_command_router: PromptEditCommandRouter[Any]
+    edit_execution: PromptEditExecution[PromptProjectionUndoPayload]
+    source_commands: PromptSourceCommandService[PromptProjectionUndoPayload]
+    autocomplete_commands: PromptAutocompleteCommandService[PromptProjectionUndoPayload]
+    diagnostic_commands: PromptDiagnosticCommandService[PromptProjectionUndoPayload]
+    weight_commands: PromptWeightCommandService[PromptProjectionUndoPayload]
+    reorder_commands: PromptReorderCommandService[PromptProjectionUndoPayload]
+    trigger_word_commands: PromptTriggerWordCommandService[PromptProjectionUndoPayload]
     structured_text_mutations: PromptStructuredTextMutationService
     danbooru_paste_import_controller: PromptDanbooruPasteImportController[Any]
-    clipboard_history_controller: PromptClipboardHistoryController[Any]
+    clipboard_history_controller: PromptClipboardHistoryActions
     shell_padding_fill_plane: QWidget
     fill_plane: QWidget
 
@@ -260,42 +266,6 @@ def build_external_url_action_runner(
     return PromptExternalUrlActionRunner(open_url=open_url)
 
 
-class _QtPromptTextClipboard:
-    """Adapt QApplication clipboard text to the clipboard/history controller."""
-
-    def text(self) -> str:
-        """Return the current system clipboard text."""
-
-        return QApplication.clipboard().text()
-
-    def set_text(self, text: str) -> None:
-        """Set the current system clipboard text."""
-
-        QApplication.clipboard().setText(text)
-
-
-@dataclass(frozen=True, slots=True)
-class _PromptSurfaceEditBlockActions:
-    """Adapt the edit controller to the surface viewport action protocol."""
-
-    edit_controller: PromptEditController[PromptProjectionUndoPayload]
-
-    def begin_surface_edit_block(self, *, finish_typing: bool = True) -> None:
-        """Begin a grouped edit block through the composed edit controller."""
-
-        self.edit_controller.begin_edit_block(finish_typing=finish_typing)
-
-    def end_surface_edit_block(self) -> None:
-        """End a grouped edit block through the composed edit controller."""
-
-        self.edit_controller.end_edit_block()
-
-    def finish_surface_pending_key_edit_block(self, *, reason: str) -> None:
-        """Flush pending key edits through the composed edit controller."""
-
-        self.edit_controller.finish_pending_key_edit_block(reason=reason)
-
-
 def _build_projection_editing_session() -> PromptEditingSession[
     PromptProjectionUndoPayload
 ]:
@@ -320,32 +290,6 @@ def _danbooru_dialog_parent(editor: QWidget) -> QWidget:
     if parent is not None:
         return parent
     return editor
-
-
-def _build_undo_coalescing_controller(
-    *,
-    surface: PromptProjectionSurface,
-    edit_controller: PromptEditController[PromptProjectionUndoPayload],
-) -> PromptUndoCoalescingController[PromptProjectionUndoPayload]:
-    """Wire typing/delete undo coalescing for one projection surface."""
-
-    undo_coalescing_controller = PromptUndoCoalescingController[
-        PromptProjectionUndoPayload
-    ](
-        edit_controller=edit_controller,
-        typing_timer=PromptQtUndoCoalescingTimer(
-            parent=surface,
-            interval_ms=TYPING_UNDO_COALESCE_IDLE_MS,
-        ),
-        delete_timer=PromptQtUndoCoalescingTimer(
-            parent=surface,
-            interval_ms=DELETE_UNDO_COALESCE_IDLE_MS,
-        ),
-        cursor_position=lambda: surface.cursor_position,
-        selection_empty=lambda: not surface.textCursor().hasSelection(),
-    )
-    edit_controller.set_pending_key_flusher(undo_coalescing_controller)
-    return undo_coalescing_controller
 
 
 class PromptEditorCompositionFactory:
@@ -439,10 +383,38 @@ class PromptEditorCompositionFactory:
                 owner_label="prompt-thumbnail",
             ),
         )
+        tag_snapshot = PromptTagLexiconSnapshot()
+        if isinstance(
+            inputs.prompt_autocomplete_gateway,
+            PromptTagLexiconSnapshotProvider,
+        ):
+            tag_snapshot = (
+                inputs.prompt_autocomplete_gateway.prepared_prompt_tag_snapshot()
+            )
+        source_normalizer = PromptSourceNormalizationService(tag_snapshot=tag_snapshot)
+        structured_text_mutations = PromptStructuredTextMutationService(
+            inputs.prompt_document_semantics
+        )
         editing_session = _build_projection_editing_session()
+        editing_runtime_builder = PromptProjectionEditingRuntimeBuilder(
+            session=editing_session,
+            normalizer=source_normalizer,
+            structured_text_mutations=structured_text_mutations,
+            danbooru_dispatcher=QtDanbooruUrlImportDispatcher(
+                context.editor,
+                is_alive=qt_object_is_alive,
+                executor=self.build_prompt_task_executor(
+                    inputs,
+                    context,
+                    owner_label="prompt-danbooru-import",
+                ),
+            ),
+            paste_completed=cast(Any, context.editor)._handle_clipboard_paste_completed,
+        )
         surface = PromptProjectionSurface(
             context.shell_viewport,
             editing_session=editing_session,
+            editing_runtime_factory=editing_runtime_builder,
             document_semantics=inputs.prompt_document_semantics,
             lora_thumbnail_cache=lora_thumbnail_cache,
             lora_thumbnail_preloader=lora_thumbnail_preloader,
@@ -459,69 +431,37 @@ class PromptEditorCompositionFactory:
             Any, context.editor
         )._parenthesis_education_controller = parenthesis_education_controller
         surface.set_defer_source_rebuilds_until_prompt_state(True)
-        edit_controller = PromptEditController[PromptProjectionUndoPayload](
-            session=editing_session,
-            undo_payload_provider=surface,
-            availability_signal_sink=surface,
-            projection_mutation_sink=surface,
-        )
-        tag_snapshot = PromptTagLexiconSnapshot()
-        if isinstance(
-            inputs.prompt_autocomplete_gateway,
-            PromptTagLexiconSnapshotProvider,
-        ):
-            tag_snapshot = (
-                inputs.prompt_autocomplete_gateway.prepared_prompt_tag_snapshot()
-            )
-        source_normalizer = PromptSourceNormalizationService(tag_snapshot=tag_snapshot)
-        structured_text_mutations = PromptStructuredTextMutationService(
-            inputs.prompt_document_semantics
-        )
-        edit_command_router = PromptEditCommandRouter[PromptProjectionUndoPayload](
-            edit_controller=edit_controller,
-            normalizer=source_normalizer,
-            mutation_sink=surface,
-            source_text_provider=surface.toPlainText,
-            cursor_position_provider=lambda: surface.cursor_position,
-            anchor_position_provider=lambda: surface.anchor_position,
-            exact_source_provider=surface.exact_source_editing_enabled,
-            structured_text_mutations=structured_text_mutations,
-        )
-        undo_coalescing_controller = _build_undo_coalescing_controller(
-            surface=surface,
-            edit_controller=edit_controller,
-        )
-        danbooru_paste_import_controller = PromptDanbooruPasteImportController[Any](
-            edit_controller=edit_controller,
-            source_replacement_executor=edit_command_router,
-            import_executor=edit_command_router,
+        edit_execution = surface.edit_execution
+        source_commands = surface.source_commands
+        autocomplete_commands = PromptAutocompleteCommandService(
+            execution=edit_execution,
             normalizer=source_normalizer,
             exact_source_enabled=surface.exact_source_editing_enabled,
-            dispatcher=QtDanbooruUrlImportDispatcher(
-                context.editor,
-                is_alive=qt_object_is_alive,
-                executor=self.build_prompt_task_executor(
-                    inputs,
-                    context,
-                    owner_label="prompt-danbooru-import",
-                ),
-            ),
+            structured_text_mutations=structured_text_mutations,
         )
-        clipboard_history_controller = PromptClipboardHistoryController[Any](
-            edit_controller=edit_controller,
-            clipboard=_QtPromptTextClipboard(),
-            sink=surface,
-            source_replacement_executor=edit_command_router,
-            danbooru_paste_scheduler=danbooru_paste_import_controller,
-            editing_enabled=surface.editing_enabled,
-            paste_completed=cast(Any, context.editor)._handle_clipboard_paste_completed,
+        diagnostic_commands = PromptDiagnosticCommandService(
+            execution=edit_execution,
+            normalizer=source_normalizer,
+            exact_source_enabled=surface.exact_source_editing_enabled,
         )
-        surface.attach_runtime_mutation_actions(
-            source_mutation_actions=edit_command_router,
-            edit_block_actions=_PromptSurfaceEditBlockActions(edit_controller),
-            clipboard_history_actions=clipboard_history_controller,
-            undo_coalescing_actions=undo_coalescing_controller,
+        weight_commands = PromptWeightCommandService(
+            execution=edit_execution,
+            normalizer=source_normalizer,
+            exact_source_enabled=surface.exact_source_editing_enabled,
         )
+        reorder_commands = PromptReorderCommandService(
+            execution=edit_execution,
+            normalizer=source_normalizer,
+            exact_source_enabled=surface.exact_source_editing_enabled,
+        )
+        trigger_word_commands = PromptTriggerWordCommandService(
+            execution=edit_execution,
+            normalizer=source_normalizer,
+            exact_source_enabled=surface.exact_source_editing_enabled,
+            structured_text_mutations=structured_text_mutations,
+        )
+        danbooru_paste_import_controller = editing_runtime_builder.danbooru_controller
+        clipboard_history_controller = surface.clipboard_history_actions
         shell_padding_fill_plane = context.fill_plane_factory(
             context.editor,
             surface,
@@ -538,8 +478,13 @@ class PromptEditorCompositionFactory:
             lora_thumbnail_cache=lora_thumbnail_cache,
             lora_thumbnail_preloader=lora_thumbnail_preloader,
             surface=surface,
-            edit_controller=edit_controller,
-            edit_command_router=edit_command_router,
+            edit_execution=edit_execution,
+            source_commands=source_commands,
+            autocomplete_commands=autocomplete_commands,
+            diagnostic_commands=diagnostic_commands,
+            weight_commands=weight_commands,
+            reorder_commands=reorder_commands,
+            trigger_word_commands=trigger_word_commands,
             structured_text_mutations=structured_text_mutations,
             danbooru_paste_import_controller=danbooru_paste_import_controller,
             clipboard_history_controller=clipboard_history_controller,
@@ -547,28 +492,24 @@ class PromptEditorCompositionFactory:
             fill_plane=fill_plane,
         )
 
-    def build_command_adapter(
+    def build_context_insertion_service(
         self,
         context: PromptEditorCompositionContext,
         projection_collaborators: PromptEditorProjectionCollaborators,
         *,
         context_insert_state_provider: Callable[[], PromptCommandContextInsertState],
-    ) -> PromptEditorCommandAdapter:
-        """Build the host command adapter around controller-owned source identity."""
+    ) -> PromptContextInsertionService[PromptProjectionUndoPayload]:
+        """Build prompt-aware context insertion around focused command owners."""
 
         editor = cast(Any, context.editor)
-        return PromptEditorCommandAdapter(
-            executor=projection_collaborators.edit_command_router,
-            source_identity_provider=(
-                projection_collaborators.edit_command_router
-            ).prompt_command_source_identity,
+        return PromptContextInsertionService(
+            source_commands=projection_collaborators.source_commands,
+            trigger_word_commands=projection_collaborators.trigger_word_commands,
             cursor_provider=editor.textCursor,
             context_insert_state_provider=context_insert_state_provider,
             focus_restorer=editor.setFocus,
             source_text_provider=editor.toPlainText,
-            structured_text_mutations=(
-                projection_collaborators.structured_text_mutations
-            ),
+            structured_text_mutations=projection_collaborators.structured_text_mutations,
         )
 
     def build_service_collaborators(
@@ -576,7 +517,7 @@ class PromptEditorCompositionFactory:
         inputs: PromptEditorConstructionInputs,
         context: PromptEditorCompositionContext,
         projection_collaborators: PromptEditorProjectionCollaborators,
-        command_adapter: PromptEditorCommandAdapter,
+        context_insertion: PromptContextInsertionService[PromptProjectionUndoPayload],
         *,
         external_url_actions: PromptExternalUrlActionRunner,
     ) -> PromptEditorServiceCollaborators:
@@ -649,17 +590,17 @@ class PromptEditorCompositionFactory:
         )
         segment_host = PromptSegmentPresetHostAdapter(
             host=cast(Any, context.editor),
-            source_identity_provider=command_adapter.prompt_command_source_identity,
+            source_identity_provider=projection_collaborators.source_commands.source_identity,
         )
         segment_preset_controller = PromptSegmentPresetController(
             host=segment_host,
-            text_insertion_executor=command_adapter,
+            text_insertion_executor=context_insertion,
             feature_profile=feature_profile_controller,
             preset_source=inputs.prompt_segment_preset_source,
         )
         danbooru_host = self.build_danbooru_dialog_host_adapter(
             context,
-            source_identity_provider=command_adapter.prompt_command_source_identity,
+            source_identity_provider=projection_collaborators.source_commands.source_identity,
             external_url_actions=external_url_actions,
         )
         danbooru_action_controller = PromptDanbooruActionController(
@@ -689,7 +630,7 @@ class PromptEditorCompositionFactory:
         *,
         action_snapshot_provider: PromptContextMenuActionController,
         segment_presets: PromptSegmentPresetController,
-        command_adapter: PromptTriggerWordInsertionExecutor,
+        context_insertion: PromptContextInsertionService[PromptProjectionUndoPayload],
         trigger_word_identity_validator: Callable[
             [PromptFeatureSnapshotIdentity], bool
         ],
@@ -707,7 +648,7 @@ class PromptEditorCompositionFactory:
             segment_presets=segment_presets,
             trigger_word_action_adapter=PromptTriggerWordActionAdapter(
                 action_parent=context.editor,
-                text_insertion_executor=command_adapter,
+                text_insertion_executor=context_insertion,
                 identity_validator=trigger_word_identity_validator,
             ),
             schedule_lora=schedule_lora,
@@ -725,7 +666,7 @@ class PromptEditorCompositionFactory:
         lora_metadata: PromptLoraMetadataFeatureController,
         lora_trigger_words: PromptLoraTriggerWordController,
         prepared_scene_context_at_position: _PromptSceneContextReader,
-        command_adapter: PromptTriggerWordInsertionExecutor,
+        context_insertion: PromptContextInsertionService[PromptProjectionUndoPayload],
         shell_menu: PromptInlineLoraShellMenu,
         finish_pending_key_edit_block: Callable[[str], None],
         external_url_actions: PromptExternalUrlActionRunner,
@@ -739,7 +680,7 @@ class PromptEditorCompositionFactory:
             prepared_scene_context_at_position=prepared_scene_context_at_position,
             trigger_word_action_adapter=PromptTriggerWordActionAdapter(
                 action_parent=context.editor,
-                text_insertion_executor=command_adapter,
+                text_insertion_executor=context_insertion,
                 identity_validator=lora_trigger_words.action_identity_is_current,
             ),
             shell_menu=shell_menu,
@@ -754,7 +695,7 @@ class PromptEditorCompositionFactory:
         *,
         lora_metadata: PromptLoraMetadataFeatureController,
         lora_thumbnail_cache: PromptLoraThumbnailCache,
-        command_adapter: PromptContextMenuTextInsertionExecutor,
+        context_insertion: PromptContextInsertionService[PromptProjectionUndoPayload],
         last_context_menu_global_pos: Callable[[], QPoint | None],
         cursor_global_position: Callable[[], QPoint],
         external_url_actions: PromptExternalUrlActionRunner,
@@ -787,7 +728,7 @@ class PromptEditorCompositionFactory:
             parent=context.editor,
             data_source=lora_metadata,
             thumbnail_cache=lora_thumbnail_cache,
-            text_insertion_executor=command_adapter,
+            text_insertion_executor=context_insertion,
             popup_factory=create_lora_picker_popup,
             last_context_menu_global_pos=last_context_menu_global_pos,
             cursor_global_position=cursor_global_position,
@@ -1032,7 +973,7 @@ class PromptEditorCompositionFactory:
                 projection_collaborators.lora_thumbnail_preloader
             ),
             surface=projection_collaborators.surface,
-            edit_controller=projection_collaborators.edit_controller,
+            edit_execution=projection_collaborators.edit_execution,
             shell_padding_fill_plane=projection_collaborators.shell_padding_fill_plane,
             fill_plane=projection_collaborators.fill_plane,
             lora_schedule_service=service_collaborators.lora_schedule_service,

@@ -50,7 +50,7 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
 
-from ..commands import (
+from ..commands.reorder_commands import (
     PromptReorderCommandResult,
     PromptReorderLayoutCommitRequest,
 )

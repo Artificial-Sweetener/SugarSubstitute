@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from substitute.presentation.text_coordinates import TextCoordinateMap
 from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionCaretPlacement,
     PromptProjectionDocument,
@@ -88,11 +89,11 @@ def _validate_plain_text_caret_stops(document: PromptProjectionDocument) -> None
         caret_source_positions = tuple(
             stop.state.source_position for stop in document.caret_map.stops
         )
-        run_source_positions = tuple(plain_runs[0].source_positions)
-        if caret_source_positions != run_source_positions:
+        expected_source_positions = _plain_run_grapheme_source_positions(plain_runs[0])
+        if caret_source_positions != expected_source_positions:
             raise ValueError(
                 "Single plain-text projection caret stops do not match run "
-                "source positions."
+                "grapheme boundaries."
             )
 
     for run in plain_runs:
@@ -108,7 +109,7 @@ def _validate_plain_text_caret_stops(document: PromptProjectionDocument) -> None
             )
         missing_positions = tuple(
             source_position
-            for source_position in run.source_positions
+            for source_position in _plain_run_grapheme_source_positions(run)
             if source_position not in run_stop_positions
         )
         if missing_positions:
@@ -116,6 +117,17 @@ def _validate_plain_text_caret_stops(document: PromptProjectionDocument) -> None
                 f"Plain-text run {run.run_id!r} has source boundaries missing "
                 f"from the caret map: {missing_positions!r}."
             )
+
+
+def _plain_run_grapheme_source_positions(
+    run: PromptProjectionRun,
+) -> tuple[int, ...]:
+    """Return run source positions that own Unicode grapheme boundaries."""
+
+    return tuple(
+        run.source_positions[boundary]
+        for boundary in TextCoordinateMap(run.display_text).grapheme_boundaries()
+    )
 
 
 def _source_backed_plain_text_runs(

@@ -31,15 +31,19 @@ from substitute.application.managed_text_assets.wildcard_csv_document_semantics 
 from substitute.application.prompt_editor.editing.structured_text import (
     PromptStructuredTextMutationService,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandDispatcher,
+from substitute.presentation.editor.prompt_editor.commands.trigger_word_commands import (
     PromptTriggerWordInsertionRequest,
     build_trigger_word_insertion_command,
     prepare_trigger_word_insertion,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from tests.prompt_editor_command_test_helpers import execute_prompt_command
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
 
@@ -138,7 +142,7 @@ def test_trigger_word_command_rejects_stale_source_without_mutation() -> None:
         ),
     )
 
-    result = PromptCommandDispatcher(session).execute(command)
+    result = execute_prompt_command(session, command)
 
     assert result.status == "rejected"
     assert result.reason == "stale_source"
@@ -168,7 +172,7 @@ def test_trigger_word_command_is_one_undo_safe_source_change() -> None:
         ),
     )
 
-    result = PromptCommandDispatcher(session).execute(command)
+    result = execute_prompt_command(session, command)
 
     assert result.status == "applied"
     assert session.source_text == "portrait, imp princess, twili helmet"
@@ -202,7 +206,7 @@ def test_trigger_word_command_uses_quoted_csv_value_boundary() -> None:
         ),
     )
 
-    result = PromptCommandDispatcher(session).execute(command)
+    result = execute_prompt_command(session, command)
 
     assert result.status == "applied"
     assert session.source_text == ('Prompt\n"portrait, imp princess, twili helmet"')

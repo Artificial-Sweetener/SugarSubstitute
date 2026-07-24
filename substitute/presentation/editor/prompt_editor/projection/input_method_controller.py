@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, cast
+from typing import Generic, Protocol, TypeVar, cast
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
@@ -34,6 +34,12 @@ from PySide6.QtGui import (
 )
 
 from substitute.presentation.text_coordinates import TextCoordinateMap
+
+from ..commands.source_service import PromptSourceCommandService
+from ..core.editing.ime import PromptImePreedit, PromptImeSession
+from ..core.editing.source_commands import PromptSourceEditOrigin
+
+TPayload = TypeVar("TPayload")
 
 
 class PromptInputMethodHost(Protocol):
@@ -56,15 +62,6 @@ class PromptInputMethodHost(Protocol):
     def input_method_caret_rect(self, source_position: int) -> QRectF:
         """Return a viewport-local caret rectangle for a source position."""
 
-    def replace_input_method_range(
-        self,
-        *,
-        start: int,
-        end: int,
-        replacement_text: str,
-    ) -> None:
-        """Commit one input-method replacement through the mutation owner."""
-
 
 @dataclass(frozen=True, slots=True)
 class PromptPreeditFormat:
@@ -75,51 +72,46 @@ class PromptPreeditFormat:
     text_format: QTextCharFormat
 
 
-@dataclass(frozen=True, slots=True)
-class PromptPreeditState:
-    """Describe transient composition without placing it in prompt source history."""
-
-    source_start: int
-    source_end: int
-    text: str
-    cursor_utf16: int
-    cursor_visible: bool
-    cursor_color: QColor | None
-    formats: tuple[PromptPreeditFormat, ...]
-
-
-class PromptInputMethodController:
+class PromptInputMethodController(Generic[TPayload]):
     """Translate Qt input-method events into one source mutation per commit."""
 
-    def __init__(self, host: PromptInputMethodHost) -> None:
+    def __init__(
+        self,
+        host: PromptInputMethodHost,
+        *,
+        source_commands: PromptSourceCommandService[TPayload],
+    ) -> None:
         """Store the host while keeping preedit state transient and bounded."""
 
         self._host = host
-        self._preedit: PromptPreeditState | None = None
-        self._committing = False
+        self._source_commands = source_commands
+        self._ime_session = PromptImeSession()
+        self._cursor_color: QColor | None = None
+        self._formats: tuple[PromptPreeditFormat, ...] = ()
 
     @property
-    def preedit_state(self) -> PromptPreeditState | None:
+    def preedit_state(self) -> PromptImePreedit | None:
         """Return the current immutable preedit snapshot when composing."""
 
-        return self._preedit
+        return self._ime_session.preedit
 
     @property
     def is_composing(self) -> bool:
         """Return whether a non-empty preedit string is active."""
 
-        return self._preedit is not None
+        return self._ime_session.is_composing
 
     def handle_event(self, event: QInputMethodEvent) -> None:
         """Apply one Qt composition event without storing preedit in source text."""
 
         source_text = self._host.toPlainText()
-        if self._preedit is None:
+        preedit = self._ime_session.preedit
+        if preedit is None:
             source_start = min(self._host.cursor_position, self._host.anchor_position)
             source_end = max(self._host.cursor_position, self._host.anchor_position)
         else:
-            source_start = self._preedit.source_start
-            source_end = self._preedit.source_end
+            source_start = preedit.source_start
+            source_end = preedit.source_end
 
         commit_text = event.commitString()
         should_commit = (
@@ -138,34 +130,37 @@ class PromptInputMethodController:
 
         preedit_text = event.preeditString()
         if not preedit_text:
-            self._preedit = None
+            self._clear_preedit()
             return
         if not self._host.editing_enabled():
-            self._preedit = None
+            self._clear_preedit()
             return
         cursor_utf16, cursor_visible, cursor_color = _preedit_cursor(
             event, preedit_text
         )
-        self._preedit = PromptPreeditState(
-            source_start=min(source_start, len(source_text)),
-            source_end=min(source_end, len(source_text)),
-            text=preedit_text,
-            cursor_utf16=cursor_utf16,
-            cursor_visible=cursor_visible,
-            cursor_color=cursor_color,
-            formats=_preedit_formats(event),
+        self._ime_session.set_preedit(
+            PromptImePreedit(
+                source_start=min(source_start, len(source_text)),
+                source_end=min(source_end, len(source_text)),
+                text=preedit_text,
+                cursor_utf16=cursor_utf16,
+                cursor_visible=cursor_visible,
+            )
         )
+        self._cursor_color = cursor_color
+        self._formats = _preedit_formats(event)
 
     def cancel(self) -> None:
         """Discard transient composition without mutating prompt source text."""
 
-        self._preedit = None
+        self._clear_preedit()
 
     def source_changed(self) -> None:
         """Cancel composition when an unrelated source owner replaces the document."""
 
-        if not self._committing:
-            self.cancel()
+        self._ime_session.source_changed()
+        if not self._ime_session.is_composing:
+            self._clear_preedit_paint_state()
 
     def query(
         self,
@@ -222,7 +217,7 @@ class PromptInputMethodController:
     def paint(self, painter: QPainter, *, font: QFont, palette: QPalette) -> None:
         """Paint the shaped preedit string and its input-method caret."""
 
-        state = self._preedit
+        state = self._ime_session.preedit
         if state is None:
             return
         layout, line = self._build_layout(font=font, palette=palette)
@@ -235,7 +230,7 @@ class PromptInputMethodController:
             if state.cursor_visible:
                 cursor_x = _cursor_x(line, state.cursor_utf16)
                 painter.setPen(
-                    state.cursor_color or palette.color(QPalette.ColorRole.Text)
+                    self._cursor_color or palette.color(QPalette.ColorRole.Text)
                 )
                 painter.drawLine(
                     QPointF(origin.x() + cursor_x, origin.y()),
@@ -247,7 +242,7 @@ class PromptInputMethodController:
     def cursor_rect(self, *, font: QFont, palette: QPalette) -> QRectF:
         """Return the viewport-local candidate-window rectangle for composition."""
 
-        state = self._preedit
+        state = self._ime_session.preedit
         if state is None:
             return self._host.input_method_caret_rect(self._host.cursor_position)
         _layout, line = self._build_layout(font=font, palette=palette)
@@ -296,15 +291,18 @@ class PromptInputMethodController:
         )
         edit_start, edit_end, edit_text = _single_source_edit(source_text, result_text)
         if edit_start != edit_end or edit_text:
-            self._committing = True
+            self._ime_session.begin_commit()
             try:
-                self._host.replace_input_method_range(
+                self._source_commands.replace_source_range(
                     start=edit_start,
                     end=edit_end,
                     replacement_text=edit_text,
+                    origin=PromptSourceEditOrigin.TYPED,
+                    command_name="input_method_commit",
+                    record_undo=True,
                 )
             finally:
-                self._committing = False
+                self._ime_session.end_commit()
         next_preedit_start = replacement_start + len(commit_text)
         return result_text, next_preedit_start
 
@@ -313,7 +311,7 @@ class PromptInputMethodController:
     ) -> tuple[QTextLayout, QTextLine]:
         """Build one short-lived shaped layout for the bounded preedit string."""
 
-        state = self._preedit
+        state = self._ime_session.preedit
         if state is None:
             return QTextLayout(), QTextLine()
         layout = QTextLayout(state.text, font)
@@ -323,7 +321,7 @@ class PromptInputMethodController:
                 length=format_range.length,
                 text_format=format_range.text_format,
             )
-            for format_range in state.formats
+            for format_range in self._formats
         ]
         if not formats:
             default_format = QTextCharFormat()
@@ -343,6 +341,18 @@ class PromptInputMethodController:
             line.setLineWidth(1_000_000.0)
         layout.endLayout()
         return layout, line
+
+    def _clear_preedit(self) -> None:
+        """Clear core composition and presentation-only paint attributes."""
+
+        self._ime_session.cancel()
+        self._clear_preedit_paint_state()
+
+    def _clear_preedit_paint_state(self) -> None:
+        """Clear Qt paint values associated with inactive composition."""
+
+        self._cursor_color = None
+        self._formats = ()
 
 
 def _single_source_edit(previous: str, current: str) -> tuple[int, int, str]:
@@ -424,5 +434,4 @@ __all__ = [
     "PromptInputMethodController",
     "PromptInputMethodHost",
     "PromptPreeditFormat",
-    "PromptPreeditState",
 ]

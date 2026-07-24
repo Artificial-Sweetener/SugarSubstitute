@@ -84,7 +84,7 @@ from ..async_work import (
     log_prompt_async_warning,
     prompt_async_outcome_log_fields,
 )
-from ..commands import (
+from ..commands.diagnostic_commands import (
     PromptDiagnosticAction,
     PromptDiagnosticCommandResult,
     PromptDuplicateEmphasisDiagnosticAction,
@@ -94,7 +94,7 @@ from ..commands import (
     PromptSpellingIgnoreDiagnosticAction,
     PromptSpellingReplacementDiagnosticAction,
 )
-from ..commands import PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 from .feature_profile_controller import PromptFeatureProfileController
 from .diagnostic_menu_actions import (
     PromptContextMenuAction,

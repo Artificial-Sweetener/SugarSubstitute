@@ -39,11 +39,30 @@ from substitute.application.prompt_editor.document.view_mapper import (
     prompt_document_view_from_domain,
 )
 from substitute.domain.prompt.document.parser import parse_prompt_document
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptSourceEditOrigin,
-    PromptSourceSnapshot,
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
+    PromptEditApplicationState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.commands import (
+    PromptReplaceDocumentEdit,
+    PromptReplaceRangeEdit,
+    PromptUndoEdit,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.commit import (
+    PromptEditCommit,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.source_buffer import (
+    PromptSourceSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
+    PromptSourceEditOrigin,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
 from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
@@ -51,12 +70,6 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
 )
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
-)
-from substitute.presentation.editor.prompt_editor.editing_session.edit_controller import (
-    PromptMutationSignalIntent,
-    PromptProjectionRestoreApplication,
-    PromptProjectionSourceApplicationMode,
-    PromptProjectionSourceChangeApplication,
 )
 from substitute.presentation.editor.prompt_editor.projection.source_change_applier import (
     PromptProjectionCaretSync,
@@ -755,50 +768,76 @@ def _projection_undo_snapshot(
     )
 
 
-def _source_change_application() -> PromptProjectionSourceChangeApplication[str]:
-    """Return one committed source-change application from the Phase 21 contract."""
+def _range_commit(
+    session: PromptEditingSession[_ProjectionPayload],
+    *,
+    start: int,
+    end: int,
+    replacement_text: str,
+    exact_source: bool = True,
+    record_undo: bool = True,
+) -> PromptEditCommit[_ProjectionPayload]:
+    """Commit one bounded edit through the editing-session command boundary."""
 
-    session = _session("alpha")
-    source_change = session.replace_source_range(
+    return session.execute(
+        PromptReplaceRangeEdit(
+            start=start,
+            end=end,
+            replacement_text=replacement_text,
+            normalizer=PromptSourceNormalizationService(),
+            origin=PromptSourceEditOrigin.TYPED,
+            exact_source=exact_source,
+            record_undo=record_undo,
+            undo_snapshot=_projection_undo_snapshot(session.source_text),
+        )
+    )
+
+
+def _document_commit(
+    session: PromptEditingSession[_ProjectionPayload],
+    *,
+    text: str,
+    application_state: PromptEditApplicationState | None = None,
+) -> PromptEditCommit[_ProjectionPayload]:
+    """Commit one complete-source replacement with optional viewport intent."""
+
+    commit = session.execute(
+        PromptReplaceDocumentEdit(
+            text=text,
+            cursor_position=len(text),
+            anchor_position=len(text),
+            normalizer=PromptSourceNormalizationService(),
+            exact_source=True,
+            record_undo=True,
+            clear_history=False,
+            undo_snapshot=_projection_undo_snapshot(session.source_text),
+        )
+    )
+    return (
+        commit
+        if application_state is None
+        else commit.with_prepared_state(application_state)
+    )
+
+
+def test_source_state_request_wraps_edit_commit_without_command_details() -> None:
+    """The projection contract should consume the sole committed edit result."""
+
+    commit = _range_commit(
+        _projection_session("alpha"),
         start=5,
         end=5,
         replacement_text=" beta",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=True,
-        undo_snapshot=_undo_snapshot("alpha"),
     )
-    return PromptProjectionSourceChangeApplication(
-        source_change=source_change,
-        previous_source_text="alpha",
-        origin=PromptSourceEditOrigin.TYPED,
-        mode=PromptProjectionSourceApplicationMode.SOURCE_REPLACEMENT,
-        source_edit_start=5,
-        source_edit_end=5,
-        source_edit_replacement_text=" beta",
-        signal_intent=PromptMutationSignalIntent(
-            emit_text_changed=True,
-            emit_cursor_position_changed=True,
-        ),
-    )
-
-
-def test_source_state_request_wraps_phase21_application_without_command_details() -> (
-    None
-):
-    """The projection contract should consume committed applications only."""
-
-    application = _source_change_application()
 
     request = PromptProjectionSourceStateApplicationRequest(
-        application=application,
+        commit=commit,
         current_source_revision=7,
         current_projection_source_text="alpha",
         reason="source_replacement",
     )
 
-    assert request.application is application
+    assert request.commit is commit
     assert request.current_source_revision == 7
     assert request.current_projection_source_text == "alpha"
     assert request.reason == "source_replacement"
@@ -808,26 +847,16 @@ def test_source_change_applier_applies_source_replacement_through_ports() -> Non
     """Committed replacement should update mirror, caret, diagnostics, and signals."""
 
     session = _projection_session("alpha")
-    source_change = session.replace_source_range(
+    commit = _range_commit(
+        session,
         start=5,
         end=5,
         replacement_text=" beta",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=True,
-        undo_snapshot=_projection_undo_snapshot("alpha"),
-    )
-    application = PromptProjectionSourceChangeApplication(
-        source_change=source_change,
-        previous_source_text="alpha",
-        origin=PromptSourceEditOrigin.TYPED,
-        signal_intent=PromptMutationSignalIntent(emit_text_changed=True),
     )
     host = _SourceChangeHost()
     applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
 
-    applier.apply_source_change_application(application)
+    applier.apply_edit_commit(commit)
 
     assert host.marked_source_changes == [(False, 8)]
     assert host._source_document_adapter.font_syncs == 1
@@ -845,21 +874,11 @@ def test_source_change_applier_uses_semantic_remapper_for_optimistic_state() -> 
     """Immediate source changes should consume the pure semantic remap service."""
 
     session = _projection_session("alpha")
-    source_change = session.replace_source_range(
+    commit = _range_commit(
+        session,
         start=5,
         end=5,
         replacement_text="!",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=True,
-        undo_snapshot=_projection_undo_snapshot("alpha"),
-    )
-    application = PromptProjectionSourceChangeApplication(
-        source_change=source_change,
-        previous_source_text="alpha",
-        origin=PromptSourceEditOrigin.TYPED,
-        signal_intent=PromptMutationSignalIntent(emit_text_changed=True),
     )
     host = _SourceChangeHost()
     host._projection_freshness_controller.deferral_reason = (
@@ -868,7 +887,7 @@ def test_source_change_applier_uses_semantic_remapper_for_optimistic_state() -> 
     host._session.expanded_source_range = (0, 5)
     applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
 
-    applier.apply_source_change_application(application)
+    applier.apply_edit_commit(commit)
 
     assert host._editor_state.semantic.document.source_text == "alpha"
     assert host._editor_state.edit_semantic.document.source_text == "alpha!"
@@ -884,21 +903,12 @@ def test_source_change_applier_uses_applied_normalized_edit_for_region_topology(
     source = "global\n[SEP]\n[SEPregional"
     completion_position = source.index("regional")
     session = _projection_session(source)
-    source_change = session.replace_source_range(
+    commit = _range_commit(
+        session,
         start=completion_position,
         end=completion_position,
         replacement_text="]",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
         exact_source=False,
-        record_undo=True,
-        undo_snapshot=_projection_undo_snapshot(source),
-    )
-    application = PromptProjectionSourceChangeApplication(
-        source_change=source_change,
-        previous_source_text=source,
-        origin=PromptSourceEditOrigin.TYPED,
-        signal_intent=PromptMutationSignalIntent(emit_text_changed=True),
     )
     host = _SourceChangeHost()
     host._editor_state = PromptEditorState[
@@ -917,7 +927,7 @@ def test_source_change_applier_uses_applied_normalized_edit_for_region_topology(
     )
     applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
 
-    applier.apply_source_change_application(application)
+    applier.apply_edit_commit(commit)
 
     normalized_source = "global\n[SEP]\n[SEP]\nregional"
     request = host._incremental_apply_controller.requests[-1]
@@ -938,35 +948,25 @@ def test_source_change_applier_rebuilds_source_derived_projection_structure() ->
     """Scene-like structure changes should bypass stale-safe text deferral."""
 
     session = _projection_session("alpha")
-    source_change = session.replace_source_range(
+    commit = _range_commit(
+        session,
         start=5,
         end=5,
         replacement_text="x",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=True,
-        undo_snapshot=_projection_undo_snapshot("alpha"),
-    )
-    application = PromptProjectionSourceChangeApplication(
-        source_change=source_change,
-        previous_source_text="alpha",
-        origin=PromptSourceEditOrigin.TYPED,
-        signal_intent=PromptMutationSignalIntent(emit_text_changed=True),
     )
     host = _SourceChangeHost()
     host._projection_freshness_controller.can_defer_projection = True
     host.source_edit_requires_canonical_rebuild = True
     applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
 
-    applier.apply_source_change_application(application)
+    applier.apply_edit_commit(commit)
 
     request = host._incremental_apply_controller.requests[-1]
     assert request.projection_deferral_reason == "source_projection_topology_changed"
     assert host.source_topology_checks[-1] == ("alpha", "alphax", 5, 5)
     assert host.marked_source_changes[-1] == (
         False,
-        source_change.next_snapshot.source_revision,
+        commit.next_snapshot.source_revision,
     )
     assert host._editor_state.semantic.document.source_text == "alpha"
     assert host._editor_state.edit_semantic.document.source_text == "alphax"
@@ -976,25 +976,17 @@ def test_source_change_applier_preserves_no_op_source_change_as_cursor_update() 
     """No-op source replacements should not mirror text or emit source signals."""
 
     session = _projection_session("alpha")
-    source_change = session.replace_source_range(
+    commit = _range_commit(
+        session,
         start=2,
         end=2,
         replacement_text="",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
         record_undo=False,
-        undo_snapshot=_projection_undo_snapshot("alpha"),
-    )
-    application = PromptProjectionSourceChangeApplication(
-        source_change=source_change,
-        previous_source_text="alpha",
-        origin=PromptSourceEditOrigin.TYPED,
     )
     host = _SourceChangeHost()
     applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
 
-    applier.apply_source_change_application(application)
+    applier.apply_edit_commit(commit)
 
     assert host.cursor_position_updates == [(2, 2)]
     assert host._source_document_adapter.range_fallback_calls == []
@@ -1006,32 +998,18 @@ def test_source_change_applier_handles_full_source_scroll_and_geometry_warm() ->
     """Full-source applications should preserve reset-scroll and warm intents."""
 
     session = _projection_session("alpha")
-    source_change = session.replace_source_range(
-        start=0,
-        end=5,
-        replacement_text="omega",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=True,
-        undo_snapshot=_projection_undo_snapshot("alpha"),
-    )
-    application = PromptProjectionSourceChangeApplication(
-        source_change=source_change,
-        previous_source_text="alpha",
-        origin=PromptSourceEditOrigin.TYPED,
-        mode=PromptProjectionSourceApplicationMode.FULL_SOURCE,
-        source_edit_start=0,
-        source_edit_end=5,
-        source_edit_replacement_text="omega",
-        reset_scroll_to_top=True,
-        schedule_geometry_reuse_warm_reason="full_source",
-        signal_intent=PromptMutationSignalIntent(emit_text_changed=True),
+    commit = _document_commit(
+        session,
+        text="omega",
+        application_state=PromptEditApplicationState(
+            reset_scroll_to_top=True,
+            schedule_geometry_reuse_warm_reason="full_source",
+        ),
     )
     host = _SourceChangeHost()
     applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
 
-    applier.apply_source_change_application(application)
+    applier.apply_edit_commit(commit)
 
     assert host._scroll_bar.values == [0]
     assert host.geometry_warm_reasons == ["full_source"]
@@ -1039,33 +1017,54 @@ def test_source_change_applier_handles_full_source_scroll_and_geometry_warm() ->
     assert host.textChanged.count == 1
 
 
+def test_source_change_applier_skips_projection_work_for_no_op_document_commit() -> (
+    None
+):
+    """No-op document commits should preserve lineage while applying viewport intent."""
+
+    session = _projection_session("alpha")
+    commit = _document_commit(
+        session,
+        text="alpha",
+        application_state=PromptEditApplicationState(
+            reset_scroll_to_top=True,
+            schedule_geometry_reuse_warm_reason="same_source",
+        ),
+    )
+    host = _SourceChangeHost()
+    semantic_identity = host._editor_state.semantic.identity
+    projection_identity = host._editor_state.projection.identity
+    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+
+    applier.apply_edit_commit(commit)
+
+    assert host.cursor_position_updates == [(5, 5)]
+    assert host._editor_state.semantic.identity is semantic_identity
+    assert host._editor_state.projection.identity is projection_identity
+    assert host._source_document_adapter.range_fallback_calls == []
+    assert host._incremental_apply_controller.requests == []
+    assert host._scroll_bar.values == [0]
+    assert host.geometry_warm_reasons == ["same_source"]
+    assert host.textChanged.count == 0
+
+
 def test_source_change_applier_rebuilds_preview_active_replacements() -> None:
     """Autocomplete preview requires immediate projection for source replacements."""
 
     _ensure_qapp()
     session = _projection_session("alpha")
-    source_change = session.replace_source_range(
+    commit = _range_commit(
+        session,
         start=5,
         end=5,
         replacement_text="x",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=True,
-        undo_snapshot=_projection_undo_snapshot("alpha"),
-    )
-    application = PromptProjectionSourceChangeApplication(
-        source_change=source_change,
-        previous_source_text="alpha",
-        origin=PromptSourceEditOrigin.TYPED,
-        signal_intent=PromptMutationSignalIntent(emit_text_changed=True),
     )
     host = _SourceChangeHost()
     host._projection_freshness_controller.can_defer_projection = True
     host._session.autocomplete_preview = object()
     applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
 
-    applier.apply_source_change_application(application)
+    applier.apply_edit_commit(commit)
 
     assert host.marked_source_changes == [(False, 8)]
     assert host.autocomplete_preview_clear_count == 1
@@ -1085,27 +1084,17 @@ def test_source_change_applier_rebuilds_whitespace_replacements() -> None:
 
     _ensure_qapp()
     session = _projection_session("alpha")
-    source_change = session.replace_source_range(
+    commit = _range_commit(
+        session,
         start=5,
         end=5,
         replacement_text=" ",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=True,
-        undo_snapshot=_projection_undo_snapshot("alpha"),
-    )
-    application = PromptProjectionSourceChangeApplication(
-        source_change=source_change,
-        previous_source_text="alpha",
-        origin=PromptSourceEditOrigin.TYPED,
-        signal_intent=PromptMutationSignalIntent(emit_text_changed=True),
     )
     host = _SourceChangeHost()
     host._projection_freshness_controller.can_defer_projection = True
     applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
 
-    applier.apply_source_change_application(application)
+    applier.apply_edit_commit(commit)
 
     assert host.marked_source_changes == [(False, 8)]
     assert host._source_document_adapter.range_fallback_calls == [
@@ -1120,28 +1109,22 @@ def test_source_change_applier_restores_undo_state_through_ports() -> None:
     """Restore applications should route exact history state through projection ports."""
 
     session = _projection_session("alpha")
-    session.replace_source_range(
+    _range_commit(
+        session,
         start=5,
         end=5,
         replacement_text=" beta",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=True,
-        undo_snapshot=_projection_undo_snapshot("alpha"),
     )
-    restore_result = session.undo(_projection_undo_snapshot("alpha beta"))
-    assert restore_result is not None
-    application = PromptProjectionRestoreApplication(
-        restore_result=restore_result,
-        signal_intent=PromptMutationSignalIntent(
-            undo_availability_change=restore_result.availability_change,
-        ),
+    commit = session.execute(
+        PromptUndoEdit(
+            current_snapshot=_projection_undo_snapshot("alpha beta"),
+        )
     )
+    assert commit is not None
     host = _SourceChangeHost()
     applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
 
-    applier.apply_restore_application(application)
+    applier.apply_edit_commit(commit)
 
     assert host._source_document_adapter.replacements == ["alpha"]
     assert host._editor_state.semantic.document.source_text == "alpha"
@@ -1243,48 +1226,38 @@ def test_source_state_outcome_represents_cancelled_and_rebuild_fallback_paths() 
 def test_source_state_outcome_represents_restore_application_signals() -> None:
     """Undo/redo restore inputs should become source-state signal/caret effects."""
 
-    session = _session("alpha")
-    session.replace_source_range(
+    session = _projection_session("alpha")
+    _range_commit(
+        session,
         start=5,
         end=5,
         replacement_text=" beta",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=True,
-        undo_snapshot=_undo_snapshot("alpha"),
     )
-    restore_result = session.undo(_undo_snapshot("alpha beta"))
-    assert restore_result is not None
-    application = PromptProjectionRestoreApplication(
-        restore_result=restore_result,
-        signal_intent=PromptMutationSignalIntent(
-            undo_availability_change=restore_result.availability_change,
-            emit_text_changed=True,
-            emit_cursor_position_changed=True,
-        ),
+    commit = session.execute(
+        PromptUndoEdit(
+            current_snapshot=_projection_undo_snapshot("alpha beta"),
+        )
     )
+    assert commit is not None
 
     request = PromptProjectionSourceStateApplicationRequest(
-        application=application,
+        commit=commit,
         current_source_revision=8,
         current_projection_source_text="alpha beta",
         reason="undo",
     )
     outcome = PromptProjectionSourceStateOutcome(
         apply_path=PromptProjectionSourceStateApplyPath.FULL_REBUILD,
-        source_revision=restore_result.source_snapshot.source_revision,
+        source_revision=commit.next_snapshot.source_revision,
         source_document=PromptProjectionSourceDocumentOutcome(full_text="alpha"),
         caret=PromptProjectionCaretSync(cursor_position=5, anchor_position=5),
         signals=PromptProjectionSignalOutcome(
-            emit_text_changed=application.signal_intent.emit_text_changed,
-            emit_cursor_position_changed=(
-                application.signal_intent.emit_cursor_position_changed
-            ),
+            emit_text_changed=commit.source_changed,
+            emit_cursor_position_changed=commit.cursor_changed,
         ),
     )
 
-    assert isinstance(request.application, PromptProjectionRestoreApplication)
+    assert request.commit is commit
     assert outcome.source_document.full_text == "alpha"
     assert outcome.caret.cursor_position == 5
     assert outcome.signals.emit_cursor_position_changed is True

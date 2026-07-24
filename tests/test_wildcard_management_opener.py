@@ -636,7 +636,7 @@ def test_wildcard_modal_context_insert_preserves_csv_and_cursor(
     cursor.setPosition(len("value\nalpha"))
     editor.setTextCursor(cursor)
 
-    result = editor._command_adapter.insert_context_menu_text(', "detail"')
+    result = editor._context_insertion.insert_context_menu_text(', "detail"')
     process_events(app)
 
     assert result.status == "applied"

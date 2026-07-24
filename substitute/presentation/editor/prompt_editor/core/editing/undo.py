@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Generic, TypeVar
 
-from .edit_transaction import (
+from .transactions import (
     PromptEditTransaction,
     PromptUndoAvailability,
     PromptUndoAvailabilityChange,

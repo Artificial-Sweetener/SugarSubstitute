@@ -23,11 +23,8 @@ from typing import cast
 from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
+from substitute.presentation.editor.prompt_editor.commands.clipboard_commands import (
     PromptClipboardCommandResult,
-    PromptCommandDispatcher,
-    PromptCommandSourceRange,
-    PromptCommandTextReplacement,
     PromptCopySelectionCommand,
     PromptCutSelectionCommand,
     PromptPasteTextCommand,
@@ -36,10 +33,21 @@ from substitute.presentation.editor.prompt_editor.commands import (
     PromptSelectAllCommand,
     normalized_clipboard_paste_text,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptSourceEditOrigin,
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
+    PromptCommandSourceRange,
+    PromptCommandTextReplacement,
+)
+from tests.prompt_editor_command_test_helpers import execute_prompt_command
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
+    PromptSourceEditOrigin,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
 
@@ -85,7 +93,7 @@ def test_copy_selection_command_returns_source_backed_text_without_mutation() ->
     session = _session("alpha beta", cursor_position=5, anchor_position=0)
     result = cast(
         PromptClipboardCommandResult[str],
-        PromptCommandDispatcher(session).execute(PromptCopySelectionCommand()),
+        execute_prompt_command(session, PromptCopySelectionCommand()),
     )
 
     assert result.status == "completed"
@@ -104,7 +112,7 @@ def test_cut_selection_command_returns_range_without_mutating_source() -> None:
     session = _session("alpha beta", cursor_position=5, anchor_position=0)
     result = cast(
         PromptClipboardCommandResult[str],
-        PromptCommandDispatcher(session).execute(PromptCutSelectionCommand()),
+        execute_prompt_command(session, PromptCutSelectionCommand()),
     )
 
     assert result.status == "completed"
@@ -121,7 +129,7 @@ def test_cut_selection_command_noops_for_empty_selection() -> None:
     session = _session("alpha", cursor_position=2, anchor_position=2)
     result = cast(
         PromptClipboardCommandResult[str],
-        PromptCommandDispatcher(session).execute(PromptCutSelectionCommand()),
+        execute_prompt_command(session, PromptCutSelectionCommand()),
     )
 
     assert result.status == "noop"
@@ -137,7 +145,7 @@ def test_paste_text_command_returns_current_selection_range() -> None:
     session = _session("alpha beta", cursor_position=10, anchor_position=6)
     result = cast(
         PromptClipboardCommandResult[str],
-        PromptCommandDispatcher(session).execute(PromptPasteTextCommand("gamma")),
+        execute_prompt_command(session, PromptPasteTextCommand("gamma")),
     )
 
     assert result.status == "completed"
@@ -151,7 +159,7 @@ def test_select_all_command_updates_session_cursor_state() -> None:
     """Select-all should use the editing session as cursor authority."""
 
     session = _session("alpha")
-    result = PromptCommandDispatcher(session).execute(PromptSelectAllCommand())
+    result = execute_prompt_command(session, PromptSelectAllCommand())
 
     assert result.status == "completed"
     assert result.cursor_state == PromptCursorState(
@@ -164,7 +172,8 @@ def test_replace_source_range_command_normalizes_pasted_range() -> None:
     """Range replacement should use paste-range normalization when requested."""
 
     session = _session("alpha")
-    result = PromptCommandDispatcher(session).execute(
+    result = execute_prompt_command(
+        session,
         PromptReplaceSourceRangeCommand(
             name="paste_literal",
             replacement=PromptCommandTextReplacement(
@@ -174,7 +183,7 @@ def test_replace_source_range_command_normalizes_pasted_range() -> None:
             ),
             normalizer=PromptSourceNormalizationService(),
             undo_snapshot=_undo_snapshot(session),
-        )
+        ),
     )
 
     assert result.status == "applied"
@@ -190,7 +199,8 @@ def test_replace_source_range_command_reports_same_text_noop() -> None:
     """Same-text replacement should return a no-op command result with cursor state."""
 
     session = _session("alpha")
-    result = PromptCommandDispatcher(session).execute(
+    result = execute_prompt_command(
+        session,
         PromptReplaceSourceRangeCommand(
             name="same_text",
             replacement=PromptCommandTextReplacement(
@@ -201,13 +211,13 @@ def test_replace_source_range_command_reports_same_text_noop() -> None:
             ),
             normalizer=PromptSourceNormalizationService(),
             undo_snapshot=_undo_snapshot(session),
-        )
+        ),
     )
 
     assert result.status == "noop"
     assert result.reason == "same_source"
-    assert result.source_change is not None
-    assert not result.source_change.source_changed
+    assert result.edit_commit is not None
+    assert not result.edit_commit.source_changed
     assert result.cursor_state == PromptCursorState(
         cursor_position=2, anchor_position=2
     )
@@ -219,7 +229,8 @@ def test_replace_full_source_command_preserves_exact_source_when_requested() -> 
     """Full-source command should preserve literal text for exact-source edits."""
 
     session = _session("alpha")
-    result = PromptCommandDispatcher(session).execute(
+    result = execute_prompt_command(
+        session,
         PromptReplaceFullSourceCommand(
             name="replace_exact",
             text="literal (beta)",
@@ -230,7 +241,7 @@ def test_replace_full_source_command_preserves_exact_source_when_requested() -> 
             record_undo=True,
             clear_history=False,
             undo_snapshot=_undo_snapshot(session),
-        )
+        ),
     )
 
     assert result.status == "applied"

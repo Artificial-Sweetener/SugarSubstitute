@@ -22,8 +22,9 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Generic, Literal, TypeAlias, TypeVar
+from typing import Generic, Literal, TypeAlias, TypeVar, cast
 
 from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutation,
@@ -46,14 +47,14 @@ from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptEditingSession,
-    PromptSourceNormalizer,
-    PromptUndoSnapshot,
-)
+from ..core.editing.commands import PromptReplaceDocumentEdit
+from ..core.editing.session import PromptEditingSession
+from ..core.editing.source_commands import PromptSourceNormalizer
+from ..core.editing.transactions import PromptUndoSnapshot
 from substitute.shared.logging.logger import get_logger, log_warning_exception
 
-from . import PromptCommandResult
+from .contracts import PromptCommandResult, PromptEditApplicationState
+from .execution import PromptEditExecution
 
 TPayload = TypeVar("TPayload")
 
@@ -91,6 +92,53 @@ class PromptWeightCommandResult(PromptCommandResult[TPayload]):
 
     mutation: PromptMutation | None = None
     render_plan: PromptSyntaxRenderPlan | None = None
+
+
+class PromptWeightCommandService(Generic[TPayload]):
+    """Execute weight mutations through one grouped editing transaction."""
+
+    def __init__(
+        self,
+        *,
+        execution: PromptEditExecution[TPayload],
+        normalizer: PromptSourceNormalizer,
+        exact_source_enabled: Callable[[], bool],
+    ) -> None:
+        """Store weight command dependencies."""
+
+        self._execution = execution
+        self._normalizer = normalizer
+        self._exact_source_enabled = exact_source_enabled
+
+    def execute(
+        self,
+        request: PromptWeightActionRequest,
+        *,
+        mutation_service: PromptMutationService,
+        syntax_service: PromptSyntaxService,
+        syntax_profile: PromptSyntaxProfile,
+    ) -> PromptWeightCommandResult[TPayload]:
+        """Commit one prepared weight mutation."""
+
+        command = build_weight_action_command(
+            request,
+            mutation_service=mutation_service,
+            syntax_service=syntax_service,
+            syntax_profile=syntax_profile,
+            normalizer=self._normalizer,
+            exact_source=self._exact_source_enabled(),
+            record_undo=False,
+            undo_snapshot=self._execution.current_undo_snapshot(),
+        )
+        self._execution.finish_pending_key_edit_block(reason="weight_action")
+        self._execution.begin_edit_block(finish_typing=False)
+        try:
+            return cast(
+                PromptWeightCommandResult[TPayload],
+                self._execution.execute(command),
+            )
+        finally:
+            self._execution.end_edit_block()
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,23 +187,31 @@ class PromptApplySyntaxWeightCommand(Generic[TPayload]):
             action=self.request.action,
             cursor_policy=self.request.cursor_policy,
         )
-        source_change = session.replace_full_source(
-            mutation.text,
-            cursor_position=cursor_position,
-            anchor_position=anchor_position,
-            normalizer=self.normalizer,
-            exact_source=self.exact_source,
-            record_undo=self.record_undo,
-            clear_history=False,
-            undo_snapshot=self.undo_snapshot,
+        edit_commit = session.execute(
+            PromptReplaceDocumentEdit(
+                text=mutation.text,
+                cursor_position=cursor_position,
+                anchor_position=anchor_position,
+                normalizer=self.normalizer,
+                exact_source=self.exact_source,
+                record_undo=self.record_undo,
+                clear_history=False,
+                undo_snapshot=self.undo_snapshot,
+            )
+        )
+        edit_commit = edit_commit.with_prepared_state(
+            PromptEditApplicationState(
+                document_view=mutation.document_view,
+                render_plan=render_plan,
+            )
         )
         return PromptWeightCommandResult(
             command_name=self.name,
-            status="applied" if source_change.source_changed else "noop",
-            source_change=source_change,
-            cursor_state=source_change.cursor_state,
-            undo_availability_change=source_change.undo_availability_change,
-            reason=None if source_change.source_changed else "same_source",
+            status="applied" if edit_commit.source_changed else "noop",
+            edit_commit=edit_commit,
+            cursor_state=edit_commit.cursor_state,
+            undo_availability_change=edit_commit.undo_availability_change,
+            reason=None if edit_commit.source_changed else "same_source",
             mutation=mutation,
             render_plan=render_plan,
         )
@@ -335,6 +391,7 @@ __all__ = [
     "PromptApplySyntaxWeightCommand",
     "PromptSyntaxWeightAction",
     "PromptWeightActionRequest",
+    "PromptWeightCommandService",
     "PromptWeightCommandResult",
     "PromptWeightCursorPolicy",
     "build_weight_action_command",

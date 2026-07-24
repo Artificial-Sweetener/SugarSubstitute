@@ -22,7 +22,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Generic, Protocol, TypeVar
 
-from .edit_controller import PromptEditController, PromptPendingKeyEditBlockFlusher
+from ..commands.execution import (
+    PromptEditExecution,
+    PromptPendingKeyEditBlockFlusher,
+)
 
 TPayload = TypeVar("TPayload")
 
@@ -66,7 +69,7 @@ class PromptUndoCoalescingActions(PromptPendingKeyEditBlockFlusher, Protocol):
 class PromptUndoCoalescingController(Generic[TPayload]):
     """Coordinate typing and delete undo groups with deterministic timers."""
 
-    edit_controller: PromptEditController[TPayload]
+    edit_execution: PromptEditExecution[TPayload]
     typing_timer: PromptUndoCoalescingTimer
     delete_timer: PromptUndoCoalescingTimer
     cursor_position: Callable[[], int]
@@ -83,23 +86,23 @@ class PromptUndoCoalescingController(Generic[TPayload]):
 
         _ = autorepeat
         self.finish_typing_group(reason="delete_group")
-        if self.edit_controller.session.delete_group_active:
+        if self.edit_execution.session.delete_group_active:
             self.delete_timer.stop()
-        self.edit_controller.begin_delete_group(key=key)
+        self.edit_execution.begin_delete_group(key=key)
         self.delete_timer.start()
 
     def finish_delete_group(self, *, reason: str) -> None:
         """Commit any open Backspace/Delete undo group."""
 
         _ = reason
-        if self.edit_controller.session.delete_group_active:
+        if self.edit_execution.session.delete_group_active:
             self.delete_timer.stop()
-        self.edit_controller.finish_delete_group()
+        self.edit_execution.finish_delete_group()
 
     def can_group_typed_text(self, text: str) -> bool:
         """Return whether one typed character may join a word-level undo group."""
 
-        return self.edit_controller.session.can_group_typed_text(
+        return self.edit_execution.session.can_group_typed_text(
             text,
             selection_empty=self.selection_empty(),
         )
@@ -107,9 +110,9 @@ class PromptUndoCoalescingController(Generic[TPayload]):
     def begin_or_extend_typing_group(self, text: str) -> None:
         """Open or extend one contiguous typed-word undo group."""
 
-        if self.edit_controller.session.typing_group_active:
+        if self.edit_execution.session.typing_group_active:
             self.typing_timer.stop()
-        self.edit_controller.begin_or_extend_typing_group(
+        self.edit_execution.begin_or_extend_typing_group(
             text,
             cursor_position=self.cursor_position(),
         )
@@ -119,9 +122,9 @@ class PromptUndoCoalescingController(Generic[TPayload]):
         """Commit any open typed-word undo group."""
 
         _ = reason
-        if self.edit_controller.session.typing_group_active:
+        if self.edit_execution.session.typing_group_active:
             self.typing_timer.stop()
-        self.edit_controller.finish_typing_group()
+        self.edit_execution.finish_typing_group()
 
     def finish_typing_edit_block(self, *, reason: str) -> None:
         """Commit a pending typing edit block for edit-controller edit blocks."""

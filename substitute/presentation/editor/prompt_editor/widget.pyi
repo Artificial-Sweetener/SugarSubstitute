@@ -81,14 +81,20 @@ from .composition import (
     DanbooruWikiLookupDispatcherFactory,
     PromptEditorTaskExecutorFactory,
 )
-from .commands import (
-    PromptAutocompleteAcceptance,
+from .commands.autocomplete_commands import PromptAutocompleteAcceptance
+from .commands.contracts import (
     PromptCommandResult,
     PromptCommandTextReplacement,
+)
+from .commands.diagnostic_commands import (
     PromptDiagnosticAction,
     PromptDiagnosticCommandResult,
+)
+from .commands.reorder_commands import (
     PromptReorderCommandResult,
     PromptReorderLayoutCommitRequest,
+)
+from .commands.weight_commands import (
     PromptWeightActionRequest,
     PromptWeightCommandResult,
 )

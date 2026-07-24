@@ -22,7 +22,8 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
 
-from dataclasses import dataclass, replace
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Generic, TypeAlias, TypeVar
 
 from substitute.application.prompt_editor.autocomplete.query_service import (
@@ -37,16 +38,18 @@ from substitute.application.prompt_editor.editing.structured_text import (
     PromptStructuredTextMutationService,
 )
 from substitute.domain.prompt.document.ranges import SourceRange
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptEditingSession,
+from ..core.editing.commands import PromptReplaceRangeEdit
+from ..core.editing.session import PromptEditingSession
+from ..core.editing.source_commands import (
     PromptSourceEditOrigin,
     PromptSourceNormalizer,
-    PromptUndoSnapshot,
 )
+from ..core.editing.transactions import PromptUndoSnapshot
 
-from . import (
+from .contracts import (
     PromptCommandResult,
 )
+from .execution import PromptEditExecution
 
 TPayload = TypeVar("TPayload")
 
@@ -100,6 +103,42 @@ PromptAutocompleteAcceptance: TypeAlias = (
     | PromptWildcardAutocompleteAcceptance
     | PromptLoraAutocompleteAcceptance
 )
+
+
+class PromptAutocompleteCommandService(Generic[TPayload]):
+    """Execute prepared autocomplete acceptance through editing ownership."""
+
+    def __init__(
+        self,
+        *,
+        execution: PromptEditExecution[TPayload],
+        normalizer: PromptSourceNormalizer,
+        exact_source_enabled: Callable[[], bool],
+        structured_text_mutations: PromptStructuredTextMutationService | None,
+    ) -> None:
+        """Store autocomplete command dependencies."""
+
+        self._execution = execution
+        self._normalizer = normalizer
+        self._exact_source_enabled = exact_source_enabled
+        self._structured_text_mutations = structured_text_mutations
+
+    def execute(
+        self,
+        acceptance: PromptAutocompleteAcceptance,
+    ) -> PromptCommandResult[TPayload]:
+        """Commit one prepared autocomplete acceptance."""
+
+        self._execution.finish_pending_key_edit_block(reason="autocomplete_acceptance")
+        return self._execution.execute(
+            build_autocomplete_acceptance_command(
+                acceptance,
+                normalizer=self._normalizer,
+                exact_source=self._exact_source_enabled(),
+                undo_snapshot=self._execution.current_undo_snapshot(),
+                structured_text_mutations=self._structured_text_mutations,
+            )
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -339,23 +378,21 @@ def _execute_autocomplete_replacement(
         exact_source = structured_replacement.exact_source
         cursor_position = structured_replacement.cursor_position
 
-    source_change = session.replace_source_range(
-        start=replacement.start,
-        end=replacement.end,
-        replacement_text=replacement.replacement_text,
-        normalizer=normalizer,
-        origin=PromptSourceEditOrigin.AUTOCOMPLETE,
-        exact_source=exact_source,
-        record_undo=True,
-        undo_snapshot=undo_snapshot,
-    )
-    if cursor_position is not None:
-        cursor_state = session.set_cursor_positions(
+    edit_commit = session.execute(
+        PromptReplaceRangeEdit(
+            start=replacement.start,
+            end=replacement.end,
+            replacement_text=replacement.replacement_text,
+            normalizer=normalizer,
+            origin=PromptSourceEditOrigin.AUTOCOMPLETE,
+            exact_source=exact_source,
+            record_undo=True,
+            undo_snapshot=undo_snapshot,
             cursor_position=cursor_position,
             anchor_position=cursor_position,
         )
-        source_change = replace(source_change, cursor_state=cursor_state)
-    return PromptCommandResult.from_source_change(command_name, source_change)
+    )
+    return PromptCommandResult.from_edit_commit(command_name, edit_commit)
 
 
 def _tag_replacement_for_source(
@@ -413,6 +450,7 @@ __all__ = [
     "PromptAcceptTagAutocompleteCommand",
     "PromptAcceptWildcardAutocompleteCommand",
     "PromptAutocompleteAcceptance",
+    "PromptAutocompleteCommandService",
     "PromptLoraAutocompleteAcceptance",
     "PromptSceneAutocompleteAcceptance",
     "PromptTagAutocompleteAcceptance",

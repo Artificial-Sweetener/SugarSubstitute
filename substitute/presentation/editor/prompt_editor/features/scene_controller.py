@@ -39,7 +39,7 @@ from substitute.shared.diagnostics.prompt_editor_work import (
     prompt_editor_work_event,
 )
 
-from ..commands import PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 from .feature_profile_controller import PromptFeatureProfileController
 
 

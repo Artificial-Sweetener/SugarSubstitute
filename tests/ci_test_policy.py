@@ -85,6 +85,8 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_prompt_editor_context_menu_contract.py",
         "tests/test_prompt_editor_debounce.py",
         "tests/test_prompt_editor_main_thread_dispatcher.py",
+        # Native input, IME, and clipboard events share process-global Qt state.
+        "tests/test_prompt_editor_editing_ownership_characterization.py",
         "tests/test_prompt_editor_phase1_characterization.py",
         "tests/test_prompt_editor_phase2_characterization.py",
         "tests/test_prompt_editor_phase3_characterization.py",

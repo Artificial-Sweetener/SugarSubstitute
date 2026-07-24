@@ -50,7 +50,7 @@ from substitute.presentation.editor.prompt_editor.projection.freshness_controlle
     PromptProjectionFreshnessBlockers,
     PromptProjectionFreshnessController,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
     PromptSourceEditOrigin,
 )
 from substitute.presentation.editor.prompt_editor.projection.model import (

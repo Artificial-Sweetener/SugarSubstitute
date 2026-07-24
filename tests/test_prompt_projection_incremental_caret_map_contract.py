@@ -30,6 +30,10 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
 from substitute.presentation.editor.prompt_editor import PromptEditor
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
+    PromptSourceEditOrigin,
+)
+from tests.prompt_projection_surface_test_helpers import surface_source_commands
 from tests.prompt_projection_invariants import (
     validate_prompt_projection_document,
 )
@@ -105,6 +109,52 @@ def test_incremental_selection_delete_keeps_plain_text_caret_map_consistent(
         1,
         2,
         3,
+    )
+
+
+def test_incremental_unicode_edits_preserve_only_grapheme_caret_boundaries(
+    widgets: list[QWidget],
+) -> None:
+    """Keep simple Unicode incremental and joined graphemes canonically atomic."""
+
+    box = show_prompt_editor(widgets, text="AB", width=260)
+    surface = surface_for(box)
+    commands = surface_source_commands(surface)
+
+    commands.replace_source_range(
+        start=1,
+        end=1,
+        replacement_text="日",
+        origin=PromptSourceEditOrigin.TYPED,
+    )
+    process_events(ensure_qapp())
+    document = surface.projection_document()
+
+    validate_prompt_projection_document(document)
+    assert box.toPlainText() == "A日B"
+    assert tuple(stop.state.source_position for stop in document.caret_map.stops) == (
+        0,
+        1,
+        2,
+        3,
+    )
+
+    commands.replace_source_range(
+        start=1,
+        end=2,
+        replacement_text="👩‍🚀",
+        origin=PromptSourceEditOrigin.TYPED,
+    )
+    process_events(ensure_qapp())
+    document = surface.projection_document()
+
+    validate_prompt_projection_document(document)
+    assert box.toPlainText() == "A👩‍🚀B"
+    assert tuple(stop.state.source_position for stop in document.caret_map.stops) == (
+        0,
+        1,
+        4,
+        5,
     )
 
 

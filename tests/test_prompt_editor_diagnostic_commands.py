@@ -34,9 +34,8 @@ from substitute.application.prompt_editor.diagnostics.models import (
 from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
+from substitute.presentation.editor.prompt_editor.commands.diagnostic_commands import (
     PromptAddSpellingDiagnosticToDictionaryCommand,
-    PromptCommandDispatcher,
     PromptDiagnosticCommandResult,
     PromptDuplicateEmphasisDiagnosticAction,
     PromptDuplicateIgnoreDiagnosticAction,
@@ -51,9 +50,14 @@ from substitute.presentation.editor.prompt_editor.commands import (
     PromptSpellingReplacementDiagnosticAction,
     build_diagnostic_action_command,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from tests.prompt_editor_command_test_helpers import execute_prompt_command
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
 
@@ -110,7 +114,8 @@ def test_spelling_replacement_command_replaces_exact_diagnostic_range() -> None:
     session = _session("one typo ", cursor_position=len("one typo "))
     result = cast(
         PromptDiagnosticCommandResult[str],
-        PromptCommandDispatcher(session).execute(
+        execute_prompt_command(
+            session,
             PromptReplaceSpellingDiagnosticCommand(
                 action=PromptSpellingReplacementDiagnosticAction(
                     diagnostic=_spelling_diagnostic(4, 8, "typo"),
@@ -120,13 +125,13 @@ def test_spelling_replacement_command_replaces_exact_diagnostic_range() -> None:
                 normalizer=PromptSourceNormalizationService(),
                 exact_source=False,
                 undo_snapshot=_undo_snapshot(session),
-            )
+            ),
         ),
     )
 
     assert result.status == "applied"
     assert session.source_text == "one type "
-    assert len(result.source_changes) == 1
+    assert result.edit_commit is not None
     assert result.cursor_state == PromptCursorState(
         cursor_position=8,
         anchor_position=8,
@@ -152,7 +157,7 @@ def test_spelling_replacement_command_rejects_stale_identity() -> None:
         undo_snapshot=_undo_snapshot(session),
     )
 
-    result = PromptCommandDispatcher(session).execute(command)
+    result = execute_prompt_command(session, command)
 
     assert result.status == "rejected"
     assert result.reason == "stale_source"
@@ -164,7 +169,8 @@ def test_spelling_replacement_command_rejects_range_text_mismatch() -> None:
     """Spelling replacement should not edit when the diagnostic word moved."""
 
     moved_session = _session("one type ")
-    mismatch_result = PromptCommandDispatcher(moved_session).execute(
+    mismatch_result = execute_prompt_command(
+        moved_session,
         PromptReplaceSpellingDiagnosticCommand(
             action=PromptSpellingReplacementDiagnosticAction(
                 diagnostic=_spelling_diagnostic(4, 8, "typo"),
@@ -173,7 +179,7 @@ def test_spelling_replacement_command_rejects_range_text_mismatch() -> None:
             normalizer=PromptSourceNormalizationService(),
             exact_source=False,
             undo_snapshot=_undo_snapshot(moved_session),
-        )
+        ),
     )
 
     assert mismatch_result.status == "rejected"
@@ -194,7 +200,8 @@ def test_duplicate_removal_command_removes_duplicate_segment() -> None:
     )
     result = cast(
         PromptDiagnosticCommandResult[str],
-        PromptCommandDispatcher(session).execute(
+        execute_prompt_command(
+            session,
             PromptRemoveDuplicateDiagnosticCommand(
                 action=PromptDuplicateRemovalDiagnosticAction(
                     diagnostic=diagnostic,
@@ -203,13 +210,13 @@ def test_duplicate_removal_command_removes_duplicate_segment() -> None:
                 normalizer=PromptSourceNormalizationService(),
                 exact_source=False,
                 undo_snapshot=_undo_snapshot(session),
-            )
+            ),
         ),
     )
 
     assert result.status == "applied"
     assert session.source_text == "alpha, beta"
-    assert len(result.source_changes) == 1
+    assert result.edit_commit is not None
 
 
 def test_duplicate_emphasis_command_removes_duplicate_and_emphasizes_first() -> None:
@@ -225,7 +232,8 @@ def test_duplicate_emphasis_command_removes_duplicate_and_emphasizes_first() -> 
     )
     result = cast(
         PromptDiagnosticCommandResult[str],
-        PromptCommandDispatcher(session).execute(
+        execute_prompt_command(
+            session,
             PromptEmphasizeFirstDuplicateDiagnosticCommand(
                 action=PromptDuplicateEmphasisDiagnosticAction(
                     diagnostic=diagnostic,
@@ -234,13 +242,13 @@ def test_duplicate_emphasis_command_removes_duplicate_and_emphasizes_first() -> 
                 normalizer=PromptSourceNormalizationService(),
                 exact_source=False,
                 undo_snapshot=_undo_snapshot(session),
-            )
+            ),
         ),
     )
 
     assert result.status == "applied"
     assert session.source_text == "(yellow hat:1.10)"
-    assert len(result.source_changes) == 2
+    assert result.edit_commit is not None
 
 
 def test_duplicate_command_rejects_payload_range_mismatch() -> None:
@@ -263,13 +271,14 @@ def test_duplicate_command_rejects_payload_range_mismatch() -> None:
         ),
     )
 
-    result = PromptCommandDispatcher(session).execute(
+    result = execute_prompt_command(
+        session,
         PromptRemoveDuplicateDiagnosticCommand(
             action=PromptDuplicateRemovalDiagnosticAction(diagnostic=diagnostic),
             normalizer=PromptSourceNormalizationService(),
             exact_source=False,
             undo_snapshot=_undo_snapshot(session),
-        )
+        ),
     )
 
     assert result.status == "rejected"
@@ -285,24 +294,26 @@ def test_spelling_ignore_and_dictionary_commands_return_validated_word() -> None
 
     ignore_result = cast(
         PromptDiagnosticCommandResult[str],
-        PromptCommandDispatcher(session).execute(
+        execute_prompt_command(
+            session,
             PromptIgnoreSpellingDiagnosticCommand(
                 PromptSpellingIgnoreDiagnosticAction(
                     diagnostic=diagnostic,
                     source_identity=_source_identity(session),
                 )
-            )
+            ),
         ),
     )
     add_result = cast(
         PromptDiagnosticCommandResult[str],
-        PromptCommandDispatcher(session).execute(
+        execute_prompt_command(
+            session,
             PromptAddSpellingDiagnosticToDictionaryCommand(
                 PromptSpellingDictionaryAddDiagnosticAction(
                     diagnostic=diagnostic,
                     source_identity=_source_identity(session),
                 )
-            )
+            ),
         ),
     )
 
@@ -328,13 +339,14 @@ def test_duplicate_ignore_command_returns_validated_diagnostic_id() -> None:
 
     result = cast(
         PromptDiagnosticCommandResult[str],
-        PromptCommandDispatcher(session).execute(
+        execute_prompt_command(
+            session,
             PromptIgnoreDuplicateDiagnosticCommand(
                 PromptDuplicateIgnoreDiagnosticAction(
                     diagnostic=diagnostic,
                     source_identity=_source_identity(session),
                 )
-            )
+            ),
         ),
     )
 

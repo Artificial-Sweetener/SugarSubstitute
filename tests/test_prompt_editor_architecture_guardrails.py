@@ -75,16 +75,6 @@ _EXPECTED_IMPORT_CYCLES = (
         "substitute.presentation.editor.panel.widgets.cube_section",
     ),
     (
-        "substitute.presentation.editor.prompt_editor.commands",
-        "substitute.presentation.editor.prompt_editor.commands.autocomplete_commands",
-        "substitute.presentation.editor.prompt_editor.commands.clipboard_commands",
-        "substitute.presentation.editor.prompt_editor.commands.diagnostic_commands",
-        "substitute.presentation.editor.prompt_editor.commands.paste_import_commands",
-        "substitute.presentation.editor.prompt_editor.commands.reorder_commands",
-        "substitute.presentation.editor.prompt_editor.commands.trigger_word_commands",
-        "substitute.presentation.editor.prompt_editor.commands.weight_commands",
-    ),
-    (
         "substitute.presentation.editor.prompt_editor.projection.hit_testing",
         "substitute.presentation.editor.prompt_editor.projection.layout_engine",
         "substitute.presentation.editor.prompt_editor.projection.painter",
@@ -325,7 +315,7 @@ def test_revision_owner_replaces_obsolete_prompt_state_mirrors() -> None:
             "downstream.source_text != ",
         ),
         PROMPT_PRESENTATION_ROOT / "syntax_renderers.py": ("self._state.revisions",),
-        PROMPT_PRESENTATION_ROOT / "editing_session" / "source_edit_commands.py": (
+        PROMPT_PRESENTATION_ROOT / "core" / "editing" / "source_commands.py": (
             "self._source_buffer.source_text =",
             "self._source_buffer.source_revision +=",
             "self._source_buffer.parenthesis_intents =",
@@ -382,10 +372,52 @@ def test_prompt_editor_private_and_protocol_debt_does_not_grow() -> None:
         "test_private_exemptions": test_private_exemptions,
     } == {
         "protocols": 201,
-        "casts": 201,
+        "casts": 194,
         "production_private_exemptions": 11,
-        "test_private_exemptions": 310,
+        "test_private_exemptions": 305,
     }
+
+
+def test_deleted_editing_graph_cannot_return() -> None:
+    """Keep the obsolete mutation graph and package-root barrel deleted."""
+
+    deleted_files = (
+        PROMPT_PRESENTATION_ROOT / "interactions" / "command_adapter.py",
+        PROMPT_PRESENTATION_ROOT / "interactions" / "edit_command_router.py",
+    )
+    assert all(not path.exists() for path in deleted_files)
+    editing_session_root = PROMPT_PRESENTATION_ROOT / "editing_session"
+    assert not tuple(editing_session_root.glob("*.py"))
+    assert not tuple(editing_session_root.glob("*.pyi"))
+
+    forbidden_fragments = (
+        "PromptEditController",
+        "PromptEditCommandRouter",
+        "PromptEditorCommandAdapter",
+        "PromptProjectionSourceChangeApplication",
+        "PromptProjectionRestoreApplication",
+        "PromptEditingSessionSourceChange",
+        "apply_source_change_application",
+        "apply_restore_application",
+        "attach_runtime_mutation_actions",
+    )
+    source_paths = (
+        *(PROMPT_PRESENTATION_ROOT.rglob("*.py")),
+        *(PROMPT_PRESENTATION_ROOT.rglob("*.pyi")),
+    )
+    violations = {
+        fragment: tuple(
+            path.relative_to(PROJECT_ROOT).as_posix()
+            for path in source_paths
+            if fragment in path.read_text(encoding="utf-8")
+        )
+        for fragment in forbidden_fragments
+    }
+    assert {fragment: paths for fragment, paths in violations.items() if paths} == {}
+
+    command_root = PROMPT_PRESENTATION_ROOT / "commands" / "__init__.py"
+    tree = ast.parse(command_root.read_text(encoding="utf-8"))
+    assert not any(isinstance(node, (ast.Import, ast.ImportFrom)) for node in tree.body)
 
 
 def _class_method_count(source: str, class_name: str) -> int:

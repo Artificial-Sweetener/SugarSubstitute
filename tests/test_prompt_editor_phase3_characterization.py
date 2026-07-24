@@ -61,11 +61,12 @@ from substitute.presentation.editor.prompt_editor.async_work import (
     PromptAsyncResultIdentity,
     PromptAsyncTaskOutcome,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandDispatcher,
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
+    PromptEditorCommand,
+)
+from substitute.presentation.editor.prompt_editor.commands.diagnostic_commands import (
     PromptDiagnosticAction,
     PromptDiagnosticCommandResult,
-    PromptEditorCommand,
     build_diagnostic_action_command,
 )
 from substitute.presentation.editor.prompt_editor.features import (
@@ -73,11 +74,16 @@ from substitute.presentation.editor.prompt_editor.features import (
     PromptFeatureProfileController,
     PromptWildcardFeatureController,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
+from tests.prompt_editor_command_test_helpers import execute_prompt_command
 from tests.prompt_autocomplete_test_helpers import (
     EmptyPromptAutocompleteGateway,
     EmptyPromptWildcardCatalogGateway,
@@ -382,7 +388,7 @@ class _FakeEditor:
         )
         result = cast(
             PromptDiagnosticCommandResult[object],
-            PromptCommandDispatcher(session).execute(command),
+            execute_prompt_command(session, command),
         )
         self.text = session.source_text
         self.source_revision = session.source_revision

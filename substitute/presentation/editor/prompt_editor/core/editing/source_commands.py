@@ -33,10 +33,10 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 )
 
 from .cursor_state import PromptCursorState
-from .edit_transaction import PromptUndoAvailabilityChange, PromptUndoSnapshot
+from .transactions import PromptUndoAvailabilityChange, PromptUndoSnapshot
 from .source_buffer import PromptSourceBuffer, PromptSourceSnapshot
-from .parenthesis_intent import PromptParenthesisIntent, segment_bounds_at
-from .undo_stack import PromptUndoStack
+from .parenthesis import PromptParenthesisIntent, segment_bounds_at
+from .undo import PromptUndoStack
 
 TPayload = TypeVar("TPayload")
 

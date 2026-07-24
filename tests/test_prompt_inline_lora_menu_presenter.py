@@ -31,7 +31,9 @@ from PySide6.QtCore import QPoint
 from PySide6.QtGui import QAction, QFontMetrics
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.presentation.editor.prompt_editor.commands import PromptCommandResult
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
+    PromptCommandResult,
+)
 from substitute.presentation.editor.prompt_editor.features import (
     PromptFeatureCommandRequest,
     PromptFeatureSnapshotIdentity,

@@ -44,7 +44,7 @@ from .diagnostics_controller import (
     PromptDiagnosticMenuActionSnapshot,
     PromptDiagnosticsSnapshot,
 )
-from ..commands import PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 from .lora_action_snapshots import PromptLoraActionSnapshot
 from .lora_context_menu import PromptLoraTriggerWordsAction
 from .lora_metadata_controller import PromptLoraMetadataSnapshot

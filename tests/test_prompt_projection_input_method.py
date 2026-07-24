@@ -29,21 +29,16 @@ from PySide6.QtGui import QInputMethodEvent, QTextCharFormat, QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.presentation.editor.prompt_editor.editing_session.edit_controller import (
-    PromptEditController,
-)
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
     PromptSourceEditOrigin,
-)
-from substitute.presentation.editor.prompt_editor.projection.surface import (
-    PromptProjectionUndoPayload,
 )
 import substitute.presentation.text_coordinates as text_coordinates_module
 from substitute.presentation.text_coordinates import TextCoordinateMap
 from tests.prompt_projection_surface_test_helpers import (
     new_projection_surface,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
-    surface_router,
+    surface_edit_execution,
+    surface_source_commands,
 )
 from tests.prompt_projection_test_helpers import ensure_qapp
 
@@ -58,7 +53,7 @@ def _set_source(surface: Any, text: str) -> None:
     """Replace the complete source through the composed command boundary."""
 
     surface.set_exact_source_editing_enabled(True)
-    surface_router(surface).replace_source_range(
+    surface_source_commands(surface).replace_source_range(
         start=0,
         end=len(surface.toPlainText()),
         replacement_text=text,
@@ -128,13 +123,7 @@ def test_prompt_ime_commit_replaces_selection_once_and_round_trips_undo(
     QApplication.sendEvent(surface, commit)
 
     assert surface.toPlainText() == "中文 日本語 한국어 👩‍💻"
-    edit_controller = cast(
-        PromptEditController[PromptProjectionUndoPayload],
-        cast(Any, surface)._phase21_test_edit_controller,
-    )
-    restore_result = edit_controller.undo()
-    assert restore_result is not None
-    surface.restore_clipboard_history_state(restore_result)
+    assert surface_edit_execution(surface).undo() is not None
     assert surface.toPlainText() == "replace me"
 
 

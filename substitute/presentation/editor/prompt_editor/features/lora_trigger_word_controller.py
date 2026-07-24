@@ -35,7 +35,7 @@ from substitute.shared.diagnostics.prompt_editor_work import (
 )
 
 from ..async_work import PromptScheduledLoraContextProvider
-from ..commands import PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 from .lora_action_snapshots import (
     PromptLoraActionSnapshot,
     PromptLoraTriggerWordProjector,

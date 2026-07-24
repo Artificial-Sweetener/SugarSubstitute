@@ -30,7 +30,7 @@ from substitute.application.prompt_editor.scenes.projection import (
 )
 
 from .autocomplete_result_controller import PromptAutocompleteTagContext
-from ..commands import PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 
 
 class PromptAutocompleteSceneContextSourceIdentity(Protocol):

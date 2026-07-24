@@ -39,8 +39,10 @@ from substitute.application.prompt_editor.lora.scheduled import (
     PromptTriggerWordIndex,
 )
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
-from substitute.presentation.editor.prompt_editor.commands import (
+from substitute.presentation.editor.prompt_editor.commands.autocomplete_commands import (
     PromptAutocompleteAcceptance,
+)
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
     PromptCommandResult,
 )
 from substitute.presentation.editor.prompt_editor.async_work import (

@@ -725,7 +725,7 @@ def test_phase5_restore_lifecycle_and_caret_state_remain_source_safe(
     editor = _show_phase5_editor(widgets, text="alpha")
     surface = surface_for(editor)
     QTest.keyClicks(editor, " beta")
-    cast(Any, editor)._edit_controller.finish_pending_key_edit_block(reason="phase5")
+    surface.edit_execution.finish_pending_key_edit_block(reason="phase5")
     process_events(app)
     assert editor.canUndo()
 
@@ -785,7 +785,7 @@ def test_phase5_restore_lifecycle_and_caret_state_remain_source_safe(
         record_metadata_catchup,
     )
     monkeypatch.setattr(
-        cast(Any, editor)._edit_controller,
+        surface.edit_execution,
         "finish_pending_key_edit_block",
         lambda *, reason: record_focus_out(reason),
     )

@@ -24,20 +24,25 @@ from dataclasses import dataclass, field
 from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandSourceRange,
-    PromptCommandTextReplacement,
-    PromptReplaceSourceRangeCommand,
+from substitute.presentation.editor.prompt_editor.commands.execution import (
+    PromptEditExecution,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptSourceEditOrigin,
+from substitute.presentation.editor.prompt_editor.commands.source_service import (
+    PromptSourceCommandService,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.commit import (
+    PromptEditCommit,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
 )
-from substitute.presentation.editor.prompt_editor.editing_session.edit_controller import (
-    PromptEditController,
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
+    PromptSourceEditOrigin,
 )
-from substitute.presentation.editor.prompt_editor.editing_session.undo_coalescing import (
+from substitute.presentation.editor.prompt_editor.interactions.undo_coalescing import (
     PromptUndoCoalescingController,
 )
 
@@ -112,12 +117,22 @@ class _SelectionState:
     empty: bool = True
 
 
+class _CommitSink:
+    """Accept edit commits without adding projection behavior to unit tests."""
+
+    def apply_edit_commit(self, commit: PromptEditCommit[str]) -> None:
+        """Accept one committed edit."""
+
+        _ = commit
+
+
 @dataclass(slots=True)
 class _Harness:
     """Group a coalescing controller with its deterministic collaborators."""
 
     controller: PromptUndoCoalescingController[str]
-    edit_controller: PromptEditController[str]
+    edit_execution: PromptEditExecution[str]
+    source_commands: PromptSourceCommandService[str]
     typing_timer: _Timer
     delete_timer: _Timer
     availability_sink: _AvailabilitySink
@@ -145,25 +160,32 @@ def _harness(source_text: str) -> _Harness:
 
     session = _session(source_text)
     availability_sink = _AvailabilitySink()
-    edit_controller = PromptEditController(
+    edit_execution = PromptEditExecution(
         session=session,
         undo_payload_provider=_PayloadProvider(),
         availability_signal_sink=availability_sink,
+        commit_sink=_CommitSink(),
+    )
+    source_commands = PromptSourceCommandService(
+        execution=edit_execution,
+        normalizer=PromptSourceNormalizationService(),
+        exact_source_enabled=lambda: True,
     )
     typing_timer = _Timer()
     delete_timer = _Timer()
     selection_state = _SelectionState()
     controller = PromptUndoCoalescingController(
-        edit_controller=edit_controller,
+        edit_execution=edit_execution,
         typing_timer=typing_timer,
         delete_timer=delete_timer,
-        cursor_position=lambda: edit_controller.session.cursor_position,
+        cursor_position=lambda: edit_execution.session.cursor_position,
         selection_empty=lambda: selection_state.empty,
     )
-    edit_controller.set_pending_key_flusher(controller)
+    edit_execution.set_pending_key_flusher(controller)
     return _Harness(
         controller=controller,
-        edit_controller=edit_controller,
+        edit_execution=edit_execution,
+        source_commands=source_commands,
         typing_timer=typing_timer,
         delete_timer=delete_timer,
         availability_sink=availability_sink,
@@ -172,7 +194,7 @@ def _harness(source_text: str) -> _Harness:
 
 
 def _replace_range(
-    edit_controller: PromptEditController[str],
+    source_commands: PromptSourceCommandService[str],
     *,
     start: int,
     end: int,
@@ -180,17 +202,12 @@ def _replace_range(
 ) -> None:
     """Apply one exact source replacement through the command boundary."""
 
-    edit_controller.dispatch_command(
-        PromptReplaceSourceRangeCommand(
-            name="test_replace",
-            replacement=PromptCommandTextReplacement(
-                source_range=PromptCommandSourceRange(start=start, end=end),
-                replacement_text=replacement_text,
-                origin=PromptSourceEditOrigin.TYPED,
-            ),
-            normalizer=PromptSourceNormalizationService(),
-            undo_snapshot=edit_controller.current_undo_snapshot(),
-        )
+    source_commands.replace_source_range(
+        start=start,
+        end=end,
+        replacement_text=replacement_text,
+        origin=PromptSourceEditOrigin.TYPED,
+        command_name="test_replace",
     )
 
 
@@ -200,9 +217,9 @@ def _type_text(harness: _Harness, text: str) -> None:
     for character in text:
         assert harness.controller.can_group_typed_text(character)
         harness.controller.begin_or_extend_typing_group(character)
-        position = harness.edit_controller.session.cursor_position
+        position = harness.edit_execution.session.cursor_position
         _replace_range(
-            harness.edit_controller,
+            harness.source_commands,
             start=position,
             end=position,
             replacement_text=character,
@@ -213,9 +230,9 @@ def _backspace(harness: _Harness, *, key: int = 1) -> None:
     """Backspace one character through coalescing and command dispatch."""
 
     harness.controller.begin_delete_group(key=key, autorepeat=False)
-    position = harness.edit_controller.session.cursor_position
+    position = harness.edit_execution.session.cursor_position
     _replace_range(
-        harness.edit_controller,
+        harness.source_commands,
         start=position - 1,
         end=position,
         replacement_text="",
@@ -229,9 +246,9 @@ def test_grouped_word_typing_undoes_as_one_step() -> None:
 
     _type_text(harness, "beta")
     harness.controller.finish_pending_key_edit_blocks(reason="test")
-    restore_result = harness.edit_controller.undo()
+    restore_result = harness.edit_execution.undo()
 
-    assert harness.edit_controller.session.source_text == "alpha "
+    assert harness.edit_execution.session.source_text == "alpha "
     assert restore_result is not None
     assert harness.typing_timer.starts == 4
     assert harness.typing_timer.stops == 4
@@ -248,9 +265,9 @@ def test_idle_typing_expiry_splits_undo_steps() -> None:
     harness.typing_timer.expire()
     _type_text(harness, "c")
     harness.controller.finish_pending_key_edit_blocks(reason="test")
-    harness.edit_controller.undo()
+    harness.edit_execution.undo()
 
-    assert harness.edit_controller.session.source_text == "ab"
+    assert harness.edit_execution.session.source_text == "ab"
 
 
 def test_selection_and_prompt_boundaries_block_typing_grouping() -> None:
@@ -271,9 +288,9 @@ def test_rapid_delete_coalesces_until_idle_expiry() -> None:
     _backspace(harness, key=1)
     _backspace(harness, key=1)
     harness.delete_timer.expire()
-    harness.edit_controller.undo()
+    harness.edit_execution.undo()
 
-    assert harness.edit_controller.session.source_text == "alpha"
+    assert harness.edit_execution.session.source_text == "alpha"
     assert harness.delete_timer.starts == 2
     assert harness.delete_timer.stops == 2
 
@@ -286,9 +303,9 @@ def test_delete_key_change_splits_undo_steps() -> None:
     _backspace(harness, key=1)
     _backspace(harness, key=2)
     harness.controller.finish_pending_key_edit_blocks(reason="test")
-    harness.edit_controller.undo()
+    harness.edit_execution.undo()
 
-    assert harness.edit_controller.session.source_text == "alph"
+    assert harness.edit_execution.session.source_text == "alph"
 
 
 def test_explicit_flush_commits_typing_and_delete_groups() -> None:
@@ -300,7 +317,7 @@ def test_explicit_flush_commits_typing_and_delete_groups() -> None:
     _backspace(harness, key=1)
     harness.controller.finish_pending_key_edit_blocks(reason="command")
 
-    assert harness.edit_controller.session.typing_group_active is False
-    assert harness.edit_controller.session.delete_group_active is False
+    assert harness.edit_execution.session.typing_group_active is False
+    assert harness.edit_execution.session.delete_group_active is False
     assert harness.typing_timer.stops == 1
     assert harness.delete_timer.stops == 1

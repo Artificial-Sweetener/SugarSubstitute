@@ -27,7 +27,7 @@ from substitute.presentation.editor.prompt_editor.features.catalog_snapshots imp
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
+from substitute.presentation.editor.prompt_editor.commands.feature_commands import (
     PromptFeatureSnapshotIdentity,
 )
 from substitute.presentation.widgets.save_preset_dialog import PresetSaveScope

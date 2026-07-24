@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from .cursor_state import PromptCursorState
-from .selection_state import PromptSelection
+from .selection import PromptSelection
 
 
 class PromptCursorSession:

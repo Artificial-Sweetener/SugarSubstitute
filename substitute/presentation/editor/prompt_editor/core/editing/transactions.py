@@ -27,7 +27,7 @@ from substitute.application.prompt_editor.editing.literal_parentheses import (
 )
 
 from .cursor_state import PromptCursorState
-from .parenthesis_intent import PromptParenthesisIntent
+from .parenthesis import PromptParenthesisIntent
 
 TPayload = TypeVar("TPayload")
 

@@ -37,6 +37,7 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 from substitute.application.prompt_editor.editing.region_structure_edits import (
     region_structure_edit_requires_rebuild,
 )
+from substitute.presentation.text_coordinates import TextCoordinateMap
 
 from .caret_map_builder import build_prompt_projection_caret_map
 from .model import (
@@ -656,6 +657,26 @@ def _is_supported_plain_text_incremental_edit(
     )
 
 
+def _plain_edit_supports_lazy_caret_transform(
+    edit: PromptProjectionIncrementalEdit,
+) -> bool:
+    """Use lazy stop arithmetic only when edited code points are caret boundaries."""
+
+    replaced_text = edit.previous_source_text[edit.start : edit.end]
+    return _has_independent_grapheme_boundaries(
+        replaced_text,
+    ) and _has_independent_grapheme_boundaries(edit.replacement_text)
+
+
+def _has_independent_grapheme_boundaries(text: str) -> bool:
+    """Recognize bounded edit payloads with one caret boundary per code point."""
+
+    maximum_lazy_edit_codepoints = 64
+    if len(text) > maximum_lazy_edit_codepoints:
+        return False
+    return TextCoordinateMap(text).grapheme_boundaries() == tuple(range(len(text) + 1))
+
+
 def _edit_intersects_token(
     edit: PromptProjectionIncrementalEdit,
     tokens: Sequence[PromptProjectionToken],
@@ -802,7 +823,7 @@ def _apply_plain_text_document_edit(
             )
             for token in previous_document.tokens
         )
-        if callable(
+        if _plain_edit_supports_lazy_caret_transform(edit) and callable(
             getattr(
                 previous_document.caret_map.stops,
                 "visual_index_for_state",

@@ -55,7 +55,7 @@ from substitute.presentation.editor.prompt_editor.async_work import (
     PromptEditorTaskHandle,
     PromptScheduledLoraContextCoordinator,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
     PromptCommandResult,
 )
 from substitute.presentation.editor.prompt_editor.features import (

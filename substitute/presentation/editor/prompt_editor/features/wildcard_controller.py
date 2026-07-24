@@ -60,7 +60,7 @@ from .catalog_snapshots import (
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,
 )
-from ..commands import PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 from .feature_profile_controller import PromptFeatureProfileController
 
 _AUTOCOMPLETE_CACHE_LIMIT = 64

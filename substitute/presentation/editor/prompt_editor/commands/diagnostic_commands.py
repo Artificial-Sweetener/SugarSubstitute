@@ -22,8 +22,9 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Generic, TypeAlias, TypeVar
+from typing import Generic, TypeAlias, TypeVar, cast
 
 from substitute.application.prompt_editor.diagnostics.duplicate_mutations import (
     PromptDiagnosticTextEdit,
@@ -36,15 +37,17 @@ from substitute.application.prompt_editor.diagnostics.models import (
     PromptDuplicateSegmentDiagnosticPayload,
     PromptSpellingDiagnosticPayload,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptEditingSession,
+from ..core.editing.commands import PromptReplaceRangeEdit
+from ..core.editing.session import PromptEditingSession
+from ..core.editing.source_commands import (
     PromptSourceEditOrigin,
-    PromptEditingSessionSourceChange,
     PromptSourceNormalizer,
-    PromptUndoSnapshot,
+    source_text_edit_between,
 )
+from ..core.editing.transactions import PromptUndoSnapshot
 
-from . import PromptCommandResult
+from .contracts import PromptCommandResult
+from .execution import PromptEditExecution
 
 TPayload = TypeVar("TPayload")
 
@@ -112,9 +115,47 @@ PromptDiagnosticAction: TypeAlias = (
 class PromptDiagnosticCommandResult(PromptCommandResult[TPayload]):
     """Report diagnostic command output for source and non-source actions."""
 
-    source_changes: tuple[PromptEditingSessionSourceChange[TPayload], ...] = ()
     spelling_word: str | None = None
     ignored_diagnostic_id: str | None = None
+
+
+class PromptDiagnosticCommandService(Generic[TPayload]):
+    """Execute diagnostic actions as one grouped editing transaction."""
+
+    def __init__(
+        self,
+        *,
+        execution: PromptEditExecution[TPayload],
+        normalizer: PromptSourceNormalizer,
+        exact_source_enabled: Callable[[], bool],
+    ) -> None:
+        """Store diagnostic command dependencies."""
+
+        self._execution = execution
+        self._normalizer = normalizer
+        self._exact_source_enabled = exact_source_enabled
+
+    def execute(
+        self,
+        action: PromptDiagnosticAction,
+    ) -> PromptDiagnosticCommandResult[TPayload]:
+        """Commit one prepared diagnostic action."""
+
+        command = build_diagnostic_action_command(
+            action,
+            normalizer=self._normalizer,
+            exact_source=self._exact_source_enabled(),
+            undo_snapshot=self._execution.current_undo_snapshot(),
+        )
+        self._execution.finish_pending_key_edit_block(reason="diagnostic_action")
+        self._execution.begin_edit_block(finish_typing=False)
+        try:
+            return cast(
+                PromptDiagnosticCommandResult[TPayload],
+                self._execution.execute(command),
+            )
+        finally:
+            self._execution.end_edit_block()
 
 
 @dataclass(frozen=True, slots=True)
@@ -487,31 +528,45 @@ def _execute_diagnostic_text_edits(
         ):
             return _rejected(command_name, "invalid_source_range")
 
-    source_changes: list[PromptEditingSessionSourceChange[TPayload]] = []
+    previous_source_text = session.source_text
+    next_source_text = previous_source_text
+    cursor_position = session.cursor_position
     for edit in sorted(edits, key=lambda item: item.source_start, reverse=True):
-        source_changes.append(
-            session.replace_source_range(
-                start=edit.source_start,
-                end=edit.source_end,
-                replacement_text=edit.replacement_text,
-                normalizer=normalizer,
-                origin=PromptSourceEditOrigin.PROGRAMMATIC,
-                exact_source=exact_source,
-                record_undo=True,
-                undo_snapshot=undo_snapshot,
-            )
+        next_source_text = (
+            next_source_text[: edit.source_start]
+            + edit.replacement_text
+            + next_source_text[edit.source_end :]
         )
-
-    last_change = source_changes[-1]
-    changed = any(source_change.source_changed for source_change in source_changes)
+        cursor_position = edit.source_start + len(edit.replacement_text)
+    combined_edit = source_text_edit_between(previous_source_text, next_source_text)
+    if combined_edit is None:
+        return PromptDiagnosticCommandResult(
+            command_name=command_name,
+            status="noop",
+            cursor_state=session.cursor_state,
+            reason="same_source",
+        )
+    edit_commit = session.execute(
+        PromptReplaceRangeEdit(
+            start=combined_edit.start,
+            end=combined_edit.end,
+            replacement_text=combined_edit.replacement_text,
+            normalizer=normalizer,
+            origin=PromptSourceEditOrigin.PROGRAMMATIC,
+            exact_source=exact_source,
+            record_undo=True,
+            undo_snapshot=undo_snapshot,
+            cursor_position=cursor_position,
+            anchor_position=cursor_position,
+        )
+    )
     return PromptDiagnosticCommandResult(
         command_name=command_name,
-        status="applied" if changed else "noop",
-        source_change=last_change,
-        source_changes=tuple(source_changes),
-        cursor_state=last_change.cursor_state,
-        undo_availability_change=last_change.undo_availability_change,
-        reason=None if changed else "same_source",
+        status="applied" if edit_commit.source_changed else "noop",
+        edit_commit=edit_commit,
+        cursor_state=edit_commit.cursor_state,
+        undo_availability_change=edit_commit.undo_availability_change,
+        reason=None if edit_commit.source_changed else "same_source",
     )
 
 
@@ -538,6 +593,7 @@ __all__ = [
     "PromptAddSpellingDiagnosticToDictionaryCommand",
     "PromptDiagnosticAction",
     "PromptDiagnosticCommandResult",
+    "PromptDiagnosticCommandService",
     "PromptDuplicateEmphasisDiagnosticAction",
     "PromptDuplicateIgnoreDiagnosticAction",
     "PromptDuplicateRemovalDiagnosticAction",

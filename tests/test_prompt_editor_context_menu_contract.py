@@ -100,6 +100,7 @@ from tests.prompt_autocomplete_test_helpers import (
     prompt_syntax_profile,
 )
 from tests.execution_test_helpers import immediate_prompt_task_executor_factory
+from tests.prompt_projection_test_helpers import surface_for
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
@@ -777,7 +778,7 @@ def _adapt_trigger_words_action_for_lora(
     )
     return PromptTriggerWordActionAdapter(
         action_parent=editor,
-        text_insertion_executor=cast(Any, editor)._command_adapter,
+        text_insertion_executor=cast(Any, editor)._context_insertion,
         identity_validator=lambda _identity: True,
     ).action_for_trigger_words(prepared_action)
 
@@ -883,7 +884,7 @@ def test_prompt_editor_host_facade_text_history_and_signal_contract(
     cursor.setPosition(len(editor.toPlainText()))
     editor.setTextCursor(cursor)
     QTest.keyClicks(editor, "x")
-    cast(Any, editor)._edit_controller.finish_pending_key_edit_block(reason="phase20_1")
+    surface_for(editor).edit_execution.finish_pending_key_edit_block(reason="phase20_1")
     process_events(app)
 
     assert editor.toPlainText() == "alphax"
@@ -939,7 +940,7 @@ def test_prompt_editor_host_facade_context_insert_preserves_focus_target(
     process_events(app)
     cast(Any, editor)._set_context_menu_insert_state_for_tests(insert_position=5)
 
-    cast(Any, editor)._command_adapter.insert_context_menu_text(
+    cast(Any, editor)._context_insertion.insert_context_menu_text(
         ", beta",
         command_name="lora_insert_trigger_words",
     )
@@ -1004,7 +1005,7 @@ def test_prompt_editor_context_menu_undo_redo_follow_custom_stack(
     assert "Cancel" not in clean_actions
 
     QTest.keyClicks(editor, "x")
-    cast(Any, editor)._edit_controller.finish_pending_key_edit_block(reason="test_menu")
+    surface_for(editor).edit_execution.finish_pending_key_edit_block(reason="test_menu")
     undo_menu = menu_type(editor, schedule_lora=lambda: None)
     undo_menu.exec(editor.mapToGlobal(editor.rect().center()))
     undo_actions = [action.text() for action in undo_menu.menuActions()]
@@ -2626,7 +2627,7 @@ def test_prompt_editor_trigger_action_label_elides_to_total_menu_budget(
 
     label = PromptTriggerWordActionAdapter(
         action_parent=editor,
-        text_insertion_executor=cast(Any, editor)._command_adapter,
+        text_insertion_executor=cast(Any, editor)._context_insertion,
         identity_validator=lambda _identity: True,
     ).trigger_words_action_label(long_name)
 

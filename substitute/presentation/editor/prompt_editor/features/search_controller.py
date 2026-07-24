@@ -22,7 +22,7 @@ from collections.abc import Hashable
 from dataclasses import dataclass
 from typing import Protocol
 
-from ..commands import PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 from .feature_profile_controller import PromptFeatureProfileController
 
 

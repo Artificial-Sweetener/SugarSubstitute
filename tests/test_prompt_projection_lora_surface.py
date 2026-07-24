@@ -87,7 +87,7 @@ from tests.prompt_projection_surface_test_helpers import (
     render_surface_viewport,
     set_surface_prompt_state,
     StaticPromptLoraCatalog,
-    surface_router,
+    surface_source_commands,
     valid_transient_insertion_overlay,
 )
 
@@ -288,7 +288,7 @@ def test_projection_surface_rebuilds_when_lora_renderer_span_completes_plain_suf
     surface = new_projection_surface()
     surface.resize(420, 180)
     widgets.append(surface)
-    surface_router(surface).set_plain_text("<lora:midna:1")
+    surface_source_commands(surface).set_plain_text("<lora:midna:1")
     document_view = PromptDocumentService().build_document_view("<lora:midna:1>")
     full_render_plan = PromptSyntaxService(
         StaticPromptWildcardCatalogGateway({}),
@@ -603,7 +603,7 @@ def test_projection_surface_schedules_metadata_only_prompt_state(
     surface = new_projection_surface()
     surface.resize(240, 180)
     widgets.append(surface)
-    surface_router(surface).set_source_text(text)
+    surface_source_commands(surface).set_source_text(text)
     document_view = PromptDocumentService().build_document_view(text)
     syntax_profile = prompt_syntax_profile("lora")
     initial_render_plan = PromptSyntaxService(
@@ -664,7 +664,7 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
     surface = new_projection_surface()
     surface.resize(240, 180)
     widgets.append(surface)
-    surface_router(surface).set_source_text(text)
+    surface_source_commands(surface).set_source_text(text)
     document_view = PromptDocumentService().build_document_view(text)
     syntax_profile = prompt_syntax_profile("lora")
     original_render_plan = PromptSyntaxService(

@@ -30,7 +30,7 @@ from substitute.application.prompt_editor.lora.catalog_models import (
 
 from ..features import PromptLoraPickerSnapshot
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
-from .command_adapter import PromptContextMenuTextInsertionExecutor
+from ..commands.context_insertion import PromptContextMenuTextInsertionExecutor
 
 
 class PromptLoraPickerActivationSignal(Protocol):

@@ -41,15 +41,19 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderLayoutView,
     PromptReorderRowView,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
-    PromptCommandDispatcher,
+from substitute.presentation.editor.prompt_editor.commands.reorder_commands import (
     PromptReorderCommandResult,
     PromptReorderLayoutCommitRequest,
     build_reorder_layout_commit_command,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from tests.prompt_editor_command_test_helpers import execute_prompt_command
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
 from substitute.presentation.editor.prompt_editor.models import (
@@ -362,12 +366,12 @@ class CommandEditorDouble(ControllerEditorDouble):
         )
         result = cast(
             PromptReorderCommandResult[object],
-            PromptCommandDispatcher(session).execute(command),
+            execute_prompt_command(session, command),
         )
-        source_change = result.source_change
-        if source_change is not None:
-            next_text = source_change.next_snapshot.source_text
-            self._source_revision = source_change.next_snapshot.source_revision
+        edit_commit = result.edit_commit
+        if edit_commit is not None:
+            next_text = edit_commit.next_snapshot.source_text
+            self._source_revision = edit_commit.next_snapshot.source_revision
             if result.mutation is not None and result.render_plan is not None:
                 self.replace_document_text_with_prompt_state(
                     next_text,
