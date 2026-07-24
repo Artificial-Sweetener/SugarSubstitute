@@ -32,7 +32,7 @@ from substitute.application.prompt_editor.document.service import PromptDocument
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from substitute.presentation.editor.prompt_editor.core.editing.source_buffer import (
     PromptSourceSnapshot,
 )
 from substitute.presentation.editor.prompt_editor.projection.model import (

@@ -39,6 +39,10 @@ from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnosticSeverity,
     PromptSpellingDiagnosticPayload,
 )
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptLayoutIdentity,
+    next_layout_revision,
+)
 from substitute.devtools.prompt_editor_performance.metrics import Instrumentation
 from substitute.devtools.prompt_editor_performance.reorder_measurements import (
     build_reorder_measurement_state,
@@ -301,14 +305,21 @@ def time_diagnostic_cache_operations(
         Callable[..., None],
         getattr(surface, "_preserve_diagnostic_fragment_cache_for_incremental_edit"),
     )
-    diagnostic_painter = getattr(surface, "_diagnostic_painter")
-    next_layout_revision = int(getattr(diagnostic_painter, "_layout_revision")) + 1
+    layout_snapshot = surface._editor_state.layout  # noqa: SLF001
+    if layout_snapshot is None:
+        raise RuntimeError("Diagnostic cache timing requires a published layout.")
+    previous_layout_identity = layout_snapshot.identity
+    next_layout_identity = PromptLayoutIdentity(
+        projection=previous_layout_identity.projection,
+        layout_revision=next_layout_revision(previous_layout_identity.layout_revision),
+    )
     started_at = perf_counter()
     preserver(
         start=len(editor.toPlainText()),
         end=len(editor.toPlainText()),
         replacement_text="",
-        next_layout_revision=next_layout_revision,
+        previous_layout_identity=previous_layout_identity,
+        next_layout_identity=next_layout_identity,
     )
     process_events(app)
     timings.append((perf_counter() - started_at) * 1000.0)

@@ -20,9 +20,13 @@ from __future__ import annotations
 
 import pytest
 
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.undo import (
     PromptUndoStack,
 )
 

@@ -25,13 +25,15 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from substitute.presentation.editor.prompt_editor.commands import (
+from substitute.presentation.editor.prompt_editor.commands.autocomplete_commands import (
     PromptAutocompleteAcceptance,
-    PromptCommandResult,
     PromptLoraAutocompleteAcceptance,
     PromptSceneAutocompleteAcceptance,
     PromptTagAutocompleteAcceptance,
     PromptWildcardAutocompleteAcceptance,
+)
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
+    PromptCommandResult,
 )
 from substitute.presentation.editor.prompt_editor.models import AutocompleteSession
 

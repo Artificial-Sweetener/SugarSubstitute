@@ -16,7 +16,10 @@
 
 """Expose prompt-editor feature controller foundation types."""
 
-from ..commands import PromptFeatureCommandRequest, PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import (
+    PromptFeatureCommandRequest,
+    PromptFeatureSnapshotIdentity,
+)
 
 from .catalog_snapshots import (
     PHASE23_CATALOG_FOREGROUND_INVENTORY,
@@ -148,7 +151,6 @@ from .prompt_segment_selection import (
 )
 from .paste_import_controller import (
     PromptDanbooruPasteImportController,
-    PromptDanbooruSourceReplacementExecutor,
 )
 from .scene_controller import (
     PromptSceneAutocompleteState,
@@ -226,7 +228,6 @@ __all__ = [
     "PromptDanbooruActionSnapshot",
     "PromptDanbooruDialogRunner",
     "PromptDanbooruPasteImportController",
-    "PromptDanbooruSourceReplacementExecutor",
     "PromptDanbooruUrlImportState",
     "PromptDanbooruWikiDialogRequest",
     "PromptDanbooruWikiLookupPayload",

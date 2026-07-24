@@ -39,7 +39,7 @@ from substitute.application.prompt_editor.diagnostics.unsupported_scenes import 
     UNSUPPORTED_SCENE_MARKER_MESSAGE,
 )
 
-from ..commands import PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 from .wildcard_controller import PromptWildcardContextAction
 
 

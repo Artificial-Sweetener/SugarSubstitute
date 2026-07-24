@@ -48,19 +48,11 @@ from substitute.shared.diagnostics.prompt_editor_work import (
     prompt_editor_work_event,
 )
 
-from ..editing_session import (
-    PromptEditingSessionRestoreResult,
-    PromptEditingSessionSourceChange,
-    PromptSourceSnapshot,
+from ..commands.contracts import PromptEditApplicationState
+from ..core.editing.commit import PromptEditCommit, PromptEditScope
+from ..core.editing.source_buffer import PromptSourceSnapshot
+from ..core.editing.source_commands import (
     PromptSourceEditOrigin,
-    PromptUndoAvailabilityChange,
-)
-from ..editing_session.edit_controller import (
-    PromptEditControllerResult,
-    PromptOptimisticPromptState,
-    PromptProjectionRestoreApplication,
-    PromptProjectionSourceApplicationMode,
-    PromptProjectionSourceChangeApplication,
 )
 from .freshness_controller import (
     ProjectionFreshness,
@@ -193,10 +185,7 @@ class PromptProjectionSignalOutcome:
 class PromptProjectionSourceStateApplicationRequest(Generic[TPayload]):
     """Carry one Phase 21 committed application into projection source-state apply."""
 
-    application: (
-        PromptProjectionSourceChangeApplication[TPayload]
-        | PromptProjectionRestoreApplication[TPayload]
-    )
+    commit: PromptEditCommit[TPayload]
     current_source_revision: int
     current_projection_source_text: str
     reason: str
@@ -345,12 +334,6 @@ class PromptProjectionSourceChangeHost(Protocol):
     _caret_rect_override: QRectF | None
     _transient_edit_overlays: PromptProjectionTransientEditOverlayController
     _preferred_x: float | None
-
-    def emit_undo_available_changed(self, available: bool) -> None:
-        """Emit an undo availability transition."""
-
-    def emit_redo_available_changed(self, available: bool) -> None:
-        """Emit a redo availability transition."""
 
     def notify_implicit_parenthesis_authored(self, nesting_depth: int) -> None:
         """Publish authored nested implicit emphasis to its education owner."""
@@ -524,106 +507,82 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         )
         self._source_edit_projection_policy = PromptSourceEditProjectionPolicy()
 
-    def apply_edit_controller_result(
+    def apply_edit_commit(
         self,
-        result: PromptEditControllerResult[TProjectionPayload, object],
+        commit: PromptEditCommit[TProjectionPayload],
     ) -> None:
-        """Apply committed mutation results produced outside the projection surface."""
-
-        for application in result.source_applications:
-            if isinstance(application, PromptProjectionRestoreApplication):
-                self.apply_restore_application(application)
-                continue
-            self.apply_source_change_application(application)
-
-    def apply_source_change_application(
-        self,
-        application: PromptProjectionSourceChangeApplication[TProjectionPayload],
-    ) -> None:
-        """Apply one committed source change using the requested projection strategy."""
+        """Apply the sole committed editing result to projection state."""
 
         host = self._host
-        if application.mode is PromptProjectionSourceApplicationMode.SOURCE_REPLACEMENT:
-            self._apply_source_replacement_source_change(
-                previous_text=application.previous_source_text,
-                source_change=application.source_change,
-                undo_availability_change=(
-                    application.signal_intent.undo_availability_change
-                ),
-                origin=application.origin,
-            )
+        if commit.scope is PromptEditScope.HISTORY:
+            self._restore_undo_state(commit)
             return
-        if application.mode is PromptProjectionSourceApplicationMode.FULL_SOURCE:
-            self._emit_undo_availability_change(
-                application.signal_intent.undo_availability_change
+        if commit.scope is PromptEditScope.RANGE:
+            self._apply_source_replacement_edit_commit(commit)
+            return
+        if commit.scope is PromptEditScope.DOCUMENT:
+            application_state = self._edit_application_state(commit.prepared_state)
+            source_edit = commit.source_edit
+            prepared_prompt_state = self._projection_prompt_state_tuple(
+                application_state
             )
-            self._apply_editing_session_source_change(
-                application.source_change,
-                emit_text_changed=application.signal_intent.emit_text_changed,
-                optimistic_prompt_state=self._projection_prompt_state_tuple(
-                    application.optimistic_prompt_state
-                ),
-                source_edit_start=application.source_edit_start,
-                source_edit_end=application.source_edit_end,
-                source_edit_replacement_text=(application.source_edit_replacement_text),
-                previous_source_text=application.previous_source_text,
-                origin=application.origin,
-            )
-            if application.reset_scroll_to_top:
-                host.verticalScrollBar().setValue(0)
-            if application.schedule_geometry_reuse_warm_reason is not None:
-                host._schedule_projection_geometry_reuse_warm(
-                    reason=application.schedule_geometry_reuse_warm_reason
+            if not commit.source_changed and prepared_prompt_state is None:
+                host.set_cursor_positions(
+                    cursor_position=commit.cursor_state.cursor_position,
+                    anchor_position=commit.cursor_state.anchor_position,
                 )
+            else:
+                self._apply_editing_session_source_change(
+                    commit,
+                    emit_text_changed=commit.source_changed,
+                    optimistic_prompt_state=prepared_prompt_state,
+                    source_edit_start=None
+                    if source_edit is None
+                    else source_edit.start,
+                    source_edit_end=None if source_edit is None else source_edit.end,
+                    source_edit_replacement_text=(
+                        None if source_edit is None else source_edit.replacement_text
+                    ),
+                    previous_source_text=commit.previous_snapshot.source_text,
+                    origin=commit.origin,
+                )
+            if application_state is not None and application_state.reset_scroll_to_top:
+                host.verticalScrollBar().setValue(0)
+            if (
+                application_state is not None
+                and application_state.schedule_geometry_reuse_warm_reason is not None
+            ):
+                host._schedule_projection_geometry_reuse_warm(
+                    reason=application_state.schedule_geometry_reuse_warm_reason
+                )
+            return
+        raise ValueError(f"Unsupported prompt edit scope: {commit.scope!r}")
 
-    def apply_restore_application(
-        self,
-        application: PromptProjectionRestoreApplication[TProjectionPayload],
-    ) -> None:
-        """Apply one committed undo/redo restore application."""
+    @staticmethod
+    def _edit_application_state(
+        value: object | None,
+    ) -> PromptEditApplicationState | None:
+        """Narrow optional presentation state attached to a document commit."""
 
-        self._emit_undo_availability_change(
-            application.signal_intent.undo_availability_change
-        )
-        self._restore_undo_state(application.restore_result)
-
-    def apply_restore_result(
-        self,
-        restore_result: PromptEditingSessionRestoreResult[TProjectionPayload],
-    ) -> None:
-        """Apply one restore result from clipboard/history owners."""
-
-        self._restore_undo_state(restore_result)
+        if isinstance(value, PromptEditApplicationState):
+            return value
+        return None
 
     def _projection_prompt_state_tuple(
         self,
-        optimistic_prompt_state: PromptOptimisticPromptState | None,
+        application_state: PromptEditApplicationState | None,
     ) -> PromptProjectionOptimisticPromptState | None:
         """Return projection-typed optimistic state from the edit result protocol."""
 
-        if optimistic_prompt_state is None:
+        if application_state is None:
             return None
-        document_view = optimistic_prompt_state.document_view
-        render_plan = optimistic_prompt_state.render_plan
+        document_view = application_state.document_view
+        render_plan = application_state.render_plan
         if not isinstance(document_view, PromptDocumentView):
             return None
         if not isinstance(render_plan, PromptSyntaxRenderPlan):
             return None
         return document_view, render_plan
-
-    def _emit_undo_availability_change(
-        self,
-        availability_change: PromptUndoAvailabilityChange | None,
-    ) -> None:
-        """Emit undo/redo availability from a committed projection application."""
-
-        if availability_change is None:
-            return
-        host = self._host
-        if availability_change.undo_changed:
-            host.emit_undo_available_changed(availability_change.current.can_undo)
-        if availability_change.redo_changed:
-            host.emit_redo_available_changed(availability_change.current.can_redo)
 
     def _remap_diagnostics_for_source_edit(
         self,
@@ -651,7 +610,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
 
     def _apply_editing_session_source_change(
         self,
-        source_change: PromptEditingSessionSourceChange[TProjectionPayload],
+        commit: PromptEditCommit[TProjectionPayload],
         *,
         emit_text_changed: bool,
         rebuild_immediately: bool = True,
@@ -675,9 +634,9 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         """Mirror an editing-session source change into projection-owned state."""
 
         host = self._host
-        text = source_change.next_snapshot.source_text
-        cursor_position = source_change.cursor_state.cursor_position
-        anchor_position = source_change.cursor_state.anchor_position
+        text = commit.next_snapshot.source_text
+        cursor_position = commit.cursor_state.cursor_position
+        anchor_position = commit.cursor_state.anchor_position
         previous_document_view = host._editor_state.edit_semantic.document
         previous_render_plan = host._editor_state.edit_semantic.render_plan
         previous_projection_freshness = host._projection_freshness_controller.freshness
@@ -694,7 +653,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         )
         host._mark_source_text_changed(
             deferrable_projection=deferrable_projection,
-            source_snapshot=source_change.next_snapshot,
+            source_snapshot=commit.next_snapshot,
             clear_diagnostic_fragment_cache=(
                 not can_preserve_diagnostic_fragment_cache
             ),
@@ -759,7 +718,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         if any(
             transition.kind
             is PromptParenthesisTransitionKind.ESCAPED_LITERAL_TO_EMPHASIS
-            for transition in source_change.transitions
+            for transition in commit.transitions
         ):
             host._session.set_pending_auto_exact_weight_edit(
                 source_text=text,
@@ -769,7 +728,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             authored_depth = max(
                 (
                     transition.nesting_depth
-                    for transition in source_change.transitions
+                    for transition in commit.transitions
                     if transition.kind
                     is PromptParenthesisTransitionKind.IMPLICIT_EMPHASIS
                 ),
@@ -1209,32 +1168,26 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         )
 
     @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_SOURCE_APPLY)
-    def _apply_source_replacement_source_change(
+    def _apply_source_replacement_edit_commit(
         self,
-        *,
-        previous_text: str,
-        source_change: PromptEditingSessionSourceChange[TProjectionPayload],
-        undo_availability_change: PromptUndoAvailabilityChange | None,
-        origin: PromptSourceEditOrigin,
+        commit: PromptEditCommit[TProjectionPayload],
     ) -> None:
-        """Apply one editing-session source replacement to projection state."""
+        """Apply one bounded editing commit to projection state."""
 
         host = self._host
-        result = source_change
-        self._emit_undo_availability_change(undo_availability_change)
-        source_result = result.source_result
-        if not result.source_changed:
+        previous_text = commit.previous_snapshot.source_text
+        if not commit.source_changed:
             host.set_cursor_positions(
-                cursor_position=result.cursor_state.cursor_position,
-                anchor_position=result.cursor_state.anchor_position,
+                cursor_position=commit.cursor_state.cursor_position,
+                anchor_position=commit.cursor_state.anchor_position,
             )
             return
-        source_edit = source_result.source_edit
+        source_edit = commit.source_edit
         if source_edit is None:
             raise RuntimeError("Changed prompt source is missing its applied edit.")
-        requested_start = source_result.requested_start
-        requested_end = source_result.requested_end
-        requested_replacement_text = source_result.requested_replacement_text
+        requested_start = commit.requested_start
+        requested_end = commit.requested_end
+        requested_replacement_text = commit.requested_replacement_text
         updated_text = (
             previous_text[:requested_start]
             + requested_replacement_text
@@ -1247,7 +1200,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             self._semantic_remapper.region_structure_edit_requires_rebuild(
                 current_document_view=(host._editor_state.edit_semantic.document),
                 previous_text=previous_text,
-                next_text=result.next_snapshot.source_text,
+                next_text=commit.next_snapshot.source_text,
                 start=start,
                 end=end,
             )
@@ -1257,10 +1210,10 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             end=end,
             replaced_text=previous_text[start:end],
             replacement_text=replacement_text,
-            origin=origin,
+            origin=commit.origin,
             previous_source_text=previous_text,
             updated_text=updated_text,
-            normalized_text=result.next_snapshot.source_text,
+            normalized_text=commit.next_snapshot.source_text,
             region_structure_requires_rebuild=(region_structure_requires_rebuild),
         )
         insertion_overlay_can_defer = (
@@ -1286,9 +1239,9 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                 start=start,
                 end=end,
                 replacement_text=replacement_text,
-                cursor_position=result.cursor_state.cursor_position,
-                anchor_position=result.cursor_state.anchor_position,
-                source_identity=result.next_snapshot.identity,
+                cursor_position=commit.cursor_state.cursor_position,
+                anchor_position=commit.cursor_state.anchor_position,
+                source_identity=commit.next_snapshot.identity,
             )
             if can_defer_projection
             else None
@@ -1297,7 +1250,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             self._transient_single_character_insertion_overlay(
                 start=start,
                 replacement_text=replacement_text,
-                source_identity=result.next_snapshot.identity,
+                source_identity=commit.next_snapshot.identity,
             )
             if can_defer_projection and replacement_text
             else None
@@ -1308,7 +1261,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
                 current_document_view=(host._editor_state.edit_semantic.document),
                 current_render_plan=(host._editor_state.edit_semantic.render_plan),
                 previous_text=previous_text,
-                next_text=result.next_snapshot.source_text,
+                next_text=commit.next_snapshot.source_text,
                 start=start,
                 end=end,
                 replacement_text=replacement_text,
@@ -1330,7 +1283,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             )
         refresh_caret_after_prompt_state = False
         self._apply_editing_session_source_change(
-            result,
+            commit,
             emit_text_changed=True,
             rebuild_immediately=not can_defer_projection,
             deferrable_projection=can_defer_projection,
@@ -1344,18 +1297,20 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             previous_source_text=previous_text,
             refresh_caret_after_prompt_state=refresh_caret_after_prompt_state,
             projection_deferral_reason=deferral_reason,
-            origin=origin,
+            origin=commit.origin,
             region_structure_requires_rebuild=(region_structure_requires_rebuild),
         )
 
     def _restore_undo_state(
         self,
-        restore_result: PromptEditingSessionRestoreResult[TProjectionPayload],
+        commit: PromptEditCommit[TProjectionPayload],
     ) -> None:
         """Restore one complete source, selection, and token-focus snapshot."""
 
         host = self._host
-        state = restore_result.snapshot
+        state = commit.restored_undo_snapshot
+        if state is None:
+            raise RuntimeError("History commit is missing its restored undo snapshot.")
         payload = cast(PromptProjectionRestorePayload | None, state.restoration_payload)
         previous_source_text = host._editor_state.projection.document.source_text
         previous_document_view = host._editor_state.edit_semantic.document
@@ -1363,7 +1318,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         previous_projection_freshness = host._projection_freshness_controller.freshness
         previous_deletion_overlay = self._valid_transient_deletion_overlay()
         source_edit = single_source_text_edit(previous_source_text, state.source_text)
-        host._editor_state.publish_source(restore_result.source_snapshot)
+        host._editor_state.publish_source(commit.next_snapshot)
         if (
             payload is not None
             and payload.document_view.source_text == state.source_text
@@ -1403,10 +1358,10 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
             host._session.expanded_source_range = payload.expanded_source_range
         else:
             host._cursor_state = PromptProjectionCaretState(
-                source_position=state.cursor_state.cursor_position
+                source_position=commit.cursor_state.cursor_position
             )
             host._anchor_state = PromptProjectionCaretState(
-                source_position=state.cursor_state.anchor_position
+                source_position=commit.cursor_state.anchor_position
             )
             host._sync_editing_session_to_caret_states()
             host._session.expanded_source_range = None
@@ -1416,7 +1371,7 @@ class PromptProjectionSourceChangeApplier(Generic[TProjectionPayload]):
         host._source_document_adapter.replace_text(state.source_text)
         host._mark_source_text_changed(
             deferrable_projection=False,
-            source_snapshot=restore_result.source_snapshot,
+            source_snapshot=commit.next_snapshot,
         )
         self._apply_immediate_projection(
             text=state.source_text,

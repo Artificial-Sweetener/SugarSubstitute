@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
 from typing import Any, cast
 
 import pytest
@@ -43,19 +42,26 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 from substitute.application.ports import PromptWildcardResolution
 from substitute.domain.model_metadata import BANNER_THUMBNAIL_ROLE, ThumbnailAsset
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptSourceEditOrigin,
+from substitute.presentation.editor.prompt_editor.commands.execution import (
+    PromptEditExecution,
+)
+from substitute.presentation.editor.prompt_editor.commands.source_service import (
+    PromptSourceCommandService,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.commands import (
+    PromptReplaceRangeEdit,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
 )
-from substitute.presentation.editor.prompt_editor.editing_session.edit_controller import (
-    PromptEditController,
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
+    PromptSourceEditOrigin,
 )
-from substitute.presentation.editor.prompt_editor.editing_session.undo_coalescing import (
+from substitute.presentation.editor.prompt_editor.interactions.undo_coalescing import (
     PromptUndoCoalescingController,
-)
-from substitute.presentation.editor.prompt_editor.interactions.edit_command_router import (
-    PromptEditCommandRouter,
 )
 from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
     PromptLoraThumbnailCache,
@@ -63,6 +69,10 @@ from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
 from substitute.presentation.editor.prompt_editor.projection.surface import (
     PromptProjectionSurface,
     PromptProjectionUndoPayload,
+)
+from substitute.presentation.editor.prompt_editor.projection.editing_runtime import (
+    PromptProjectionEditingRuntime,
+    PromptProjectionEditingRuntimeFactory,
 )
 from substitute.presentation.editor.prompt_editor.projection.model import (
     PromptProjectionToken,
@@ -113,28 +123,6 @@ class ManualUndoCoalescingTimer:
         """Record timer stop without scheduling real time."""
 
 
-@dataclass(frozen=True, slots=True)
-class SurfaceEditBlockActions:
-    """Adapt an edit controller to the surface viewport action protocol."""
-
-    edit_controller: PromptEditController[PromptProjectionUndoPayload]
-
-    def begin_surface_edit_block(self, *, finish_typing: bool = True) -> None:
-        """Begin a grouped edit block through the edit controller."""
-
-        self.edit_controller.begin_edit_block(finish_typing=finish_typing)
-
-    def end_surface_edit_block(self) -> None:
-        """End a grouped edit block through the edit controller."""
-
-        self.edit_controller.end_edit_block()
-
-    def finish_surface_pending_key_edit_block(self, *, reason: str) -> None:
-        """Flush pending key edit groups through the edit controller."""
-
-        self.edit_controller.finish_pending_key_edit_block(reason=reason)
-
-
 class NoopClipboardHistoryActions:
     """Satisfy key handler clipboard shortcuts for directly composed surfaces."""
 
@@ -157,6 +145,55 @@ class NoopClipboardHistoryActions:
         """Ignore redo in bare-surface tests."""
 
 
+class TestProjectionEditingRuntimeFactory(
+    PromptProjectionEditingRuntimeFactory[
+        PromptProjectionSurface,
+        PromptProjectionUndoPayload,
+    ]
+):
+    """Build focused editing services for directly constructed test surfaces."""
+
+    def __init__(
+        self,
+        session: PromptEditingSession[PromptProjectionUndoPayload],
+    ) -> None:
+        """Store the session used by the surface under construction."""
+
+        self._session = session
+
+    def __call__(
+        self,
+        surface: PromptProjectionSurface,
+    ) -> PromptProjectionEditingRuntime[PromptProjectionUndoPayload]:
+        """Return a deterministic editing runtime without external integrations."""
+
+        execution = PromptEditExecution(
+            session=self._session,
+            undo_payload_provider=surface,
+            availability_signal_sink=surface,
+            commit_sink=surface,
+        )
+        source_commands = PromptSourceCommandService(
+            execution=execution,
+            normalizer=PromptSourceNormalizationService(),
+            exact_source_enabled=surface.exact_source_editing_enabled,
+        )
+        coalescing = PromptUndoCoalescingController(
+            edit_execution=execution,
+            typing_timer=ManualUndoCoalescingTimer(),
+            delete_timer=ManualUndoCoalescingTimer(),
+            cursor_position=lambda: surface.cursor_position,
+            selection_empty=lambda: not surface.textCursor().hasSelection(),
+        )
+        execution.set_pending_key_flusher(coalescing)
+        return PromptProjectionEditingRuntime(
+            execution=execution,
+            source_commands=source_commands,
+            clipboard_history=NoopClipboardHistoryActions(),
+            undo_coalescing=coalescing,
+        )
+
+
 def new_projection_surface(
     parent: QWidget | None = None,
     *,
@@ -174,84 +211,26 @@ def new_projection_surface(
     surface = PromptProjectionSurface(
         parent,
         editing_session=session,
+        editing_runtime_factory=TestProjectionEditingRuntimeFactory(session),
         lora_thumbnail_cache=lora_thumbnail_cache,
     )
-    edit_controller = PromptEditController[PromptProjectionUndoPayload](
-        session=session,
-        undo_payload_provider=surface,
-        availability_signal_sink=surface,
-        projection_mutation_sink=surface,
-    )
-    router = PromptEditCommandRouter[PromptProjectionUndoPayload](
-        edit_controller=edit_controller,
-        normalizer=PromptSourceNormalizationService(),
-        mutation_sink=surface,
-        source_text_provider=surface.toPlainText,
-        cursor_position_provider=lambda: surface.cursor_position,
-        anchor_position_provider=lambda: surface.anchor_position,
-        exact_source_provider=surface.exact_source_editing_enabled,
-    )
-    coalescing = PromptUndoCoalescingController[PromptProjectionUndoPayload](
-        edit_controller=edit_controller,
-        typing_timer=ManualUndoCoalescingTimer(),
-        delete_timer=ManualUndoCoalescingTimer(),
-        cursor_position=lambda: surface.cursor_position,
-        selection_empty=lambda: not surface.textCursor().hasSelection(),
-    )
-    edit_controller.set_pending_key_flusher(coalescing)
-    surface.attach_runtime_mutation_actions(
-        source_mutation_actions=router,
-        edit_block_actions=SurfaceEditBlockActions(edit_controller),
-        clipboard_history_actions=NoopClipboardHistoryActions(),
-        undo_coalescing_actions=coalescing,
-    )
-    cast(Any, surface)._phase21_test_edit_command_router = router
-    cast(Any, surface)._phase21_test_edit_controller = edit_controller
     return surface
 
 
-def surface_router(
+def surface_source_commands(
     surface: PromptProjectionSurface,
-) -> PromptEditCommandRouter[PromptProjectionUndoPayload]:
-    """Return the composed command router for one bare-surface test."""
+) -> PromptSourceCommandService[PromptProjectionUndoPayload]:
+    """Return the source command owner composed with one surface."""
 
-    test_router = getattr(surface, "_phase21_test_edit_command_router", None)
-    if test_router is not None:
-        return cast(PromptEditCommandRouter[PromptProjectionUndoPayload], test_router)
-    parent = surface.parentWidget()
-    while parent is not None:
-        if isinstance(parent, PromptEditor):
-            return cast(
-                PromptEditCommandRouter[PromptProjectionUndoPayload],
-                cast(Any, parent)._command_adapter._executor,  # noqa: SLF001
-            )
-        parent = parent.parentWidget()
-    return cast(
-        PromptEditCommandRouter[PromptProjectionUndoPayload],
-        cast(Any, surface)._phase21_test_edit_command_router,
-    )
+    return surface.source_commands
 
 
-def surface_edit_controller(
+def surface_edit_execution(
     surface: PromptProjectionSurface,
-) -> PromptEditController[PromptProjectionUndoPayload]:
-    """Return the composed edit controller for one bare-surface test."""
+) -> PromptEditExecution[PromptProjectionUndoPayload]:
+    """Return the editing execution owner composed with one surface."""
 
-    test_controller = getattr(surface, "_phase21_test_edit_controller", None)
-    if test_controller is not None:
-        return cast(PromptEditController[PromptProjectionUndoPayload], test_controller)
-    parent = surface.parentWidget()
-    while parent is not None:
-        if isinstance(parent, PromptEditor):
-            return cast(
-                PromptEditController[PromptProjectionUndoPayload],
-                cast(Any, parent)._edit_controller,  # noqa: SLF001
-            )
-        parent = parent.parentWidget()
-    return cast(
-        PromptEditController[PromptProjectionUndoPayload],
-        cast(Any, surface)._phase21_test_edit_controller,
-    )
+    return surface.edit_execution
 
 
 def first_emphasis_token(box: PromptEditor) -> PromptProjectionToken:
@@ -385,7 +364,7 @@ def install_lora_wildcard_prompt_state(
         document_view,
         prompt_syntax_profile("emphasis", "wildcard", "lora"),
     )
-    surface_router(surface).set_source_text(text)
+    surface_source_commands(surface).set_source_text(text)
     set_surface_prompt_state(surface, document_view, render_plan)
     surface.flush_pending_projection_update(reason="test")
 
@@ -398,7 +377,7 @@ def set_surface_prompt_state(
     """Publish semantic state through the surface revision authority."""
 
     if surface.toPlainText() != document_view.source_text:
-        surface_router(surface).set_source_text(document_view.source_text)
+        surface_source_commands(surface).set_source_text(document_view.source_text)
         process_events(ensure_qapp())
     surface.set_prompt_state(
         surface.editor_state.prepare_semantic(
@@ -437,19 +416,21 @@ def apply_source_range_to_projection(
 ) -> None:
     """Apply a source transaction through the Phase 2.6 editing-session path."""
 
-    source_change = surface._editing_session.replace_source_range(  # noqa: SLF001
-        start=source_edit_start,
-        end=source_edit_end,
-        replacement_text=source_edit_replacement_text,
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=False,
-        undo_snapshot=surface_router(surface).current_undo_snapshot(),
+    commit = surface.edit_execution.session.execute(
+        PromptReplaceRangeEdit(
+            start=source_edit_start,
+            end=source_edit_end,
+            replacement_text=source_edit_replacement_text,
+            normalizer=PromptSourceNormalizationService(),
+            origin=PromptSourceEditOrigin.TYPED,
+            exact_source=True,
+            record_undo=False,
+            undo_snapshot=surface.edit_execution.current_undo_snapshot(),
+        )
     )
-    assert source_change.next_snapshot.source_text == next_text
+    assert commit.next_snapshot.source_text == next_text
     surface._source_change_applier._apply_editing_session_source_change(  # noqa: SLF001
-        source_change,
+        commit,
         emit_text_changed=emit_text_changed,
         rebuild_immediately=rebuild_immediately,
         optimistic_prompt_state=optimistic_prompt_state,

@@ -20,9 +20,13 @@ from __future__ import annotations
 
 import pytest
 
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.selection import (
     PromptSelection,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.source_buffer import (
     PromptSourceBuffer,
     PromptSourceSnapshot,
 )

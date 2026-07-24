@@ -49,9 +49,11 @@ from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
 
-from ..commands import (
+from ..commands.reorder_commands import (
     PromptReorderCommandResult,
     PromptReorderLayoutCommitRequest,
+)
+from ..commands.weight_commands import (
     PromptSyntaxWeightAction,
     PromptWeightActionRequest,
     PromptWeightCommandResult,

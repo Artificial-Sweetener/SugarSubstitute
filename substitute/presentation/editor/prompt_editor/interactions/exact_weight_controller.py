@@ -42,7 +42,7 @@ from ..overlays.token_weight_gestures import (
     PromptTokenWeightStepIntent,
     PromptTokenWeightWheelStepIntent,
 )
-from ..commands import (
+from ..commands.weight_commands import (
     PromptSyntaxWeightAction,
     PromptWeightCommandResult,
     PromptWeightCursorPolicy,

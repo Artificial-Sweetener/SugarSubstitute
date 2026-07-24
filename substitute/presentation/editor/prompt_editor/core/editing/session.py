@@ -18,36 +18,40 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Generic, overload, TypeVar
 
-from .clipboard_controller import (
+from .commands import (
+    PromptRedoEdit,
+    PromptReplaceDocumentEdit,
+    PromptReplaceRangeEdit,
+    PromptSetCursorEdit,
+    PromptSourceEditCommand,
+    PromptUndoEdit,
+)
+from .commit import PromptEditCommit, PromptEditScope
+from .clipboard import (
     PromptClipboardController,
     PromptClipboardCopyResult,
     PromptClipboardCutResult,
     PromptClipboardPasteResult,
 )
-from .cursor_session import PromptCursorSession
+from .cursor import PromptCursorSession
 from .cursor_state import PromptCursorState
-from .edit_transaction import (
+from .transactions import (
     PromptUndoAvailability,
     PromptUndoAvailabilityChange,
     PromptUndoRestoreResult,
     PromptUndoSnapshot,
 )
-from .selection_state import PromptSelection
+from .selection import PromptSelection
 from .source_buffer import PromptSourceBuffer, PromptSourceSnapshot
-from .source_edit_commands import (
+from .source_commands import (
     PromptSourceEditResult,
     PromptSourceEditOrigin,
     PromptSourceEditSession,
-    PromptSourceNormalizer,
-    PromptSourceTextEdit,
+    source_text_edit_between,
 )
-from .undo_stack import PromptUndoStack
-from substitute.application.prompt_editor.editing.literal_parentheses import (
-    PromptParenthesisTransition,
-)
+from .undo import PromptUndoStack
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
     prompt_editor_work_event,
@@ -57,71 +61,6 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 )
 
 TPayload = TypeVar("TPayload")
-
-
-@dataclass(frozen=True, slots=True)
-class PromptEditingSessionSourceChange(Generic[TPayload]):
-    """Report one source edit after editing-session state has been updated."""
-
-    source_result: PromptSourceEditResult[TPayload]
-    cursor_state: PromptCursorState
-
-    @property
-    def previous_snapshot(self) -> PromptSourceSnapshot:
-        """Return the source snapshot before the edit."""
-
-        return self.source_result.previous_snapshot
-
-    @property
-    def next_snapshot(self) -> PromptSourceSnapshot:
-        """Return the source snapshot after the edit."""
-
-        return self.source_result.next_snapshot
-
-    @property
-    def source_changed(self) -> bool:
-        """Return whether this transaction changed source text."""
-
-        return self.source_result.source_changed
-
-    @property
-    def undo_availability_change(self) -> PromptUndoAvailabilityChange | None:
-        """Return any undo/redo availability transition from this edit."""
-
-        return self.source_result.undo_availability_change
-
-    @property
-    def source_edit(self) -> PromptSourceTextEdit | None:
-        """Return the bounded source edit, if the source text changed."""
-
-        return self.source_result.source_edit
-
-    @property
-    def transitions(self) -> tuple[PromptParenthesisTransition, ...]:
-        """Return semantic parenthesis transitions emitted by normalization."""
-
-        return self.source_result.transitions
-
-
-@dataclass(frozen=True, slots=True)
-class PromptEditingSessionRestoreResult(Generic[TPayload]):
-    """Report an undo/redo snapshot restored into the editing session."""
-
-    restore_result: PromptUndoRestoreResult[TPayload]
-    source_snapshot: PromptSourceSnapshot
-    cursor_state: PromptCursorState
-
-    @property
-    def snapshot(self) -> PromptUndoSnapshot[TPayload]:
-        """Return the undo snapshot restored by the session."""
-
-        return self.restore_result.snapshot
-
-    @property
-    def availability_change(self) -> PromptUndoAvailabilityChange:
-        """Return the undo/redo availability transition."""
-
-        return self.restore_result.availability_change
 
 
 class PromptEditingSession(Generic[TPayload]):
@@ -256,59 +195,44 @@ class PromptEditingSession(Generic[TPayload]):
 
         return self._cursor_session.select_all(source_length=len(self.source_text))
 
-    @prompt_editor_work_event(PromptEditorWorkEvent.EDITING_REPLACE_FULL_SOURCE)
-    def replace_full_source(
+    @overload
+    def execute(
         self,
-        text: str,
-        *,
-        cursor_position: int,
-        anchor_position: int,
-        normalizer: PromptSourceNormalizer,
-        exact_source: bool,
-        record_undo: bool,
-        clear_history: bool,
-        undo_snapshot: PromptUndoSnapshot[TPayload],
-    ) -> PromptEditingSessionSourceChange[TPayload]:
-        """Replace all source text and update session cursor ownership."""
+        command: PromptReplaceRangeEdit[TPayload],
+    ) -> PromptEditCommit[TPayload]: ...
 
-        result = self._source_edits.replace_full_source(
-            text,
-            cursor_position=cursor_position,
-            anchor_position=anchor_position,
-            normalizer=normalizer,
-            exact_source=exact_source,
-            record_undo=record_undo,
-            clear_history=clear_history,
-            undo_snapshot=undo_snapshot,
-        )
-        return self._commit_source_edit_result(result)
-
-    @prompt_editor_work_event(PromptEditorWorkEvent.EDITING_REPLACE_RANGE)
-    def replace_source_range(
+    @overload
+    def execute(
         self,
-        *,
-        start: int,
-        end: int,
-        replacement_text: str,
-        normalizer: PromptSourceNormalizer,
-        origin: PromptSourceEditOrigin,
-        exact_source: bool,
-        record_undo: bool,
-        undo_snapshot: PromptUndoSnapshot[TPayload],
-    ) -> PromptEditingSessionSourceChange[TPayload]:
-        """Replace one source range and update session cursor ownership."""
+        command: PromptReplaceDocumentEdit[TPayload],
+    ) -> PromptEditCommit[TPayload]: ...
 
-        result = self._source_edits.replace_source_range(
-            start=start,
-            end=end,
-            replacement_text=replacement_text,
-            normalizer=normalizer,
-            origin=origin,
-            exact_source=exact_source,
-            record_undo=record_undo,
-            undo_snapshot=undo_snapshot,
-        )
-        return self._commit_source_edit_result(result)
+    @overload
+    def execute(
+        self,
+        command: PromptUndoEdit[TPayload] | PromptRedoEdit[TPayload],
+    ) -> PromptEditCommit[TPayload] | None: ...
+
+    @overload
+    def execute(self, command: PromptSetCursorEdit) -> PromptCursorState: ...
+
+    def execute(
+        self,
+        command: PromptSourceEditCommand[TPayload] | PromptSetCursorEdit,
+    ) -> PromptEditCommit[TPayload] | PromptCursorState | None:
+        """Execute one typed command through the sole editing-state owner."""
+
+        if isinstance(command, PromptReplaceRangeEdit):
+            return self._execute_range_edit(command)
+        if isinstance(command, PromptReplaceDocumentEdit):
+            return self._execute_document_edit(command)
+        if isinstance(command, PromptUndoEdit):
+            return self._execute_history_edit(command.current_snapshot, undo=True)
+        if isinstance(command, PromptRedoEdit):
+            return self._execute_history_edit(command.current_snapshot, undo=False)
+        if isinstance(command, PromptSetCursorEdit):
+            return self.set_cursor_state(command.cursor_state)
+        raise TypeError(f"Unsupported prompt editing command: {type(command).__name__}")
 
     def begin_edit_block(self, snapshot: PromptUndoSnapshot[TPayload]) -> None:
         """Start or nest one grouped edit transaction."""
@@ -322,28 +246,6 @@ class PromptEditingSession(Generic[TPayload]):
         """Finish one grouped edit transaction."""
 
         return self._undo_stack.end_edit_block(current_snapshot)
-
-    def undo(
-        self,
-        current_snapshot: PromptUndoSnapshot[TPayload],
-    ) -> PromptEditingSessionRestoreResult[TPayload] | None:
-        """Restore the previous undo snapshot into the editing session."""
-
-        restore_result = self._undo_stack.undo(current_snapshot)
-        if restore_result is None:
-            return None
-        return self._restore_snapshot(restore_result)
-
-    def redo(
-        self,
-        current_snapshot: PromptUndoSnapshot[TPayload],
-    ) -> PromptEditingSessionRestoreResult[TPayload] | None:
-        """Restore the next redo snapshot into the editing session."""
-
-        restore_result = self._undo_stack.redo(current_snapshot)
-        if restore_result is None:
-            return None
-        return self._restore_snapshot(restore_result)
 
     def discard_trailing_undo_state(
         self,
@@ -428,25 +330,142 @@ class PromptEditingSession(Generic[TPayload]):
             selection=self.selection(),
         )
 
-    def _commit_source_edit_result(
+    @prompt_editor_work_event(PromptEditorWorkEvent.EDITING_REPLACE_RANGE)
+    def _execute_range_edit(
         self,
-        result: PromptSourceEditResult[TPayload],
-    ) -> PromptEditingSessionSourceChange[TPayload]:
-        """Commit source-edit cursor output into source cursor ownership."""
+        command: PromptReplaceRangeEdit[TPayload],
+    ) -> PromptEditCommit[TPayload]:
+        """Commit one typed range replacement."""
 
+        previous_cursor_state = self.cursor_state
+        result = self._source_edits.replace_source_range(
+            start=command.start,
+            end=command.end,
+            replacement_text=command.replacement_text,
+            normalizer=command.normalizer,
+            origin=command.origin,
+            exact_source=command.exact_source,
+            record_undo=command.record_undo,
+            undo_snapshot=command.undo_snapshot,
+        )
         cursor_state = self._cursor_session.set_state(
             result.cursor_state,
             source_length=result.next_snapshot.source_length,
         )
-        return PromptEditingSessionSourceChange(
-            source_result=result,
+        if command.cursor_position is not None:
+            cursor_state = self._cursor_session.set_positions(
+                cursor_position=command.cursor_position,
+                anchor_position=(
+                    command.cursor_position
+                    if command.anchor_position is None
+                    else command.anchor_position
+                ),
+                source_length=result.next_snapshot.source_length,
+            )
+        return self._edit_commit_from_source_result(
+            result,
+            previous_cursor_state=previous_cursor_state,
             cursor_state=cursor_state,
+            origin=command.origin,
+            scope=PromptEditScope.RANGE,
+        )
+
+    @prompt_editor_work_event(PromptEditorWorkEvent.EDITING_REPLACE_FULL_SOURCE)
+    def _execute_document_edit(
+        self,
+        command: PromptReplaceDocumentEdit[TPayload],
+    ) -> PromptEditCommit[TPayload]:
+        """Commit one typed complete-source replacement."""
+
+        previous_cursor_state = self.cursor_state
+        result = self._source_edits.replace_full_source(
+            command.text,
+            cursor_position=command.cursor_position,
+            anchor_position=command.anchor_position,
+            normalizer=command.normalizer,
+            exact_source=command.exact_source,
+            record_undo=command.record_undo,
+            clear_history=command.clear_history,
+            undo_snapshot=command.undo_snapshot,
+        )
+        cursor_state = self._cursor_session.set_state(
+            result.cursor_state,
+            source_length=result.next_snapshot.source_length,
+        )
+        return self._edit_commit_from_source_result(
+            result,
+            previous_cursor_state=previous_cursor_state,
+            cursor_state=cursor_state,
+            origin=PromptSourceEditOrigin.PROGRAMMATIC,
+            scope=PromptEditScope.DOCUMENT,
+        )
+
+    def _execute_history_edit(
+        self,
+        current_snapshot: PromptUndoSnapshot[TPayload],
+        *,
+        undo: bool,
+    ) -> PromptEditCommit[TPayload] | None:
+        """Commit one undo or redo restoration as a normal editing result."""
+
+        previous_snapshot = self.source_snapshot()
+        previous_cursor_state = self.cursor_state
+        restore_result = (
+            self._undo_stack.undo(current_snapshot)
+            if undo
+            else self._undo_stack.redo(current_snapshot)
+        )
+        if restore_result is None:
+            return None
+        next_snapshot, cursor_state = self._restore_snapshot(restore_result)
+        return PromptEditCommit(
+            previous_snapshot=previous_snapshot,
+            next_snapshot=next_snapshot,
+            previous_cursor_state=previous_cursor_state,
+            cursor_state=cursor_state,
+            origin=PromptSourceEditOrigin.PROGRAMMATIC,
+            scope=PromptEditScope.HISTORY,
+            source_edit=source_text_edit_between(
+                previous_snapshot.source_text,
+                next_snapshot.source_text,
+            ),
+            requested_start=0,
+            requested_end=previous_snapshot.source_length,
+            requested_replacement_text=next_snapshot.source_text,
+            undo_availability_change=restore_result.availability_change,
+            restored_undo_snapshot=restore_result.snapshot,
+        )
+
+    @staticmethod
+    def _edit_commit_from_source_result(
+        result: PromptSourceEditResult[TPayload],
+        *,
+        previous_cursor_state: PromptCursorState,
+        cursor_state: PromptCursorState,
+        origin: PromptSourceEditOrigin,
+        scope: PromptEditScope,
+    ) -> PromptEditCommit[TPayload]:
+        """Convert the internal normalized mutation result into one public commit."""
+
+        return PromptEditCommit(
+            previous_snapshot=result.previous_snapshot,
+            next_snapshot=result.next_snapshot,
+            previous_cursor_state=previous_cursor_state,
+            cursor_state=cursor_state,
+            origin=origin,
+            scope=scope,
+            source_edit=result.source_edit,
+            requested_start=result.requested_start,
+            requested_end=result.requested_end,
+            requested_replacement_text=result.requested_replacement_text,
+            transitions=result.transitions,
+            undo_availability_change=result.undo_availability_change,
         )
 
     def _restore_snapshot(
         self,
         restore_result: PromptUndoRestoreResult[TPayload],
-    ) -> PromptEditingSessionRestoreResult[TPayload]:
+    ) -> tuple[PromptSourceSnapshot, PromptCursorState]:
         """Synchronize source and cursor ownership to one undo snapshot."""
 
         snapshot = restore_result.snapshot
@@ -459,15 +478,7 @@ class PromptEditingSession(Generic[TPayload]):
             snapshot.cursor_state,
             source_length=source_snapshot.source_length,
         )
-        return PromptEditingSessionRestoreResult(
-            restore_result=restore_result,
-            source_snapshot=source_snapshot,
-            cursor_state=cursor_state,
-        )
+        return source_snapshot, cursor_state
 
 
-__all__ = [
-    "PromptEditingSession",
-    "PromptEditingSessionRestoreResult",
-    "PromptEditingSessionSourceChange",
-]
+__all__ = ["PromptEditingSession"]

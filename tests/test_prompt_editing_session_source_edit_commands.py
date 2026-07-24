@@ -23,18 +23,24 @@ import pytest
 from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    source_edit_commands,
-)
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptSourceEditOrigin,
+from substitute.presentation.editor.prompt_editor.core.editing import source_commands
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.source_buffer import (
     PromptSourceBuffer,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
+    PromptSourceEditOrigin,
     PromptSourceEditSession,
     PromptSourceTextEdit,
-    PromptUndoSnapshot,
-    PromptUndoStack,
     source_text_edit_between,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
+    PromptUndoSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.undo import (
+    PromptUndoStack,
 )
 
 
@@ -122,7 +128,7 @@ def test_plain_edit_without_generated_emphasis_skips_document_parse(
 
         raise AssertionError("plain edit unexpectedly parsed the prompt document")
 
-    monkeypatch.setattr(source_edit_commands, "parse_prompt_document", reject_parse)
+    monkeypatch.setattr(source_commands, "parse_prompt_document", reject_parse)
 
     result = session.replace_source_range(
         start=len("alpha"),

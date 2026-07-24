@@ -39,7 +39,7 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptLayoutIdentity,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
+from substitute.presentation.editor.prompt_editor.core.editing.source_buffer import (
     PromptSourceSnapshot,
 )
 

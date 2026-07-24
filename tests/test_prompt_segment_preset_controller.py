@@ -25,7 +25,7 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 from dataclasses import dataclass
 
 from substitute.domain.user_presets import GLOBAL_PRESET_ASSOCIATION
-from substitute.presentation.editor.prompt_editor.commands import (
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
     PromptCommandResult,
 )
 from substitute.presentation.editor.prompt_editor.features import (

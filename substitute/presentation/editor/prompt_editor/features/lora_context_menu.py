@@ -28,7 +28,10 @@ from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLoraService,
 )
 
-from ..commands import PromptFeatureCommandRequest, PromptFeatureSnapshotIdentity
+from ..commands.feature_commands import (
+    PromptFeatureCommandRequest,
+    PromptFeatureSnapshotIdentity,
+)
 from .catalog_snapshots import CatalogSnapshotIdentity
 from .feature_profile_controller import (
     PromptFeatureActionState,

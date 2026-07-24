@@ -21,10 +21,25 @@ from __future__ import annotations
 from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
 )
-from substitute.presentation.editor.prompt_editor.editing_session import (
-    PromptSourceEditOrigin,
+from substitute.presentation.editor.prompt_editor.core.editing.commands import (
+    PromptRedoEdit,
+    PromptReplaceDocumentEdit,
+    PromptReplaceRangeEdit,
+    PromptUndoEdit,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.commit import (
+    PromptEditCommit,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.session import (
     PromptEditingSession,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
+    PromptSourceEditOrigin,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
 
@@ -58,20 +73,46 @@ def _session(source_text: str = "") -> PromptEditingSession[str]:
     )
 
 
+def _replace_range(
+    session: PromptEditingSession[str],
+    *,
+    start: int,
+    end: int,
+    replacement_text: str,
+    record_undo: bool = True,
+) -> PromptEditCommit[str]:
+    """Execute one exact typed range replacement."""
+
+    return session.execute(
+        PromptReplaceRangeEdit(
+            start=start,
+            end=end,
+            replacement_text=replacement_text,
+            normalizer=PromptSourceNormalizationService(),
+            origin=PromptSourceEditOrigin.TYPED,
+            exact_source=True,
+            record_undo=record_undo,
+            undo_snapshot=_undo_snapshot(session.source_text),
+        )
+    )
+
+
 def test_replace_full_source_updates_source_cursor_and_undo() -> None:
     """Full replacement should update all editing-session state owners."""
 
     session = _session()
 
-    result = session.replace_full_source(
-        "alpha",
-        cursor_position=len("alpha"),
-        anchor_position=len("alpha"),
-        normalizer=PromptSourceNormalizationService(),
-        exact_source=True,
-        record_undo=True,
-        clear_history=False,
-        undo_snapshot=_undo_snapshot(""),
+    result = session.execute(
+        PromptReplaceDocumentEdit(
+            text="alpha",
+            cursor_position=len("alpha"),
+            anchor_position=len("alpha"),
+            normalizer=PromptSourceNormalizationService(),
+            exact_source=True,
+            record_undo=True,
+            clear_history=False,
+            undo_snapshot=_undo_snapshot(""),
+        )
     )
 
     assert session.source_text == "alpha"
@@ -89,15 +130,11 @@ def test_replace_range_updates_cursor_and_revision_once() -> None:
 
     session = _session("alpha")
 
-    result = session.replace_source_range(
+    result = _replace_range(
+        session,
         start=5,
         end=5,
         replacement_text=" beta",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=True,
-        undo_snapshot=_undo_snapshot("alpha"),
     )
 
     assert result.previous_snapshot.source_text == "alpha"
@@ -120,15 +157,11 @@ def test_noop_range_edit_updates_cursor_without_revision_bump() -> None:
         max_redo_states=8,
     )
 
-    result = session.replace_source_range(
+    result = _replace_range(
+        session,
         start=1,
         end=2,
         replacement_text="b",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=True,
-        undo_snapshot=_undo_snapshot("abc"),
     )
 
     assert not result.source_changed
@@ -144,28 +177,28 @@ def test_undo_and_redo_restore_source_and_cursor() -> None:
     """Undo and redo should restore source and cursor through the facade."""
 
     session = _session("alpha")
-    session.replace_source_range(
+    _replace_range(
+        session,
         start=5,
         end=5,
         replacement_text=" beta",
-        normalizer=PromptSourceNormalizationService(),
-        origin=PromptSourceEditOrigin.TYPED,
-        exact_source=True,
-        record_undo=True,
-        undo_snapshot=_undo_snapshot("alpha"),
     )
 
-    undo_result = session.undo(_undo_snapshot("alpha beta"))
+    undo_result = session.execute(
+        PromptUndoEdit(current_snapshot=_undo_snapshot("alpha beta"))
+    )
     assert undo_result is not None
     assert session.source_text == "alpha"
     assert session.cursor_state == PromptCursorState(
         cursor_position=5,
         anchor_position=5,
     )
-    assert undo_result.source_snapshot.source_revision == session.source_revision
+    assert undo_result.next_snapshot.source_revision == session.source_revision
     assert session.can_redo()
 
-    redo_result = session.redo(_undo_snapshot("alpha"))
+    redo_result = session.execute(
+        PromptRedoEdit(current_snapshot=_undo_snapshot("alpha"))
+    )
     assert redo_result is not None
     assert session.source_text == "alpha beta"
     assert session.cursor_state == PromptCursorState(

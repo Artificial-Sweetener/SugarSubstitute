@@ -21,7 +21,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from substitute.presentation.editor.prompt_editor.commands import PromptCommandResult
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
+    PromptCommandStatus,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +83,14 @@ class PromptSegmentPresetHost(Protocol):
         """Restore a captured source selection."""
 
 
+class PromptSegmentInsertionResult(Protocol):
+    """Expose the insertion status consumed by the preset controller."""
+
+    @property
+    def status(self) -> PromptCommandStatus:
+        """Return the semantic insertion outcome."""
+
+
 class PromptSegmentTextInsertionExecutor(Protocol):
     """Describe saved segment insertion routing."""
 
@@ -89,7 +99,7 @@ class PromptSegmentTextInsertionExecutor(Protocol):
         insertion_text: str,
         *,
         command_name: str = "context_menu_insert_text",
-    ) -> PromptCommandResult[object]:
+    ) -> PromptSegmentInsertionResult:
         """Insert text at the active context-menu target."""
 
 
@@ -97,6 +107,7 @@ __all__ = [
     "PromptSegmentContextInsertState",
     "PromptSegmentCursor",
     "PromptSegmentPresetHost",
+    "PromptSegmentInsertionResult",
     "PromptSegmentSelectionSnapshot",
     "PromptSegmentTextInsertionExecutor",
 ]

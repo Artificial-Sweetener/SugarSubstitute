@@ -53,7 +53,7 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderLayoutView,
     PromptReorderStateView,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
+from substitute.presentation.editor.prompt_editor.commands.reorder_commands import (
     PromptReorderLayoutCommitRequest,
 )
 from substitute.presentation.editor.prompt_editor.projection.session import (

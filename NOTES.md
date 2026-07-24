@@ -11,7 +11,7 @@ verification result.
 
 - Refactor branch: `refactor/prompt-editor-architecture`
 - Behavioral baseline: `bc6c6a7b`
-- Current slice: 5, editing ownership
+- Current slice: 6, immutable geometry authority
 - Completion state: active
 - Blocking regressions: none accepted
 
@@ -21,7 +21,7 @@ verification result.
 | 2 | Pure domain/application package ownership | Complete | Direct-owner packages, deleted LoRA cycle and flat barrels, 68/68 structural coverage, paired performance evidence, and complete repository gates |
 | 3 | Panel dependency inversion | Complete | Caller-neutral prompt preset port, panel-owned adapter and scope policy, zero reverse imports, 68/68 structural coverage, paired performance evidence, and complete repository gates |
 | 4 | Revisioned core state | Complete | Typed source-to-paint lineage, deleted state mirrors, focused frame synchronization, allocation-safe hot paths, 68/68 structural coverage, paired performance evidence, and complete repository gates |
-| 5 | Editing ownership | Pending | — |
+| 5 | Editing ownership | Complete | One typed core commit boundary, deleted router/adapter/session-facade graph, 68/68 three-pass structural coverage, and controlled baseline performance evidence |
 | 6 | Immutable geometry authority | Pending | — |
 | 7 | Canonical and incremental layout engines | Pending | — |
 | 8 | Edit-to-frame pipeline | Pending | — |
@@ -30,6 +30,208 @@ verification result.
 | 11 | Remaining vertical feature slices | Pending | — |
 | 12 | Thin Qt integration roots | Pending | — |
 | 13 | Panel separation and migration cleanup | Pending | — |
+
+### Slice 5 acceptance ledger
+
+Slice 5 is complete only when:
+
+- `core/editing` is the sole owner of source text, source revision, cursor and
+  selection state, normalization, source deltas, undo/redo transactions,
+  clipboard edit intent, IME composition state, and key-edit coalescing policy;
+- every source mutation enters that owner as a typed core command and returns
+  one immutable `PromptEditCommit`; feature commands may prepare core commands
+  but cannot mutate the session or projection through another path;
+- `PromptEditCommit` records the exact previous and next source identities,
+  bounded source delta, cursor/selection result, origin, normalization
+  transitions, undo availability transition, and optional prepared semantic
+  value without copying or hashing the full source;
+- projection receives committed source and history changes only through
+  `apply_edit_commit(commit)`; no router result, application tuple, restore
+  callback, source-change wrapper, or direct session result can enter
+  projection independently;
+- IME commit, Backspace, Delete, selection deletion, typed insertion, newline,
+  paste, cut, programmatic replacement, autocomplete, diagnostics, emphasis,
+  reorder, trigger words, Danbooru import, undo, and redo all use the same
+  command/commit boundary while preserving exact current behavior;
+- transient IME preedit remains outside persisted source and undo history,
+  UTF-16 replacement ranges remain correct for Unicode, and unrelated source
+  changes cancel composition deterministically;
+- typing and delete coalescing state and timers call typed editing-session
+  commands directly, emit each undo/redo availability transition once, and add
+  no source reads, snapshots, signals, or timer work to unrelated navigation,
+  paint, canvas, or workflow paths;
+- clipboard interaction separates operating-system clipboard I/O and Danbooru
+  scheduling from pure copy/cut/paste commands; cut and paste each perform one
+  source transaction rather than planning through one command and mutating
+  through another;
+- projection-aware deletion resolves one immutable deletion intent and submits
+  one core command; the broad deletion surface-host Protocol and private
+  mutation callbacks are deleted;
+- the redundant command dispatcher, edit controller, edit command router,
+  host command adapter, projection application/result wrappers, surface runtime
+  mutation attachment, and their internal compatibility exports are deleted,
+  with every callsite transferred to focused owners;
+- the command package root is inert, the command import cycle is removed, and
+  executable architecture policy rejects restoration of the deleted graph or
+  any new direct source mutation outside `core/editing`;
+- owner contracts cover typed insertion/replacement, no-op, stale rejection,
+  normalization, selection, grapheme deletion, regional-separator boundaries,
+  IME commit/preedit/cancel, clipboard, coalescing, nested edit blocks,
+  undo/redo, prepared semantic adoption, and exact single-commit publication;
+- real-shell and seeded abuse coverage proves keyboard, mouse, selection,
+  history, IME, MIME, regional, raw/rich, autocomplete, diagnostics, emphasis,
+  reorder, Danbooru, workflow, and unchanged-canvas behavior;
+- structural budgets prove one source transaction and one projection commit per
+  edit, no full-source scan or snapshot construction is added to ordinary
+  typing/deletion, and zero prompt work remains the unchanged canvas/workflow
+  contract;
+- repeated pre-slice baseline comparison shows no latency, allocation,
+  rebuild, fallback, cache, memory, canvas, or workflow regression, and focused
+  plus complete repository gates pass for the exact slice worktree.
+
+### Slice 5 ownership inventory
+
+The pre-transfer editing graph has six overlapping mutation authorities:
+
+- `editing_session/session.py` owns the real source, cursor, normalization, and
+  history state, but exposes imperative mutation methods rather than one typed
+  command/commit boundary;
+- `commands/__init__.py` defines an executable command Protocol and dispatcher
+  while importing the editing-session package root, and
+  `editing_session/edit_controller.py` imports that command package back. The
+  resulting eight-module command cycle is explicitly frozen in architecture
+  tests;
+- `PromptEditController` snapshots history and sometimes publishes projection
+  applications, while `PromptEditCommandRouter` repeats command execution,
+  edit-block policy, signal policy, source-application construction, semantic
+  preparation, and publication. `PromptEditorCommandAdapter` adds a third
+  host-facing forwarding layer and also owns context-insertion policy;
+- `PromptProjectionSourceChangeApplication`,
+  `PromptProjectionRestoreApplication`, and `PromptEditControllerResult` form a
+  second mutation result model after the editing-session result. Projection can
+  also accept restore results directly, so no single committed value is its
+  authoritative input;
+- Delete/Backspace, IME, clipboard/history, and undo coalescing each depend on a
+  separate broad host/action Protocol. They query mutable surface state,
+  calculate an edit, and then call private surface callbacks that re-enter the
+  router. Cut and paste first dispatch planning commands and then dispatch a
+  second replacement command for the actual source transaction;
+- `PromptProjectionSurface` stores four late-wired mutation collaborators,
+  exposes source replacement, IME replacement, clipboard cursor/restore, edit
+  block, and source-application methods, and remains the service locator joining
+  those paths.
+
+Slice 5 transfers the complete editing lifecycle, not merely command type
+names. Qt event decoding, system clipboard access, candidate-window geometry,
+and projection-aware token queries remain presentation adapters, but they
+produce typed immutable intents and cannot mutate source except through the
+editing owner. Projection classification and layout strategy remain assigned to
+Slices 7 and 8; this slice replaces their input with one commit without moving
+those algorithms prematurely.
+
+### Slice 5 evidence
+
+The source, cursor, normalization, history, clipboard-intent, IME, and
+coalescing owners now live under `core/editing`. Typed
+`PromptReplaceRangeEdit`, `PromptReplaceDocumentEdit`, `PromptUndoEdit`, and
+`PromptRedoEdit` commands are executed by the core session and return one
+immutable `PromptEditCommit`. `PromptEditExecution` is the sole application
+boundary that commits a command, reads the resulting source snapshot once, and
+publishes undo/redo availability transitions once. Projection consumes the
+same value through `apply_edit_commit`; there is no second source-change or
+restore result model.
+
+Focused command services now own the remaining presentation policies without
+becoming mutation authorities:
+
+- `PromptSourceCommandService` owns edit-block and explicit coalescing
+  boundaries while forwarding one typed command to `PromptEditExecution`;
+- `PromptContextInsertionService` owns captured-position and selection
+  replacement, structured rejection, focus restoration, and its required
+  pending-key-edit boundary;
+- clipboard, Danbooru import, autocomplete, diagnostics, emphasis, reorder,
+  trigger-word, and weight commands prepare one core command and consume one
+  commit;
+- `PromptDeletionResolver` converts a compact immutable projection context into
+  one deletion intent. Grapheme, selection, raw, projected token, and
+  structural separator deletion use the same command service. The keymap
+  depends only on focused deletion actions rather than a broad surface host.
+
+The previous command dispatcher, edit controller, command router, host command
+adapter, editing-session presentation package, application/restore wrappers,
+surface runtime attachment, and broad deletion host were deleted completely.
+The command package root is inert. Architecture policy rejects restoration of
+those files, symbols, or the former command import cycle. The surface retains
+only narrow adapters that expose deletion context and projection effects; it
+no longer owns a parallel source-mutation API. The production prompt-editor
+graph passes strict mypy across all 246 modules, and the focused modified-test
+set plus new execution, context-insertion, and deletion owner suites pass. The
+test private-access debt ratchet falls from 307 to 305 while production private
+exemptions, casts, and broad Protocol counts do not grow.
+
+One behavioral regression was found during the transfer: the initial source
+command service ended pending key edits before every range command. That split
+ordinary typing and deletion undo groups and double-flushed clipboard
+boundaries. Coalescing completion is now explicit; only policies that own a
+real boundary request it. Owner tests assert one source commit, one snapshot
+read, one projection publication, correct no-op behavior, and one history
+transaction.
+
+The complete source-policy gate also rejected an ASCII-only eligibility check
+in the lazy caret transform. Eligibility now uses a bounded Unicode grapheme
+boundary check over only the edited payload; it never scans the full document.
+Simple Unicode text retains the incremental path, joined graphemes use the
+canonical caret map, and a real-surface regression proves that `A日B` exposes
+all valid caret boundaries while `A👩‍🚀B` exposes no interior caret position.
+The shared projection invariant now derives its expected positions from the
+same Unicode coordinate authority instead of incorrectly requiring one caret
+stop per code point. The bounded check costs approximately 1.9 microseconds for
+a one-character payload in the local microbenchmark.
+
+Serial real-shell verification found that a same-text document command still
+entered semantic/projection preparation. It advanced a staged semantic
+identity without a corresponding current semantic publication, so a no-op Tab
+or Escape interaction could expose stale revision lineage even though source
+text stayed unchanged. Document no-ops now update only cursor and requested
+viewport intent unless they carry an explicit prepared semantic state. An
+owner test locks the zero source-mirror, semantic, projection, and incremental
+work contract, and the real-shell Tab/Escape lineage scenarios pass. This
+removes unnecessary work from initialization and other same-text document
+commands.
+
+The final instrumented abuse report at
+`build/prompt-editor-slice5-commit-structural.json` contains 204
+production-shell runs: 68 scenarios across repetitions 0, 1, and 2. It records
+68/68 operation coverage, no missing operations, zero invariant violations,
+zero structural violations, and no stale projection or semantic end states.
+The corpus includes the regional-separator hostile cases, navigation and
+selection, IME, clipboard/history, syntax and feature commands, raw/rich
+transitions, workflow switching, and unchanged canvas round trips. A focused
+separator delete/join/split campaign and an earlier complete smoke campaign are
+also clean.
+
+Performance verification found and repaired a stale measurement-harness access
+to a deleted diagnostic-painter layout revision. The harness now consumes the
+authoritative immutable layout identity. The complete candidate timing tool
+then runs successfully, including diagnostic-cache preservation. Comparison
+workers run in fresh processes, assert that every loaded `substitute` module
+belongs to the selected worktree, disable observation, and use fixed affinity.
+Sequential results were strongly order-correlated while an active external
+ComfyUI process changed CPU load and clock state; paint-only controls moved by
+the same proportion as editing lanes. A simultaneous same-core comparison
+removed that order bias: aggregate process CPU was 13.188 seconds for the
+candidate and 13.516 seconds for the pre-slice baseline. Candidate common edit
+lanes were equivalent or faster within the shared load window. Structural
+evidence independently proves one source transaction and one projection commit
+per edit, no extra full-source read or snapshot construction in ordinary
+typing/deletion, and zero prompt work on unchanged canvas/workflow paths. No
+stable hot-path regression remains.
+
+The exact Slice 5 source tree passes repository formatting and lint, strict
+mypy over 2,900 source/test files, the complete non-serial suite, the license
+header audit, and all 122 isolated serial modules. Serial coverage includes the
+production real-shell prompt-editor, autocomplete, output-canvas, workflow,
+toolbar, and widget abuse harnesses.
 
 ### Slice 1 acceptance ledger
 

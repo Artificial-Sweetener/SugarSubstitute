@@ -36,7 +36,7 @@ from substitute.domain.prompt.features.models import PromptEditorFeature
 from substitute.presentation.editor.prompt_editor.autocomplete_refresh_intent import (
     PromptAutocompleteRefreshIntent,
 )
-from substitute.presentation.editor.prompt_editor.commands import (
+from substitute.presentation.editor.prompt_editor.commands.feature_commands import (
     PromptFeatureSnapshotIdentity,
 )
 from substitute.presentation.editor.prompt_editor.features.feature_profile_controller import (
