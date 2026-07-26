@@ -279,7 +279,6 @@ def test_phase5_widget_feature_gates_suppress_visible_editor_behaviors(
         ),
     )
     interaction = cast(Any, editor)._interaction_controller
-    autocomplete = cast(Any, editor)._autocomplete
     publication = cast(
         Any, editor
     )._autocomplete_refresh_controller._lifecycle_requester._publication
@@ -333,7 +332,6 @@ def test_phase5_widget_feature_gates_cover_lora_diagnostics_and_danbooru(
         danbooru_url_import_service=danbooru_import,
         danbooru_wiki_service=_StubDanbooruWikiService(),
     )
-    autocomplete = cast(Any, editor)._autocomplete
     publication = cast(
         Any, editor
     )._autocomplete_refresh_controller._lifecycle_requester._publication
