@@ -2073,6 +2073,17 @@ def test_real_shell_harness_reports_headless_editor_common_sense_violations(
             paint_cache_projection_document_identity_matches_layout=False,
         )
     )
+    stale_render_frame_cache_mismatch = harness.invariant_violations(
+        replace(
+            empty_selection_snapshot,
+            paint_cache_key_present=True,
+            last_content_paint_result="hit",
+            last_content_paint_frame_is_current=False,
+            paint_cache_identity_matches_render_frame=True,
+            paint_cache_projection_document_identity_matches_layout=False,
+            paint_cache_layout_snapshot_identity_matches_layout=False,
+        )
+    )
     cache_source_revision_mismatch = harness.invariant_violations(
         replace(
             empty_selection_snapshot,
@@ -2358,6 +2369,10 @@ def test_real_shell_harness_reports_headless_editor_common_sense_violations(
     assert (
         "paint_cache_projection_document_identity_mismatch"
         not in selected_cache_document_mismatch
+    )
+    assert not any(
+        violation.startswith("paint_cache_")
+        for violation in stale_render_frame_cache_mismatch
     )
     assert any(
         violation.startswith("paint_cache_source_revision_mismatch")

@@ -4664,6 +4664,7 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         "last_content_paint_result": last_content_paint_result,
         "last_content_paint_frame_is_current": (
             last_content_paint_identity is render_frame_paint_identity
+            and render_frame_paint_identity is paint_identity
         ),
         "paint_cache_identity_matches_render_frame": (
             paint_cache_key is None
