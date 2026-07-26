@@ -22,18 +22,24 @@ from substitute.application.prompt_editor.document.views import (
     PromptRegionStructureView,
 )
 
-from substitute.presentation.editor.prompt_editor.projection.fragment_ownership_reflow import (
+from substitute.presentation.editor.prompt_editor.layout.reflow_scope import (
     PromptProjectionReflowEdit,
     reflow_edit_including_fragment_identity_changes,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretMap,
     PromptProjectionCaretPlacement,
     PromptProjectionCaretState,
     PromptProjectionCaretStop,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.mapping import (
     PromptProjectionMapping,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
     PromptProjectionRunKind,
 )

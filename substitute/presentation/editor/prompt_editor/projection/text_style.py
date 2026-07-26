@@ -20,7 +20,9 @@ from __future__ import annotations
 
 from PySide6.QtGui import QFont
 
-from .model import PromptProjectionRun
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
+    PromptProjectionRun,
+)
 
 _BOLD_TEXT_STYLE_VARIANTS = frozenset({"scene_title", "scene_error"})
 

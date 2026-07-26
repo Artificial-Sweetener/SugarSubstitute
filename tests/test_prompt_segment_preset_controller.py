@@ -71,6 +71,14 @@ class _Cursor:
 
         return self.cursor_position
 
+    def setPosition(self, pos: int, mode: object | None = None) -> None:  # noqa: N802
+        """Update the fake cursor and retain or extend its selection."""
+
+        if mode is None:
+            self.selection_start = pos
+        self.selection_end = pos
+        self.cursor_position = pos
+
 
 class _Host:
     """Capture host calls made by the segment preset controller."""

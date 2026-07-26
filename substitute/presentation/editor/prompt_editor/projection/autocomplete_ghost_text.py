@@ -18,9 +18,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Hashable
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass
-from typing import Protocol
 
 from substitute.application.ports import PromptAutocompleteSuggestion
 from substitute.application.prompt_editor.lora.autocomplete import (
@@ -68,23 +67,17 @@ class PromptAutocompleteGhostTextState:
     preview_state: PromptAutocompletePreviewState | None
 
 
-class PromptAutocompletePreviewStateSink(Protocol):
-    """Publish computed autocomplete preview state to the projection surface."""
-
-    def set_autocomplete_preview_state(
-        self,
-        preview_state: PromptAutocompletePreviewState | None,
-    ) -> None:
-        """Replace the projection-owned autocomplete preview state."""
-
-
 class PromptAutocompleteGhostTextPublisher:
     """Publish prepared autocomplete ghost text into projection preview state."""
 
-    def __init__(self, *, preview_sink: PromptAutocompletePreviewStateSink) -> None:
+    def __init__(
+        self,
+        *,
+        publish_preview_state: Callable[[PromptAutocompletePreviewState | None], None],
+    ) -> None:
         """Store the projection sink without owning source or query behavior."""
 
-        self._preview_sink = preview_sink
+        self._publish_preview_state = publish_preview_state
         self._last_state: PromptAutocompleteGhostTextState | None = None
 
     @prompt_editor_work_event(PromptEditorWorkEvent.AUTOCOMPLETE_PREVIEW_UPDATE)
@@ -122,7 +115,7 @@ class PromptAutocompleteGhostTextPublisher:
             else preview_probe_state(self._last_state.preview_state),
         )
         self._last_state = None
-        self._preview_sink.set_autocomplete_preview_state(None)
+        self._publish_preview_state(None)
 
     def _publish_state(self, state: PromptAutocompleteGhostTextState) -> None:
         """Publish one computed state only when its identity changes."""
@@ -138,7 +131,7 @@ class PromptAutocompleteGhostTextPublisher:
             "ghost_text.publish_state.apply",
             preview=preview_probe_state(state.preview_state),
         )
-        self._preview_sink.set_autocomplete_preview_state(state.preview_state)
+        self._publish_preview_state(state.preview_state)
 
     def _state_for_session(
         self,
@@ -406,7 +399,6 @@ __all__ = [
     "PromptAutocompleteGhostTextPublisher",
     "PromptAutocompleteGhostTextSourceSnapshot",
     "PromptAutocompleteGhostTextState",
-    "PromptAutocompletePreviewStateSink",
     "selected_autocomplete_suffix",
     "wildcard_completion_suffix",
 ]

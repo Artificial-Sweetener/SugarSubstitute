@@ -28,6 +28,7 @@ from .factory import (
     PromptEditorCompositionContext,
     PromptEditorCompositionFactory,
     build_external_url_action_runner,
+    build_prompt_document_service,
 )
 from .signal_bindings import (
     PromptEditorDiagnosticsControllerBinding,
@@ -63,6 +64,7 @@ __all__ = [
     "bind_prompt_editor_diagnostics_signals",
     "bind_prompt_editor_signals",
     "build_external_url_action_runner",
+    "build_prompt_document_service",
     "is_deleted_qt_object_error",
     "qt_object_is_alive",
     "wire_prompt_editor_construction_lifecycle",

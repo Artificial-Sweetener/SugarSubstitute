@@ -43,9 +43,11 @@ from substitute.presentation.editor.prompt_editor.async_work import (
     PromptEditorTaskExecutor,
     PromptLoraThumbnailPreloader,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
     PromptProjectionRunKind,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionThumbnailVariant,
     PromptProjectionToken,
     PromptProjectionTokenKind,

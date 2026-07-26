@@ -20,7 +20,13 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from .model import PromptProjectionRun, PromptProjectionRunKind, PromptProjectionToken
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
+    PromptProjectionRun,
+    PromptProjectionRunKind,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionToken,
+)
 
 
 def build_scene_title_projection_run(

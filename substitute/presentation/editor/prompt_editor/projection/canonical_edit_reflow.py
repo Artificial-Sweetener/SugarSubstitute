@@ -25,7 +25,10 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 
 from .applicator import PromptProjectionApplicator
 from .freshness_controller import PromptProjectionFreshnessBlockers
-from .model import PromptProjectionDisplayMode, PromptProjectionDocument
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDisplayMode,
+    PromptProjectionDocument,
+)
 from .session import PromptProjectionSession
 
 

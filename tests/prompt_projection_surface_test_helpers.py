@@ -68,13 +68,15 @@ from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
 )
 from substitute.presentation.editor.prompt_editor.projection.surface import (
     PromptProjectionSurface,
+)
+from substitute.presentation.editor.prompt_editor.projection.undo_payload import (
     PromptProjectionUndoPayload,
 )
 from substitute.presentation.editor.prompt_editor.projection.editing_runtime import (
     PromptProjectionEditingRuntime,
     PromptProjectionEditingRuntimeFactory,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
@@ -400,21 +402,11 @@ def apply_source_range_to_projection(
     surface: PromptProjectionSurface,
     next_text: str,
     *,
-    cursor_position: int,
-    anchor_position: int,
-    emit_text_changed: bool,
-    rebuild_immediately: bool = True,
-    optimistic_prompt_state: tuple[
-        PromptDocumentView,
-        PromptSyntaxRenderPlan,
-    ]
-    | None = None,
     source_edit_start: int,
     source_edit_end: int,
     source_edit_replacement_text: str,
-    previous_source_text: str,
 ) -> None:
-    """Apply a source transaction through the Phase 2.6 editing-session path."""
+    """Apply a range edit through the production commit application boundary."""
 
     commit = surface.edit_execution.session.execute(
         PromptReplaceRangeEdit(
@@ -429,16 +421,7 @@ def apply_source_range_to_projection(
         )
     )
     assert commit.next_snapshot.source_text == next_text
-    surface._source_change_applier._apply_editing_session_source_change(  # noqa: SLF001
-        commit,
-        emit_text_changed=emit_text_changed,
-        rebuild_immediately=rebuild_immediately,
-        optimistic_prompt_state=optimistic_prompt_state,
-        source_edit_start=source_edit_start,
-        source_edit_end=source_edit_end,
-        source_edit_replacement_text=source_edit_replacement_text,
-        previous_source_text=previous_source_text,
-    )
+    surface.apply_edit_commit(commit)
 
 
 def valid_transient_insertion_overlay(
@@ -495,10 +478,10 @@ def configure_trailing_word_wrap_boundary(
         initial_text = f"{'a' * prefix_length} bl"
         box.setPlainText(initial_text)
         process_events(app)
-        initial_line_count = len(surface._layout.snapshot.lines)  # noqa: SLF001
+        initial_line_count = len(surface._layout.frame.output.snapshot.lines)  # noqa: SLF001
         box.setPlainText(f"{initial_text}ush")
         process_events(app)
-        expanded_line_count = len(surface._layout.snapshot.lines)  # noqa: SLF001
+        expanded_line_count = len(surface._layout.frame.output.snapshot.lines)  # noqa: SLF001
         if expanded_line_count > initial_line_count:
             box.setPlainText(initial_text)
             process_events(app)

@@ -26,10 +26,10 @@ from sugarsubstitute_shared.presentation.localization import (
 )
 from substitute.presentation.localization import LocalizedLabel
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from time import perf_counter
-from typing import TYPE_CHECKING
+from typing import cast
 
 from PySide6.QtCore import (
     QEvent,
@@ -96,9 +96,6 @@ from substitute.shared.logging.logger import (
     log_timing,
     log_warning,
 )
-
-if TYPE_CHECKING:
-    from substitute.presentation.editor.panel.view import EditorPanel
 
 _LOGGER = get_logger("presentation.editor.panel.widgets.cube_section")
 _QT_WIDGET_MAXIMUM_SIZE = 16_777_215
@@ -757,16 +754,29 @@ class _CubeSectionUpdatingOverlay(QWidget):
 class CubeSectionBuilder:
     """Compose passive cube-section widgets for an editor panel host."""
 
-    def __init__(self, panel: EditorPanel) -> None:
+    def __init__(
+        self,
+        *,
+        parent: QWidget,
+        cube_headers: dict[str, SubtitleLabel],
+        cube_states: Callable[[], Mapping[str, object]],
+        cube_visibility_buttons: dict[str, ToggleTransparentDropDownToolButton],
+        cube_visibility_menus: dict[str, CheckableMenu],
+        schedule_metrics_refresh: Callable[[], None] | None,
+    ) -> None:
         """Store the owning editor panel used for widget parenting and registries."""
 
-        self._panel = panel
+        self._parent = parent
+        self._cube_headers = cube_headers
+        self._cube_states = cube_states
+        self._cube_visibility_buttons = cube_visibility_buttons
+        self._cube_visibility_menus = cube_visibility_menus
+        self._schedule_metrics_refresh = schedule_metrics_refresh
 
     def build_cube_section(self, route_key: str) -> CubeSectionWidgetParts:
         """Build the passive wrapper and layouts for one normal cube section."""
 
         build_started_at = perf_counter()
-        panel = self._panel
         header_label = self._build_header_label(route_key)
         header_bar = QWidget()
         header_layout = QHBoxLayout(header_bar)
@@ -792,8 +802,8 @@ class CubeSectionBuilder:
         )
         reveal_button.setMenu(reveal_menu)
         header_layout.addWidget(reveal_button)
-        panel._cube_visibility_btns[route_key] = reveal_button
-        panel._cube_visibility_menus[route_key] = reveal_menu
+        self._cube_visibility_buttons[route_key] = reveal_button
+        self._cube_visibility_menus[route_key] = reveal_menu
 
         prompt_area = create_vbox(spacing=0)
         grid_layout = MasonryGridLayout()
@@ -821,10 +831,7 @@ class CubeSectionBuilder:
     def _section_shows_title(self, route_key: str) -> bool:
         """Return whether the projected graph state uses cube title chrome."""
 
-        cube_states = getattr(self._panel, "_cube_states", None)
-        cube_state = (
-            cube_states.get(route_key) if isinstance(cube_states, Mapping) else None
-        )
+        cube_state = self._cube_states().get(route_key)
         return bool(getattr(cube_state, "shows_cube_section_title", True))
 
     def build_error_cube_widget(
@@ -875,13 +882,10 @@ class CubeSectionBuilder:
     def _build_header_label(self, route_key: str) -> SubtitleLabel:
         """Build and register the qfluent title label for one cube section."""
 
-        cube_states = getattr(self._panel, "_cube_states", None)
-        cube_state = (
-            cube_states.get(route_key) if isinstance(cube_states, dict) else None
-        )
+        cube_state = self._cube_states().get(route_key)
         display_name = cube_section_title(route_key, cube_state)
         header_label = CubeTitleLabel(display_name)
-        self._panel.cube_headers[route_key] = header_label
+        self._cube_headers[route_key] = header_label
         return header_label
 
     def _build_section_widget(
@@ -894,19 +898,15 @@ class CubeSectionBuilder:
     ) -> CubeSectionView:
         """Build a section wrapper and attach shared panel height-refresh wiring."""
 
-        panel = self._panel
         widget = CubeSectionView(
             header_bar=header_bar,
             prompt_area=prompt_area,
             grid_layout=grid_layout,
-            parent=panel,
+            parent=self._parent,
         )
         widget.setProperty("cube_alias", route_key)
-        schedule_metrics_refresh = getattr(
-            panel.scroll, "schedule_metrics_refresh", None
-        )
-        if callable(schedule_metrics_refresh):
-            widget.cube_height_changed.connect(schedule_metrics_refresh)
+        if self._schedule_metrics_refresh is not None:
+            widget.cube_height_changed.connect(self._schedule_metrics_refresh)
         try:
             widget.setObjectName(f"CubePanel-{route_key}")
         except (AttributeError, RuntimeError, TypeError) as error:
@@ -919,10 +919,38 @@ class CubeSectionBuilder:
         return widget
 
 
+def cube_section_builder_for_panel(panel: QWidget) -> CubeSectionBuilder:
+    """Adapt one panel-shaped QWidget to cube-section construction bindings."""
+
+    scroll = getattr(panel, "scroll", None)
+    schedule_metrics_refresh = getattr(scroll, "schedule_metrics_refresh", None)
+    return CubeSectionBuilder(
+        parent=panel,
+        cube_headers=cast(dict[str, SubtitleLabel], getattr(panel, "cube_headers", {})),
+        cube_states=lambda: cast(
+            Mapping[str, object], getattr(panel, "_cube_states", {})
+        ),
+        cube_visibility_buttons=cast(
+            dict[str, ToggleTransparentDropDownToolButton],
+            getattr(panel, "_cube_visibility_btns", {}),
+        ),
+        cube_visibility_menus=cast(
+            dict[str, CheckableMenu],
+            getattr(panel, "_cube_visibility_menus", {}),
+        ),
+        schedule_metrics_refresh=(
+            cast(Callable[[], None], schedule_metrics_refresh)
+            if callable(schedule_metrics_refresh)
+            else None
+        ),
+    )
+
+
 __all__ = [
     "CubeSectionBuilder",
     "CubeSectionWidgetParts",
     "CubeSectionView",
+    "cube_section_builder_for_panel",
 ]
 
 

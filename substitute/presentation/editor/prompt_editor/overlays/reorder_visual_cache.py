@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Cache complete reorder chip visuals for animated overlay displacement."""
+"""Describe complete reorder chip visuals used by animated displacement."""
 
 from __future__ import annotations
 
@@ -50,88 +50,6 @@ class PromptReorderChipVisualSnapshot:
         return self.projection_snapshot.source_ranges
 
 
-@dataclass(frozen=True, slots=True)
-class PromptReorderVisualCacheCounters:
-    """Summarize short-lived reorder visual cache activity."""
-
-    hit_count: int = 0
-    miss_count: int = 0
-    stale_count: int = 0
-    store_count: int = 0
-    clear_count: int = 0
-
-    def as_dict(self) -> dict[str, int]:
-        """Return JSON-safe counters for focused diagnostics and tests."""
-
-        return {
-            "hit_count": self.hit_count,
-            "miss_count": self.miss_count,
-            "stale_count": self.stale_count,
-            "store_count": self.store_count,
-            "clear_count": self.clear_count,
-        }
-
-
-class PromptReorderVisualSnapshotCache:
-    """Store validated complete-chip snapshots for one reorder gesture."""
-
-    def __init__(self) -> None:
-        """Initialize an empty visual snapshot cache."""
-
-        self._snapshots_by_index: dict[int, PromptReorderChipVisualSnapshot] = {}
-        self._hit_count = 0
-        self._miss_count = 0
-        self._stale_count = 0
-        self._store_count = 0
-        self._clear_count = 0
-
-    def clear(self) -> None:
-        """Clear all stored visual snapshots and count the invalidation."""
-
-        if self._snapshots_by_index:
-            self._clear_count += 1
-        self._snapshots_by_index.clear()
-
-    def store_all(
-        self,
-        snapshots_by_index: dict[int, PromptReorderChipVisualSnapshot],
-    ) -> None:
-        """Replace the cached snapshots with one fresh batch."""
-
-        self._snapshots_by_index = dict(snapshots_by_index)
-        self._store_count += len(snapshots_by_index)
-
-    def fresh_snapshots_by_index(
-        self,
-        expected_keys_by_index: dict[int, PromptReorderProjectionSnapshotKey],
-    ) -> dict[int, PromptReorderChipVisualSnapshot]:
-        """Return only snapshots whose key still matches the requested identity."""
-
-        fresh: dict[int, PromptReorderChipVisualSnapshot] = {}
-        for segment_index, expected_key in expected_keys_by_index.items():
-            snapshot = self._snapshots_by_index.get(segment_index)
-            if snapshot is None:
-                self._miss_count += 1
-                continue
-            if snapshot.key != expected_key:
-                self._stale_count += 1
-                continue
-            self._hit_count += 1
-            fresh[segment_index] = snapshot
-        return fresh
-
-    def counters(self) -> PromptReorderVisualCacheCounters:
-        """Return current cache counters."""
-
-        return PromptReorderVisualCacheCounters(
-            hit_count=self._hit_count,
-            miss_count=self._miss_count,
-            stale_count=self._stale_count,
-            store_count=self._store_count,
-            clear_count=self._clear_count,
-        )
-
-
 def translated_snapshot_offset(
     *,
     painted_rect: QRectF,
@@ -148,7 +66,5 @@ def translated_snapshot_offset(
 
 __all__ = [
     "PromptReorderChipVisualSnapshot",
-    "PromptReorderVisualCacheCounters",
-    "PromptReorderVisualSnapshotCache",
     "translated_snapshot_offset",
 ]

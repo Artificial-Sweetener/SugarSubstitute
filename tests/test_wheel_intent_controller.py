@@ -28,7 +28,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )

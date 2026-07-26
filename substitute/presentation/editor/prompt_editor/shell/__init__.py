@@ -35,11 +35,9 @@ from .context_menu_controller import (
     PromptShellContextInsertState,
     PromptShellContextMenuController,
     PromptShellContextMenuOpening,
-    PromptShellDiagnosticAction,
     PromptShellPromptMenuRequest,
     PromptShellPromptMenuRequestProvider,
     PromptShellSelectionSnapshot,
-    PromptShellSegmentPresetMenuModel,
 )
 from .sizing_controller import (
     PromptShellSizingController,
@@ -79,11 +77,9 @@ __all__ = [
     "PromptShellContextInsertState",
     "PromptShellContextMenuController",
     "PromptShellContextMenuOpening",
-    "PromptShellDiagnosticAction",
     "PromptShellPromptMenuRequest",
     "PromptShellPromptMenuRequestProvider",
     "PromptShellSelectionSnapshot",
-    "PromptShellSegmentPresetMenuModel",
     "PromptShellQFluentChrome",
     "PromptShellScrollDelegate",
     "PromptShellScrollHost",

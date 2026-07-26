@@ -47,8 +47,23 @@ from substitute.presentation.editor.prompt_editor.core.state.semantic_state impo
 from substitute.presentation.editor.prompt_editor.core.editing.source_buffer import (
     PromptSourceSnapshot,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.features import (
+    PromptFeatureProfileController,
+)
+from substitute.presentation.editor.prompt_editor.interactions.reorder_interaction_metrics import (
+    PromptReorderInteractionMetricsOwner,
+)
+from substitute.presentation.editor.prompt_editor.interactions.reorder_preview_publication import (
+    PromptReorderPreviewPublicationOwner,
+)
+from substitute.presentation.editor.prompt_editor.interactions.weight_interaction import (
+    PromptWeightInteraction,
+)
+from substitute.presentation.editor.prompt_editor.projection.reorder_projection_snapshot_provider import (
+    PromptReorderPreviewProjectionProvider,
 )
 from substitute.presentation.editor.prompt_editor.syntax_renderers import (
     PromptSyntaxRendererCoordinator,
@@ -56,6 +71,7 @@ from substitute.presentation.editor.prompt_editor.syntax_renderers import (
 )
 from tests.prompt_autocomplete_test_helpers import (
     EmptyPromptWildcardCatalogGateway,
+    PromptAutocompleteTimingTestDouble,
     prompt_syntax_profile,
 )
 
@@ -109,6 +125,14 @@ class _EditorDouble:
 
         self.replace_document_text_calls.append(text)
         self._text = text
+
+    def clear_reorder_preview_state(self) -> None:
+        """Ignore reorder-preview clears outside reorder tests."""
+
+    def set_reorder_preview_state(self, preview_state: object | None) -> None:
+        """Ignore reorder-preview publication outside reorder tests."""
+
+        _ = preview_state
 
 
 class _SemanticRefreshDouble:
@@ -189,6 +213,11 @@ class _SyntaxRendererCoordinatorDouble:
 class _OverlayFactoryDouble:
     """Fail fast if LoRA projection refresh tries to create reorder overlays."""
 
+    def __init__(self) -> None:
+        """Create the shared interaction metrics required by composition."""
+
+        self.interaction_metrics = PromptReorderInteractionMetricsOwner()
+
     def create_overlay(self, editor: object, layout_policy: object) -> object:
         """Fail because LoRA projection refresh must not enter reorder mode."""
 
@@ -264,7 +293,9 @@ def _lora_projection_controller(
         projection_document=initial_document,
     )
     syntax_state = PromptSyntaxStateController(
-        editor=editor,
+        active_syntax_span=editor.active_syntax_span,
+        cursor_position=lambda: editor.textCursor().position(),
+        editor_session_id=id(editor),
         renderers=cast(PromptSyntaxRendererCoordinator, renderers),
         document_service=document_service,
         syntax_service=syntax_service,
@@ -277,17 +308,51 @@ def _lora_projection_controller(
             ],
             state,
         ),
+        source_text=editor.toPlainText,
+    )
+    overlay_factory = _OverlayFactoryDouble()
+    preview_publication = PromptReorderPreviewPublicationOwner(
+        clear_preview_state=editor.clear_reorder_preview_state,
+        current_document_view=lambda: syntax_state.document_view,
+        publish_preview_state=editor.set_reorder_preview_state,
+        source_identity=editor.prompt_command_source_identity,
+        viewport_width=lambda: 0,
+        document_service=document_service,
+        projection_provider=PromptReorderPreviewProjectionProvider(
+            document_service=document_service,
+            syntax_service=syntax_service,
+            syntax_profile=syntax_profile,
+        ),
+        metrics=overlay_factory.interaction_metrics,
+        interval_ms=PromptReorderPreviewPublicationOwner.DEFAULT_INTERVAL_MS,
+    )
+    weight_interaction = PromptWeightInteraction(
+        editor=cast(Any, editor),
+        autocomplete_timing=cast(Any, PromptAutocompleteTimingTestDouble()),
+        syntax_state=syntax_state,
+        document_service=document_service,
+        mutation_service=PromptMutationService(),
+        syntax_service=syntax_service,
+        syntax_profile=syntax_profile,
+        feature_profile=PromptFeatureProfileController.from_legacy_syntax(
+            syntax_profile
+        ),
+        semantic_refresh=cast(Any, _SemanticRefreshDouble()),
+        projection=None,
     )
     controller = interaction_module.PromptInteractionController(
         editor,
         autocomplete=_autocomplete_double(),
+        autocomplete_timing_controller=cast(Any, PromptAutocompleteTimingTestDouble()),
         syntax_state=syntax_state,
         document_service=document_service,
         mutation_service=PromptMutationService(),
         syntax_service=syntax_service,
         syntax_profile=syntax_profile,
         semantic_refresh_controller=_SemanticRefreshDouble(),
-        reorder_overlay_factory=_OverlayFactoryDouble(),
+        reorder_overlay_factory=overlay_factory,
+        weight_interaction=weight_interaction,
+        reorder_preview_publication=preview_publication,
     )
     return controller, editor, renderers
 

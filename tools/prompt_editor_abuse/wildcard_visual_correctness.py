@@ -140,7 +140,7 @@ def _wait_for_preview(editor: object, *, timeout_ms: int = 250) -> None:
     prompt_editor = cast(Any, editor)
     remaining_ms = timeout_ms
     while (
-        prompt_editor._surface._reorder_preview_projection.preview_layout is None
+        prompt_editor._surface._reorder_preview_projection.preview_frame is None
         and remaining_ms > 0
     ):
         loop = QEventLoop()

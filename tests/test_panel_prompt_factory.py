@@ -36,8 +36,8 @@ from substitute.domain.prompt.features.models import (
     PromptEditorFeatureProfile,
     PromptFeatureDecision,
 )
-import substitute.presentation.editor.panel.factories.prompt_factory as prompt_factory
-from substitute.presentation.editor.panel.factories.prompt_factory import (
+import substitute.presentation.editor.panel.prompt.factory as prompt_factory
+from substitute.presentation.editor.panel.prompt.factory import (
     PromptEditorFieldBuildRequest,
     PromptEditorFieldFactory,
 )

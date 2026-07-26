@@ -190,9 +190,14 @@ def test_source_snapshot_carries_revision_cursor_document_and_feature_identity()
     document_service = PromptDocumentService()
     document_view = document_service.build_document_view(editor.text)
     snapshots = PromptAutocompleteSourceSnapshotController(
-        editor,
+        cursor_state=lambda: (
+            (cursor := editor.textCursor()).position(),
+            cursor.hasSelection(),
+        ),
         document_view_provider=lambda: document_view,
         feature_profile=feature_profile,
+        source_identity=editor.prompt_command_source_identity,
+        source_text=editor.toPlainText,
     )
 
     snapshot = snapshots.snapshot(
@@ -378,11 +383,16 @@ def _timing_controller(
 
     document_service = PromptDocumentService()
     source_snapshots = PromptAutocompleteSourceSnapshotController(
-        editor,
+        cursor_state=lambda: (
+            (cursor := editor.textCursor()).position(),
+            cursor.hasSelection(),
+        ),
         document_view_provider=lambda: document_service.build_document_view(
             editor.text
         ),
         feature_profile=feature_profile,
+        source_identity=editor.prompt_command_source_identity,
+        source_text=editor.toPlainText,
     )
     return PromptAutocompleteTimingController(
         source_snapshots=source_snapshots,

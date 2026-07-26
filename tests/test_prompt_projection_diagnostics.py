@@ -45,7 +45,16 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSemanticRevision,
     PromptSourceIdentity,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.geometry.selection import (
+    PromptSelectionGeometry,
+)
+from substitute.presentation.editor.prompt_editor.projection.diagnostic_layer_assets import (
+    PromptDiagnosticLayerAssetPreparer,
+)
+from substitute.presentation.editor.prompt_editor.projection.diagnostic_layer_preparer import (
+    PromptDiagnosticLayerPreparer,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
 )
 from tests.prompt_projection_surface_test_helpers import (
@@ -68,6 +77,67 @@ if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
         "projection surface tests require non-xdist execution on Windows",
         allow_module_level=True,
+    )
+
+
+def _observe_source_range_fragment_lookups(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[int]:
+    """Count calls at the authoritative selection-geometry owner."""
+
+    lookup_count = [0]
+    original = PromptSelectionGeometry.source_range_fragments
+
+    def observed_source_range_fragments(
+        selection_geometry: PromptSelectionGeometry,
+        start: int,
+        end: int,
+        *,
+        viewport_rect: QRectF,
+        scroll_offset: float,
+    ) -> tuple[QRectF, ...]:
+        """Record one lookup while preserving selection geometry behavior."""
+
+        lookup_count[0] += 1
+        return original(
+            selection_geometry,
+            start,
+            end,
+            viewport_rect=viewport_rect,
+            scroll_offset=scroll_offset,
+        )
+
+    monkeypatch.setattr(
+        PromptSelectionGeometry,
+        "source_range_fragments",
+        observed_source_range_fragments,
+    )
+    return lookup_count
+
+
+def _diagnostic_fragments(
+    surface: object,
+    diagnostic: PromptDiagnostic,
+    *,
+    viewport_rect: QRectF,
+    scroll_offset: float,
+) -> tuple[QRectF, ...]:
+    """Query retained fragments through the authoritative diagnostic owner."""
+
+    prompt_surface = cast(Any, surface)
+    layout_identity = prompt_surface._frame_state.current_layout_identity(
+        prompt_surface._layout.frame.output
+    )
+    assert layout_identity is not None
+    return cast(
+        tuple[QRectF, ...],
+        prompt_surface._diagnostic_layer_owner.fragments(
+            diagnostic,
+            geometry=prompt_surface._layout.frame.geometry,
+            viewport_rect=viewport_rect,
+            scroll_offset=scroll_offset,
+            layout_identity=layout_identity,
+        ),
     )
 
 
@@ -192,6 +262,174 @@ def test_projection_surface_wildcard_diagnostic_follows_projected_token(
     assert raw_fragments
 
 
+def test_projection_surface_paint_consumes_published_diagnostic_layer(
+    widgets: list[QWidget],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Paint must not filter diagnostics, query geometry, or select wave assets."""
+
+    app = ensure_qapp()
+    word = "missspelledword"
+    box = show_prompt_editor(widgets, text=word, width=360)
+    surface = surface_for(box)
+    surface.set_diagnostics(
+        (
+            PromptDiagnostic(
+                diagnostic_id=f"spelling:0:{len(word)}:{word}",
+                kind=PromptDiagnosticKind.SPELLING,
+                severity=PromptDiagnosticSeverity.ERROR,
+                source_start=0,
+                source_end=len(word),
+                message=f"Possible spelling issue: {word}",
+                payload=PromptSpellingDiagnosticPayload(word=word),
+            ),
+        )
+    )
+    process_events(app)
+    owner = cast(Any, surface)._diagnostic_layer_owner
+    assert owner.layer.underlines
+    assert owner.layer.wave_tile is not None
+
+    def reject_preparation(*args: object, **kwargs: object) -> None:
+        """Reject command preparation reached from the paint stack."""
+
+        del args, kwargs
+        raise AssertionError("diagnostic preparation ran during paint")
+
+    monkeypatch.setattr(
+        PromptDiagnosticLayerPreparer,
+        "prepare_visible_cached",
+        reject_preparation,
+    )
+    monkeypatch.setattr(
+        PromptDiagnosticLayerAssetPreparer,
+        "prepare",
+        reject_preparation,
+    )
+
+    image = render_surface_viewport(surface)
+
+    assert not image.isNull()
+
+
+def test_projection_surface_selection_republishes_diagnostic_layer(
+    widgets: list[QWidget],
+) -> None:
+    """Selection changes must hide and restore diagnostics before paint."""
+
+    app = ensure_qapp()
+    word = "missspelledword"
+    box = show_prompt_editor(widgets, text=word, width=360)
+    surface = surface_for(box)
+    surface.set_diagnostics(
+        (
+            PromptDiagnostic(
+                diagnostic_id=f"spelling:0:{len(word)}:{word}",
+                kind=PromptDiagnosticKind.SPELLING,
+                severity=PromptDiagnosticSeverity.ERROR,
+                source_start=0,
+                source_end=len(word),
+                message=f"Possible spelling issue: {word}",
+                payload=PromptSpellingDiagnosticPayload(word=word),
+            ),
+        )
+    )
+    process_events(app)
+    owner = cast(Any, surface)._diagnostic_layer_owner
+    assert owner.layer.underlines
+
+    editing_session = cast(Any, surface)._editing_session
+    editing_session.set_cursor_positions(
+        cursor_position=len(word),
+        anchor_position=0,
+    )
+    owner.refresh(reason="selection_changed")
+
+    assert not owner.layer.underlines
+
+    editing_session.set_cursor_positions(
+        cursor_position=len(word),
+        anchor_position=len(word),
+    )
+    owner.refresh(reason="selection_changed")
+    process_events(app)
+
+    assert owner.layer.underlines
+
+
+def test_projection_surface_rejects_superseded_diagnostic_warm_work(
+    widgets: list[QWidget],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A newer diagnostic revision must cancel queued fragment preparation."""
+
+    app = ensure_qapp()
+    source = "alpha bravo charlie delta echo foxtrot golf"
+    box = show_prompt_editor(widgets, text=source, width=520)
+    surface = surface_for(box)
+    ranges = tuple(
+        (source.index(word), source.index(word) + len(word)) for word in source.split()
+    )
+    old_diagnostics = tuple(
+        PromptDiagnostic(
+            diagnostic_id=f"old:{start}:{end}",
+            kind=PromptDiagnosticKind.SPELLING,
+            severity=PromptDiagnosticSeverity.ERROR,
+            source_start=start,
+            source_end=end,
+            message="Old diagnostic",
+            payload=PromptSpellingDiagnosticPayload(word=source[start:end]),
+        )
+        for start, end in ranges[:-1]
+    )
+    latest_start, latest_end = ranges[-1]
+    latest_diagnostic = PromptDiagnostic(
+        diagnostic_id=f"latest:{latest_start}:{latest_end}",
+        kind=PromptDiagnosticKind.SPELLING,
+        severity=PromptDiagnosticSeverity.ERROR,
+        source_start=latest_start,
+        source_end=latest_end,
+        message="Latest diagnostic",
+        payload=PromptSpellingDiagnosticPayload(
+            word=source[latest_start:latest_end],
+        ),
+    )
+    fragment_queries: list[tuple[int, int]] = []
+    original_fragments = PromptSelectionGeometry.source_range_fragments
+
+    def record_fragments(
+        self: PromptSelectionGeometry,
+        start: int,
+        end: int,
+        *,
+        viewport_rect: QRectF,
+        scroll_offset: float,
+    ) -> tuple[QRectF, ...]:
+        """Record the diagnostic revision that reaches geometry preparation."""
+
+        fragment_queries.append((start, end))
+        return original_fragments(
+            self,
+            start,
+            end,
+            viewport_rect=viewport_rect,
+            scroll_offset=scroll_offset,
+        )
+
+    monkeypatch.setattr(
+        PromptSelectionGeometry,
+        "source_range_fragments",
+        record_fragments,
+    )
+    surface.set_diagnostics(old_diagnostics)
+    surface.set_diagnostics((latest_diagnostic,))
+    process_events(app)
+
+    owner = cast(Any, surface)._diagnostic_layer_owner
+    assert fragment_queries == [(latest_start, latest_end)]
+    assert owner.layer.underlines
+
+
 def test_projection_surface_reuses_diagnostic_fragment_geometry(
     widgets: list[QWidget],
     monkeypatch: pytest.MonkeyPatch,
@@ -215,39 +453,18 @@ def test_projection_surface_reuses_diagnostic_fragment_geometry(
         payload=PromptSpellingDiagnosticPayload(word=word),
     )
     surface.set_diagnostics((diagnostic,))
-    layout = cast(Any, surface)._layout
-    original_source_range_fragments = layout.source_range_fragments
-    fragment_lookup_count = 0
-
-    def count_source_range_fragments(
-        start: int,
-        end: int,
-        *,
-        viewport_rect: QRectF,
-        scroll_offset: float,
-    ) -> tuple[QRectF, ...]:
-        nonlocal fragment_lookup_count
-        fragment_lookup_count += 1
-        return cast(
-            tuple[QRectF, ...],
-            original_source_range_fragments(
-                start=start,
-                end=end,
-                viewport_rect=viewport_rect,
-                scroll_offset=scroll_offset,
-            ),
-        )
-
-    monkeypatch.setattr(layout, "source_range_fragments", count_source_range_fragments)
+    fragment_lookup_count = _observe_source_range_fragment_lookups(monkeypatch)
     viewport_rect = QRectF(surface.viewport().rect())
     scroll_offset = cast(Any, surface)._scroll_offset()
 
-    first_fragments = cast(Any, surface)._diagnostic_fragments_for_paint(
+    first_fragments = _diagnostic_fragments(
+        surface,
         diagnostic,
         viewport_rect=viewport_rect,
         scroll_offset=scroll_offset,
     )
-    second_fragments = cast(Any, surface)._diagnostic_fragments_for_paint(
+    second_fragments = _diagnostic_fragments(
+        surface,
         diagnostic,
         viewport_rect=viewport_rect,
         scroll_offset=scroll_offset,
@@ -255,7 +472,7 @@ def test_projection_surface_reuses_diagnostic_fragment_geometry(
 
     assert first_fragments
     assert second_fragments == first_fragments
-    assert fragment_lookup_count == 1
+    assert fragment_lookup_count == [1]
 
     replacement = PromptDiagnostic(
         diagnostic_id=f"spelling:0:{len(word)}:{word}:replacement",
@@ -267,8 +484,15 @@ def test_projection_surface_reuses_diagnostic_fragment_geometry(
         payload=PromptSpellingDiagnosticPayload(word=word),
     )
     surface.set_diagnostics((replacement,))
+    replacement_fragments = _diagnostic_fragments(
+        surface,
+        replacement,
+        viewport_rect=viewport_rect,
+        scroll_offset=scroll_offset,
+    )
 
-    assert not cast(Any, surface)._diagnostic_painter.fragment_cache
+    assert replacement_fragments
+    assert fragment_lookup_count == [2]
 
 
 def test_projection_surface_preserves_diagnostic_fragments_after_hard_line_edit(
@@ -298,34 +522,11 @@ def test_projection_surface_preserves_diagnostic_fragments_after_hard_line_edit(
     )
     surface.set_diagnostics((diagnostic,))
     layout = cast(Any, surface)._layout
-    original_source_range_fragments = layout.source_range_fragments
-    fragment_lookup_count = 0
-
-    def count_source_range_fragments(
-        start: int,
-        end: int,
-        *,
-        viewport_rect: QRectF,
-        scroll_offset: float,
-    ) -> tuple[QRectF, ...]:
-        """Record diagnostic fragment lookups while preserving layout behavior."""
-
-        nonlocal fragment_lookup_count
-        fragment_lookup_count += 1
-        return cast(
-            tuple[QRectF, ...],
-            original_source_range_fragments(
-                start=start,
-                end=end,
-                viewport_rect=viewport_rect,
-                scroll_offset=scroll_offset,
-            ),
-        )
-
-    monkeypatch.setattr(layout, "source_range_fragments", count_source_range_fragments)
+    fragment_lookup_count = _observe_source_range_fragment_lookups(monkeypatch)
     viewport_rect = QRectF(surface.viewport().rect())
     scroll_offset = cast(Any, surface)._scroll_offset()
-    cached_fragments = cast(Any, surface)._diagnostic_fragments_for_paint(
+    cached_fragments = _diagnostic_fragments(
+        surface,
         diagnostic,
         viewport_rect=viewport_rect,
         scroll_offset=scroll_offset,
@@ -339,15 +540,15 @@ def test_projection_surface_preserves_diagnostic_fragments_after_hard_line_edit(
     )
     cast(Any, surface)._session.set_diagnostics((remapped_diagnostic,))
     previous_layout_identity = cast(Any, surface)._frame_state.current_layout_identity(
-        cast(Any, surface)._layout,
+        cast(Any, surface)._layout.frame.output,
     )
     assert previous_layout_identity is not None
     next_layout_identity = _next_layout_identity(
         previous_layout_identity,
         next_source_length=len(text) + 1,
     )
-    diagnostic_painter = cast(Any, surface)._diagnostic_painter
-    diagnostic_painter.preserve_fragment_cache_for_incremental_edit(
+    diagnostic_layer_owner = cast(Any, surface)._diagnostic_layer_owner
+    diagnostic_layer_owner.preserve_fragment_cache_for_incremental_edit(
         diagnostics=(remapped_diagnostic,),
         start=edit_start,
         end=edit_start,
@@ -356,15 +557,15 @@ def test_projection_surface_preserves_diagnostic_fragments_after_hard_line_edit(
         next_layout_identity=next_layout_identity,
         fragment_y_delta=20.0,
     )
-    remapped_fragments = diagnostic_painter.diagnostic_fragments_for_paint(
+    remapped_fragments = diagnostic_layer_owner.fragments(
         remapped_diagnostic,
-        layout=layout,
+        geometry=layout.frame.geometry,
         viewport_rect=viewport_rect,
         scroll_offset=scroll_offset,
         layout_identity=next_layout_identity,
     )
 
-    assert fragment_lookup_count == 1
+    assert fragment_lookup_count == [1]
     assert remapped_diagnostic.source_start == word_start + 1
     assert remapped_diagnostic.source_end == word_end + 1
     assert remapped_fragments
@@ -422,35 +623,11 @@ def test_projection_surface_preserves_diagnostic_fragments_after_fast_delete(
         payload=PromptSpellingDiagnosticPayload(word="alpha"),
     )
     surface.set_diagnostics((diagnostic,))
-    layout = cast(Any, surface)._layout
-    original_source_range_fragments = layout.source_range_fragments
-    fragment_lookup_count = 0
-
-    def count_source_range_fragments(
-        start: int,
-        end: int,
-        *,
-        viewport_rect: QRectF,
-        scroll_offset: float,
-    ) -> tuple[QRectF, ...]:
-        """Record diagnostic fragment lookups while preserving layout behavior."""
-
-        nonlocal fragment_lookup_count
-        fragment_lookup_count += 1
-        return cast(
-            tuple[QRectF, ...],
-            original_source_range_fragments(
-                start=start,
-                end=end,
-                viewport_rect=viewport_rect,
-                scroll_offset=scroll_offset,
-            ),
-        )
-
-    monkeypatch.setattr(layout, "source_range_fragments", count_source_range_fragments)
+    fragment_lookup_count = _observe_source_range_fragment_lookups(monkeypatch)
     viewport_rect = QRectF(surface.viewport().rect())
     scroll_offset = cast(Any, surface)._scroll_offset()
-    first_fragments = cast(Any, surface)._diagnostic_fragments_for_paint(
+    first_fragments = _diagnostic_fragments(
+        surface,
         diagnostic,
         viewport_rect=viewport_rect,
         scroll_offset=scroll_offset,
@@ -462,23 +639,20 @@ def test_projection_surface_preserves_diagnostic_fragments_after_fast_delete(
         apply_source_range_to_projection(
             surface,
             next_text,
-            cursor_position=len(next_text),
-            anchor_position=len(next_text),
-            emit_text_changed=False,
             source_edit_start=len(text) - 1,
             source_edit_end=len(text),
             source_edit_replacement_text="",
-            previous_source_text=text,
         )
     finally:
         surface.blockSignals(previous_signal_state)
-    second_fragments = cast(Any, surface)._diagnostic_fragments_for_paint(
+    second_fragments = _diagnostic_fragments(
+        surface,
         cast(Any, surface)._session.diagnostics[0],
         viewport_rect=viewport_rect,
         scroll_offset=scroll_offset,
     )
 
-    assert fragment_lookup_count == 1
+    assert fragment_lookup_count == [1]
     assert first_fragments
     assert second_fragments == first_fragments
     flush_projection_update_scheduler(surface)
@@ -506,11 +680,17 @@ def test_projection_surface_diagnostics_remap_across_plain_typing(
     )
     surface.set_diagnostics((diagnostic,))
 
-    cast(Any, surface)._source_change_applier._remap_diagnostics_for_source_edit(
-        start=0,
-        end=0,
-        replacement_text="x",
-    )
+    previous_signal_state = surface.blockSignals(True)
+    try:
+        apply_source_range_to_projection(
+            surface,
+            f"x{surface.toPlainText()}",
+            source_edit_start=0,
+            source_edit_end=0,
+            source_edit_replacement_text="x",
+        )
+    finally:
+        surface.blockSignals(previous_signal_state)
 
     diagnostics = cast(Any, surface)._session.diagnostics
     assert len(diagnostics) == 1
@@ -540,10 +720,17 @@ def test_projection_surface_diagnostics_drop_when_edited_inside_word(
     )
     surface.set_diagnostics((diagnostic,))
 
-    cast(Any, surface)._source_change_applier._remap_diagnostics_for_source_edit(
-        start=10,
-        end=10,
-        replacement_text="x",
-    )
+    source_text = surface.toPlainText()
+    previous_signal_state = surface.blockSignals(True)
+    try:
+        apply_source_range_to_projection(
+            surface,
+            f"{source_text[:10]}x{source_text[10:]}",
+            source_edit_start=10,
+            source_edit_end=10,
+            source_edit_replacement_text="x",
+        )
+    finally:
+        surface.blockSignals(previous_signal_state)
 
     assert cast(Any, surface)._session.diagnostics == ()

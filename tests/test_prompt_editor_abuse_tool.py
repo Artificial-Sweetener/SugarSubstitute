@@ -78,6 +78,16 @@ def test_reorder_host_resolves_destination_after_drag_start_settles_geometry(
     class _Overlay:
         """Expose identity coordinate mapping for the harness action host."""
 
+        def __init__(self) -> None:
+            """Initialize the typed drag-base query returned to the host."""
+
+            self.base_drag_layout: object | None = None
+
+        def base_drag_layout_view(self) -> object | None:
+            """Return the drag-base layout through the production query shape."""
+
+            return self.base_drag_layout
+
         @staticmethod
         def mapToGlobal(point: QPoint) -> QPoint:
             """Return an identity-mapped global point."""
@@ -102,11 +112,18 @@ def test_reorder_host_resolves_destination_after_drag_start_settles_geometry(
 
         return placement if target == destination else None
 
-    overlay._base_drag_layout_view = SimpleNamespace(
+    overlay.base_drag_layout = SimpleNamespace(
         rows=(SimpleNamespace(row_index=7, chip_indices=(0,)),)
     )
-    overlay._placement_snapshot = SimpleNamespace(
-        placement_for_target=placement_for_target
+    overlay.preview_build_facts = SimpleNamespace(
+        snapshot=lambda: SimpleNamespace(base_drag_layout_view=overlay.base_drag_layout)
+    )
+    overlay._geometry = SimpleNamespace(
+        state=SimpleNamespace(
+            placement_snapshot=SimpleNamespace(
+                placement_for_target=placement_for_target
+            )
+        )
     )
     overlay._gesture = SimpleNamespace(
         state=SimpleNamespace(
@@ -263,6 +280,26 @@ def test_structural_policy_accepts_bounded_pointer_and_coalesced_preview_work() 
     )
 
     assert prompt_abuse_structural_violations(deltas) == ()
+
+
+def test_structural_policy_rejects_duplicate_reorder_activation_geometry() -> None:
+    """Alt activation must prepare one coherent preview geometry publication."""
+
+    deltas = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="key_press:'alt'",
+            counter_deltas=(("preview_geometry_full_count", 2.0),),
+        ),
+    )
+
+    violations = prompt_abuse_structural_violations(deltas)
+
+    assert len(violations) == 1
+    assert "preview_geometry_full_count" in violations[0]
+    assert "expected=<=1" in violations[0]
+    assert "actual=2" in violations[0]
 
 
 def test_structural_policy_rejects_heavy_pointer_work_and_unbounded_queueing() -> None:
@@ -851,6 +888,14 @@ def test_hostile_workloads_cover_typing_edits_lifecycle_and_layout_pressure() ->
         "region-separator-multi-line-break",
         "region-separator-seeded-churn",
         "region-separator-canvas-lifecycle",
+        "regional-separator-cross-partition-drag",
+        "regional-separator-repeated-cross-partition-drag",
+        "regional-separator-all-target-sweep",
+        "regional-separator-all-source-sweep",
+        "regional-separator-mixed-boundary-sweep",
+        "regional-separator-leading-partition-exit",
+        "regional-separator-trailing-partition-exit",
+        "regional-separator-multi-partition-drag",
         "wildcard-txt-zebra-typing",
         "wildcard-scene-marker-error",
         "wildcard-csv-quoted-typing",
@@ -900,6 +945,14 @@ def test_hostile_workloads_cover_typing_edits_lifecycle_and_layout_pressure() ->
         "request_paint",
         "drain_events",
     } <= {action.kind for action in separator_seeded.actions}
+    search = by_name["search-highlight-scroll-paint"]
+    search_ranges = next(
+        action.source_ranges
+        for action in search.actions
+        if action.kind == "search_highlights" and action.value == "set"
+    )
+    assert len(search_ranges) >= 36
+    assert {length for _start, length in search_ranges} == {len("masterpiece")}
 
 
 def test_operation_coverage_requires_every_editor_feature() -> None:

@@ -18,11 +18,8 @@
 
 from __future__ import annotations
 
-from substitute.presentation.editor.prompt_editor.core.state.revisions import (
-    PromptSourceIdentity,
-)
-
-from collections.abc import Hashable, Mapping
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import Any, cast
 
 from substitute.application.ports import PromptAutocompleteSuggestion
@@ -37,20 +34,46 @@ from substitute.presentation.editor.prompt_editor.async_work import (
     PromptScheduledLoraContextProvider,
 )
 from substitute.presentation.editor.prompt_editor.features import (
+    PromptAutocompleteQueryController,
+    PromptAutocompleteQueryResultLifecycle,
+    PromptAutocompleteQueryState,
     PromptAutocompleteLoraCatalogSnapshotProvider,
     PromptAutocompleteResultController,
     PromptAutocompleteSceneContextController,
-    PromptAutocompleteSceneContextProvider,
-    PromptAutocompleteSceneResultProvider,
     PromptAutocompleteScheduledLoraContextController,
-    PromptAutocompleteScheduledLoraCurrentContext,
     PromptAutocompleteWildcardResultProvider,
+    PromptFeatureProfileController,
+    PromptSceneContextPublication,
+)
+from substitute.application.prompt_editor.autocomplete.queries import (
+    PromptAutocompleteQuery,
+    PromptSceneAutocompleteQuery,
+    PromptWildcardAutocompleteQuery,
+)
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.presentation.editor.prompt_editor.commands.contracts import (
+    PromptCommandResult,
+)
+from substitute.presentation.editor.prompt_editor.commands.autocomplete_commands import (
+    PromptAutocompleteAcceptance,
+)
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
+from substitute.application.prompt_editor.lora.autocomplete import (
+    PromptLoraAutocompleteQuery,
 )
 from substitute.presentation.editor.prompt_editor.interactions.autocomplete_acceptance import (
     PromptAutocompleteAcceptanceController,
 )
+from substitute.presentation.editor.prompt_editor.interactions.autocomplete_acceptance_lifecycle import (
+    PromptAutocompleteAcceptanceLifecycle,
+)
 from substitute.presentation.editor.prompt_editor.interactions.autocomplete_controller import (
-    PromptAutocompleteCoordinator,
+    PromptAutocompleteInputAdapter,
+)
+from substitute.presentation.editor.prompt_editor.interactions.autocomplete_session_publication import (
+    PromptAutocompleteSessionPublication,
 )
 from substitute.presentation.editor.prompt_editor.interactions.autocomplete_session import (
     PromptAutocompleteSessionController,
@@ -130,53 +153,76 @@ class EmptyPromptWildcardCatalogGateway:
         )
 
 
-class _AutocompleteCurrentContextBridge:
-    """Bind scheduled-LoRA context to a test autocomplete coordinator."""
+@dataclass(slots=True)
+class PromptAutocompleteTestStack:
+    """Expose the real autocomplete owners assembled for focused integration tests."""
 
-    def __init__(self) -> None:
-        """Initialize an unbound current-context bridge."""
-
-        self._current_context: PromptAutocompleteScheduledLoraCurrentContext | None = (
-            None
-        )
-
-    def bind(
-        self,
-        current_context: PromptAutocompleteScheduledLoraCurrentContext,
-    ) -> None:
-        """Attach the live autocomplete current-context provider."""
-
-        self._current_context = current_context
-
-    def current_source_identity(self) -> PromptSourceIdentity | None:
-        """Return the bound autocomplete source identity."""
-
-        if self._current_context is None:
-            return None
-        return self._current_context.current_source_identity()
-
-    def current_query_identity(self) -> Hashable | None:
-        """Return the bound autocomplete query identity."""
-
-        if self._current_context is None:
-            return None
-        return self._current_context.current_query_identity()
-
-    def refresh_current_query(self) -> None:
-        """Refresh the bound autocomplete query when available."""
-
-        if self._current_context is not None:
-            self._current_context.refresh_current_query()
+    input_adapter: PromptAutocompleteInputAdapter
+    query_result_lifecycle: PromptAutocompleteQueryResultLifecycle
+    session_controller: PromptAutocompleteSessionController
 
 
-def build_test_autocomplete_coordinator(
+def build_autocomplete_query_state(
+    *,
+    source_text: str = "",
+    source_identity: object | None = None,
+    tag_query: PromptAutocompleteQuery | None = None,
+    wildcard_query: PromptWildcardAutocompleteQuery | None = None,
+    scene_query: PromptSceneAutocompleteQuery | None = None,
+    lora_query: PromptLoraAutocompleteQuery | None = None,
+) -> PromptAutocompleteQueryState:
+    """Build immutable test input for the real query/result lifecycle."""
+
+    return PromptAutocompleteQueryState(
+        source_revision=getattr(source_identity, "source_revision", 0),
+        source_length=len(source_text),
+        source_text=source_text,
+        cursor_position=len(source_text),
+        has_selection=False,
+        source_identity=source_identity,
+        tag_query=tag_query,
+        wildcard_query=wildcard_query,
+        scene_query=scene_query,
+        lora_query=lora_query,
+    )
+
+
+class PromptAutocompleteTimingTestDouble:
+    """Provide an inert timing boundary for interaction tests outside autocomplete."""
+
+    def __init__(self, *, on_clear: Callable[[], None] | None = None) -> None:
+        """Store optional lifecycle clearing behavior required by one interaction test."""
+
+        self._on_clear = on_clear
+
+    def clear_for_non_text_interaction(self) -> None:
+        """Ignore interaction resets unrelated to the current assertion."""
+
+        if self._on_clear is not None:
+            self._on_clear()
+
+    def cancel_pending_caret_refresh(self) -> None:
+        """Ignore timer cancellation unrelated to the current assertion."""
+
+    def handle_post_key_press(self, _event: object) -> None:
+        """Ignore post-key timing outside autocomplete-focused tests."""
+
+    def suppress_for_mouse_navigation(self) -> None:
+        """Ignore mouse-navigation suppression outside autocomplete tests."""
+
+    def handle_focus_out(self) -> None:
+        """Ignore focus teardown outside autocomplete-focused tests."""
+
+    def handle_hide(self) -> None:
+        """Ignore hide teardown outside autocomplete-focused tests."""
+
+
+def build_test_autocomplete_stack(
     editor: object,
     *,
     prompt_autocomplete_gateway: object | None = None,
     limit: int = 10,
-    scene_feature: PromptAutocompleteSceneResultProvider
-    | PromptAutocompleteSceneContextProvider
-    | None = None,
+    scene_publication: PromptSceneContextPublication | None = None,
     wildcard_feature: PromptAutocompleteWildcardResultProvider | None = None,
     prompt_lora_catalog_service: (
         PromptAutocompleteLoraCatalogSnapshotProvider | None
@@ -190,13 +236,11 @@ def build_test_autocomplete_coordinator(
     lora_autocomplete_enabled: bool = True,
     trigger_word_suggestions_enabled: bool = True,
     lora_thumbnail_cache_available: bool = False,
-) -> PromptAutocompleteCoordinator:
-    """Build a coordinator with explicit Phase 27 owner wiring for tests."""
+) -> PromptAutocompleteTestStack:
+    """Build real session, lifecycle, and input owners for focused autocomplete tests."""
 
-    current_context = _AutocompleteCurrentContextBridge()
     scheduled_lora_context = PromptAutocompleteScheduledLoraContextController(
         context_provider=scheduled_lora_context_provider,
-        current_context=current_context,
         enabled=trigger_word_suggestions_enabled,
     )
     result_controller = PromptAutocompleteResultController(
@@ -206,34 +250,94 @@ def build_test_autocomplete_coordinator(
             else EmptyPromptAutocompleteGateway()
         ),
         limit=limit,
-        scene_feature=cast(PromptAutocompleteSceneResultProvider | None, scene_feature),
+        scene_autocomplete_state=(
+            None
+            if scene_publication is None
+            else lambda: scene_publication.snapshot.autocomplete
+        ),
         wildcard_feature=wildcard_feature,
         prompt_lora_catalog_service=prompt_lora_catalog_service,
         trigger_word_provider=scheduled_lora_context,
     )
-    coordinator = PromptAutocompleteCoordinator(
+    session_controller = (
+        autocomplete_session_controller
+        if autocomplete_session_controller is not None
+        else PromptAutocompleteSessionController()
+    )
+    session_publication = PromptAutocompleteSessionPublication(
+        sessions=session_controller,
+        presenter=autocomplete_presenter,
+        ghost_text_publisher=autocomplete_ghost_text_publisher,
+        ghost_text_enabled=autocomplete_ghost_text_enabled,
+    )
+
+    def current_source_identity() -> PromptSourceIdentity | None:
+        """Read source identity when the focused double exposes that query."""
+
+        source_identity = getattr(editor, "prompt_command_source_identity", None)
+        return (
+            cast(PromptSourceIdentity | None, source_identity())
+            if callable(source_identity)
+            else None
+        )
+
+    def execute_acceptance(
+        acceptance: PromptAutocompleteAcceptance,
+    ) -> PromptCommandResult[object]:
+        """Execute acceptance when the focused double exercises that path."""
+
+        execute = getattr(editor, "execute_autocomplete_acceptance", None)
+        if callable(execute):
+            return cast(PromptCommandResult[object], execute(acceptance))
+        return PromptCommandResult.completed("accept_autocomplete")
+
+    def complete_lora_replacement() -> None:
+        """Complete LoRA replacement when the focused double exposes that path."""
+
+        complete = getattr(editor, "commit_lora_autocomplete_replacement", None)
+        if callable(complete):
+            complete()
+
+    coordinator = PromptAutocompleteInputAdapter(
         cast(Any, editor),
-        autocomplete_result_controller=result_controller,
-        autocomplete_scene_context_controller=PromptAutocompleteSceneContextController(
-            scene_context_provider=cast(
-                PromptAutocompleteSceneContextProvider | None,
-                scene_feature,
+        restore_focus=lambda: cast(Any, editor).setFocus(),
+        acceptance_lifecycle=PromptAutocompleteAcceptanceLifecycle(
+            acceptance_controller=PromptAutocompleteAcceptanceController(
+                cursor_position=lambda: cast(Any, editor).textCursor().position(),
+                current_source_identity=current_source_identity,
+                execute_acceptance=execute_acceptance,
+                complete_lora_replacement=complete_lora_replacement,
+            ),
+            session_publication=session_publication,
+        ),
+        session_publication=session_publication,
+    )
+    lifecycle = PromptAutocompleteQueryResultLifecycle(
+        query_controller=PromptAutocompleteQueryController(
+            document_service=PromptDocumentService(),
+            feature_profile=PromptFeatureProfileController.from_legacy_syntax(None),
+            minimum_prefix_length=2,
+        ),
+        result_controller=result_controller,
+        scene_context_controller=PromptAutocompleteSceneContextController(
+            scene_context_identity=(
+                None
+                if scene_publication is None
+                else lambda: scene_publication.scene_context_identity
             ),
         ),
-        autocomplete_scheduled_lora_context_controller=scheduled_lora_context,
-        autocomplete_presenter=autocomplete_presenter,
-        autocomplete_ghost_text_publisher=autocomplete_ghost_text_publisher,
-        autocomplete_ghost_text_enabled=autocomplete_ghost_text_enabled,
-        autocomplete_acceptance_controller=PromptAutocompleteAcceptanceController(
-            editor=cast(Any, editor),
-        ),
-        autocomplete_session_controller=(
-            autocomplete_session_controller
-            if autocomplete_session_controller is not None
-            else PromptAutocompleteSessionController()
-        ),
-        lora_autocomplete_enabled=lora_autocomplete_enabled,
-        lora_thumbnail_cache_available=lora_thumbnail_cache_available,
+        publication=session_publication,
+        current_source_identity=lambda: getattr(
+            editor,
+            "prompt_command_source_identity",
+            lambda: None,
+        )(),
+        lora_autocomplete_enabled=lambda: lora_autocomplete_enabled,
+        lora_thumbnail_cache_available=lambda: lora_thumbnail_cache_available,
     )
-    current_context.bind(coordinator)
-    return coordinator
+    scheduled_lora_context.bind_current_context(lifecycle)
+    return PromptAutocompleteTestStack(
+        input_adapter=coordinator,
+        query_result_lifecycle=lifecycle,
+        session_controller=session_controller,
+    )

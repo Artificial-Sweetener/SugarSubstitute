@@ -40,7 +40,9 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     setTheme,
 )
 
-from substitute.presentation.editor.panel.widgets.cube_section import CubeSectionBuilder
+from substitute.presentation.editor.panel.widgets.cube_section import (
+    cube_section_builder_for_panel,
+)
 from substitute.presentation.generation.queue_dropdown import (
     GenerationQueueDropdownView,
 )
@@ -199,7 +201,9 @@ def test_cube_section_title_uses_qfluent_label_primitive() -> None:
         try:
             cube_state = type("CubeState", (), {"buffer": {"nodes": {}}, "ui": None})()
             del cube_state
-            CubeSectionBuilder(panel).build_cube_section("SDXL/Text to Image")
+            cube_section_builder_for_panel(panel).build_cube_section(
+                "SDXL/Text to Image"
+            )
             title = panel.cube_headers["SDXL/Text to Image"]
 
             assert isinstance(title, SubtitleLabel)

@@ -411,8 +411,8 @@ def test_reorder_chips_exclude_region_separator_and_preserve_partition_boundary(
     )
 
 
-def test_reorder_chips_move_only_within_their_regional_partition() -> None:
-    """Regional reorder should preserve separators and reject cross-partition targets."""
+def test_reorder_chips_move_across_regional_partition() -> None:
+    """A moved chip should join the destination partition without moving its separator."""
 
     document = parse_prompt_document("global a, global b\n[SEP]\nregion a, region b")
     chips = build_reorder_chips(document)
@@ -431,12 +431,112 @@ def test_reorder_chips_move_only_within_their_regional_partition() -> None:
         == "global a, global b\n[SEP]\nregion b, region a"
     )
 
-    with pytest.raises(ValueError, match="cannot cross"):
-        apply_line_drop_target_to_state(
-            base_state,
-            dragged_segment_index=2,
-            target=PromptLineDropTarget(row_index=0, insertion_index=0),
-        )
+    cross_partition_state = apply_line_drop_target_to_state(
+        base_state,
+        dragged_segment_index=2,
+        target=PromptLineDropTarget(row_index=0, insertion_index=0),
+    )
+
+    assert cross_partition_state.partition_index_by_segment_index == (0, 0, 0, 1)
+    assert (
+        serialize_reorder_state_for_chips(
+            cross_partition_state,
+            chips_by_index=chips,
+        ).text
+        == "region a, global a, global b\n[SEP]\nregion b"
+    )
+
+
+def test_reorder_only_chip_out_of_trailing_region_preserves_empty_partition() -> None:
+    """Moving the sole trailing-region chip should retain the trailing separator."""
+
+    document = parse_prompt_document("global a, global b\n[SEP]\nregion a")
+    chips = build_reorder_chips(document)
+    base_state = build_base_drag_state(
+        build_reorder_state_from_chips(document, chips),
+        dragged_segment_index=2,
+    )
+
+    updated_state = apply_line_drop_target_to_state(
+        base_state,
+        dragged_segment_index=2,
+        target=PromptLineDropTarget(row_index=0, insertion_index=0),
+    )
+
+    assert (
+        serialize_reorder_state_for_chips(updated_state, chips_by_index=chips).text
+        == "region a, global a, global b\n[SEP]"
+    )
+
+
+def test_reorder_only_chip_out_of_leading_region_preserves_empty_partition() -> None:
+    """Moving the sole leading-region chip should retain the leading separator."""
+
+    document = parse_prompt_document("global a\n[SEP]\nregion a, region b")
+    chips = build_reorder_chips(document)
+    base_state = build_base_drag_state(
+        build_reorder_state_from_chips(document, chips),
+        dragged_segment_index=0,
+    )
+
+    updated_state = apply_line_drop_target_to_state(
+        base_state,
+        dragged_segment_index=0,
+        target=PromptLineDropTarget(row_index=0, insertion_index=0),
+    )
+
+    assert (
+        serialize_reorder_state_for_chips(updated_state, chips_by_index=chips).text
+        == "[SEP]\nglobal a, region a, region b"
+    )
+
+
+def test_reorder_chip_crosses_multiple_regional_partitions() -> None:
+    """A chip should reach any structural row without disturbing either separator."""
+
+    document = parse_prompt_document(
+        "global a\n[SEP]\nregion a, region b\n[SEP]\nregion c, region d"
+    )
+    chips = build_reorder_chips(document)
+    base_state = build_base_drag_state(
+        build_reorder_state_from_chips(document, chips),
+        dragged_segment_index=3,
+    )
+
+    updated_state = apply_line_drop_target_to_state(
+        base_state,
+        dragged_segment_index=3,
+        target=PromptLineDropTarget(row_index=0, insertion_index=0),
+    )
+
+    assert updated_state.partition_index_by_segment_index == (0, 1, 1, 0, 2)
+    assert (
+        serialize_reorder_state_for_chips(updated_state, chips_by_index=chips).text
+        == "region c, global a\n[SEP]\nregion a, region b\n[SEP]\nregion d"
+    )
+
+
+def test_reorder_chip_crosses_partition_into_blank_line() -> None:
+    """A blank-line target should adopt the destination partition like a row target."""
+
+    document = parse_prompt_document("global a\n\nglobal b\n[SEP]\nregion a, region b")
+    chips = build_reorder_chips(document)
+    base_state = build_base_drag_state(
+        build_reorder_state_from_chips(document, chips),
+        dragged_segment_index=2,
+    )
+
+    updated_state = apply_blank_line_drop_target_to_state(
+        base_state,
+        dragged_segment_index=2,
+        target=PromptGapBlankLineDropTarget(gap_index=0, blank_line_index=0),
+    )
+
+    assert updated_state.partition_index_by_segment_index == (0, 0, 0, 1)
+    assert (
+        serialize_reorder_state_for_chips(updated_state, chips_by_index=chips).text
+        == "global a\nregion a,\nglobal b\n[SEP]\nregion b"
+    )
 
 
 @pytest.mark.parametrize(

@@ -35,10 +35,11 @@ from .diagnostic_menu_actions import (
     PromptDiagnosticMenuActionEntry,
     PromptDiagnosticMenuActionSnapshot,
 )
-from .diagnostics_controller import (
-    PromptDiagnosticsFeatureController,
+from .diagnostics_controller import PromptDiagnosticsFeatureController
+from .diagnostics_presentation import (
+    PromptDiagnosticsCursor,
     PromptDiagnosticsHost,
-    PromptDiagnosticsSignalHost,
+    PromptDiagnosticsPresentation,
     PromptDiagnosticsSnapshot,
     PromptDiagnosticsSurface,
 )
@@ -46,6 +47,11 @@ from .autocomplete_query_controller import (
     PromptAutocompleteQueryController,
     PromptAutocompleteQuerySourceSnapshot,
     PromptAutocompleteQueryState,
+)
+from .autocomplete_query_result_lifecycle import (
+    PromptAutocompleteCurrentSource,
+    PromptAutocompleteQueryResultLifecycle,
+    PromptAutocompleteResultPublication,
 )
 from .autocomplete_result_controller import (
     PromptAutocompleteLoraCatalogSnapshotProvider,
@@ -55,7 +61,6 @@ from .autocomplete_result_controller import (
     PromptAutocompleteResultSnapshot,
     PromptAutocompleteResultSourceIdentity,
     PromptAutocompleteResultStatus,
-    PromptAutocompleteSceneResultProvider,
     PromptScheduledLoraSignature,
     PromptAutocompleteTagContext,
     PromptAutocompleteTagResult,
@@ -65,7 +70,6 @@ from .autocomplete_result_controller import (
 )
 from .autocomplete_scene_context import (
     PromptAutocompleteSceneContextController,
-    PromptAutocompleteSceneContextProvider,
     PromptAutocompleteSceneContextSnapshot,
     PromptAutocompleteSceneContextSourceIdentity,
 )
@@ -73,19 +77,26 @@ from .autocomplete_scheduled_lora_context import (
     PromptAutocompleteScheduledLoraContextController,
     PromptAutocompleteScheduledLoraCurrentContext,
 )
-from .context_menu_actions import (
-    PromptContextMenuActionController,
-)
-from .context_menu_snapshot import (
+from .context_menu_preparation import PromptContextMenuPreparationLifecycle
+from .context_menu_models import (
     PromptContextMenuActionSnapshot,
     PromptContextMenuConcern,
     PromptContextMenuConcernReadiness,
     PromptContextMenuSnapshot,
-    PromptContextMenuSnapshotController,
     PromptContextMenuSnapshotIdentity,
     PromptContextMenuSnapshotReadiness,
     PromptContextMenuSnapshotRequest,
 )
+from .context_menu_ports import (
+    PromptContextMenuDanbooruPort,
+    PromptContextMenuDiagnosticsPort,
+    PromptContextMenuLoraMetadataPort,
+    PromptContextMenuLoraTriggerWordPort,
+    PromptContextMenuScenePositionPort,
+    PromptContextMenuSceneSnapshotPort,
+    PromptContextMenuSegmentPort,
+)
+from .context_menu_snapshot_assembly import PromptContextMenuSnapshotAssembler
 from .danbooru_actions import (
     PromptDanbooruActionController,
     PromptDanbooruActionHost,
@@ -114,10 +125,14 @@ from .lora_context_menu import (
     PromptLoraTriggerWordsAction,
     PromptLoraTriggerWordsPayload,
 )
-from .lora_metadata_controller import (
-    PromptLoraMetadataFeatureController,
-    PromptLoraMetadataHost,
+from .lora_metadata_presentation import (
+    PromptLoraMetadataIdentityPort,
+    PromptLoraMetadataPresentation,
     PromptLoraMetadataSnapshot,
+)
+from .lora_metadata_refresh_lifecycle import (
+    PromptLoraMetadataRefreshHost,
+    PromptLoraMetadataRefreshLifecycle,
 )
 from .lora_trigger_word_controller import (
     PromptLoraTriggerWordController,
@@ -152,44 +167,51 @@ from .prompt_segment_selection import (
 from .paste_import_controller import (
     PromptDanbooruPasteImportController,
 )
-from .scene_controller import (
+from .scene_position_context import PromptScenePositionContextPreparation
+from .scene_publication import PromptSceneContextPublication
+from .scene_models import (
     PromptSceneAutocompleteState,
     PromptSceneContextSnapshot,
-    PromptSceneFeatureController,
     PromptScenePositionContext,
     PromptScenePositionContextSnapshot,
     PromptSceneQueueActionState,
-    PromptSceneSourceHost,
 )
 from .search_controller import (
     PromptSearchFeatureController,
     PromptSearchHighlightSnapshot,
     PromptSearchHighlightState,
     PromptSearchProjectionSurface,
-    PromptSearchSourceHost,
 )
-from .wildcard_controller import (
+from .wildcard_autocomplete import (
+    PromptWildcardAutocompletePresentation,
+    PromptWildcardAutocompleteState,
+)
+from .wildcard_diagnostics import (
+    PromptWildcardContextAction,
+    PromptWildcardDiagnosticsPresentation,
+)
+from .wildcard_models import (
     PromptWildcardAutocompleteCacheKey,
     PromptWildcardAutocompleteQuerySnapshot,
     PromptWildcardAutocompleteRefreshCallback,
     PromptWildcardAutocompleteRequest,
-    PromptWildcardAutocompleteState,
-    PromptWildcardContextAction,
-    PromptWildcardDiagnosticsState,
-    PromptWildcardFeatureController,
-    PromptWildcardNumericStepState,
-    PromptWildcardPresentationSnapshot,
-    PromptWildcardSourceHost,
 )
 
 __all__ = [
-    "PromptContextMenuActionController",
+    "PromptContextMenuPreparationLifecycle",
     "PromptContextMenuAction",
     "PromptContextMenuActionSnapshot",
     "PromptContextMenuConcern",
     "PromptContextMenuConcernReadiness",
     "PromptContextMenuSnapshot",
-    "PromptContextMenuSnapshotController",
+    "PromptContextMenuSnapshotAssembler",
+    "PromptContextMenuDanbooruPort",
+    "PromptContextMenuDiagnosticsPort",
+    "PromptContextMenuLoraMetadataPort",
+    "PromptContextMenuLoraTriggerWordPort",
+    "PromptContextMenuScenePositionPort",
+    "PromptContextMenuSceneSnapshotPort",
+    "PromptContextMenuSegmentPort",
     "PromptContextMenuSnapshotIdentity",
     "PromptContextMenuSnapshotReadiness",
     "PromptContextMenuSnapshotRequest",
@@ -204,16 +226,17 @@ __all__ = [
     "PromptAutocompleteQueryController",
     "PromptAutocompleteQuerySourceSnapshot",
     "PromptAutocompleteQueryState",
+    "PromptAutocompleteCurrentSource",
+    "PromptAutocompleteQueryResultLifecycle",
+    "PromptAutocompleteResultPublication",
     "PromptAutocompleteResultCacheKey",
     "PromptAutocompleteResultController",
     "PromptAutocompleteResultMode",
     "PromptAutocompleteResultSnapshot",
     "PromptAutocompleteResultSourceIdentity",
     "PromptAutocompleteResultStatus",
-    "PromptAutocompleteSceneResultProvider",
     "PromptScheduledLoraSignature",
     "PromptAutocompleteSceneContextController",
-    "PromptAutocompleteSceneContextProvider",
     "PromptAutocompleteSceneContextSnapshot",
     "PromptAutocompleteSceneContextSourceIdentity",
     "PromptAutocompleteScheduledLoraContextController",
@@ -234,8 +257,9 @@ __all__ = [
     "PromptDiagnosticsFeatureController",
     "PromptDiagnosticMenuActionEntry",
     "PromptDiagnosticMenuActionSnapshot",
+    "PromptDiagnosticsCursor",
     "PromptDiagnosticsHost",
-    "PromptDiagnosticsSignalHost",
+    "PromptDiagnosticsPresentation",
     "PromptDiagnosticsSnapshot",
     "PromptDiagnosticsSurface",
     "PromptFeatureActionState",
@@ -246,8 +270,10 @@ __all__ = [
     "PromptLoraContextActionController",
     "PromptLoraTriggerWordProjector",
     "PromptLoraActionSnapshot",
-    "PromptLoraMetadataFeatureController",
-    "PromptLoraMetadataHost",
+    "PromptLoraMetadataIdentityPort",
+    "PromptLoraMetadataPresentation",
+    "PromptLoraMetadataRefreshHost",
+    "PromptLoraMetadataRefreshLifecycle",
     "PromptLoraMetadataSnapshot",
     "PromptLoraTriggerWordController",
     "PromptLoraTriggerWordHost",
@@ -278,27 +304,23 @@ __all__ = [
     "PromptSegmentTextInsertionExecutor",
     "PromptSceneAutocompleteState",
     "PromptSceneContextSnapshot",
-    "PromptSceneFeatureController",
+    "PromptSceneContextPublication",
+    "PromptScenePositionContextPreparation",
     "PromptScenePositionContext",
     "PromptScenePositionContextSnapshot",
     "PromptSceneQueueActionState",
-    "PromptSceneSourceHost",
     "PromptSearchFeatureController",
     "PromptSearchHighlightSnapshot",
     "PromptSearchHighlightState",
     "PromptSearchProjectionSurface",
-    "PromptSearchSourceHost",
     "PromptWildcardAutocompleteState",
+    "PromptWildcardAutocompletePresentation",
     "PromptWildcardAutocompleteCacheKey",
     "PromptWildcardAutocompleteQuerySnapshot",
     "PromptWildcardAutocompleteRefreshCallback",
     "PromptWildcardAutocompleteRequest",
     "PromptWildcardContextAction",
-    "PromptWildcardDiagnosticsState",
-    "PromptWildcardFeatureController",
-    "PromptWildcardNumericStepState",
-    "PromptWildcardPresentationSnapshot",
-    "PromptWildcardSourceHost",
+    "PromptWildcardDiagnosticsPresentation",
     "prompt_feature_profile_from_legacy_syntax",
     "prompt_feature_profile_identity",
 ]

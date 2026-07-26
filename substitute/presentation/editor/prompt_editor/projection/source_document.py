@@ -18,10 +18,21 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from PySide6.QtCore import QObject
 from PySide6.QtGui import QFont, QTextCursor, QTextDocument, QTextOption
 
-from .source_change_applier import PromptProjectionSourceDocumentRangeEdit
+
+@dataclass(frozen=True, slots=True)
+class PromptProjectionSourceDocumentRangeEdit:
+    """Describe one bounded edit applied to the source-document mirror."""
+
+    previous_text: str
+    next_text: str
+    start: int
+    end: int
+    replacement_text: str
 
 
 class PromptProjectionSourceDocument:
@@ -119,4 +130,7 @@ class PromptProjectionSourceDocument:
         return False
 
 
-__all__ = ["PromptProjectionSourceDocument"]
+__all__ = [
+    "PromptProjectionSourceDocument",
+    "PromptProjectionSourceDocumentRangeEdit",
+]

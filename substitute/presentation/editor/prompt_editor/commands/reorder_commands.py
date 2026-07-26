@@ -18,10 +18,6 @@
 
 from __future__ import annotations
 
-from substitute.presentation.editor.prompt_editor.core.state.revisions import (
-    PromptSourceIdentity,
-)
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Generic, TypeVar, cast
@@ -37,34 +33,21 @@ from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
-from substitute.application.prompt_editor.reorder.views import (
-    PromptReorderLayoutView,
-    PromptReorderStateView,
+from substitute.application.prompt_editor.reorder.commit import (
+    PromptReorderLayoutCommitRequest,
 )
+from substitute.shared.logging.logger import get_logger, log_warning_exception
+
 from ..core.editing.commands import PromptReplaceDocumentEdit
 from ..core.editing.session import PromptEditingSession
 from ..core.editing.source_commands import PromptSourceNormalizer
 from ..core.editing.transactions import PromptUndoSnapshot
-from substitute.shared.logging.logger import get_logger, log_warning_exception
-
 from .contracts import PromptCommandResult, PromptEditApplicationState
 from .execution import PromptEditExecution
 
 TPayload = TypeVar("TPayload")
 
 _LOGGER = get_logger("presentation.editor.prompt_editor.commands.reorder_commands")
-
-
-@dataclass(frozen=True, slots=True)
-class PromptReorderLayoutCommitRequest:
-    """Describe one prepared prompt reorder layout commit."""
-
-    selected_chip_index: int | None
-    reorder_state: PromptReorderStateView
-    layout_view: PromptReorderLayoutView | None = None
-    source_identity: PromptSourceIdentity | None = None
-    selection_start_offset_within_selected_chip: int | None = None
-    selection_end_offset_within_selected_chip: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,7 +128,7 @@ class PromptCommitReorderLayoutCommand(Generic[TPayload]):
         stale_result = _stale_result(
             command_name=self.name,
             session=session,
-            source_identity=self.request.source_identity,
+            request=self.request,
         )
         if stale_result is not None:
             return stale_result
@@ -308,13 +291,11 @@ def _stale_result(
     *,
     command_name: str,
     session: PromptEditingSession[TPayload],
-    source_identity: PromptSourceIdentity | None,
+    request: PromptReorderLayoutCommitRequest,
 ) -> PromptReorderCommandResult[TPayload] | None:
     """Return a stale rejection for a mismatched prepared source identity."""
 
-    if source_identity is None:
-        return None
-    if source_identity.matches(
+    if request.source_matches(
         source_revision=session.source_revision,
         source_length=len(session.source_text),
     ):
@@ -330,6 +311,5 @@ __all__ = [
     "PromptCommitReorderLayoutCommand",
     "PromptReorderCommandResult",
     "PromptReorderCommandService",
-    "PromptReorderLayoutCommitRequest",
     "build_reorder_layout_commit_command",
 ]

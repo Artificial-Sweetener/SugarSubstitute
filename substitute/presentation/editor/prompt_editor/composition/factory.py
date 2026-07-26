@@ -21,9 +21,10 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from itertools import count
-from typing import Any, Protocol, cast
+from typing import Any, cast
 
-from PySide6.QtCore import QPoint
+from PySide6.QtCore import QPoint, QRect
+from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.ports import (
@@ -37,6 +38,10 @@ from substitute.application.prompt_editor.document.projector import (
     PromptDocumentProjector,
 )
 from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import PromptSyntaxSpanView
+from substitute.application.prompt_editor.document.semantics import (
+    OrdinaryPromptDocumentSemantics,
+)
 from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
 )
@@ -79,8 +84,13 @@ from ..async_work import (
     build_prompt_scheduled_lora_context_coordinator,
     build_prompt_semantic_refresh_controller,
 )
-from ..commands.autocomplete_commands import PromptAutocompleteCommandService
+from ..commands.autocomplete_commands import (
+    PromptAutocompleteAcceptance,
+    PromptAutocompleteCommandService,
+)
+from ..commands.contracts import PromptCommandResult
 from ..commands.context_insertion import (
+    PromptCommandCursor,
     PromptCommandContextInsertState,
     PromptContextInsertionService,
 )
@@ -95,28 +105,34 @@ from ..core.editing.cursor_state import PromptCursorState
 from ..core.editing.session import PromptEditingSession
 from ..features import (
     PromptAutocompleteQueryController,
+    PromptAutocompleteQueryResultLifecycle,
     PromptAutocompleteResultController,
     PromptAutocompleteSceneContextController,
     PromptAutocompleteScheduledLoraContextController,
     PromptAutocompleteWildcardResultProvider,
-    PromptContextMenuActionController,
+    PromptContextMenuPreparationLifecycle,
+    PromptContextMenuSnapshotAssembler,
     PromptDanbooruActionController,
     PromptDanbooruPasteImportController,
     PromptFeatureProfileController,
-    PromptLoraMetadataFeatureController,
+    PromptLoraMetadataPresentation,
     PromptLoraTriggerWordController,
-    PromptSceneFeatureController,
+    PromptSceneContextPublication,
+    PromptScenePositionContextPreparation,
     PromptScenePositionContextSnapshot,
     PromptSearchFeatureController,
     PromptSegmentPresetController,
-    PromptWildcardFeatureController,
+    PromptWildcardAutocompletePresentation,
+    PromptWildcardDiagnosticsPresentation,
     prompt_feature_profile_from_legacy_syntax,
 )
+from ..features.prompt_segment_selection import PromptSegmentCursor
 from ..interactions import (
     PromptAutocompleteAcceptanceController,
-    PromptAutocompleteController,
-    PromptAutocompleteCoordinator,
-    PromptAutocompleteQueryRefreshController,
+    PromptAutocompleteAcceptanceLifecycle,
+    PromptAutocompleteInputAdapter,
+    PromptAutocompleteInputPort,
+    PromptAutocompleteSessionPublication,
     PromptAutocompleteSessionController,
     PromptAutocompleteSourceSnapshotController,
     PromptAutocompleteTimingController,
@@ -128,17 +144,27 @@ from ..interactions import (
     PromptInlineLoraContextMenuPresenter,
     PromptInlineLoraShellMenu,
     PromptInteractionController,
+    PromptInteractionEditor,
     PromptLoraPickerPopupPresenter,
     PromptLoraPickerPopupView,
     PromptSegmentPresetHostAdapter,
     PromptTokenWeightWheelIntentController,
     PromptTriggerWordActionAdapter,
+    PromptWeightInteraction,
     PromptWheelController,
+    PromptWheelScrollResult,
 )
+from ..interactions.weight_interaction import PromptWeightInteractionEditor
 from ..interactions.parenthesis_education_controller import (
     PromptParenthesisEducationController,
 )
 from ..interactions.clipboard_history_controller import PromptClipboardHistoryActions
+from ..interactions.reorder_interaction_metrics import (
+    PromptReorderInteractionMetricsOwner,
+)
+from ..interactions.reorder_preview_publication import (
+    PromptReorderPreviewPublicationOwner,
+)
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
 from ..overlays import (
     PromptAutocompleteLoraWall,
@@ -149,20 +175,20 @@ from ..overlays import (
     show_lora_picker_popup,
 )
 from ..projection.autocomplete_ghost_text import PromptAutocompleteGhostTextPublisher
-from ..projection.reorder_preview_projection import (
+from ..projection.reorder_projection_snapshot_provider import (
     PromptReorderPreviewProjectionProvider,
 )
 from ..projection.surface import (
     PromptProjectionSurface,
-    PromptProjectionUndoPayload,
 )
+from ..projection.undo_payload import PromptProjectionUndoPayload
 from ..qt_lifecycle import qt_object_is_alive
 from ..syntax_renderers import (
     PromptSyntaxRendererCoordinator,
     PromptSyntaxStateController,
 )
-from .autocomplete_context_bridge import PromptAutocompleteCurrentContextBridge
 from .collaborator_bundle import (
+    PromptEditorAutocompleteCollaborators,
     PromptEditorCollaborators,
     PromptEditorConstructionInputs,
 )
@@ -173,25 +199,12 @@ from .token_weight_controls_factory import PromptTokenWeightControlsFactory
 type _PromptSceneContextReader = Callable[[int], PromptScenePositionContextSnapshot]
 
 
-class PromptEditorFillPlaneFactory(Protocol):
-    """Create one prompt-editor fill plane without coupling composition to widget.py."""
-
-    def __call__(
-        self,
-        editor: QWidget,
-        surface: PromptProjectionSurface,
-        parent: QWidget,
-        *,
-        shell_padding_only: bool,
-    ) -> QWidget:
-        """Return a fill-plane widget for the supplied editor surface."""
+type PromptEditorFillPlaneFactory = Callable[..., QWidget]
+"""Create one shell-owned fill plane from its concrete host and surface."""
 
 
-class PromptEditorResizeHandleFactory(Protocol):
-    """Create the prompt-editor resize handle without importing widget.py."""
-
-    def __call__(self, editor: QWidget) -> QWidget:
-        """Return a resize-handle widget for the supplied editor."""
+type PromptEditorResizeHandleFactory = Callable[[Any], QWidget]
+"""Create the shell resize handle from its concrete public host."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -221,6 +234,7 @@ class PromptEditorProjectionCollaborators:
     reorder_commands: PromptReorderCommandService[PromptProjectionUndoPayload]
     trigger_word_commands: PromptTriggerWordCommandService[PromptProjectionUndoPayload]
     structured_text_mutations: PromptStructuredTextMutationService
+    parenthesis_education_controller: PromptParenthesisEducationController
     danbooru_paste_import_controller: PromptDanbooruPasteImportController[Any]
     clipboard_history_controller: PromptClipboardHistoryActions
     shell_padding_fill_plane: QWidget
@@ -236,9 +250,11 @@ class PromptEditorServiceCollaborators:
     scheduled_lora_resolver: Callable[[str], tuple[PromptScheduledLora, ...]]
     scheduled_lora_context_provider: PromptScheduledLoraContextProvider
     feature_profile_controller: PromptFeatureProfileController
-    scene_feature_controller: PromptSceneFeatureController
+    scene_context_publication: PromptSceneContextPublication
+    scene_position_preparation: PromptScenePositionContextPreparation
     search_feature_controller: PromptSearchFeatureController
-    wildcard_feature_controller: PromptWildcardFeatureController
+    wildcard_autocomplete_presentation: PromptWildcardAutocompletePresentation
+    wildcard_diagnostics_presentation: PromptWildcardDiagnosticsPresentation
     segment_preset_controller: PromptSegmentPresetController
     danbooru_action_controller: PromptDanbooruActionController
 
@@ -253,6 +269,7 @@ class PromptEditorSyntaxCollaborators:
     syntax_profile: PromptSyntaxProfile
     syntax_service: PromptSyntaxService
     token_weight_controls: PromptTokenWeightControls
+    weight_interaction: PromptWeightInteraction
     wheel_controller: PromptWheelController
     syntax_renderer_coordinator: PromptSyntaxRendererCoordinator
     interaction_controller: PromptInteractionController
@@ -262,15 +279,25 @@ def build_external_url_action_runner(
     open_url: PromptExternalUrlOpener | None,
 ) -> PromptExternalUrlActionRunner:
     """Build the prompt-editor external URL action runner."""
-
     return PromptExternalUrlActionRunner(open_url=open_url)
+
+
+def build_prompt_document_service(
+    inputs: PromptEditorConstructionInputs,
+) -> PromptDocumentService:
+    """Build the shared document-query authority before feature composition."""
+    return PromptDocumentService(
+        autocomplete_query_service=PromptAutocompleteQueryService(
+            document_semantics=inputs.prompt_document_semantics
+        ),
+        document_semantics=inputs.prompt_document_semantics,
+    )
 
 
 def _build_projection_editing_session() -> PromptEditingSession[
     PromptProjectionUndoPayload
 ]:
     """Create the source-backed editing session before projection wiring."""
-
     return PromptEditingSession[PromptProjectionUndoPayload](
         source_text="",
         source_revision=0,
@@ -282,7 +309,6 @@ def _build_projection_editing_session() -> PromptEditingSession[
 
 def _danbooru_dialog_parent(editor: QWidget) -> QWidget:
     """Return the top-level parent used for large browsing dialogs."""
-
     window = editor.window()
     if isinstance(window, QWidget) and window is not editor:
         return window
@@ -305,7 +331,6 @@ class PromptEditorCompositionFactory:
         owner_label: str,
     ) -> PromptEditorTaskExecutor:
         """Build one prompt task adapter from the composed execution factory."""
-
         if inputs.prompt_task_executor_factory is None:
             raise RuntimeError("prompt_task_executor_factory is required.")
         request_id = next(self._prompt_executor_request_ids)
@@ -322,7 +347,6 @@ class PromptEditorCompositionFactory:
         owner_label: str,
     ) -> PromptLatestWinsRequestChannel[object]:
         """Build one latest-wins prompt request channel from shared execution."""
-
         return PromptLatestWinsRequestChannel(
             executor=self.build_prompt_task_executor(
                 inputs,
@@ -339,7 +363,6 @@ class PromptEditorCompositionFactory:
         external_url_actions: PromptExternalUrlActionRunner,
     ) -> PromptDanbooruDialogHostAdapter:
         """Build the Danbooru action host adapter without depending on PromptEditor."""
-
         return PromptDanbooruDialogHostAdapter(
             source_identity_provider=source_identity_provider,
             dialog_parent_provider=lambda: _danbooru_dialog_parent(context.editor),
@@ -354,7 +377,6 @@ class PromptEditorCompositionFactory:
         | None,
     ) -> PromptDanbooruDialogRunner:
         """Build the native Danbooru wiki dialog execution boundary."""
-
         if lookup_dispatcher_factory is None:
             return PromptDanbooruDialogRunner(action_controller=action_controller)
 
@@ -367,6 +389,8 @@ class PromptEditorCompositionFactory:
         self,
         inputs: PromptEditorConstructionInputs,
         context: PromptEditorCompositionContext,
+        *,
+        paste_completed: Callable[[str], None],
     ) -> PromptEditorProjectionCollaborators:
         """Build the projection surface and passive fill-plane widgets."""
 
@@ -409,7 +433,7 @@ class PromptEditorCompositionFactory:
                     owner_label="prompt-danbooru-import",
                 ),
             ),
-            paste_completed=cast(Any, context.editor)._handle_clipboard_paste_completed,
+            paste_completed=paste_completed,
         )
         surface = PromptProjectionSurface(
             context.shell_viewport,
@@ -427,9 +451,6 @@ class PromptEditorCompositionFactory:
         surface.implicitParenthesisAuthored.connect(
             parenthesis_education_controller.handle_authored_nested_parentheses
         )
-        cast(
-            Any, context.editor
-        )._parenthesis_education_controller = parenthesis_education_controller
         surface.set_defer_source_rebuilds_until_prompt_state(True)
         edit_execution = surface.edit_execution
         source_commands = surface.source_commands
@@ -486,6 +507,7 @@ class PromptEditorCompositionFactory:
             reorder_commands=reorder_commands,
             trigger_word_commands=trigger_word_commands,
             structured_text_mutations=structured_text_mutations,
+            parenthesis_education_controller=parenthesis_education_controller,
             danbooru_paste_import_controller=danbooru_paste_import_controller,
             clipboard_history_controller=clipboard_history_controller,
             shell_padding_fill_plane=shell_padding_fill_plane,
@@ -494,21 +516,21 @@ class PromptEditorCompositionFactory:
 
     def build_context_insertion_service(
         self,
-        context: PromptEditorCompositionContext,
         projection_collaborators: PromptEditorProjectionCollaborators,
         *,
+        cursor_provider: Callable[[], PromptCommandCursor],
         context_insert_state_provider: Callable[[], PromptCommandContextInsertState],
+        focus_restorer: Callable[[], None],
+        source_text_provider: Callable[[], str],
     ) -> PromptContextInsertionService[PromptProjectionUndoPayload]:
         """Build prompt-aware context insertion around focused command owners."""
-
-        editor = cast(Any, context.editor)
         return PromptContextInsertionService(
             source_commands=projection_collaborators.source_commands,
             trigger_word_commands=projection_collaborators.trigger_word_commands,
-            cursor_provider=editor.textCursor,
+            cursor_provider=cursor_provider,
             context_insert_state_provider=context_insert_state_provider,
-            focus_restorer=editor.setFocus,
-            source_text_provider=editor.toPlainText,
+            focus_restorer=focus_restorer,
+            source_text_provider=source_text_provider,
             structured_text_mutations=projection_collaborators.structured_text_mutations,
         )
 
@@ -519,7 +541,10 @@ class PromptEditorCompositionFactory:
         projection_collaborators: PromptEditorProjectionCollaborators,
         context_insertion: PromptContextInsertionService[PromptProjectionUndoPayload],
         *,
+        cursor_provider: Callable[[], PromptSegmentCursor],
+        cursor_setter: Callable[[object], None],
         external_url_actions: PromptExternalUrlActionRunner,
+        source_text_provider: Callable[[], str],
     ) -> PromptEditorServiceCollaborators:
         """Build normalized service collaborators and feature profile state."""
 
@@ -564,21 +589,31 @@ class PromptEditorCompositionFactory:
                 ),
             )
         )
-        scene_feature_controller = PromptSceneFeatureController(
-            host=cast(Any, context.editor),
+        scene_semantics = (
+            inputs.prompt_document_semantics or OrdinaryPromptDocumentSemantics()
+        )
+        scene_context_publication = PromptSceneContextPublication(
+            source_identity=projection_collaborators.source_commands.source_identity,
             feature_profile=feature_profile_controller,
-            document_semantics=inputs.prompt_document_semantics,
+            document_semantics=scene_semantics,
+        )
+        scene_position_preparation = PromptScenePositionContextPreparation(
+            source_text=source_text_provider,
+            source_identity=projection_collaborators.source_commands.source_identity,
+            publication=scene_context_publication,
+            document_semantics=scene_semantics,
         )
         search_feature_controller = PromptSearchFeatureController(
-            host=cast(Any, context.editor),
+            source_identity=projection_collaborators.source_commands.source_identity,
             surface=projection_collaborators.surface,
             feature_profile=feature_profile_controller,
         )
-        wildcard_feature_controller = PromptWildcardFeatureController(
+        wildcard_autocomplete_presentation = PromptWildcardAutocompletePresentation(
             feature_profile=feature_profile_controller,
             wildcard_catalog_gateway=inputs.prompt_wildcard_catalog_gateway,
-            host=cast(Any, context.editor),
-            parent=context.editor,
+            source_identity_provider=(
+                projection_collaborators.source_commands.source_identity
+            ),
             request_channel=cast(
                 Any,
                 self.build_prompt_request_channel(
@@ -588,8 +623,15 @@ class PromptEditorCompositionFactory:
                 ),
             ),
         )
+        wildcard_diagnostics_presentation = PromptWildcardDiagnosticsPresentation(
+            feature_profile=feature_profile_controller,
+            wildcard_catalog_gateway=inputs.prompt_wildcard_catalog_gateway,
+        )
         segment_host = PromptSegmentPresetHostAdapter(
-            host=cast(Any, context.editor),
+            host_widget=context.editor,
+            cursor_provider=cursor_provider,
+            cursor_setter=cursor_setter,
+            source_text_provider=source_text_provider,
             source_identity_provider=projection_collaborators.source_commands.source_identity,
         )
         segment_preset_controller = PromptSegmentPresetController(
@@ -617,9 +659,11 @@ class PromptEditorCompositionFactory:
             scheduled_lora_resolver=scheduled_lora_resolver,
             scheduled_lora_context_provider=scheduled_lora_context_provider,
             feature_profile_controller=feature_profile_controller,
-            scene_feature_controller=scene_feature_controller,
+            scene_context_publication=scene_context_publication,
+            scene_position_preparation=scene_position_preparation,
             search_feature_controller=search_feature_controller,
-            wildcard_feature_controller=wildcard_feature_controller,
+            wildcard_autocomplete_presentation=wildcard_autocomplete_presentation,
+            wildcard_diagnostics_presentation=wildcard_diagnostics_presentation,
             segment_preset_controller=segment_preset_controller,
             danbooru_action_controller=danbooru_action_controller,
         )
@@ -628,7 +672,8 @@ class PromptEditorCompositionFactory:
         self,
         context: PromptEditorCompositionContext,
         *,
-        action_snapshot_provider: PromptContextMenuActionController,
+        snapshot_reader: PromptContextMenuSnapshotAssembler,
+        preparation: PromptContextMenuPreparationLifecycle,
         segment_presets: PromptSegmentPresetController,
         context_insertion: PromptContextInsertionService[PromptProjectionUndoPayload],
         trigger_word_identity_validator: Callable[
@@ -642,9 +687,9 @@ class PromptEditorCompositionFactory:
         toggle_rich_prompt_rendering: Callable[[bool], None],
     ) -> PromptContextMenuRequestPresenter:
         """Build the prompt context-menu request presenter."""
-
         return PromptContextMenuRequestPresenter(
-            action_snapshot_provider=action_snapshot_provider,
+            snapshot_reader=snapshot_reader,
+            preparation=preparation,
             segment_presets=segment_presets,
             trigger_word_action_adapter=PromptTriggerWordActionAdapter(
                 action_parent=context.editor,
@@ -663,7 +708,7 @@ class PromptEditorCompositionFactory:
         self,
         context: PromptEditorCompositionContext,
         *,
-        lora_metadata: PromptLoraMetadataFeatureController,
+        lora_metadata: PromptLoraMetadataPresentation,
         lora_trigger_words: PromptLoraTriggerWordController,
         prepared_scene_context_at_position: _PromptSceneContextReader,
         context_insertion: PromptContextInsertionService[PromptProjectionUndoPayload],
@@ -673,7 +718,6 @@ class PromptEditorCompositionFactory:
         metadata_action_handler: (ModelMetadataContextActionHandler | None) = None,
     ) -> PromptInlineLoraContextMenuPresenter:
         """Build the inline LoRA context-menu presenter."""
-
         return PromptInlineLoraContextMenuPresenter(
             lora_metadata=lora_metadata,
             lora_trigger_words=lora_trigger_words,
@@ -693,7 +737,7 @@ class PromptEditorCompositionFactory:
         self,
         context: PromptEditorCompositionContext,
         *,
-        lora_metadata: PromptLoraMetadataFeatureController,
+        lora_metadata: PromptLoraMetadataPresentation,
         lora_thumbnail_cache: PromptLoraThumbnailCache,
         context_insertion: PromptContextInsertionService[PromptProjectionUndoPayload],
         last_context_menu_global_pos: Callable[[], QPoint | None],
@@ -741,12 +785,23 @@ class PromptEditorCompositionFactory:
         projection_collaborators: PromptEditorProjectionCollaborators,
         service_collaborators: PromptEditorServiceCollaborators,
         external_url_actions: PromptExternalUrlActionRunner,
-    ) -> PromptAutocompleteCoordinator:
+        document_service: PromptDocumentService,
+        *,
+        autocomplete_cursor_position: Callable[[], int],
+        autocomplete_focus_host: QWidget,
+        complete_lora_autocomplete_replacement: Callable[[], None],
+        cursor_rect: Callable[[], QRect],
+        execute_autocomplete_acceptance: Callable[
+            [PromptAutocompleteAcceptance],
+            PromptCommandResult[object],
+        ],
+        restore_autocomplete_focus: Callable[[], None],
+        viewport: Callable[[], QWidget],
+    ) -> PromptEditorAutocompleteCollaborators:
         """Build the autocomplete coordinator from prepared construction inputs."""
 
         def create_lora_wall(
             parent: QWidget,
-            *,
             thumbnail_cache: object,
         ) -> PromptAutocompleteLoraWall:
             """Create the concrete LoRA wall used inside autocomplete."""
@@ -762,26 +817,35 @@ class PromptEditorCompositionFactory:
             )
 
         autocomplete_presenter = PromptAutocompletePanelPresenter(
-            editor=cast(Any, context.editor),
+            host_widget=context.editor,
+            viewport=viewport,
+            cursor_rect=cursor_rect,
             panel_factory=lambda parent: PromptAutocompletePanel(parent),
             lora_wall_factory=create_lora_wall,
             lora_thumbnail_cache=projection_collaborators.lora_thumbnail_cache,
         )
         autocomplete_ghost_text_publisher = PromptAutocompleteGhostTextPublisher(
-            preview_sink=cast(Any, context.editor),
+            publish_preview_state=(
+                projection_collaborators.surface.set_autocomplete_preview_state
+            ),
         )
         autocomplete_acceptance_controller = PromptAutocompleteAcceptanceController(
-            editor=cast(Any, context.editor),
+            cursor_position=autocomplete_cursor_position,
+            current_source_identity=(
+                projection_collaborators.source_commands.source_identity
+            ),
+            execute_acceptance=execute_autocomplete_acceptance,
+            complete_lora_replacement=complete_lora_autocomplete_replacement,
         )
-        autocomplete_current_context = PromptAutocompleteCurrentContextBridge()
-        autocomplete_scene_context_controller = (
-            PromptAutocompleteSceneContextController(
-                scene_context_provider=service_collaborators.scene_feature_controller,
-            )
+        autocomplete_scene_context_controller = PromptAutocompleteSceneContextController(
+            scene_context_identity=(
+                lambda: (
+                    service_collaborators.scene_context_publication.scene_context_identity
+                )
+            ),
         )
         autocomplete_scheduled_lora_context_controller = PromptAutocompleteScheduledLoraContextController(
             context_provider=(service_collaborators.scheduled_lora_context_provider),
-            current_context=autocomplete_current_context,
             enabled=(
                 service_collaborators.feature_profile_controller.lora_trigger_words_enabled
             ),
@@ -789,38 +853,65 @@ class PromptEditorCompositionFactory:
         autocomplete_result_controller = PromptAutocompleteResultController(
             prompt_autocomplete_gateway=inputs.prompt_autocomplete_gateway,
             limit=context.autocomplete_limit,
-            scene_feature=service_collaborators.scene_feature_controller,
+            scene_autocomplete_state=(
+                lambda: (
+                    service_collaborators.scene_context_publication.snapshot.autocomplete
+                )
+            ),
             wildcard_feature=cast(
                 PromptAutocompleteWildcardResultProvider,
-                service_collaborators.wildcard_feature_controller,
+                service_collaborators.wildcard_autocomplete_presentation,
             ),
             prompt_lora_catalog_service=inputs.prompt_lora_catalog_service,
             trigger_word_provider=autocomplete_scheduled_lora_context_controller,
         )
         autocomplete_session_controller = PromptAutocompleteSessionController()
-        autocomplete = PromptAutocompleteCoordinator(
-            cast(Any, context.editor),
-            autocomplete_result_controller=autocomplete_result_controller,
-            autocomplete_scene_context_controller=autocomplete_scene_context_controller,
-            autocomplete_scheduled_lora_context_controller=(
-                autocomplete_scheduled_lora_context_controller
-            ),
-            autocomplete_presenter=autocomplete_presenter,
-            autocomplete_ghost_text_publisher=autocomplete_ghost_text_publisher,
-            autocomplete_ghost_text_enabled=(
+        session_publication = PromptAutocompleteSessionPublication(
+            sessions=autocomplete_session_controller,
+            presenter=autocomplete_presenter,
+            ghost_text_publisher=autocomplete_ghost_text_publisher,
+            ghost_text_enabled=(
                 service_collaborators.feature_profile_controller.autocomplete_ghost_text_enabled
             ),
-            autocomplete_acceptance_controller=autocomplete_acceptance_controller,
-            autocomplete_session_controller=autocomplete_session_controller,
+        )
+        acceptance_lifecycle = PromptAutocompleteAcceptanceLifecycle(
+            acceptance_controller=autocomplete_acceptance_controller,
+            session_publication=session_publication,
+        )
+        autocomplete = PromptAutocompleteInputAdapter(
+            autocomplete_focus_host,
+            restore_focus=restore_autocomplete_focus,
+            acceptance_lifecycle=acceptance_lifecycle,
+            session_publication=session_publication,
+        )
+        query_result_lifecycle = PromptAutocompleteQueryResultLifecycle(
+            query_controller=PromptAutocompleteQueryController(
+                document_service=document_service,
+                feature_profile=service_collaborators.feature_profile_controller,
+                minimum_prefix_length=context.autocomplete_minimum_prefix_length,
+            ),
+            result_controller=autocomplete_result_controller,
+            scene_context_controller=autocomplete_scene_context_controller,
+            publication=session_publication,
+            current_source_identity=(
+                projection_collaborators.source_commands.source_identity
+            ),
             lora_autocomplete_enabled=(
-                service_collaborators.feature_profile_controller.lora_autocomplete_enabled
+                lambda: (
+                    service_collaborators.feature_profile_controller.lora_autocomplete_enabled
+                )
             ),
             lora_thumbnail_cache_available=(
-                projection_collaborators.lora_thumbnail_cache is not None
+                lambda: projection_collaborators.lora_thumbnail_cache is not None
             ),
         )
-        autocomplete_current_context.bind(autocomplete)
-        return autocomplete
+        autocomplete_scheduled_lora_context_controller.bind_current_context(
+            query_result_lifecycle
+        )
+        return PromptEditorAutocompleteCollaborators(
+            autocomplete=autocomplete,
+            query_result_lifecycle=query_result_lifecycle,
+        )
 
     def build_syntax_collaborators(
         self,
@@ -828,47 +919,58 @@ class PromptEditorCompositionFactory:
         context: PromptEditorCompositionContext,
         projection_collaborators: PromptEditorProjectionCollaborators,
         service_collaborators: PromptEditorServiceCollaborators,
-        autocomplete: PromptAutocompleteController,
+        autocomplete: PromptAutocompleteInputPort,
+        document_service: PromptDocumentService,
+        autocomplete_query_result_lifecycle: PromptAutocompleteQueryResultLifecycle,
+        *,
+        autocomplete_cursor_state: Callable[[], tuple[int, bool]],
+        autocomplete_source_text: Callable[[], str],
+        syntax_active_span: Callable[[], PromptSyntaxSpanView | None],
+        syntax_cursor_position: Callable[[], int],
+        syntax_editor_session_id: int,
+        syntax_source_text: Callable[[], str],
+        interaction_editor: PromptInteractionEditor,
+        weight_interaction_editor: PromptWeightInteractionEditor,
+        wheel_surface_scroll_allowed: Callable[[QWheelEvent], bool],
+        wheel_surface_scroll_handler: Callable[[QWheelEvent], PromptWheelScrollResult],
+        wheel_to_editor_panel: Callable[[QWheelEvent], None],
     ) -> PromptEditorSyntaxCollaborators:
         """Build syntax services, renderers, controls, and interaction controller."""
-
-        document_service = PromptDocumentService(
-            autocomplete_query_service=PromptAutocompleteQueryService(
-                document_semantics=inputs.prompt_document_semantics
-            ),
-            document_semantics=inputs.prompt_document_semantics,
-        )
-        mutation_service = PromptMutationService(
-            document_semantics=inputs.prompt_document_semantics
-        )
-        syntax_profile = (
-            service_collaborators.feature_profile_controller.syntax_profile()
-        )
+        semantics = inputs.prompt_document_semantics
+        feature_profile = service_collaborators.feature_profile_controller
+        mutation_service = PromptMutationService(document_semantics=semantics)
+        syntax_profile = feature_profile.syntax_profile()
         syntax_service = PromptSyntaxService(
             inputs.prompt_wildcard_catalog_gateway,
             prompt_lora_catalog_service=inputs.prompt_lora_catalog_service,
-            document_semantics=inputs.prompt_document_semantics,
+            document_semantics=semantics,
         )
         reorder_preview_projection_provider = PromptReorderPreviewProjectionProvider(
             document_service=document_service,
             syntax_service=syntax_service,
             syntax_profile=syntax_profile,
         )
+        reorder_interaction_metrics = PromptReorderInteractionMetricsOwner()
         reorder_overlay_factory = PromptSegmentReorderOverlayFactory(
             document_service=document_service,
             syntax_service=syntax_service,
             syntax_profile=syntax_profile,
+            geometry_owner=projection_collaborators.surface.reorder_geometry_owner,
+            interaction_metrics=reorder_interaction_metrics,
         )
         syntax_renderer_coordinator = PromptSyntaxRendererCoordinator(
             (projection_collaborators.surface,)
         )
         syntax_state_controller = PromptSyntaxStateController(
-            editor=cast(Any, context.editor),
+            active_syntax_span=syntax_active_span,
+            cursor_position=syntax_cursor_position,
+            editor_session_id=syntax_editor_session_id,
             renderers=syntax_renderer_coordinator,
             document_service=document_service,
             syntax_service=syntax_service,
             syntax_profile=syntax_profile,
             state=projection_collaborators.surface.editor_state,
+            source_text=syntax_source_text,
             source_changed_callback=lambda reason: (
                 reorder_preview_projection_provider.clear_cache(reason=reason)
             ),
@@ -884,34 +986,48 @@ class PromptEditorCompositionFactory:
                 owner_label="prompt-semantic",
             ),
         )
-        autocomplete_query_refresh_controller = (
-            PromptAutocompleteQueryRefreshController(
-                autocomplete=autocomplete,
-                query_controller=PromptAutocompleteQueryController(
-                    document_service=document_service,
-                    feature_profile=service_collaborators.feature_profile_controller,
-                    minimum_prefix_length=context.autocomplete_minimum_prefix_length,
-                ),
-            )
-        )
         autocomplete_source_snapshots = PromptAutocompleteSourceSnapshotController(
-            cast(Any, context.editor),
+            cursor_state=autocomplete_cursor_state,
             document_view_provider=lambda: syntax_state_controller.document_view,
             feature_profile=service_collaborators.feature_profile_controller,
+            source_identity=projection_collaborators.source_commands.source_identity,
+            source_text=autocomplete_source_text,
         )
         autocomplete_timing_controller = PromptAutocompleteTimingController(
             source_snapshots=autocomplete_source_snapshots,
-            lifecycle_requester=autocomplete_query_refresh_controller,
+            lifecycle_requester=autocomplete_query_result_lifecycle,
             lora_autocomplete_enabled=(
                 lambda: (
                     service_collaborators.feature_profile_controller.lora_autocomplete_enabled
                 )
             ),
         )
+        reorder_preview_publication = PromptReorderPreviewPublicationOwner(
+            clear_preview_state=projection_collaborators.surface.clear_reorder_preview_state,
+            current_document_view=lambda: syntax_state_controller.document_view,
+            publish_preview_state=projection_collaborators.surface.set_reorder_preview_state,
+            source_identity=projection_collaborators.source_commands.source_identity,
+            viewport_width=lambda: projection_collaborators.surface.viewport().width(),
+            document_service=document_service,
+            projection_provider=reorder_preview_projection_provider,
+            metrics=reorder_interaction_metrics,
+            interval_ms=PromptReorderPreviewPublicationOwner.DEFAULT_INTERVAL_MS,
+        )
+        weight_interaction = PromptWeightInteraction(
+            editor=weight_interaction_editor,
+            autocomplete_timing=autocomplete_timing_controller,
+            syntax_state=syntax_state_controller,
+            document_service=document_service,
+            mutation_service=mutation_service,
+            syntax_service=syntax_service,
+            syntax_profile=syntax_profile,
+            feature_profile=service_collaborators.feature_profile_controller,
+            semantic_refresh=semantic_refresh_controller,
+            projection=projection_collaborators.surface,
+        )
         interaction_controller = PromptInteractionController(
-            cast(Any, context.editor),
+            interaction_editor,
             autocomplete=autocomplete,
-            autocomplete_minimum_prefix_length=context.autocomplete_minimum_prefix_length,
             autocomplete_timing_controller=autocomplete_timing_controller,
             syntax_state=syntax_state_controller,
             document_service=document_service,
@@ -921,17 +1037,19 @@ class PromptEditorCompositionFactory:
             feature_profile=service_collaborators.feature_profile_controller,
             semantic_refresh_controller=semantic_refresh_controller,
             reorder_overlay_factory=reorder_overlay_factory,
-            exact_weight_projection=projection_collaborators.surface,
-            reorder_preview_projection_provider=reorder_preview_projection_provider,
+            reorder_preview_publication=reorder_preview_publication,
+            weight_interaction=weight_interaction,
         )
         token_weight_wheel_intent = PromptTokenWeightWheelIntentController()
         token_weight_controls = PromptTokenWeightControlsFactory(
             surface=projection_collaborators.surface,
-            exact_edit_host=interaction_controller,
+            exact_edit_host=weight_interaction,
             wheel_intent_owner=token_weight_wheel_intent,
         ).create_token_weight_controls()
         wheel_controller = PromptWheelController(
-            cast(Any, context.editor),
+            allow_surface_scroll=wheel_surface_scroll_allowed,
+            forward_to_editor_panel=wheel_to_editor_panel,
+            handle_surface_scroll=wheel_surface_scroll_handler,
             token_weight_wheel_intent=token_weight_wheel_intent,
             token_weight_wheel_handler=token_weight_controls.handle_host_wheel_event,
         )
@@ -943,6 +1061,7 @@ class PromptEditorCompositionFactory:
             syntax_profile=syntax_profile,
             syntax_service=syntax_service,
             token_weight_controls=token_weight_controls,
+            weight_interaction=weight_interaction,
             wheel_controller=wheel_controller,
             syntax_renderer_coordinator=syntax_renderer_coordinator,
             interaction_controller=interaction_controller,
@@ -953,20 +1072,18 @@ class PromptEditorCompositionFactory:
         context: PromptEditorCompositionContext,
     ) -> QWidget:
         """Build the resize handle used by later signal/layout wiring."""
-
         return context.resize_handle_factory(context.editor)
 
     def bundle_collaborators(
         self,
         projection_collaborators: PromptEditorProjectionCollaborators,
         service_collaborators: PromptEditorServiceCollaborators,
-        autocomplete: PromptAutocompleteController,
+        autocomplete: PromptAutocompleteInputPort,
         syntax_collaborators: PromptEditorSyntaxCollaborators,
         inline_lora_menu_presenter: PromptInlineLoraContextMenuPresenter,
         resize_handle: QWidget,
     ) -> PromptEditorCollaborators:
         """Combine phase-local construction results into the public bundle."""
-
         return PromptEditorCollaborators(
             lora_thumbnail_cache=projection_collaborators.lora_thumbnail_cache,
             lora_thumbnail_preloader=(
@@ -987,10 +1104,14 @@ class PromptEditorCompositionFactory:
             feature_profile_controller=(
                 service_collaborators.feature_profile_controller
             ),
-            scene_feature_controller=service_collaborators.scene_feature_controller,
+            scene_context_publication=service_collaborators.scene_context_publication,
+            scene_position_preparation=service_collaborators.scene_position_preparation,
             search_feature_controller=service_collaborators.search_feature_controller,
-            wildcard_feature_controller=(
-                service_collaborators.wildcard_feature_controller
+            wildcard_autocomplete_presentation=(
+                service_collaborators.wildcard_autocomplete_presentation
+            ),
+            wildcard_diagnostics_presentation=(
+                service_collaborators.wildcard_diagnostics_presentation
             ),
             segment_preset_controller=service_collaborators.segment_preset_controller,
             danbooru_action_controller=(
@@ -1002,6 +1123,7 @@ class PromptEditorCompositionFactory:
             syntax_profile=syntax_collaborators.syntax_profile,
             syntax_service=syntax_collaborators.syntax_service,
             token_weight_controls=syntax_collaborators.token_weight_controls,
+            weight_interaction=syntax_collaborators.weight_interaction,
             wheel_controller=syntax_collaborators.wheel_controller,
             syntax_renderer_coordinator=(
                 syntax_collaborators.syntax_renderer_coordinator

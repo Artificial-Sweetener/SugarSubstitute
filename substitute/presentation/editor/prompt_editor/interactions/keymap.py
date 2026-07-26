@@ -19,20 +19,23 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Protocol
+from typing import Generic, Protocol, TypeVar
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent, QKeySequence
 
-from .undo_coalescing import PromptUndoCoalescingActions
-from ..models import (
-    PromptEditorInteractionMode,
+from substitute.application.prompt_editor.reorder.intents import (
     PromptReorderCancelIntent,
     PromptReorderCommitIntent,
     PromptReorderKeyboardMoveIntent,
 )
+
+from .undo_coalescing import PromptUndoCoalescingController
+from ..models import PromptEditorInteractionMode
 from .clipboard_history_controller import PromptClipboardHistoryActions
 from .deletion_controller import PromptDeletionActions
+
+TPayload = TypeVar("TPayload")
 
 
 class _PromptSurfaceEmphasisShortcutSignal(Protocol):
@@ -83,7 +86,7 @@ class PromptSurfaceKeyHost(Protocol):
         """Move the caret vertically through projection-aware geometry."""
 
 
-class PromptSurfaceKeyHandler:
+class PromptSurfaceKeyHandler(Generic[TPayload]):
     """Route surface key events while preserving existing edit boundaries."""
 
     def __init__(
@@ -97,7 +100,7 @@ class PromptSurfaceKeyHandler:
         ],
         undo_coalescing_actions: Callable[
             [],
-            PromptUndoCoalescingActions | None,
+            PromptUndoCoalescingController[TPayload] | None,
         ],
     ) -> None:
         """Bind the handler to the surface operations it may delegate to."""
@@ -316,9 +319,6 @@ class PromptKeymapHost(Protocol):
     ) -> None:
         """Move the active reorder chip through the existing reorder owner."""
 
-    def handle_exact_weight_key_press(self, event: QKeyEvent) -> bool:
-        """Delegate active exact-weight editing key handling."""
-
     def handle_autocomplete_key_press_from_keymap(self, event: QKeyEvent) -> bool:
         """Delegate pre-edit autocomplete key handling."""
 
@@ -337,17 +337,27 @@ class PromptKeymapHost(Protocol):
     def flush_semantic_refresh_from_keymap(self, *, reason: str) -> None:
         """Flush pending semantic refresh for key-owned syntax reasons."""
 
-    def clear_keyboard_emphasis_session_from_keymap(self) -> None:
-        """Clear keyboard-owned emphasis state when Ctrl is released."""
+
+class PromptKeymapWeightPort(Protocol):
+    """Describe weight interactions consumed by the keyboard router."""
+
+    def handle_exact_weight_key_press(self, event: QKeyEvent) -> bool:
+        """Handle one key for active exact-weight editing."""
+
+    def clear_keyboard_emphasis_session(self) -> None:
+        """Clear keyboard-owned emphasis adjustment state."""
 
 
 class PromptKeymapController:
     """Coordinate prompt-editor key routing without owning feature behavior."""
 
-    def __init__(self, host: PromptKeymapHost) -> None:
+    def __init__(
+        self, host: PromptKeymapHost, *, weights: PromptKeymapWeightPort
+    ) -> None:
         """Bind the controller to the keymap host."""
 
         self._host = host
+        self._weights = weights
 
     def handle_key_press(self, event: QKeyEvent) -> bool:
         """Handle pre-edit key routing that should intercept normal text editing."""
@@ -364,7 +374,7 @@ class PromptKeymapController:
         if event.key() == Qt.Key.Key_Alt:
             self._host.enter_segment_reorder_mode_from_keymap()
             return True
-        if self._host.handle_exact_weight_key_press(event):
+        if self._weights.handle_exact_weight_key_press(event):
             return True
         return self._host.handle_autocomplete_key_press_from_keymap(event)
 
@@ -397,7 +407,7 @@ class PromptKeymapController:
             return True
 
         if event.key() == Qt.Key.Key_Control:
-            self._host.clear_keyboard_emphasis_session_from_keymap()
+            self._weights.clear_keyboard_emphasis_session()
         return False
 
     def _handle_reorder_key_press(self, event: QKeyEvent) -> bool:
@@ -476,6 +486,7 @@ def _is_plain_text_insertion_event(event: QKeyEvent) -> bool:
 __all__ = [
     "PromptKeymapController",
     "PromptKeymapHost",
+    "PromptKeymapWeightPort",
     "PromptSurfaceKeyHandler",
     "PromptSurfaceKeyHost",
 ]

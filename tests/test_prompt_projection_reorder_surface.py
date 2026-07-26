@@ -26,7 +26,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 from PySide6.QtCore import QRectF
-from PySide6.QtGui import QRegion
+from PySide6.QtGui import QColor, QRegion
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
@@ -34,15 +34,25 @@ from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
 from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.geometry.selection import (
+    PromptSelectionGeometry,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
 )
-from substitute.presentation.editor.prompt_editor.projection.reorder_interaction_geometry import (
-    layout_view_key,
+from substitute.presentation.editor.prompt_editor.projection.reorder_interaction_geometry_identity import (
+    reorder_layout_view_key as layout_view_key,
 )
 from substitute.presentation.editor.prompt_editor.projection.reorder_preview import (
     PromptReorderPreviewState,
     PromptReorderProjectionSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.projection.reorder_surface_chrome import (
+    PromptReorderSurfaceChromeChip,
+    PromptReorderSurfaceChromeStyle,
+)
+from substitute.presentation.editor.prompt_editor.projection.reorder_surface_visual_state import (
+    PromptReorderSurfaceVisualPublication,
 )
 from tests.prompt_autocomplete_test_helpers import prompt_syntax_profile
 from tests.prompt_projection_test_helpers import (
@@ -135,6 +145,98 @@ def _build_reorder_preview_state(
     )
 
 
+def test_projection_surface_publishes_combined_reorder_visual_once(
+    widgets: list[QWidget],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Chrome and suppression should produce one surface render-frame publish."""
+
+    text = "alpha, beta, gamma"
+    drop_target = PromptLineDropTarget(row_index=0, insertion_index=0)
+    box = show_prompt_editor(widgets, text=text, width=320)
+    surface = surface_for(box)
+    preview_state = _build_reorder_preview_state(
+        text,
+        dragged_chip_index=1,
+        drop_target=drop_target,
+    )
+    surface.set_reorder_preview_state(preview_state)
+    document_service = PromptDocumentService()
+    preview_layout_view = document_service.build_preview_drop_layout_view(
+        document_service.build_document_view(text),
+        dragged_segment_index=1,
+        drop_target=drop_target,
+    )
+    geometry = surface.reorder_preview_chip_geometry_snapshot(
+        snapshot=preview_state.preview_snapshot,
+        layout_view=preview_layout_view,
+    )
+    paint_snapshots = surface.reorder_preview_chip_projection_paint_snapshots(
+        chip_geometry_snapshot=geometry,
+        chip_owned_ranges_by_index=(
+            preview_state.preview_snapshot.chip_owned_ranges_by_index
+        ),
+    )
+    publication = PromptReorderSurfaceVisualPublication(
+        mode="preview",
+        chips=(
+            PromptReorderSurfaceChromeChip(
+                segment_index=0,
+                geometry=geometry.geometries_by_chip_index[0],
+                style=PromptReorderSurfaceChromeStyle(
+                    fill_color=QColor(10, 20, 30),
+                    border_color=QColor(40, 50, 60),
+                ),
+            ),
+        ),
+        suppression_snapshots_by_index={2: paint_snapshots[2]},
+    )
+    publish_count = 0
+    publish_render_frame = surface._publish_render_frame  # noqa: SLF001
+
+    def count_publish() -> None:
+        """Count surface frame publication while preserving production behavior."""
+
+        nonlocal publish_count
+        publish_count += 1
+        publish_render_frame()
+
+    monkeypatch.setattr(surface, "_publish_render_frame", count_publish)
+
+    surface.set_reorder_surface_visual_publication(publication)
+    assert publish_count == 1
+    assert surface._reorder_surface_visual_state.state.revision == 1  # noqa: SLF001
+    surface.set_reorder_surface_visual_publication(publication)
+    assert publish_count == 1
+    assert surface._reorder_surface_visual_state.state.revision == 1  # noqa: SLF001
+
+
+def test_unchanged_reorder_preview_publication_reuses_the_exact_render_frame(
+    widgets: list[QWidget],
+) -> None:
+    """Stable preview context should not allocate replacement render frames."""
+
+    prompt_text = "alpha, beta, gamma"
+    box = show_prompt_editor(widgets, text=prompt_text, width=320)
+    surface = surface_for(box)
+    surface.set_reorder_preview_state(
+        _build_reorder_preview_state(
+            prompt_text,
+            dragged_chip_index=1,
+            drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
+        )
+    )
+    owner = surface._render_frame_owner  # noqa: SLF001
+    initial_frame = owner.frame
+
+    surface._publish_render_frame()  # noqa: SLF001
+    first_repeat = owner.frame
+    surface._publish_render_frame()  # noqa: SLF001
+
+    assert first_repeat is initial_frame
+    assert owner.frame is initial_frame
+
+
 def test_projection_surface_switches_to_reorder_preview_text_and_exposes_preview_queries(
     widgets: list[QWidget],
     monkeypatch: pytest.MonkeyPatch,
@@ -198,21 +300,44 @@ def test_projection_surface_switches_to_reorder_preview_text_and_exposes_preview
         == (preview_state.preview_snapshot.chip_owned_ranges_by_index[1])
     )
     assert beta_paint_snapshot.text_fragments
-    preview_layout = surface._reorder_preview_projection.preview_layout  # noqa: SLF001
-    assert preview_layout is not None
+    preview_frame = surface._reorder_preview_projection.preview_frame  # noqa: SLF001
+    assert preview_frame is not None
+    preview_selection_geometry = preview_frame.geometry.selection
+    source_range_fragments = PromptSelectionGeometry.source_range_fragments
 
-    def fail_redundant_fragment_lookup(*_args: object, **_kwargs: object) -> None:
+    def fail_redundant_fragment_lookup(
+        selection_geometry: PromptSelectionGeometry,
+        start: int,
+        end: int,
+        *,
+        viewport_rect: QRectF,
+        scroll_offset: float,
+    ) -> tuple[QRectF, ...]:
         """Fail if fresh paint snapshots are ignored for suppression geometry."""
 
-        raise AssertionError("fresh preview paint snapshots should own suppression")
+        if selection_geometry is preview_selection_geometry:
+            raise AssertionError("fresh preview paint snapshots should own suppression")
+        return source_range_fragments(
+            selection_geometry,
+            start,
+            end,
+            viewport_rect=viewport_rect,
+            scroll_offset=scroll_offset,
+        )
 
     monkeypatch.setattr(
-        preview_layout,
+        PromptSelectionGeometry,
         "source_range_fragments",
         fail_redundant_fragment_lookup,
     )
-    surface.set_reorder_overlay_suppression_snapshots(
-        {index: preview_paint_snapshots[index] for index in (0, 2)}
+    surface.set_reorder_surface_visual_publication(
+        PromptReorderSurfaceVisualPublication(
+            mode="preview",
+            chips=(),
+            suppression_snapshots_by_index={
+                index: preview_paint_snapshots[index] for index in (0, 2)
+            },
+        )
     )
     assert surface._preview_visible_region() is not None  # noqa: SLF001
     assert surface.reorder_preview_cursor_rect(beta_range[0]).isEmpty() is False
@@ -249,14 +374,14 @@ def test_projection_surface_keeps_reused_reorder_layouts_at_editor_width(
     )
     surface.set_reorder_preview_state(preview_state)
 
-    preview_layout = surface._reorder_preview_projection.preview_layout  # noqa: SLF001
-    base_drag_layout = (  # noqa: SLF001
-        surface._reorder_preview_projection.base_drag_layout
+    preview_frame = surface._reorder_preview_projection.preview_frame  # noqa: SLF001
+    base_drag_frame = (  # noqa: SLF001
+        surface._reorder_preview_projection.base_drag_frame
     )
-    assert preview_layout is not None
-    assert base_drag_layout is not None
-    assert preview_layout._text_width > 16.0  # noqa: SLF001
-    assert base_drag_layout._text_width > 16.0  # noqa: SLF001
+    assert preview_frame is not None
+    assert base_drag_frame is not None
+    assert preview_frame.output.configuration.text_width > 16.0
+    assert base_drag_frame.output.configuration.text_width > 16.0
 
 
 def test_reorder_base_drag_rebuilds_suffix_with_resolvable_semantics(
@@ -289,16 +414,16 @@ def test_reorder_base_drag_rebuilds_suffix_with_resolvable_semantics(
         )
     )
 
-    preview_layout = surface._reorder_preview_projection.preview_layout  # noqa: SLF001
-    assert preview_layout is not None
+    preview_frame = surface._reorder_preview_projection.preview_frame  # noqa: SLF001
+    assert preview_frame is not None
     unresolved_fragments = tuple(
         fragment
-        for line in preview_layout._snapshot.lines  # noqa: SLF001
+        for line in preview_frame.output.snapshot.lines
         for fragment in line.fragments
-        if preview_layout.effective_run_for_paint(fragment.run_id) is None
+        if preview_frame.paint_input.effective_run(fragment.run_id) is None
         or (
             fragment.token_id is not None
-            and preview_layout.effective_token_for_paint(fragment.token_id) is None
+            and preview_frame.paint_input.effective_token(fragment.token_id) is None
         )
     )
     assert unresolved_fragments == ()
@@ -818,7 +943,13 @@ def test_projection_surface_excludes_dragged_chip_and_separator_from_preview_reg
             preview_state.preview_snapshot.chip_owned_ranges_by_index
         ),
     )
-    surface.set_reorder_overlay_suppression_snapshots({1: paint_snapshots[1]})
+    surface.set_reorder_surface_visual_publication(
+        PromptReorderSurfaceVisualPublication(
+            mode="preview",
+            chips=(),
+            suppression_snapshots_by_index={1: paint_snapshots[1]},
+        )
+    )
 
     visible_region = surface._preview_visible_region()  # noqa: SLF001
     assert visible_region is not None
@@ -868,7 +999,13 @@ def test_projection_surface_excludes_overlay_painted_preview_chips(
             preview_state.preview_snapshot.chip_owned_ranges_by_index
         ),
     )
-    surface.set_reorder_overlay_suppression_snapshots({2: preview_paint_snapshots[2]})
+    surface.set_reorder_surface_visual_publication(
+        PromptReorderSurfaceVisualPublication(
+            mode="preview",
+            chips=(),
+            suppression_snapshots_by_index={2: preview_paint_snapshots[2]},
+        )
+    )
 
     visible_region = surface._preview_visible_region()  # noqa: SLF001
     assert visible_region is not None
@@ -888,7 +1025,13 @@ def test_projection_surface_excludes_overlay_painted_preview_chips(
         for fragment in surface.reorder_preview_fragments(start=start, end=end)
     )
 
-    surface.set_reorder_overlay_suppression_snapshots({})
+    surface.set_reorder_surface_visual_publication(
+        PromptReorderSurfaceVisualPublication(
+            mode="preview",
+            chips=(),
+            suppression_snapshots_by_index={},
+        )
+    )
     restored_region = surface._preview_visible_region()  # noqa: SLF001
     assert restored_region is None
 
@@ -926,7 +1069,13 @@ def test_projection_surface_keeps_text_visible_for_stale_overlay_snapshot(
         ),
     )
     stale_snapshot = paint_snapshots[2]
-    surface.set_reorder_overlay_suppression_snapshots({2: stale_snapshot})
+    surface.set_reorder_surface_visual_publication(
+        PromptReorderSurfaceVisualPublication(
+            mode="preview",
+            chips=(),
+            suppression_snapshots_by_index={2: stale_snapshot},
+        )
+    )
 
     refreshed_state = _build_reorder_preview_state(
         text,
@@ -966,6 +1115,6 @@ def test_projection_surface_clears_reorder_preview_state_back_to_live_rendering(
     surface.clear_reorder_preview_state()
 
     assert surface._reorder_preview_projection.preview_document is None  # noqa: SLF001
-    assert surface._reorder_preview_projection.preview_layout is None  # noqa: SLF001
+    assert surface._reorder_preview_projection.preview_frame is None  # noqa: SLF001
     assert surface.reorder_preview_fragments(start=0, end=1) == ()
     assert surface.reorder_preview_cursor_rect(0).isEmpty() is True

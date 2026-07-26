@@ -22,7 +22,9 @@ from collections.abc import Iterator, Sequence
 from dataclasses import replace
 from typing import overload
 
-from .model import PromptProjectionRun
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
+    PromptProjectionRun,
+)
 from .plain_edit_coordinates import PromptProjectionPlainEditCoordinates
 
 

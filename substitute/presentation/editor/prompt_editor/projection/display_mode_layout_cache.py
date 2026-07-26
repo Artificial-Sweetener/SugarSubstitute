@@ -25,13 +25,20 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 )
 
 from .applicator import PromptProjectionRebuildResult
-from .layout_checkpoint import PromptProjectionLayoutCheckpoint
-from .layout_engine import PromptProjectionLayout
-from .model import (
+from ..layout.checkpoints import (
+    PromptProjectionLayoutCheckpoint,
+    capture_layout_checkpoint,
+    restore_layout_checkpoint,
+)
+from ..layout.contracts import PromptLayoutOutput
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretState,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
 )
 from .session import PromptProjectionSession
+from .paint_input import PromptProjectionPaintInput
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +81,14 @@ class _PromptProjectionDisplayModeLayoutEntry:
     checkpoint: PromptProjectionLayoutCheckpoint
 
 
+@dataclass(frozen=True, slots=True)
+class PromptProjectionDisplayModeRestore:
+    """Carry restored layout output and caret-resolved projection state."""
+
+    layout_output: PromptLayoutOutput
+    projection_rebuild: PromptProjectionRebuildResult
+
+
 class PromptProjectionDisplayModeLayoutCache:
     """Own bounded exact-layout checkpoints for the two display modes."""
 
@@ -93,13 +108,18 @@ class PromptProjectionDisplayModeLayoutCache:
     def remember(
         self,
         display_mode: PromptProjectionDisplayMode,
-        layout: PromptProjectionLayout,
+        layout_output: PromptLayoutOutput,
+        paint_input: PromptProjectionPaintInput,
         *,
         identity: PromptProjectionDisplayModeLayoutIdentity,
     ) -> None:
         """Remember the exact current layout when source ownership is canonical."""
 
-        checkpoint = layout.create_history_checkpoint()
+        checkpoint = capture_layout_checkpoint(
+            layout_output,
+            palette_key=int(paint_input.palette.cacheKey()),
+            semantic_palette=paint_input.semantic_palette,
+        )
         if (
             checkpoint is None
             or checkpoint.projection_document.display_mode is not display_mode
@@ -114,13 +134,14 @@ class PromptProjectionDisplayModeLayoutCache:
     def try_restore(
         self,
         display_mode: PromptProjectionDisplayMode,
-        layout: PromptProjectionLayout,
+        current_output: PromptLayoutOutput,
+        paint_input: PromptProjectionPaintInput,
         *,
         identity: PromptProjectionDisplayModeLayoutIdentity,
         expected_source_text: str,
         previous_cursor_state: PromptProjectionCaretState,
         previous_anchor_state: PromptProjectionCaretState,
-    ) -> PromptProjectionRebuildResult | None:
+    ) -> PromptProjectionDisplayModeRestore | None:
         """Restore one exact matching mode layout and remap source carets."""
 
         entry = self._entries.get(display_mode)
@@ -129,20 +150,31 @@ class PromptProjectionDisplayModeLayoutCache:
             or entry.identity != identity
             or entry.checkpoint.projection_document.display_mode is not display_mode
             or entry.checkpoint.projection_document.source_text != expected_source_text
-            or not layout.try_restore_history_checkpoint(entry.checkpoint)
         ):
             self._entries.pop(display_mode, None)
             return None
         checkpoint = entry.checkpoint
+        layout_output = restore_layout_checkpoint(
+            checkpoint,
+            configuration=current_output.configuration,
+            palette_key=int(paint_input.palette.cacheKey()),
+            semantic_palette=paint_input.semantic_palette,
+        )
+        if layout_output is None:
+            self._entries.pop(display_mode, None)
+            return None
         projection_document = checkpoint.projection_document
-        return PromptProjectionRebuildResult(
-            projection_document=projection_document,
-            active_span_range=None,
-            cursor_state=projection_document.caret_map.resolve_state(
-                previous_cursor_state
-            ),
-            anchor_state=projection_document.caret_map.resolve_state(
-                previous_anchor_state
+        return PromptProjectionDisplayModeRestore(
+            layout_output=layout_output,
+            projection_rebuild=PromptProjectionRebuildResult(
+                projection_document=projection_document,
+                active_span_range=None,
+                cursor_state=projection_document.caret_map.resolve_state(
+                    previous_cursor_state
+                ),
+                anchor_state=projection_document.caret_map.resolve_state(
+                    previous_anchor_state
+                ),
             ),
         )
 
@@ -150,4 +182,5 @@ class PromptProjectionDisplayModeLayoutCache:
 __all__ = [
     "PromptProjectionDisplayModeLayoutCache",
     "PromptProjectionDisplayModeLayoutIdentity",
+    "PromptProjectionDisplayModeRestore",
 ]

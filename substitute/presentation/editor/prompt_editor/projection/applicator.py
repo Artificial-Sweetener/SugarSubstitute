@@ -29,9 +29,12 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 )
 
 from .builder import PromptProjectionBuilder
-from .layout_engine import PromptProjectionLayout
-from .model import (
+from .edit_to_frame import PromptLayoutEditToFrameCoordinator
+from .prepared_frame import PromptProjectionPreparedFrame
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretState,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
     PromptProjectionTransientState,
@@ -67,7 +70,7 @@ class PromptProjectionLayoutSyncResult:
     """Carry layout metrics after projection-owned layout state is synchronized."""
 
     layout_width: float
-    active_layout: PromptProjectionLayout
+    active_frame: PromptProjectionPreparedFrame
     content_height: float
     content_width: float
 
@@ -111,7 +114,7 @@ class PromptProjectionApplicator:
         scene_error_keys: frozenset[str],
         transient_state: PromptProjectionTransientState | None = None,
         current_document: PromptProjectionDocument,
-        layout: PromptProjectionLayout,
+        frame: PromptProjectionPreparedFrame,
     ) -> PromptProjectionPaintStateApplyResult | None:
         """Apply semantic paint state when projection geometry is identical."""
 
@@ -137,9 +140,8 @@ class PromptProjectionApplicator:
             decoration_accent_ranges=decoration_accent_ranges,
             scene_error_keys=scene_error_keys,
         )
-        if not layout.can_apply_paint_state(paint_state):
+        if not frame.try_set_paint_state(paint_state):
             return None
-        layout.set_projection_paint_state(paint_state)
         return PromptProjectionPaintStateApplyResult(
             projection_document=current_document,
             paint_state=paint_state,
@@ -157,7 +159,7 @@ class PromptProjectionApplicator:
         decoration_accent_ranges: tuple[tuple[int, int], ...],
         scene_error_keys: frozenset[str],
         transient_state: PromptProjectionTransientState | None = None,
-        layout: PromptProjectionLayout,
+        frame: PromptProjectionPreparedFrame,
     ) -> PromptProjectionPaintStateApplyResult | None:
         """Apply projection paint state when layout reports reusable geometry."""
 
@@ -174,7 +176,7 @@ class PromptProjectionApplicator:
         ):
             return None
         _ = (document_view, render_plan)
-        projection_document = layout.projection_document
+        projection_document = frame.output.projection_document
         if projection_document.source_text != document_view.source_text:
             return None
         paint_state = self._paint_state_builder.build(
@@ -184,9 +186,8 @@ class PromptProjectionApplicator:
             decoration_accent_ranges=decoration_accent_ranges,
             scene_error_keys=scene_error_keys,
         )
-        if not layout.can_apply_paint_state(paint_state):
+        if not frame.try_set_paint_state(paint_state):
             return None
-        layout.set_projection_paint_state(paint_state)
         return PromptProjectionPaintStateApplyResult(
             projection_document=projection_document,
             paint_state=paint_state,
@@ -204,7 +205,7 @@ class PromptProjectionApplicator:
         decoration_accent_ranges: tuple[tuple[int, int], ...],
         scene_error_keys: frozenset[str],
         transient_state: PromptProjectionTransientState | None = None,
-        layout: PromptProjectionLayout,
+        layout: PromptLayoutEditToFrameCoordinator,
         font: QFont,
         palette: QPalette,
         semantic_palette: SemanticPalette,
@@ -224,8 +225,8 @@ class PromptProjectionApplicator:
             transient_state=transient_state,
         )
         layout.set_base_font(font)
-        layout.set_palette(palette)
-        layout.set_semantic_palette(semantic_palette)
+        layout.frame.set_palette(palette)
+        layout.frame.set_semantic_palette(semantic_palette)
         layout.set_projection(
             projection_document,
             prompt_document_view=document_view,
@@ -244,9 +245,9 @@ class PromptProjectionApplicator:
     def sync_layout_state(
         self,
         *,
-        layout: PromptProjectionLayout,
-        reorder_preview_layout: PromptProjectionLayout | None,
-        reorder_base_drag_layout: PromptProjectionLayout | None,
+        layout: PromptLayoutEditToFrameCoordinator,
+        reorder_preview_frame: PromptProjectionPreparedFrame | None,
+        reorder_base_drag_frame: PromptProjectionPreparedFrame | None,
         layout_width: float,
         font: QFont,
         palette: QPalette,
@@ -256,33 +257,33 @@ class PromptProjectionApplicator:
         """Synchronize projection-owned layout style and width inputs."""
 
         layout.set_base_font(font)
-        layout.set_palette(palette)
-        layout.set_semantic_palette(semantic_palette)
+        layout.frame.set_palette(palette)
+        layout.frame.set_semantic_palette(semantic_palette)
         layout.set_text_width(layout_width)
         layout.set_content_left_inset(content_left_inset)
-        if reorder_preview_layout is not None:
-            self._sync_auxiliary_layout(
-                reorder_preview_layout,
+        if reorder_preview_frame is not None:
+            self._sync_auxiliary_frame(
+                reorder_preview_frame,
                 layout_width=layout_width,
                 font=font,
                 palette=palette,
                 semantic_palette=semantic_palette,
             )
-        if reorder_base_drag_layout is not None:
-            self._sync_auxiliary_layout(
-                reorder_base_drag_layout,
+        if reorder_base_drag_frame is not None:
+            self._sync_auxiliary_frame(
+                reorder_base_drag_frame,
                 layout_width=layout_width,
                 font=font,
                 palette=palette,
                 semantic_palette=semantic_palette,
             )
-        active_layout = (
-            reorder_preview_layout if reorder_preview_layout is not None else layout
+        active_frame = (
+            reorder_preview_frame if reorder_preview_frame is not None else layout.frame
         )
-        content_size = active_layout.content_size()
+        content_size = active_frame.output.snapshot.content_size
         return PromptProjectionLayoutSyncResult(
             layout_width=layout_width,
-            active_layout=active_layout,
+            active_frame=active_frame,
             content_height=content_size.height(),
             content_width=content_size.width(),
         )
@@ -312,21 +313,25 @@ class PromptProjectionApplicator:
             transient_state=transient_state,
         )
 
-    def _sync_auxiliary_layout(
+    def _sync_auxiliary_frame(
         self,
-        layout: PromptProjectionLayout,
+        frame: PromptProjectionPreparedFrame,
         *,
         layout_width: float,
         font: QFont,
         palette: QPalette,
         semantic_palette: SemanticPalette,
     ) -> None:
-        """Synchronize style and width inputs for one preview layout."""
+        """Synchronize paint inputs and assert current preview geometry."""
 
-        layout.set_base_font(font)
-        layout.set_palette(palette)
-        layout.set_semantic_palette(semantic_palette)
-        layout.set_text_width(layout_width)
+        configuration = frame.output.configuration
+        if (
+            configuration.base_font.toString() != font.toString()
+            or abs(configuration.text_width - layout_width) >= 0.01
+        ):
+            raise AssertionError("reorder preview frame geometry is stale")
+        frame.set_palette(palette)
+        frame.set_semantic_palette(semantic_palette)
 
 
 def projection_geometry_signature_matches(

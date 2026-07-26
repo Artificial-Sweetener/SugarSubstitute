@@ -65,17 +65,24 @@ from substitute.presentation.editor.prompt_editor.features.catalog_snapshots imp
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptFeatureProfileController,
-    PromptWildcardFeatureController,
+    PromptWildcardAutocompletePresentation,
+)
+from substitute.presentation.editor.prompt_editor.features.scene_models import (
+    PromptSceneAutocompleteState,
 )
 from substitute.presentation.editor.prompt_editor.projection.autocomplete_ghost_text import (
     PromptAutocompleteGhostTextPublisher,
     PromptAutocompleteGhostTextSourceSnapshot,
 )
-from substitute.presentation.editor.prompt_editor.features.wildcard_controller import (
+from substitute.presentation.editor.prompt_editor.features.wildcard_models import (
     PromptWildcardAutocompleteQuerySnapshot,
 )
 from substitute.presentation.editor.prompt_editor.models import AutocompleteSession
-from tests.prompt_autocomplete_test_helpers import build_test_autocomplete_coordinator
+from tests.prompt_autocomplete_test_helpers import (
+    PromptAutocompleteTestStack,
+    build_autocomplete_query_state,
+    build_test_autocomplete_stack,
+)
 from tests.prompt_editor_controller_test_helpers import (
     AutocompleteEditorDouble,
     DeferredScheduledLoraContextProvider,
@@ -184,29 +191,6 @@ class _WildcardProvider:
         return self.snapshot
 
 
-class _SceneProvider:
-    """Return configured scene autocomplete rows."""
-
-    def __init__(
-        self,
-        rows: tuple[PromptAutocompleteSuggestion, ...],
-    ) -> None:
-        """Store deterministic scene rows."""
-
-        self.rows = rows
-
-    def scene_autocomplete_suggestions(
-        self,
-        query: PromptSceneAutocompleteQuery,
-        *,
-        limit: int,
-    ) -> tuple[PromptAutocompleteSuggestion, ...]:
-        """Return scene rows up to the requested limit."""
-
-        _ = query
-        return self.rows[:limit]
-
-
 class _LoraCatalog:
     """Return cached LoRA rows while rejecting foreground catalog loading."""
 
@@ -284,6 +268,67 @@ class _CountingThumbnailAssetRepository:
 
         _ = storage_key
         self.reads += 1
+
+
+class _RecordingAutocompletePresenter:
+    """Record real presenter requests without creating a Qt panel."""
+
+    def __init__(self) -> None:
+        """Initialize a visible presentation recorder."""
+
+        self.presented_sessions: list[AutocompleteSession] = []
+
+    @property
+    def panel(self) -> None:
+        """Return no concrete panel for this focused result test."""
+
+        return None
+
+    def present_session(self, session: AutocompleteSession) -> bool:
+        """Record one production presentation request."""
+
+        self.presented_sessions.append(session)
+        return True
+
+    def set_activation_handler(self, handler: Callable[[Any], None] | None) -> None:
+        """Accept coordinator activation wiring without invoking it."""
+
+        _ = handler
+
+    def set_selection_changed_handler(
+        self,
+        handler: Callable[[int], None] | None,
+    ) -> None:
+        """Accept coordinator selection wiring without invoking it."""
+
+        _ = handler
+
+    def set_visibility_changed_handler(
+        self,
+        handler: Callable[[bool], None] | None,
+    ) -> None:
+        """Accept coordinator visibility wiring without invoking it."""
+
+        _ = handler
+
+    def panel_under_mouse(self) -> bool:
+        """Report no pointer ownership for focus-retention checks."""
+
+        return False
+
+    def panel_visible(self) -> bool:
+        """Report the panel as visible after a successful present request."""
+
+        return bool(self.presented_sessions)
+
+    def hide(self) -> None:
+        """Accept a hide request without retaining Qt state."""
+
+    def move_lora_selection(self, direction: str) -> int | None:
+        """Expose no LoRA-wall selection movement in this result test."""
+
+        _ = direction
+        return None
 
 
 def _source_identity(revision: int, length: int) -> PromptSourceIdentity:
@@ -400,12 +445,78 @@ def _thumbnail_variant(storage_key: str) -> PromptLoraThumbnailVariant:
     )
 
 
-def _mute_autocomplete_surfaces(coordinator: Any) -> Any:
-    """Disable panel and ghost-text publication for focused result tests."""
+def _mute_autocomplete_surfaces(
+    autocomplete_stack: PromptAutocompleteTestStack,
+) -> PromptAutocompleteTestStack:
+    """Disable session presentation while retaining real result publication."""
 
-    coordinator._present_panel = lambda: None
-    coordinator._publish_inline_completion_preview = lambda: None
-    return coordinator
+    return autocomplete_stack
+
+
+def _refresh_tag_result(
+    autocomplete_stack: PromptAutocompleteTestStack,
+    query: PromptAutocompleteQuery | None,
+    *,
+    source_text: str,
+    source_identity: object | None = None,
+) -> None:
+    """Send a prepared tag state to the real query/result lifecycle."""
+
+    autocomplete_stack.query_result_lifecycle.refresh_results_for_query_state(
+        build_autocomplete_query_state(
+            source_text=source_text,
+            source_identity=source_identity,
+            tag_query=query,
+        )
+    )
+
+
+def _refresh_wildcard_result(
+    autocomplete_stack: PromptAutocompleteTestStack,
+    query: PromptWildcardAutocompleteQuery | None,
+    *,
+    source_identity: object | None = None,
+) -> None:
+    """Send a prepared wildcard state to the real query/result lifecycle."""
+
+    autocomplete_stack.query_result_lifecycle.refresh_results_for_query_state(
+        build_autocomplete_query_state(
+            source_identity=source_identity,
+            wildcard_query=query,
+        )
+    )
+
+
+def _refresh_scene_result(
+    autocomplete_stack: PromptAutocompleteTestStack,
+    query: PromptSceneAutocompleteQuery | None,
+    *,
+    source_identity: object | None = None,
+) -> None:
+    """Send a prepared scene state to the real query/result lifecycle."""
+
+    autocomplete_stack.query_result_lifecycle.refresh_results_for_query_state(
+        build_autocomplete_query_state(
+            source_identity=source_identity,
+            scene_query=query,
+        )
+    )
+
+
+def _refresh_lora_result(
+    autocomplete_stack: PromptAutocompleteTestStack,
+    query: PromptLoraAutocompleteQuery | None,
+    *,
+    source_identity: object | None = None,
+) -> None:
+    """Send a prepared LoRA state to the real query/result lifecycle."""
+
+    autocomplete_stack.query_result_lifecycle.refresh_results_for_query_state(
+        build_autocomplete_query_state(
+            source_identity=source_identity,
+            lora_query=query,
+        )
+    )
 
 
 def test_coordinator_retains_selected_suggestion_when_result_still_matches() -> None:
@@ -430,7 +541,7 @@ def test_coordinator_retains_selected_suggestion_when_result_still_matches() -> 
     coordinator = _mute_autocomplete_surfaces(
         cast(
             Any,
-            build_test_autocomplete_coordinator(
+            build_test_autocomplete_stack(
                 SimpleNamespace(toPlainText=lambda: "1gi"),
                 prompt_autocomplete_gateway=SimpleNamespace(
                     search=lambda _prefix, limit=10: suggestions
@@ -440,7 +551,8 @@ def test_coordinator_retains_selected_suggestion_when_result_still_matches() -> 
         )
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="1gi",
             word_start=0,
@@ -461,7 +573,9 @@ def test_coordinator_clears_ghost_text_when_feature_disabled() -> None:
 
     mod = import_autocomplete_module()
     editor = TextAutocompleteEditorDouble("1gi")
-    publisher = PromptAutocompleteGhostTextPublisher(preview_sink=editor)
+    publisher = PromptAutocompleteGhostTextPublisher(
+        publish_preview_state=editor.set_autocomplete_preview_state
+    )
     source_snapshot = PromptAutocompleteGhostTextSourceSnapshot(
         source_revision=0,
         source_length=3,
@@ -478,7 +592,7 @@ def test_coordinator_clears_ghost_text_when_feature_disabled() -> None:
     )
     publisher.publish_for_session(seed_session, source_snapshot=source_snapshot)
     session_controller = mod.PromptAutocompleteSessionController()
-    coordinator = build_test_autocomplete_coordinator(
+    coordinator = build_test_autocomplete_stack(
         editor,
         prompt_autocomplete_gateway=_Gateway(
             {"1gi": (PromptAutocompleteSuggestion("1girl", 5_889_398),)}
@@ -488,7 +602,8 @@ def test_coordinator_clears_ghost_text_when_feature_disabled() -> None:
         autocomplete_session_controller=session_controller,
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="1gi",
             word_start=0,
@@ -496,7 +611,6 @@ def test_coordinator_clears_ghost_text_when_feature_disabled() -> None:
             active_tag_end=3,
         ),
         source_text="1gi",
-        ghost_text_source_snapshot=source_snapshot,
     )
 
     assert editor.autocomplete_preview_updates[-1] is None
@@ -527,7 +641,7 @@ def test_coordinator_uses_prepared_source_text_snapshot() -> None:
     coordinator = _mute_autocomplete_surfaces(
         cast(
             Any,
-            build_test_autocomplete_coordinator(
+            build_test_autocomplete_stack(
                 editor,
                 prompt_autocomplete_gateway=SimpleNamespace(
                     search=lambda _prefix, limit=10: (
@@ -538,7 +652,8 @@ def test_coordinator_uses_prepared_source_text_snapshot() -> None:
         )
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="1gi",
             word_start=0,
@@ -549,7 +664,7 @@ def test_coordinator_uses_prepared_source_text_snapshot() -> None:
     )
 
     assert editor.reads == 0
-    assert coordinator._sessions.session.suggestions == (
+    assert coordinator.session_controller.session.suggestions == (
         PromptAutocompleteSuggestion("1girl", 5_889_398),
     )
 
@@ -575,14 +690,15 @@ def test_coordinator_falls_back_to_current_suffix_after_long_miss() -> None:
     coordinator = _mute_autocomplete_surfaces(
         cast(
             Any,
-            build_test_autocomplete_coordinator(
+            build_test_autocomplete_stack(
                 TextAutocompleteEditorDouble(source),
                 prompt_autocomplete_gateway=SimpleNamespace(search=search),
             ),
         )
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix=full_prefix,
             word_start=source.index("background"),
@@ -599,11 +715,11 @@ def test_coordinator_falls_back_to_current_suffix_after_long_miss() -> None:
     )
 
     assert calls == [full_prefix, "1g"]
-    assert coordinator._sessions.session.suggestions == (suffix_suggestion,)
-    assert coordinator._sessions.session.prefix == "1g"
-    assert coordinator._sessions.session.word_start == source.rindex("1g")
-    assert coordinator._sessions.session.word_end == len(source)
-    assert coordinator._sessions.session.active_tag_end == len(source)
+    assert coordinator.session_controller.session.suggestions == (suffix_suggestion,)
+    assert coordinator.session_controller.session.prefix == "1g"
+    assert coordinator.session_controller.session.word_start == source.rindex("1g")
+    assert coordinator.session_controller.session.word_end == len(source)
+    assert coordinator.session_controller.session.active_tag_end == len(source)
 
 
 def test_coordinator_preserves_matching_multi_word_tag_prefix() -> None:
@@ -626,14 +742,15 @@ def test_coordinator_preserves_matching_multi_word_tag_prefix() -> None:
     coordinator = _mute_autocomplete_surfaces(
         cast(
             Any,
-            build_test_autocomplete_coordinator(
+            build_test_autocomplete_stack(
                 TextAutocompleteEditorDouble(source),
                 prompt_autocomplete_gateway=SimpleNamespace(search=search),
             ),
         )
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="long h",
             word_start=0,
@@ -644,9 +761,9 @@ def test_coordinator_preserves_matching_multi_word_tag_prefix() -> None:
     )
 
     assert calls == ["long h"]
-    assert coordinator._sessions.session.suggestions == (suggestion,)
-    assert coordinator._sessions.session.prefix == "long h"
-    assert coordinator._sessions.session.word_start == 0
+    assert coordinator.session_controller.session.suggestions == (suggestion,)
+    assert coordinator.session_controller.session.prefix == "long h"
+    assert coordinator.session_controller.session.word_start == 0
 
 
 def test_coordinator_merges_lora_trigger_suggestions_before_static_tags() -> None:
@@ -664,7 +781,7 @@ def test_coordinator_merges_lora_trigger_suggestions_before_static_tags() -> Non
     coordinator = _mute_autocomplete_surfaces(
         cast(
             Any,
-            build_test_autocomplete_coordinator(
+            build_test_autocomplete_stack(
                 SimpleNamespace(toPlainText=lambda: "mid"),
                 prompt_autocomplete_gateway=SimpleNamespace(
                     search=lambda _prefix, limit=10: (
@@ -676,7 +793,8 @@ def test_coordinator_merges_lora_trigger_suggestions_before_static_tags() -> Non
         )
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="mid",
             word_start=0,
@@ -688,7 +806,7 @@ def test_coordinator_merges_lora_trigger_suggestions_before_static_tags() -> Non
 
     assert [
         (suggestion.tag, suggestion.source_label, suggestion.source_kind)
-        for suggestion in coordinator._sessions.session.suggestions
+        for suggestion in coordinator.session_controller.session.suggestions
     ] == [
         ("midna helmet", "Friendly Midna", "lora_trigger"),
         ("mid shot", None, "tag"),
@@ -708,7 +826,7 @@ def test_coordinator_dedupes_static_tag_when_lora_trigger_matches() -> None:
     provider = DeferredScheduledLoraContextProvider(lambda _text: (scheduled_lora,))
     provider.cache_prompt("mid")
     coordinator = _mute_autocomplete_surfaces(
-        build_test_autocomplete_coordinator(
+        build_test_autocomplete_stack(
             TextAutocompleteEditorDouble("mid"),
             prompt_autocomplete_gateway=SimpleNamespace(
                 search=lambda _prefix, limit=10: (
@@ -719,7 +837,8 @@ def test_coordinator_dedupes_static_tag_when_lora_trigger_matches() -> None:
         )
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="mid",
             word_start=0,
@@ -729,7 +848,7 @@ def test_coordinator_dedupes_static_tag_when_lora_trigger_matches() -> None:
         source_text="mid",
     )
 
-    assert coordinator._sessions.session.suggestions == (
+    assert coordinator.session_controller.session.suggestions == (
         PromptAutocompleteSuggestion(
             "midna helmet",
             popularity=None,
@@ -752,7 +871,7 @@ def test_coordinator_dedupes_static_tag_when_split_lora_trigger_matches() -> Non
     provider = DeferredScheduledLoraContextProvider(lambda _text: (scheduled_lora,))
     provider.cache_prompt("witch")
     coordinator = _mute_autocomplete_surfaces(
-        build_test_autocomplete_coordinator(
+        build_test_autocomplete_stack(
             TextAutocompleteEditorDouble("witch"),
             prompt_autocomplete_gateway=SimpleNamespace(
                 search=lambda _prefix, limit=10: (
@@ -763,7 +882,8 @@ def test_coordinator_dedupes_static_tag_when_split_lora_trigger_matches() -> Non
         )
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="witch",
             word_start=0,
@@ -773,7 +893,7 @@ def test_coordinator_dedupes_static_tag_when_split_lora_trigger_matches() -> Non
         source_text="witch",
     )
 
-    assert coordinator._sessions.session.suggestions == (
+    assert coordinator.session_controller.session.suggestions == (
         PromptAutocompleteSuggestion(
             "witch hat",
             popularity=None,
@@ -832,16 +952,17 @@ def test_coordinator_uses_scene_effective_lora_trigger_context() -> None:
     coordinator = _mute_autocomplete_surfaces(
         cast(
             Any,
-            build_test_autocomplete_coordinator(
+            build_test_autocomplete_stack(
                 TextAutocompleteEditorDouble(source),
                 prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
-                scene_feature=scene_feature(text=source, titles=()),
+                scene_publication=scene_feature(text=source, titles=()),
                 scheduled_lora_context_provider=provider,
             ),
         )
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="mid",
             word_start=portrait_mid,
@@ -852,13 +973,15 @@ def test_coordinator_uses_scene_effective_lora_trigger_context() -> None:
     )
 
     assert [
-        suggestion.tag for suggestion in coordinator._sessions.session.suggestions
+        suggestion.tag
+        for suggestion in coordinator.session_controller.session.suggestions
     ] == [
         "midna global",
         "midna portrait",
     ]
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="mid",
             word_start=cafe_mid,
@@ -869,7 +992,8 @@ def test_coordinator_uses_scene_effective_lora_trigger_context() -> None:
     )
 
     assert [
-        suggestion.tag for suggestion in coordinator._sessions.session.suggestions
+        suggestion.tag
+        for suggestion in coordinator.session_controller.session.suggestions
     ] == [
         "midna global",
     ]
@@ -893,7 +1017,7 @@ def test_coordinator_uses_static_tags_while_trigger_context_resolves() -> None:
     coordinator = _mute_autocomplete_surfaces(
         cast(
             Any,
-            build_test_autocomplete_coordinator(
+            build_test_autocomplete_stack(
                 editor,
                 prompt_autocomplete_gateway=SimpleNamespace(
                     search=lambda _prefix, limit=10: (
@@ -905,7 +1029,8 @@ def test_coordinator_uses_static_tags_while_trigger_context_resolves() -> None:
         )
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="mid",
             word_start=0,
@@ -917,7 +1042,7 @@ def test_coordinator_uses_static_tags_while_trigger_context_resolves() -> None:
 
     assert resolver_calls == []
     assert len(provider.jobs) == 1
-    assert coordinator._sessions.session.suggestions == (
+    assert coordinator.session_controller.session.suggestions == (
         PromptAutocompleteSuggestion("mid shot", 200),
     )
 
@@ -927,11 +1052,10 @@ def test_coordinator_skips_duplicate_refresh_for_empty_async_trigger_context() -
 
     editor = TextAutocompleteEditorDouble("mid")
     provider = DeferredScheduledLoraContextProvider(lambda _text: ())
-    panel_updates = 0
-    preview_updates = 0
+    presenter = _RecordingAutocompletePresenter()
     coordinator = cast(
         Any,
-        build_test_autocomplete_coordinator(
+        build_test_autocomplete_stack(
             editor,
             prompt_autocomplete_gateway=SimpleNamespace(
                 search=lambda _prefix, limit=10: (
@@ -939,26 +1063,12 @@ def test_coordinator_skips_duplicate_refresh_for_empty_async_trigger_context() -
                 )
             ),
             scheduled_lora_context_provider=provider,
+            autocomplete_presenter=cast(Any, presenter),
         ),
     )
 
-    def record_panel_update() -> bool:
-        """Record one panel refresh and report visible presentation."""
-
-        nonlocal panel_updates
-        panel_updates += 1
-        return True
-
-    def record_preview_update() -> None:
-        """Record one inline preview refresh."""
-
-        nonlocal preview_updates
-        preview_updates += 1
-
-    coordinator._present_panel = record_panel_update
-    coordinator._publish_inline_completion_preview = record_preview_update
-
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="mid",
             word_start=0,
@@ -969,9 +1079,8 @@ def test_coordinator_skips_duplicate_refresh_for_empty_async_trigger_context() -
     )
     provider.complete()
 
-    assert panel_updates == 1
-    assert preview_updates == 1
-    assert coordinator._sessions.session.suggestions == (
+    assert presenter.presented_sessions == [coordinator.session_controller.session]
+    assert coordinator.session_controller.session.suggestions == (
         PromptAutocompleteSuggestion("mid shot", 200),
     )
 
@@ -991,7 +1100,7 @@ def test_coordinator_applies_async_trigger_words_for_current_query() -> None:
     coordinator = _mute_autocomplete_surfaces(
         cast(
             Any,
-            build_test_autocomplete_coordinator(
+            build_test_autocomplete_stack(
                 editor,
                 prompt_autocomplete_gateway=SimpleNamespace(
                     search=lambda _prefix, limit=10: (
@@ -1003,7 +1112,8 @@ def test_coordinator_applies_async_trigger_words_for_current_query() -> None:
         )
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="mid",
             word_start=0,
@@ -1016,7 +1126,7 @@ def test_coordinator_applies_async_trigger_words_for_current_query() -> None:
 
     assert [
         (suggestion.tag, suggestion.source_label, suggestion.source_kind)
-        for suggestion in coordinator._sessions.session.suggestions
+        for suggestion in coordinator.session_controller.session.suggestions
     ] == [
         ("midna helmet", "Friendly Midna", "lora_trigger"),
         ("mid shot", None, "tag"),
@@ -1052,7 +1162,7 @@ def test_coordinator_discards_stale_async_trigger_words() -> None:
     coordinator = _mute_autocomplete_surfaces(
         cast(
             Any,
-            build_test_autocomplete_coordinator(
+            build_test_autocomplete_stack(
                 editor,
                 prompt_autocomplete_gateway=SimpleNamespace(
                     search=lambda prefix, limit=10: (
@@ -1064,7 +1174,8 @@ def test_coordinator_discards_stale_async_trigger_words() -> None:
         )
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="mid",
             word_start=0,
@@ -1075,7 +1186,8 @@ def test_coordinator_discards_stale_async_trigger_words() -> None:
     )
     editor.text = "ran"
     editor.source_revision += 1
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="ran",
             word_start=0,
@@ -1087,13 +1199,15 @@ def test_coordinator_discards_stale_async_trigger_words() -> None:
     provider.complete(index=0)
 
     assert [
-        suggestion.tag for suggestion in coordinator._sessions.session.suggestions
+        suggestion.tag
+        for suggestion in coordinator.session_controller.session.suggestions
     ] == ["ran static"]
 
     provider.complete(index=0)
 
     assert [
-        suggestion.tag for suggestion in coordinator._sessions.session.suggestions
+        suggestion.tag
+        for suggestion in coordinator.session_controller.session.suggestions
     ] == [
         "ranni hat",
         "ran static",
@@ -1126,7 +1240,7 @@ def test_coordinator_uses_wildcard_catalog_gateway() -> None:
             return suggestions
 
     request_channel = FakeWildcardRequestChannel()
-    wildcard_feature = PromptWildcardFeatureController(
+    wildcard_feature = PromptWildcardAutocompletePresentation(
         feature_profile=PromptFeatureProfileController(
             PromptEditorFeatureProfile.enabled_profile(
                 (PromptEditorFeature.WILDCARD_AUTOCOMPLETE,)
@@ -1141,7 +1255,7 @@ def test_coordinator_uses_wildcard_catalog_gateway() -> None:
     coordinator = _mute_autocomplete_surfaces(
         cast(
             Any,
-            build_test_autocomplete_coordinator(
+            build_test_autocomplete_stack(
                 SimpleNamespace(toPlainText=lambda: "{"),
                 prompt_autocomplete_gateway=SimpleNamespace(
                     search=lambda _prefix, limit=10: ()
@@ -1151,26 +1265,27 @@ def test_coordinator_uses_wildcard_catalog_gateway() -> None:
         )
     )
 
-    coordinator.refresh_for_wildcard_query(
+    _refresh_wildcard_result(
+        coordinator,
         PromptWildcardAutocompleteQuery(
             prefix="",
             opener_start=0,
             content_start=1,
             cursor_position=1,
             replacement_end=1,
-        )
+        ),
     )
 
     assert calls == []
-    assert coordinator._sessions.session.mode == "none"
+    assert coordinator.session_controller.session.mode == "none"
     assert len(request_channel.handles) == 1
 
     request_channel.handles[-1].run_work()
 
     assert calls == [("", 10)]
-    assert coordinator._sessions.session.mode == "wildcard"
-    assert coordinator._sessions.session.suggestions == suggestions
-    assert coordinator._sessions.session.word_start == 0
+    assert coordinator.session_controller.session.mode == "wildcard"
+    assert coordinator.session_controller.session.suggestions == suggestions
+    assert coordinator.session_controller.session.word_start == 0
 
 
 def test_coordinator_uses_authority_scene_titles() -> None:
@@ -1179,12 +1294,12 @@ def test_coordinator_uses_authority_scene_titles() -> None:
     coordinator = _mute_autocomplete_surfaces(
         cast(
             Any,
-            build_test_autocomplete_coordinator(
+            build_test_autocomplete_stack(
                 SimpleNamespace(toPlainText=lambda: "**p"),
                 prompt_autocomplete_gateway=SimpleNamespace(
                     search=lambda _prefix, limit=10: ()
                 ),
-                scene_feature=scene_feature(
+                scene_publication=scene_feature(
                     text="**p",
                     titles=("portrait", "cafe interior"),
                 ),
@@ -1192,18 +1307,19 @@ def test_coordinator_uses_authority_scene_titles() -> None:
         )
     )
 
-    coordinator.refresh_for_scene_query(
+    _refresh_scene_result(
+        coordinator,
         PromptSceneAutocompleteQuery(
             prefix="p",
             marker_start=0,
             title_start=2,
             cursor_position=3,
             replacement_end=3,
-        )
+        ),
     )
 
-    assert coordinator._sessions.session.mode == "scene"
-    assert coordinator._sessions.session.suggestions == (
+    assert coordinator.session_controller.session.mode == "scene"
+    assert coordinator.session_controller.session.suggestions == (
         PromptAutocompleteSuggestion(
             "portrait",
             popularity=None,
@@ -1211,7 +1327,7 @@ def test_coordinator_uses_authority_scene_titles() -> None:
             source_kind="scene",
         ),
     )
-    assert coordinator._sessions.session.word_start == 2
+    assert coordinator.session_controller.session.word_start == 2
 
 
 def test_coordinator_clears_scene_query_when_authority_titles_are_empty() -> None:
@@ -1219,31 +1335,29 @@ def test_coordinator_clears_scene_query_when_authority_titles_are_empty() -> Non
 
     coordinator = cast(
         Any,
-        build_test_autocomplete_coordinator(
+        build_test_autocomplete_stack(
             SimpleNamespace(toPlainText=lambda: "**p"),
             prompt_autocomplete_gateway=SimpleNamespace(
                 search=lambda _prefix, limit=10: ()
             ),
-            scene_feature=scene_feature(
+            scene_publication=scene_feature(
                 text="**p",
                 titles=(),
             ),
         ),
     )
-    cleared: list[bool] = []
-    coordinator.dismiss_autocomplete = lambda _reason: cleared.append(True)
-
-    coordinator.refresh_for_scene_query(
+    _refresh_scene_result(
+        coordinator,
         PromptSceneAutocompleteQuery(
             prefix="p",
             marker_start=0,
             title_start=2,
             cursor_position=3,
             replacement_end=3,
-        )
+        ),
     )
 
-    assert cleared == [True]
+    assert coordinator.session_controller.has_active_session() is False
 
 
 def test_coordinator_filters_exact_scene_title_matches() -> None:
@@ -1252,12 +1366,12 @@ def test_coordinator_filters_exact_scene_title_matches() -> None:
     coordinator = _mute_autocomplete_surfaces(
         cast(
             Any,
-            build_test_autocomplete_coordinator(
+            build_test_autocomplete_stack(
                 SimpleNamespace(toPlainText=lambda: "**portrait"),
                 prompt_autocomplete_gateway=SimpleNamespace(
                     search=lambda _prefix, limit=10: ()
                 ),
-                scene_feature=scene_feature(
+                scene_publication=scene_feature(
                     text="**portrait",
                     titles=("portrait", "portrait close"),
                 ),
@@ -1265,19 +1379,21 @@ def test_coordinator_filters_exact_scene_title_matches() -> None:
         )
     )
 
-    coordinator.refresh_for_scene_query(
+    _refresh_scene_result(
+        coordinator,
         PromptSceneAutocompleteQuery(
             prefix="portrait",
             marker_start=0,
             title_start=2,
             cursor_position=10,
             replacement_end=10,
-        )
+        ),
     )
 
-    assert coordinator._sessions.session.mode == "scene"
+    assert coordinator.session_controller.session.mode == "scene"
     assert [
-        suggestion.tag for suggestion in coordinator._sessions.session.suggestions
+        suggestion.tag
+        for suggestion in coordinator.session_controller.session.suggestions
     ] == ["portrait close"]
 
 
@@ -1285,7 +1401,7 @@ def test_coordinator_filters_noop_tag_suggestions_before_opening_session() -> No
     """Coordinator refresh suppresses suggestions that already match the query slice."""
 
     coordinator = _mute_autocomplete_surfaces(
-        build_test_autocomplete_coordinator(
+        build_test_autocomplete_stack(
             AutocompleteEditorDouble(
                 MenuCursorDouble(text="looking at viewer", position=17)
             ),
@@ -1297,7 +1413,8 @@ def test_coordinator_filters_noop_tag_suggestions_before_opening_session() -> No
         )
     )
 
-    coordinator.refresh_for_query(
+    _refresh_tag_result(
+        coordinator,
         PromptAutocompleteQuery(
             prefix="looking at viewer",
             word_start=0,
@@ -1307,7 +1424,7 @@ def test_coordinator_filters_noop_tag_suggestions_before_opening_session() -> No
         source_text="looking at viewer",
     )
 
-    assert coordinator._sessions.session.suggestions == ()
+    assert coordinator.session_controller.session.suggestions == ()
 
 
 def test_coordinator_builds_lora_session_without_tag_gateway() -> None:
@@ -1315,7 +1432,7 @@ def test_coordinator_builds_lora_session_without_tag_gateway() -> None:
 
     lora = _coordinator_lora_item()
     coordinator = _mute_autocomplete_surfaces(
-        build_test_autocomplete_coordinator(
+        build_test_autocomplete_stack(
             AutocompleteEditorDouble(
                 MenuCursorDouble(text="<lora:Civ", position=len("<lora:Civ"))
             ),
@@ -1325,13 +1442,13 @@ def test_coordinator_builds_lora_session_without_tag_gateway() -> None:
         )
     )
 
-    coordinator.refresh_for_lora_query(_coordinator_lora_query())
+    _refresh_lora_result(coordinator, _coordinator_lora_query())
 
-    assert coordinator._sessions.session.mode == "lora"
-    assert coordinator._sessions.session.selected_index == 0
-    assert coordinator._sessions.session.lora_candidates[0].item is lora
+    assert coordinator.session_controller.session.mode == "lora"
+    assert coordinator.session_controller.session.selected_index == 0
+    assert coordinator.session_controller.session.lora_candidates[0].item is lora
     assert (
-        coordinator._sessions.session.lora_candidates[0].replacement_text
+        coordinator.session_controller.session.lora_candidates[0].replacement_text
         == r"<lora:illustrious\characters\raw_midna:1.00>"
     )
 
@@ -1342,7 +1459,7 @@ def test_coordinator_uses_cached_loras_without_backend_reads() -> None:
     lora = _coordinator_lora_item()
     catalog = _TrackingLoraCatalog((lora,))
     coordinator = _mute_autocomplete_surfaces(
-        build_test_autocomplete_coordinator(
+        build_test_autocomplete_stack(
             AutocompleteEditorDouble(
                 MenuCursorDouble(text="<lora:Civ", position=len("<lora:Civ"))
             ),
@@ -1353,13 +1470,13 @@ def test_coordinator_uses_cached_loras_without_backend_reads() -> None:
     )
     query = _coordinator_lora_query()
 
-    coordinator.refresh_for_lora_query(query)
-    coordinator.refresh_for_lora_query(query)
+    _refresh_lora_result(coordinator, query)
+    _refresh_lora_result(coordinator, query)
 
     assert catalog.refresh_calls == 0
     assert catalog.list_calls == 0
     assert catalog.cached_calls == 2
-    assert coordinator._sessions.session.mode == "lora"
+    assert coordinator.session_controller.session.mode == "lora"
 
 
 def test_coordinator_cold_lora_cache_returns_no_candidates() -> None:
@@ -1367,7 +1484,7 @@ def test_coordinator_cold_lora_cache_returns_no_candidates() -> None:
 
     catalog = _TrackingLoraCatalog(None)
     coordinator = _mute_autocomplete_surfaces(
-        build_test_autocomplete_coordinator(
+        build_test_autocomplete_stack(
             AutocompleteEditorDouble(
                 MenuCursorDouble(text="<lora:Civ", position=len("<lora:Civ"))
             ),
@@ -1377,13 +1494,13 @@ def test_coordinator_cold_lora_cache_returns_no_candidates() -> None:
         )
     )
 
-    coordinator.refresh_for_lora_query(_coordinator_lora_query())
+    _refresh_lora_result(coordinator, _coordinator_lora_query())
 
     assert catalog.refresh_calls == 0
     assert catalog.list_calls == 0
     assert catalog.cached_calls == 1
-    assert coordinator._sessions.session.mode == "none"
-    assert coordinator._sessions.session.lora_candidates == ()
+    assert coordinator.session_controller.session.mode == "none"
+    assert coordinator.session_controller.session.lora_candidates == ()
 
 
 def test_coordinator_lora_refresh_does_not_load_thumbnail_assets() -> None:
@@ -1400,7 +1517,7 @@ def test_coordinator_lora_refresh_does_not_load_thumbnail_assets() -> None:
         for index in range(200)
     )
     coordinator = _mute_autocomplete_surfaces(
-        build_test_autocomplete_coordinator(
+        build_test_autocomplete_stack(
             AutocompleteEditorDouble(MenuCursorDouble(text="<lora:Civ", position=9)),
             prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
             prompt_lora_catalog_service=_LoraCatalog(items),
@@ -1408,9 +1525,9 @@ def test_coordinator_lora_refresh_does_not_load_thumbnail_assets() -> None:
         )
     )
 
-    coordinator.refresh_for_lora_query(_coordinator_lora_query())
+    _refresh_lora_result(coordinator, _coordinator_lora_query())
 
-    assert len(coordinator._sessions.session.lora_candidates) == 200
+    assert len(coordinator.session_controller.session.lora_candidates) == 200
     assert asset_repository.reads == 0
 
 
@@ -1593,7 +1710,10 @@ def test_wildcard_and_scene_results_consume_prepared_feature_snapshots() -> None
     controller = PromptAutocompleteResultController(
         prompt_autocomplete_gateway=_Gateway({}),
         wildcard_feature=_WildcardProvider(wildcard_snapshot),
-        scene_feature=_SceneProvider((PromptAutocompleteSuggestion("intro", 1),)),
+        scene_autocomplete_state=lambda: PromptSceneAutocompleteState(
+            titles=("intro",),
+            ready=True,
+        ),
         limit=10,
     )
 
@@ -1609,7 +1729,14 @@ def test_wildcard_and_scene_results_consume_prepared_feature_snapshots() -> None
     )
     assert wildcard_result.word_start == wildcard_query.opener_start
     assert scene_result.status == "ready"
-    assert scene_result.suggestions == (PromptAutocompleteSuggestion("intro", 1),)
+    assert scene_result.suggestions == (
+        PromptAutocompleteSuggestion(
+            tag="intro",
+            popularity=None,
+            source_label="Scene",
+            source_kind="scene",
+        ),
+    )
     assert scene_result.word_start == scene_query.title_start
 
 

@@ -72,8 +72,10 @@ from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
 from substitute.presentation.widgets.fluent_popup_frame import (
     AttachedFluentPopupFrame,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionTokenKind,
 )
 from substitute.presentation.editor.prompt_editor.projection.session import (
@@ -811,7 +813,7 @@ def _overlay_preview_segment_indices(overlay: QWidget) -> list[int]:
 def _overlay_blank_line_target_visuals(overlay: QWidget) -> tuple[object, ...]:
     """Return the current virtual blank-line target visuals for the reorder overlay."""
 
-    visuals = cast(Any, overlay)._drop_target_visuals
+    visuals = cast(Any, overlay)._geometry.state.drop_target_visuals
     return tuple(
         visual
         for visual in cast(tuple[object, ...], visuals)
@@ -2877,17 +2879,11 @@ def test_prompt_editor_real_widget_commits_alt_left_keyboard_reorder(
 
     assert _editor_reorder_preview_text(box) == "beta, alpha, gamma"
 
-    reorder_session = cast(
-        Any, box
-    )._interaction_controller._reorder.segment_reorder_session
-    latest_snapshot = cast(
-        Any, box
-    )._interaction_controller._reorder.latest_commit_snapshot
+    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    latest_snapshot = overlay.commit_snapshot()
     assert latest_snapshot is not None
     assert latest_snapshot.ordered_chip_indices == (1, 0, 2)
     assert latest_snapshot.has_reordered is True
-    assert reorder_session.current_ordered_indices == (1, 0, 2)
-    assert reorder_session.has_reordered is True
     assert box.hasFocus() is True
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
@@ -2929,9 +2925,8 @@ def test_prompt_editor_real_widget_commits_alt_right_keyboard_reorder(
     process_events(app)
 
     assert _editor_reorder_preview_text(box) == "alpha, gamma, beta"
-    latest_snapshot = cast(
-        Any, box
-    )._interaction_controller._reorder.latest_commit_snapshot
+    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    latest_snapshot = overlay.commit_snapshot()
     assert latest_snapshot is not None
     assert latest_snapshot.ordered_chip_indices == (0, 2, 1)
     assert latest_snapshot.has_reordered is True
@@ -2972,9 +2967,8 @@ def test_prompt_editor_real_widget_commits_alt_up_keyboard_reorder(
     process_events(app)
 
     assert _editor_reorder_preview_text(box) == "alpha,\n\ngamma,\nbeta"
-    latest_snapshot = cast(
-        Any, box
-    )._interaction_controller._reorder.latest_commit_snapshot
+    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    latest_snapshot = overlay.commit_snapshot()
     assert latest_snapshot is not None
     assert latest_snapshot.ordered_chip_indices == (0, 1, 2)
     assert latest_snapshot.has_reordered is True
@@ -3054,9 +3048,8 @@ def test_prompt_editor_real_widget_commits_alt_down_keyboard_reorder(
     process_events(app)
 
     assert _editor_reorder_preview_text(box) == "alpha,\n\n\nbeta, gamma"
-    latest_snapshot = cast(
-        Any, box
-    )._interaction_controller._reorder.latest_commit_snapshot
+    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    latest_snapshot = overlay.commit_snapshot()
     assert latest_snapshot is not None
     assert latest_snapshot.ordered_chip_indices == (0, 2, 1)
     assert latest_snapshot.has_reordered is True
@@ -3674,7 +3667,7 @@ def test_prompt_editor_real_widget_paints_preview_without_changing_projection_la
     )
     omega_fragment = next(
         fragment
-        for fragment in surface._layout.snapshot.text_fragments  # noqa: SLF001
+        for fragment in surface._layout.frame.output.snapshot.text_fragments  # noqa: SLF001
         if fragment.text == "omega"
     )
 

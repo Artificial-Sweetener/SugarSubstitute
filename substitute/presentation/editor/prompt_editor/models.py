@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Literal
 
 from substitute.application.ports import PromptAutocompleteSuggestion
 from substitute.application.prompt_editor.autocomplete.queries import (
@@ -30,10 +29,6 @@ from substitute.application.prompt_editor.autocomplete.queries import (
 from substitute.application.prompt_editor.lora.autocomplete import (
     PromptLoraAutocompleteCandidate,
     PromptLoraAutocompleteQuery,
-)
-from substitute.application.prompt_editor.reorder.views import (
-    PromptReorderLayoutView,
-    PromptReorderStateView,
 )
 
 
@@ -59,81 +54,3 @@ class AutocompleteSession:
     lora_query: PromptLoraAutocompleteQuery | None = None
     scene_query: PromptSceneAutocompleteQuery | None = None
     wildcard_query: PromptWildcardAutocompleteQuery | None = None
-
-
-@dataclass(slots=True)
-class SegmentReorderSession:
-    """Store controller-owned commit session state for Alt-held reorder mode.
-
-    Writer:
-        `PromptReorderSessionController` writes this state when reorder starts,
-        when pointer/keyboard reorder prepares a commit snapshot, and when
-        cancel or close clears the session.
-    Readers:
-        The controller commit path and focused interaction tests read it.
-    State kind:
-        Commit state. Projection preview and animation state must not overwrite
-        this state except through explicit controller snapshot capture.
-    """
-
-    is_active: bool = False
-    original_ordered_indices: tuple[int, ...] = ()
-    current_ordered_indices: tuple[int, ...] = ()
-    original_reorder_state: PromptReorderStateView | None = None
-    current_reorder_state: PromptReorderStateView | None = None
-    active_segment_index: int | None = None
-    dragged_segment_index: int | None = None
-    selection_start: int | None = None
-    selection_end: int | None = None
-    selection_start_offset_within_active_chip: int | None = None
-    selection_end_offset_within_active_chip: int | None = None
-    has_reordered: bool = False
-
-
-PromptReorderKeyboardDirection = Literal["left", "right", "up", "down"]
-
-
-@dataclass(frozen=True, slots=True)
-class PromptReorderCommitSnapshot:
-    """Describe authoritative reorder state available for command commit.
-
-    Writer:
-        `PromptReorderSessionController` stores the authoritative snapshot
-        consumed by the reorder controller on Alt release. The overlay may
-        prepare a typed snapshot, but it does not mutate source directly.
-    Readers:
-        The controller commit path and tests read this state before routing
-        source mutation through the reorder command boundary.
-    State kind:
-        Commit state. It is independent from preview and animation state.
-    """
-
-    reorder_state: PromptReorderStateView | None
-    layout_view: PromptReorderLayoutView | None
-    ordered_chip_indices: tuple[int, ...]
-    active_segment_index: int | None
-    dragged_segment_index: int | None
-    has_reordered: bool
-
-
-@dataclass(frozen=True, slots=True)
-class PromptReorderCommitIntent:
-    """Request that the current prepared reorder preview be committed."""
-
-    reason: str
-    snapshot: PromptReorderCommitSnapshot | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class PromptReorderCancelIntent:
-    """Request that the current reorder interaction be canceled."""
-
-    reason: str
-    restore_selection: bool = True
-
-
-@dataclass(frozen=True, slots=True)
-class PromptReorderKeyboardMoveIntent:
-    """Request one keyboard navigation step within reorder mode."""
-
-    direction: PromptReorderKeyboardDirection

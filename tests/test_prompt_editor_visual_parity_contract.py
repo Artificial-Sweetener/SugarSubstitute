@@ -28,7 +28,7 @@ from PySide6.QtGui import QImage, QPalette, QTextCursor
 from PySide6.QtTest import QTest
 from qfluentwidgets import Theme, setTheme  # type: ignore[import-untyped]
 
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
 )
 from tests.prompt_visual_test_helpers import (
@@ -118,7 +118,9 @@ def test_prompt_editor_projection_palette_refreshes_after_qfluent_theme_switch()
             setTheme(Theme.LIGHT)
             process_events(app, cycles=10)
 
-            projection_palette = prompt_editor._surface._layout._palette
+            projection_palette = (
+                prompt_editor._surface._layout.frame.paint_input.palette
+            )
             host_palette = prompt_editor.palette()
             for role in (
                 QPalette.ColorRole.Text,

@@ -23,7 +23,12 @@ from dataclasses import dataclass
 from PySide6.QtCore import QPointF, QRect, QRectF
 from PySide6.QtGui import QColor, QFont, QPainter, QPalette
 
-from .model import PromptProjectionRun, PromptProjectionToken
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
+    PromptProjectionRun,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionToken,
+)
 from .tokens import PromptRichInlineObjectRenderer
 
 

@@ -49,20 +49,26 @@ from substitute.shared.diagnostics.prompt_editor_work import (
 )
 
 from .caret_map_builder import build_prompt_projection_caret_map
-from .model import (
-    OBJECT_REPLACEMENT_CHARACTER,
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
     PromptProjectionInlinePreview,
+    PromptProjectionTransientState,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.mapping import (
     PromptProjectionMapping,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
+    OBJECT_REPLACEMENT_CHARACTER,
     PromptProjectionRun,
     PromptProjectionRunKind,
     PromptProjectionRunRole,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionThumbnailVariant,
     PromptProjectionToken,
     PromptProjectionTokenKind,
     PromptProjectionTokenNavigationMode,
-    PromptProjectionTransientState,
 )
 from .region_projection import PromptRegionProjectionBuilder
 from .session import PromptProjectionSession

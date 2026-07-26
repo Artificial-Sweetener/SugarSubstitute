@@ -28,6 +28,7 @@ from PySide6.QtCore import (
     QPoint,
     QPointF,
     QRect,
+    QRectF,
     QSize,
     Qt,
     Signal,
@@ -44,6 +45,7 @@ from PySide6.QtGui import (
     QMoveEvent,
     QResizeEvent,
     QShowEvent,
+    QTextDocument,
     QWheelEvent,
 )
 from PySide6.QtWidgets import QScrollBar, QWidget
@@ -70,7 +72,13 @@ from substitute.application.prompt_editor.document.semantics import (
     PromptDocumentSemantics,
     PromptDocumentSemanticsController,
 )
-from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.document.views import (
+    PromptDocumentView,
+    PromptSyntaxSpanView,
+)
+from substitute.application.prompt_editor.editing.syntax_actions import (
+    PromptSyntaxAction,
+)
 from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
 )
@@ -88,6 +96,9 @@ from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
+from substitute.application.prompt_editor.reorder.commit import (
+    PromptReorderLayoutCommitRequest,
+)
 from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.widgets.model_metadata_context_menu import (
@@ -97,6 +108,7 @@ from substitute.presentation.widgets.wheel_permission import wheel_event_is_allo
 from substitute.shared.logging.logger import get_logger
 
 from .autocomplete_preview_state import PromptAutocompletePreviewState
+from .async_work import QtPromptEditorMainThreadDispatcher
 from .commands.autocomplete_commands import PromptAutocompleteAcceptance
 from .commands.context_insertion import PromptContextInsertionService
 from .commands.contracts import (
@@ -108,10 +120,7 @@ from .commands.diagnostic_commands import (
     PromptDiagnosticAction,
     PromptDiagnosticCommandResult,
 )
-from .commands.reorder_commands import (
-    PromptReorderCommandResult,
-    PromptReorderLayoutCommitRequest,
-)
+from .commands.reorder_commands import PromptReorderCommandResult
 from .commands.weight_commands import (
     PromptWeightActionRequest,
     PromptWeightCommandResult,
@@ -127,19 +136,25 @@ from .composition import (
     bind_prompt_editor_diagnostics_signals,
     bind_prompt_editor_signals,
     build_external_url_action_runner,
+    build_prompt_document_service,
     qt_object_is_alive,
     wire_prompt_editor_construction_lifecycle,
+)
+from .composition.context_menu_preparation_factory import (
+    build_context_menu_preparation,
 )
 from .core.state.revisions import PromptSourceIdentity
 from .core.editing.source_commands import PromptSourceEditOrigin
 from .features import (
-    PromptContextMenuActionController,
+    PromptContextMenuSnapshotAssembler,
     PromptDanbooruPasteImportController,
     PromptDiagnosticsFeatureController,
     PromptFeatureProfileController,
-    PromptLoraMetadataFeatureController,
+    PromptLoraMetadataPresentation,
+    PromptLoraMetadataRefreshLifecycle,
     PromptLoraTriggerWordController,
-    PromptSceneFeatureController,
+    PromptSceneContextPublication,
+    PromptScenePositionContextPreparation,
     PromptSearchFeatureController,
     PromptSegmentPresetSource,
 )
@@ -152,6 +167,10 @@ from .interactions import (
     PromptReorderOverlayPort,
     PromptWheelScrollResult,
 )
+from .interactions.clipboard_paste_completion import (
+    PromptClipboardPasteCompletionOwner,
+)
+from .interactions.cursor_adapter import PromptCursorAdapter
 from .mime_data_policy import (
     mime_data_has_prompt_plain_text,
     prompt_plain_text_from_mime_data,
@@ -160,17 +179,27 @@ from .overlays import (
     PromptAutocompletePanel,
     PromptTokenWeightControls,
 )
-from .projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptWeightControlIdentity,
 )
 from .projection.reorder_chip_geometry import PromptReorderChipGeometrySnapshot
+from .projection.reorder_geometry_cache_keys import ReorderGeometrySnapshot
 from .projection.reorder_placement_geometry import PromptReorderPlacementSnapshot
+from .projection.reorder_placement_geometry import (
+    PromptReorderPlacementGeometry,
+    PromptReorderPlacementId,
+)
 from .projection.reorder_preview import PromptReorderPreviewState
-from .projection.reorder_surface_chrome import PromptReorderSurfaceChromeChip
+from .projection.reorder_surface_visual_state import (
+    PromptReorderSurfaceVisualPublication,
+)
+from .projection.undo_payload import PromptProjectionUndoPayload
 from .projection.reorder_visual_snapshot import PromptReorderProjectionPaintSnapshot
-from .projection.selection_geometry import PromptProjectionSourceLineRect
+from .geometry.models import PromptProjectionSourceLineRect
 from .projection.session import (
     PromptEmphasisAdjustmentOwner,
     PromptEmphasisAdjustmentSession,
@@ -192,7 +221,7 @@ from .shell import (
 _LOGGER = get_logger("presentation.editor.prompt_editor")
 
 
-class PromptEditor(QFluentTextEdit):
+class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     """Expose the public prompt editor API through a QFluent-faithful shell."""
 
     _AUTOCOMPLETE_MIN_PREFIX = 2
@@ -281,6 +310,7 @@ class PromptEditor(QFluentTextEdit):
         init_started_at = construction_observer.started_at()
         phase_started_at = construction_observer.started_at()
         super().__init__(parent)
+        self._clipboard_paste_completion = PromptClipboardPasteCompletionOwner()
         self._shell = PromptEditorShell(
             host=self,
             shell_viewport=super().viewport(),
@@ -390,6 +420,7 @@ class PromptEditor(QFluentTextEdit):
         projection_collaborators = composition_factory.build_projection_collaborators(
             construction_inputs,
             composition_context,
+            paste_completed=self._clipboard_paste_completion.complete,
         )
         self._lora_thumbnail_cache = projection_collaborators.lora_thumbnail_cache
         self._lora_thumbnail_preloader = (
@@ -404,6 +435,9 @@ class PromptEditor(QFluentTextEdit):
         self._diagnostic_commands = projection_collaborators.diagnostic_commands
         self._weight_commands = projection_collaborators.weight_commands
         self._reorder_commands = projection_collaborators.reorder_commands
+        self._parenthesis_education_controller = (
+            projection_collaborators.parenthesis_education_controller
+        )
         self._clipboard_history_controller = (
             projection_collaborators.clipboard_history_controller
         )
@@ -419,15 +453,16 @@ class PromptEditor(QFluentTextEdit):
         self._qfluent_chrome.configure_owned_fill_plane()
         self._qfluent_chrome.bind_theme_refresh()
         self._surface.raise_()
-        self._context_insertion: PromptContextInsertionService[object] = cast(
-            PromptContextInsertionService[object],
-            composition_factory.build_context_insertion_service(
-                composition_context,
-                projection_collaborators,
-                context_insert_state_provider=(
-                    lambda: self._shell_context_menu.consume_context_insert_state()
-                ),
+        self._context_insertion: PromptContextInsertionService[
+            PromptProjectionUndoPayload
+        ] = composition_factory.build_context_insertion_service(
+            projection_collaborators,
+            cursor_provider=self.textCursor,
+            context_insert_state_provider=(
+                lambda: self._shell_context_menu.consume_context_insert_state()
             ),
+            focus_restorer=lambda: self.setFocus(),
+            source_text_provider=self.toPlainText,
         )
 
         construction_observer.log_timing(
@@ -445,19 +480,25 @@ class PromptEditor(QFluentTextEdit):
             composition_context,
             projection_collaborators,
             self._context_insertion,
+            cursor_provider=self.textCursor,
+            cursor_setter=self.setTextCursor,
             external_url_actions=self._external_url_action_runner,
+            source_text_provider=self.toPlainText,
         )
         self._feature_profile_controller: PromptFeatureProfileController = (
             service_collaborators.feature_profile_controller
         )
-        self._scene_feature_controller: PromptSceneFeatureController = (
-            service_collaborators.scene_feature_controller
+        self._scene_context_publication: PromptSceneContextPublication = (
+            service_collaborators.scene_context_publication
+        )
+        self._scene_position_preparation: PromptScenePositionContextPreparation = (
+            service_collaborators.scene_position_preparation
         )
         self._search_feature_controller: PromptSearchFeatureController = (
             service_collaborators.search_feature_controller
         )
-        self._wildcard_feature_controller = (
-            service_collaborators.wildcard_feature_controller
+        self._wildcard_diagnostics_presentation = (
+            service_collaborators.wildcard_diagnostics_presentation
         )
         self._segment_preset_controller = (
             service_collaborators.segment_preset_controller
@@ -477,7 +518,7 @@ class PromptEditor(QFluentTextEdit):
             host=self,
             surface=self._surface,
             feature_profile=self._feature_profile_controller,
-            wildcard_feature=self._wildcard_feature_controller,
+            wildcard_feature=self._wildcard_diagnostics_presentation,
             document_semantics=self._document_semantics,
             spellcheck_service=prompt_spellcheck_service,
             parent=self,
@@ -508,23 +549,35 @@ class PromptEditor(QFluentTextEdit):
             level="debug",
         )
         phase_started_at = construction_observer.started_at()
-        self._autocomplete = composition_factory.build_autocomplete(
+        document_service = build_prompt_document_service(construction_inputs)
+        feature_profile = self._feature_profile_controller
+        autocomplete_collaborators = composition_factory.build_autocomplete(
             construction_inputs,
             composition_context,
             projection_collaborators,
             service_collaborators,
             self._external_url_action_runner,
+            document_service,
+            autocomplete_cursor_position=lambda: self.textCursor().position(),
+            autocomplete_focus_host=self,
+            complete_lora_autocomplete_replacement=(
+                self.commit_lora_autocomplete_replacement
+            ),
+            cursor_rect=self.cursorRect,
+            execute_autocomplete_acceptance=self.execute_autocomplete_acceptance,
+            restore_autocomplete_focus=self.setFocus,
+            viewport=self.viewport,
+        )
+        self._autocomplete = autocomplete_collaborators.autocomplete
+        self._autocomplete_query_result_lifecycle = (
+            autocomplete_collaborators.query_result_lifecycle
         )
         construction_observer.log_timing(
             "Initialized prompt editor autocomplete services",
             started_at=phase_started_at,
             has_lora_catalog=prompt_lora_catalog_service is not None,
-            lora_autocomplete_enabled=(
-                self._feature_profile_controller.lora_autocomplete_enabled
-            ),
-            trigger_word_suggestions_enabled=(
-                self._feature_profile_controller.lora_trigger_words_enabled
-            ),
+            lora_autocomplete_enabled=feature_profile.lora_autocomplete_enabled,
+            trigger_word_suggestions_enabled=feature_profile.lora_trigger_words_enabled,
             level="debug",
         )
         phase_started_at = construction_observer.started_at()
@@ -534,6 +587,22 @@ class PromptEditor(QFluentTextEdit):
             projection_collaborators,
             service_collaborators,
             self._autocomplete,
+            document_service,
+            self._autocomplete_query_result_lifecycle,
+            autocomplete_cursor_state=lambda: (
+                (cursor := self.textCursor()).position(),
+                cursor.hasSelection(),
+            ),
+            autocomplete_source_text=self.toPlainText,
+            syntax_active_span=self.active_syntax_span,
+            syntax_cursor_position=lambda: self.textCursor().position(),
+            syntax_editor_session_id=id(self),
+            syntax_source_text=self.toPlainText,
+            interaction_editor=self,
+            weight_interaction_editor=self,
+            wheel_surface_scroll_allowed=self.prompt_surface_wheel_event_is_allowed,
+            wheel_surface_scroll_handler=self.prompt_surface_handle_wheel_scroll,
+            wheel_to_editor_panel=self.forward_wheel_event_to_editor_panel,
         )
         self._document_service = syntax_collaborators.document_service
         self._mutation_service = syntax_collaborators.mutation_service
@@ -545,11 +614,13 @@ class PromptEditor(QFluentTextEdit):
             syntax_collaborators.syntax_renderer_coordinator
         )
         self._interaction_controller = syntax_collaborators.interaction_controller
+        self._clipboard_paste_completion.bind_interaction(self._interaction_controller)
+        self._weight_interaction = syntax_collaborators.weight_interaction
         self._autocomplete_refresh_controller = (
             syntax_collaborators.autocomplete_timing_controller
         )
-        self._lora_metadata_feature_controller = PromptLoraMetadataFeatureController(
-            host=self,
+        self._lora_metadata_presentation = PromptLoraMetadataPresentation(
+            identity_port=self,
             feature_profile=self._feature_profile_controller,
             lora_catalog=prompt_lora_catalog_service,
             lora_schedule_service=(service_collaborators.lora_schedule_service),
@@ -557,7 +628,11 @@ class PromptEditor(QFluentTextEdit):
                 service_collaborators.prompt_scheduled_lora_service
             ),
             thumbnail_repository_available=(thumbnail_asset_repository is not None),
-            parent=self,
+        )
+        self._lora_metadata_refresh = PromptLoraMetadataRefreshLifecycle(
+            host=self,
+            presentation=self._lora_metadata_presentation,
+            dispatcher=QtPromptEditorMainThreadDispatcher(self),
         )
         self._lora_trigger_word_controller = PromptLoraTriggerWordController(
             host=self,
@@ -571,18 +646,19 @@ class PromptEditor(QFluentTextEdit):
                 lambda: self._feature_profile_controller.identity.feature_profile_id
             ),
             catalog_revision=(
-                lambda: self._lora_metadata_feature_controller.snapshot.catalog_revision
+                lambda: self._lora_metadata_presentation.snapshot.catalog_revision
             ),
             trigger_words_enabled=(
                 lambda: self._feature_profile_controller.lora_trigger_words_enabled
             ),
-            effective_prompts=self._scene_feature_controller.effective_prompt_texts,
+            effective_prompts=self._scene_position_preparation.effective_prompt_texts,
         )
-        self._context_menu_action_controller = PromptContextMenuActionController(
-            diagnostics=self._diagnostics_feature_controller,
-            lora_metadata=self._lora_metadata_feature_controller,
+        self._context_menu_snapshot_assembler = PromptContextMenuSnapshotAssembler(
+            diagnostics=self._diagnostics_feature_controller.presentation,
+            lora_metadata=self._lora_metadata_presentation,
             lora_trigger_words=self._lora_trigger_word_controller,
-            scene=self._scene_feature_controller,
+            scene_publication=self._scene_context_publication,
+            scene_positions=self._scene_position_preparation,
             segment_presets=self._segment_preset_controller,
             danbooru=self._danbooru_action_controller,
             source_identity_provider=self._source_commands.source_identity,
@@ -590,10 +666,16 @@ class PromptEditor(QFluentTextEdit):
                 lambda: self._feature_profile_controller.identity.feature_profile_id
             ),
         )
+        self._context_menu_preparation = build_context_menu_preparation(
+            segment_presets=self._segment_preset_controller,
+            danbooru=self._danbooru_action_controller,
+            scene=self._scene_position_preparation,
+            lora_trigger_words=self._lora_trigger_word_controller,
+        )
         self._lora_picker_popup_presenter: PromptLoraPickerPopupPresenter = (
             composition_factory.build_lora_picker_popup_presenter(
                 composition_context,
-                lora_metadata=self._lora_metadata_feature_controller,
+                lora_metadata=self._lora_metadata_presentation,
                 lora_thumbnail_cache=self._lora_thumbnail_cache,
                 context_insertion=self._context_insertion,
                 last_context_menu_global_pos=(
@@ -611,7 +693,8 @@ class PromptEditor(QFluentTextEdit):
         self._prompt_menu_presenter: PromptContextMenuRequestPresenter = (
             composition_factory.build_prompt_menu_presenter(
                 composition_context,
-                action_snapshot_provider=self._context_menu_action_controller,
+                snapshot_reader=self._context_menu_snapshot_assembler,
+                preparation=self._context_menu_preparation,
                 segment_presets=self._segment_preset_controller,
                 context_insertion=self._context_insertion,
                 trigger_word_identity_validator=(
@@ -655,11 +738,11 @@ class PromptEditor(QFluentTextEdit):
         self._inline_lora_menu_presenter: PromptInlineLoraContextMenuPresenter = (
             composition_factory.build_inline_lora_menu_presenter(
                 composition_context,
-                lora_metadata=self._lora_metadata_feature_controller,
+                lora_metadata=self._lora_metadata_presentation,
                 lora_trigger_words=self._lora_trigger_word_controller,
                 prepared_scene_context_at_position=(
                     lambda source_position: (
-                        self._scene_feature_controller.prepare_position_context(
+                        self._scene_position_preparation.prepare_position_context(
                             source_position,
                             reason="inline_lora_context_menu",
                         )
@@ -739,19 +822,16 @@ class PromptEditor(QFluentTextEdit):
     @property
     def _autocomplete_panel(self) -> PromptAutocompletePanel | None:
         """Expose the live autocomplete panel for prompt-editor tests and wiring."""
-
         return self._autocomplete.panel
 
     @property
     def _segment_overlay(self) -> PromptReorderOverlayPort | None:
         """Expose the live segment reorder overlay for prompt-editor tests."""
-
         return self._interaction_controller.segment_overlay
 
     @property
     def _token_weight_control_overlay(self) -> PromptTokenWeightControls:
         """Expose the live token weight controls for prompt-editor tests."""
-
         return self._token_weight_controls
 
     def viewport(self) -> QWidget:
@@ -759,45 +839,40 @@ class PromptEditor(QFluentTextEdit):
 
         if hasattr(self, "_surface"):
             return self._surface.viewport()
-        return super().viewport()
+        return cast(QWidget, super().viewport())
 
     def verticalScrollBar(self) -> QScrollBar:
         """Return the surface-owned scrollbar that owns prompt viewport state."""
 
         if hasattr(self, "_surface"):
             return self._surface.verticalScrollBar()
-        return super().verticalScrollBar()
+        return cast(QScrollBar, super().verticalScrollBar())
 
-    def document(self):
+    def document(self) -> QTextDocument:
         """Return the source-backed compatibility document used by geometry helpers."""
 
         if hasattr(self, "_surface"):
             return self._surface.document()
-        return super().document()
+        return cast(QTextDocument, super().document())
 
     def lineHeight(self) -> int:  # noqa: N802
         """Return the live single-line text height used by the grow policy."""
-
         return self._sizing.line_height()
 
     def minimumEditorHeight(self) -> int:  # noqa: N802
         """Return the shell height for one visible line inside the QFluent host."""
-
         return self._sizing.minimum_editor_height()
 
     def manualScrollHeight(self) -> int | None:  # noqa: N802
         """Return the user-requested durable manual prompt height."""
-
         return self._sizing.manual_scroll_height()
 
     def setManualScrollHeight(self, height: int | None) -> None:  # noqa: N802
         """Apply a user-requested durable manual prompt height."""
-
         self._sizing.set_manual_scroll_height(height)
 
     def sizeHint(self) -> QSize:
         """Return a size hint whose height tracks the current fixed shell height."""
-
         return self._sizing.size_hint()
 
     def minimumSizeHint(self) -> QSize:
@@ -892,21 +967,21 @@ class PromptEditor(QFluentTextEdit):
         """Replace workflow scene titles offered by line-start autocomplete."""
 
         self._refresh_scene_context_identity()
-        self._scene_feature_controller.set_scene_autocomplete_titles(titles)
-        self._autocomplete.refresh_active_scene_session()
+        self._scene_context_publication.set_scene_autocomplete_titles(titles)
+        self._autocomplete_query_result_lifecycle.refresh_active_scene_session()
 
     def set_queueable_scene_keys(self, scene_keys: frozenset[str]) -> None:
         """Replace normalized scene keys that may be queued from this editor."""
 
         self._refresh_scene_context_identity()
-        self._scene_feature_controller.set_queueable_scene_keys(scene_keys)
+        self._scene_context_publication.set_queueable_scene_keys(scene_keys)
 
     def _refresh_scene_context_identity(self) -> None:
         """Publish current editor metadata identity to the scene feature owner."""
 
         metadata = self.property("input_metadata")
         if not isinstance(metadata, dict):
-            self._scene_feature_controller.set_context_identity(
+            self._scene_context_publication.set_context_identity(
                 cube_context_id=None,
                 scene_context_id=None,
             )
@@ -916,12 +991,12 @@ class PromptEditor(QFluentTextEdit):
             metadata.get("node_name"),
             metadata.get("key"),
         )
-        self._scene_feature_controller.set_context_identity(
+        self._scene_context_publication.set_context_identity(
             cube_context_id=cube_context_id,
             scene_context_id=cube_context_id,
         )
 
-    def textCursor(self):
+    def textCursor(self) -> PromptCursorAdapter:
         """Return the source-backed cursor wrapper used by controller seams."""
 
         return self._surface.textCursor()
@@ -1009,7 +1084,7 @@ class PromptEditor(QFluentTextEdit):
             ),
         )
 
-    def setTextCursor(self, cursor) -> None:  # type: ignore[no-untyped-def]
+    def setTextCursor(self, cursor: object) -> None:  # noqa: N802
         """Persist one source-backed cursor selection onto the projection surface."""
 
         self._surface.setTextCursor(cursor)
@@ -1221,7 +1296,7 @@ class PromptEditor(QFluentTextEdit):
         *,
         start: int,
         end: int,
-    ):
+    ) -> tuple[QRectF, ...]:
         """Return the wrapped viewport fragments for one raw source range."""
 
         return self._surface.source_range_fragments(start=start, end=end)
@@ -1263,7 +1338,7 @@ class PromptEditor(QFluentTextEdit):
         *,
         start: int,
         end: int,
-    ):
+    ) -> tuple[QRectF, ...]:
         """Return wrapped fragments for one active reorder preview source range."""
 
         return self._surface.reorder_preview_fragments(start=start, end=end)
@@ -1271,10 +1346,10 @@ class PromptEditor(QFluentTextEdit):
     def reorder_live_chip_geometry_snapshot(
         self,
         *,
-        layout_view,
-        chip_rendered_ranges_by_index,
-        chip_owned_ranges_by_index,
-    ):
+        layout_view: PromptReorderLayoutView,
+        chip_rendered_ranges_by_index: dict[int, tuple[int, int]],
+        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
+    ) -> PromptReorderChipGeometrySnapshot:
         """Return projection-owned live reorder chip geometry."""
 
         return self._surface.reorder_live_chip_geometry_snapshot(
@@ -1301,9 +1376,9 @@ class PromptEditor(QFluentTextEdit):
     def reorder_preview_chip_geometry_snapshot(
         self,
         *,
-        snapshot,
-        layout_view,
-    ):
+        snapshot: ReorderGeometrySnapshot,
+        layout_view: PromptReorderLayoutView,
+    ) -> PromptReorderChipGeometrySnapshot:
         """Return projection-owned preview reorder chip geometry."""
 
         return self._surface.reorder_preview_chip_geometry_snapshot(
@@ -1314,9 +1389,9 @@ class PromptEditor(QFluentTextEdit):
     def reorder_live_chip_projection_paint_snapshots(
         self,
         *,
-        chip_geometry_snapshot,
-        chip_owned_ranges_by_index,
-    ):
+        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
+        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
+    ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
         """Return projection-owned live paint snapshots for visible reorder chips."""
 
         return self._surface.reorder_live_chip_projection_paint_snapshots(
@@ -1327,10 +1402,10 @@ class PromptEditor(QFluentTextEdit):
     def reorder_preview_chip_projection_paint_snapshots(
         self,
         *,
-        chip_geometry_snapshot,
-        chip_owned_ranges_by_index,
-        chip_indices=None,
-    ):
+        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
+        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
+        chip_indices: frozenset[int] | None = None,
+    ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
         """Return projection-owned preview paint snapshots for visible reorder chips."""
 
         return self._surface.reorder_preview_chip_projection_paint_snapshots(
@@ -1339,25 +1414,15 @@ class PromptEditor(QFluentTextEdit):
             chip_indices=chip_indices,
         )
 
-    def set_reorder_overlay_suppression_snapshots(
+    def set_reorder_surface_visual_publication(
         self,
-        snapshots_by_index: dict[int, PromptReorderProjectionPaintSnapshot],
+        publication: PromptReorderSurfaceVisualPublication,
     ) -> None:
-        """Suppress fragments represented by exact reorder overlay snapshots."""
+        """Publish reorder chrome and suppression as one prepared frame."""
 
-        self._surface.set_reorder_overlay_suppression_snapshots(snapshots_by_index)
+        self._surface.set_reorder_surface_visual_publication(publication)
 
-    def set_reorder_surface_chrome(
-        self,
-        *,
-        mode: str,
-        chips: tuple[PromptReorderSurfaceChromeChip, ...],
-    ) -> None:
-        """Paint stationary reorder chrome below projection-owned text."""
-
-        self._surface.set_reorder_surface_chrome(mode=mode, chips=chips)
-
-    def reorder_preview_cursor_rect(self, position: int):
+    def reorder_preview_cursor_rect(self, position: int) -> QRectF:
         """Return the active reorder preview caret rect for one source position."""
 
         return self._surface.reorder_preview_cursor_rect(position)
@@ -1367,7 +1432,7 @@ class PromptEditor(QFluentTextEdit):
         *,
         start: int,
         end: int,
-    ):
+    ) -> tuple[QRectF, ...]:
         """Return wrapped fragments for one active base-drag preview source range."""
 
         return self._surface.reorder_base_drag_fragments(start=start, end=end)
@@ -1375,9 +1440,9 @@ class PromptEditor(QFluentTextEdit):
     def reorder_base_drag_chip_geometry_snapshot(
         self,
         *,
-        snapshot,
-        layout_view,
-    ):
+        snapshot: ReorderGeometrySnapshot,
+        layout_view: PromptReorderLayoutView,
+    ) -> PromptReorderChipGeometrySnapshot:
         """Return projection-owned base-drag reorder chip geometry."""
 
         return self._surface.reorder_base_drag_chip_geometry_snapshot(
@@ -1385,7 +1450,7 @@ class PromptEditor(QFluentTextEdit):
             layout_view=layout_view,
         )
 
-    def reorder_base_drag_cursor_rect(self, position: int):
+    def reorder_base_drag_cursor_rect(self, position: int) -> QRectF:
         """Return the active base-drag caret rect for one source position."""
 
         return self._surface.reorder_base_drag_cursor_rect(position)
@@ -1393,9 +1458,9 @@ class PromptEditor(QFluentTextEdit):
     def reorder_base_drag_placement_snapshot(
         self,
         *,
-        snapshot,
-        layout_view,
-    ):
+        snapshot: ReorderGeometrySnapshot,
+        layout_view: PromptReorderLayoutView,
+    ) -> PromptReorderPlacementSnapshot:
         """Return projection-owned base-drag placement geometry."""
 
         return self._surface.reorder_base_drag_placement_snapshot(
@@ -1403,37 +1468,33 @@ class PromptEditor(QFluentTextEdit):
             layout_view=layout_view,
         )
 
-    def reset_reorder_geometry_cache_counters(self):
+    def reset_reorder_geometry_cache_counters(self) -> None:
         """Reset surface reorder cache counters for a new drag gesture."""
-
         self._surface.reset_reorder_geometry_cache_counters()
 
-    def reorder_geometry_cache_counters(self):
+    def reorder_geometry_cache_counters(self) -> dict[str, object]:
         """Return surface reorder cache counters for gesture diagnostics."""
-
         return self._surface.reorder_geometry_cache_counters()
 
     def reorder_placement_at_rect(
         self,
-        drag_rect,
+        drag_rect: QRectF,
         *,
-        snapshot,
-        active_placement_id,
-    ):
+        snapshot: PromptReorderPlacementSnapshot,
+        active_placement_id: PromptReorderPlacementId | None,
+    ) -> PromptReorderPlacementGeometry | None:
         """Return the projection-owned placement selected by one drag rect."""
-
         return self._surface.reorder_placement_at_rect(
             drag_rect,
             snapshot=snapshot,
             active_placement_id=active_placement_id,
         )
 
-    def active_syntax_span(self):
+    def active_syntax_span(self) -> PromptSyntaxSpanView | None:
         """Return the syntax span currently owned by the surface caret model."""
-
         return self._surface.active_syntax_span()
 
-    def cursorForPosition(self, position):  # type: ignore[no-untyped-def]
+    def cursorForPosition(self, position: QPoint) -> PromptCursorAdapter:  # noqa: N802
         """Return the cursor located at one viewport-local point."""
 
         return self._surface.cursorForPosition(position)
@@ -1514,13 +1575,6 @@ class PromptEditor(QFluentTextEdit):
         )
         event.acceptProposedAction()
 
-    def _handle_clipboard_paste_completed(self, reason: str) -> None:
-        """Refresh semantic prompt state after any clipboard paste entrypoint."""
-
-        if not hasattr(self, "_interaction_controller"):
-            return
-        self._interaction_controller.flush_pending_semantic_refresh(reason=reason)
-
     def _accept_or_ignore_prompt_mime_event(
         self,
         event: QDragEnterEvent | QDragMoveEvent,
@@ -1556,7 +1610,7 @@ class PromptEditor(QFluentTextEdit):
             ),
             command_name="drop_plain_text",
         )
-        self._handle_clipboard_paste_completed("drop_plain_text")
+        self._clipboard_paste_completion.complete("drop_plain_text")
 
     def _viewport_position_for_host_drop(self, event: QDropEvent) -> QPoint:
         """Return a host drop position in projection-viewport coordinates."""
@@ -1578,7 +1632,7 @@ class PromptEditor(QFluentTextEdit):
 
         if not self._feature_profile_controller.emphasis_enabled:
             return
-        self._interaction_controller.modify_emphasis(delta)
+        self._weight_interaction.modify_emphasis(delta)
 
     def setPlaceholderText(self, text: str) -> None:  # noqa: N802
         """Store placeholder text while keeping the host document visually empty."""
@@ -1622,7 +1676,7 @@ class PromptEditor(QFluentTextEdit):
         """Route viewport-owned geometry and context-menu events back to the host."""
 
         if not hasattr(self, "_surface"):
-            return super().eventFilter(watched, event)
+            return bool(super().eventFilter(watched, event))
         if watched is self._surface:
             if event.type() == QEvent.Type.FocusIn:
                 self._qfluent_chrome.handle_focus_in()
@@ -1650,7 +1704,7 @@ class PromptEditor(QFluentTextEdit):
                 return self._shell_context_menu.forward_context_menu_event_to_host(
                     cast(QContextMenuEvent, event)
                 )
-        return super().eventFilter(watched, event)
+        return bool(super().eventFilter(watched, event))
 
     def hideEvent(self, event: QHideEvent) -> None:
         """Close autocomplete when the prompt editor itself is hidden."""
@@ -1796,10 +1850,10 @@ class PromptEditor(QFluentTextEdit):
             current = current.parentWidget()
         return None
 
-    def _handle_surface_syntax_action(self, action: object) -> None:
-        """Delegate surface syntax actions to the interaction controller seam."""
+    def _handle_surface_syntax_action(self, action: PromptSyntaxAction) -> None:
+        """Route surface syntax actions to their dedicated weight feature owner."""
 
-        self._interaction_controller.apply_syntax_action(action)
+        self._weight_interaction.apply_syntax_action(action)
 
     def _handle_surface_mouse_release(self) -> None:
         """Refresh autocomplete after surface-owned mouse interactions finish."""
@@ -1830,12 +1884,12 @@ class PromptEditor(QFluentTextEdit):
     def mark_lora_metadata_dirty(self) -> None:
         """Mark this editor's catalog-backed LoRA metadata as stale."""
 
-        self._lora_metadata_feature_controller.mark_dirty()
+        self._lora_metadata_refresh.mark_dirty()
 
     def refresh_lora_metadata_if_visible(self) -> bool:
         """Refresh dirty LoRA metadata when this editor is currently visible."""
 
-        return self._lora_metadata_feature_controller.refresh_if_visible()
+        return self._lora_metadata_refresh.refresh_if_visible()
 
     def clear_lora_thumbnail_cache(self) -> None:
         """Discard decoded LoRA thumbnails after stored thumbnail assets change."""
@@ -1852,12 +1906,12 @@ class PromptEditor(QFluentTextEdit):
     def _refresh_lora_render_metadata_after_catalog_update(self) -> bool:
         """Refresh inline LoRA render metadata after this editor updates catalog rows."""
 
-        return self._lora_metadata_feature_controller.refresh_after_catalog_update()
+        return self._lora_metadata_refresh.refresh_after_catalog_update()
 
     def _schedule_lora_metadata_catchup_if_needed(self) -> None:
         """Queue a lazy visible-editor metadata refresh when needed."""
 
-        self._lora_metadata_feature_controller.schedule_catchup_if_needed()
+        self._lora_metadata_refresh.schedule_catchup_if_needed()
 
     def _set_context_menu_insert_state_for_tests(
         self,
@@ -1894,7 +1948,7 @@ class PromptEditor(QFluentTextEdit):
     def _ancestor_editor_panel(self) -> QWidget | None:
         """Return the owning editor panel widget when this editor is panel-hosted."""
 
-        parent = self.parentWidget()
+        parent = cast(QWidget | None, self.parentWidget())
         while parent is not None:
             if parent.__class__.__name__ == "EditorPanel":
                 return parent
@@ -1904,7 +1958,7 @@ class PromptEditor(QFluentTextEdit):
     def _shell_viewport(self) -> QWidget:
         """Return the real QFluent host viewport beneath the projection surface."""
 
-        return super().viewport()
+        return cast(QWidget, super().viewport())
 
     def _content_viewport_for_chrome(self) -> QWidget | None:
         """Return the projection viewport after construction has created it."""
@@ -1958,7 +2012,7 @@ class PromptEditor(QFluentTextEdit):
     def _host_scrollbar_for_scroll_delegate(self) -> QScrollBar:
         """Return QFluent's native host scrollbar for shell metric mirroring."""
 
-        return QFluentTextEdit.verticalScrollBar(self)
+        return cast(QScrollBar, QFluentTextEdit.verticalScrollBar(self))
 
     def _surface_for_scroll_delegate(self) -> PromptShellScrollSurface | None:
         """Return the projection surface once construction has created it."""
@@ -2006,10 +2060,7 @@ class PromptEditor(QFluentTextEdit):
 
         if not hasattr(self, "_surface"):
             return 1.0
-        layout = getattr(self._surface, "_layout", None)
-        metrics = getattr(layout, "metrics", None)
-        line_height = getattr(metrics, "text_line_height", None)
-        return float(line_height) if isinstance(line_height, int | float) else 1.0
+        return float(self._surface.text_line_height())
 
     def _surface_is_alive_for_sizing(self) -> bool:
         """Return whether the projection surface can still serve sizing data."""

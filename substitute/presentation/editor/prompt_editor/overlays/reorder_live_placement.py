@@ -34,27 +34,41 @@ def live_gap_ranges_for_layout(
 ) -> dict[int, tuple[int, int]] | None:
     """Return verified source ranges for gaps or reject non-equivalent sources."""
 
-    between_row_index = 0
+    next_between_row_index = 0
     ranges: dict[int, tuple[int, int]] = {}
     for gap in layout_view.gaps:
         if gap.placement is PromptReorderGapPlacement.BETWEEN_ROWS:
-            row_index = between_row_index
-            between_row_index += 1
+            row_indices = range(
+                next_between_row_index,
+                max(0, len(layout_view.rows) - 1),
+            )
         else:
-            row_index = len(layout_view.rows) - 1
-        if not 0 <= row_index < len(layout_view.rows):
+            row_indices = range(
+                max(0, len(layout_view.rows) - 1),
+                len(layout_view.rows),
+            )
+        resolved_range: tuple[int, int] | None = None
+        for row_index in row_indices:
+            row = layout_view.rows[row_index]
+            if not row.chip_indices:
+                continue
+            preceding_chip = chips_by_index.get(row.chip_indices[-1])
+            if (
+                preceding_chip is None
+                or preceding_chip.separator_text_after != gap.separator_text
+            ):
+                continue
+            start = preceding_chip.selection_end
+            end = start + len(gap.separator_text)
+            if source_text[start:end] != gap.separator_text:
+                continue
+            resolved_range = (start, end)
+            if gap.placement is PromptReorderGapPlacement.BETWEEN_ROWS:
+                next_between_row_index = row_index + 1
+            break
+        if resolved_range is None:
             return None
-        row = layout_view.rows[row_index]
-        if not row.chip_indices:
-            return None
-        preceding_chip = chips_by_index.get(row.chip_indices[-1])
-        if preceding_chip is None:
-            return None
-        start = preceding_chip.selection_end
-        end = start + len(gap.separator_text)
-        if source_text[start:end] != gap.separator_text:
-            return None
-        ranges[gap.gap_index] = (start, end)
+        ranges[gap.gap_index] = resolved_range
     return ranges
 
 

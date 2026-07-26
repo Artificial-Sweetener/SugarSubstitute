@@ -26,7 +26,18 @@ from PySide6.QtCore import QEventLoop, QPoint, QPointF, QRect, Qt, QTimer
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
+from substitute.application.prompt_editor.reorder.projection import (
+    domain_state_from_view,
+    domain_target_from_view,
+)
 from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
+from substitute.domain.prompt.reorder.models import (
+    PromptLineDropTarget as DomainPromptLineDropTarget,
+)
+from substitute.domain.prompt.reorder.mutations import (
+    apply_drop_target_to_state,
+    apply_line_drop_target_to_state,
+)
 
 from .action_driver import PromptAbuseActionHost
 from .models import PromptAbuseAction
@@ -116,6 +127,42 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
         )
         QTest.mouseMove(source_chip.overlay, position, delay=0)
 
+    def reorder_drag_sweep(self, editor: object) -> None:
+        """Drive the real mouse path through every currently published placement."""
+
+        del editor
+        source_chip = self._require_active_drag()
+        overlay = cast(Any, source_chip.overlay)
+        placement_snapshot = overlay._geometry.state.placement_snapshot
+        if placement_snapshot is None or not placement_snapshot.placements:
+            raise RuntimeError("Reorder drag sweep has no prepared placements.")
+        for placement in placement_snapshot.placements:
+            QTest.mouseMove(
+                source_chip.overlay,
+                _pointer_point_for_placement(overlay, placement.hit_rect.center()),
+                delay=0,
+            )
+        QApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents)
+        for placement in reversed(placement_snapshot.placements):
+            QTest.mouseMove(
+                source_chip.overlay,
+                _pointer_point_for_placement(overlay, placement.hit_rect.center()),
+                delay=0,
+            )
+            QApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents)
+            mismatches = tuple(
+                mismatch
+                for mismatch in (
+                    _reorder_sweep_target_mismatch(overlay, placement),
+                    _invalid_reorder_active_target_mismatch(overlay),
+                    _reorder_active_preview_mismatch(overlay),
+                    _reorder_landing_shadow_mismatch(overlay),
+                )
+                if mismatch is not None
+            )
+            if mismatches:
+                raise RuntimeError(";".join(mismatches))
+
     def reorder_drag_release(self, editor: object) -> None:
         """Release through the grabbed hotspot after the target move was delivered."""
 
@@ -182,20 +229,64 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
         exact, mismatch = super().capture_feature_checkpoint(editor, action)
         overlay = cast(Any, editor)._segment_overlay
         mismatches = [item for item in (mismatch,) if item is not None]
+        dragged_segment_index = (
+            None
+            if overlay is None
+            else overlay.pointer_reorder_state().dragged_segment_index
+        )
         if action.kind == "reorder_drag_threshold" and (
-            overlay is None or overlay.dragged_segment_index() is None
+            overlay is None or dragged_segment_index is None
         ):
             mismatches.append("reorder_drag_threshold:dragged_segment_index=None")
         if action.kind == "reorder_drag_release" and (
-            overlay is not None and overlay.dragged_segment_index() is not None
+            overlay is not None and dragged_segment_index is not None
         ):
             mismatches.append(
-                "reorder_drag_release:"
-                f"dragged_segment_index={overlay.dragged_segment_index()}"
+                f"reorder_drag_release:dragged_segment_index={dragged_segment_index}"
             )
         if overlay is not None:
+            placement_mismatch = _invalid_reorder_placement_mismatch(overlay)
+            if placement_mismatch is not None:
+                mismatches.append(placement_mismatch)
+            target_mismatch = self._destination_target_mismatch(overlay, action)
+            if target_mismatch is not None:
+                mismatches.append(target_mismatch)
             mismatches.extend(_reorder_render_state_mismatches(overlay))
+            landing_mismatch = _reorder_landing_shadow_mismatch(overlay)
+            if landing_mismatch is not None:
+                mismatches.append(landing_mismatch)
         return exact and not mismatches, ";".join(mismatches) or None
+
+    def _destination_target_mismatch(
+        self,
+        overlay: QWidget,
+        action: PromptAbuseAction,
+    ) -> str | None:
+        """Require the terminal pointer move to reach its semantic destination."""
+
+        if action.kind != "reorder_drag_move" or float(action.value) < 1.0:
+            return None
+        target_segment_index = self._target_segment_index
+        if target_segment_index is None:
+            return "reorder_destination:target_segment_index=None"
+        semantic_target = _semantic_drop_target(
+            overlay,
+            target_segment_index=target_segment_index,
+        )
+        active_target = cast(Any, overlay)._gesture.state.active_drop_target
+        if semantic_target is None:
+            return (
+                "reorder_destination:"
+                f"segment={target_segment_index}:semantic_target=None:"
+                f"active={active_target!r}"
+            )
+        if active_target != semantic_target.target:
+            return (
+                "reorder_destination:"
+                f"segment={target_segment_index}:"
+                f"expected={semantic_target.target!r}:active={active_target!r}"
+            )
+        return None
 
     def _require_active_drag(self) -> _OverlayChipTarget:
         """Return the active source chip or reject an invalid action sequence."""
@@ -252,8 +343,8 @@ def _semantic_drop_target(
     """Return the current lane and pointer point before one logical segment."""
 
     prompt_overlay = cast(Any, overlay)
-    layout_view = prompt_overlay._base_drag_layout_view
-    placement_snapshot = prompt_overlay._placement_snapshot
+    layout_view = prompt_overlay.preview_build_facts.snapshot().base_drag_layout_view
+    placement_snapshot = prompt_overlay._geometry.state.placement_snapshot
     if layout_view is None or placement_snapshot is None:
         return None
     target: PromptLineDropTarget | None = None
@@ -292,6 +383,25 @@ def _semantic_drop_target(
     )
 
 
+def _pointer_point_for_placement(overlay: Any, center: QPointF) -> QPoint:
+    """Return the pointer position that centers the held chip on a placement."""
+
+    drag_state = overlay._gesture.state
+    size = drag_state.drag_intent_size
+    grab_offset = drag_state.drag_grab_offset
+    if size is None or size.isEmpty() or grab_offset is None:
+        raise RuntimeError("Reorder drag sweep has no captured drag intent geometry.")
+    local_pointer = (
+        center
+        + grab_offset
+        - QPointF(
+            size.width() / 2.0,
+            size.height() / 2.0,
+        )
+    )
+    return QPoint(round(local_pointer.x()), round(local_pointer.y()))
+
+
 def _resolved_segment_index(value: str, overlay: QWidget) -> int:
     """Resolve an exact or viewport-relative segment descriptor."""
 
@@ -315,15 +425,16 @@ def _reorder_render_state_mismatches(overlay: Any) -> tuple[str, ...]:
     render_state = overlay._view.render_state
     surface = cast(Any, overlay)._editor._surface
     if render_state.preview_active:
-        expected_indices = set(overlay._preview_visuals_by_index)
+        expected_indices = set(overlay._preview_visual_owner.visuals_by_index)
         chips = render_state.preview_chips
     else:
-        expected_indices = set(overlay._visuals_by_index)
+        expected_indices = set(overlay._live_visual_owner.visuals_by_index)
         chips = render_state.live_chips
     dragged_segment_index = render_state.dragged_segment_index
     if dragged_segment_index is not None:
         expected_indices.discard(dragged_segment_index)
-    surface_chrome = surface._reorder_surface_chrome_snapshot
+    surface_visual_state = surface._reorder_surface_visual_state.state
+    surface_chrome = surface_visual_state.chrome_snapshot
     surface_indices = (
         set()
         if surface_chrome is None
@@ -331,20 +442,24 @@ def _reorder_render_state_mismatches(overlay: Any) -> tuple[str, ...]:
     )
     rendered_indices = {chip.segment_index for chip in chips} | surface_indices
     mismatches: list[str] = []
+    unsafe_indices = overlay._render_publication.publication.unsafe_transient_indices
+    if unsafe_indices:
+        mismatches.append(f"reorder_render_state:unsafe_transient={unsafe_indices!r}")
     if child_hotspot_count:
         mismatches.append(
             f"reorder_pointer_surface:child_hotspots={child_hotspot_count}:expected=0"
         )
     missing_indices = tuple(sorted(expected_indices - rendered_indices))
     if missing_indices:
+        animation_publication = overlay._animation_presentation.publication
         animation_indices = tuple(
-            sorted(overlay._animation_presenter.paint_rect_overrides())
+            sorted(animation_publication.displacement_rects_by_index)
         )
-        held_indices = tuple(
-            sorted(overlay._held_chip_presenter.paint_rect_overrides())
+        held_indices = tuple(sorted(animation_publication.held_rects_by_index))
+        snapshot_indices = tuple(
+            sorted(overlay._preview_paint_snapshots.snapshots_by_index)
         )
-        snapshot_indices = tuple(sorted(overlay._preview_visual_snapshots_by_index))
-        animation_counters = overlay._animation_presenter.counters()
+        animation_counters = overlay._animation_presentation.counters()
         mismatches.append(
             "reorder_render_state:"
             f"missing={missing_indices!r}:"
@@ -358,7 +473,8 @@ def _reorder_render_state_mismatches(overlay: Any) -> tuple[str, ...]:
     }
     unsafe_suppressed_indices = tuple(
         sorted(
-            content_free_indices & set(overlay._last_suppressed_chip_snapshots_by_index)
+            content_free_indices
+            & set(surface_visual_state.suppression_snapshots_by_index)
         )
     )
     if unsafe_suppressed_indices:
@@ -366,14 +482,14 @@ def _reorder_render_state_mismatches(overlay: Any) -> tuple[str, ...]:
             "reorder_render_state:content_free_suppressed="
             f"{unsafe_suppressed_indices!r}"
         )
-    active_layout = (
-        surface._reorder_preview_projection.preview_layout
+    active_frame = (
+        surface._reorder_preview_projection.preview_frame
         if render_state.preview_active
-        else surface._layout
+        else surface._layout.frame
     )
     unresolved_fragments = (
         ()
-        if active_layout is None
+        if active_frame is None
         else tuple(
             (
                 fragment.run_id,
@@ -381,12 +497,12 @@ def _reorder_render_state_mismatches(overlay: Any) -> tuple[str, ...]:
                 getattr(fragment, "text", ""),
                 fragment.projection_start,
             )
-            for line in active_layout.snapshot.lines
+            for line in active_frame.output.snapshot.lines
             for fragment in line.fragments
-            if active_layout.effective_run_for_paint(fragment.run_id) is None
+            if active_frame.paint_input.effective_run(fragment.run_id) is None
             or (
                 fragment.token_id is not None
-                and active_layout.effective_token_for_paint(fragment.token_id) is None
+                and active_frame.paint_input.effective_token(fragment.token_id) is None
             )
         )
     )
@@ -396,6 +512,174 @@ def _reorder_render_state_mismatches(overlay: Any) -> tuple[str, ...]:
             f"{unresolved_fragments[:8]!r}:count={len(unresolved_fragments)}"
         )
     return tuple(mismatches)
+
+
+def _reorder_landing_shadow_mismatch(overlay: Any) -> str | None:
+    """Require visible chip-shaped feedback for every active drag target."""
+
+    gesture = overlay._gesture.state
+    if gesture.dragged_segment_index is None or gesture.active_drop_target is None:
+        return None
+    active_placement = overlay._geometry.state.active_placement
+    landing_preview = overlay._view.render_state.landing_preview
+    if (
+        active_placement is not None
+        and active_placement.target == gesture.active_drop_target
+        and landing_preview is not None
+        and (landing_preview.geometry is not None or landing_preview.visual is not None)
+    ):
+        return None
+    landing = overlay._landing_visual
+    return (
+        "reorder_landing_shadow:"
+        f"target={gesture.active_drop_target!r}:"
+        f"placement={None if active_placement is None else active_placement.target!r}:"
+        f"paint={landing_preview is not None}:"
+        f"geometry={
+            False if landing_preview is None else landing_preview.geometry is not None
+        }:"
+        f"visual={
+            False if landing_preview is None else landing_preview.visual is not None
+        }:"
+        f"skip={landing.state.publication.last_preview_skip_reason}:"
+        f"counters={landing.counters()!r}"
+    )
+
+
+def _invalid_reorder_placement_mismatch(overlay: Any) -> str | None:
+    """Require every published line placement to be valid for the drag-base state."""
+
+    geometry_state = overlay._geometry.state
+    placement_snapshot = geometry_state.placement_snapshot
+    base_state_view = geometry_state.base_drag_reorder_state
+    if placement_snapshot is None or base_state_view is None:
+        return None
+    base_state = domain_state_from_view(base_state_view)
+    dragged_segment_index = overlay._gesture.state.dragged_segment_index
+    if dragged_segment_index is None:
+        return None
+    for placement in placement_snapshot.placements:
+        target = placement.target
+        if not isinstance(target, PromptLineDropTarget):
+            continue
+        try:
+            apply_line_drop_target_to_state(
+                base_state,
+                dragged_segment_index=dragged_segment_index,
+                target=DomainPromptLineDropTarget(
+                    row_index=target.row_index,
+                    insertion_index=target.insertion_index,
+                ),
+            )
+        except ValueError as error:
+            return (
+                "reorder_invalid_placement:"
+                f"target={target!r}:"
+                f"ordered={base_state.ordered_segment_indices!r}:"
+                f"partitions={base_state.partition_index_by_segment_index!r}:"
+                f"slots={base_state.separator_slots!r}:"
+                f"error={error}"
+            )
+    return None
+
+
+def _invalid_reorder_active_target_mismatch(overlay: Any) -> str | None:
+    """Require the active line target to mutate the authoritative drag-base state."""
+
+    geometry_state = overlay._geometry.state
+    target = overlay._gesture.state.active_drop_target
+    base_state_view = geometry_state.base_drag_reorder_state
+    dragged_segment_index = overlay._gesture.state.dragged_segment_index
+    if (
+        not isinstance(target, PromptLineDropTarget)
+        or base_state_view is None
+        or dragged_segment_index is None
+    ):
+        return None
+    try:
+        apply_line_drop_target_to_state(
+            domain_state_from_view(base_state_view),
+            dragged_segment_index=dragged_segment_index,
+            target=DomainPromptLineDropTarget(
+                row_index=target.row_index,
+                insertion_index=target.insertion_index,
+            ),
+        )
+    except ValueError as error:
+        return f"reorder_invalid_active_target:target={target!r}:error={error}"
+    return None
+
+
+def _reorder_sweep_target_mismatch(
+    overlay: Any,
+    intended_placement: Any,
+) -> str | None:
+    """Require a placement-centered pointer move to select that semantic target."""
+
+    active_target = overlay._gesture.state.active_drop_target
+    active_placement = overlay._geometry.state.active_placement
+    if (
+        active_target == intended_placement.target
+        and active_placement is not None
+        and active_placement.target == intended_placement.target
+    ):
+        return None
+    return (
+        "reorder_sweep_target:"
+        f"expected={intended_placement.target!r}:"
+        f"expected_id={intended_placement.placement_id!r}:"
+        f"expected_hit={intended_placement.hit_rect!r}:"
+        f"expected_anchor={intended_placement.insertion_anchor_rect!r}:"
+        f"active={active_target!r}:"
+        f"placement={None if active_placement is None else active_placement.target!r}:"
+        f"placement_id={
+            None if active_placement is None else active_placement.placement_id!r
+        }:"
+        f"placement_hit={
+            None if active_placement is None else active_placement.hit_rect!r
+        }:"
+        f"placement_anchor={
+            None
+            if active_placement is None
+            else active_placement.insertion_anchor_rect!r
+        }"
+    )
+
+
+def _reorder_active_preview_mismatch(overlay: Any) -> str | None:
+    """Require the painted preview state to equal the active domain mutation."""
+
+    geometry_state = overlay._geometry.state
+    target = overlay._gesture.state.active_drop_target
+    base_state_view = geometry_state.base_drag_reorder_state
+    preview_state_view = geometry_state.preview_reorder_state
+    dragged_segment_index = overlay._gesture.state.dragged_segment_index
+    if (
+        target is None
+        or base_state_view is None
+        or preview_state_view is None
+        or dragged_segment_index is None
+    ):
+        return None
+    try:
+        expected_state = apply_drop_target_to_state(
+            domain_state_from_view(base_state_view),
+            dragged_segment_index=dragged_segment_index,
+            target=domain_target_from_view(target),
+        )
+    except ValueError:
+        return None
+    actual_state = domain_state_from_view(preview_state_view)
+    if actual_state == expected_state:
+        return None
+    return (
+        "reorder_active_preview:"
+        f"target={target!r}:"
+        f"expected_order={expected_state.ordered_segment_indices!r}:"
+        f"actual_order={actual_state.ordered_segment_indices!r}:"
+        f"expected_slots={expected_state.separator_slots!r}:"
+        f"actual_slots={actual_state.separator_slots!r}"
+    )
 
 
 def _wait_until(predicate: Callable[[], bool], *, timeout_ms: int = 250) -> None:

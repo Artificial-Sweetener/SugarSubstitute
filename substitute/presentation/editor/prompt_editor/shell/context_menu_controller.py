@@ -57,6 +57,8 @@ from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
     prompt_editor_work_event,
 )
+from ..features.diagnostic_menu_actions import PromptContextMenuAction
+from ..features.prompt_segment_preset_models import PromptSegmentPresetMenuModel
 
 from .menu_presentation import present_prompt_menu
 
@@ -67,13 +69,13 @@ _PROMPT_SEGMENT_MENU_TEXT_WIDTH = 220
 
 
 class PromptShellTextMenuParent(Protocol):
-    """Describe the QFluent host operations needed by the text menu."""
+    """Describe the text-editor API consumed by shell menu rows."""
 
     def textCursor(self) -> QTextCursor:
-        """Return the current host text cursor."""
+        """Return the current prompt text cursor."""
 
     def toPlainText(self) -> str:  # noqa: N802
-        """Return the current host source text."""
+        """Return the current prompt source text."""
 
     def undo(self) -> None:
         """Undo one prompt edit."""
@@ -82,13 +84,13 @@ class PromptShellTextMenuParent(Protocol):
         """Redo one prompt edit."""
 
     def canUndo(self) -> bool:  # noqa: N802
-        """Return whether undo is currently available."""
+        """Return whether undo is available."""
 
     def canRedo(self) -> bool:  # noqa: N802
-        """Return whether redo is currently available."""
+        """Return whether redo is available."""
 
     def isReadOnly(self) -> bool:  # noqa: N802
-        """Return whether the host is read-only."""
+        """Return whether source edits are disabled."""
 
 
 class PromptShellClipboardActions(Protocol):
@@ -105,58 +107,6 @@ class PromptShellClipboardActions(Protocol):
 
     def select_all(self) -> None:
         """Select the full prompt source."""
-
-
-class PromptShellDiagnosticAction(Protocol):
-    """Describe one prepared diagnostic menu action."""
-
-    @property
-    def label(self) -> str:
-        """Return the menu label."""
-
-    @property
-    def enabled(self) -> bool:
-        """Return whether the action is enabled."""
-
-    @property
-    def callback(self) -> Callable[[], None] | None:
-        """Return the prepared action callback."""
-
-
-class PromptShellSegmentPresetItem(Protocol):
-    """Describe one prepared saved-segment insert action."""
-
-    @property
-    def label(self) -> str:
-        """Return the menu label."""
-
-    @property
-    def text(self) -> str:
-        """Return the insertion text."""
-
-    @property
-    def tooltip(self) -> str:
-        """Return the action tooltip."""
-
-
-class PromptShellSegmentPresetSection(Protocol):
-    """Describe one prepared saved-segment menu section."""
-
-    @property
-    def title(self) -> str:
-        """Return the section title."""
-
-    @property
-    def presets(self) -> tuple[PromptShellSegmentPresetItem, ...]:
-        """Return prepared preset actions in this section."""
-
-
-class PromptShellSegmentPresetMenuModel(Protocol):
-    """Describe the prepared saved-segment menu model."""
-
-    @property
-    def sections(self) -> tuple[PromptShellSegmentPresetSection, ...]:
-        """Return prepared menu sections."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,7 +133,7 @@ class PromptShellPromptMenuRequest:
     schedule_lora: Callable[[], None]
     schedule_lora_enabled: bool
     trigger_word_actions: tuple[QAction, ...]
-    prompt_segment_model: PromptShellSegmentPresetMenuModel | None
+    prompt_segment_model: PromptSegmentPresetMenuModel | None
     selected_prompt_text: str | None
     save_prompt_segment: Callable[[], None] | None
     lookup_danbooru_wiki: Callable[[], None] | None
@@ -191,7 +141,7 @@ class PromptShellPromptMenuRequest:
     insert_prompt_segment: Callable[[str], None] | None
     queue_scene_key: str | None
     queue_scene: Callable[[str], None] | None
-    diagnostic_actions: tuple[PromptShellDiagnosticAction, ...]
+    diagnostic_actions: tuple[PromptContextMenuAction, ...]
     rich_prompt_rendering_enabled: bool
     toggle_rich_prompt_rendering: Callable[[bool], None] | None
 
@@ -466,7 +416,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
         clipboard_actions: PromptShellClipboardActions | None = None,
         schedule_lora_enabled: bool = True,
         trigger_word_actions: tuple[QAction, ...] = (),
-        prompt_segment_model: PromptShellSegmentPresetMenuModel | None = None,
+        prompt_segment_model: PromptSegmentPresetMenuModel | None = None,
         selected_prompt_text: str | None = None,
         save_prompt_segment: Callable[[], None] | None = None,
         lookup_danbooru_wiki: Callable[[], None] | None = None,
@@ -474,7 +424,7 @@ class _PromptEditorTextEditMenu(RoundMenu):  # type: ignore[misc]
         insert_prompt_segment: Callable[[str], None] | None = None,
         queue_scene_key: str | None = None,
         queue_scene: Callable[[str], None] | None = None,
-        diagnostic_actions: tuple[PromptShellDiagnosticAction, ...] = (),
+        diagnostic_actions: tuple[PromptContextMenuAction, ...] = (),
         rich_prompt_rendering_enabled: bool = True,
         toggle_rich_prompt_rendering: Callable[[bool], None] | None = None,
     ) -> None:
@@ -838,10 +788,8 @@ __all__ = [
     "PromptShellContextInsertState",
     "PromptShellContextMenuController",
     "PromptShellContextMenuOpening",
-    "PromptShellDiagnosticAction",
     "PromptShellPromptMenuRequest",
     "PromptShellPromptMenuRequestProvider",
     "PromptShellSelectionSnapshot",
-    "PromptShellSegmentPresetMenuModel",
     "_PromptEditorTextEditMenu",
 ]

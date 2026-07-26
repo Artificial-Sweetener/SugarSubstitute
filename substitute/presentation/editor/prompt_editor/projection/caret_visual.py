@@ -29,7 +29,9 @@ from substitute.presentation.widgets.text_caret import (
     text_caret_repaint_rect,
 )
 
-from .model import PromptProjectionSelection
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
+    PromptProjectionSelection,
+)
 
 
 class PromptSurfaceCaretVisualHost(Protocol):
@@ -43,6 +45,9 @@ class PromptSurfaceCaretVisualHost(Protocol):
 
     def _caret_focus_owner_has_focus(self) -> bool:
         """Return whether the widget that owns caret focus is active."""
+
+    def _caret_visual_state_changed(self) -> None:
+        """Publish changed caret eligibility or blink state before repaint."""
 
     def _current_caret_rect(self) -> QRectF:
         """Return the current viewport-local caret rectangle."""
@@ -135,8 +140,10 @@ class PromptSurfaceCaretVisualController:
         """Persist one caret blink phase and repaint only when it changes."""
 
         if self._blink_visible == visible:
+            self._host._caret_visual_state_changed()
             return
         self._blink_visible = visible
+        self._host._caret_visual_state_changed()
         self.update_caret_paint()
 
     def restart_caret_blink_cycle(

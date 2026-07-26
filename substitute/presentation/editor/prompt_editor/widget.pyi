@@ -27,8 +27,9 @@ from PySide6.QtCore import QMargins, QPointF, QSize, Qt
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QWidget
 
-from .projection.reorder_visual_snapshot import PromptReorderProjectionPaintSnapshot
-from .projection.reorder_surface_chrome import PromptReorderSurfaceChromeChip
+from .projection.reorder_surface_visual_state import (
+    PromptReorderSurfaceVisualPublication,
+)
 
 from substitute.application.danbooru import (
     DanbooruImagePreviewService,
@@ -63,6 +64,9 @@ from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
 )
+from substitute.application.prompt_editor.reorder.commit import (
+    PromptReorderLayoutCommitRequest,
+)
 from substitute.domain.prompt.features.models import (
     PromptEditorFeatureProfile,
 )
@@ -90,10 +94,7 @@ from .commands.diagnostic_commands import (
     PromptDiagnosticAction,
     PromptDiagnosticCommandResult,
 )
-from .commands.reorder_commands import (
-    PromptReorderCommandResult,
-    PromptReorderLayoutCommitRequest,
-)
+from .commands.reorder_commands import PromptReorderCommandResult
 from .commands.weight_commands import (
     PromptWeightActionRequest,
     PromptWeightCommandResult,
@@ -103,17 +104,24 @@ from .overlays import (
     PromptTokenWeightControls,
 )
 from .features import (
-    PromptContextMenuActionController,
+    PromptContextMenuPreparationLifecycle,
+    PromptContextMenuSnapshotAssembler,
     PromptDiagnosticsFeatureController,
     PromptFeatureProfileController,
+    PromptLoraMetadataPresentation,
+    PromptLoraMetadataRefreshLifecycle,
 )
-from .interactions import PromptReorderOverlayPort, PromptWheelScrollResult
-from .projection.model import (
-    PromptProjectionDisplayMode,
+from .interactions import (
+    PromptReorderOverlayPort,
+    PromptWeightInteraction,
+    PromptWheelScrollResult,
+)
+from .core.projection.document import PromptProjectionDisplayMode
+from .core.projection.tokens import (
     PromptProjectionToken,
     PromptWeightControlIdentity,
 )
-from .projection.selection_geometry import PromptProjectionSourceLineRect
+from .geometry.models import PromptProjectionSourceLineRect
 from .projection.session import (
     PromptEmphasisAdjustmentOwner,
     PromptEmphasisAdjustmentSession,
@@ -135,8 +143,12 @@ class PromptEditor(QWidget):
     _surface: Any
     _feature_profile_controller: PromptFeatureProfileController
     _diagnostics_feature_controller: PromptDiagnosticsFeatureController
-    _context_menu_action_controller: PromptContextMenuActionController
+    _context_menu_snapshot_assembler: PromptContextMenuSnapshotAssembler
+    _context_menu_preparation: PromptContextMenuPreparationLifecycle
     _syntax_profile: PromptSyntaxProfile
+    _weight_interaction: PromptWeightInteraction
+    _lora_metadata_presentation: PromptLoraMetadataPresentation
+    _lora_metadata_refresh: PromptLoraMetadataRefreshLifecycle
 
     def __init__(
         self,
@@ -364,15 +376,9 @@ class PromptEditor(QWidget):
         chip_owned_ranges_by_index: Any,
         chip_indices: frozenset[int] | None = ...,
     ) -> Any: ...
-    def set_reorder_overlay_suppression_snapshots(
+    def set_reorder_surface_visual_publication(
         self,
-        snapshots_by_index: dict[int, PromptReorderProjectionPaintSnapshot],
-    ) -> None: ...
-    def set_reorder_surface_chrome(
-        self,
-        *,
-        mode: str,
-        chips: tuple[PromptReorderSurfaceChromeChip, ...],
+        publication: PromptReorderSurfaceVisualPublication,
     ) -> None: ...
     def reorder_preview_cursor_rect(self, position: int) -> Any: ...
     def reorder_base_drag_fragments(self, *, start: int, end: int) -> Any: ...

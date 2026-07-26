@@ -40,11 +40,14 @@ from .real_shell_mount import (
 from substitute.presentation.editor.prompt_editor.overlays.reorder_visual_cache import (
     translated_snapshot_offset,
 )
+from substitute.presentation.editor.prompt_editor.projection.painter import (
+    PromptProjectionPainter,
+)
 from substitute.presentation.editor.prompt_editor.projection.reorder_visual_snapshot import (
     PromptReorderProjectionPaintSnapshot,
     PromptReorderTextPaintFragment,
 )
-from substitute.presentation.editor.prompt_editor.projection.snapshot import (
+from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionTextFragment,
 )
 
@@ -156,10 +159,15 @@ def capture_prompt_reorder_visual_violations(
                 verification_image,
             )
             if missing_chip_text:
+                publication_evidence = _reorder_publication_evidence(
+                    editor,
+                    missing_chip_text,
+                )
                 violations.append(
                     "reorder_rendered_chip_text_missing:"
                     f"action={action_index}:indices={missing_chip_text!r}:"
-                    f"evidence={missing_chip_evidence!r}"
+                    f"evidence={missing_chip_evidence!r}:"
+                    f"publication={publication_evidence}"
                 )
             if missing_scene_titles:
                 violations.append(
@@ -217,9 +225,9 @@ def _reorder_animation_active(editor: Any) -> bool:
     overlay = editor._segment_overlay
     if overlay is None:
         return False
+    publication = overlay._animation_presentation.publication
     return bool(
-        overlay._animation_presenter.is_animating()
-        or overlay._held_chip_presenter.paint_rect_overrides()
+        publication.displacement_rects_by_index or publication.held_rects_by_index
     )
 
 
@@ -329,11 +337,12 @@ def _missing_scene_title_text(editor: object, image: QImage) -> tuple[str, ...]:
     if prompt_editor._segment_overlay is not None:
         return ()
     surface = prompt_editor._surface
-    preview_layout = surface._reorder_preview_projection.preview_layout
-    layout = surface._layout if preview_layout is None else preview_layout
+    preview_frame = surface._reorder_preview_projection.preview_frame
+    frame = surface._layout.frame if preview_frame is None else preview_frame
+    output = frame.output
     scene_run_ids = {
         run.run_id
-        for run in layout.projection_document.runs
+        for run in output.projection_document.runs
         if run.text_style_variant in {"scene_title", "scene_error"}
         and run.display_text.strip()
     }
@@ -348,7 +357,7 @@ def _missing_scene_title_text(editor: object, image: QImage) -> tuple[str, ...]:
     fragments_by_run: dict[str, list[PromptProjectionTextFragment]] = {
         run_id: [] for run_id in scene_run_ids
     }
-    for line in layout.snapshot.lines:
+    for line in output.snapshot.lines:
         for fragment in line.fragments:
             if (
                 isinstance(fragment, PromptProjectionTextFragment)
@@ -358,17 +367,24 @@ def _missing_scene_title_text(editor: object, image: QImage) -> tuple[str, ...]:
                 fragments_by_run[fragment.run_id].append(fragment)
 
     missing: list[str] = []
+    fragment_painter = PromptProjectionPainter()
     for run_id, fragments in fragments_by_run.items():
         visible_results: list[bool] = []
         for fragment in fragments:
             expected_fragment = PromptReorderTextPaintFragment(
                 text=fragment.text,
-                font=layout._painter.font_for_fragment(fragment),
+                font=fragment_painter.font_for_fragment(
+                    fragment,
+                    paint_input=frame.paint_input,
+                ),
                 baseline=QPointF(
                     fragment.rect.left(), fragment.baseline - scroll_offset
                 ),
                 text_rect=fragment.rect.translated(0.0, -scroll_offset),
-                color=layout._painter.text_color_for_fragment(fragment),
+                color=fragment_painter.text_color_for_fragment(
+                    fragment,
+                    paint_input=frame.paint_input,
+                ),
             )
             result = fragment_has_expected_pixels(
                 image,
@@ -434,8 +450,9 @@ def _all_projection_chip_snapshots(
 ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
     """Build observation-only snapshots for every chip in the active projection."""
 
-    preview_snapshot = overlay._preview_snapshot
-    preview_geometry = overlay._preview_chip_geometry_snapshot
+    geometry_state = overlay._geometry.state
+    preview_snapshot = geometry_state.preview_snapshot
+    preview_geometry = geometry_state.preview_chip_geometry_snapshot
     if preview_snapshot is not None and preview_geometry is not None:
         return cast(
             dict[int, PromptReorderProjectionPaintSnapshot],
@@ -447,15 +464,66 @@ def _all_projection_chip_snapshots(
                 chip_indices=None,
             ),
         )
-    live_geometry = overlay._chip_geometry_snapshot
+    live_visuals = overlay._live_visual_owner
+    live_geometry = live_visuals.chip_geometry
     if live_geometry is None:
         return {}
     return cast(
         dict[int, PromptReorderProjectionPaintSnapshot],
         editor.reorder_live_chip_projection_paint_snapshots(
             chip_geometry_snapshot=live_geometry,
-            chip_owned_ranges_by_index=overlay._live_chip_owned_ranges_by_index(),
+            chip_owned_ranges_by_index=dict(live_visuals.owned_ranges_by_index),
         ),
+    )
+
+
+def _reorder_publication_evidence(
+    editor: Any,
+    missing_indices: tuple[int, ...],
+) -> str:
+    """Describe authoritative paint ownership for missing visible chip text."""
+
+    overlay = editor._segment_overlay
+    if overlay is None:
+        return "overlay=none"
+    prepared = overlay._render_publication.publication
+    state = overlay._view.render_state
+    surface_state = editor._surface._reorder_surface_visual_state.state
+    active_chips = state.preview_chips if state.preview_active else state.live_chips
+    overlay_indices = tuple(chip.segment_index for chip in active_chips)
+    surface_indices = tuple(chip.segment_index for chip in surface_state.chips)
+    suppression_indices = tuple(surface_state.suppression_snapshots_by_index)
+    preview_snapshot_indices = tuple(
+        overlay._preview_paint_snapshots.snapshots_by_index
+    )
+    preview_visual_indices = tuple(overlay._preview_visual_owner.visuals_by_index)
+    geometry_state = overlay._geometry.state
+    preview_visual_publication = overlay._preview_visual_owner.publication
+    preview_geometry = geometry_state.preview_chip_geometry_snapshot
+    preview_geometry_indices = (
+        ()
+        if preview_geometry is None
+        else tuple(preview_geometry.geometries_by_chip_index)
+    )
+    return (
+        f"revision={prepared.revision}:preview={state.preview_active}:"
+        f"dragged={state.dragged_segment_index}:missing={missing_indices!r}:"
+        f"overlay={overlay_indices!r}:surface={surface_indices!r}:"
+        f"suppression={suppression_indices!r}:"
+        f"snapshots={preview_snapshot_indices!r}:"
+        f"visuals={preview_visual_indices!r}:"
+        f"geometry={preview_geometry_indices!r}:"
+        f"preview_snapshot={geometry_state.preview_snapshot is not None}:"
+        f"preview_layout={geometry_state.preview_layout_view is not None}:"
+        f"current_layout={geometry_state.current_layout_view is not None}:"
+        f"visual_key_snapshot={
+            (
+                False
+                if preview_visual_publication is None
+                else preview_visual_publication.key.preview_snapshot is not None
+            )
+        }:"
+        f"unsafe={prepared.unsafe_transient_indices!r}"
     )
 
 

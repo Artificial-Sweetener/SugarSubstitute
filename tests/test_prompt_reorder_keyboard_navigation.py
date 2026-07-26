@@ -30,6 +30,7 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderDropTarget,
     PromptReorderGapView,
     PromptReorderLayoutView,
+    PromptReorderPreparedStateView,
     PromptReorderRowView,
     PromptReorderStateView,
 )
@@ -40,6 +41,7 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_drop_target
 )
 from substitute.presentation.editor.prompt_editor.projection.reorder_keyboard_navigation import (
     PromptReorderKeyboardNavigationInput,
+    PromptReorderKeyboardNavigationResult,
     PromptReorderKeyboardNavigator,
 )
 
@@ -47,102 +49,86 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_keyboard_na
 class _FakeLayoutPolicy:
     """Build deterministic reorder layouts from typed keyboard targets."""
 
-    def build_base_drag_reorder_state_from_state(
+    def build_base_drag_state(
         self,
+        document_view: PromptDocumentView,
         state_view: PromptReorderStateView,
         *,
+        current_layout_view: PromptReorderLayoutView,
         dragged_segment_index: int,
-    ) -> PromptReorderStateView:
-        """Return the state with the dragged segment removed from its order."""
+    ) -> PromptReorderPreparedStateView:
+        """Return matching state and layout with the held chip removed."""
 
+        _ = document_view
         ordered_indices = tuple(
             index
             for index in state_view.ordered_chip_indices
             if index != dragged_segment_index
         )
-        return PromptReorderStateView(
+        reorder_state = PromptReorderStateView(
             ordered_chip_indices=ordered_indices,
             separator_slots=state_view.separator_slots[
                 : max(0, len(ordered_indices) - 1)
             ],
             has_trailing_comma=state_view.has_trailing_comma,
         )
-
-    def build_preview_drop_reorder_state_from_state(
-        self,
-        document_view: PromptDocumentView,
-        state_view: PromptReorderStateView,
-        *,
-        current_layout_view: PromptReorderLayoutView,
-        base_drag_layout_view: PromptReorderLayoutView | None,
-        dragged_segment_index: int,
-        drop_target: PromptReorderDropTarget,
-    ) -> PromptReorderStateView:
-        """Return source state matching the deterministic preview layout."""
-
-        _ = (state_view, current_layout_view, base_drag_layout_view)
-        layout_view = self.build_preview_drop_layout_view_from_layout(
-            document_view,
-            PromptReorderLayoutView(
-                rows=(
-                    PromptReorderRowView(
-                        row_index=0,
-                        chip_indices=state_view.ordered_chip_indices,
-                    ),
-                ),
-                gaps=(),
-            ),
-            dragged_segment_index=dragged_segment_index,
-            drop_target=drop_target,
-        )
-        ordered_indices = self.reorder_layout_chip_indices(layout_view)
-        return PromptReorderStateView(
-            ordered_chip_indices=ordered_indices,
-            separator_slots=tuple(", " for _ in ordered_indices[:-1]),
-            has_trailing_comma=state_view.has_trailing_comma,
-        )
-
-    def build_base_drag_layout_view_from_layout(
-        self,
-        document_view: PromptDocumentView,
-        layout_view: PromptReorderLayoutView,
-        *,
-        dragged_segment_index: int,
-    ) -> PromptReorderLayoutView:
-        """Return the layout with the dragged segment removed from its rows."""
-
-        _ = document_view
         rows: list[PromptReorderRowView] = []
-        for row in layout_view.rows:
+        for row in current_layout_view.rows:
             chip_indices = tuple(
                 index for index in row.chip_indices if index != dragged_segment_index
             )
             if chip_indices:
                 rows.append(
                     PromptReorderRowView(
-                        row_index=row.row_index,
+                        row_index=len(rows),
                         chip_indices=chip_indices,
                     )
                 )
-        return PromptReorderLayoutView(rows=tuple(rows), gaps=layout_view.gaps)
+        return PromptReorderPreparedStateView(
+            reorder_state=reorder_state,
+            layout_view=PromptReorderLayoutView(
+                rows=tuple(rows),
+                gaps=current_layout_view.gaps,
+            ),
+        )
 
-    def build_preview_drop_layout_view_from_layout(
+    def build_preview_drop_state(
         self,
         document_view: PromptDocumentView,
-        layout_view: PromptReorderLayoutView,
+        base_drag_state_view: PromptReorderPreparedStateView,
         *,
+        dragged_segment_index: int,
+        drop_target: PromptReorderDropTarget,
+    ) -> PromptReorderPreparedStateView:
+        """Return matching state and layout for the deterministic target."""
+
+        _ = document_view
+        layout_view = self._preview_layout(
+            base_drag_state_view.layout_view,
+            dragged_segment_index,
+            drop_target,
+        )
+        ordered_indices = self.reorder_layout_chip_indices(layout_view)
+        reorder_state = PromptReorderStateView(
+            ordered_chip_indices=ordered_indices,
+            separator_slots=tuple(", " for _ in ordered_indices[:-1]),
+            has_trailing_comma=(base_drag_state_view.reorder_state.has_trailing_comma),
+        )
+        return PromptReorderPreparedStateView(
+            reorder_state=reorder_state,
+            layout_view=layout_view,
+        )
+
+    @staticmethod
+    def _preview_layout(
+        layout_view: PromptReorderLayoutView,
         dragged_segment_index: int,
         drop_target: PromptReorderDropTarget,
     ) -> PromptReorderLayoutView:
         """Return a simple layout that reflects the supplied target."""
 
-        base_layout = self.build_base_drag_layout_view_from_layout(
-            document_view,
-            layout_view,
-            dragged_segment_index=dragged_segment_index,
-        )
         if isinstance(drop_target, PromptLineDropTarget):
-            rows = list(base_layout.rows)
+            rows = list(layout_view.rows)
             row = rows[drop_target.row_index]
             chip_indices = list(row.chip_indices)
             chip_indices.insert(drop_target.insertion_index, dragged_segment_index)
@@ -152,7 +138,7 @@ class _FakeLayoutPolicy:
             )
             return PromptReorderLayoutView(rows=tuple(rows), gaps=layout_view.gaps)
 
-        rows = list(base_layout.rows)
+        rows = list(layout_view.rows)
         rows.insert(
             drop_target.gap_index + 1,
             PromptReorderRowView(
@@ -174,63 +160,41 @@ class _FakeLayoutPolicy:
 class _ExplodingLayoutPolicy:
     """Fail if target resolution reaches preview-layout probing."""
 
-    def build_base_drag_reorder_state_from_state(
-        self,
-        state_view: PromptReorderStateView,
-        *,
-        dragged_segment_index: int,
-    ) -> PromptReorderStateView:
-        """Raise because this policy should not be used by row-position recovery."""
-
-        _ = (state_view, dragged_segment_index)
-        raise AssertionError("row-position target recovery should not build state")
-
-    def build_preview_drop_reorder_state_from_state(
+    def build_base_drag_state(
         self,
         document_view: PromptDocumentView,
         state_view: PromptReorderStateView,
         *,
         current_layout_view: PromptReorderLayoutView,
-        base_drag_layout_view: PromptReorderLayoutView | None,
         dragged_segment_index: int,
-        drop_target: PromptReorderDropTarget,
-    ) -> PromptReorderStateView:
+    ) -> PromptReorderPreparedStateView:
         """Raise because this policy should not be used by row-position recovery."""
 
         _ = (
             document_view,
             state_view,
             current_layout_view,
-            base_drag_layout_view,
+            dragged_segment_index,
+        )
+        raise AssertionError("row-position target recovery should not build state")
+
+    def build_preview_drop_state(
+        self,
+        document_view: PromptDocumentView,
+        base_drag_state_view: PromptReorderPreparedStateView,
+        *,
+        dragged_segment_index: int,
+        drop_target: PromptReorderDropTarget,
+    ) -> PromptReorderPreparedStateView:
+        """Raise because this policy should not be used by row-position recovery."""
+
+        _ = (
+            document_view,
+            base_drag_state_view,
             dragged_segment_index,
             drop_target,
         )
         raise AssertionError("row-position target recovery should not build state")
-
-    def build_base_drag_layout_view_from_layout(
-        self,
-        document_view: PromptDocumentView,
-        layout_view: PromptReorderLayoutView,
-        *,
-        dragged_segment_index: int,
-    ) -> PromptReorderLayoutView:
-        """Raise because this policy should not be used by row-position recovery."""
-
-        _ = (document_view, layout_view, dragged_segment_index)
-        raise AssertionError("row-position target recovery should not build layouts")
-
-    def build_preview_drop_layout_view_from_layout(
-        self,
-        document_view: PromptDocumentView,
-        layout_view: PromptReorderLayoutView,
-        *,
-        dragged_segment_index: int,
-        drop_target: PromptReorderDropTarget,
-    ) -> PromptReorderLayoutView:
-        """Raise because this policy should not be used by row-position recovery."""
-
-        _ = (document_view, layout_view, dragged_segment_index, drop_target)
-        raise AssertionError("row-position target recovery should not build layouts")
 
     def reorder_layout_chip_indices(
         self,
@@ -356,15 +320,44 @@ def _navigator_input(
 ) -> PromptReorderKeyboardNavigationInput:
     """Return one navigation request over prepared lanes."""
 
+    current_layout = layout_view or _one_row_layout()
+    ordered_indices = tuple(
+        index for row in current_layout.rows for index in row.chip_indices
+    )
+    current_state = PromptReorderStateView(
+        ordered_chip_indices=ordered_indices,
+        separator_slots=tuple(", " for _ in ordered_indices[:-1]),
+        has_trailing_comma=False,
+    )
+    base_drag_state = (
+        None
+        if active_segment_index is None
+        else _FakeLayoutPolicy().build_base_drag_state(
+            _document_view(),
+            current_state,
+            current_layout_view=current_layout,
+            dragged_segment_index=active_segment_index,
+        )
+    )
     return PromptReorderKeyboardNavigationInput(
         document_view=_document_view(),
-        current_layout_view=layout_view or _one_row_layout(),
+        current_layout_view=current_layout,
+        base_drag_state=base_drag_state,
         active_segment_index=active_segment_index,
         active_target=active_target,
         preferred_x=preferred_x,
         drop_target_lanes=lanes,
         active_segment_center=active_segment_center,
     )
+
+
+def _proposed_layout(
+    result: PromptReorderKeyboardNavigationResult,
+) -> PromptReorderLayoutView:
+    """Return the coherent proposed layout required by a successful movement."""
+
+    assert result.proposed_state is not None
+    return result.proposed_state.layout_view
 
 
 def test_left_and_right_moves_follow_populated_row_reading_order() -> None:
@@ -391,7 +384,7 @@ def test_left_and_right_moves_follow_populated_row_reading_order() -> None:
 
     right = navigator.move_horizontally(
         _navigator_input(
-            layout_view=left.proposed_layout_view,
+            layout_view=_proposed_layout(left),
             active_target=PromptLineDropTarget(row_index=0, insertion_index=0),
             lanes=(row_lane,),
         ),
@@ -425,7 +418,7 @@ def test_horizontal_moves_skip_duplicate_visual_wrap_slots() -> None:
     )
     after_wrap_edge = navigator.move_horizontally(
         _navigator_input(
-            layout_view=first_wrap_edge.proposed_layout_view,
+            layout_view=_proposed_layout(first_wrap_edge),
             active_target=first_wrap_edge.destination_target,
             preferred_x=first_wrap_edge.preferred_x,
             lanes=lanes,
@@ -472,7 +465,7 @@ def test_horizontal_moves_left_skip_duplicate_visual_wrap_slots() -> None:
     )
     before_previous_chip = navigator.move_horizontally(
         _navigator_input(
-            layout_view=before_wrap_edge.proposed_layout_view,
+            layout_view=_proposed_layout(before_wrap_edge),
             active_target=before_wrap_edge.destination_target,
             preferred_x=before_wrap_edge.preferred_x,
             lanes=lanes,
@@ -566,7 +559,7 @@ def test_up_and_down_moves_use_prepared_blank_and_row_lanes() -> None:
 
     down = navigator.move_vertically(
         _navigator_input(
-            layout_view=up.proposed_layout_view,
+            layout_view=_proposed_layout(up),
             active_target=up.destination_target,
             preferred_x=75.0,
             lanes=lanes,
@@ -606,7 +599,7 @@ def test_vertical_moves_use_preferred_x_to_select_duplicate_wrap_lane() -> None:
     )
     bottom_noop = navigator.move_vertically(
         _navigator_input(
-            layout_view=down.proposed_layout_view,
+            layout_view=_proposed_layout(down),
             active_target=down.destination_target,
             preferred_x=down.preferred_x,
             lanes=lanes,
@@ -714,7 +707,7 @@ def test_horizontal_move_noops_at_boundary() -> None:
     assert not result.moved
     assert result.no_op_reason == "boundary"
     assert result.destination_target is None
-    assert result.proposed_layout_view is None
+    assert result.proposed_state is None
 
 
 def test_current_target_can_resolve_from_current_layout() -> None:

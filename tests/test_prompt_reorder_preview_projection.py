@@ -24,7 +24,7 @@ from substitute.application.prompt_editor.document.service import PromptDocument
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
 )
-from substitute.presentation.editor.prompt_editor.projection.reorder_preview_projection import (
+from substitute.presentation.editor.prompt_editor.projection.reorder_projection_snapshot_provider import (
     PromptReorderPreviewProjectionProvider,
 )
 from tests.prompt_autocomplete_test_helpers import prompt_syntax_profile
@@ -68,7 +68,6 @@ def test_reorder_projection_snapshot_cache_reuses_render_plan_for_same_layout() 
         source_revision=1,
         viewport_width=480,
         layout_key=(("layout", 1),),
-        active_drop_target_identity=("line", 0, 0),
         gesture_id=None,
         event_id=None,
         reason="test",
@@ -80,7 +79,6 @@ def test_reorder_projection_snapshot_cache_reuses_render_plan_for_same_layout() 
         source_revision=1,
         viewport_width=480,
         layout_key=(("layout", 1),),
-        active_drop_target_identity=("line", 0, 0),
         gesture_id=None,
         event_id=None,
         reason="test",
@@ -116,7 +114,6 @@ def test_reorder_projection_snapshot_cache_shares_content_across_consumer_roles(
         source_revision=1,
         viewport_width=480,
         layout_key=(("layout", 1),),
-        active_drop_target_identity=("line", 0, 0),
         gesture_id=None,
         event_id=None,
         reason="test",
@@ -128,7 +125,6 @@ def test_reorder_projection_snapshot_cache_shares_content_across_consumer_roles(
         source_revision=1,
         viewport_width=480,
         layout_key=(("layout", 1),),
-        active_drop_target_identity=None,
         gesture_id=None,
         event_id=None,
         reason="test",

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from threading import Event, Thread
 import time
 from typing import cast
 
@@ -211,6 +212,58 @@ def test_execution_runtime_shutdown_releases_lanes_and_long_lived_handles() -> N
         )
 
 
+def test_execution_runtime_shutdown_waits_for_running_short_task() -> None:
+    """Shutdown should settle running work before returning to Qt teardown."""
+
+    runtime = ExecutionRuntime()
+    work_started = Event()
+    release_work = Event()
+    shutdown_finished = Event()
+    scope = runtime.scope(
+        "node_definition",
+        owner_id="runtime_shutdown_wait",
+        dispatcher=RecordingDispatcher(),
+    )
+
+    def shutdown_runtime() -> None:
+        """Record completion only after the runtime releases its lanes."""
+
+        runtime.shutdown()
+        shutdown_finished.set()
+
+    try:
+        scope.submit(
+            TaskRequest(
+                identity=TaskIdentity(
+                    request_id=1,
+                    domain="runtime_shutdown_wait",
+                    parts=(),
+                ),
+                context=ExecutionContext(
+                    operation="wait_for_runtime_shutdown",
+                    reason="test",
+                    lane="node_definition",
+                ),
+                work=lambda _token: _wait_for_release(work_started, release_work),
+            )
+        )
+        assert work_started.wait(timeout=1.0)
+
+        shutdown_thread = Thread(
+            target=shutdown_runtime,
+            name="test-runtime-shutdown",
+        )
+        shutdown_thread.start()
+        assert not shutdown_finished.wait(timeout=0.05)
+
+        release_work.set()
+        shutdown_thread.join(timeout=1.0)
+        assert shutdown_finished.is_set()
+    finally:
+        release_work.set()
+        runtime.shutdown()
+
+
 def test_execution_runtime_rejects_unknown_long_lived_registry_before_start() -> None:
     """Unknown long-lived registries should reject work before it starts."""
 
@@ -328,6 +381,14 @@ def _wait_until(predicate: Callable[[], bool], *, timeout_seconds: float = 1.0) 
             return True
         time.sleep(0.005)
     return predicate()
+
+
+def _wait_for_release(work_started: Event, release_work: Event) -> None:
+    """Block a worker until the shutdown test explicitly permits completion."""
+
+    work_started.set()
+    if not release_work.wait(timeout=1.0):
+        raise TimeoutError("Test worker was not released before timeout.")
 
 
 def _record_until_cancelled(

@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from PySide6.QtGui import QFont, QPalette
 
@@ -27,10 +27,19 @@ from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
     PromptLoraThumbnailCache,
 )
 
+from ..layout.canonical_engine import PromptCanonicalLayoutEngine
+from ..layout.configuration import PromptLayoutConfigurationFactory
+from ..layout.contracts import (
+    PromptLayoutEdit,
+    PromptLayoutRequest,
+    PromptLayoutStatus,
+)
 from .applicator import PromptProjectionApplicator
-from .incremental_editor import single_source_text_edit
-from .layout_engine import PromptProjectionLayout
-from .model import PromptProjectionDisplayMode, PromptProjectionDocument
+from .source_text_edit import single_source_text_edit
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDisplayMode,
+    PromptProjectionDocument,
+)
 from .observability import (
     log_reorder_drag_event,
     log_reorder_drag_timing,
@@ -38,6 +47,7 @@ from .observability import (
 )
 from .reorder_preview import PromptReorderProjectionSnapshot
 from .session import PromptProjectionSession
+from .prepared_frame import PromptProjectionPreparedFrame
 from .tokens import (
     PromptEmphasisPrefixRenderer,
     PromptEmphasisSuffixRenderer,
@@ -68,7 +78,7 @@ class PromptReorderReusablePreviewLayout:
     identity: PromptReorderPreviewLayoutIdentity
     render_plan_hash: str
     document: PromptProjectionDocument
-    layout: PromptProjectionLayout
+    frame: PromptProjectionPreparedFrame
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,7 +86,7 @@ class PromptReorderPreviewLayoutBuildResult:
     """Carry one built projection plus the layout path used to obtain it."""
 
     document: PromptProjectionDocument
-    layout: PromptProjectionLayout
+    frame: PromptProjectionPreparedFrame
     incremental: bool
 
 
@@ -104,6 +114,12 @@ class PromptReorderPreviewLayoutBuilder:
                 ),
                 PromptWildcardInlineObjectRenderer(),
             )
+        )
+        self._configuration_factory = PromptLayoutConfigurationFactory(
+            self._inline_object_renderers
+        )
+        self._canonical_engine = PromptCanonicalLayoutEngine(
+            self._inline_object_renderers
         )
 
     def can_reflow_incrementally(
@@ -191,29 +207,68 @@ class PromptReorderPreviewLayoutBuilder:
                 projection_document.source_text,
             )
             assert edit is not None
-            projection_layout = reusable.layout.fork_for_incremental_reflow(
-                inline_object_renderers=self._inline_object_renderers
+            previous_output = replace(
+                reusable.frame.output,
+                configuration=replace(
+                    reusable.frame.output.configuration,
+                    inline_object_renderers=self._inline_object_renderers,
+                ),
             )
-            layout_result = projection_layout.set_projection_after_source_edit(
-                projection_document,
-                prompt_document_view=snapshot.document_view,
-                edit_start=edit.start,
-                edit_end=edit.end,
-                replacement_text=edit.replacement_text,
+            projection_frame = reusable.frame.fork(previous_output)
+            outcome = self._canonical_engine.reflow(
+                PromptLayoutRequest(
+                    previous=previous_output,
+                    projection_document=projection_document,
+                    prompt_document_view=snapshot.document_view,
+                    configuration=previous_output.configuration,
+                    edit=PromptLayoutEdit(
+                        start=edit.start,
+                        end=edit.end,
+                        replacement_text=edit.replacement_text,
+                        first_dirty_projection_position=0,
+                    ),
+                )
             )
-            reflowed_line_count = layout_result.reflowed_line_count
+            if (
+                outcome.status is not PromptLayoutStatus.APPLIED
+                or outcome.output is None
+                or outcome.damage is None
+            ):
+                raise AssertionError(
+                    f"canonical reorder reflow rejected: {outcome.reason.value}"
+                )
+            layout_damage = projection_frame.publish(
+                outcome,
+                reset_paint_state=True,
+            )
+            reflowed_line_count = layout_damage.reflowed_line_count
         else:
-            projection_layout = self._new_layout(
-                font=font,
+            configuration = self._configuration_factory.create(
+                base_font=font,
+                text_width=layout_width,
+            )
+            outcome = self._canonical_engine.build(
+                PromptLayoutRequest(
+                    previous=None,
+                    projection_document=projection_document,
+                    prompt_document_view=snapshot.document_view,
+                    configuration=configuration,
+                )
+            )
+            if (
+                outcome.status is not PromptLayoutStatus.APPLIED
+                or outcome.output is None
+            ):
+                raise AssertionError(
+                    f"canonical reorder layout rejected: {outcome.reason.value}"
+                )
+            projection_frame = PromptProjectionPreparedFrame(
+                outcome.output,
                 palette=palette,
                 semantic_palette=semantic_palette,
             )
-            projection_layout.set_projection_and_text_width(
-                projection_document,
-                layout_width,
-                prompt_document_view=snapshot.document_view,
-            )
-            reflowed_line_count = projection_layout.snapshot.line_count()
+            reflowed_line_count = projection_frame.output.snapshot.line_count()
+        layout_snapshot = projection_frame.output.snapshot
         layout_elapsed_ms = log_reorder_drag_timing(
             "surface.build_reorder_projection_snapshot.layout",
             started_at=phase_started_at,
@@ -226,19 +281,17 @@ class PromptReorderPreviewLayoutBuilder:
             segment_count=len(snapshot.document_view.segments),
             run_count=len(projection_document.runs),
             token_count=len(projection_document.tokens),
-            visual_line_count=projection_layout.snapshot.line_count(),
-            text_fragment_count=projection_layout.snapshot.text_fragment_count(),
-            inline_object_count=(
-                projection_layout.snapshot.inline_object_fragment_count()
-            ),
+            visual_line_count=layout_snapshot.line_count(),
+            text_fragment_count=layout_snapshot.text_fragment_count(),
+            inline_object_count=layout_snapshot.inline_object_fragment_count(),
             chip_count=len(snapshot.chip_rendered_ranges_by_index),
             layout_width=f"{layout_width:.2f}",
-            content_width=f"{projection_layout.content_size().width():.2f}",
-            content_height=f"{projection_layout.content_size().height():.2f}",
+            content_width=f"{layout_snapshot.content_size.width():.2f}",
+            content_height=f"{layout_snapshot.content_size.height():.2f}",
         )
         self._log_slow_layout(
             snapshot,
-            layout=projection_layout,
+            frame=projection_frame,
             layout_width=layout_width,
             elapsed_ms=layout_elapsed_ms,
             incremental=incremental,
@@ -265,30 +318,15 @@ class PromptReorderPreviewLayoutBuilder:
         )
         return PromptReorderPreviewLayoutBuildResult(
             document=projection_document,
-            layout=projection_layout,
+            frame=projection_frame,
             incremental=incremental,
         )
-
-    def _new_layout(
-        self,
-        *,
-        font: QFont,
-        palette: QPalette,
-        semantic_palette: SemanticPalette | None,
-    ) -> PromptProjectionLayout:
-        """Return one independently cacheable full projection layout."""
-
-        layout = PromptProjectionLayout(self._inline_object_renderers)
-        layout.set_base_font(font)
-        layout.set_palette(palette)
-        layout.set_semantic_palette(semantic_palette)
-        return layout
 
     @staticmethod
     def _log_slow_layout(
         snapshot: PromptReorderProjectionSnapshot,
         *,
-        layout: PromptProjectionLayout,
+        frame: PromptProjectionPreparedFrame,
         layout_width: float,
         elapsed_ms: float,
         incremental: bool,
@@ -301,6 +339,7 @@ class PromptReorderPreviewLayoutBuilder:
 
         if elapsed_ms < _SLOW_REORDER_PROJECTION_LAYOUT_MS:
             return
+        layout_snapshot = frame.output.snapshot
         context = {
             "gesture_id": gesture_id,
             "event_id": event_id,
@@ -311,9 +350,9 @@ class PromptReorderPreviewLayoutBuilder:
             "reflowed_line_count": reflowed_line_count,
             "text_length": len(snapshot.document_view.source_text),
             "segment_count": len(snapshot.document_view.segments),
-            "visual_line_count": layout.snapshot.line_count(),
-            "text_fragment_count": layout.snapshot.text_fragment_count(),
-            "inline_object_count": layout.snapshot.inline_object_fragment_count(),
+            "visual_line_count": layout_snapshot.line_count(),
+            "text_fragment_count": layout_snapshot.text_fragment_count(),
+            "inline_object_count": layout_snapshot.inline_object_fragment_count(),
             "chip_count": len(snapshot.chip_rendered_ranges_by_index),
             "layout_width": f"{layout_width:.2f}",
         }

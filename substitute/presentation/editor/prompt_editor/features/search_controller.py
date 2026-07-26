@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Hashable
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -44,13 +44,6 @@ class PromptSearchHighlightSnapshot:
     unavailable_reason: str | None = None
 
 
-class PromptSearchSourceHost(Protocol):
-    """Describe source identity reads needed by search feature ownership."""
-
-    def prompt_command_source_identity(self) -> object | None:
-        """Return the current source identity when available."""
-
-
 class PromptSearchProjectionSurface(Protocol):
     """Describe projection search-highlight publication methods."""
 
@@ -72,13 +65,13 @@ class PromptSearchFeatureController:
     def __init__(
         self,
         *,
-        host: PromptSearchSourceHost,
+        source_identity: Callable[[], object | None],
         surface: PromptSearchProjectionSurface,
         feature_profile: PromptFeatureProfileController,
     ) -> None:
         """Store search collaborators and publish an initial empty snapshot."""
 
-        self._host = host
+        self._source_identity = source_identity
         self._surface = surface
         self._feature_profile = feature_profile
         self._snapshot = self._build_snapshot(
@@ -131,7 +124,7 @@ class PromptSearchFeatureController:
     ) -> PromptSearchHighlightSnapshot:
         """Build the search highlight snapshot for current host state."""
 
-        source_identity = self._host.prompt_command_source_identity()
+        source_identity = self._source_identity()
         raw_source_revision = getattr(source_identity, "source_revision", None)
         source_revision = (
             raw_source_revision if isinstance(raw_source_revision, int) else None
@@ -157,5 +150,4 @@ __all__ = [
     "PromptSearchHighlightSnapshot",
     "PromptSearchHighlightState",
     "PromptSearchProjectionSurface",
-    "PromptSearchSourceHost",
 ]

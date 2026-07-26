@@ -39,6 +39,7 @@ type PromptAbuseActionKind = Literal[
     "reorder_drag_press",
     "reorder_drag_threshold",
     "reorder_drag_move",
+    "reorder_drag_sweep",
     "reorder_drag_release",
     "reorder_drag_autoscroll",
     "reorder_drag_cancel",

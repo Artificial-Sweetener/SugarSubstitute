@@ -45,6 +45,9 @@ from substitute.application.prompt_editor.editing.mutation_service import (
 from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
+from substitute.presentation.editor.prompt_editor.features.feature_profile_controller import (
+    PromptFeatureProfileController,
+)
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
     PromptSyntaxService,
@@ -53,28 +56,51 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderLayoutView,
     PromptReorderStateView,
 )
-from substitute.presentation.editor.prompt_editor.commands.reorder_commands import (
+from substitute.application.prompt_editor.reorder.intents import (
+    PromptReorderCancelIntent,
+    PromptReorderCommitIntent,
+    PromptReorderKeyboardMoveIntent,
+)
+from substitute.application.prompt_editor.reorder.preview_sync import (
+    PromptReorderPreviewSyncContext,
+)
+from substitute.application.prompt_editor.reorder.session import (
+    PromptReorderCommitSnapshot,
+)
+from substitute.application.prompt_editor.reorder.commit import (
     PromptReorderLayoutCommitRequest,
 )
 from substitute.presentation.editor.prompt_editor.projection.session import (
     PromptEmphasisAdjustmentSession,
     PromptTransientNeutralEmphasisOwner,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDocument,
 )
-from substitute.presentation.editor.prompt_editor.interactions.reorder_controller import (
+from substitute.presentation.editor.prompt_editor.interactions.reorder_overlay_port import (
+    PromptReorderOverlayAssembly,
     PromptReorderOverlayFactory,
 )
-from substitute.presentation.editor.prompt_editor.models import (
-    PromptReorderCancelIntent,
-    PromptReorderCommitIntent,
-    PromptReorderCommitSnapshot,
+from substitute.presentation.editor.prompt_editor.projection.reorder_preview_build_facts import (
+    PromptReorderPreviewBuildFacts,
+)
+from substitute.presentation.editor.prompt_editor.interactions.reorder_interaction_metrics import (
+    PromptReorderInteractionMetricsOwner,
+)
+from substitute.presentation.editor.prompt_editor.interactions.reorder_preview_publication import (
+    PromptReorderPreviewPublicationOwner,
+)
+from substitute.presentation.editor.prompt_editor.projection.reorder_projection_snapshot_provider import (
+    PromptReorderPreviewProjectionProvider,
+)
+from substitute.presentation.editor.prompt_editor.overlays.reorder_gesture_controller import (
+    PromptReorderDragIntent,
 )
 from substitute.presentation.editor.prompt_editor.syntax_renderers import (
     PromptSyntaxRendererCoordinator,
     PromptSyntaxStateController,
 )
+from tests.prompt_autocomplete_test_helpers import PromptAutocompleteTimingTestDouble
 from tests.prompt_autocomplete_test_helpers import (
     EmptyPromptWildcardCatalogGateway,
     prompt_syntax_profile,
@@ -185,7 +211,10 @@ class ControllerEditorDouble:
         self._viewport = (
             viewport
             if viewport is not None
-            else SimpleNamespace(mapToGlobal=lambda position: position)
+            else SimpleNamespace(
+                mapToGlobal=lambda position: position,
+                width=lambda: 0,
+            )
         )
         self.reorder_preview_state_calls: list[object | None] = []
         self.clear_reorder_preview_state_calls = 0
@@ -509,15 +538,12 @@ class OverlayDouble:
         self.refresh_geometry_reasons: list[str] = []
         self.needs_position_refresh_result = True
         self.needs_position_refresh_calls: list[str] = []
-        self.preview_sync_decisions: list[bool] = []
-        self.preview_scheduler_events: list[str] = []
         self.autoscroll_flush_calls: list[str] = []
         self.keyboard_move_calls: list[str] = []
         self.keyboard_move_results: dict[str, bool] = {}
         self.keyboard_move_snapshots: dict[str, PromptReorderCommitSnapshot] = {}
-        self.current_work_unit_id = 0
         self.previewLayoutChanged = SignalDouble()
-        self.drag_handler: Callable[[object], None] | None = None
+        self.drag_handler: Callable[[PromptReorderDragIntent], None] | None = None
         self.commit_handler: Callable[[PromptReorderCommitIntent], None] | None = None
         self.cancel_handler: Callable[[PromptReorderCancelIntent], None] | None = None
         self.set_chips_calls: list[
@@ -526,6 +552,7 @@ class OverlayDouble:
         self.preview_snapshot_calls: list[
             tuple[object | None, object | None, tuple[int, ...]]
         ] = []
+        self.preview_fact_snapshot_calls = 0
         self.show_calls = 0
 
     def commit_snapshot(self) -> PromptReorderCommitSnapshot:
@@ -540,35 +567,19 @@ class OverlayDouble:
             has_reordered=self._has_reordered,
         )
 
-    def dragged_segment_index(self) -> int | None:
-        """Return the configured active dragged segment."""
+    def snapshot(self) -> PromptReorderPreviewBuildFacts:
+        """Return one coherent preview-build generation."""
 
-        return self._dragged_segment_index
-
-    def drop_target(self) -> object | None:
-        """Return the configured active drop target."""
-
-        return self._drop_target
-
-    def preview_layout_view(self) -> PromptReorderLayoutView | None:
-        """Return the current preview layout for preview sync tests."""
-
-        return self._preview_layout_view
-
-    def base_drag_layout_view(self) -> PromptReorderLayoutView | None:
-        """Return the stable base-drag layout view."""
-
-        return self._base_drag_layout_view
-
-    def preview_reorder_state(self) -> PromptReorderStateView | None:
-        """Return no active preview reorder state by default."""
-
-        return None
-
-    def base_drag_reorder_state(self) -> PromptReorderStateView | None:
-        """Return no base-drag reorder state by default."""
-
-        return None
+        self.preview_fact_snapshot_calls += 1
+        return PromptReorderPreviewBuildFacts(
+            preview_layout_view=self._preview_layout_view,
+            base_drag_layout_view=self._base_drag_layout_view,
+            preview_reorder_state=None,
+            base_drag_reorder_state=None,
+            ordered_chip_indices=tuple(self._ordered_indices),
+            dragged_segment_index=self._dragged_segment_index,
+            drop_target=cast(Any, self._drop_target),
+        )
 
     def set_chips(
         self,
@@ -604,52 +615,10 @@ class OverlayDouble:
             (snapshot, base_drag_snapshot, ordered_chip_indices)
         )
 
-    def has_base_drag_placement_geometry(self) -> bool:
-        """Return whether this double has base placement geometry."""
-
-        return self._has_base_drag_placement_geometry
-
-    def should_flush_initial_landing_shadow_sync(self) -> bool:
-        """Return whether the controller should run the one-shot shadow sync."""
-
-        should_flush = self._should_flush_initial_landing_shadow_sync
-        self._should_flush_initial_landing_shadow_sync = False
-        return should_flush
-
     def flush_pending_autoscroll_invalidation(self, *, reason: str) -> bool:
         """Record coalesced autoscroll flush requests from preview sync."""
 
         self.autoscroll_flush_calls.append(reason)
-        return False
-
-    def record_preview_sync_decision(self, *, immediate: bool) -> None:
-        """Record controller preview-sync scheduling decisions."""
-
-        self.preview_sync_decisions.append(immediate)
-
-    def record_preview_scheduler_event(self, event: str) -> None:
-        """Record preview-scheduler event classifications."""
-
-        self.preview_scheduler_events.append(event)
-
-    def current_instrumentation_work_unit_id(self) -> int:
-        """Return a deterministic pointer work-unit id."""
-
-        return self.current_work_unit_id
-
-    def instrumentation_gesture_id(self) -> int | None:
-        """Return no active gesture id."""
-
-        return None
-
-    def instrumentation_event_id(self) -> int | None:
-        """Return no active event id."""
-
-        return None
-
-    def is_drag_pointer_loop_active(self) -> bool:
-        """Return no active pointer loop."""
-
         return False
 
     def cancel_drag(self) -> None:
@@ -668,7 +637,10 @@ class OverlayDouble:
 
         self.deleted += 1
 
-    def set_drag_handler(self, handler: Callable[[object], None] | None) -> None:
+    def set_drag_handler(
+        self,
+        handler: Callable[[PromptReorderDragIntent], None] | None,
+    ) -> None:
         """Store the drag intent handler."""
 
         self.drag_handler = handler
@@ -706,25 +678,10 @@ class OverlayDouble:
 
         self.show_calls += 1
 
-    def move_active_chip_left(self) -> bool:
-        """Record one leftward keyboard reorder request."""
+    def move_active_chip(self, intent: PromptReorderKeyboardMoveIntent) -> bool:
+        """Record one typed keyboard reorder request."""
 
-        return self._record_keyboard_move("left")
-
-    def move_active_chip_right(self) -> bool:
-        """Record one rightward keyboard reorder request."""
-
-        return self._record_keyboard_move("right")
-
-    def move_active_chip_up(self) -> bool:
-        """Record one upward keyboard reorder request."""
-
-        return self._record_keyboard_move("up")
-
-    def move_active_chip_down(self) -> bool:
-        """Record one downward keyboard reorder request."""
-
-        return self._record_keyboard_move("down")
+        return self._record_keyboard_move(intent.direction)
 
     def _record_keyboard_move(self, direction: str) -> bool:
         """Apply a configured keyboard snapshot for one controller test move."""
@@ -745,13 +702,68 @@ class OverlayDouble:
         return True
 
 
+class PreviewSyncContextDouble:
+    """Publish scheduling context from one configured overlay generation."""
+
+    def __init__(
+        self,
+        overlay: OverlayDouble,
+        metrics: PromptReorderInteractionMetricsOwner,
+    ) -> None:
+        """Store the focused test authorities used by context publication."""
+
+        self._overlay = overlay
+        self._metrics = metrics
+        self.snapshot_calls = 0
+
+    def snapshot(self) -> PromptReorderPreviewSyncContext:
+        """Return one scheduling context and consume one-shot shadow feedback."""
+
+        self.snapshot_calls += 1
+        overlay = self._overlay
+        dragged_segment_index = overlay._dragged_segment_index
+        base_drag_layout_ready = overlay._base_drag_layout_view is not None
+        pointer_drag_ready = (
+            dragged_segment_index is not None and base_drag_layout_ready
+        )
+        requires_initial_landing_shadow = False
+        if pointer_drag_ready:
+            requires_initial_landing_shadow = (
+                overlay._should_flush_initial_landing_shadow_sync
+            )
+            overlay._should_flush_initial_landing_shadow_sync = False
+        return PromptReorderPreviewSyncContext(
+            gesture_id=self._metrics.gesture_id,
+            event_id=self._metrics.event_id,
+            pointer_active=self._metrics.pointer_loop_active,
+            dragged_segment_index=dragged_segment_index,
+            base_drag_layout_ready=base_drag_layout_ready,
+            requires_immediate_drag_geometry=(
+                pointer_drag_ready and not overlay._has_base_drag_placement_geometry
+            ),
+            requires_initial_landing_shadow=requires_initial_landing_shadow,
+        )
+
+
 class OverlayFactoryDouble:
     """Create deterministic reorder overlay doubles."""
 
-    def __init__(self, overlay: OverlayDouble | None = None) -> None:
+    def __init__(
+        self,
+        overlay: OverlayDouble | None = None,
+        *,
+        interaction_metrics: PromptReorderInteractionMetricsOwner | None = None,
+    ) -> None:
         """Initialize the factory with an optional prebuilt overlay."""
 
         self.overlay = overlay or OverlayDouble()
+        self.interaction_metrics = (
+            interaction_metrics or PromptReorderInteractionMetricsOwner()
+        )
+        self.preview_sync_context = PreviewSyncContextDouble(
+            self.overlay,
+            self.interaction_metrics,
+        )
         self.create_calls: list[tuple[object, object]] = []
 
     def create_segment_overlay(
@@ -759,11 +771,16 @@ class OverlayFactoryDouble:
         editor: object,
         *,
         layout_policy: object,
-    ) -> OverlayDouble:
-        """Return the configured overlay double and record construction inputs."""
+    ) -> PromptReorderOverlayAssembly:
+        """Return configured overlay authorities and record construction inputs."""
 
         self.create_calls.append((editor, layout_policy))
-        return self.overlay
+        return PromptReorderOverlayAssembly(
+            overlay=self.overlay,
+            preview_build_facts=self.overlay,
+            preview_sync_context=self.preview_sync_context,
+            preview_layout_changed=self.overlay.previewLayoutChanged,
+        )
 
 
 class SyntaxRendererCoordinatorDouble:
@@ -856,12 +873,17 @@ def prompt_interaction_controller(
     syntax_profile: PromptSyntaxProfile | None = None,
     autocomplete: object | None = None,
     semantic_refresh_controller: object | None = None,
+    feature_profile: PromptFeatureProfileController | None = None,
     reorder_overlay_factory: PromptReorderOverlayFactory | None = None,
+    reorder_interaction_metrics: PromptReorderInteractionMetricsOwner | None = None,
 ) -> Any:
     """Build a prompt interaction controller with a syntax-state owner."""
 
     interaction_module = importlib.import_module(
         "substitute.presentation.editor.prompt_editor.interactions.controller"
+    )
+    weight_interaction_module = importlib.import_module(
+        "substitute.presentation.editor.prompt_editor.interactions.weight_interaction"
     )
     resolved_document_service = document_service or PromptDocumentService()
     resolved_syntax_service = syntax_service_ or syntax_service()
@@ -869,6 +891,7 @@ def prompt_interaction_controller(
         "emphasis",
         "wildcard",
     )
+    resolved_mutation_service = mutation_service or PromptMutationService()
     initial_document = PromptDocumentService().build_document_view(editor.toPlainText())
     initial_render_plan = resolved_syntax_service.build_render_plan(
         initial_document,
@@ -896,7 +919,9 @@ def prompt_interaction_controller(
 
         editor.bind_source_publication(publish_live_source)
     syntax_state = PromptSyntaxStateController(
-        editor=editor,
+        active_syntax_span=editor.active_syntax_span,
+        cursor_position=lambda: editor.textCursor().position(),
+        editor_session_id=id(editor),
         renderers=cast(PromptSyntaxRendererCoordinator, syntax_renderers),
         document_service=resolved_document_service,
         syntax_service=resolved_syntax_service,
@@ -909,19 +934,73 @@ def prompt_interaction_controller(
             ],
             state,
         ),
+        source_text=editor.toPlainText,
+    )
+    resolved_overlay_factory = reorder_overlay_factory or OverlayFactoryDouble(
+        interaction_metrics=reorder_interaction_metrics,
+    )
+    preview_publication = PromptReorderPreviewPublicationOwner(
+        clear_preview_state=editor.clear_reorder_preview_state,
+        current_document_view=lambda: syntax_state.document_view,
+        publish_preview_state=editor.set_reorder_preview_state,
+        source_identity=editor.prompt_command_source_identity,
+        viewport_width=lambda: 0,
+        document_service=resolved_document_service,
+        projection_provider=PromptReorderPreviewProjectionProvider(
+            document_service=resolved_document_service,
+            syntax_service=resolved_syntax_service,
+            syntax_profile=resolved_syntax_profile,
+        ),
+        metrics=resolved_overlay_factory.interaction_metrics,
+        interval_ms=PromptReorderPreviewPublicationOwner.DEFAULT_INTERVAL_MS,
+    )
+    resolved_autocomplete = cast(Any, autocomplete or autocomplete_double())
+    resolved_semantic_refresh = (
+        semantic_refresh_controller or semantic_refresh_controller_double()
+    )
+    resolved_feature_profile = (
+        feature_profile or PromptFeatureProfileController.from_legacy_syntax(None)
+    )
+    weight_interaction = weight_interaction_module.PromptWeightInteraction(
+        editor=editor,
+        autocomplete_timing=cast(
+            Any,
+            PromptAutocompleteTimingTestDouble(
+                on_clear=lambda: resolved_autocomplete.dismiss_autocomplete(
+                    "incompatible_query"
+                )
+            ),
+        ),
+        syntax_state=syntax_state,
+        document_service=resolved_document_service,
+        mutation_service=resolved_mutation_service,
+        syntax_service=resolved_syntax_service,
+        syntax_profile=resolved_syntax_profile,
+        feature_profile=resolved_feature_profile,
+        semantic_refresh=cast(Any, resolved_semantic_refresh),
+        projection=None,
     )
     return interaction_module.PromptInteractionController(
         editor,
-        autocomplete=autocomplete or autocomplete_double(),
+        autocomplete=resolved_autocomplete,
+        autocomplete_timing_controller=cast(
+            Any,
+            PromptAutocompleteTimingTestDouble(
+                on_clear=lambda: resolved_autocomplete.dismiss_autocomplete(
+                    "incompatible_query"
+                )
+            ),
+        ),
         syntax_state=syntax_state,
         document_service=resolved_document_service,
-        mutation_service=mutation_service or PromptMutationService(),
+        mutation_service=resolved_mutation_service,
         syntax_service=resolved_syntax_service,
         syntax_profile=resolved_syntax_profile,
-        semantic_refresh_controller=(
-            semantic_refresh_controller or semantic_refresh_controller_double()
-        ),
-        reorder_overlay_factory=reorder_overlay_factory or OverlayFactoryDouble(),
+        feature_profile=resolved_feature_profile,
+        semantic_refresh_controller=resolved_semantic_refresh,
+        reorder_overlay_factory=resolved_overlay_factory,
+        weight_interaction=weight_interaction,
+        reorder_preview_publication=preview_publication,
     )
 
 

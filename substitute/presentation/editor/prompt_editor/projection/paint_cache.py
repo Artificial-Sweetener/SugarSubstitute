@@ -20,21 +20,25 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
-from PySide6.QtGui import QFont, QPainter, QPalette, QPixmap, QRegion
+from PySide6.QtGui import QPainter, QPixmap, QRegion
 
-from substitute.application.appearance import SemanticPalette
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptPaintIdentity,
 )
 
-from ..debug_probe import log_prompt_editor_probe
-from .model import PromptProjectionDisplayMode, PromptProjectionSelection
-
-if TYPE_CHECKING:
-    from .layout_engine import PromptProjectionLayout
+from ..debug_probe import log_prompt_editor_probe, prompt_editor_probe_enabled
+from .content_selection_layer import (
+    EMPTY_PROJECTION_SELECTION_LAYER,
+    PromptProjectionSelectionLayer,
+)
+from .content_media_state import PromptProjectionContentMediaIdentity
+from .paint_input import (
+    PromptProjectionPaintInput,
+    PromptProjectionPaintStyleKey,
+)
+from .painter import PromptProjectionPainter
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,13 +46,16 @@ class PromptProjectionContentCacheKey:
     """Identify one reusable viewport-local projection content pixmap."""
 
     paint_identity: PromptPaintIdentity
-    display_mode: PromptProjectionDisplayMode
-    font_key: str
-    palette_cache_key: int
-    text_color: int
-    placeholder_color: int
-    semantic_accent: tuple[int, int, int]
-    semantic_error_foreground: tuple[int, int, int]
+    style: PromptProjectionPaintStyleKey
+    media_identity: PromptProjectionContentMediaIdentity
+
+
+@dataclass(frozen=True, slots=True)
+class PromptProjectionContentCacheSnapshot:
+    """Expose immutable content-cache state for diagnostics and contracts."""
+
+    key: PromptProjectionContentCacheKey | None
+    has_pixmap: bool
 
 
 class PromptProjectionPaintCache:
@@ -59,7 +66,7 @@ class PromptProjectionPaintCache:
 
         self._cache_key: PromptProjectionContentCacheKey | None = None
         self._cache_pixmap: QPixmap | None = None
-        self._skip_next_cache_build = False
+        self._painter = PromptProjectionPainter()
 
     @property
     def cache_key(self) -> PromptProjectionContentCacheKey | None:
@@ -73,139 +80,147 @@ class PromptProjectionPaintCache:
 
         return self._cache_pixmap
 
-    def skip_next_cache_build(self) -> None:
-        """Force the next cache-eligible paint to draw directly once."""
+    @property
+    def snapshot(self) -> PromptProjectionContentCacheSnapshot:
+        """Return immutable diagnostic state without exposing cache mutation."""
 
-        self._skip_next_cache_build = True
+        pixmap = self._cache_pixmap
+        return PromptProjectionContentCacheSnapshot(
+            key=self._cache_key,
+            has_pixmap=pixmap is not None and not pixmap.isNull(),
+        )
+
+    def paint_direct(
+        self,
+        painter: QPainter,
+        *,
+        paint_input: PromptProjectionPaintInput,
+        selection_layer: PromptProjectionSelectionLayer,
+        scroll_offset: float,
+        clip_rect: QRectF,
+        excluded_region: QRegion | None = None,
+    ) -> None:
+        """Draw prepared projection content without cache lookup or mutation."""
+
+        self._painter.draw(
+            painter,
+            paint_input=paint_input,
+            selection_layer=selection_layer,
+            scroll_offset=scroll_offset,
+            clip_rect=clip_rect,
+            excluded_region=excluded_region,
+        )
+
+    def discard_if_stale(self, paint_identity: PromptPaintIdentity | None) -> None:
+        """Discard content retained for a different prepared paint identity."""
+
+        cached_key = self._cache_key
+        if cached_key is None or cached_key.paint_identity is paint_identity:
+            return
+        self._cache_key = None
+        self._cache_pixmap = None
 
     def paint_projection_content(
         self,
         painter: QPainter,
         *,
-        active_layout: PromptProjectionLayout,
-        base_layout: PromptProjectionLayout,
-        selection: PromptProjectionSelection,
+        paint_input: PromptProjectionPaintInput,
+        selection_layer: PromptProjectionSelectionLayer,
         scroll_offset: float,
         clip_rect: QRectF,
         viewport_rect: QRectF,
         excluded_region: QRegion | None,
         paint_identity: PromptPaintIdentity,
+        media_identity: PromptProjectionContentMediaIdentity,
         device_pixel_ratio: float,
-        font: QFont,
-        palette: QPalette,
-        semantic_palette: SemanticPalette,
     ) -> str:
         """Paint projection content directly or through a viewport pixmap cache."""
 
-        log_prompt_editor_probe(
-            "projection_paint_cache.paint.begin",
-            active_layout_id=id(active_layout),
-            base_layout_id=id(base_layout),
-            active_document_id=id(active_layout.projection_document),
-            base_document_id=id(base_layout.projection_document),
-            active_projection_text=active_layout.projection_document.projection_text,
-            base_projection_text=base_layout.projection_document.projection_text,
-            selection_empty=selection.is_empty,
-            excluded_region_present=excluded_region is not None,
-            clip_rect=repr(clip_rect),
-            viewport_rect=repr(viewport_rect),
-            cache_key_present=self._cache_key is not None,
-            skip_next_cache_build=self._skip_next_cache_build,
-        )
-        if active_layout is not base_layout:
-            active_layout.draw(
-                painter,
-                selection=selection,
-                scroll_offset=scroll_offset,
-                clip_rect=clip_rect,
-                excluded_region=excluded_region,
-            )
+        probe_enabled = prompt_editor_probe_enabled()
+        if probe_enabled:
             log_prompt_editor_probe(
-                "projection_paint_cache.paint.end",
-                result="preview",
+                "projection_paint_cache.paint.begin",
+                paint_input_id=id(paint_input),
+                projection_document_id=id(paint_input.projection_document),
+                projection_text=paint_input.projection_document.projection_text,
+                selection_empty=selection_layer.is_empty,
+                excluded_region_present=excluded_region is not None,
+                clip_rect=repr(clip_rect),
+                viewport_rect=repr(viewport_rect),
                 cache_key_present=self._cache_key is not None,
             )
-            return "preview"
 
         if (
-            not selection.is_empty
+            not selection_layer.is_empty
             or excluded_region is not None
             or clip_rect.isEmpty()
             or viewport_rect.isEmpty()
         ):
-            base_layout.draw(
+            self._painter.draw(
                 painter,
-                selection=selection,
+                paint_input=paint_input,
+                selection_layer=selection_layer,
                 scroll_offset=scroll_offset,
                 clip_rect=clip_rect,
                 excluded_region=excluded_region,
             )
-            log_prompt_editor_probe(
-                "projection_paint_cache.paint.end",
-                result="bypass",
-                cache_key_present=self._cache_key is not None,
-            )
+            if probe_enabled:
+                log_prompt_editor_probe(
+                    "projection_paint_cache.paint.end",
+                    result="bypass",
+                    cache_key_present=self._cache_key is not None,
+                )
             return "bypass"
 
-        cache_key = self.cache_key_for(
-            layout=base_layout,
-            paint_identity=paint_identity,
-            font=font,
-            palette=palette,
-            semantic_palette=semantic_palette,
-        )
+        style_key = paint_input.style_key
+        if style_key is None:
+            raise ValueError("paint cache keys require a prepared semantic palette")
+        cached_key = self._cache_key
         if (
-            self._cache_key == cache_key
+            cached_key is not None
+            and cached_key.paint_identity is paint_identity
+            and cached_key.style == style_key
+            and cached_key.media_identity == media_identity
             and self._cache_pixmap is not None
             and not self._cache_pixmap.isNull()
         ):
             painter.drawPixmap(QPointF(0.0, 0.0), self._cache_pixmap)
-            log_prompt_editor_probe(
-                "projection_paint_cache.paint.end",
-                result="hit",
-                cache_key=repr(cache_key),
-                cache_key_present=True,
-            )
+            if probe_enabled:
+                log_prompt_editor_probe(
+                    "projection_paint_cache.paint.end",
+                    result="hit",
+                    cache_key=repr(cached_key),
+                    cache_key_present=True,
+                )
             return "hit"
-
-        if self._skip_next_cache_build:
-            self._skip_next_cache_build = False
-            base_layout.draw(
-                painter,
-                selection=selection,
-                scroll_offset=scroll_offset,
-                clip_rect=clip_rect,
-                excluded_region=excluded_region,
-            )
-            log_prompt_editor_probe(
-                "projection_paint_cache.paint.end",
-                result="bypass_source_edit",
-                cache_key=repr(cache_key),
-                cache_key_present=self._cache_key is not None,
-            )
-            return "bypass_source_edit"
 
         if _is_small_projection_content_repaint(
             clip_rect=clip_rect,
             viewport_rect=viewport_rect,
         ):
-            base_layout.draw(
+            self._painter.draw(
                 painter,
-                selection=selection,
+                paint_input=paint_input,
+                selection_layer=selection_layer,
                 scroll_offset=scroll_offset,
                 clip_rect=clip_rect,
                 excluded_region=excluded_region,
             )
-            log_prompt_editor_probe(
-                "projection_paint_cache.paint.end",
-                result="bypass_small_cache_miss",
-                cache_key=repr(cache_key),
-                cache_key_present=self._cache_key is not None,
-            )
+            if probe_enabled:
+                log_prompt_editor_probe(
+                    "projection_paint_cache.paint.end",
+                    result="bypass_small_cache_miss",
+                    cache_key_present=self._cache_key is not None,
+                )
             return "bypass_small_cache_miss"
 
+        cache_key = PromptProjectionContentCacheKey(
+            paint_identity=paint_identity,
+            style=style_key,
+            media_identity=media_identity,
+        )
         pixmap = self.render_cache_pixmap(
-            layout=base_layout,
+            paint_input=paint_input,
             viewport_rect=viewport_rect,
             scroll_offset=scroll_offset,
             device_pixel_ratio=device_pixel_ratio,
@@ -213,48 +228,37 @@ class PromptProjectionPaintCache:
         self._cache_key = cache_key
         self._cache_pixmap = pixmap
         painter.drawPixmap(QPointF(0.0, 0.0), pixmap)
-        log_prompt_editor_probe(
-            "projection_paint_cache.paint.end",
-            result="miss",
-            cache_key=repr(cache_key),
-            cache_key_present=True,
-        )
+        if probe_enabled:
+            log_prompt_editor_probe(
+                "projection_paint_cache.paint.end",
+                result="miss",
+                cache_key=repr(cache_key),
+                cache_key_present=True,
+            )
         return "miss"
 
     def cache_key_for(
         self,
         *,
-        layout: PromptProjectionLayout,
+        paint_input: PromptProjectionPaintInput,
         paint_identity: PromptPaintIdentity,
-        font: QFont,
-        palette: QPalette,
-        semantic_palette: SemanticPalette,
+        media_identity: PromptProjectionContentMediaIdentity,
     ) -> PromptProjectionContentCacheKey:
         """Return the projection content cache identity for prepared state."""
 
+        style_key = paint_input.style_key
+        if style_key is None:
+            raise ValueError("paint cache keys require a prepared semantic palette")
         return PromptProjectionContentCacheKey(
             paint_identity=paint_identity,
-            display_mode=layout.projection_document.display_mode,
-            font_key=font.toString(),
-            palette_cache_key=int(palette.cacheKey()),
-            text_color=palette.color(QPalette.ColorRole.Text).rgba(),
-            placeholder_color=palette.color(QPalette.ColorRole.PlaceholderText).rgba(),
-            semantic_accent=(
-                semantic_palette.accent.red,
-                semantic_palette.accent.green,
-                semantic_palette.accent.blue,
-            ),
-            semantic_error_foreground=(
-                semantic_palette.error_foreground.red,
-                semantic_palette.error_foreground.green,
-                semantic_palette.error_foreground.blue,
-            ),
+            style=style_key,
+            media_identity=media_identity,
         )
 
     def render_cache_pixmap(
         self,
         *,
-        layout: PromptProjectionLayout,
+        paint_input: PromptProjectionPaintInput,
         viewport_rect: QRectF,
         scroll_offset: float,
         device_pixel_ratio: float,
@@ -272,9 +276,10 @@ class PromptProjectionPaintCache:
         cache_painter = QPainter(pixmap)
         cache_painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
         try:
-            layout.draw(
+            self._painter.draw(
                 cache_painter,
-                selection=None,
+                paint_input=paint_input,
+                selection_layer=EMPTY_PROJECTION_SELECTION_LAYER,
                 scroll_offset=scroll_offset,
                 clip_rect=viewport_rect,
                 excluded_region=None,
@@ -282,19 +287,6 @@ class PromptProjectionPaintCache:
         finally:
             cache_painter.end()
         return pixmap
-
-    def invalidate(self, *, reason: str) -> None:
-        """Drop cached projection content after a visual-content change."""
-
-        log_prompt_editor_probe(
-            "projection_paint_cache.invalidate",
-            reason=reason,
-            cache_key_present=self._cache_key is not None,
-        )
-        if self._cache_key is None:
-            return
-        self._cache_key = None
-        self._cache_pixmap = None
 
 
 def _is_small_projection_content_repaint(

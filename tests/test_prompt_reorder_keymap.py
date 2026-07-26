@@ -28,12 +28,13 @@ from substitute.application.prompt_editor.document.service import PromptDocument
 from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
 )
-from substitute.presentation.editor.prompt_editor.models import (
-    PromptEditorInteractionMode,
+from substitute.application.prompt_editor.reorder.intents import (
     PromptReorderCancelIntent,
     PromptReorderCommitIntent,
     PromptReorderKeyboardMoveIntent,
-    SegmentReorderSession,
+)
+from substitute.presentation.editor.prompt_editor.models import (
+    PromptEditorInteractionMode,
 )
 from tests.prompt_autocomplete_test_helpers import prompt_syntax_profile
 from tests.prompt_editor_controller_test_helpers import key_event
@@ -41,6 +42,7 @@ from tests.prompt_reorder_interaction_test_helpers import (
     ControllerEditorDouble,
     MenuCursorDouble,
     OverlayDouble,
+    OverlayFactoryDouble,
     autocomplete_double,
     prompt_interaction_controller,
     semantic_refresh_controller_double,
@@ -71,7 +73,7 @@ def test_handle_key_press_enters_reorder_mode_on_alt_only() -> None:
         "alpha, beta",
         autocomplete=autocomplete,
     )
-    controller._reorder.enter_segment_reorder_mode = lambda: shown.append("show")
+    controller._reorder.enter = lambda: shown.append("show")
 
     assert controller.handle_key_press(_key_event(Qt.Key.Key_Alt)) is True
     assert shown == ["show"]
@@ -101,23 +103,13 @@ def test_handle_key_release_on_alt_skips_mutation_when_overlay_order_is_unchange
         current_cursor=MenuCursorDouble(text="alpha, beta", position=7),
         text="alpha, beta",
     )
+    overlay = OverlayDouble([0, 1], active_segment_index=1, has_reordered=False)
     controller = _controller_for_reorder_editor(
         editor,
         mutation_service=PromptMutationService(),
+        reorder_overlay_factory=OverlayFactoryDouble(overlay),
     )
-    overlay = OverlayDouble([0, 1], active_segment_index=1, has_reordered=False)
-    controller._reorder._segment_overlay = overlay
-    controller._reorder._interaction_mode = PromptEditorInteractionMode.SEGMENT_REORDER
-    controller._reorder._session_controller.replace_session(
-        SegmentReorderSession(
-            is_active=True,
-            original_ordered_indices=(0, 1),
-            current_ordered_indices=(0, 1),
-            active_segment_index=1,
-            selection_start=7,
-            selection_end=7,
-        )
-    )
+    controller.enter_segment_reorder_mode_from_keymap()
 
     handled = controller.handle_key_release(_key_event(Qt.Key.Key_Alt))
 
@@ -126,9 +118,7 @@ def test_handle_key_release_on_alt_skips_mutation_when_overlay_order_is_unchange
     assert overlay.closed == 1
     assert overlay.deleted == 1
     assert controller.segment_overlay is None
-    assert (
-        controller._reorder.interaction_mode is PromptEditorInteractionMode.TEXT_EDITING
-    )
+    assert controller.interaction_mode is PromptEditorInteractionMode.TEXT_EDITING
 
 
 def test_handle_key_press_escape_cancels_reorder_mode_without_mutation() -> None:
@@ -136,26 +126,17 @@ def test_handle_key_press_escape_cancels_reorder_mode_without_mutation() -> None
 
     editor = ControllerEditorDouble(
         clicked_cursor=MenuCursorDouble(text="alpha, beta", position=7),
-        current_cursor=MenuCursorDouble(text="alpha, beta", position=0),
+        current_cursor=MenuCursorDouble(text="alpha, beta", position=7),
         text="alpha, beta",
     )
+    overlay = OverlayDouble([1, 0], active_segment_index=1, has_reordered=True)
     controller = _controller_for_reorder_editor(
         editor,
         mutation_service=PromptMutationService(),
+        reorder_overlay_factory=OverlayFactoryDouble(overlay),
     )
-    overlay = OverlayDouble([1, 0], active_segment_index=1, has_reordered=True)
-    controller._reorder._segment_overlay = overlay
-    controller._reorder._interaction_mode = PromptEditorInteractionMode.SEGMENT_REORDER
-    controller._reorder._session_controller.replace_session(
-        SegmentReorderSession(
-            is_active=True,
-            original_ordered_indices=(0, 1),
-            current_ordered_indices=(0, 1),
-            active_segment_index=1,
-            selection_start=7,
-            selection_end=7,
-        )
-    )
+    controller.enter_segment_reorder_mode_from_keymap()
+    editor.textCursor().setPosition(0)
 
     handled = controller.handle_key_press(_key_event(Qt.Key.Key_Escape))
 
@@ -179,6 +160,7 @@ def test_handle_key_press_routes_arrow_keys_to_overlay_during_reorder_mode() -> 
         autocomplete_calls.append(cast(Any, event).key())
         return False
 
+    overlay = OverlayDouble([0, 1, 2], active_segment_index=1, has_reordered=False)
     controller = _controller_for_reorder_text(
         "alpha, beta, gamma",
         autocomplete=SimpleNamespace(
@@ -187,10 +169,9 @@ def test_handle_key_press_routes_arrow_keys_to_overlay_during_reorder_mode() -> 
             dismiss_autocomplete=lambda _reason: None,
             refresh_geometry=lambda: None,
         ),
+        reorder_overlay_factory=OverlayFactoryDouble(overlay),
     )
-    overlay = OverlayDouble([0, 1, 2], active_segment_index=1, has_reordered=False)
-    controller._reorder._segment_overlay = overlay
-    controller._reorder._interaction_mode = PromptEditorInteractionMode.SEGMENT_REORDER
+    controller.enter_segment_reorder_mode_from_keymap()
 
     assert controller.handle_key_press(_key_event(Qt.Key.Key_Left)) is True
     assert controller.handle_key_press(_key_event(Qt.Key.Key_Right)) is True
@@ -271,8 +252,20 @@ def test_keymap_routes_reorder_keys_as_typed_intents() -> None:
         def clear_keyboard_emphasis_session_from_keymap(self) -> None:
             """Ignore inactive emphasis cleanup paths."""
 
+    class _Weights:
+        """Provide inactive weight routing for reorder-only keymap coverage."""
+
+        def handle_exact_weight_key_press(self, event: object) -> bool:
+            """Decline keys while the reorder mode owns routing."""
+
+            _ = event
+            return False
+
+        def clear_keyboard_emphasis_session(self) -> None:
+            """Ignore keyboard cleanup while reorder mode is active."""
+
     host = _Host()
-    keymap = keymap_mod.PromptKeymapController(host)
+    keymap = keymap_mod.PromptKeymapController(host, weights=_Weights())
 
     assert keymap.handle_key_press(_key_event(Qt.Key.Key_Left)) is True
     assert keymap.handle_key_press(_key_event(Qt.Key.Key_Right)) is True
@@ -295,6 +288,7 @@ def _controller_for_reorder_text(
     text: str,
     *,
     autocomplete: object | None = None,
+    reorder_overlay_factory: OverlayFactoryDouble | None = None,
 ) -> Any:
     """Build a reorder-capable interaction controller for sample prompt text."""
 
@@ -305,6 +299,7 @@ def _controller_for_reorder_text(
             text=text,
         ),
         autocomplete=autocomplete,
+        reorder_overlay_factory=reorder_overlay_factory,
     )
 
 
@@ -313,6 +308,7 @@ def _controller_for_reorder_editor(
     *,
     autocomplete: object | None = None,
     mutation_service: PromptMutationService | None = None,
+    reorder_overlay_factory: OverlayFactoryDouble | None = None,
 ) -> Any:
     """Build a reorder-capable interaction controller for one editor double."""
 
@@ -325,6 +321,7 @@ def _controller_for_reorder_editor(
         mutation_service=mutation_service or PromptMutationService(),
         syntax_service_=syntax_service(),
         syntax_profile=prompt_syntax_profile("emphasis", "wildcard"),
+        reorder_overlay_factory=reorder_overlay_factory,
     )
 
 

@@ -30,7 +30,7 @@ from PySide6.QtGui import QTextCursor, QWheelEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
@@ -125,7 +125,7 @@ def _effective_token_for_paint(
     layout = cast(Any, surface)._layout
     return cast(
         PromptProjectionToken,
-        layout.effective_token_for_paint(token.token_id) or token,
+        layout.frame.paint_input.effective_token(token.token_id) or token,
     )
 
 
@@ -162,7 +162,9 @@ def show_lora_prompt_editor(
 def token_rect_for(box: PromptEditor, token: PromptProjectionToken) -> QRectF:
     """Return the viewport-local rect occupied by one collapsed projection token."""
 
-    token_rect = surface_for(box)._layout.token_rect(  # noqa: SLF001
+    token_rect = surface_for(  # noqa: SLF001
+        box
+    )._layout.frame.geometry.tokens.token_rect(
         token,
         scroll_offset=float(box.verticalScrollBar().value()),
     )
@@ -1044,7 +1046,7 @@ def test_exact_weight_edit_outside_click_commits_and_still_reaches_editor(
     click_point = QPoint(int(token_rect.left() + 2), int(token_rect.center().y()))
     expected_position = (
         surface_for(box)
-        ._layout.hit_test(  # noqa: SLF001
+        ._layout.frame.geometry.hit_testing.hit_test(  # noqa: SLF001
             QPointF(click_point),
             scroll_offset=float(box.verticalScrollBar().value()),
         )
@@ -1078,7 +1080,7 @@ def test_exact_weight_edit_invalid_outside_click_cancels_and_still_reaches_edito
     click_point = QPoint(int(token_rect.left() + 2), int(token_rect.center().y()))
     expected_position = (
         surface_for(box)
-        ._layout.hit_test(  # noqa: SLF001
+        ._layout.frame.geometry.hit_testing.hit_test(  # noqa: SLF001
             QPointF(click_point),
             scroll_offset=float(box.verticalScrollBar().value()),
         )

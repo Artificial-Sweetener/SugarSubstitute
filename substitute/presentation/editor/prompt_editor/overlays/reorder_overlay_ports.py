@@ -18,107 +18,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Protocol
 
-from PySide6.QtCore import QRect
 from PySide6.QtGui import QTextDocument
 from PySide6.QtWidgets import QScrollBar, QWidget
 
-from substitute.application.prompt_editor.reorder.views import (
-    PromptReorderLayoutView,
-    PromptReorderPreviewSnapshot,
-)
-
 from ..projection.reorder_chip_geometry import PromptReorderChipGeometrySnapshot
-from ..projection.reorder_placement_geometry import PromptReorderPlacementSnapshot
-from ..projection.reorder_interaction_geometry import PromptReorderGeometryHost
 from ..projection.reorder_visual_snapshot import PromptReorderProjectionPaintSnapshot
-from ..projection.reorder_surface_chrome import PromptReorderSurfaceChromeChip
-from ..reorder_drag_proxy_state import (
-    PromptReorderDragProxyRenderInputs,
-    PromptReorderDragProxyRenderStateSync,
-)
-from .reorder_autoscroll import (
-    PromptReorderAutoscrollContext,
-    PromptReorderAutoscrollController,
-    PromptReorderAutoscrollInvalidation,
-)
-from .reorder_gesture_controller import (
-    PromptReorderCancelIntent,
-    PromptReorderCommitIntent,
-    PromptReorderDragIntent,
+from ..projection.reorder_surface_visual_state import (
+    PromptReorderSurfaceVisualPublication,
 )
 from .reorder_view import PromptReorderView
-
-
-@dataclass(frozen=True, slots=True)
-class PromptReorderOverlayRenderState:
-    """Describe prepared reorder chrome state supplied by projection owners."""
-
-    viewport_rect: QRect
-    chip_geometry: tuple[object, ...]
-    placement_geometry: tuple[object, ...] = ()
-    active_segment_index: int | None = None
-    preview_payload: object | None = None
-    drag_proxy_payload: object | None = None
-
-
-class PromptReorderOverlay(Protocol):
-    """Render prepared reorder chrome and relay drag, commit, and cancel intents."""
-
-    def set_render_state(self, state: PromptReorderOverlayRenderState) -> None:
-        """Replace the projection-prepared reorder state rendered by the overlay."""
-
-    def set_drag_handler(
-        self,
-        handler: Callable[[PromptReorderDragIntent], None] | None,
-    ) -> None:
-        """Set the callback used for pointer drag intent."""
-
-    def set_commit_handler(
-        self,
-        handler: Callable[[PromptReorderCommitIntent], None] | None,
-    ) -> None:
-        """Set the callback used for commit intent."""
-
-    def set_cancel_handler(
-        self,
-        handler: Callable[[PromptReorderCancelIntent], None] | None,
-    ) -> None:
-        """Set the callback used for cancel intent."""
-
-    def request_geometry_refresh(self, *, reason: str) -> None:
-        """Ask the overlay to refresh its viewport-local geometry."""
-
-    def show_overlay(self) -> None:
-        """Show the overlay without taking editor focus."""
-
-    def hide_overlay(self) -> None:
-        """Hide the overlay without mutating source text."""
-
-
-class PromptReorderDragProxyStateFactory(Protocol):
-    """Build and cache render state for the floating drag proxy."""
-
-    def reset_counters(self) -> None:
-        """Reset deterministic render-state counters for focused tests."""
-
-    def reset_drag_session(self) -> None:
-        """Clear any render state tied to a previous drag session."""
-
-    def invalidate(self, *, reason: str) -> None:
-        """Invalidate cached drag proxy render state for one explicit reason."""
-
-    def counters(self) -> dict[str, int]:
-        """Return deterministic render-state lifecycle counters."""
-
-    def ensure_render_state(
-        self,
-        inputs: PromptReorderDragProxyRenderInputs,
-    ) -> PromptReorderDragProxyRenderStateSync:
-        """Return current drag proxy render state for the supplied inputs."""
 
 
 class PromptReorderViewFactory(Protocol):
@@ -128,20 +38,7 @@ class PromptReorderViewFactory(Protocol):
         """Return one passive reorder view under the supplied parent."""
 
 
-class PromptReorderAutoscrollFactory(Protocol):
-    """Create the visual autoscroll owner after the overlay QWidget exists."""
-
-    def __call__(
-        self,
-        overlay: QWidget,
-        *,
-        step_callback: Callable[[PromptReorderAutoscrollInvalidation], None],
-        context_provider: Callable[[], PromptReorderAutoscrollContext],
-    ) -> PromptReorderAutoscrollController:
-        """Return one autoscroll controller bound to the overlay."""
-
-
-class PromptReorderEditor(PromptReorderGeometryHost, Protocol):
+class PromptReorderEditor(Protocol):
     """Describe editor APIs consumed by the concrete reorder overlay shell."""
 
     def document(self) -> QTextDocument:
@@ -155,32 +52,6 @@ class PromptReorderEditor(PromptReorderGeometryHost, Protocol):
 
     def setFocus(self) -> None:
         """Keep real keyboard focus on the host editor during reorder gestures."""
-
-    def reorder_live_chip_geometry_snapshot(
-        self,
-        *,
-        layout_view: PromptReorderLayoutView,
-        chip_rendered_ranges_by_index: dict[int, tuple[int, int]],
-        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
-    ) -> PromptReorderChipGeometrySnapshot:
-        """Return projection-owned live chip geometry for the supplied layout."""
-
-    def reorder_live_placement_snapshot(
-        self,
-        *,
-        layout_view: PromptReorderLayoutView,
-        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
-        gap_ranges_by_index: dict[int, tuple[int, int]],
-    ) -> PromptReorderPlacementSnapshot:
-        """Return provisional placements from the current live projection."""
-
-    def reorder_preview_chip_geometry_snapshot(
-        self,
-        *,
-        snapshot: PromptReorderPreviewSnapshot,
-        layout_view: PromptReorderLayoutView,
-    ) -> PromptReorderChipGeometrySnapshot:
-        """Return projection-owned preview chip geometry for the supplied layout."""
 
     def reset_reorder_geometry_cache_counters(self) -> None:
         """Reset deterministic projection geometry counters for focused tests."""
@@ -205,26 +76,14 @@ class PromptReorderEditor(PromptReorderGeometryHost, Protocol):
     ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
         """Return projection-owned preview paint snapshots for visible reorder chips."""
 
-    def set_reorder_overlay_suppression_snapshots(
+    def set_reorder_surface_visual_publication(
         self,
-        snapshots_by_index: dict[int, PromptReorderProjectionPaintSnapshot],
+        publication: PromptReorderSurfaceVisualPublication,
     ) -> None:
-        """Suppress projection fragments owned by exact overlay snapshots."""
-
-    def set_reorder_surface_chrome(
-        self,
-        *,
-        mode: str,
-        chips: tuple[PromptReorderSurfaceChromeChip, ...],
-    ) -> None:
-        """Paint stationary reorder chrome below projection-owned text."""
+        """Publish reorder chrome and suppression as one prepared frame."""
 
 
 __all__ = [
-    "PromptReorderAutoscrollFactory",
-    "PromptReorderDragProxyStateFactory",
     "PromptReorderEditor",
-    "PromptReorderOverlay",
-    "PromptReorderOverlayRenderState",
     "PromptReorderViewFactory",
 ]

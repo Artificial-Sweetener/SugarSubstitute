@@ -66,7 +66,9 @@ def test_autocomplete_ghost_text_publisher_publishes_tag_preview() -> None:
 
     mod = import_autocomplete_ghost_text_module()
     editor = TextAutocompleteEditorDouble("long ha")
-    publisher = mod.PromptAutocompleteGhostTextPublisher(preview_sink=editor)
+    publisher = mod.PromptAutocompleteGhostTextPublisher(
+        publish_preview_state=editor.set_autocomplete_preview_state
+    )
 
     publisher.publish_for_session(
         AutocompleteSession(
@@ -92,7 +94,9 @@ def test_autocomplete_ghost_text_publisher_clears_stale_tag_cursor() -> None:
 
     mod = import_autocomplete_ghost_text_module()
     editor = TextAutocompleteEditorDouble("long hair")
-    publisher = mod.PromptAutocompleteGhostTextPublisher(preview_sink=editor)
+    publisher = mod.PromptAutocompleteGhostTextPublisher(
+        publish_preview_state=editor.set_autocomplete_preview_state
+    )
 
     publisher.publish_for_session(
         AutocompleteSession(
@@ -116,7 +120,9 @@ def test_autocomplete_ghost_text_publisher_trims_existing_right_text() -> None:
     mod = import_autocomplete_ghost_text_module()
     editor = TextAutocompleteEditorDouble("long hair")
     editor.cursor_position = 6
-    publisher = mod.PromptAutocompleteGhostTextPublisher(preview_sink=editor)
+    publisher = mod.PromptAutocompleteGhostTextPublisher(
+        publish_preview_state=editor.set_autocomplete_preview_state
+    )
 
     publisher.publish_for_session(
         AutocompleteSession(
@@ -143,7 +149,9 @@ def test_autocomplete_ghost_text_publisher_publishes_wildcard_preview() -> None:
 
     mod = import_autocomplete_ghost_text_module()
     editor = TextAutocompleteEditorDouble("{an")
-    publisher = mod.PromptAutocompleteGhostTextPublisher(preview_sink=editor)
+    publisher = mod.PromptAutocompleteGhostTextPublisher(
+        publish_preview_state=editor.set_autocomplete_preview_state
+    )
 
     publisher.publish_for_session(
         AutocompleteSession(
@@ -178,7 +186,9 @@ def test_autocomplete_ghost_text_publisher_publishes_lora_preview() -> None:
         basename="midnaHelmet",
         prompt_name="characters/midnaHelmet",
     )
-    publisher = mod.PromptAutocompleteGhostTextPublisher(preview_sink=editor)
+    publisher = mod.PromptAutocompleteGhostTextPublisher(
+        publish_preview_state=editor.set_autocomplete_preview_state
+    )
 
     publisher.publish_for_session(
         AutocompleteSession(
@@ -220,7 +230,9 @@ def test_autocomplete_ghost_text_publisher_skips_duplicate_publication() -> None
 
     mod = import_autocomplete_ghost_text_module()
     editor = TextAutocompleteEditorDouble("1gi")
-    publisher = mod.PromptAutocompleteGhostTextPublisher(preview_sink=editor)
+    publisher = mod.PromptAutocompleteGhostTextPublisher(
+        publish_preview_state=editor.set_autocomplete_preview_state
+    )
     session = AutocompleteSession(
         mode="tag",
         suggestions=(PromptAutocompleteSuggestion("1girl", 5_889_398),),

@@ -14,26 +14,33 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Paint source-line and search chrome from prepared projection geometry."""
+"""Own source-line chrome configuration and geometry preparation."""
 
 from __future__ import annotations
 
-from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QColor, QPainter, QPalette
+from PySide6.QtCore import QRectF
+from PySide6.QtGui import QColor
 from qfluentwidgets import isDarkTheme, themeColor  # type: ignore[import-untyped]
 
-from .layout_engine import PromptProjectionLayout
-from .selection_geometry import PromptProjectionSourceLineRect
+from ..geometry.aggregate import PromptProjectionGeometry
+from ..geometry.models import PromptProjectionSourceLineRect
+from .source_line_render_state import (
+    EMPTY_SOURCE_LINE_CHROME_LAYER,
+    PromptSourceLineChromeLayer,
+    PromptSourceLineChromeLayerKey,
+    PromptSourceLineFill,
+)
 
 
 class PromptSourceLineChrome:
-    """Own source-line background and search-highlight projection chrome."""
+    """Own source-line configuration and its prepared render layer."""
 
     def __init__(self) -> None:
         """Initialize disabled source-line chrome with no reserved inset."""
 
         self._enabled = False
         self._content_left_inset = 0.0
+        self._layer = EMPTY_SOURCE_LINE_CHROME_LAYER
 
     @property
     def enabled(self) -> bool:
@@ -46,6 +53,12 @@ class PromptSourceLineChrome:
         """Return viewport-local space reserved for source-line chrome."""
 
         return self._content_left_inset
+
+    @property
+    def layer(self) -> PromptSourceLineChromeLayer:
+        """Return the currently published immutable source-line layer."""
+
+        return self._layer
 
     def set_enabled(self, enabled: bool) -> bool:
         """Store source-line chrome visibility and report whether it changed."""
@@ -67,13 +80,13 @@ class PromptSourceLineChrome:
     def source_line_rects(
         self,
         *,
-        layout: PromptProjectionLayout,
+        geometry: PromptProjectionGeometry,
         viewport_rect: QRectF,
         scroll_offset: float,
     ) -> tuple[PromptProjectionSourceLineRect, ...]:
         """Return visible source logical line rects aligned to projection."""
 
-        return layout.source_line_rects(
+        return geometry.source_lines.visible_rects(
             viewport_rect=viewport_rect,
             scroll_offset=scroll_offset,
         )
@@ -81,88 +94,97 @@ class PromptSourceLineChrome:
     def current_source_line_index(
         self,
         *,
-        layout: PromptProjectionLayout,
+        geometry: PromptProjectionGeometry,
         cursor_position: int,
     ) -> int:
         """Return the newline-delimited source line containing the cursor."""
 
-        return layout.source_line_index_for_position(cursor_position)
+        return geometry.caret.source_line_index_for_position(cursor_position)
 
-    def paint_source_lines(
+    def prepare(
         self,
-        painter: QPainter,
         *,
-        source_lines: tuple[PromptProjectionSourceLineRect, ...],
-        current_line_index: int,
-        focus_active: bool,
-    ) -> None:
-        """Paint zebra and current-line backgrounds beneath projection content."""
-
-        if not self._enabled:
-            return
-        painter.save()
-        painter.setPen(Qt.PenStyle.NoPen)
-        for source_line in source_lines:
-            if source_line.line_index % 2 == 1:
-                painter.fillRect(source_line.rect, _source_line_zebra_color())
-            if source_line.line_index == current_line_index and focus_active:
-                painter.fillRect(source_line.rect, _source_line_current_color())
-        painter.restore()
-
-    def paint_search_matches(
-        self,
-        painter: QPainter,
-        *,
-        layout: PromptProjectionLayout,
-        match_ranges: tuple[tuple[int, int], ...],
-        active_match_index: int | None,
+        geometry: PromptProjectionGeometry,
+        geometry_identity: int,
         viewport_rect: QRectF,
         scroll_offset: float,
-        palette: QPalette,
-    ) -> None:
-        """Paint transient search highlight ranges beneath text and selection."""
+        cursor_position: int,
+        focus_active: bool,
+    ) -> bool:
+        """Publish source-line commands when their complete identity changes."""
 
-        if not match_ranges:
-            return
-        painter.save()
-        try:
-            painter.setPen(Qt.PenStyle.NoPen)
-            for match_index, (start, length) in enumerate(match_ranges):
-                highlight_color = self.search_match_color(
-                    palette,
-                    active=match_index == active_match_index,
-                )
-                painter.setBrush(highlight_color)
-                for rect in layout.source_range_fragments(
-                    start=start,
-                    end=start + length,
-                    viewport_rect=viewport_rect,
-                    scroll_offset=scroll_offset,
-                ):
-                    painter.drawRect(rect)
-        finally:
-            painter.restore()
+        if not self._enabled:
+            return self._clear_layer()
+        current_line_index = self.current_source_line_index(
+            geometry=geometry,
+            cursor_position=cursor_position,
+        )
+        dark_theme = bool(isDarkTheme())
+        theme_color = QColor(themeColor())
+        key = PromptSourceLineChromeLayerKey(
+            geometry_identity=geometry_identity,
+            viewport=_rect_key(viewport_rect),
+            scroll_offset=_coordinate(scroll_offset),
+            current_line_index=current_line_index,
+            focus_active=focus_active,
+            dark_theme=dark_theme,
+            theme_color_rgba=int(theme_color.rgba()),
+        )
+        if self._layer.key == key:
+            return False
+        zebra = QColor(255, 255, 255, 16) if dark_theme else QColor(0, 0, 0, 12)
+        theme_color.setAlpha(38 if dark_theme else 34)
+        fills: list[PromptSourceLineFill] = []
+        for source_line in self.source_line_rects(
+            geometry=geometry,
+            viewport_rect=viewport_rect,
+            scroll_offset=scroll_offset,
+        ):
+            if source_line.line_index % 2 == 1:
+                fills.append(_fill_command(source_line.rect, zebra))
+            if source_line.line_index == current_line_index and focus_active:
+                fills.append(_fill_command(source_line.rect, theme_color))
+        self._layer = PromptSourceLineChromeLayer(key=key, fills=tuple(fills))
+        return True
 
-    def search_match_color(self, palette: QPalette, *, active: bool) -> QColor:
-        """Return the fill color used for passive and active search matches."""
+    def _clear_layer(self) -> bool:
+        """Discard prepared commands while source-line chrome is disabled."""
 
-        highlight_color = QColor(palette.color(QPalette.ColorRole.Highlight))
-        if active:
-            highlight_color.setAlpha(150)
-            return highlight_color
-        highlight_color.setAlpha(90)
-        return highlight_color
+        if self._layer.key is None and not self._layer.fills:
+            return False
+        self._layer = EMPTY_SOURCE_LINE_CHROME_LAYER
+        return True
 
 
-def _source_line_zebra_color() -> QColor:
-    """Return the subtle alternating source-line fill color."""
+def _fill_command(rect: QRectF, color: QColor) -> PromptSourceLineFill:
+    """Copy mutable Qt values into one immutable fill command."""
 
-    return QColor(255, 255, 255, 16) if isDarkTheme() else QColor(0, 0, 0, 12)
+    return PromptSourceLineFill(
+        left=rect.left(),
+        top=rect.top(),
+        width=rect.width(),
+        height=rect.height(),
+        color_rgba=int(color.rgba()),
+    )
 
 
-def _source_line_current_color() -> QColor:
-    """Return the current source-line highlight color."""
+def _rect_key(rect: QRectF) -> tuple[int, int, int, int]:
+    """Quantize one viewport rectangle for stable layer identity."""
 
-    color = QColor(themeColor())
-    color.setAlpha(38 if isDarkTheme() else 34)
-    return color
+    return (
+        _coordinate(rect.x()),
+        _coordinate(rect.y()),
+        _coordinate(rect.width()),
+        _coordinate(rect.height()),
+    )
+
+
+def _coordinate(value: float) -> int:
+    """Quantize one geometry coordinate without losing subpixel identity."""
+
+    return int(round(value * 100.0))
+
+
+__all__ = [
+    "PromptSourceLineChrome",
+]

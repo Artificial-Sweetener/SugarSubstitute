@@ -187,17 +187,18 @@ def test_numbered_prompt_editor_forwards_complete_runtime_service_bundle() -> No
     )
     editor = cast(Any, frame.editor())
 
-    assert editor._wildcard_feature_controller._wildcard_catalog_gateway is wildcard
+    assert (
+        editor._wildcard_diagnostics_presentation._wildcard_catalog_gateway is wildcard
+    )
     assert editor._danbooru_action_controller._url_import_service is danbooru_url_import
     assert editor._danbooru_action_controller._wiki_service is danbooru_wiki
     assert editor._danbooru_action_controller._image_preview_service is danbooru_images
     assert editor._danbooru_action_controller._recent_posts_service is danbooru_posts
-    assert editor._lora_metadata_feature_controller._lora_catalog is lora_catalog
-    assert editor._syntax_service._prompt_lora_catalog_service is lora_catalog
     assert (
-        editor._lora_metadata_feature_controller._scheduled_lora_service
-        is scheduled_lora
+        editor._lora_metadata_presentation.snapshot.catalog_revision
+        == lora_catalog.cache_revision
     )
+    assert editor._syntax_service._prompt_lora_catalog_service is lora_catalog
     assert editor._diagnostics_feature_controller._spellcheck_service is spellcheck
     assert editor._lora_thumbnail_cache.asset_repository is thumbnails
     assert editor._segment_preset_controller._preset_source is segments

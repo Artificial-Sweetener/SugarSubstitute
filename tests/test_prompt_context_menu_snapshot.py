@@ -56,16 +56,21 @@ from substitute.presentation.editor.prompt_editor.features import (
     PromptSegmentPresetSaveState,
     PromptSegmentPresetSnapshot,
 )
-from substitute.presentation.editor.prompt_editor.features.context_menu_snapshot import (
+from substitute.presentation.editor.prompt_editor.features.context_menu_models import (
     PromptContextMenuConcern,
+    PromptContextMenuSnapshotRequest,
+)
+from substitute.presentation.editor.prompt_editor.features.context_menu_ports import (
     PromptContextMenuDanbooruPort,
     PromptContextMenuDiagnosticsPort,
     PromptContextMenuLoraMetadataPort,
     PromptContextMenuLoraTriggerWordPort,
-    PromptContextMenuScenePort,
+    PromptContextMenuScenePositionPort,
+    PromptContextMenuSceneSnapshotPort,
     PromptContextMenuSegmentPort,
-    PromptContextMenuSnapshotController,
-    PromptContextMenuSnapshotRequest,
+)
+from substitute.presentation.editor.prompt_editor.features.context_menu_snapshot_assembly import (
+    PromptContextMenuSnapshotAssembler,
 )
 
 
@@ -153,6 +158,8 @@ class _LoraMetadata:
             unavailable_reason=unavailable_reason,
         )
         self.prompt_texts: list[str] = []
+        self.snapshot_prompt_calls = 0
+        self.prewarm_calls = 0
 
     @property
     def snapshot(self) -> PromptLoraMetadataSnapshot:
@@ -173,6 +180,7 @@ class _LoraMetadata:
     ) -> PromptLoraActionSnapshot:
         """Return an object carrying prepared action identity."""
 
+        self.snapshot_prompt_calls += 1
         self.prompt_texts.append(prompt_text)
         return PromptLoraActionSnapshot(
             identity=CatalogSnapshotIdentity(
@@ -204,6 +212,7 @@ class _LoraMetadata:
     def prewarm_prompt(self, prompt_text: str) -> bool:
         """Record effective prompt preparation requests."""
 
+        self.prewarm_calls += 1
         self.prompt_texts.append(prompt_text)
         return True
 
@@ -656,6 +665,18 @@ def test_context_menu_snapshot_consumes_prepared_lora_actions() -> None:
     assert action.command_request.payload.insertion_text == "scene prompt"
 
 
+def test_context_menu_snapshot_read_does_not_prewarm_feature_state() -> None:
+    """Reading an already prepared menu snapshot must not dispatch preparation."""
+
+    lora_instances: list[_LoraMetadata] = []
+    controller = _controller(lora_instances=lora_instances)
+
+    controller.snapshot_for_menu(_request())
+
+    assert lora_instances[0].snapshot_prompt_calls == 1
+    assert lora_instances[0].prewarm_calls == 0
+
+
 def test_context_menu_snapshot_consumes_prepared_diagnostic_actions() -> None:
     """Diagnostic rows should come from prepared action snapshots only."""
 
@@ -703,7 +724,8 @@ def _controller(
     segment_catalog_revision: Hashable | None = "segment-catalog-1",
     segment_status: CatalogSnapshotStatus | None = None,
     danbooru_source_revision: int = 42,
-) -> PromptContextMenuSnapshotController:
+    lora_instances: list[_LoraMetadata] | None = None,
+) -> PromptContextMenuSnapshotAssembler:
     """Return a context-menu snapshot controller with fake collaborators."""
 
     scene_identity = PromptFeatureSnapshotIdentity(
@@ -720,7 +742,9 @@ def _controller(
         catalog_revision=lora_catalog_revision,
         unavailable_reason=lora_unavailable_reason,
     )
-    return PromptContextMenuSnapshotController(
+    if lora_instances is not None:
+        lora_instances.append(lora)
+    return PromptContextMenuSnapshotAssembler(
         diagnostics=cast(
             PromptContextMenuDiagnosticsPort,
             _Diagnostics(
@@ -739,8 +763,17 @@ def _controller(
             lora,
         ),
         lora_trigger_words=cast(PromptContextMenuLoraTriggerWordPort, lora),
-        scene=cast(
-            PromptContextMenuScenePort,
+        scene_publication=cast(
+            PromptContextMenuSceneSnapshotPort,
+            _Scene(
+                identity=scene_identity,
+                position_ready=scene_position_ready,
+                position_stale=scene_position_stale,
+                position_unavailable_reason=scene_position_unavailable_reason,
+            ),
+        ),
+        scene_positions=cast(
+            PromptContextMenuScenePositionPort,
             _Scene(
                 identity=scene_identity,
                 position_ready=scene_position_ready,

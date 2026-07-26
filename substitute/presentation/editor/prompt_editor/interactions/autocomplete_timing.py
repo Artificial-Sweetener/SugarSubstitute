@@ -49,29 +49,6 @@ class PromptAutocompleteSourceIdentity(Protocol):
         ...
 
 
-class PromptAutocompleteTimingCursor(Protocol):
-    """Describe read-only cursor behavior needed by autocomplete timing."""
-
-    def position(self) -> int:
-        """Return the current source cursor position."""
-
-    def hasSelection(self) -> bool:  # noqa: N802
-        """Return whether the cursor currently selects source text."""
-
-
-class PromptAutocompleteSourceEditor(Protocol):
-    """Describe editor source state consumed by the snapshot owner."""
-
-    def toPlainText(self) -> str:  # noqa: N802
-        """Return the current source text."""
-
-    def textCursor(self) -> PromptAutocompleteTimingCursor:  # noqa: N802
-        """Return the editor's live text cursor."""
-
-    def prompt_command_source_identity(self) -> PromptAutocompleteSourceIdentity | None:
-        """Return the current command source identity."""
-
-
 PromptAutocompleteDismissReason = Literal[
     "accepted",
     "escape",
@@ -143,16 +120,20 @@ class PromptAutocompleteSourceSnapshotController:
 
     def __init__(
         self,
-        editor: PromptAutocompleteSourceEditor,
         *,
+        cursor_state: Callable[[], tuple[int, bool]],
         document_view_provider: Callable[[], PromptDocumentView],
         feature_profile: PromptFeatureProfileController,
+        source_identity: Callable[[], PromptAutocompleteSourceIdentity | None],
+        source_text: Callable[[], str],
     ) -> None:
         """Store source collaborators behind one prepared-snapshot boundary."""
 
-        self._editor = editor
+        self._cursor_state = cursor_state
         self._document_view_provider = document_view_provider
         self._feature_profile = feature_profile
+        self._source_identity = source_identity
+        self._source_text = source_text
 
     def snapshot(
         self,
@@ -162,9 +143,9 @@ class PromptAutocompleteSourceSnapshotController:
     ) -> PromptAutocompleteSourceSnapshot:
         """Return a prepared autocomplete source snapshot."""
 
-        source_text = self._editor.toPlainText()
-        source_identity = self._editor.prompt_command_source_identity()
-        cursor = self._editor.textCursor()
+        source_text = self._source_text()
+        source_identity = self._source_identity()
+        cursor_position, has_selection = self._cursor_state()
         document_view = self._document_view_provider()
         return PromptAutocompleteSourceSnapshot(
             source_revision=(
@@ -176,8 +157,8 @@ class PromptAutocompleteSourceSnapshotController:
                 else source_identity.source_length
             ),
             source_text=source_text,
-            cursor_position=cursor.position(),
-            has_selection=cursor.hasSelection(),
+            cursor_position=cursor_position,
+            has_selection=has_selection,
             source_identity=source_identity,
             document_view=document_view,
             document_view_identity=id(document_view),
@@ -519,10 +500,8 @@ __all__ = [
     "PromptAutocompleteDismissReason",
     "PromptAutocompleteLifecycleRequester",
     "PromptAutocompleteRefreshTimer",
-    "PromptAutocompleteSourceEditor",
     "PromptAutocompleteSourceIdentity",
     "PromptAutocompleteSourceSnapshot",
     "PromptAutocompleteSourceSnapshotController",
     "PromptAutocompleteTimingController",
-    "PromptAutocompleteTimingCursor",
 ]
