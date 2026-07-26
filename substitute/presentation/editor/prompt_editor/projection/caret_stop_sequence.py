@@ -25,11 +25,15 @@ from typing import overload
 
 from substitute.presentation.text_coordinates import TextCoordinateMap
 
-from .model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretPlacement,
     PromptProjectionCaretState,
     PromptProjectionCaretStop,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
 )
 

@@ -140,7 +140,9 @@ def _capture_correctness(
     process_events(cycles=8)
     source_text = str(editor.toPlainText())
     projection = editor._surface.projection_document()
-    diagnostics = editor._diagnostics_feature_controller.snapshot.diagnostics
+    diagnostics = (
+        editor._diagnostics_feature_controller.presentation.snapshot.diagnostics
+    )
     violations: list[str] = []
     if any(token.kind.value == "scene" for token in projection.tokens):
         violations.append("wildcard_projected_scene_token")

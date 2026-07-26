@@ -30,6 +30,16 @@ def prompt_reorder_scenarios() -> tuple[PromptAbuseScenario, ...]:
         _max_span_pointer_reorder_preview_scenario(),
         _scene_partition_pointer_reorder_visibility_scenario(),
         _scene_marker_alt_release_retention_scenario(),
+        _regional_separator_pointer_reorder_recovery_scenario(),
+        _regional_separator_cross_partition_drag_scenario(),
+        _regional_separator_repeated_cross_partition_drag_scenario(),
+        _regional_separator_all_target_sweep_scenario(),
+        _regional_separator_all_source_sweep_scenario(),
+        _regional_separator_mixed_boundary_sweep_scenario(),
+        _regional_separator_leading_partition_exit_scenario(),
+        _regional_separator_trailing_partition_exit_scenario(),
+        _regional_separator_multi_partition_drag_scenario(),
+        _later_regional_separator_pointer_reorder_recovery_scenario(),
         _post_reorder_typing_visibility_scenario(),
     )
 
@@ -288,6 +298,319 @@ def _scene_marker_alt_release_retention_scenario() -> PromptAbuseScenario:
         actions=actions,
         expected_text=reordered,
         viewport_size=(520, 260),
+    )
+
+
+def _regional_separator_pointer_reorder_recovery_scenario() -> PromptAbuseScenario:
+    """Reflow drag previews across adjacent caretless regional separator rows."""
+
+    source = "tag00\n[SEP]\n[SEP]\nred, blue, green"
+    reordered = "tag00\n[SEP]\n[SEP]\nblue, red, green"
+    actions = (
+        PromptAbuseAction("key_press", value="alt", expected_source=source),
+        PromptAbuseAction("drain_events", expected_source=source),
+        *_pointer_drag_actions(source, "1:3"),
+        PromptAbuseAction("key_release", value="alt", expected_source=reordered),
+        PromptAbuseAction("drain_events", expected_source=reordered),
+        PromptAbuseAction("request_paint", expected_source=reordered),
+        PromptAbuseAction("event_turn", expected_source=reordered),
+    )
+    return PromptAbuseScenario(
+        name="regional-separator-pointer-reorder-recovery",
+        initial_text=source,
+        actions=actions,
+        expected_text=reordered,
+        viewport_size=(520, 260),
+    )
+
+
+def _later_regional_separator_pointer_reorder_recovery_scenario() -> (
+    PromptAbuseScenario
+):
+    """Reflow repeated drag targets before a later structural separator."""
+
+    prefix = (
+        "best quality, score_7, masterpiece, very aesthetic\n\n"
+        "2girls, standing, full body, looking at viewer, outdoors, "
+        "cherry blossoms, school uniform,\n\n"
+        "[SEP]\n"
+    )
+    suffix = (
+        "\n\n[SEP]\n"
+        "1girl, blue hair, short hair, blue eyes, serious, cardigan, "
+        "pleated skirt, kneehighs\n"
+    )
+    source = (
+        f"{prefix}1girl, red hair, long hair, green eyes, smile, blazer, "
+        f"pleated skirt, black thighhighs,{suffix}"
+    )
+    reordered = source
+    actions = (
+        PromptAbuseAction("key_press", value="alt", expected_source=source),
+        PromptAbuseAction("drain_events", expected_source=source),
+        *_pointer_drag_actions(source, "11:12"),
+        PromptAbuseAction("key_release", value="alt", expected_source=reordered),
+        PromptAbuseAction("drain_events", expected_source=reordered),
+        PromptAbuseAction("request_paint", expected_source=reordered),
+        PromptAbuseAction("event_turn", expected_source=reordered),
+    )
+    return PromptAbuseScenario(
+        name="later-regional-separator-pointer-reorder-recovery",
+        initial_text=source,
+        actions=actions,
+        expected_text=reordered,
+        viewport_size=(840, 420),
+    )
+
+
+def _regional_separator_cross_partition_drag_scenario() -> PromptAbuseScenario:
+    """Move one regional chip into the global prompt across a separator."""
+
+    source = "global a, global b\n[SEP]\nregion a, region b"
+    reordered = "region a, global a, global b\n[SEP]\nregion b"
+    actions = (
+        PromptAbuseAction("key_press", value="alt", expected_source=source),
+        PromptAbuseAction("drain_events", expected_source=source),
+        *_pointer_drag_actions(source, "2:0"),
+        PromptAbuseAction("key_release", value="alt", expected_source=reordered),
+        PromptAbuseAction("drain_events", expected_source=reordered),
+        PromptAbuseAction("request_paint", expected_source=reordered),
+        PromptAbuseAction("event_turn", expected_source=reordered),
+    )
+    return PromptAbuseScenario(
+        name="regional-separator-cross-partition-drag",
+        initial_text=source,
+        actions=actions,
+        expected_text=reordered,
+        viewport_size=(520, 260),
+    )
+
+
+def _regional_separator_repeated_cross_partition_drag_scenario() -> PromptAbuseScenario:
+    """Exercise a second cross-region drag against the first drag's preview state."""
+
+    source = "global a, global b\n[SEP]\nregion a, region b"
+    reordered = "region b, region a, global a, global b\n[SEP]"
+    actions = (
+        PromptAbuseAction("key_press", value="alt", expected_source=source),
+        PromptAbuseAction("drain_events", expected_source=source),
+        *_pointer_drag_actions(
+            source,
+            "2:0",
+            progresses=(0.5, 1.0),
+            drain_after_release=False,
+        ),
+        *_pointer_drag_actions(source, "3:2", progresses=(0.5, 1.0)),
+        PromptAbuseAction("key_release", value="alt", expected_source=reordered),
+        PromptAbuseAction("drain_events", expected_source=reordered),
+        PromptAbuseAction("request_paint", expected_source=reordered),
+        PromptAbuseAction("event_turn", expected_source=reordered),
+    )
+    return PromptAbuseScenario(
+        name="regional-separator-repeated-cross-partition-drag",
+        initial_text=source,
+        actions=actions,
+        expected_text=reordered,
+        viewport_size=(520, 260),
+    )
+
+
+def _regional_separator_all_target_sweep_scenario() -> PromptAbuseScenario:
+    """Sweep every regional placement before and after a cross-partition drop."""
+
+    source = (
+        "global a, global b, global c\n\n"
+        "[SEP]\n"
+        "region a, region b, region c\n\n\n"
+        "[SEP]\n"
+        "region d, region e, region f"
+    )
+    actions = (
+        PromptAbuseAction("key_press", value="alt", expected_source=source),
+        PromptAbuseAction("drain_events", expected_source=source),
+        PromptAbuseAction(
+            "reorder_drag_press",
+            value="7:0",
+            expected_source=source,
+        ),
+        PromptAbuseAction("reorder_drag_threshold", expected_source=source),
+        PromptAbuseAction("reorder_drag_sweep", expected_source=source),
+        PromptAbuseAction(
+            "reorder_drag_move",
+            value="1.000000",
+            expected_source=source,
+        ),
+        PromptAbuseAction("reorder_drag_release", expected_source=source),
+        PromptAbuseAction(
+            "reorder_drag_press",
+            value="7:8",
+            expected_source=source,
+        ),
+        PromptAbuseAction("reorder_drag_threshold", expected_source=source),
+        PromptAbuseAction("reorder_drag_sweep", expected_source=source),
+        PromptAbuseAction(
+            "reorder_drag_move",
+            value="1.000000",
+            expected_source=source,
+        ),
+        PromptAbuseAction("reorder_drag_release", expected_source=source),
+        PromptAbuseAction("key_release", value="alt", expected_source=source),
+        PromptAbuseAction("drain_events", expected_source=source),
+    )
+    return PromptAbuseScenario(
+        name="regional-separator-all-target-sweep",
+        initial_text=source,
+        actions=actions,
+        expected_text=source,
+        viewport_size=(720, 420),
+    )
+
+
+def _regional_separator_all_source_sweep_scenario() -> PromptAbuseScenario:
+    """Sweep all placements while lifting every chip around regional boundaries."""
+
+    source = (
+        "global a, global b, global c\n\n"
+        "[SEP]\n"
+        "region a, region b, region c\n\n\n"
+        "[SEP]\n"
+        "region d, region e, region f"
+    )
+    actions: list[PromptAbuseAction] = []
+    for source_index in range(9):
+        target_index = 1 if source_index == 0 else 0
+        actions.extend(
+            (
+                PromptAbuseAction("key_press", value="alt", expected_source=source),
+                PromptAbuseAction("drain_events", expected_source=source),
+                PromptAbuseAction(
+                    "reorder_drag_press",
+                    value=f"{source_index}:{target_index}",
+                    expected_source=source,
+                ),
+                PromptAbuseAction("reorder_drag_threshold", expected_source=source),
+                PromptAbuseAction("reorder_drag_sweep", expected_source=source),
+                PromptAbuseAction("reorder_drag_cancel", expected_source=source),
+                PromptAbuseAction("key_release", value="alt", expected_source=source),
+                PromptAbuseAction("drain_events", expected_source=source),
+            )
+        )
+    return PromptAbuseScenario(
+        name="regional-separator-all-source-sweep",
+        initial_text=source,
+        actions=tuple(actions),
+        expected_text=source,
+        viewport_size=(720, 420),
+    )
+
+
+def _regional_separator_mixed_boundary_sweep_scenario() -> PromptAbuseScenario:
+    """Exercise the mixed boundary topology that formerly published invalid rows."""
+
+    source = (
+        "tag0, tag1\n"
+        "[SEP]\n"
+        "tag2, tag3\n"
+        "[SEP]\n"
+        "tag4,\n"
+        "tag5,\n"
+        "[SEP]\n"
+        "tag6,\n\n\n"
+        "tag7,\n"
+        "[SEP]\n"
+        "tag8,\n"
+        "[SEP]\n"
+        "tag9,"
+    )
+    actions = (
+        PromptAbuseAction("key_press", value="alt", expected_source=source),
+        PromptAbuseAction("drain_events", expected_source=source),
+        PromptAbuseAction(
+            "reorder_drag_press",
+            value="9:0",
+            expected_source=source,
+        ),
+        PromptAbuseAction("reorder_drag_threshold", expected_source=source),
+        PromptAbuseAction("reorder_drag_sweep", expected_source=source),
+        PromptAbuseAction("reorder_drag_cancel", expected_source=source),
+        PromptAbuseAction("key_release", value="alt", expected_source=source),
+        PromptAbuseAction("drain_events", expected_source=source),
+    )
+    return PromptAbuseScenario(
+        name="regional-separator-mixed-boundary-sweep",
+        initial_text=source,
+        actions=actions,
+        expected_text=source,
+        viewport_size=(720, 500),
+    )
+
+
+def _regional_separator_leading_partition_exit_scenario() -> PromptAbuseScenario:
+    """Move the sole global chip into a regional prompt without losing its separator."""
+
+    source = "global a\n[SEP]\nregion a, region b"
+    reordered = "[SEP]\nglobal a, region a, region b"
+    actions = (
+        PromptAbuseAction("key_press", value="alt", expected_source=source),
+        PromptAbuseAction("drain_events", expected_source=source),
+        *_pointer_drag_actions(source, "0:1"),
+        PromptAbuseAction("key_release", value="alt", expected_source=reordered),
+        PromptAbuseAction("drain_events", expected_source=reordered),
+        PromptAbuseAction("request_paint", expected_source=reordered),
+        PromptAbuseAction("event_turn", expected_source=reordered),
+    )
+    return PromptAbuseScenario(
+        name="regional-separator-leading-partition-exit",
+        initial_text=source,
+        actions=actions,
+        expected_text=reordered,
+        viewport_size=(520, 260),
+    )
+
+
+def _regional_separator_trailing_partition_exit_scenario() -> PromptAbuseScenario:
+    """Move the sole trailing-region chip while retaining an empty final region."""
+
+    source = "global a, global b\n[SEP]\nregion a"
+    reordered = "region a, global a, global b\n[SEP]"
+    actions = (
+        PromptAbuseAction("key_press", value="alt", expected_source=source),
+        PromptAbuseAction("drain_events", expected_source=source),
+        *_pointer_drag_actions(source, "2:0"),
+        PromptAbuseAction("key_release", value="alt", expected_source=reordered),
+        PromptAbuseAction("drain_events", expected_source=reordered),
+        PromptAbuseAction("request_paint", expected_source=reordered),
+        PromptAbuseAction("event_turn", expected_source=reordered),
+    )
+    return PromptAbuseScenario(
+        name="regional-separator-trailing-partition-exit",
+        initial_text=source,
+        actions=actions,
+        expected_text=reordered,
+        viewport_size=(520, 260),
+    )
+
+
+def _regional_separator_multi_partition_drag_scenario() -> PromptAbuseScenario:
+    """Move one chip across two separators while preserving both structural rows."""
+
+    source = "global a\n[SEP]\nregion a, region b\n[SEP]\nregion c, region d"
+    reordered = "region c, global a\n[SEP]\nregion a, region b\n[SEP]\nregion d"
+    actions = (
+        PromptAbuseAction("key_press", value="alt", expected_source=source),
+        PromptAbuseAction("drain_events", expected_source=source),
+        *_pointer_drag_actions(source, "3:0"),
+        PromptAbuseAction("key_release", value="alt", expected_source=reordered),
+        PromptAbuseAction("drain_events", expected_source=reordered),
+        PromptAbuseAction("request_paint", expected_source=reordered),
+        PromptAbuseAction("event_turn", expected_source=reordered),
+    )
+    return PromptAbuseScenario(
+        name="regional-separator-multi-partition-drag",
+        initial_text=source,
+        actions=actions,
+        expected_text=reordered,
+        viewport_size=(520, 300),
     )
 
 

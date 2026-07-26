@@ -409,9 +409,7 @@ def test_prompt_editor_one_line_shell_metrics_match_qfluent_reference(
     assert box.contentsMargins().right() == reference.contentsMargins().right()
     assert box.document().documentMargin() == reference.document().documentMargin()
     assert abs(box.lineHeight() - reference.fontMetrics().lineSpacing()) <= 1
-    assert box.lineHeight() == math.ceil(
-        cast(Any, box)._surface._layout.metrics.text_line_height  # noqa: SLF001
-    )
+    assert box.lineHeight() == math.ceil(cast(Any, box)._surface.text_line_height())
     assert box.viewport().width() == reference.viewport().width()
     assert box.viewport().height() == reference.viewport().height()
     assert (

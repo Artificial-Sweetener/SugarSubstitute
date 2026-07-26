@@ -26,11 +26,15 @@ from substitute.presentation.text_coordinates import TextCoordinateMap
 
 from ..commands.source_service import PromptSourceCommandService
 from ..core.editing.source_commands import PromptSourceEditOrigin
-from ..projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretPlacement,
     PromptProjectionCaretState,
-    PromptProjectionDocument,
     PromptProjectionSelection,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )

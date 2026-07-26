@@ -25,8 +25,10 @@ from typing import Protocol
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtWidgets import QWidget
 
-from ..projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
     PromptWeightControlIdentity,

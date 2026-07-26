@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Hashable
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -44,15 +44,6 @@ class PromptAutocompleteSceneContextSourceIdentity(Protocol):
     @property
     def source_length(self) -> int | None:
         """Return the source length when the source owner can provide it."""
-        ...
-
-
-class PromptAutocompleteSceneContextProvider(Protocol):
-    """Publish scene and cube identity already owned by the scene feature."""
-
-    @property
-    def scene_context_identity(self) -> PromptFeatureSnapshotIdentity:
-        """Return the current scene context identity."""
         ...
 
 
@@ -97,11 +88,12 @@ class PromptAutocompleteSceneContextController:
     def __init__(
         self,
         *,
-        scene_context_provider: PromptAutocompleteSceneContextProvider | None = None,
+        scene_context_identity: Callable[[], PromptFeatureSnapshotIdentity]
+        | None = None,
     ) -> None:
         """Store the scene identity provider without owning interactions."""
 
-        self._scene_context_provider = scene_context_provider
+        self._scene_context_identity = scene_context_identity
 
     def context_for_tag_query(
         self,
@@ -233,15 +225,14 @@ class PromptAutocompleteSceneContextController:
     def _scene_identity(self) -> PromptFeatureSnapshotIdentity:
         """Return the current scene feature identity or an empty identity."""
 
-        provider = self._scene_context_provider
-        if provider is None:
+        identity = self._scene_context_identity
+        if identity is None:
             return PromptFeatureSnapshotIdentity()
-        return provider.scene_context_identity
+        return identity()
 
 
 __all__ = [
     "PromptAutocompleteSceneContextController",
-    "PromptAutocompleteSceneContextProvider",
     "PromptAutocompleteSceneContextSnapshot",
     "PromptAutocompleteSceneContextSourceIdentity",
 ]

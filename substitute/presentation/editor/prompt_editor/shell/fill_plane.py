@@ -25,15 +25,10 @@ from PySide6.QtGui import QColor, QMouseEvent, QPaintEvent, QPainter, QRegion
 from PySide6.QtWidgets import QWidget
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
-    prompt_editor_work_event,
+    begin_prompt_editor_work,
+    complete_prompt_editor_work,
 )
-
-
-class PromptFillBand(Protocol):
-    """Describe one projection-owned prompt fill band."""
-
-    rect: QRectF
-    band_index: int
+from ..projection.fill_band_cache import PromptFillBandRect
 
 
 class PromptFillPlaneSurface(Protocol):
@@ -42,7 +37,7 @@ class PromptFillPlaneSurface(Protocol):
     def viewport(self) -> QWidget:
         """Return the projection viewport widget."""
 
-    def visible_prompt_fill_band_rects(self) -> tuple[PromptFillBand, ...]:
+    def visible_prompt_fill_band_rects(self) -> tuple[PromptFillBandRect, ...]:
         """Return visible fill bands in projection viewport coordinates."""
 
     def prompt_fill_band_color(self) -> QColor:
@@ -184,43 +179,49 @@ class PromptFillPlane(QWidget):
         region.boundingRect()
         return region
 
-    @prompt_editor_work_event(PromptEditorWorkEvent.FILL_PLANE_PAINT)
     def paintEvent(self, event: QPaintEvent) -> None:
         """Paint prompt fill bands without touching prompt text."""
 
-        _ = event
-        clip_region = self.fill_clip_region()
-        fill_band_rects = self.mapped_prompt_fill_band_rects()
-        if clip_region.isEmpty() or not fill_band_rects:
-            return
-        painter = QPainter(self)
+        paint_work_started_at = begin_prompt_editor_work()
         try:
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setClipRegion(clip_region)
-            fill_color = self._surface.prompt_fill_band_color()
-            border = self._FLUENT_BORDER_WIDTH if self._shell_padding_only else 0
-            fill_rect = QRectF(
-                self.rect().adjusted(
-                    border,
-                    border,
-                    -border,
-                    -border,
+            _ = event
+            clip_region = self.fill_clip_region()
+            fill_band_rects = self.mapped_prompt_fill_band_rects()
+            if clip_region.isEmpty() or not fill_band_rects:
+                return
+            painter = QPainter(self)
+            try:
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setClipRegion(clip_region)
+                fill_color = self._surface.prompt_fill_band_color()
+                border = self._FLUENT_BORDER_WIDTH if self._shell_padding_only else 0
+                fill_rect = QRectF(
+                    self.rect().adjusted(
+                        border,
+                        border,
+                        -border,
+                        -border,
+                    )
                 )
-            )
-            for rect, band_index in fill_band_rects:
-                if band_index % 2 == 0:
-                    continue
-                painter.fillRect(
-                    QRectF(
-                        fill_rect.left(),
-                        rect.top(),
-                        fill_rect.width(),
-                        rect.height(),
-                    ),
-                    fill_color,
-                )
+                for rect, band_index in fill_band_rects:
+                    if band_index % 2 == 0:
+                        continue
+                    painter.fillRect(
+                        QRectF(
+                            fill_rect.left(),
+                            rect.top(),
+                            fill_rect.width(),
+                            rect.height(),
+                        ),
+                        fill_color,
+                    )
+            finally:
+                painter.end()
         finally:
-            painter.end()
+            complete_prompt_editor_work(
+                PromptEditorWorkEvent.FILL_PLANE_PAINT,
+                started_at=paint_work_started_at,
+            )
 
     def _projection_viewport_rect(self) -> QRect:
         """Return the projection viewport geometry in this layer's coordinates."""

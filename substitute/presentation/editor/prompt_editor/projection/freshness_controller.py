@@ -37,7 +37,9 @@ from substitute.shared.diagnostics.prompt_editor_work import (
     prompt_editor_work_true_event,
 )
 
-from .model import PromptProjectionDisplayMode
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDisplayMode,
+)
 from ..core.editing.source_commands import PromptSourceEditOrigin
 from .update_scheduler import PendingProjectionUpdate, PromptProjectionUpdateScheduler
 
@@ -190,6 +192,24 @@ class PromptProjectionFreshnessController:
             )
         )
         self._last_source_edit_deferrable_for_projection = False
+
+    def schedule_provisional_safe_typing_update(
+        self,
+        *,
+        snapshot: PromptEditorSemanticSnapshot,
+        previous_snapshot: PromptEditorSemanticSnapshot,
+        source_revision: int,
+    ) -> None:
+        """Queue provisional geometry while awaiting authoritative semantics."""
+
+        self.schedule_safe_typing_update(
+            snapshot=snapshot,
+            previous_snapshot=previous_snapshot,
+        )
+        self.mark_source_text_changed(
+            deferrable_projection=True,
+            source_revision=source_revision,
+        )
 
     def schedule_metadata_update(
         self,

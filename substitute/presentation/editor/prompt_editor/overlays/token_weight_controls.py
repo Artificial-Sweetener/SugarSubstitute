@@ -37,8 +37,10 @@ from shiboken6 import isValid
 
 from substitute.application.prompt_editor.document.views import PromptSyntaxSpanView
 
-from ..projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )

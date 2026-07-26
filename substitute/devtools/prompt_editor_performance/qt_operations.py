@@ -60,8 +60,8 @@ from substitute.devtools.prompt_editor_performance.scenarios import (
     ScenarioOperation,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.interactions.reorder_preview_sync import (
-    PromptReorderPreviewScheduler,
+from substitute.presentation.editor.prompt_editor.interactions.reorder_preview_timer import (
+    PromptReorderPreviewTimer,
 )
 from substitute.presentation.editor.prompt_editor.overlays import SegmentReorderOverlay
 from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
@@ -286,10 +286,26 @@ def time_diagnostic_cache_operations(
     diagnostic = spelling_diagnostic_for_text(editor.toPlainText())
     surface.set_diagnostics((diagnostic,))
     process_events(app)
-    fragment_reader = cast(
-        Callable[..., tuple[QRectF, ...]],
-        getattr(surface, "_diagnostic_fragments_for_paint"),
-    )
+
+    def fragment_reader(
+        diagnostic: PromptDiagnostic,
+        *,
+        viewport_rect: QRectF,
+        scroll_offset: float,
+    ) -> tuple[QRectF, ...]:
+        """Read retained fragments through the diagnostic cache owner."""
+
+        layout_snapshot = surface._editor_state.layout  # noqa: SLF001
+        if layout_snapshot is None:
+            raise RuntimeError("Diagnostic cache timing requires a published layout.")
+        return surface._diagnostic_layer_owner.fragments(  # noqa: SLF001
+            diagnostic,
+            geometry=surface._layout.frame.geometry,  # noqa: SLF001
+            viewport_rect=viewport_rect,
+            scroll_offset=scroll_offset,
+            layout_identity=layout_snapshot.identity,
+        )
+
     timings: list[float] = []
     for _ in range(count):
         started_at = perf_counter()
@@ -608,7 +624,7 @@ def time_reorder_drag_operations(
     process_events(app)
     editor.reset_reorder_geometry_cache_counters()
 
-    scheduler = PromptReorderPreviewScheduler(
+    scheduler = PromptReorderPreviewTimer(
         interval_ms=0,
         run_pending=run_pending,
         pointer_revision=lambda: count,

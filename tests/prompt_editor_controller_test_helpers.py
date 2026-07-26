@@ -38,6 +38,9 @@ from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
     PromptTriggerWordIndex,
 )
+from substitute.application.prompt_editor.document.semantics import (
+    OrdinaryPromptDocumentSemantics,
+)
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.editor.prompt_editor.commands.autocomplete_commands import (
     PromptAutocompleteAcceptance,
@@ -60,7 +63,7 @@ from substitute.presentation.editor.prompt_editor.async_work.scheduled_lora_disp
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptFeatureProfileController,
-    PromptSceneFeatureController,
+    PromptSceneContextPublication,
 )
 from substitute.presentation.editor.prompt_editor.models import AutocompleteSession
 
@@ -118,20 +121,15 @@ def key_event(
     )
 
 
-class SceneFeatureHost:
-    """Provide source identity and text for scene feature controller tests."""
+class ScenePublicationSource:
+    """Provide source identity for scene publication tests."""
 
     def __init__(self, text: str) -> None:
         """Store the prompt text returned to the scene feature."""
 
         self._text = text
 
-    def toPlainText(self) -> str:
-        """Return the configured prompt text."""
-
-        return self._text
-
-    def prompt_command_source_identity(self) -> None:
+    def source_identity(self) -> None:
         """Return no source identity for pure autocomplete tests."""
 
         return None
@@ -141,17 +139,18 @@ def scene_feature(
     *,
     text: str,
     titles: tuple[str, ...],
-) -> PromptSceneFeatureController:
-    """Return a scene feature owner with deterministic title state."""
+) -> PromptSceneContextPublication:
+    """Return scene publication with deterministic autocomplete title state."""
 
-    controller = PromptSceneFeatureController(
-        host=SceneFeatureHost(text),
+    publication = PromptSceneContextPublication(
+        source_identity=ScenePublicationSource(text).source_identity,
         feature_profile=PromptFeatureProfileController(
             PromptEditorFeatureProfile.enabled_profile(())
         ),
+        document_semantics=OrdinaryPromptDocumentSemantics(),
     )
-    controller.set_scene_autocomplete_titles(titles)
-    return controller
+    publication.set_scene_autocomplete_titles(titles)
+    return publication
 
 
 def autocomplete_ghost_text_source_snapshot(

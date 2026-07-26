@@ -713,7 +713,7 @@ def derive_rows_and_gaps(
 
 
 def blank_line_drop_offsets(separator_text: str) -> tuple[int, ...]:
-    """Return the separator offsets that begin drawable blank-line drop targets."""
+    """Return offsets that begin genuinely empty rows inside one separator."""
 
     newline_offsets: list[int] = []
     index = 0
@@ -739,7 +739,19 @@ def blank_line_drop_offsets(separator_text: str) -> tuple[int, ...]:
 
     if len(newline_offsets) <= 1:
         return ()
-    return tuple(newline_offsets[:-1])
+    blank_line_offsets: list[int] = []
+    for line_start in newline_offsets[:-1]:
+        next_carriage_return = separator_text.find("\r", line_start)
+        next_line_feed = separator_text.find("\n", line_start)
+        line_end_candidates = tuple(
+            index for index in (next_carriage_return, next_line_feed) if index >= 0
+        )
+        line_end = (
+            len(separator_text) if not line_end_candidates else min(line_end_candidates)
+        )
+        if not separator_text[line_start:line_end].strip(" \t"):
+            blank_line_offsets.append(line_start)
+    return tuple(blank_line_offsets)
 
 
 __all__ = [

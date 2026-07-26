@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
@@ -60,15 +62,13 @@ from substitute.presentation.editor.prompt_editor.commands.contracts import (
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptAutocompleteQueryController,
+    PromptAutocompleteQueryResultLifecycle,
     PromptAutocompleteResultController,
     PromptAutocompleteResultSnapshot,
     PromptAutocompleteResultSourceIdentity,
     PromptAutocompleteTagContext,
     PromptAutocompleteTriggerWordResult,
     PromptFeatureProfileController,
-)
-from substitute.presentation.editor.prompt_editor.interactions.autocomplete_controller import (
-    PromptAutocompleteQueryRefreshController,
 )
 from substitute.presentation.editor.prompt_editor.interactions.autocomplete_acceptance import (
     PromptAutocompleteAcceptanceController,
@@ -83,7 +83,7 @@ from substitute.presentation.editor.prompt_editor.interactions.autocomplete_timi
 from substitute.presentation.editor.prompt_editor.models import AutocompleteSession
 from tests.prompt_autocomplete_test_helpers import (
     RecordingPromptAutocompleteGateway,
-    build_test_autocomplete_coordinator,
+    build_test_autocomplete_stack,
 )
 
 
@@ -142,94 +142,71 @@ class _QueryEditor:
         )
 
 
-class _AutocompleteRecorder:
-    """Record autocomplete timing callbacks without rendering UI."""
+class _TimingPublication:
+    """Record lifecycle publications without a session or Qt presentation surface."""
 
     def __init__(self) -> None:
-        """Initialize callback storage."""
+        """Initialize immutable publication and dismissal accounting."""
 
-        self.calls: list[
-            tuple[str, object, PromptSourceIdentity | None, str | None]
-        ] = []
-        self.clear_calls = 0
-        self.clear_unfocused_calls = 0
-
-    def refresh_for_lora_query(
-        self,
-        query: object,
-        *,
-        source_identity: PromptSourceIdentity | None = None,
-        ghost_text_source_snapshot: object | None = None,
-        refresh_intent: object = "programmatic",
-    ) -> None:
-        """Record one LoRA query refresh."""
-
-        _ = (ghost_text_source_snapshot, refresh_intent)
-        self.calls.append(("lora", query, source_identity, None))
-
-    def refresh_for_wildcard_query(
-        self,
-        query: object,
-        *,
-        source_identity: PromptSourceIdentity | None = None,
-        ghost_text_source_snapshot: object | None = None,
-        refresh_intent: object = "programmatic",
-    ) -> None:
-        """Record one wildcard query refresh."""
-
-        _ = (ghost_text_source_snapshot, refresh_intent)
-        self.calls.append(("wildcard", query, source_identity, None))
-
-    def refresh_for_scene_query(
-        self,
-        query: object,
-        *,
-        source_identity: PromptSourceIdentity | None = None,
-        ghost_text_source_snapshot: object | None = None,
-        refresh_intent: object = "programmatic",
-    ) -> None:
-        """Record one scene query refresh."""
-
-        _ = (ghost_text_source_snapshot, refresh_intent)
-        self.calls.append(("scene", query, source_identity, None))
-
-    def refresh_for_query(
-        self,
-        query: object,
-        *,
-        source_text: str,
-        source_identity: PromptSourceIdentity | None = None,
-        feature_profile_identity: object | None = None,
-        query_identity: Hashable | None = None,
-        ghost_text_source_snapshot: object | None = None,
-        refresh_intent: object = "programmatic",
-    ) -> None:
-        """Record one tag query refresh."""
-
-        _ = (
-            feature_profile_identity,
-            query_identity,
-            ghost_text_source_snapshot,
-            refresh_intent,
-        )
-        self.calls.append(("tag", query, source_identity, source_text))
-
-    def retarget_from_query_state(self, query_state: object) -> bool:
-        """Accept one lifecycle retarget request."""
-
-        _ = query_state
-        return True
+        self.published: list[tuple[PromptAutocompleteResultSnapshot, object]] = []
+        self.dismissed: list[str] = []
 
     def has_active_session(self) -> bool:
-        """Report that the recorder has no mounted autocomplete session."""
+        """Report no active session during timer-driven result publication."""
 
         return False
 
-    def dismiss_autocomplete(self, reason: object) -> None:
-        """Record one presentation dismissal request."""
+    def retarget_from_query_state(self, _query_state: object) -> bool:
+        """Reject retargeting because this timing fixture has no live session."""
 
-        _ = reason
-        self.clear_calls += 1
+        return False
+
+    def publish_result(
+        self,
+        result: PromptAutocompleteResultSnapshot,
+        query_state: object,
+    ) -> None:
+        """Record the prepared result and its matching query state."""
+
+        self.published.append((result, query_state))
+
+    def dismiss_autocomplete(self, reason: str) -> None:
+        """Record one lifecycle dismissal."""
+
+        self.dismissed.append(reason)
+
+
+class _TimingResultController:
+    """Build ready tag results for timing-to-lifecycle integration coverage."""
+
+    def result_for_tag_query(
+        self, *, query: PromptAutocompleteQuery, **_kwargs: Any
+    ) -> PromptAutocompleteResultSnapshot:
+        """Return one ready tag result for the prepared query."""
+
+        return PromptAutocompleteResultSnapshot(
+            mode="tag",
+            status="ready",
+            suggestions=(PromptAutocompleteSuggestion("timing", 1),),
+            tag_query=query,
+        )
+
+    def safe_tag_query_identity(
+        self,
+        query: PromptAutocompleteQuery,
+    ) -> tuple[str, str]:
+        """Return a stable identity when scheduled context asks for a refresh."""
+
+        return ("tag", query.prefix)
+
+
+class _TimingSceneContextController:
+    """Supply the tag context shape consumed by the result lifecycle."""
+
+    def context_for_tag_query(self, _query: object, **_kwargs: Any) -> object:
+        """Return a context without accessing a workflow or Qt state."""
+
+        return SimpleNamespace(tag_context=None)
 
 
 class _FakeTimerSignal:
@@ -718,7 +695,7 @@ def test_phase27_query_timing_preserves_debounce_selection_and_lora_prefix() -> 
     """Timing should coalesce refreshes and route query precedence through snapshots."""
 
     editor = _QueryEditor("<lo")
-    autocomplete = _AutocompleteRecorder()
+    publication = _TimingPublication()
     fake_timer = _FakeTimer()
     feature_profile = PromptFeatureProfileController(
         PromptEditorFeatureProfile.enabled_profile(
@@ -728,20 +705,30 @@ def test_phase27_query_timing_preserves_debounce_selection_and_lora_prefix() -> 
             )
         )
     )
-    query_refresh = PromptAutocompleteQueryRefreshController(
-        autocomplete=cast(Any, autocomplete),
+    query_refresh = PromptAutocompleteQueryResultLifecycle(
         query_controller=PromptAutocompleteQueryController(
             document_service=PromptDocumentService(),
             feature_profile=feature_profile,
             minimum_prefix_length=2,
         ),
+        result_controller=cast(Any, _TimingResultController()),
+        scene_context_controller=cast(Any, _TimingSceneContextController()),
+        publication=cast(Any, publication),
+        current_source_identity=editor.prompt_command_source_identity,
+        lora_autocomplete_enabled=lambda: feature_profile.lora_autocomplete_enabled,
+        lora_thumbnail_cache_available=lambda: False,
     )
     source_snapshots = PromptAutocompleteSourceSnapshotController(
-        editor,
+        cursor_state=lambda: (
+            (cursor := editor.textCursor()).position(),
+            cursor.hasSelection(),
+        ),
         document_view_provider=lambda: PromptDocumentService().build_document_view(
             editor.text
         ),
         feature_profile=feature_profile,
+        source_identity=editor.prompt_command_source_identity,
+        source_text=editor.toPlainText,
     )
     controller = PromptAutocompleteTimingController(
         source_snapshots=source_snapshots,
@@ -756,8 +743,7 @@ def test_phase27_query_timing_preserves_debounce_selection_and_lora_prefix() -> 
 
     fake_timer.fire()
 
-    assert autocomplete.calls
-    assert autocomplete.calls[-1][0] == "tag"
+    assert publication.published[-1][0].mode == "tag"
     assert editor.text_reads >= 1
 
     editor.text = "alpha"
@@ -770,32 +756,47 @@ def test_phase27_query_timing_preserves_debounce_selection_and_lora_prefix() -> 
         controller.caret_settle_delay_ms,
     ]
 
-    call_count = len(autocomplete.calls)
+    lifecycle_transition_count = len(publication.published) + len(publication.dismissed)
     fake_timer.fire()
 
-    assert len(autocomplete.calls) == call_count + 1
+    assert len(publication.published) + len(publication.dismissed) == (
+        lifecycle_transition_count + 1
+    )
+    assert publication.dismissed[-1] == "no_query"
 
     selected_editor = _QueryEditor("<lora:mid", has_selection=True)
-    selected_autocomplete = _AutocompleteRecorder()
+    selected_publication = _TimingPublication()
     selected_feature_profile = PromptFeatureProfileController(
         PromptEditorFeatureProfile.enabled_profile(
             (PromptEditorFeature.LORA_AUTOCOMPLETE,)
         )
     )
-    selected_query_refresh = PromptAutocompleteQueryRefreshController(
-        autocomplete=cast(Any, selected_autocomplete),
+    selected_query_refresh = PromptAutocompleteQueryResultLifecycle(
         query_controller=PromptAutocompleteQueryController(
             document_service=PromptDocumentService(),
             feature_profile=selected_feature_profile,
             minimum_prefix_length=2,
         ),
+        result_controller=cast(Any, _TimingResultController()),
+        scene_context_controller=cast(Any, _TimingSceneContextController()),
+        publication=cast(Any, selected_publication),
+        current_source_identity=selected_editor.prompt_command_source_identity,
+        lora_autocomplete_enabled=(
+            lambda: selected_feature_profile.lora_autocomplete_enabled
+        ),
+        lora_thumbnail_cache_available=lambda: False,
     )
     selected_source_snapshots = PromptAutocompleteSourceSnapshotController(
-        selected_editor,
+        cursor_state=lambda: (
+            (cursor := selected_editor.textCursor()).position(),
+            cursor.hasSelection(),
+        ),
         document_view_provider=lambda: PromptDocumentService().build_document_view(
             selected_editor.text
         ),
         feature_profile=selected_feature_profile,
+        source_identity=selected_editor.prompt_command_source_identity,
+        source_text=selected_editor.toPlainText,
     )
     selected_controller = PromptAutocompleteTimingController(
         source_snapshots=selected_source_snapshots,
@@ -808,22 +809,13 @@ def test_phase27_query_timing_preserves_debounce_selection_and_lora_prefix() -> 
 
     selected_controller.refresh_from_current_state()
 
-    assert selected_autocomplete.calls == [
-        (
-            "tag",
-            None,
-            PromptSourceIdentity(
-                source_revision=0,
-                source_length=len("<lora:mid"),
-            ),
-            "<lora:mid",
-        )
-    ]
+    assert selected_publication.published == []
+    assert selected_publication.dismissed == ["no_query"]
 
     controller.clear_for_non_text_interaction()
 
     assert fake_timer.stop_calls == 1
-    assert autocomplete.clear_calls >= 1
+    assert publication.dismissed[-1] == "incompatible_query"
 
 
 def test_phase27_acceptance_rejects_stale_source_and_commits_lora_after_success() -> (
@@ -850,7 +842,10 @@ def test_phase27_acceptance_rejects_stale_source_and_commits_lora_after_success(
 
             return self.identity
 
-        def execute_autocomplete_acceptance(self, acceptance: object) -> object:
+        def execute_autocomplete_acceptance(
+            self,
+            acceptance: object,
+        ) -> PromptCommandResult[object]:
             """Record one command-boundary acceptance."""
 
             accepted.append(acceptance)
@@ -863,7 +858,12 @@ def test_phase27_acceptance_rejects_stale_source_and_commits_lora_after_success(
             commit_calls += 1
 
     editor = _Editor()
-    controller = PromptAutocompleteAcceptanceController(editor=cast(Any, editor))
+    controller = PromptAutocompleteAcceptanceController(
+        cursor_position=lambda: 0,
+        current_source_identity=editor.prompt_command_source_identity,
+        execute_acceptance=editor.execute_autocomplete_acceptance,
+        complete_lora_replacement=editor.commit_lora_autocomplete_replacement,
+    )
     stale_session = AutocompleteSession(
         suggestions=(PromptAutocompleteSuggestion("midna helmet"),),
         selected_index=0,
@@ -1022,7 +1022,11 @@ def test_phase27_coordinator_focus_navigation_mouse_and_clear_state() -> None:
 
             return None
 
+        def commit_lora_autocomplete_replacement(self) -> None:
+            """Accept LoRA post-commit calls."""
+
     presenter = _Presenter()
+
     editor = _Editor()
     session_controller = PromptAutocompleteSessionController()
     session_controller.replace_result(
@@ -1041,18 +1045,24 @@ def test_phase27_coordinator_focus_navigation_mouse_and_clear_state() -> None:
         source_identity=None,
         ghost_text_source_snapshot=None,
     )
-    coordinator = build_test_autocomplete_coordinator(
+    autocomplete_stack = build_test_autocomplete_stack(
         cast(Any, editor),
         prompt_autocomplete_gateway=RecordingPromptAutocompleteGateway({}),
         autocomplete_presenter=cast(Any, presenter),
         autocomplete_session_controller=session_controller,
     )
 
-    assert coordinator.handle_key_press(_key_event(Qt.Key.Key_Down)) is True
+    assert (
+        autocomplete_stack.input_adapter.handle_key_press(_key_event(Qt.Key.Key_Down))
+        is True
+    )
     assert session_controller.session.selected_index == 1
     assert presenter.presented
 
-    assert coordinator.handle_key_press(_key_event(Qt.Key.Key_Down)) is True
+    assert (
+        autocomplete_stack.input_adapter.handle_key_press(_key_event(Qt.Key.Key_Down))
+        is True
+    )
     assert session_controller.session.selected_index == 0
     assert session_controller.session.mode == "tag"
     assert presenter.hidden == 0
@@ -1070,7 +1080,10 @@ def test_phase27_coordinator_focus_navigation_mouse_and_clear_state() -> None:
         source_identity=None,
         ghost_text_source_snapshot=None,
     )
-    assert coordinator.handle_key_press(_key_event(Qt.Key.Key_Left)) is False
+    assert (
+        autocomplete_stack.input_adapter.handle_key_press(_key_event(Qt.Key.Key_Left))
+        is False
+    )
     assert session_controller.session.mode == "none"
     assert presenter.hidden >= 1
 
@@ -1087,13 +1100,13 @@ def test_phase27_coordinator_focus_navigation_mouse_and_clear_state() -> None:
         source_identity=None,
         ghost_text_source_snapshot=None,
     )
-    coordinator.activate_suggestion(0)
+    autocomplete_stack.input_adapter.activate_suggestion(0)
 
     assert editor.focus_calls == 1
     assert editor.accepted
     assert presenter.hidden >= 1
 
-    coordinator.dismiss_autocomplete("escape")
+    autocomplete_stack.input_adapter.dismiss_autocomplete("escape")
 
     assert session_controller.session.mode == "none"
     assert presenter.hidden >= 2
@@ -1232,7 +1245,7 @@ def test_phase27_coordinator_lora_vertical_boundaries_stay_handled() -> None:
         ghost_text_source_snapshot=None,
     )
     presenter = _Presenter()
-    coordinator = build_test_autocomplete_coordinator(
+    autocomplete_stack = build_test_autocomplete_stack(
         cast(Any, _Editor()),
         prompt_autocomplete_gateway=RecordingPromptAutocompleteGateway({}),
         autocomplete_presenter=cast(Any, presenter),
@@ -1240,7 +1253,10 @@ def test_phase27_coordinator_lora_vertical_boundaries_stay_handled() -> None:
         lora_thumbnail_cache_available=True,
     )
 
-    assert coordinator.handle_key_press(_key_event(Qt.Key.Key_Up)) is True
+    assert (
+        autocomplete_stack.input_adapter.handle_key_press(_key_event(Qt.Key.Key_Up))
+        is True
+    )
     assert session_controller.session.selected_index == 0
     assert session_controller.session.mode == "lora"
     assert presenter.hidden == 0
@@ -1273,9 +1289,15 @@ def test_phase27_coordinator_lora_vertical_boundaries_stay_handled() -> None:
         ghost_text_source_snapshot=None,
     )
 
-    assert coordinator.handle_key_press(_key_event(Qt.Key.Key_Down)) is True
+    assert (
+        autocomplete_stack.input_adapter.handle_key_press(_key_event(Qt.Key.Key_Down))
+        is True
+    )
     assert session_controller.session.selected_index == 1
-    assert coordinator.handle_key_press(_key_event(Qt.Key.Key_Down)) is True
+    assert (
+        autocomplete_stack.input_adapter.handle_key_press(_key_event(Qt.Key.Key_Down))
+        is True
+    )
     assert session_controller.session.selected_index == 1
     assert session_controller.session.mode == "lora"
     assert presenter.hidden == 0

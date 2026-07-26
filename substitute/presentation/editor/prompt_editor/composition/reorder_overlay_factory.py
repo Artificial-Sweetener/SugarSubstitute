@@ -18,11 +18,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Protocol, cast
 
-from PySide6.QtWidgets import QScrollBar, QWidget
+from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.features.syntax_profile import (
@@ -33,55 +31,23 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 )
 
 from ..overlays.reorder_drag_proxy import PromptReorderDragProxyWidget
-from ..overlays.reorder_autoscroll import (
-    PromptReorderAutoscrollContext,
-    PromptReorderAutoscrollController,
-    PromptReorderAutoscrollInvalidation,
-)
 from ..overlays.reorder_gesture_controller import (
     PromptReorderDragProxyPlacementController,
     PromptReorderGestureController,
 )
 from ..overlays.reorder_overlay import SegmentReorderOverlay
+from ..overlays.reorder_preview_visual_owner import PromptReorderPreviewVisualOwner
 from ..overlays.reorder_view import PromptReorderView
+from ..interactions.reorder_interaction_metrics import (
+    PromptReorderInteractionMetricsOwner,
+)
+from ..interactions.reorder_overlay_port import PromptReorderOverlayAssembly
 from ..projection.reorder_interaction_geometry import (
-    PromptReorderGeometryHost,
     PromptReorderInteractionGeometry,
     PromptReorderLayoutPolicy,
 )
+from ..projection.reorder_geometry_owner import PromptReorderGeometryOwner
 from ..reorder_drag_proxy_state import PromptReorderDragProxyRenderStateBuilder
-
-
-class _PromptSegmentReorderEditor(PromptReorderGeometryHost, Protocol):
-    """Describe editor APIs composition needs for reorder overlay wiring."""
-
-    def verticalScrollBar(self) -> QScrollBar:  # noqa: N802
-        """Return the editor-visible scrollbar used by autoscroll."""
-
-
-@dataclass(frozen=True, slots=True)
-class _PromptReorderAutoscrollFactory:
-    """Create autoscroll controllers after the overlay QWidget exists."""
-
-    editor: _PromptSegmentReorderEditor
-
-    def __call__(
-        self,
-        overlay: QWidget,
-        *,
-        step_callback: Callable[[PromptReorderAutoscrollInvalidation], None],
-        context_provider: Callable[[], PromptReorderAutoscrollContext],
-    ) -> PromptReorderAutoscrollController:
-        """Return an autoscroll controller bound to the overlay and editor."""
-
-        return PromptReorderAutoscrollController(
-            parent=overlay,
-            scrollbar_provider=self.editor.verticalScrollBar,
-            overlay_height_provider=overlay.height,
-            map_global_to_overlay=overlay.mapFromGlobal,
-            step_callback=step_callback,
-            context_provider=context_provider,
-        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,28 +57,32 @@ class PromptSegmentReorderOverlayFactory:
     document_service: PromptDocumentService
     syntax_service: PromptSyntaxService
     syntax_profile: PromptSyntaxProfile
+    geometry_owner: PromptReorderGeometryOwner
+    interaction_metrics: PromptReorderInteractionMetricsOwner
 
     def create_segment_overlay(
         self,
         editor: QWidget,
         *,
         layout_policy: PromptReorderLayoutPolicy,
-    ) -> SegmentReorderOverlay:
-        """Return one concrete segment reorder overlay for the supplied editor."""
+    ) -> PromptReorderOverlayAssembly:
+        """Return composed reorder authorities for the supplied editor."""
 
         geometry = PromptReorderInteractionGeometry(
             layout_policy=layout_policy,
-            geometry_host=cast_reorder_geometry_host(editor),
+            geometry_owner=self.geometry_owner,
         )
-        return SegmentReorderOverlay(
+        overlay = SegmentReorderOverlay(
             editor,
             geometry=geometry,
+            preview_visual_owner=PromptReorderPreviewVisualOwner(
+                geometry_state=lambda: geometry.state,
+                refresh_preview_geometry=geometry.refresh_preview_geometry,
+            ),
+            interaction_metrics=self.interaction_metrics,
             view_factory=PromptReorderView,
             gesture_controller=PromptReorderGestureController(),
             drag_proxy_placement=PromptReorderDragProxyPlacementController(),
-            autoscroll_factory=_PromptReorderAutoscrollFactory(
-                cast_segment_reorder_editor(editor)
-            ),
             drag_proxy=PromptReorderDragProxyWidget(object_name="segmentChipDragProxy"),
             drag_proxy_state_factory=PromptReorderDragProxyRenderStateBuilder(
                 document_service=self.document_service,
@@ -120,15 +90,9 @@ class PromptSegmentReorderOverlayFactory:
                 syntax_profile=self.syntax_profile,
             ),
         )
-
-
-def cast_reorder_geometry_host(editor: QWidget) -> PromptReorderGeometryHost:
-    """Return the editor through the reorder geometry host protocol."""
-
-    return cast(PromptReorderGeometryHost, editor)
-
-
-def cast_segment_reorder_editor(editor: QWidget) -> _PromptSegmentReorderEditor:
-    """Return the editor through the full reorder composition protocol."""
-
-    return cast(_PromptSegmentReorderEditor, editor)
+        return PromptReorderOverlayAssembly(
+            overlay=overlay,
+            preview_build_facts=overlay.preview_build_facts,
+            preview_sync_context=overlay.preview_sync_context,
+            preview_layout_changed=overlay.previewLayoutChanged,
+        )

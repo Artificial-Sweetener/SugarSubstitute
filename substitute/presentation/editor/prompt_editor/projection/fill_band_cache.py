@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
 
 from PySide6.QtCore import QRectF
 
@@ -34,21 +33,13 @@ from substitute.shared.diagnostics.prompt_editor_work import (
     record_prompt_editor_work_count,
 )
 
-from .model import PromptProjectionDisplayMode
-
-
-class PromptProjectionFillBandLayout(Protocol):
-    """Expose the immutable-layout query required to build fill bands."""
-
-    def source_range_row_rects(
-        self,
-        source_start: int,
-        source_end: int,
-        *,
-        viewport_rect: QRectF,
-        scroll_offset: float,
-    ) -> tuple[QRectF, ...]:
-        """Return visible row rectangles for one source range."""
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDisplayMode,
+)
+from .reorder_geometry import (
+    PromptProjectionReorderGeometry,
+    PromptProjectionReorderGeometryState,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,11 +105,16 @@ class PromptProjectionFillBandCache:
         key: PromptProjectionFillBandCacheKey,
         request: PromptProjectionFillBandBuildRequest,
         *,
-        layout: PromptProjectionFillBandLayout,
+        reorder_geometry: PromptProjectionReorderGeometry,
+        geometry_state: PromptProjectionReorderGeometryState,
     ) -> tuple[PromptFillBandRect, ...]:
         """Build and retain one miss after the caller prepares source data."""
 
-        rects = self._build_rects(request, layout=layout)
+        rects = self._build_rects(
+            request,
+            reorder_geometry=reorder_geometry,
+            geometry_state=geometry_state,
+        )
         self._entry = _PromptProjectionFillBandCacheEntry(key=key, rects=rects)
         record_prompt_editor_work_count(PromptEditorWorkEvent.FILL_BAND_CACHE_MISS)
         return rects
@@ -144,7 +140,8 @@ class PromptProjectionFillBandCache:
     def _build_rects(
         request: PromptProjectionFillBandBuildRequest,
         *,
-        layout: PromptProjectionFillBandLayout,
+        reorder_geometry: PromptProjectionReorderGeometry,
+        geometry_state: PromptProjectionReorderGeometryState,
     ) -> tuple[PromptFillBandRect, ...]:
         """Build visible band rows from one prepared scene document."""
 
@@ -157,7 +154,8 @@ class PromptProjectionFillBandCache:
         if scene_document.universal_text.strip():
             band_rects.extend(
                 PromptFillBandRect(rect=rect, band_index=next_band_index)
-                for rect in layout.source_range_row_rects(
+                for rect in reorder_geometry.source_range_row_rects(
+                    geometry_state,
                     scene_document.universal_range.start,
                     scene_document.universal_range.end,
                     viewport_rect=request.viewport_rect,
@@ -169,7 +167,8 @@ class PromptProjectionFillBandCache:
             band_index = next_band_index + scene_index
             band_rects.extend(
                 PromptFillBandRect(rect=rect, band_index=band_index)
-                for rect in layout.source_range_row_rects(
+                for rect in reorder_geometry.source_range_row_rects(
+                    geometry_state,
                     scene.marker.title_range.start,
                     scene.content_range.end,
                     viewport_rect=request.viewport_rect,
@@ -184,5 +183,4 @@ __all__ = [
     "PromptProjectionFillBandBuildRequest",
     "PromptProjectionFillBandCache",
     "PromptProjectionFillBandCacheKey",
-    "PromptProjectionFillBandLayout",
 ]

@@ -19,17 +19,27 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from PySide6.QtCore import QRectF
+from PySide6.QtCore import QRectF, QSizeF
 from PySide6.QtGui import QRegion
 
+from substitute.presentation.editor.prompt_editor.geometry.caret_navigation import (
+    PromptCaretNavigation,
+)
+from substitute.presentation.editor.prompt_editor.geometry.selection import (
+    PromptSelectionGeometry,
+    merge_same_row_rects,
+)
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
 
-from .layout_engine import PromptProjectionLayout
 from .metrics import PromptProjectionMetrics
-from .model import PromptProjectionCaretState, PromptProjectionDocument
-from .selection_geometry import merge_same_row_rects
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
+    PromptProjectionCaretState,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDocument,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,7 +258,7 @@ class PromptProjectionTransientEditOverlayController:
         current_caret_document_rect: QRectF,
         metrics: PromptProjectionMetrics,
         projection_document: PromptProjectionDocument,
-        layout: PromptProjectionLayout,
+        caret_navigation: PromptCaretNavigation,
     ) -> PromptProjectionTransientCaretGeometry | None:
         """Return immediate caret geometry for one deferred single-character edit."""
 
@@ -261,7 +271,7 @@ class PromptProjectionTransientEditOverlayController:
             )
         elif end == start + 1:
             caret_state = projection_document.caret_map.state_for_source_position(start)
-            document_rect = layout.cursor_rect(caret_state, scroll_offset=0.0)
+            document_rect = caret_navigation.cursor_rect(caret_state, scroll_offset=0.0)
         else:
             return None
         return PromptProjectionTransientCaretGeometry(
@@ -281,7 +291,7 @@ class PromptProjectionTransientEditOverlayController:
         committed_source_identity: PromptSourceIdentity,
         current_caret_document_rect: QRectF,
         freshness_is_stale_safe: bool,
-        current_source_identity: PromptSourceIdentity,
+        previous_source_identity: PromptSourceIdentity,
     ) -> PromptProjectionTransientInsertionOverlay | None:
         """Return text overlay for one deferred single-character insertion."""
 
@@ -289,7 +299,7 @@ class PromptProjectionTransientEditOverlayController:
             return None
         previous_overlay = self.valid_insertion_overlay(
             freshness_is_stale_safe=freshness_is_stale_safe,
-            source_identity=current_source_identity,
+            source_identity=previous_source_identity,
         )
         if (
             previous_overlay is not None
@@ -371,7 +381,8 @@ class PromptProjectionTransientEditOverlayController:
         source_identity: PromptSourceIdentity,
         committed_source_identity: PromptSourceIdentity,
         previous_overlay: PromptProjectionTransientDeletionOverlay | None,
-        layout: PromptProjectionLayout,
+        content_size: QSizeF,
+        selection_geometry: PromptSelectionGeometry,
         viewport_width: float,
         viewport_height: float,
     ) -> PromptProjectionTransientDeletionOverlay | None:
@@ -385,7 +396,8 @@ class PromptProjectionTransientEditOverlayController:
             source_identity=source_identity,
             committed_source_identity=committed_source_identity,
             previous_overlay=previous_overlay,
-            layout=layout,
+            content_size=content_size,
+            selection_geometry=selection_geometry,
             viewport_width=viewport_width,
             viewport_height=viewport_height,
         )
@@ -406,7 +418,7 @@ class PromptProjectionTransientEditOverlayController:
         document_margin: float,
         source_line_content_left_inset: float,
         projection_document: PromptProjectionDocument,
-        layout: PromptProjectionLayout,
+        caret_navigation: PromptCaretNavigation,
     ) -> PromptProjectionTransientCaretGeometry | None:
         """Return provisional caret geometry while fallback projection is pending."""
 
@@ -432,7 +444,7 @@ class PromptProjectionTransientEditOverlayController:
                 document_rect.moveTop(base_rect.top() + metrics.text_line_height)
         elif end == start + 1:
             caret_state = projection_document.caret_map.state_for_source_position(start)
-            document_rect = layout.cursor_rect(caret_state, scroll_offset=0.0)
+            document_rect = caret_navigation.cursor_rect(caret_state, scroll_offset=0.0)
         else:
             return None
         return PromptProjectionTransientCaretGeometry(
@@ -456,6 +468,8 @@ class PromptProjectionTransientEditOverlayController:
         content_right: float,
         document_margin: float,
         source_line_content_left_inset: float,
+        freshness_is_stale_safe: bool,
+        previous_source_identity: PromptSourceIdentity,
     ) -> PromptProjectionTransientInsertionOverlay | None:
         """Return provisional inserted text while fallback projection is pending."""
 
@@ -468,6 +482,22 @@ class PromptProjectionTransientEditOverlayController:
             or replacement_text in {"\n", "\r", "\t"}
         ):
             return None
+        previous_overlay = self.valid_insertion_overlay(
+            freshness_is_stale_safe=freshness_is_stale_safe,
+            source_identity=previous_source_identity,
+        )
+        if (
+            previous_overlay is not None
+            and previous_overlay.committed_source_identity == committed_source_identity
+            and previous_overlay.source_start + len(previous_overlay.text) == start
+        ):
+            return PromptProjectionTransientInsertionOverlay(
+                source_identity=source_identity,
+                committed_source_identity=committed_source_identity,
+                source_start=previous_overlay.source_start,
+                text=previous_overlay.text + replacement_text,
+                document_rect=QRectF(previous_overlay.document_rect),
+            )
         document_rect = QRectF(current_caret_document_rect)
         if (
             document_rect.left() + metrics.text_advance(replacement_text)
@@ -494,7 +524,8 @@ class PromptProjectionTransientEditOverlayController:
         source_identity: PromptSourceIdentity,
         committed_source_identity: PromptSourceIdentity,
         previous_overlay: PromptProjectionTransientDeletionOverlay | None,
-        layout: PromptProjectionLayout,
+        content_size: QSizeF,
+        selection_geometry: PromptSelectionGeometry,
         viewport_width: float,
         viewport_height: float,
     ) -> PromptProjectionTransientDeletionOverlay | None:
@@ -508,7 +539,8 @@ class PromptProjectionTransientEditOverlayController:
             source_identity=source_identity,
             committed_source_identity=committed_source_identity,
             previous_overlay=previous_overlay,
-            layout=layout,
+            content_size=content_size,
+            selection_geometry=selection_geometry,
             viewport_width=viewport_width,
             viewport_height=viewport_height,
         )
@@ -521,7 +553,8 @@ class PromptProjectionTransientEditOverlayController:
         source_identity: PromptSourceIdentity,
         committed_source_identity: PromptSourceIdentity,
         previous_overlay: PromptProjectionTransientDeletionOverlay | None,
-        layout: PromptProjectionLayout,
+        content_size: QSizeF,
+        selection_geometry: PromptSelectionGeometry,
         viewport_width: float,
         viewport_height: float,
     ) -> PromptProjectionTransientDeletionOverlay | None:
@@ -550,12 +583,12 @@ class PromptProjectionTransientEditOverlayController:
         viewport_rect = QRectF(
             0.0,
             0.0,
-            max(layout.content_size().width(), viewport_width),
-            max(layout.content_size().height(), viewport_height),
+            max(content_size.width(), viewport_width),
+            max(content_size.height(), viewport_height),
         )
         document_rects = tuple(
             rect
-            for rect in layout.source_range_fragments(
+            for rect in selection_geometry.source_range_fragments(
                 fragment_start,
                 fragment_end,
                 viewport_rect=viewport_rect,

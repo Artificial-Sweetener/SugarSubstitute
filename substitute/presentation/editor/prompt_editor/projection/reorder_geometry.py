@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Protocol
 
 from PySide6.QtCore import QRectF, QSizeF
 
@@ -33,7 +32,24 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderLayoutView,
 )
 
-from .model import PromptProjectionDocument, PromptProjectionSelection
+from ..geometry.aggregate import PromptProjectionGeometry
+from ..geometry.selection import PromptSelectionGeometry
+from ..geometry.viewport import PromptViewportGeometry
+from ..geometry.visible_lines import (
+    PromptProjectionSourceLineIndex,
+    source_range_intersects_visual_line,
+    visible_projection_lines,
+)
+from ..layout.models import (
+    PromptProjectionLayoutSnapshot,
+    PromptProjectionLineSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
+    PromptProjectionSelection,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDocument,
+)
 from .observability import log_reorder_drag_event
 from .reorder_chip_geometry import (
     PromptReorderChipFragment,
@@ -49,26 +65,6 @@ from .reorder_placement_geometry import (
     reorder_placement_id_for_target,
 )
 from .reorder_placement_geometry_builder import build_row_reorder_placements
-from .snapshot import PromptProjectionLayoutSnapshot, PromptProjectionLineSnapshot
-from .visible_line_range import (
-    PromptProjectionSourceLineIndex,
-    source_range_intersects_visual_line,
-    visible_projection_lines,
-)
-
-
-class PromptProjectionSourceRangeFragmentProvider(Protocol):
-    """Provide generic source-range fragments from prepared projection lines."""
-
-    def source_range_fragments_for_line(
-        self,
-        line: PromptProjectionLineSnapshot,
-        *,
-        selection: PromptProjectionSelection,
-        range_start: int,
-        range_end: int,
-    ) -> tuple[QRectF, ...]:
-        """Return merged document-space fragments from one visual line."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,7 +75,29 @@ class PromptProjectionReorderGeometryState:
     layout_snapshot: PromptProjectionLayoutSnapshot
     content_size: QSizeF
     fallback_caret_rect: QRectF
-    source_fragments: PromptProjectionSourceRangeFragmentProvider
+    selection_geometry: PromptSelectionGeometry
+    viewport_geometry: PromptViewportGeometry
+
+
+def reorder_geometry_state(
+    geometry: PromptProjectionGeometry,
+) -> PromptProjectionReorderGeometryState:
+    """Build explicit reorder state from one published geometry aggregate."""
+
+    geometry_input = geometry.input
+    return PromptProjectionReorderGeometryState(
+        projection_document=geometry_input.projection_document,
+        layout_snapshot=geometry_input.layout_snapshot,
+        content_size=QSizeF(geometry_input.layout_snapshot.content_size),
+        fallback_caret_rect=QRectF(
+            0.0,
+            geometry_input.document_margin,
+            1.0,
+            geometry_input.metrics.text_line_height,
+        ),
+        selection_geometry=geometry.selection,
+        viewport_geometry=geometry.viewport,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -427,7 +445,7 @@ class PromptProjectionReorderGeometry:
         visible_fragments: list[PromptReorderChipFragment] = []
         for line in visible_lines:
             visual_line_index = visual_line_indices_by_identity[id(line)]
-            for rect in state.source_fragments.source_range_fragments_for_line(
+            for rect in state.selection_geometry.source_range_fragments_for_line(
                 line,
                 selection=selection,
                 range_start=range_start,
@@ -561,5 +579,5 @@ def _gap_blank_line_offset(gap: PromptReorderGapView, blank_line_index: int) -> 
 __all__ = [
     "PromptProjectionReorderGeometry",
     "PromptProjectionReorderGeometryState",
-    "PromptProjectionSourceRangeFragmentProvider",
+    "reorder_geometry_state",
 ]

@@ -54,14 +54,20 @@ SURFACE_REORDER_HOST_METHODS = tuple(
 )
 
 FORBIDDEN_HOST_IMPORT_MODULES = (
-    "substitute.presentation.editor.prompt_editor.projection.reorder_preview_projection",
+    "substitute.presentation.editor.prompt_editor.projection.reorder_projection_snapshot_provider",
+    "substitute.presentation.editor.prompt_editor.projection.reorder_preview_frame_builder",
+    "substitute.presentation.editor.prompt_editor.projection.reorder_preview_frame_cache",
+    "substitute.presentation.editor.prompt_editor.projection.reorder_preview_projection_contracts",
+    "substitute.presentation.editor.prompt_editor.projection.reorder_preview_projection_owner",
+    "substitute.presentation.editor.prompt_editor.projection.reorder_geometry_owner",
+    "substitute.presentation.editor.prompt_editor.projection.reorder_interaction_geometry",
     "substitute.presentation.editor.prompt_editor.projection.reorder_drop_targets",
     "substitute.presentation.editor.prompt_editor.projection.reorder_keyboard_navigation",
     "substitute.presentation.editor.prompt_editor.projection.reorder_animation",
-    "substitute.presentation.editor.prompt_editor.interactions.reorder_session",
+    "substitute.application.prompt_editor.reorder.intents",
+    "substitute.application.prompt_editor.reorder.session",
     "substitute.presentation.editor.prompt_editor.interactions.reorder_preview_sync",
     "substitute.presentation.editor.prompt_editor.overlays.reorder_animation_presenter",
-    "substitute.presentation.editor.prompt_editor.overlays.reorder_landing_shadow",
     "substitute.presentation.editor.prompt_editor.overlays.reorder_telemetry",
 )
 

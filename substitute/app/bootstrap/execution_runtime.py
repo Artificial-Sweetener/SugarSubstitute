@@ -458,7 +458,11 @@ class ExecutionRuntime:
         raise ValueError(f"Unknown execution lane: {name}")
 
     def shutdown(self) -> None:
-        """Stop long-lived handles and release every short-task lane."""
+        """Stop every lane before its Qt owner can be released.
+
+        Awaiting running short tasks prevents worker completion dispatch from
+        targeting a QApplication that has already begun teardown.
+        """
 
         with self._lock:
             if self._is_shutdown:
@@ -467,7 +471,7 @@ class ExecutionRuntime:
         for registry_name in tuple(self._long_lived):
             self._stop_long_lived_registry(registry_name, reason="runtime_shutdown")
         for lane in self._lanes.values():
-            lane.shutdown(wait=False, cancel_futures=True)
+            lane.shutdown(wait=True, cancel_futures=True)
         with self._lock:
             self._dispatchers.clear()
 

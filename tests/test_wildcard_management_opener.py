@@ -151,14 +151,20 @@ def test_wildcard_management_modal_rejects_scene_markers_without_projecting_scen
         "Scenes aren’t supported in wildcard values.",
     )
     assert actions[0].enabled is False
-    scene_controller = editor._scene_feature_controller
-    scene_controller.set_scene_autocomplete_titles(("Portrait",))
-    scene_controller.set_queueable_scene_keys(frozenset({"portrait"}))
-    assert scene_controller.snapshot.autocomplete.ready is False
-    assert scene_controller.snapshot.autocomplete.titles == ()
-    assert scene_controller.snapshot.queue_action.action_ready is False
-    assert scene_controller.scene_key_for_source_position(0) is None
-    assert scene_controller.queueable_scene_key_for_source_position(0) is None
+    scene_publication = editor._scene_context_publication
+    scene_preparation = editor._scene_position_preparation
+    scene_publication.set_scene_autocomplete_titles(("Portrait",))
+    scene_publication.set_queueable_scene_keys(frozenset({"portrait"}))
+    assert scene_publication.snapshot.autocomplete.ready is False
+    assert scene_publication.snapshot.autocomplete.titles == ()
+    assert scene_publication.snapshot.queue_action.action_ready is False
+    prepared_scene = scene_preparation.prepare_position_context(
+        0,
+        reason="unsupported_scene_marker_assertion",
+    )
+    assert prepared_scene.context is not None
+    assert prepared_scene.context.scene_key is None
+    assert prepared_scene.context.queueable_scene_key is None
     document_view = editor._document_service.build_document_view(editor.toPlainText())
     assert (
         editor._document_service.scene_autocomplete_query_at_cursor(

@@ -89,17 +89,21 @@ def test_projection_surface_active_span_reuses_existing_caret_map(
         decoration_accent_ranges=(),
         scene_error_keys=frozenset(),
     )
-    surface._layout.set_projection_paint_state(paint_state)  # noqa: SLF001
-    active_token = surface._layout.effective_token_for_paint(  # noqa: SLF001
+    surface._layout.frame.set_paint_state(paint_state)  # noqa: SLF001
+    active_token = surface._layout.frame.paint_input.effective_token(  # noqa: SLF001
         token.token_id
     )
 
-    assert surface._layout.projection_document is document  # noqa: SLF001
-    assert surface._layout.projection_document.caret_map is document.caret_map  # noqa: SLF001
+    assert surface._layout.frame.output.projection_document is document  # noqa: SLF001
+    assert (  # noqa: SLF001
+        surface._layout.frame.output.projection_document.caret_map is document.caret_map
+    )
     assert active_token is not None
     assert active_token.active is True
     active_runs = tuple(
-        surface._layout.effective_run_for_paint(run.run_id)  # noqa: SLF001
+        surface._layout.frame.paint_input.effective_run(  # noqa: SLF001
+            run.run_id
+        )
         for run in document.runs
         if run.token_id == token.token_id
     )

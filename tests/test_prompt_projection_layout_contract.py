@@ -33,58 +33,81 @@ from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPalette
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
-from substitute.application.prompt_editor.document.views import (
-    PromptDocumentView,
-    PromptReorderChipView,
-)
-from substitute.application.prompt_editor.features.syntax_profile import (
-    PromptSyntaxProfileService,
-)
-from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxService,
-)
+from substitute.application.prompt_editor.document.views import PromptReorderChipView
 from substitute.application.prompt_editor.reorder.views import (
     PromptLineDropTarget,
     PromptReorderLayoutView,
 )
 from substitute.domain.appearance import RgbColor, SemanticPalette
-from substitute.presentation.editor.prompt_editor.projection.builder import (
-    PromptProjectionBuilder,
-)
 from substitute.presentation.editor.prompt_editor.overlays import (
     token_weight_controls as token_weight_control_lifecycle,
 )
 from substitute.presentation.editor.prompt_editor.overlays import (
     token_weight_view as token_weight_control_theme,
 )
-from substitute.presentation.editor.prompt_editor.projection.layout_engine import (
-    PromptProjectionLayout,
+from substitute.presentation.editor.prompt_editor.projection.edit_to_frame import (
+    PromptLayoutEditToFrameCoordinator,
 )
 from substitute.presentation.editor.prompt_editor.projection.metrics import (
     PromptProjectionMetricsFactory,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretPlacement,
+    PromptProjectionSelection,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
     PromptProjectionRunKind,
-    PromptProjectionSelection,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
 from substitute.presentation.editor.prompt_editor.projection.paint_state import (
     PromptProjectionPaintStateBuilder,
 )
+from substitute.presentation.editor.prompt_editor.projection.painter import (
+    PromptProjectionPainter,
+)
 from substitute.presentation.editor.prompt_editor.projection.region_chrome import (
     PromptRegionChrome,
+)
+from substitute.presentation.editor.prompt_editor.projection.reorder_geometry import (
+    PromptProjectionReorderGeometry,
+    reorder_geometry_state,
 )
 from substitute.presentation.editor.prompt_editor.projection.session import (
     PromptProjectionSession,
 )
-from substitute.presentation.editor.prompt_editor.projection.snapshot import (
+from substitute.presentation.editor.prompt_editor.layout.models import (
+    PromptProjectionLayoutSnapshot,
     PromptProjectionLineSnapshot,
     PromptProjectionTextFragment,
+)
+from substitute.presentation.editor.prompt_editor.layout.contracts import (
+    PromptLayoutOutput,
+    PromptLayoutRequest,
+    PromptLayoutStatus,
+)
+from substitute.presentation.editor.prompt_editor.layout.trailing_engine import (
+    PromptTrailingLayoutEngine,
+)
+from substitute.presentation.editor.prompt_editor.layout.token_measurement import (
+    PromptProjectionTokenMeasurer,
+)
+from substitute.presentation.editor.prompt_editor.layout.canonical_builder import (
+    PromptProjectionLineLayoutBuilder,
+)
+from substitute.presentation.editor.prompt_editor.layout.checkpoints import (
+    capture_layout_checkpoint,
+    restore_layout_checkpoint,
+)
+from substitute.presentation.editor.prompt_editor.layout.shifted_snapshot import (
+    ShiftedLineSnapshot,
 )
 from substitute.presentation.editor.prompt_editor.projection.tokens import (
     PromptEmphasisPrefixRenderer,
@@ -95,102 +118,37 @@ from substitute.presentation.editor.prompt_editor.projection.tokens import (
     _emphasis_parenthesis_color,
     _emphasis_weight_color,
 )
-from tests.prompt_projection_test_helpers import (
-    StaticPromptWildcardCatalogGateway,
-    ensure_qapp,
+from tests.prompt_projection_layout_test_helpers import (
+    projection_document_for as _projection_for,
+    projection_layout_for as _layout_for,
 )
+from tests.prompt_projection_test_helpers import ensure_qapp
 
 
-def _layout_for(
-    text: str,
-    *,
-    active_span_range: tuple[int, int] | None = None,
-    decoration_accent_ranges: tuple[tuple[int, int], ...] = (),
-    display_mode: PromptProjectionDisplayMode = PromptProjectionDisplayMode.PROJECTED,
-    scene_error_keys: frozenset[str] = frozenset(),
-    semantic_palette: SemanticPalette | None = None,
-    text_width: float = 220.0,
-) -> tuple[PromptProjectionLayout, PromptProjectionDocument]:
-    """Build one projection layout for the supplied prompt text."""
-
-    ensure_qapp()
-    document_view, projection = _projection_for(
-        text,
-        active_span_range=active_span_range,
-        decoration_accent_ranges=decoration_accent_ranges,
-        display_mode=display_mode,
-        scene_error_keys=scene_error_keys,
-    )
-    layout = PromptProjectionLayout(
-        PromptProjectionInlineObjectRendererRegistry(
-            (
-                PromptEmphasisPrefixRenderer(),
-                PromptEmphasisSuffixRenderer(),
-                PromptWildcardInlineObjectRenderer(),
-            )
-        )
-    )
-    layout.set_base_font(QFont())
-    layout.set_palette(QPalette())
-    layout.set_semantic_palette(semantic_palette)
-    layout.set_projection(projection, prompt_document_view=document_view)
-    layout.set_text_width(text_width)
-    return layout, projection
-
-
-def _projection_for(
-    text: str,
-    *,
-    active_span_range: tuple[int, int] | None = None,
-    decoration_accent_ranges: tuple[tuple[int, int], ...] = (),
-    display_mode: PromptProjectionDisplayMode = PromptProjectionDisplayMode.PROJECTED,
-    scene_error_keys: frozenset[str] = frozenset(),
-) -> tuple[PromptDocumentView, PromptProjectionDocument]:
-    """Build one prompt document view and matching projection."""
-
-    document_service = PromptDocumentService()
-    syntax_service = PromptSyntaxService(StaticPromptWildcardCatalogGateway({}))
-    document_view = document_service.build_document_view(text)
-    render_plan = syntax_service.build_render_plan(
-        document_view,
-        PromptSyntaxProfileService().default_profile(),
-    )
-    projection = PromptProjectionBuilder().build_projection(
-        document_view,
-        render_plan,
-        display_mode=display_mode,
-        session=PromptProjectionSession(),
-        active_span_range=active_span_range,
-        decoration_accent_ranges=decoration_accent_ranges,
-        scene_error_keys=scene_error_keys,
-    )
-    return document_view, projection
-
-
-def _line_texts(layout: PromptProjectionLayout) -> tuple[str, ...]:
+def _line_texts(layout: PromptLayoutEditToFrameCoordinator) -> tuple[str, ...]:
     """Return visible line text, including inline-object display text."""
 
     line_texts: list[str] = []
-    for line in layout._snapshot.lines:  # noqa: SLF001
+    for line in layout.frame.output.snapshot.lines:  # noqa: SLF001
         line_text = ""
         for fragment in line.fragments:
             if isinstance(fragment, PromptProjectionTextFragment):
                 line_text += fragment.text
                 continue
-            run = layout.projection_document.run_by_id(fragment.run_id)
+            run = layout.frame.output.projection_document.run_by_id(fragment.run_id)
             line_text += "" if run is None else run.display_text
         line_texts.append(line_text)
     return tuple(line_texts)
 
 
 def _assert_line_fragments_match_current_runs(
-    layout: PromptProjectionLayout,
+    layout: PromptLayoutEditToFrameCoordinator,
     line: PromptProjectionLineSnapshot,
 ) -> None:
     """Assert every fragment on one line resolves to its current run slice."""
 
     for fragment in line.fragments:
-        run = layout.effective_run_for_paint(fragment.run_id)
+        run = layout.frame.paint_input.effective_run(fragment.run_id)
         assert run is not None
         if not isinstance(fragment, PromptProjectionTextFragment):
             continue
@@ -230,11 +188,13 @@ def test_consecutive_paragraph_break_rows_own_newline_source_before_tokens() -> 
         "alpha,\n\n(small:1.20) breasts, flat chest,\n\n(pale skin:1.20), pointy ears"
     )
     layout, _projection = _layout_for(prompt, text_width=760.0)
-    selection_rects = layout.selection_rects(PromptProjectionSelection(0, len(prompt)))
+    selection_rects = layout.frame.geometry.selection.selection_rects(
+        PromptProjectionSelection(0, len(prompt))
+    )
     expected_blank_ranges = _blank_line_break_ranges(prompt)
     rows_by_range = {
         (line.source_start, line.source_end): line
-        for line in layout._snapshot.lines  # noqa: SLF001
+        for line in layout.frame.output.snapshot.lines  # noqa: SLF001
         if (line.source_start, line.source_end) in expected_blank_ranges
     }
 
@@ -247,7 +207,7 @@ def test_consecutive_paragraph_break_rows_own_newline_source_before_tokens() -> 
 
     assert not [
         line
-        for line in layout._snapshot.lines  # noqa: SLF001
+        for line in layout.frame.output.snapshot.lines  # noqa: SLF001
         if not line.fragments
         and line.source_start == line.source_end
         and line.source_start < len(prompt)
@@ -255,7 +215,7 @@ def test_consecutive_paragraph_break_rows_own_newline_source_before_tokens() -> 
 
 
 def _layout_geometry_signature(
-    layout: PromptProjectionLayout,
+    layout: PromptLayoutEditToFrameCoordinator,
 ) -> tuple[
     tuple[float, float, int, int, tuple[tuple[float, float, float, float], ...]],
     ...,
@@ -263,7 +223,7 @@ def _layout_geometry_signature(
     """Return stable row and text-fragment geometry for layout comparisons."""
 
     signature = []
-    for line in layout._snapshot.lines:  # noqa: SLF001
+    for line in layout.frame.output.snapshot.lines:  # noqa: SLF001
         signature.append(
             (
                 round(line.top, 3),
@@ -309,19 +269,22 @@ class _NonIterableCaretRectMapping(Mapping[int, QRectF]):
 
 
 def _install_non_iterable_caret_rect_mapping(
-    layout: PromptProjectionLayout,
-) -> None:
-    """Replace snapshot caret rects with a mapping that forbids full scans."""
+    output: PromptLayoutOutput,
+) -> PromptLayoutOutput:
+    """Return layout output whose prior caret mapping forbids broad scans."""
 
-    snapshot = layout._snapshot  # noqa: SLF001
+    snapshot = output.snapshot
     backing = {
         caret_stop.projection_position: QRectF(caret_stop.rect)
         for line in snapshot.lines
         for caret_stop in line.caret_stops
     }
-    layout._snapshot = replace(  # noqa: SLF001
-        snapshot,
-        caret_rects_by_projection_position=_NonIterableCaretRectMapping(backing),
+    return replace(
+        output,
+        snapshot=replace(
+            snapshot,
+            caret_rects_by_projection_position=_NonIterableCaretRectMapping(backing),
+        ),
     )
 
 
@@ -370,35 +333,38 @@ class _CountingEmphasisSuffixRenderer(PromptEmphasisSuffixRenderer):
 
 
 def _assert_all_projection_caret_rects_resolve(
-    layout: PromptProjectionLayout,
+    layout: PromptLayoutEditToFrameCoordinator,
     projection: PromptProjectionDocument,
 ) -> None:
     """Assert every projection boundary resolves to a caret rect."""
 
-    caret_rects = layout._snapshot.caret_rects_by_projection_position  # noqa: SLF001
+    caret_rects = layout.frame.output.snapshot.caret_rects_by_projection_position  # noqa: SLF001
     assert len(caret_rects) == projection.mapping.projection_length + 1
     for projection_position in range(projection.mapping.projection_length + 1):
         assert caret_rects[projection_position].height() > 0.0
 
 
-def test_projection_layout_sets_projection_and_width_before_rebuild(
-    monkeypatch: pytest.MonkeyPatch,
+def _assert_snapshot_caret_rects_resolve(
+    snapshot: PromptProjectionLayoutSnapshot,
+    projection: PromptProjectionDocument,
 ) -> None:
-    """One-pass projection replacement should avoid rebuilding at default 1px width."""
+    """Assert every projection boundary resolves in one engine-owned snapshot."""
+
+    caret_rects = snapshot.caret_rects_by_projection_position
+    assert len(caret_rects) == projection.mapping.projection_length + 1
+    for projection_position in range(projection.mapping.projection_length + 1):
+        assert caret_rects[projection_position].height() > 0.0
+
+
+def test_projection_layout_sets_projection_and_width_atomically() -> None:
+    """Projection replacement should publish its final width with the document."""
 
     layout, projection = _layout_for("alpha beta", text_width=240.0)
-    rebuild_widths: list[float] = []
-
-    def record_rebuild() -> None:
-        """Record the layout width visible to the rebuild call."""
-
-        rebuild_widths.append(layout._text_width)  # noqa: SLF001
-
-    monkeypatch.setattr(layout, "_rebuild_snapshot", record_rebuild)
 
     layout.set_projection_and_text_width(projection, 480.0)
 
-    assert rebuild_widths == [480.0]
+    assert layout.frame.output.projection_document is projection
+    assert layout.frame.output.configuration.text_width == 480.0
 
 
 def test_projection_layout_paint_state_validation_skips_inline_measurements() -> None:
@@ -408,7 +374,7 @@ def test_projection_layout_paint_state_validation_skips_inline_measurements() ->
     prefix_renderer = _CountingEmphasisPrefixRenderer()
     suffix_renderer = _CountingEmphasisSuffixRenderer()
     document_view, projection = _projection_for("(cat:1.05), (dog:1.05)")
-    layout = PromptProjectionLayout(
+    layout = PromptLayoutEditToFrameCoordinator(
         PromptProjectionInlineObjectRendererRegistry(
             (
                 prefix_renderer,
@@ -418,7 +384,7 @@ def test_projection_layout_paint_state_validation_skips_inline_measurements() ->
         )
     )
     layout.set_base_font(QFont())
-    layout.set_palette(QPalette())
+    layout.frame.set_palette(QPalette())
     layout.set_projection(projection, prompt_document_view=document_view)
     layout.set_text_width(260.0)
     prefix_renderer.measure_calls = 0
@@ -436,7 +402,7 @@ def test_projection_layout_paint_state_validation_skips_inline_measurements() ->
         scene_error_keys=frozenset(),
     )
 
-    assert layout.can_apply_paint_state(paint_state)
+    assert layout.frame.try_set_paint_state(paint_state)
 
     assert prefix_renderer.measure_calls + suffix_renderer.measure_calls < 8
 
@@ -456,7 +422,7 @@ def _assert_word_not_split_across_lines(
 
 
 def _line_indices_for_source_range(
-    layout: PromptProjectionLayout,
+    layout: PromptLayoutEditToFrameCoordinator,
     *,
     start: int,
     end: int,
@@ -464,7 +430,7 @@ def _line_indices_for_source_range(
     """Return wrapped line indices touched by a source range."""
 
     line_indices: set[int] = set()
-    for line_index, line in enumerate(layout._snapshot.lines):  # noqa: SLF001
+    for line_index, line in enumerate(layout.frame.output.snapshot.lines):  # noqa: SLF001
         for fragment in line.fragments:
             if any(
                 start <= source_position < end
@@ -583,7 +549,7 @@ def test_projection_layout_uses_stable_text_line_spacing() -> None:
     expected_line_height = float(QFontMetricsF(font).lineSpacing())
     text_only_lines = tuple(
         line
-        for line in layout._snapshot.lines  # noqa: SLF001
+        for line in layout.frame.output.snapshot.lines  # noqa: SLF001
         if all(
             isinstance(fragment, PromptProjectionTextFragment)
             for fragment in line.fragments
@@ -640,10 +606,12 @@ def test_projection_layout_metrics_content_height_matches_rows() -> None:
     """Layout content height should be derivable from metrics and row heights."""
 
     layout, _ = _layout_for("alpha\nbeta gamma delta", text_width=70.0)
-    row_heights = tuple(line.height for line in layout._snapshot.lines)  # noqa: SLF001
-    expected_height = layout.metrics.content_height_for_rows(row_heights)
+    row_heights = tuple(line.height for line in layout.frame.output.snapshot.lines)  # noqa: SLF001
+    expected_height = layout.frame.output.configuration.metrics.content_height_for_rows(
+        row_heights
+    )
 
-    assert layout.content_size().height() == expected_height
+    assert layout.frame.output.snapshot.content_size.height() == expected_height
 
 
 def test_projection_layout_does_not_split_fitting_plain_word() -> None:
@@ -751,8 +719,8 @@ def test_projection_layout_applies_local_comma_insert_that_creates_keep_groups()
         first_dirty_projection_position=edit_start,
     )
 
-    assert result is not None
-    assert layout.projection_document.source_text == next_text
+    assert result.applied
+    assert layout.frame.output.projection_document.source_text == next_text
     assert _line_texts(layout) == (next_text,)
     _assert_all_projection_caret_rects_resolve(layout, next_projection)
 
@@ -780,8 +748,8 @@ def test_projection_layout_rejects_comma_insert_when_new_keep_group_needs_wrap()
         first_dirty_projection_position=edit_start,
     )
 
-    assert result is None
-    assert layout.last_incremental_reflow_rejection_reason == "tag_keep_group"
+    assert not result.applied
+    assert result.rejection_reason == "tag_keep_group"
 
 
 def test_projection_layout_rejects_incremental_comma_delete_that_removes_keep_groups() -> (
@@ -804,8 +772,8 @@ def test_projection_layout_rejects_incremental_comma_delete_that_removes_keep_gr
         first_dirty_projection_position=edit_start,
     )
 
-    assert result is None
-    assert layout.last_incremental_reflow_rejection_reason in {
+    assert not result.applied
+    assert result.rejection_reason in {
         "tag_keep_group",
         "fragment_edit_not_supported",
     }
@@ -831,8 +799,8 @@ def test_projection_layout_applies_same_length_plain_replacement_incrementally()
         first_dirty_projection_position=edit_start,
     )
 
-    assert result is not None
-    assert layout.projection_document.source_text == next_text
+    assert result.applied
+    assert layout.frame.output.projection_document.source_text == next_text
     assert _line_texts(layout) == (next_text,)
     _assert_all_projection_caret_rects_resolve(layout, next_projection)
 
@@ -858,7 +826,7 @@ def test_projection_layout_incremental_plain_edit_matches_full_rebuild_geometry(
         first_dirty_projection_position=edit_start,
     )
 
-    assert result is not None
+    assert result.applied
     assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
         full_layout
     )
@@ -871,7 +839,7 @@ def test_projection_layout_reflow_rebuilds_only_the_dirty_line_window() -> None:
     edit_start = previous_text.index("tag 120") + len("tag 120")
     next_text = f"{previous_text[:edit_start]} extended{previous_text[edit_start:]}"
     incremental_layout, _ = _layout_for(previous_text, text_width=180.0)
-    previous_first_line = incremental_layout._snapshot.lines[0]  # noqa: SLF001
+    previous_first_line = incremental_layout.frame.output.snapshot.lines[0]  # noqa: SLF001
     next_document_view, next_projection = _projection_for(next_text)
     full_layout, _ = _layout_for(next_text, text_width=180.0)
 
@@ -884,7 +852,7 @@ def test_projection_layout_reflow_rebuilds_only_the_dirty_line_window() -> None:
     )
 
     assert result.first_reflowed_line_index > 0
-    assert incremental_layout._snapshot.lines[0] is previous_first_line  # noqa: SLF001
+    assert incremental_layout.frame.output.snapshot.lines[0] is previous_first_line  # noqa: SLF001
     assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
         full_layout
     )
@@ -923,10 +891,18 @@ def test_projection_layout_never_reuses_a_source_limited_terminal_line() -> None
     """A probe boundary must not masquerade as deterministic suffix convergence."""
 
     text = "alpha beta gamma delta epsilon"
-    layout, projection = _layout_for(text, text_width=10_000.0)
-    document_view, _unused_projection = _projection_for(text)
-    metrics = layout._metrics  # noqa: SLF001
-    assert metrics is not None
+    document_view, projection = _projection_for(text)
+    base_font = QFont()
+    document_margin = 4.0
+    text_width = 10_000.0
+    metrics = PromptProjectionMetricsFactory().create(
+        base_font=base_font,
+        document_margin=document_margin,
+        wrap_width=text_width,
+    )
+    line_builder = PromptProjectionLineLayoutBuilder(
+        PromptProjectionInlineObjectRendererRegistry(())
+    )
     probed_lines: list[PromptProjectionLineSnapshot] = []
 
     def record_probe(line: PromptProjectionLineSnapshot) -> int:
@@ -935,12 +911,12 @@ def test_projection_layout_never_reuses_a_source_limited_terminal_line() -> None
         probed_lines.append(line)
         return 0
 
-    result = layout._line_layout_builder.build_snapshot_until_reusable_suffix(  # noqa: SLF001
+    result = line_builder.build_snapshot_until_reusable_suffix(
         projection,
-        wrap_width=layout._text_width,  # noqa: SLF001
-        base_font=layout._base_font,  # noqa: SLF001
-        document_margin=layout._document_margin,  # noqa: SLF001
-        content_left_inset=layout._content_left_inset,  # noqa: SLF001
+        wrap_width=text_width,
+        base_font=base_font,
+        document_margin=document_margin,
+        content_left_inset=0.0,
         prompt_document_view=document_view,
         metrics=metrics,
         line_reuse_probe=record_probe,
@@ -962,7 +938,10 @@ def test_projection_layout_fork_reflows_without_mutating_cached_source() -> None
     next_text = "beta\nalpha\ngamma"
     source_layout, _ = _layout_for(previous_text, text_width=180.0)
     source_signature = _layout_geometry_signature(source_layout)
-    fork = source_layout.fork_for_incremental_reflow()
+    renderer_registry = source_layout.frame.output.configuration.inline_object_renderers
+    fork = PromptLayoutEditToFrameCoordinator(renderer_registry)
+    fork.frame.restore(source_layout.frame.output)
+    assert fork.frame.output.configuration.inline_object_renderers is renderer_registry
     next_document_view, next_projection = _projection_for(next_text)
     full_layout, _ = _layout_for(next_text, text_width=180.0)
 
@@ -974,7 +953,7 @@ def test_projection_layout_fork_reflows_without_mutating_cached_source() -> None
         replacement_text="beta\nalpha",
     )
 
-    assert source_layout.projection_document.source_text == previous_text
+    assert source_layout.frame.output.projection_document.source_text == previous_text
     assert _layout_geometry_signature(source_layout) == source_signature
     assert _layout_geometry_signature(fork) == _layout_geometry_signature(full_layout)
 
@@ -1010,12 +989,13 @@ def test_zero_delta_reused_suffix_rebinds_changed_projection_run_ids() -> None:
 
     unresolved_fragments = tuple(
         fragment
-        for line in incremental_layout._snapshot.lines  # noqa: SLF001
+        for line in incremental_layout.frame.output.snapshot.lines  # noqa: SLF001
         for fragment in line.fragments
-        if incremental_layout.effective_run_for_paint(fragment.run_id) is None
+        if incremental_layout.frame.paint_input.effective_run(fragment.run_id) is None
         or (
             fragment.token_id is not None
-            and incremental_layout.effective_token_for_paint(fragment.token_id) is None
+            and incremental_layout.frame.paint_input.effective_token(fragment.token_id)
+            is None
         )
     )
     assert unresolved_fragments == ()
@@ -1055,10 +1035,10 @@ def test_same_line_typing_refreshes_reused_suffix_fragment_semantics() -> None:
         first_dirty_projection_position=typing_position,
     )
 
-    assert result is not None
+    assert result.applied
     _assert_line_fragments_match_current_runs(
         layout,
-        layout._snapshot.lines[-1],  # noqa: SLF001
+        layout.frame.output.snapshot.lines[-1],  # noqa: SLF001
     )
 
 
@@ -1094,10 +1074,10 @@ def test_enter_refreshes_reused_suffix_fragment_semantics() -> None:
         first_dirty_projection_position=enter_position,
     )
 
-    assert result is not None
+    assert result.applied
     _assert_line_fragments_match_current_runs(
         layout,
-        layout._snapshot.lines[-1],  # noqa: SLF001
+        layout.frame.output.snapshot.lines[-1],  # noqa: SLF001
     )
 
 
@@ -1125,14 +1105,14 @@ def test_scene_title_remains_paintable_after_same_length_scene_body_reorder() ->
 
     scene_fragments = tuple(
         fragment
-        for line in incremental_layout._snapshot.lines  # noqa: SLF001
+        for line in incremental_layout.frame.output.snapshot.lines  # noqa: SLF001
         for fragment in line.fragments
         if isinstance(fragment, PromptProjectionTextFragment)
         and fragment.text == "scene marker"
     )
     assert len(scene_fragments) == 1
     assert (
-        incremental_layout.effective_run_for_paint(scene_fragments[0].run_id)
+        incremental_layout.frame.paint_input.effective_run(scene_fragments[0].run_id)
         is not None
     )
     assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
@@ -1146,20 +1126,40 @@ def test_projection_layout_history_checkpoint_restores_only_matching_geometry() 
     initial_text = "alpha, (beta:1.20), gamma, delta"
     layout, _ = _layout_for(initial_text, text_width=180.0)
     initial_signature = _layout_geometry_signature(layout)
-    checkpoint = layout.create_history_checkpoint()
+    paint_input = layout.frame.paint_input
+    checkpoint = capture_layout_checkpoint(
+        layout.frame.output,
+        palette_key=int(paint_input.palette.cacheKey()),
+        semantic_palette=paint_input.semantic_palette,
+    )
     assert checkpoint is not None
     next_text = "alpha, inserted, (beta:1.20), gamma, delta"
     next_document_view, next_projection = _projection_for(next_text)
     layout.set_projection(next_projection, prompt_document_view=next_document_view)
 
-    assert layout.try_restore_history_checkpoint(checkpoint)
-    assert layout.projection_document.source_text == initial_text
+    restored_output = restore_layout_checkpoint(
+        checkpoint,
+        configuration=layout.frame.output.configuration,
+        palette_key=int(layout.frame.paint_input.palette.cacheKey()),
+        semantic_palette=layout.frame.paint_input.semantic_palette,
+    )
+    assert restored_output is not None
+    layout.frame.restore(restored_output)
+    assert layout.frame.output.projection_document.source_text == initial_text
     assert _layout_geometry_signature(layout) == initial_signature
 
     layout.set_text_width(240.0)
 
-    assert not layout.try_restore_history_checkpoint(checkpoint)
-    assert layout.projection_document.source_text == initial_text
+    assert (
+        restore_layout_checkpoint(
+            checkpoint,
+            configuration=layout.frame.output.configuration,
+            palette_key=int(layout.frame.paint_input.palette.cacheKey()),
+            semantic_palette=layout.frame.paint_input.semantic_palette,
+        )
+        is None
+    )
+    assert layout.frame.output.projection_document.source_text == initial_text
 
 
 @pytest.mark.parametrize(
@@ -1192,7 +1192,7 @@ def test_projection_layout_incremental_plain_edit_preserves_inline_object_geomet
         first_dirty_projection_position=edit_start,
     )
 
-    assert result is not None
+    assert result.applied
     assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
         full_layout
     )
@@ -1219,8 +1219,8 @@ def test_projection_layout_applies_same_line_plain_selection_delete_incrementall
         first_dirty_projection_position=edit_start,
     )
 
-    assert result is not None
-    assert layout.projection_document.source_text == next_text
+    assert result.applied
+    assert layout.frame.output.projection_document.source_text == next_text
     assert _line_texts(layout) == (next_text,)
     _assert_all_projection_caret_rects_resolve(layout, next_projection)
 
@@ -1245,14 +1245,14 @@ def test_projection_layout_trailing_insert_after_shifted_fragment_does_not_crash
         first_dirty_projection_position=len("alpha "),
     )
 
-    assert first_result is not None
+    assert first_result.applied
     second_document_view, second_projection = _projection_for(second_next_text)
 
     assert layout.try_apply_trailing_plain_insert(
         second_projection,
         prompt_document_view=second_document_view,
     )
-    assert layout.projection_document.source_text == second_next_text
+    assert layout.frame.output.projection_document.source_text == second_next_text
     assert _line_texts(layout) == (second_next_text,)
 
 
@@ -1262,15 +1262,32 @@ def test_projection_layout_trailing_insert_derives_caret_rects_from_lines() -> N
     previous_text = "alpha beta gamma"
     next_text = f"{previous_text}!"
     layout, _ = _layout_for(previous_text, text_width=1000.0)
-    _install_non_iterable_caret_rect_mapping(layout)
+    previous = _install_non_iterable_caret_rect_mapping(layout.frame.output)
     next_document_view, next_projection = _projection_for(next_text)
 
-    assert layout.try_apply_trailing_plain_insert(
-        next_projection,
-        prompt_document_view=next_document_view,
+    outcome = PromptTrailingLayoutEngine().apply_trailing_plain_insert(
+        PromptLayoutRequest(
+            previous=previous,
+            projection_document=next_projection,
+            prompt_document_view=next_document_view,
+            configuration=previous.configuration,
+        )
     )
-    assert _line_texts(layout) == (next_text,)
-    _assert_all_projection_caret_rects_resolve(layout, next_projection)
+
+    assert outcome.status is PromptLayoutStatus.APPLIED
+    assert outcome.output is not None
+    assert tuple(
+        "".join(
+            fragment.text
+            for fragment in line.fragments
+            if isinstance(fragment, PromptProjectionTextFragment)
+        )
+        for line in outcome.output.snapshot.lines
+    ) == (next_text,)
+    _assert_snapshot_caret_rects_resolve(
+        outcome.output.snapshot,
+        next_projection,
+    )
 
 
 def test_projection_layout_rejects_trailing_comma_insert_that_creates_keep_group() -> (
@@ -1290,7 +1307,7 @@ def test_projection_layout_rejects_trailing_comma_insert_that_creates_keep_group
         )
         is False
     )
-    assert layout.projection_document.source_text == previous_text
+    assert layout.frame.output.projection_document.source_text == previous_text
 
 
 def test_projection_layout_trailing_newline_after_shifted_line_does_not_crash() -> None:
@@ -1311,14 +1328,14 @@ def test_projection_layout_trailing_newline_after_shifted_line_does_not_crash() 
         first_dirty_projection_position=len("alpha "),
     )
 
-    assert first_result is not None
+    assert first_result.applied
     second_document_view, second_projection = _projection_for(second_next_text)
 
     assert layout.try_apply_trailing_newline_insert(
         second_projection,
         prompt_document_view=second_document_view,
     )
-    assert layout.projection_document.source_text == second_next_text
+    assert layout.frame.output.projection_document.source_text == second_next_text
     assert _line_texts(layout) == (first_next_text, "")
 
 
@@ -1328,15 +1345,32 @@ def test_projection_layout_trailing_newline_derives_caret_rects_from_lines() -> 
     previous_text = "alpha beta gamma"
     next_text = f"{previous_text}\n"
     layout, _ = _layout_for(previous_text, text_width=1000.0)
-    _install_non_iterable_caret_rect_mapping(layout)
+    previous = _install_non_iterable_caret_rect_mapping(layout.frame.output)
     next_document_view, next_projection = _projection_for(next_text)
 
-    assert layout.try_apply_trailing_newline_insert(
-        next_projection,
-        prompt_document_view=next_document_view,
+    outcome = PromptTrailingLayoutEngine().apply_trailing_newline_insert(
+        PromptLayoutRequest(
+            previous=previous,
+            projection_document=next_projection,
+            prompt_document_view=next_document_view,
+            configuration=previous.configuration,
+        )
     )
-    assert _line_texts(layout) == (previous_text, "")
-    _assert_all_projection_caret_rects_resolve(layout, next_projection)
+
+    assert outcome.status is PromptLayoutStatus.APPLIED
+    assert outcome.output is not None
+    assert tuple(
+        "".join(
+            fragment.text
+            for fragment in line.fragments
+            if isinstance(fragment, PromptProjectionTextFragment)
+        )
+        for line in outcome.output.snapshot.lines
+    ) == (previous_text, "")
+    _assert_snapshot_caret_rects_resolve(
+        outcome.output.snapshot,
+        next_projection,
+    )
 
 
 def test_projection_layout_middle_newline_insert_uses_incremental_layout() -> None:
@@ -1357,12 +1391,13 @@ def test_projection_layout_middle_newline_insert_uses_incremental_layout() -> No
         first_dirty_projection_position=edit_start,
     )
 
-    assert result is not None
-    assert result.content_height_changed is True
-    assert layout.projection_document.source_text == next_text
+    assert result.applied
+    assert result.damage is not None
+    assert result.damage.content_height_changed is True
+    assert layout.frame.output.projection_document.source_text == next_text
     assert _line_texts(layout) == ("alpha", " beta")
-    first_line = layout._snapshot.lines[0]  # noqa: SLF001
-    second_line = layout._snapshot.lines[1]  # noqa: SLF001
+    first_line = layout.frame.output.snapshot.lines[0]  # noqa: SLF001
+    second_line = layout.frame.output.snapshot.lines[1]  # noqa: SLF001
     assert first_line.line_break_start == edit_start
     assert first_line.line_break_end == edit_start + 1
     assert second_line.source_start == edit_start + 1
@@ -1388,7 +1423,7 @@ def test_projection_layout_consecutive_middle_newlines_preserve_fragment_height(
         first_dirty_projection_position=first_edit_start,
     )
 
-    assert first_result is not None
+    assert first_result.applied
     second_edit_start = first_edit_start + 1
     second_text = "alpha\n\n beta"
     second_document_view, second_projection = _projection_for(second_text)
@@ -1401,11 +1436,11 @@ def test_projection_layout_consecutive_middle_newlines_preserve_fragment_height(
         first_dirty_projection_position=second_edit_start,
     )
 
-    assert second_result is not None
+    assert second_result.applied
     assert _line_texts(layout) == ("alpha", "", " beta")
     assert all(
         fragment.rect.height() == line.height
-        for line in layout._snapshot.lines  # noqa: SLF001
+        for line in layout.frame.output.snapshot.lines  # noqa: SLF001
         for fragment in line.fragments
         if isinstance(fragment, PromptProjectionTextFragment)
     )
@@ -1418,7 +1453,7 @@ def test_projection_layout_middle_newline_insert_keeps_downstream_lines_lazy() -
     edit_start = len("alpha")
     next_text = f"{previous_text[:edit_start]}\n{previous_text[edit_start:]}"
     layout, _ = _layout_for(previous_text, text_width=1000.0)
-    previous_downstream_line = layout._snapshot.lines[1]  # noqa: SLF001
+    previous_downstream_line = layout.frame.output.snapshot.lines[1]  # noqa: SLF001
     next_document_view, next_projection = _projection_for(next_text)
 
     result = layout.try_apply_hard_line_break_edit(
@@ -1430,11 +1465,11 @@ def test_projection_layout_middle_newline_insert_keeps_downstream_lines_lazy() -
         first_dirty_projection_position=edit_start,
     )
 
-    assert result is not None
-    shifted_downstream_line = layout._snapshot.lines[2]  # noqa: SLF001
-    assert shifted_downstream_line.__class__.__name__ == "_ShiftedLineSnapshot"
+    assert result.applied
+    shifted_downstream_line = layout.frame.output.snapshot.lines[2]  # noqa: SLF001
+    assert isinstance(shifted_downstream_line, ShiftedLineSnapshot)
     assert shifted_downstream_line.top == previous_downstream_line.top + (
-        layout._snapshot.lines[1].height  # noqa: SLF001
+        layout.frame.output.snapshot.lines[1].height  # noqa: SLF001
     )
     assert (
         shifted_downstream_line.source_start
@@ -1463,11 +1498,12 @@ def test_projection_layout_middle_newline_delete_uses_incremental_layout() -> No
         first_dirty_projection_position=edit_start,
     )
 
-    assert result is not None
-    assert result.content_height_changed is True
-    assert layout.projection_document.source_text == next_text
+    assert result.applied
+    assert result.damage is not None
+    assert result.damage.content_height_changed is True
+    assert layout.frame.output.projection_document.source_text == next_text
     assert _line_texts(layout) == ("alphabeta",)
-    joined_line = layout._snapshot.lines[0]  # noqa: SLF001
+    joined_line = layout.frame.output.snapshot.lines[0]  # noqa: SLF001
     assert joined_line.line_break_start is None
     assert joined_line.line_break_end is None
 
@@ -1492,10 +1528,10 @@ def test_projection_layout_newline_insert_delete_preserves_downstream_inline_row
         first_dirty_projection_position=edit_start,
     )
 
-    assert insert_result is not None
-    inserted_inline_line = layout._snapshot.lines[-1]  # noqa: SLF001
+    assert insert_result.applied
+    inserted_inline_line = layout.frame.output.snapshot.lines[-1]  # noqa: SLF001
     assert inserted_inline_line.fragments
-    assert layout._snapshot.inline_object_fragments  # noqa: SLF001
+    assert layout.frame.output.snapshot.inline_object_fragments  # noqa: SLF001
 
     restored_document_view, restored_projection = _projection_for(previous_text)
     delete_result = layout.try_apply_hard_line_break_edit(
@@ -1507,10 +1543,10 @@ def test_projection_layout_newline_insert_delete_preserves_downstream_inline_row
         first_dirty_projection_position=edit_start,
     )
 
-    assert delete_result is not None
-    restored_inline_line = layout._snapshot.lines[-1]  # noqa: SLF001
+    assert delete_result.applied
+    restored_inline_line = layout.frame.output.snapshot.lines[-1]  # noqa: SLF001
     assert restored_inline_line.fragments
-    assert layout._snapshot.inline_object_fragments  # noqa: SLF001
+    assert layout.frame.output.snapshot.inline_object_fragments  # noqa: SLF001
     fresh_layout, _ = _layout_for(previous_text, text_width=1000.0)
     assert _line_texts(layout)[-1] == _line_texts(fresh_layout)[-1]
     assert tuple(
@@ -1518,7 +1554,7 @@ def test_projection_layout_newline_insert_delete_preserves_downstream_inline_row
         for fragment in restored_inline_line.fragments
     ) == tuple(
         isinstance(fragment, PromptProjectionTextFragment)
-        for fragment in fresh_layout._snapshot.lines[-1].fragments  # noqa: SLF001
+        for fragment in fresh_layout.frame.output.snapshot.lines[-1].fragments  # noqa: SLF001
     )
 
 
@@ -1533,10 +1569,41 @@ def test_projection_layout_measures_projected_emphasis_from_visible_content_not_
         for token in projection.tokens
         if token.kind is PromptProjectionTokenKind.EMPHASIS
     )
-    token_rect = layout.token_rect(token, scroll_offset=0.0)
+    token_rect = layout.frame.geometry.tokens.token_rect(token, scroll_offset=0.0)
 
     assert token_rect is not None
-    assert token_rect.width() == layout.measure_token(token).width()
+    measured_size = PromptProjectionTokenMeasurer().measure(
+        token,
+        projection_document=layout.frame.output.projection_document,
+        inline_object_renderers=(
+            layout.frame.output.configuration.inline_object_renderers
+        ),
+        base_font=layout.frame.output.configuration.base_font,
+        metrics=layout.frame.output.configuration.metrics,
+    )
+    assert token_rect.width() == measured_size.width()
+
+
+def test_projection_token_geometry_resolves_token_at_viewport_position() -> None:
+    """Keep pointer token lookup with the immutable geometry owner."""
+
+    layout, projection = _layout_for("prefix, (cat:1.05), suffix")
+    token = next(
+        token
+        for token in projection.tokens
+        if token.kind is PromptProjectionTokenKind.EMPHASIS
+    )
+    geometry = layout.frame.geometry.tokens
+    token_rect = geometry.token_rect(token, scroll_offset=0.0)
+
+    assert token_rect is not None
+    assert (
+        geometry.token_at_viewport_position(
+            token_rect.center(),
+            scroll_offset=0.0,
+        )
+        is token
+    )
 
 
 def test_projection_layout_hit_testing_resolves_emphasis_edges_and_internal_content_boundaries() -> (
@@ -1551,46 +1618,48 @@ def test_projection_layout_hit_testing_resolves_emphasis_edges_and_internal_cont
         if token.kind is PromptProjectionTokenKind.EMPHASIS
     )
     token_runs = projection.runs_for_token(token.token_id)
-    prefix_fragment = layout._snapshot.inline_object_fragments_for_run(  # noqa: SLF001
+    prefix_fragment = layout.frame.output.snapshot.inline_object_fragments_for_run(  # noqa: SLF001
         token_runs[0].run_id
     )[0]
-    content_fragment = layout._snapshot.text_fragments_for_run(token_runs[1].run_id)[  # noqa: SLF001
+    content_fragment = layout.frame.output.snapshot.text_fragments_for_run(
+        token_runs[1].run_id
+    )[  # noqa: SLF001
         0
     ]
-    suffix_fragment = layout._snapshot.inline_object_fragments_for_run(  # noqa: SLF001
+    suffix_fragment = layout.frame.output.snapshot.inline_object_fragments_for_run(  # noqa: SLF001
         token_runs[2].run_id
     )[0]
 
     assert token.content_start is not None
     assert token.content_end is not None
 
-    leading_state = layout.hit_test(
+    leading_state = layout.frame.geometry.hit_testing.hit_test(
         prefix_fragment.rect.center(),
         scroll_offset=0.0,
     )
-    content_start_state = layout.hit_test(
+    content_start_state = layout.frame.geometry.hit_testing.hit_test(
         QPointF(content_fragment.rect.left() + 1.0, content_fragment.rect.center().y()),
         scroll_offset=0.0,
     )
-    after_c_state = layout.hit_test(
-        layout.cursor_rect(
+    after_c_state = layout.frame.geometry.hit_testing.hit_test(
+        layout.frame.geometry.caret.cursor_rect(
             projection.caret_map.state_for_source_position(token.content_start + 1),
             scroll_offset=0.0,
         ).center(),
         scroll_offset=0.0,
     )
-    after_a_state = layout.hit_test(
-        layout.cursor_rect(
+    after_a_state = layout.frame.geometry.hit_testing.hit_test(
+        layout.frame.geometry.caret.cursor_rect(
             projection.caret_map.state_for_source_position(token.content_start + 2),
             scroll_offset=0.0,
         ).center(),
         scroll_offset=0.0,
     )
-    content_end_state = layout.hit_test(
+    content_end_state = layout.frame.geometry.hit_testing.hit_test(
         QPointF(suffix_fragment.rect.left() + 1.0, suffix_fragment.rect.center().y()),
         scroll_offset=0.0,
     )
-    trailing_state = layout.hit_test(
+    trailing_state = layout.frame.geometry.hit_testing.hit_test(
         QPointF(suffix_fragment.rect.right() - 1.0, suffix_fragment.rect.center().y()),
         scroll_offset=0.0,
     )
@@ -1622,23 +1691,23 @@ def test_projection_layout_cursor_rect_supports_distinct_logical_emphasis_caret_
     assert token.content_start is not None
     assert token.content_end is not None
 
-    leading_rect = layout.cursor_rect(
+    leading_rect = layout.frame.geometry.caret.cursor_rect(
         projection.caret_map.state_for_source_position(token.source_start),
         scroll_offset=0.0,
     )
-    content_start_rect = layout.cursor_rect(
+    content_start_rect = layout.frame.geometry.caret.cursor_rect(
         projection.caret_map.state_for_source_position(token.content_start),
         scroll_offset=0.0,
     )
-    after_c_rect = layout.cursor_rect(
+    after_c_rect = layout.frame.geometry.caret.cursor_rect(
         projection.caret_map.state_for_source_position(token.content_start + 1),
         scroll_offset=0.0,
     )
-    content_end_rect = layout.cursor_rect(
+    content_end_rect = layout.frame.geometry.caret.cursor_rect(
         projection.caret_map.state_for_source_position(token.content_end),
         scroll_offset=0.0,
     )
-    trailing_rect = layout.cursor_rect(
+    trailing_rect = layout.frame.geometry.caret.cursor_rect(
         projection.caret_map.state_for_source_position(token.source_end),
         scroll_offset=0.0,
     )
@@ -1660,18 +1729,18 @@ def test_projection_layout_selection_rects_support_partial_collapsed_emphasis_co
         for token in projection.tokens
         if token.kind is PromptProjectionTokenKind.EMPHASIS
     )
-    token_rect = layout.token_rect(token, scroll_offset=0.0)
+    token_rect = layout.frame.geometry.tokens.token_rect(token, scroll_offset=0.0)
     assert token_rect is not None
     assert token.content_start is not None
     assert token.content_end is not None
 
-    partial_selection_rects = layout.selection_rects(
+    partial_selection_rects = layout.frame.geometry.selection.selection_rects(
         PromptProjectionSelection(
             anchor_position=token.content_start,
             cursor_position=token.content_end - 1,
         )
     )
-    whole_token_rects = layout.selection_rects(
+    whole_token_rects = layout.frame.geometry.selection.selection_rects(
         PromptProjectionSelection(
             anchor_position=token.source_start,
             cursor_position=token.source_end,
@@ -1689,9 +1758,11 @@ def test_projection_layout_selection_rects_include_selected_empty_lines() -> Non
     """Selected blank visual rows should expose one synthetic highlight rect."""
 
     layout, _ = _layout_for("alpha\n\nbeta")
-    blank_line = next(line for line in layout._snapshot.lines if not line.fragments)  # noqa: SLF001
+    blank_line = next(
+        line for line in layout.frame.output.snapshot.lines if not line.fragments
+    )  # noqa: SLF001
 
-    selection_rects = layout.selection_rects(
+    selection_rects = layout.frame.geometry.selection.selection_rects(
         PromptProjectionSelection(anchor_position=6, cursor_position=7)
     )
 
@@ -1706,8 +1777,8 @@ def test_projection_line_snapshots_distinguish_content_from_line_break() -> None
     """Hard-wrapped lines should expose visible content and newline boundaries."""
 
     layout, _ = _layout_for("alpha\nbeta")
-    first_line = layout._snapshot.lines[0]  # noqa: SLF001
-    second_line = layout._snapshot.lines[1]  # noqa: SLF001
+    first_line = layout.frame.output.snapshot.lines[0]  # noqa: SLF001
+    second_line = layout.frame.output.snapshot.lines[1]  # noqa: SLF001
 
     assert first_line.source_content_start == 0
     assert first_line.source_content_end == 5
@@ -1723,10 +1794,10 @@ def test_projection_layout_selection_rects_show_selected_line_break() -> None:
     """Selected hard line breaks should visibly extend the selected source range."""
 
     layout, _ = _layout_for("alpha\nbeta")
-    first_line = layout._snapshot.lines[0]  # noqa: SLF001
+    first_line = layout.frame.output.snapshot.lines[0]  # noqa: SLF001
     first_fragment = first_line.fragments[0]
 
-    selection_rects = layout.selection_rects(
+    selection_rects = layout.frame.geometry.selection.selection_rects(
         PromptProjectionSelection(anchor_position=0, cursor_position=6)
     )
 
@@ -1742,12 +1813,12 @@ def test_projection_layout_selection_rects_do_not_invent_soft_wrap_breaks() -> N
     """Soft-wrapped line ends should not receive hard-line-break selection affordances."""
 
     layout, _ = _layout_for("alpha beta gamma delta epsilon zeta eta theta")
-    first_line = layout._snapshot.lines[0]  # noqa: SLF001
+    first_line = layout.frame.output.snapshot.lines[0]  # noqa: SLF001
     first_line_content_right = max(
         fragment.rect.right() for fragment in first_line.fragments
     )
 
-    selection_rects = layout.selection_rects(
+    selection_rects = layout.frame.geometry.selection.selection_rects(
         PromptProjectionSelection(
             anchor_position=first_line.source_start,
             cursor_position=first_line.source_end,
@@ -1770,9 +1841,11 @@ def test_projection_layout_selection_rects_include_empty_line_at_active_boundary
     """Landing the selection endpoint on an empty row should still paint that row."""
 
     layout, _ = _layout_for("alpha\n\nbeta")
-    blank_line = next(line for line in layout._snapshot.lines if not line.fragments)  # noqa: SLF001
+    blank_line = next(
+        line for line in layout.frame.output.snapshot.lines if not line.fragments
+    )  # noqa: SLF001
 
-    selection_rects = layout.selection_rects(
+    selection_rects = layout.frame.geometry.selection.selection_rects(
         PromptProjectionSelection(anchor_position=0, cursor_position=6)
     )
 
@@ -1783,9 +1856,9 @@ def test_projection_layout_selection_rects_ignore_empty_line_anchor_boundary() -
     """Starting on an empty row should not paint it when selecting the previous break."""
 
     layout, _ = _layout_for("\n\n")
-    anchored_line = layout._snapshot.lines[1]  # noqa: SLF001
+    anchored_line = layout.frame.output.snapshot.lines[1]  # noqa: SLF001
 
-    selection_rects = layout.selection_rects(
+    selection_rects = layout.frame.geometry.selection.selection_rects(
         PromptProjectionSelection(anchor_position=1, cursor_position=0)
     )
 
@@ -1801,11 +1874,11 @@ def test_projection_layout_selection_rects_exclude_blank_line_before_next_line_s
     layout, _ = _layout_for("some, prompt, tags,\n\nblue and pink,\n")
     blank_line = next(
         line
-        for line in layout._snapshot.lines  # noqa: SLF001
+        for line in layout.frame.output.snapshot.lines  # noqa: SLF001
         if not line.fragments and line.source_end == 21
     )
 
-    selection_rects = layout.selection_rects(
+    selection_rects = layout.frame.geometry.selection.selection_rects(
         PromptProjectionSelection(anchor_position=21, cursor_position=34)
     )
 
@@ -1818,9 +1891,11 @@ def test_projection_layout_source_range_fragments_do_not_include_empty_line_sele
     """Source-range fragments should exclude synthetic blank-line selection geometry."""
 
     layout, _ = _layout_for("alpha\n\nbeta, gamma")
-    blank_line = next(line for line in layout._snapshot.lines if not line.fragments)  # noqa: SLF001
+    blank_line = next(
+        line for line in layout.frame.output.snapshot.lines if not line.fragments
+    )  # noqa: SLF001
 
-    fragments = layout.source_range_fragments(
+    fragments = layout.frame.geometry.selection.source_range_fragments(
         7,
         11,
         viewport_rect=QRectF(0.0, 0.0, 360.0, 220.0),
@@ -1841,19 +1916,19 @@ def test_projection_layout_reuses_source_line_rects_until_viewport_geometry_chan
     layout, _ = _layout_for(prompt_text, text_width=180.0)
     viewport_rect = QRectF(0.0, 0.0, 180.0, 160.0)
 
-    initial_rects = layout.source_line_rects(
+    initial_rects = layout.frame.geometry.source_lines.visible_rects(
         viewport_rect=viewport_rect,
         scroll_offset=0.0,
     )
-    repeated_rects = layout.source_line_rects(
+    repeated_rects = layout.frame.geometry.source_lines.visible_rects(
         viewport_rect=viewport_rect,
         scroll_offset=0.0,
     )
-    scrolled_rects = layout.source_line_rects(
+    scrolled_rects = layout.frame.geometry.source_lines.visible_rects(
         viewport_rect=viewport_rect,
         scroll_offset=24.0,
     )
-    repeated_scrolled_rects = layout.source_line_rects(
+    repeated_scrolled_rects = layout.frame.geometry.source_lines.visible_rects(
         viewport_rect=viewport_rect,
         scroll_offset=24.0,
     )
@@ -1882,7 +1957,8 @@ def test_projection_layout_builds_one_reorder_chip_geometry_for_escaped_weight_t
         chip for chip in chips if "black underbust" in chip.serialized_text
     )
 
-    snapshot = layout.reorder_chip_geometry_snapshot(
+    snapshot = PromptProjectionReorderGeometry().reorder_chip_geometry_snapshot(
+        state=reorder_geometry_state(layout.frame.geometry),
         layout_view=layout_view,
         chip_rendered_ranges_by_index=rendered_ranges,
         chip_owned_ranges_by_index=owned_ranges,
@@ -1916,14 +1992,15 @@ def test_projection_layout_builds_one_reorder_chip_geometry_for_emphasis_weight(
         chip for chip in chips if "black underbust" in chip.serialized_text
     )
     range_start, range_end = rendered_ranges[target_chip.index]
-    fragments = layout.source_range_fragments(
+    fragments = layout.frame.geometry.selection.source_range_fragments(
         range_start,
         range_end,
         viewport_rect=QRectF(0.0, 0.0, 180.0, 240.0),
         scroll_offset=0.0,
     )
 
-    snapshot = layout.reorder_chip_geometry_snapshot(
+    snapshot = PromptProjectionReorderGeometry().reorder_chip_geometry_snapshot(
+        state=reorder_geometry_state(layout.frame.geometry),
         layout_view=layout_view,
         chip_rendered_ranges_by_index=rendered_ranges,
         chip_owned_ranges_by_index=owned_ranges,
@@ -1950,7 +2027,10 @@ def test_projection_layout_reorder_placement_uses_chip_geometry_visual_lines() -
         chip for chip in chips if "black underbust" in chip.serialized_text
     )
     viewport_rect = QRectF(0.0, 0.0, 180.0, 240.0)
-    chip_snapshot = layout.reorder_chip_geometry_snapshot(
+    reorder_geometry = PromptProjectionReorderGeometry()
+    geometry_state = reorder_geometry_state(layout.frame.geometry)
+    chip_snapshot = reorder_geometry.reorder_chip_geometry_snapshot(
+        state=geometry_state,
         layout_view=layout_view,
         chip_rendered_ranges_by_index=rendered_ranges,
         chip_owned_ranges_by_index=owned_ranges,
@@ -1959,7 +2039,8 @@ def test_projection_layout_reorder_placement_uses_chip_geometry_visual_lines() -
     )
     target_geometry = chip_snapshot.geometries_by_chip_index[target_chip.index]
 
-    placement_snapshot = layout.reorder_placement_snapshot(
+    placement_snapshot = reorder_geometry.reorder_placement_snapshot(
+        state=geometry_state,
         layout_view=layout_view,
         chip_geometry_snapshot=chip_snapshot,
         gap_ranges_by_index={},
@@ -1986,7 +2067,8 @@ def test_projection_layout_reports_full_width_scene_region_rows() -> None:
     layout, _ = _layout_for(text, text_width=320.0)
     viewport_rect = QRectF(0.0, 0.0, 320.0, 160.0)
 
-    rects = layout.source_range_row_rects(
+    rects = PromptProjectionReorderGeometry().source_range_row_rects(
+        reorder_geometry_state(layout.frame.geometry),
         text.index("cafe"),
         len(text),
         viewport_rect=viewport_rect,
@@ -2004,14 +2086,15 @@ def test_projection_layout_paints_invalid_scene_titles_with_semantic_error_color
     """Only invalid scene title text should consume the semantic error foreground."""
 
     error_color = RgbColor(10, 120, 230)
+    semantic_palette = SemanticPalette(
+        accent=RgbColor(1, 2, 3),
+        error_foreground=error_color,
+        warning_foreground=RgbColor(90, 120, 10),
+    )
     layout, projection = _layout_for(
         "**hands\ndetail",
         scene_error_keys=frozenset({"hands"}),
-        semantic_palette=SemanticPalette(
-            accent=RgbColor(1, 2, 3),
-            error_foreground=error_color,
-            warning_foreground=RgbColor(90, 120, 10),
-        ),
+        semantic_palette=semantic_palette,
     )
     token = next(
         token
@@ -2020,12 +2103,23 @@ def test_projection_layout_paints_invalid_scene_titles_with_semantic_error_color
     )
     fragment = next(
         fragment
-        for fragment in layout._snapshot.text_fragments  # noqa: SLF001
+        for fragment in layout.frame.output.snapshot.text_fragments
         if fragment.token_id == token.token_id
     )
 
-    assert layout._painter.font_for_fragment(fragment).weight() > QFont().weight()  # noqa: SLF001
-    assert layout._painter.text_color_for_fragment(fragment) == QColor(  # noqa: SLF001
+    assert (
+        PromptProjectionPainter()
+        .font_for_fragment(
+            fragment,
+            paint_input=layout.frame.paint_input,
+        )
+        .weight()
+        > QFont().weight()
+    )
+    assert PromptProjectionPainter().text_color_for_fragment(
+        fragment,
+        paint_input=layout.frame.paint_input,
+    ) == QColor(
         error_color.red,
         error_color.green,
         error_color.blue,
@@ -2044,16 +2138,19 @@ def test_projection_layout_measures_scene_title_caret_with_bold_metrics() -> Non
     )
     fragment = next(
         fragment
-        for fragment in layout._snapshot.text_fragments  # noqa: SLF001
+        for fragment in layout.frame.output.snapshot.text_fragments
         if fragment.token_id == token.token_id
     )
     assert token.content_end is not None
 
-    bold_font = layout._painter.font_for_fragment(fragment)  # noqa: SLF001
+    bold_font = PromptProjectionPainter().font_for_fragment(
+        fragment,
+        paint_input=layout.frame.paint_input,
+    )
     regular_font = QFont()
     bold_advance = QFontMetricsF(bold_font).horizontalAdvance(title)
     regular_advance = QFontMetricsF(regular_font).horizontalAdvance(title)
-    title_end_rect = layout.cursor_rect(
+    title_end_rect = layout.frame.geometry.caret.cursor_rect(
         projection.caret_map.state_for_source_position(token.content_end),
         scroll_offset=0.0,
     )
@@ -2078,14 +2175,15 @@ def test_projection_layout_active_emphasis_keeps_default_text_color() -> None:
     )
     fragment = next(
         fragment
-        for fragment in layout._snapshot.text_fragments  # noqa: SLF001
+        for fragment in layout.frame.output.snapshot.text_fragments
         if fragment.token_id == token.token_id
     )
 
     assert token.active is True
-    assert layout._painter.text_color_for_fragment(fragment) == layout._palette.color(  # noqa: SLF001
-        QPalette.ColorRole.Text
-    )
+    assert PromptProjectionPainter().text_color_for_fragment(
+        fragment,
+        paint_input=layout.frame.paint_input,
+    ) == QPalette().color(QPalette.ColorRole.Text)
 
 
 def test_projection_layout_decoration_feedback_accents_only_emphasis_parentheses() -> (
@@ -2104,20 +2202,20 @@ def test_projection_layout_decoration_feedback_accents_only_emphasis_parentheses
     )
     fragment = next(
         fragment
-        for fragment in layout._snapshot.text_fragments  # noqa: SLF001
+        for fragment in layout.frame.output.snapshot.text_fragments
         if fragment.token_id == token.token_id
     )
 
     assert token.decoration_accented is True
-    assert _emphasis_parenthesis_color(layout._palette, token) != layout._palette.color(  # noqa: SLF001
+    palette = QPalette()
+    assert _emphasis_parenthesis_color(palette, token) != palette.color(
         QPalette.ColorRole.Text
     )
-    assert _emphasis_weight_color(layout._palette) == layout._palette.color(  # noqa: SLF001
-        QPalette.ColorRole.Text
-    )
-    assert layout._painter.text_color_for_fragment(fragment) == layout._palette.color(  # noqa: SLF001
-        QPalette.ColorRole.Text
-    )
+    assert _emphasis_weight_color(palette) == palette.color(QPalette.ColorRole.Text)
+    assert PromptProjectionPainter().text_color_for_fragment(
+        fragment,
+        paint_input=layout.frame.paint_input,
+    ) == palette.color(QPalette.ColorRole.Text)
 
 
 def test_projection_layout_selected_emphasis_decorations_use_highlighted_text() -> None:
@@ -2139,13 +2237,14 @@ def test_projection_layout_selected_emphasis_decorations_use_highlighted_text() 
     selection = PromptProjectionSelection(token.source_start, token.source_end)
     emphasis_decoration_fragments = [
         fragment
-        for fragment in layout._snapshot.inline_object_fragments  # noqa: SLF001
+        for fragment in layout.frame.output.snapshot.inline_object_fragments
         if fragment.token_id == token.token_id
     ]
 
     assert emphasis_decoration_fragments
     assert all(
-        layout._inline_object_fragment_is_selected(  # noqa: SLF001
+        PromptProjectionPainter().inline_object_fragment_is_selected(
+            layout.frame.output.projection_document,
             fragment,
             selection,
         )
@@ -2247,13 +2346,15 @@ def test_projection_layout_reports_wrapped_fragments_and_anchor_geometry_for_tok
     viewport_rect = QRectF(0.0, 0.0, 140.0, 320.0)
     layout.set_text_width(viewport_rect.width())
 
-    fragments = layout.source_range_fragments(
+    fragments = layout.frame.geometry.selection.source_range_fragments(
         token.source_start,
         token.source_end,
         viewport_rect=viewport_rect,
         scroll_offset=0.0,
     )
-    anchor_rect = layout.token_anchor_rect(token, scroll_offset=0.0)
+    anchor_rect = layout.frame.geometry.tokens.token_anchor_rect(
+        token, scroll_offset=0.0
+    )
 
     assert len(fragments) >= 1
     assert anchor_rect is not None
@@ -2272,10 +2373,12 @@ def test_projection_layout_emphasis_weight_anchor_stays_compact_and_close_to_suf
         if token.kind is PromptProjectionTokenKind.EMPHASIS
     )
     token_runs = projection.runs_for_token(token.token_id)
-    suffix_fragment = layout._snapshot.inline_object_fragments_for_run(  # noqa: SLF001
+    suffix_fragment = layout.frame.output.snapshot.inline_object_fragments_for_run(  # noqa: SLF001
         token_runs[2].run_id
     )[0]
-    anchor_rect = layout.token_anchor_rect(token, scroll_offset=0.0)
+    anchor_rect = layout.frame.geometry.tokens.token_anchor_rect(
+        token, scroll_offset=0.0
+    )
 
     assert anchor_rect is not None
     assert anchor_rect.left() - suffix_fragment.rect.left() < (
@@ -2295,16 +2398,22 @@ def test_projection_layout_uses_shared_gap_for_emphasis_parentheses() -> None:
         if token.kind is PromptProjectionTokenKind.EMPHASIS
     )
     token_runs = projection.runs_for_token(token.token_id)
-    prefix_fragment = layout._snapshot.inline_object_fragments_for_run(  # noqa: SLF001
+    prefix_fragment = layout.frame.output.snapshot.inline_object_fragments_for_run(  # noqa: SLF001
         token_runs[0].run_id
     )[0]
-    content_fragment = layout._snapshot.text_fragments_for_run(token_runs[1].run_id)[  # noqa: SLF001
+    content_fragment = layout.frame.output.snapshot.text_fragments_for_run(
+        token_runs[1].run_id
+    )[  # noqa: SLF001
         0
     ]
-    anchor_rect = layout.token_anchor_rect(token, scroll_offset=0.0)
+    anchor_rect = layout.frame.geometry.tokens.token_anchor_rect(
+        token, scroll_offset=0.0
+    )
     assert anchor_rect is not None
 
-    decoration_metrics = _emphasis_decoration_metrics(layout._base_font)  # noqa: SLF001
+    decoration_metrics = _emphasis_decoration_metrics(
+        layout.frame.output.configuration.base_font
+    )
     left_gap = (
         content_fragment.rect.left()
         - prefix_fragment.rect.left()
@@ -2336,13 +2445,13 @@ def test_projection_layout_keeps_inline_emphasis_inside_one_tag_fragment() -> No
     segment_start = text.index("blue")
     segment_end = text.index(", gamma")
 
-    fragments = layout.source_range_fragments(
+    fragments = layout.frame.geometry.selection.source_range_fragments(
         segment_start,
         segment_end,
         viewport_rect=QRectF(0.0, 0.0, 480.0, 80.0),
         scroll_offset=0.0,
     )
-    token_rect = layout.token_rect(token, scroll_offset=0.0)
+    token_rect = layout.frame.geometry.tokens.token_rect(token, scroll_offset=0.0)
 
     assert len(fragments) == 1
     assert token_rect is not None
@@ -2356,14 +2465,14 @@ def test_projection_layout_uses_qfluent_document_margin_for_plain_text_geometry(
     """Plain-text caret geometry should include the QFluent document left inset."""
 
     layout, _projection = _layout_for("alpha")
-    fragments = layout.source_range_fragments(
+    fragments = layout.frame.geometry.selection.source_range_fragments(
         0,
         1,
         viewport_rect=QRectF(0.0, 0.0, 220.0, 80.0),
         scroll_offset=0.0,
     )
 
-    assert layout.document_margin == 4.0
+    assert layout.frame.output.configuration.document_margin == 4.0
     assert fragments[0].left() >= 4.0
 
 
@@ -2378,12 +2487,12 @@ def test_projection_layout_uses_half_height_separator_rows_without_row_carets() 
     )
     structural_line = next(
         line
-        for line in layout._snapshot.lines  # noqa: SLF001
+        for line in layout.frame.output.snapshot.lines  # noqa: SLF001
         if line.source_start == token.source_start and not line.fragments
     )
     content_lines = [
         line
-        for line in layout._snapshot.lines
+        for line in layout.frame.output.snapshot.lines
         if line.fragments  # noqa: SLF001
     ]
 
@@ -2394,10 +2503,62 @@ def test_projection_layout_uses_half_height_separator_rows_without_row_carets() 
         token.source_end,
         prefer_after=True,
     )
-    leading_rect = layout.cursor_rect(leading_state, scroll_offset=0.0)
-    trailing_rect = layout.cursor_rect(trailing_state, scroll_offset=0.0)
+    leading_rect = layout.frame.geometry.caret.cursor_rect(
+        leading_state, scroll_offset=0.0
+    )
+    trailing_rect = layout.frame.geometry.caret.cursor_rect(
+        trailing_state, scroll_offset=0.0
+    )
     assert leading_rect.center().y() < structural_line.top
     assert trailing_rect.center().y() > structural_line.top + structural_line.height
+
+
+@pytest.mark.parametrize(
+    ("previous_text", "next_text", "expected_first_line"),
+    (
+        (
+            "tag00\n[SEP]\nred, blue, green",
+            "tag00\n[SEP]\nblue, green",
+            0,
+        ),
+        (
+            "tag00\n[SEP]\n[SEP]\nred, blue, green",
+            "tag00\n[SEP]\n[SEP]\nblue, green",
+            2,
+        ),
+        (
+            "[SEP]\nred, blue, green",
+            "[SEP]\nblue, green",
+            0,
+        ),
+    ),
+    ids=("single", "adjacent", "leading"),
+)
+def test_projection_layout_reflow_restarts_before_caretless_separator_row(
+    previous_text: str,
+    next_text: str,
+    expected_first_line: int,
+) -> None:
+    """Canonical recovery should include the text line hosting a separator edge."""
+
+    edit_start = previous_text.index("red")
+    edit_end = edit_start + len("red, ")
+    incremental_layout, _projection = _layout_for(previous_text)
+    next_document_view, next_projection = _projection_for(next_text)
+    full_layout, _full_projection = _layout_for(next_text)
+
+    result = incremental_layout.set_projection_after_source_edit(
+        next_projection,
+        prompt_document_view=next_document_view,
+        edit_start=edit_start,
+        edit_end=edit_end,
+        replacement_text="",
+    )
+
+    assert result.first_reflowed_line_index == expected_first_line
+    assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
+        full_layout
+    )
 
 
 def test_projection_layout_vertical_navigation_crosses_separator_rows() -> None:
@@ -2408,9 +2569,11 @@ def test_projection_layout_vertical_navigation_crosses_separator_rows() -> None:
     global_position = text.index("alpha") + 3
     regional_position = text.index("bravo") + 3
     regional_state = projection.caret_map.state_for_source_position(regional_position)
-    regional_rect = layout.cursor_rect(regional_state, scroll_offset=0.0)
+    regional_rect = layout.frame.geometry.caret.cursor_rect(
+        regional_state, scroll_offset=0.0
+    )
 
-    upward_target = layout.vertical_caret_target(
+    upward_target = layout.frame.geometry.caret.vertical_caret_target(
         regional_state,
         direction=-1,
         preferred_x=regional_rect.center().x(),
@@ -2420,8 +2583,10 @@ def test_projection_layout_vertical_navigation_crosses_separator_rows() -> None:
     assert upward_target.state.source_position == global_position
 
     global_state = projection.caret_map.state_for_source_position(global_position)
-    global_rect = layout.cursor_rect(global_state, scroll_offset=0.0)
-    downward_target = layout.vertical_caret_target(
+    global_rect = layout.frame.geometry.caret.cursor_rect(
+        global_state, scroll_offset=0.0
+    )
+    downward_target = layout.frame.geometry.caret.vertical_caret_target(
         global_state,
         direction=1,
         preferred_x=global_rect.center().x(),
@@ -2464,7 +2629,7 @@ def test_region_structure_mode_and_topology_matrix(
     layout, projection = _layout_for(source, display_mode=display_mode)
     chrome = PromptRegionChrome()
     snapshot = chrome.prepare(
-        layout,
+        layout.frame.output,
         semantic_palette=SemanticPalette(
             accent=RgbColor(20, 80, 160),
             error_foreground=RgbColor(180, 20, 20),
@@ -2508,7 +2673,7 @@ def test_region_chrome_prepares_centered_dividers_and_continuous_rails_once() ->
     chrome = PromptRegionChrome()
 
     snapshot = chrome.prepare(
-        layout,
+        layout.frame.output,
         semantic_palette=SemanticPalette(
             accent=RgbColor(20, 80, 160),
             error_foreground=RgbColor(180, 20, 20),
@@ -2518,9 +2683,14 @@ def test_region_chrome_prepares_centered_dividers_and_continuous_rails_once() ->
 
     assert len(snapshot.divider_lines) == 2
     assert len(snapshot.rail_lines) == 2
-    assert snapshot.visited_line_count == layout.snapshot.line_count()
-    expected_center = layout.metrics.content_left + layout.metrics.content_width / 2.0
-    expected_width = min(36.0, layout.metrics.content_width * 0.2)
+    assert snapshot.visited_line_count == layout.frame.output.snapshot.line_count()
+    expected_center = (
+        layout.frame.output.configuration.metrics.content_left
+        + layout.frame.output.configuration.metrics.content_width / 2.0
+    )
+    expected_width = min(
+        36.0, layout.frame.output.configuration.metrics.content_width * 0.2
+    )
     assert all(
         divider.center().x() == pytest.approx(expected_center)
         and divider.length() == pytest.approx(expected_width)
@@ -2537,7 +2707,7 @@ def test_region_chrome_renders_rail_for_empty_terminal_partition() -> None:
     chrome = PromptRegionChrome()
 
     snapshot = chrome.prepare(
-        layout,
+        layout.frame.output,
         semantic_palette=SemanticPalette(
             accent=RgbColor(20, 80, 160),
             error_foreground=RgbColor(180, 20, 20),
@@ -2548,7 +2718,7 @@ def test_region_chrome_renders_rail_for_empty_terminal_partition() -> None:
     assert len(snapshot.divider_lines) == 1
     assert len(snapshot.rail_lines) == 1
     assert snapshot.rail_lines[0].length() == pytest.approx(
-        layout.metrics.initial_row_height()
+        layout.frame.output.configuration.metrics.initial_row_height()
     )
 
 
@@ -2559,7 +2729,7 @@ def test_region_chrome_skips_line_scan_for_ordinary_prompts() -> None:
     chrome = PromptRegionChrome()
 
     snapshot = chrome.prepare(
-        layout,
+        layout.frame.output,
         semantic_palette=SemanticPalette(
             accent=RgbColor(20, 80, 160),
             error_foreground=RgbColor(180, 20, 20),
@@ -2585,7 +2755,7 @@ def test_region_chrome_uses_boundary_lookups_for_long_regional_prompts() -> None
     chrome = PromptRegionChrome()
 
     snapshot = chrome.prepare(
-        layout,
+        layout.frame.output,
         semantic_palette=SemanticPalette(
             accent=RgbColor(20, 80, 160),
             error_foreground=RgbColor(180, 20, 20),
@@ -2595,9 +2765,9 @@ def test_region_chrome_uses_boundary_lookups_for_long_regional_prompts() -> None
 
     assert len(snapshot.divider_lines) == 2
     assert len(snapshot.rail_lines) == 2
-    assert layout.snapshot.line_count() > 800
+    assert layout.frame.output.snapshot.line_count() > 800
     assert snapshot.visited_line_count < 64
-    assert snapshot.visited_line_count * 10 < layout.snapshot.line_count()
+    assert snapshot.visited_line_count * 10 < layout.frame.output.snapshot.line_count()
 
 
 def test_region_chrome_skips_raw_region_structure_without_preparation() -> None:
@@ -2610,7 +2780,7 @@ def test_region_chrome_skips_raw_region_structure_without_preparation() -> None:
     chrome = PromptRegionChrome()
 
     snapshot = chrome.prepare(
-        layout,
+        layout.frame.output,
         semantic_palette=SemanticPalette(
             accent=RgbColor(20, 80, 160),
             error_foreground=RgbColor(180, 20, 20),
@@ -2636,8 +2806,8 @@ def test_region_chrome_reuses_empty_snapshot_for_ordinary_prompt_syncs() -> None
         warning_foreground=RgbColor(180, 140, 20),
     )
 
-    first_snapshot = chrome.prepare(layout, semantic_palette=palette)
-    second_snapshot = chrome.prepare(layout, semantic_palette=palette)
+    first_snapshot = chrome.prepare(layout.frame.output, semantic_palette=palette)
+    second_snapshot = chrome.prepare(layout.frame.output, semantic_palette=palette)
 
     assert second_snapshot is first_snapshot
     assert chrome.prepare_count == 1

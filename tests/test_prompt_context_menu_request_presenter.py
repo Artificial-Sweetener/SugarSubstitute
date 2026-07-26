@@ -25,6 +25,7 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 from sugarsubstitute_shared.localization import app_text
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -38,9 +39,13 @@ from substitute.presentation.editor.prompt_editor.commands.contracts import (
     PromptCommandResult,
 )
 from substitute.presentation.editor.prompt_editor.features import (
+    CatalogSnapshotIdentity,
     PromptContextMenuAction,
-    PromptContextMenuActionController,
     PromptContextMenuActionSnapshot,
+    PromptContextMenuSnapshot,
+    PromptContextMenuSnapshotIdentity,
+    PromptContextMenuSnapshotReadiness,
+    PromptContextMenuSnapshotRequest,
     PromptDanbooruActionSnapshot,
     PromptDanbooruUrlImportState,
     PromptDanbooruWikiLookupPayload,
@@ -59,9 +64,11 @@ from substitute.presentation.editor.prompt_editor.features import (
 )
 from substitute.presentation.editor.prompt_editor.interactions import (
     PromptContextMenuRequestPresenter,
-    PromptMenuEditorHost,
     PromptSegmentPresetHostAdapter,
     PromptTriggerWordActionAdapter,
+)
+from substitute.presentation.editor.prompt_editor.features.prompt_segment_selection import (
+    PromptSegmentCursor,
 )
 from substitute.presentation.editor.prompt_editor.shell import (
     PromptShellContextMenuOpening,
@@ -136,17 +143,69 @@ class _Host(QWidget):
         return self.text
 
 
-class _SnapshotProvider:
-    """Return one prepared prompt context-menu action snapshot."""
+class _SnapshotReader:
+    """Return one immutable prepared prompt context-menu snapshot."""
 
     def __init__(self, snapshot: PromptContextMenuActionSnapshot) -> None:
-        """Store a snapshot and prepare call observations."""
+        """Store a snapshot and snapshot-read observations."""
 
         self.snapshot = snapshot
         self.calls: list[tuple[int, str, tuple[int, int] | None, bool, bool]] = []
-        self.prepared: list[tuple[str, tuple[int, int] | None, bool, str]] = []
 
-    def prepare_menu_selection(
+    def snapshot_for_menu(
+        self,
+        request: PromptContextMenuSnapshotRequest,
+    ) -> PromptContextMenuSnapshot:
+        """Record and return one immutable configured menu snapshot."""
+
+        self.calls.append(
+            (
+                request.source_position,
+                request.selected_text,
+                request.selection_range,
+                request.read_only,
+                request.rich_prompt_rendering_enabled,
+            )
+        )
+        return PromptContextMenuSnapshot(
+            identity=PromptContextMenuSnapshotIdentity(
+                source_revision=9,
+                source_position=request.source_position,
+                selected_text_identity=(
+                    "selected_text",
+                    len(request.selected_text),
+                    hash(request.selected_text),
+                ),
+                selection_range_identity=request.selection_range,
+                feature_profile_id=None,
+                cube_context_id=None,
+                scene_context_id=None,
+                scene_snapshot_identity=None,
+                scene_position_snapshot_identity=None,
+                diagnostics_snapshot_identity=None,
+                diagnostic_action_snapshot_identity=None,
+                lora_catalog_revision=None,
+                lora_action_identity=None,
+                prompt_segment_catalog_identity=CatalogSnapshotIdentity(),
+                danbooru_snapshot_identity=None,
+                read_only=request.read_only,
+                rich_prompt_rendering_enabled=(request.rich_prompt_rendering_enabled),
+            ),
+            readiness=PromptContextMenuSnapshotReadiness(concerns=()),
+            actions=self.snapshot,
+        )
+
+
+class _Preparation:
+    """Record context-menu preparation requested by the shell presenter."""
+
+    def __init__(self) -> None:
+        """Initialize preparation observations."""
+
+        self.selection_calls: list[tuple[str, tuple[int, int] | None, bool, str]] = []
+        self.opening_calls: list[tuple[int, str]] = []
+
+    def prepare_selection(
         self,
         *,
         selected_text: str,
@@ -154,31 +213,14 @@ class _SnapshotProvider:
         read_only: bool,
         reason: str,
     ) -> None:
-        """Record one prepared selected-text menu request."""
+        """Record selection preparation without reading feature snapshots."""
 
-        self.prepared.append((selected_text, selection_range, read_only, reason))
+        self.selection_calls.append((selected_text, selection_range, read_only, reason))
 
-    def prepared_action_snapshot_for_menu(
-        self,
-        *,
-        source_position: int,
-        selected_text: str,
-        selection_range: tuple[int, int] | None = None,
-        read_only: bool,
-        rich_prompt_rendering_enabled: bool,
-    ) -> PromptContextMenuActionSnapshot:
-        """Record and return the configured snapshot."""
+    def prepare_opening(self, *, source_position: int, reason: str) -> None:
+        """Record source-position preparation without reading feature snapshots."""
 
-        self.calls.append(
-            (
-                source_position,
-                selected_text,
-                selection_range,
-                read_only,
-                rich_prompt_rendering_enabled,
-            )
-        )
-        return self.snapshot
+        self.opening_calls.append((source_position, reason))
 
 
 class _Segments:
@@ -285,7 +327,8 @@ def test_prompt_menu_presenter_builds_shell_request_from_snapshot(
 
     _ensure_qapp()
     segments = _Segments()
-    provider = _SnapshotProvider(_snapshot(source_available=True))
+    reader = _SnapshotReader(_snapshot(source_available=True))
+    preparation = _Preparation()
     insertion_executor = _InsertionExecutor()
     schedule_calls = 0
     wiki_calls: list[str] = []
@@ -305,7 +348,8 @@ def test_prompt_menu_presenter_builds_shell_request_from_snapshot(
     )
 
     presenter = PromptContextMenuRequestPresenter(
-        action_snapshot_provider=cast(PromptContextMenuActionController, provider),
+        snapshot_reader=reader,
+        preparation=preparation,
         segment_presets=cast(PromptSegmentPresetController, segments),
         trigger_word_action_adapter=PromptTriggerWordActionAdapter(
             action_parent=QWidget(),
@@ -324,6 +368,14 @@ def test_prompt_menu_presenter_builds_shell_request_from_snapshot(
         selection_snapshot=(1, 5, "beta"),
         reason="test",
     )
+    presenter.prepare_prompt_menu_opening(
+        PromptShellContextMenuOpening(
+            source_position=4,
+            selected_text="beta",
+            selection_snapshot=(1, 5, "beta"),
+        ),
+        reason="test_opening",
+    )
 
     request = presenter.prepared_prompt_menu_request(
         PromptShellContextMenuOpening(
@@ -333,8 +385,9 @@ def test_prompt_menu_presenter_builds_shell_request_from_snapshot(
         )
     )
 
-    assert provider.prepared == [("beta", (1, 5), False, "test")]
-    assert provider.calls == [(4, "beta", (1, 5), False, True)]
+    assert preparation.selection_calls == [("beta", (1, 5), False, "test")]
+    assert preparation.opening_calls == [(4, "test_opening")]
+    assert reader.calls == [(4, "beta", (1, 5), False, True)]
     assert request.schedule_lora_enabled is True
     request.schedule_lora()
     assert schedule_calls == 1
@@ -371,16 +424,14 @@ def test_prompt_menu_presenter_suppresses_unready_optional_callbacks() -> None:
     _ensure_qapp()
     segments = _Segments()
     presenter = PromptContextMenuRequestPresenter(
-        action_snapshot_provider=cast(
-            PromptContextMenuActionController,
-            _SnapshotProvider(
-                _snapshot(
-                    source_available=False,
-                    danbooru_ready=False,
-                    rich_prompt_rendering_enabled=False,
-                )
+        snapshot_reader=_SnapshotReader(
+            _snapshot(
+                source_available=False,
+                danbooru_ready=False,
+                rich_prompt_rendering_enabled=False,
             ),
         ),
+        preparation=_Preparation(),
         segment_presets=cast(PromptSegmentPresetController, segments),
         trigger_word_action_adapter=PromptTriggerWordActionAdapter(
             action_parent=QWidget(),
@@ -415,10 +466,10 @@ def test_prompt_menu_presenter_save_callback_requires_prepared_save_ready() -> N
     _ensure_qapp()
     segments = _Segments()
     presenter = PromptContextMenuRequestPresenter(
-        action_snapshot_provider=cast(
-            PromptContextMenuActionController,
-            _SnapshotProvider(_snapshot(source_available=True, save_ready=False)),
+        snapshot_reader=_SnapshotReader(
+            _snapshot(source_available=True, save_ready=False),
         ),
+        preparation=_Preparation(),
         segment_presets=cast(PromptSegmentPresetController, segments),
         trigger_word_action_adapter=PromptTriggerWordActionAdapter(
             action_parent=QWidget(),
@@ -448,7 +499,7 @@ def test_phase24_1_prompt_menu_presenter_adapts_unavailable_snapshot() -> None:
     """The presenter should map unavailable prepared state to cheap menu inputs."""
 
     _ensure_qapp()
-    provider = _SnapshotProvider(
+    reader = _SnapshotReader(
         _snapshot(
             source_available=False,
             danbooru_ready=False,
@@ -461,7 +512,8 @@ def test_phase24_1_prompt_menu_presenter_adapts_unavailable_snapshot() -> None:
         )
     )
     presenter = PromptContextMenuRequestPresenter(
-        action_snapshot_provider=cast(PromptContextMenuActionController, provider),
+        snapshot_reader=reader,
+        preparation=_Preparation(),
         segment_presets=cast(PromptSegmentPresetController, _Segments()),
         trigger_word_action_adapter=PromptTriggerWordActionAdapter(
             action_parent=QWidget(),
@@ -484,7 +536,7 @@ def test_phase24_1_prompt_menu_presenter_adapts_unavailable_snapshot() -> None:
         )
     )
 
-    assert provider.calls == [(8, "", None, True, False)]
+    assert reader.calls == [(8, "", None, True, False)]
     assert request.schedule_lora_enabled is False
     assert request.trigger_word_actions == ()
     assert request.prompt_segment_model is not None
@@ -510,7 +562,10 @@ def test_segment_host_adapter_restores_selection_and_parent() -> None:
     host.setParent(panel)
     identity = PromptSourceIdentity(source_revision=3, source_length=10)
     adapter = PromptSegmentPresetHostAdapter(
-        host=cast(PromptMenuEditorHost, host),
+        host_widget=host,
+        cursor_provider=cast(Callable[[], PromptSegmentCursor], host.textCursor),
+        cursor_setter=host.setTextCursor,
+        source_text_provider=host.toPlainText,
         source_identity_provider=lambda: identity,
     )
 

@@ -48,15 +48,15 @@ from .freshness_controller import (
     MINIMUM_VALID_PROJECTION_LAYOUT_WIDTH,
     PromptProjectionFreshnessController,
 )
-from .layout_engine import PromptProjectionLayout
-from .model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
     PromptProjectionTransientState,
 )
 from .paint_state import PromptProjectionPaintState
 from .session import PromptProjectionSession
-from .snapshot import PromptProjectionLayoutSnapshot
+from ..layout.contracts import PromptLayoutOutput
+from ..layout.models import PromptProjectionLayoutSnapshot
 
 PromptProjectionEditorState: TypeAlias = PromptEditorState[
     PromptDocumentView,
@@ -125,36 +125,36 @@ class PromptProjectionFrameStatePublisher:
 
     def publish_layout(
         self,
-        layout: PromptProjectionLayout,
+        output: PromptLayoutOutput,
     ) -> PromptLayoutIdentity | None:
         """Publish active frame geometry and return its exact identity."""
 
-        projection = self._state.publish_frame_projection(layout.projection_document)
+        projection = self._state.publish_frame_projection(output.projection_document)
         current = self._state.layout
         if (
             current is not None
-            and current.geometry is layout.snapshot
+            and current.geometry is output.snapshot
             and current.identity.projection is projection.identity
         ):
             return current.identity
         return self._state.publish_layout(
-            layout.snapshot,
+            output.snapshot,
             projection=projection.identity,
-            width_key=layout.width_key,
+            width_key=output.width_key,
         ).identity
 
     def current_layout_identity(
         self,
-        layout: PromptProjectionLayout,
+        output: PromptLayoutOutput,
     ) -> PromptLayoutIdentity | None:
         """Return current active-layout identity without publishing state."""
 
         snapshot = self._state.layout
         if (
             snapshot is None
-            or snapshot.geometry is not layout.snapshot
+            or snapshot.geometry is not output.snapshot
             or snapshot.identity.projection is not self._state.frame_projection.identity
-            or layout.projection_document is not self._state.frame_projection.document
+            or output.projection_document is not self._state.frame_projection.document
         ):
             return None
         return snapshot.identity
@@ -209,7 +209,11 @@ class PromptProjectionFrameStatePublisher:
             device_pixel_ratio=float(viewport.devicePixelRatioF()),
         )
 
-    def publish_prepared_paint(self, layout: PromptProjectionLayout) -> None:
+    def publish_prepared_paint(
+        self,
+        output: PromptLayoutOutput,
+        paint_state: PromptProjectionPaintState,
+    ) -> None:
         """Publish paint state when canonical layout and viewport are ready."""
 
         layout_snapshot = self._state.layout
@@ -217,14 +221,14 @@ class PromptProjectionFrameStatePublisher:
         if (
             layout_snapshot is None
             or viewport_snapshot is None
-            or layout_snapshot.geometry is not layout.snapshot
+            or layout_snapshot.geometry is not output.snapshot
             or layout_snapshot.identity.projection
             is not self._state.frame_projection.identity
-            or layout.projection_document is not self._state.frame_projection.document
+            or output.projection_document is not self._state.frame_projection.document
         ):
             return
         self._state.publish_paint(
-            layout.paint_state,
+            paint_state,
             layout=layout_snapshot.identity,
             viewport=viewport_snapshot.identity,
         )

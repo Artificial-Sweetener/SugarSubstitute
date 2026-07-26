@@ -27,6 +27,8 @@ from pytest import MonkeyPatch, raises
 from substitute.shared.diagnostics import prompt_editor_work
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
+    begin_prompt_editor_work,
+    complete_prompt_editor_result_work,
     observe_prompt_editor_work,
     prompt_editor_work_event,
     prompt_editor_work_result_event,
@@ -112,6 +114,34 @@ def test_result_classification_records_only_selected_event() -> None:
     assert [event for event, _elapsed_ms in observer.events] == [
         PromptEditorWorkEvent.PROJECTION_FAST_INSERT_APPLIED,
     ]
+
+
+def test_explicit_result_observation_has_a_clock_free_disabled_path(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Time hot owner results without a disabled-path callable wrapper."""
+
+    clock_values = iter((1.0, 1.003))
+    monkeypatch.setattr(prompt_editor_work, "perf_counter", lambda: next(clock_values))
+    observer = _RecordingObserver()
+
+    assert begin_prompt_editor_work() is None
+    complete_prompt_editor_result_work(
+        lambda _result: PromptEditorWorkEvent.PAINT_CACHE_HIT,
+        "hit",
+        started_at=None,
+    )
+    with observe_prompt_editor_work(observer):
+        started_at = begin_prompt_editor_work()
+        complete_prompt_editor_result_work(
+            lambda _result: PromptEditorWorkEvent.PAINT_CACHE_HIT,
+            "hit",
+            started_at=started_at,
+        )
+
+    assert len(observer.events) == 1
+    assert observer.events[0][0] is PromptEditorWorkEvent.PAINT_CACHE_HIT
+    assert observer.events[0][1] == pytest.approx(3.0)
 
 
 def test_count_only_owner_event_skips_clock_and_records_zero_elapsed(

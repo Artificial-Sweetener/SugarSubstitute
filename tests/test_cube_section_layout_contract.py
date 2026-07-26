@@ -262,7 +262,9 @@ def test_cube_section_header_gap_matches_editor_cube_gap() -> None:
     panel._cube_visibility_btns = {}
     panel._cube_visibility_menus = {}
     try:
-        parts = mod.CubeSectionBuilder(panel).build_cube_section("SDXL/Text to Image")
+        parts = mod.cube_section_builder_for_panel(panel).build_cube_section(
+            "SDXL/Text to Image"
+        )
 
         header_layout = parts.widget._header.layout()
         assert header_layout is not None
@@ -293,7 +295,7 @@ def test_direct_workflow_section_hides_cube_title_chrome() -> None:
         )
     }
     try:
-        parts = mod.CubeSectionBuilder(panel).build_cube_section(
+        parts = mod.cube_section_builder_for_panel(panel).build_cube_section(
             "__direct_comfy_workflow__"
         )
 
@@ -323,7 +325,9 @@ def test_cube_section_title_marks_bypassed_cube() -> None:
         "Anima/Text to Image": SimpleNamespace(bypassed=True, buffer={"nodes": {}})
     }
     try:
-        mod.CubeSectionBuilder(panel).build_cube_section("Anima/Text to Image")
+        mod.cube_section_builder_for_panel(panel).build_cube_section(
+            "Anima/Text to Image"
+        )
 
         assert panel.cube_headers["Anima/Text to Image"].text() == (
             "Anima/Text to Image (bypassed)"
@@ -350,7 +354,7 @@ def test_cube_section_title_elision_preserves_bypassed_suffix() -> None:
         long_alias: SimpleNamespace(bypassed=True, buffer={"nodes": {}})
     }
     try:
-        mod.CubeSectionBuilder(panel).build_cube_section(long_alias)
+        mod.cube_section_builder_for_panel(panel).build_cube_section(long_alias)
         title = panel.cube_headers[long_alias]
 
         elided = title._elided_text_for_width(260)
@@ -406,7 +410,7 @@ def test_error_cube_section_height_includes_issue_details() -> None:
         ),
     )
     try:
-        section = mod.CubeSectionBuilder(panel).build_error_cube_widget(
+        section = mod.cube_section_builder_for_panel(panel).build_error_cube_widget(
             "Anima/Diffusion Upscale",
             issue_lines=(
                 issue.message,

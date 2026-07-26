@@ -100,7 +100,7 @@ from substitute.presentation.editor.panel.model_choice_snapshot_controller impor
 from substitute.presentation.editor.panel.node_card_build_transaction import (
     NodeCardBuildTransaction,
 )
-from substitute.presentation.editor.panel.prompt_profile_policy import (
+from substitute.presentation.editor.panel.prompt.profile_policy import (
     PanelPromptFieldProfileDecision,
 )
 from substitute.presentation.editor.panel.projection_observability import (

@@ -24,7 +24,9 @@ from typing import Literal
 
 from PySide6.QtCore import QObject, QPointF, QRectF, QTimer
 
-from ..projection.model import PromptProjectionToken
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionToken,
+)
 
 PromptTokenWeightControl = Literal["increase", "decrease"]
 

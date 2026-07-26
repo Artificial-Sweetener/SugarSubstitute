@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import replace
+from typing import Any, cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -34,7 +35,7 @@ from substitute.presentation.editor.prompt_editor.projection.fill_band_cache imp
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
 )
 from tests.prompt_projection_test_helpers import (
@@ -297,7 +298,7 @@ def test_projection_surface_fill_bands_reuse_cache_for_same_view_state(
         width=360,
     )
     surface = surface_for(box)
-    original_row_rects = surface._layout.source_range_row_rects  # noqa: SLF001
+    original_row_rects = cast(Any, surface._layout).source_range_row_rects  # noqa: SLF001
     row_rect_call_count = 0
 
     def count_row_rects(
@@ -311,14 +312,21 @@ def test_projection_surface_fill_bands_reuse_cache_for_same_view_state(
 
         nonlocal row_rect_call_count
         row_rect_call_count += 1
-        return original_row_rects(
-            start,
-            end,
-            viewport_rect=viewport_rect,
-            scroll_offset=scroll_offset,
+        return cast(
+            tuple[QRectF, ...],
+            original_row_rects(
+                start,
+                end,
+                viewport_rect=viewport_rect,
+                scroll_offset=scroll_offset,
+            ),
         )
 
-    monkeypatch.setattr(surface._layout, "source_range_row_rects", count_row_rects)  # noqa: SLF001
+    monkeypatch.setattr(  # noqa: SLF001
+        cast(Any, surface._layout),
+        "source_range_row_rects",
+        count_row_rects,
+    )
 
     first = surface.visible_prompt_fill_band_rects()
     first_call_count = row_rect_call_count

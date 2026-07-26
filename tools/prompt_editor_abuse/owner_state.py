@@ -22,15 +22,19 @@ from dataclasses import dataclass
 from math import isfinite
 from typing import Any, cast
 
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRunKind,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionTokenKind,
 )
 from substitute.presentation.editor.prompt_editor.projection.plain_edit_caret_sequence import (
     MAX_PLAIN_EDIT_CARET_TRANSFORM_DEPTH,
 )
-from substitute.presentation.editor.prompt_editor.projection.snapshot import (
+from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionInlineObjectFragment,
     PromptProjectionTextFragment,
 )
@@ -216,23 +220,24 @@ def _layout_fragment_ownership(surface: Any) -> tuple[bool | None, str | None]:
 
     if surface is None:
         return None, None
-    layouts = [getattr(surface, "_layout", None)]
+    layout = getattr(surface, "_layout", None)
+    frames = [None if layout is None else getattr(layout, "frame", None)]
     preview_projection = getattr(surface, "_reorder_preview_projection", None)
-    preview_layout = getattr(preview_projection, "preview_layout", None)
-    if preview_layout is not None:
-        layouts.append(preview_layout)
-    for layout_name, layout in zip(("base", "preview"), layouts, strict=False):
-        if layout is None:
+    preview_frame = getattr(preview_projection, "preview_frame", None)
+    if preview_frame is not None:
+        frames.append(preview_frame)
+    for layout_name, frame in zip(("base", "preview"), frames, strict=False):
+        if frame is None:
             continue
-        document = layout.projection_document
+        document = frame.output.projection_document
         region_mismatch = _region_projection_ownership(
             surface,
-            layout,
+            frame,
             layout_name=layout_name,
         )
         if region_mismatch is not None:
             return False, region_mismatch
-        for line_index, line in enumerate(layout.snapshot.lines):
+        for line_index, line in enumerate(frame.output.snapshot.lines):
             for fragment_index, fragment in enumerate(line.fragments):
                 run = document.run_by_id(fragment.run_id)
                 location = f"{layout_name}:{line_index}:{fragment_index}"
@@ -262,17 +267,18 @@ def _layout_fragment_ownership(surface: Any) -> tuple[bool | None, str | None]:
 
 def _region_projection_ownership(
     surface: Any,
-    layout: Any,
+    frame: Any,
     *,
     layout_name: str,
 ) -> str | None:
     """Return a cross-layer regional projection mismatch for one live layout."""
 
-    document = layout.projection_document
+    output = frame.output
+    document = output.projection_document
     if document.display_mode is not PromptProjectionDisplayMode.PROJECTED:
         return _raw_region_projection_mismatch(
             surface,
-            layout,
+            frame,
             layout_name=layout_name,
         )
     separators = document.region_structure.separators
@@ -334,7 +340,7 @@ def _region_projection_ownership(
             return f"{location}:missing_structural_projection_slot"
         matching_lines = tuple(
             line
-            for line in layout.snapshot.lines
+            for line in output.snapshot.lines
             if (line.source_start, line.source_end)
             == (run.source_start, run.source_end)
         )
@@ -347,7 +353,7 @@ def _region_projection_ownership(
             return f"{location}:structural_caret_stops_present"
 
     chrome = getattr(surface, "_region_chrome", None)
-    snapshot = None if chrome is None else chrome.snapshot_for(layout)
+    snapshot = None if chrome is None else chrome.snapshot_for(output)
     if not separators:
         if snapshot is not None:
             return f"{layout_name}:ordinary_region_chrome_snapshot_present"
@@ -367,7 +373,8 @@ def _region_projection_ownership(
             f"{layout_name}:region_rail_count:"
             f"actual={len(snapshot.rail_lines)}:expected={expected_rail_count}"
         )
-    expected_center = layout.metrics.content_left + layout.metrics.content_width / 2.0
+    metrics = output.configuration.metrics
+    expected_center = metrics.content_left + metrics.content_width / 2.0
     if any(
         abs(divider.center().x() - expected_center) > 0.001
         for divider in snapshot.divider_lines
@@ -378,13 +385,14 @@ def _region_projection_ownership(
 
 def _raw_region_projection_mismatch(
     surface: Any,
-    layout: Any,
+    frame: Any,
     *,
     layout_name: str,
 ) -> str | None:
     """Return raw-mode structure or chrome that should not have been prepared."""
 
-    document = layout.projection_document
+    output = frame.output
+    document = output.projection_document
     region_tokens = tuple(
         token
         for token in document.tokens
@@ -402,7 +410,7 @@ def _raw_region_projection_mismatch(
     if document.projection_text != document.source_text:
         return f"{layout_name}:raw_projection_not_literal"
     chrome = getattr(surface, "_region_chrome", None)
-    snapshot = None if chrome is None else chrome.snapshot_for(layout)
+    snapshot = None if chrome is None else chrome.snapshot_for(output)
     if snapshot is None:
         return None
     if snapshot.paint_lines or snapshot.divider_lines or snapshot.rail_lines:
@@ -435,7 +443,7 @@ def _fresh_projection_maps_current_caret(
     if int(cursor_state.source_position) != cursor_position:
         return False
     resolved_state = projection_document.caret_map.resolve_state(cursor_state)
-    caret_rect = surface._layout.cursor_rect(
+    caret_rect = surface._layout.frame.geometry.caret.cursor_rect(
         resolved_state,
         scroll_offset=0.0,
     )
@@ -476,7 +484,7 @@ def _layout_projection_ownership_is_valid(
 ) -> bool:
     """Return whether layout divergence has an active transient or reorder owner."""
 
-    layout_projection = surface._layout.projection_document
+    layout_projection = surface._layout.frame.output.projection_document
     reorder_preview_active = bool(surface._reorder_preview_projection.is_active())
     if reorder_preview_active:
         return True

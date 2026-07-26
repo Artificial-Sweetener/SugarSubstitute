@@ -21,7 +21,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 import hashlib
-from typing import Protocol
 
 from PySide6.QtCore import QRectF
 
@@ -44,7 +43,9 @@ from ..projection.observability import (
     reorder_drag_target_kind,
 )
 from .chip_painter import PromptChipPaintStyle
-from .chip_visuals import PromptChipVisual
+from .chip_visuals import PromptChipVisual, prompt_chip_bubble_union_rect
+from .reorder_landing_models import PromptReorderHeldShadowGeometry
+from ..projection.reorder_drop_targets import PromptReorderDropTargetVisual
 
 _LOGGER = get_logger("presentation.editor.prompt_editor.overlays.reorder_telemetry")
 _VALIDATION_MESSAGE_FRAGMENTS = (
@@ -70,42 +71,6 @@ _FORBIDDEN_NAME_FRAGMENTS = (
     "trigger",
     "value",
 )
-
-
-class PromptReorderHeldShadowTelemetry(Protocol):
-    """Expose held-shadow metrics needed for prompt-safe telemetry."""
-
-    @property
-    def chip_index(self) -> int:
-        """Return the segment index represented by the held shadow."""
-
-    @property
-    def normalized_bubble_rects(self) -> tuple[QRectF, ...]:
-        """Return bubble rects normalized into held-shadow-local coordinates."""
-
-    @property
-    def chrome_bounds(self) -> QRectF:
-        """Return the held shadow chrome bounds."""
-
-    @property
-    def hotspot_bounds(self) -> QRectF:
-        """Return the held shadow hotspot bounds."""
-
-    @property
-    def source(self) -> str:
-        """Return a prompt-safe structural source label."""
-
-    @property
-    def low_confidence(self) -> bool:
-        """Return whether the shadow metrics came from fallback geometry."""
-
-
-class PromptReorderTargetVisualTelemetry(Protocol):
-    """Expose target hit geometry needed for prompt-safe telemetry."""
-
-    @property
-    def hit_rect(self) -> QRectF:
-        """Return the prompt-safe target hit rectangle."""
 
 
 @dataclass(slots=True)
@@ -247,14 +212,14 @@ class PromptReorderTelemetry:
                 prefix=f"{prefix}_fragment_union",
             ),
             **reorder_drag_rect_context(
-                reorder_visual_bubble_union_rect(visual.bubble_rects),
+                prompt_chip_bubble_union_rect(visual.bubble_rects),
                 prefix=f"{prefix}_chrome",
             ),
         }
 
     def held_shadow_context(
         self,
-        held: PromptReorderHeldShadowTelemetry | None,
+        held: PromptReorderHeldShadowGeometry | None,
     ) -> dict[str, object]:
         """Return prompt-safe fields for cached held-chip shadow metrics."""
 
@@ -290,7 +255,7 @@ class PromptReorderTelemetry:
 
     def target_visual_context(
         self,
-        target_visual: PromptReorderTargetVisualTelemetry,
+        target_visual: PromptReorderDropTargetVisual,
         *,
         prefix: str,
     ) -> dict[str, object]:
@@ -394,20 +359,6 @@ class PromptReorderTelemetry:
         return "structural"
 
 
-def reorder_visual_bubble_union_rect(rects: tuple[QRectF, ...]) -> QRectF:
-    """Return the union covering one logical chip's visible bubble rects."""
-
-    if not rects:
-        return QRectF()
-    union_rect = QRectF(rects[0])
-    for rect in rects[1:]:
-        union_rect = union_rect.united(rect)
-    return union_rect
-
-
 __all__ = [
-    "PromptReorderHeldShadowTelemetry",
-    "PromptReorderTargetVisualTelemetry",
     "PromptReorderTelemetry",
-    "reorder_visual_bubble_union_rect",
 ]

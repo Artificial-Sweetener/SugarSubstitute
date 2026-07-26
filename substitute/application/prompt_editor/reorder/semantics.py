@@ -38,6 +38,7 @@ from substitute.application.prompt_editor.reorder.serialization import (
 from substitute.application.prompt_editor.reorder.views import (
     PromptReorderDropTarget,
     PromptReorderLayoutView,
+    PromptReorderPreparedStateView,
     PromptReorderPreviewSnapshot,
     PromptReorderSessionView,
     PromptReorderStateView,
@@ -154,18 +155,20 @@ class PromptSemanticReorderDropService(PromptReorderDropService):
             dragged_segment_index=dragged_segment_index,
         )
 
-    def build_base_drag_layout_view_from_layout(
+    def build_base_drag_state(
         self,
         document_view: PromptDocumentView,
-        layout_view: PromptReorderLayoutView,
+        state_view: PromptReorderStateView,
         *,
+        current_layout_view: PromptReorderLayoutView,
         dragged_segment_index: int,
-    ) -> PromptReorderLayoutView:
-        """Build an in-session hidden-chip layout with virtual source metadata."""
+    ) -> PromptReorderPreparedStateView:
+        """Build coherent hidden-drag state against decoded values."""
 
-        return super().build_base_drag_layout_view_from_layout(
+        return super().build_base_drag_state(
             self._reorder_document_view(document_view),
-            layout_view,
+            state_view,
+            current_layout_view=current_layout_view,
             dragged_segment_index=dragged_segment_index,
         )
 
@@ -184,40 +187,19 @@ class PromptSemanticReorderDropService(PromptReorderDropService):
             drop_target=drop_target,
         )
 
-    def build_preview_drop_layout_view_from_layout(
+    def build_preview_drop_state(
         self,
         document_view: PromptDocumentView,
-        layout_view: PromptReorderLayoutView,
+        base_drag_state_view: PromptReorderPreparedStateView,
         *,
         dragged_segment_index: int,
         drop_target: PromptReorderDropTarget,
-    ) -> PromptReorderLayoutView:
-        """Build an in-session decoded-value drop preview."""
+    ) -> PromptReorderPreparedStateView:
+        """Build coherent decoded-value state and layout for one target."""
 
-        return super().build_preview_drop_layout_view_from_layout(
+        return super().build_preview_drop_state(
             self._reorder_document_view(document_view),
-            layout_view,
-            dragged_segment_index=dragged_segment_index,
-            drop_target=drop_target,
-        )
-
-    def build_preview_drop_reorder_state_from_state(
-        self,
-        document_view: PromptDocumentView,
-        state_view: PromptReorderStateView,
-        *,
-        current_layout_view: PromptReorderLayoutView,
-        base_drag_layout_view: PromptReorderLayoutView | None,
-        dragged_segment_index: int,
-        drop_target: PromptReorderDropTarget,
-    ) -> PromptReorderStateView:
-        """Apply a decoded-value drop target to authoritative source state."""
-
-        return super().build_preview_drop_reorder_state_from_state(
-            self._reorder_document_view(document_view),
-            state_view,
-            current_layout_view=current_layout_view,
-            base_drag_layout_view=base_drag_layout_view,
+            base_drag_state_view,
             dragged_segment_index=dragged_segment_index,
             drop_target=drop_target,
         )

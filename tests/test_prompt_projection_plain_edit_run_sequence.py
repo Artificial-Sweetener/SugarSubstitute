@@ -21,8 +21,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import overload
 
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.mapping import (
     PromptProjectionMapping,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
     PromptProjectionRunKind,
 )

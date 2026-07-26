@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, cast
+from typing import cast
 
 from PySide6.QtCore import QPoint, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPaintEvent, QRegion
@@ -55,22 +55,6 @@ class PromptReorderDragProxyPlacement:
 
     global_position: QPoint
     visible: bool
-
-
-class PromptReorderDragProxy(Protocol):
-    """Render a prepared floating reorder proxy without owning source state."""
-
-    def set_render_state(self, state: PromptReorderDragProxyRenderState) -> None:
-        """Replace the prepared proxy state rendered by the drag proxy."""
-
-    def set_placement(self, placement: PromptReorderDragProxyPlacement) -> None:
-        """Move or hide the proxy using prepared global placement data."""
-
-    def preferred_size(self) -> QSize:
-        """Return the preferred size for the current prepared proxy state."""
-
-    def hide_proxy(self) -> None:
-        """Hide the drag proxy without changing reorder state."""
 
 
 class PromptReorderDragProxyWidget(QFrame):
@@ -276,7 +260,6 @@ class PromptReorderDragProxyWidget(QFrame):
 
 
 __all__ = [
-    "PromptReorderDragProxy",
     "PromptReorderDragProxyPlacement",
     "PromptReorderDragProxyRenderState",
     "PromptReorderDragProxyWidget",

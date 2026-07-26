@@ -47,7 +47,9 @@ from substitute.application.prompt_editor.autocomplete.query_service import (
     autocomplete_replacement_text,
 )
 
-from .wildcard_controller import PromptWildcardAutocompleteQuerySnapshot
+from .scene_models import PromptSceneAutocompleteState
+from .scene_suggestions import scene_autocomplete_suggestions
+from .wildcard_models import PromptWildcardAutocompleteQuerySnapshot
 
 _AUTOCOMPLETE_RESULT_CACHE_LIMIT: Final[int] = 128
 
@@ -86,18 +88,6 @@ class PromptAutocompleteTriggerWordProvider(Protocol):
         query_identity: Hashable | None,
     ) -> "PromptAutocompleteTriggerWordResult":
         """Return trigger-word rows and the signature that keys tag results."""
-
-
-class PromptAutocompleteSceneResultProvider(Protocol):
-    """Return prepared scene-title autocomplete rows."""
-
-    def scene_autocomplete_suggestions(
-        self,
-        query: PromptSceneAutocompleteQuery,
-        *,
-        limit: int,
-    ) -> tuple[PromptAutocompleteSuggestion, ...]:
-        """Return scene title suggestions for one scene autocomplete query."""
 
 
 class PromptAutocompleteWildcardResultProvider(Protocol):
@@ -228,7 +218,8 @@ class PromptAutocompleteResultController:
         *,
         prompt_autocomplete_gateway: PromptAutocompleteGateway,
         limit: int,
-        scene_feature: PromptAutocompleteSceneResultProvider | None = None,
+        scene_autocomplete_state: Callable[[], PromptSceneAutocompleteState]
+        | None = None,
         wildcard_feature: PromptAutocompleteWildcardResultProvider | None = None,
         prompt_lora_catalog_service: (
             PromptAutocompleteLoraCatalogSnapshotProvider | None
@@ -240,7 +231,7 @@ class PromptAutocompleteResultController:
 
         self._prompt_autocomplete_gateway = prompt_autocomplete_gateway
         self._limit = limit
-        self._scene_feature = scene_feature
+        self._scene_autocomplete_state = scene_autocomplete_state
         self._wildcard_feature = wildcard_feature
         self._prompt_lora_catalog_service = prompt_lora_catalog_service
         self._lora_autocomplete_service = (
@@ -310,21 +301,27 @@ class PromptAutocompleteResultController:
         *,
         source_identity: PromptAutocompleteResultSourceIdentity | None,
     ) -> PromptAutocompleteResultSnapshot:
-        """Return a scene title result snapshot from the scene feature owner."""
+        """Return a scene title result snapshot from immutable scene state."""
 
+        scene_state = (
+            None
+            if self._scene_autocomplete_state is None
+            else self._scene_autocomplete_state()
+        )
         query_identity = (
             "scene",
             query.prefix,
-            self._feature_identity(self._scene_feature),
+            self._feature_identity(scene_state),
         )
-        if self._scene_feature is None:
+        if scene_state is None:
             return PromptAutocompleteResultSnapshot.empty(
                 "scene",
                 source_identity=source_identity,
                 query_identity=query_identity,
             )
-        matches = self._scene_feature.scene_autocomplete_suggestions(
-            query,
+        matches = scene_autocomplete_suggestions(
+            state=scene_state,
+            query=query,
             limit=self._limit,
         )
         if not matches:
@@ -754,7 +751,6 @@ __all__ = [
     "PromptAutocompleteResultSnapshot",
     "PromptAutocompleteResultSourceIdentity",
     "PromptAutocompleteResultStatus",
-    "PromptAutocompleteSceneResultProvider",
     "PromptScheduledLoraSignature",
     "PromptAutocompleteTagContext",
     "PromptAutocompleteTagResult",

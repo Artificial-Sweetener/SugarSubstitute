@@ -82,6 +82,8 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_prompt_context_menu_request_presenter.py",
         # Dialog execution owns a real Qt event loop that can terminate an xdist worker.
         "tests/test_prompt_danbooru_dialog_runner.py",
+        # Deferred feedback exercises process-global Qt event delivery.
+        "tests/test_prompt_deferred_feedback_strategy.py",
         "tests/test_prompt_editor_context_menu_contract.py",
         "tests/test_prompt_editor_debounce.py",
         "tests/test_prompt_editor_main_thread_dispatcher.py",

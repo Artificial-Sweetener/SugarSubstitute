@@ -586,6 +586,15 @@ def test_prompt_document_service_exposes_blank_line_offsets_for_multiline_separa
     )
 
 
+def test_prompt_document_service_does_not_treat_region_markers_as_blank_targets() -> (
+    None
+):
+    """Structural separator rows must not become empty-row drag destinations."""
+
+    assert blank_line_drop_offsets("\n[SEP]\n") == ()
+    assert blank_line_drop_offsets("\n\n[SEP]\n\n") == (1, 8)
+
+
 def test_prompt_document_service_builds_row_gap_layout_views_from_multiline_prompts() -> (
     None
 ):
@@ -1644,21 +1653,36 @@ def test_prompt_mutation_service_returns_refreshed_document_view_after_full_reor
 def test_prompt_document_service_builds_follow_up_reorder_from_current_layout_view() -> (
     None
 ):
-    """In-session reorder transforms should use the current layout as their baseline."""
+    """In-session reorder transforms should use authoritative current state."""
 
     document_service = PromptDocumentService()
     document_view = document_service.build_document_view("alpha, beta, gamma")
-    current_layout_view = PromptReorderLayoutView(
-        rows=(PromptReorderRowView(row_index=0, chip_indices=(2, 0, 1)),),
-        gaps=(),
-    )
-
-    follow_up_layout_view = document_service.build_preview_drop_layout_view_from_layout(
+    session = document_service.build_reorder_session_view(document_view)
+    first_base = document_service.build_base_drag_state(
         document_view,
-        current_layout_view,
+        session.reorder_state,
+        current_layout_view=session.layout_view,
+        dragged_segment_index=2,
+    )
+    current = document_service.build_preview_drop_state(
+        document_view,
+        first_base,
+        dragged_segment_index=2,
+        drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
+    )
+    follow_up_base = document_service.build_base_drag_state(
+        document_view,
+        current.reorder_state,
+        current_layout_view=current.layout_view,
+        dragged_segment_index=1,
+    )
+    follow_up = document_service.build_preview_drop_state(
+        document_view,
+        follow_up_base,
         dragged_segment_index=1,
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=1),
     )
+    follow_up_layout_view = follow_up.layout_view
 
     assert document_service.reorder_layout_chip_indices(follow_up_layout_view) == (
         2,
@@ -1727,12 +1751,19 @@ def test_prompt_document_service_moves_lora_chip_without_forcing_commas() -> Non
     document_view = document_service.build_document_view("foo <lora:a:1.0> bar")
     reorder_session = document_service.build_reorder_session_view(document_view)
 
-    preview_layout = document_service.build_preview_drop_layout_view_from_layout(
+    base = document_service.build_base_drag_state(
         document_view,
-        reorder_session.layout_view,
+        reorder_session.reorder_state,
+        current_layout_view=reorder_session.layout_view,
+        dragged_segment_index=1,
+    )
+    preview = document_service.build_preview_drop_state(
+        document_view,
+        base,
         dragged_segment_index=1,
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
     )
+    preview_layout = preview.layout_view
     preview_snapshot = document_service.build_reorder_preview_snapshot(
         document_view,
         preview_layout,
@@ -1753,13 +1784,20 @@ def test_prompt_document_service_keeps_exposed_trailing_gap_during_drag_preview(
     document_service = PromptDocumentService()
     document_view = document_service.build_document_view("1girl,\n\numbrella,")
     current_layout_view = document_service.build_reorder_layout_view(document_view)
-
-    preview_layout_view = document_service.build_preview_drop_layout_view_from_layout(
+    reorder_state = document_service.build_reorder_state_view(document_view)
+    base = document_service.build_base_drag_state(
         document_view,
-        current_layout_view,
+        reorder_state,
+        current_layout_view=current_layout_view,
+        dragged_segment_index=1,
+    )
+    preview = document_service.build_preview_drop_state(
+        document_view,
+        base,
         dragged_segment_index=1,
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=1),
     )
+    preview_layout_view = preview.layout_view
     preview_snapshot = document_service.build_reorder_preview_snapshot(
         document_view,
         preview_layout_view,
@@ -1782,13 +1820,20 @@ def test_prompt_document_service_can_drop_into_exposed_trailing_gap() -> None:
     document_service = PromptDocumentService()
     document_view = document_service.build_document_view("1girl,\n\numbrella,")
     current_layout_view = document_service.build_reorder_layout_view(document_view)
-
-    preview_layout_view = document_service.build_preview_drop_layout_view_from_layout(
+    reorder_state = document_service.build_reorder_state_view(document_view)
+    base = document_service.build_base_drag_state(
         document_view,
-        current_layout_view,
+        reorder_state,
+        current_layout_view=current_layout_view,
+        dragged_segment_index=1,
+    )
+    preview = document_service.build_preview_drop_state(
+        document_view,
+        base,
         dragged_segment_index=1,
         drop_target=PromptGapBlankLineDropTarget(gap_index=0, blank_line_index=0),
     )
+    preview_layout_view = preview.layout_view
     preview_snapshot = document_service.build_reorder_preview_snapshot(
         document_view,
         preview_layout_view,
@@ -1824,18 +1869,21 @@ def test_prompt_document_service_keeps_lifted_final_row_as_blank_target() -> Non
         "1girl,\n\numbrella,\n\nraincoat"
     )
     current_layout_view = document_service.build_reorder_layout_view(document_view)
-
-    base_drag_layout_view = document_service.build_base_drag_layout_view_from_layout(
+    reorder_state = document_service.build_reorder_state_view(document_view)
+    base = document_service.build_base_drag_state(
         document_view,
-        current_layout_view,
+        reorder_state,
+        current_layout_view=current_layout_view,
         dragged_segment_index=2,
     )
-    preview_layout_view = document_service.build_preview_drop_layout_view_from_layout(
+    preview = document_service.build_preview_drop_state(
         document_view,
-        current_layout_view,
+        base,
         dragged_segment_index=2,
         drop_target=PromptGapBlankLineDropTarget(gap_index=1, blank_line_index=1),
     )
+    base_drag_layout_view = base.layout_view
+    preview_layout_view = preview.layout_view
     preview_snapshot = document_service.build_reorder_preview_snapshot(
         document_view,
         preview_layout_view,

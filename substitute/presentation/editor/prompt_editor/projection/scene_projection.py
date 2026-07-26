@@ -28,7 +28,7 @@ from substitute.application.prompt_editor.document.semantics import (
 )
 from substitute.domain.prompt.scenes.parser import parse_prompt_scene_document
 
-from .model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
     PromptProjectionTokenNavigationMode,

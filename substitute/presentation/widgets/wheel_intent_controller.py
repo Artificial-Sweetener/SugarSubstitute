@@ -35,7 +35,7 @@ from substitute.presentation.widgets import DoubleSpinBox, SeedBox, SpinBox
 from substitute.presentation.widgets.wheel_permission import set_wheel_intent_permission
 
 if TYPE_CHECKING:
-    from substitute.presentation.editor.prompt_editor.projection.model import (
+    from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
         PromptProjectionToken,
     )
 

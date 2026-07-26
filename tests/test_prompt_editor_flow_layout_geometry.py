@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QRect, QSize
 
-from substitute.presentation.editor.prompt_editor.geometry import (
+from substitute.presentation.editor.prompt_editor.geometry.flow_layout import (
     flow_layout_insertion_index,
     flow_layout_rects,
 )

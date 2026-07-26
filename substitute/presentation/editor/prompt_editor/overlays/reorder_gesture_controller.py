@@ -26,7 +26,6 @@ from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSize, QSizeF
 
 from substitute.application.prompt_editor.reorder.views import PromptReorderDropTarget
 
-from ..models import PromptReorderCancelIntent, PromptReorderCommitIntent
 from ..projection.reorder_state import (
     PromptReorderKeyboardState,
     PromptReorderPointerState,
@@ -201,6 +200,17 @@ class PromptReorderGestureController:
             drag_grab_offset=self._drag_grab_offset,
             drag_intent_size=self._drag_intent_size,
             last_drag_intent_rect=self._last_drag_intent_rect,
+        )
+
+    def preview_build_facts(
+        self,
+    ) -> tuple[int | None, int | None, PromptReorderDropTarget | None]:
+        """Return the gesture facts consumed by one preview-build generation."""
+
+        return (
+            self._active_segment_index,
+            self._dragged_segment_index,
+            self._active_drop_target,
         )
 
     def pointer_state(self) -> PromptReorderPointerState:
@@ -445,8 +455,6 @@ class PromptReorderDragProxyPlacementController:
 
 
 __all__ = [
-    "PromptReorderCancelIntent",
-    "PromptReorderCommitIntent",
     "PromptReorderDragIntent",
     "PromptReorderDragPhase",
     "PromptReorderDragProxyPlacementContext",

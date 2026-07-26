@@ -49,7 +49,7 @@ from substitute.presentation.editor.prompt_editor.overlays import (
     PromptReorderView,
     SegmentReorderOverlay,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDocument,
 )
 from substitute.presentation.editor.prompt_editor.projection.reorder_animation import (
@@ -59,8 +59,8 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_preview imp
     PromptReorderPreviewState,
     PromptReorderProjectionSnapshot,
 )
-from substitute.presentation.editor.prompt_editor.projection.reorder_visual_snapshot import (
-    PromptReorderProjectionPaintSnapshot,
+from substitute.presentation.editor.prompt_editor.projection.reorder_surface_visual_state import (
+    PromptReorderSurfaceVisualPublication,
 )
 from tests.prompt_autocomplete_test_helpers import prompt_syntax_profile
 from tests.execution_test_helpers import immediate_prompt_task_executor_factory
@@ -268,11 +268,11 @@ def _assert_plain_alt_keeps_surface_text_ownership(
     assert state.raster_paint_count == 0
     surface_chrome = cast(
         Any, overlay
-    )._editor._surface._reorder_surface_chrome_snapshot
+    )._editor._surface._reorder_surface_visual_state.state.chrome_snapshot
     assert surface_chrome is not None
     assert surface_chrome.mode == "live"
     assert surface_chrome.chips
-    assert cast(Any, overlay)._live_visual_snapshots_by_index == {}
+    assert cast(Any, overlay)._live_visual_owner.visual_snapshots_by_index == {}
 
 
 def test_plain_alt_leaves_text_and_raster_work_on_projection_surface(
@@ -293,10 +293,11 @@ def test_plain_alt_leaves_text_and_raster_work_on_projection_surface(
     view = overlay.findChild(PromptReorderView, "segmentReorderView")
     assert view is not None
     assert immediate["raster_build_count"] == 0
+    assert immediate["preview_geometry_full_count"] == 1
     assert view.render_state.live_chips == ()
     surface_chrome = cast(
         Any, overlay
-    )._editor._surface._reorder_surface_chrome_snapshot
+    )._editor._surface._reorder_surface_visual_state.state.chrome_snapshot
     assert surface_chrome is not None
     assert surface_chrome.chips
     assert view.render_state.raster_paint_count == 0
@@ -471,6 +472,7 @@ def test_reorder_pointer_release_does_not_mutate_source_or_undo(
 
     assert box.toPlainText() == "alpha,beta,"
     assert box.canUndo() is can_undo_before
+    assert overlay._render_publication.publication.unsafe_transient_indices == ()
     after_release = _performance_counters(overlay)
     assert (
         after_release["drag_proxy_render_state_rebuild_count"]
@@ -530,11 +532,12 @@ def test_geometry_refresh_preserves_complete_animation_paint_ownership(
     cursor.setPosition(2)
     box.setTextCursor(cursor)
     overlay = _open_reorder_overlay(box)
-    cast(Any, overlay)._animation_presenter._duration_ms = 1000
+    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner.set_duration_ms(1000)
 
     QTest.keyClick(box, Qt.Key.Key_Right)
     _process_events(app)
-    assert cast(Any, overlay)._animation_presenter.paint_rect_overrides()
+    assert animation_owner.publication.displacement_rects_by_index
 
     host = widgets[0]
     host.resize(host.width() + 24, host.height() + 16)
@@ -542,17 +545,19 @@ def test_geometry_refresh_preserves_complete_animation_paint_ownership(
 
     state = cast(Any, overlay)._view.render_state
     active_chips = state.preview_chips if state.preview_active else state.live_chips
-    surface_chrome = cast(Any, box)._surface._reorder_surface_chrome_snapshot
+    surface_chrome = cast(
+        Any, box
+    )._surface._reorder_surface_visual_state.state.chrome_snapshot
     surface_indices = (
         set()
         if surface_chrome is None
         else {chip.segment_index for chip in surface_chrome.chips}
     )
     rendered_indices = surface_indices | {chip.segment_index for chip in active_chips}
-    expected_indices = set(cast(Any, overlay)._preview_visuals_by_index)
+    expected_indices = set(cast(Any, overlay)._preview_visual_owner.visuals_by_index)
 
     assert rendered_indices == expected_indices
-    assert cast(Any, overlay)._animation_presenter.paint_rect_overrides() == {}
+    assert not animation_owner.publication.displacement_rects_by_index
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     _process_events(app)
@@ -652,9 +657,12 @@ def test_reorder_keyboard_targets_blank_line_before_next_populated_row(
     _process_events(app)
     after = _performance_counters(overlay)
 
-    assert overlay.drop_target() == PromptGapBlankLineDropTarget(
-        gap_index=0,
-        blank_line_index=0,
+    assert (
+        overlay.preview_build_facts.snapshot().drop_target
+        == PromptGapBlankLineDropTarget(
+            gap_index=0,
+            blank_line_index=0,
+        )
     )
     assert _editor_reorder_preview_text(box) == (
         "empty eyes, sharp teeth, halo behind head, \ntoo many rabbits,\nbacklighting, "
@@ -682,18 +690,18 @@ def test_reorder_alt_left_builds_keyboard_animation_plan(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    presenter = cast(Any, overlay)._animation_presenter
-    original_apply_plan = presenter.apply_plan
+    animation_owner = cast(Any, overlay)._animation_presentation
+    original_apply_plan = animation_owner.apply_plan
     recorded_plans: list[Any] = []
     before = _performance_counters(overlay)
 
-    def record_apply_plan(plan: Any) -> None:
+    def record_apply_plan(plan: Any, **context: Any) -> None:
         """Record keyboard animation plans while preserving presenter behavior."""
 
         recorded_plans.append(plan)
-        original_apply_plan(plan)
+        original_apply_plan(plan, **context)
 
-    monkeypatch.setattr(presenter, "apply_plan", record_apply_plan)
+    monkeypatch.setattr(animation_owner, "apply_plan", record_apply_plan)
 
     QTest.keyClick(box, Qt.Key.Key_Left)
     _process_events(app)
@@ -706,14 +714,13 @@ def test_reorder_alt_left_builds_keyboard_animation_plan(
     assert recorded_plans
     assert recorded_plans[-1].reason == "keyboard_target_changed"
     assert recorded_plans[-1].dragged_segment_index == 1
-    assert overlay.drop_target() is not None
+    assert overlay.preview_build_facts.snapshot().drop_target is not None
     assert all(
         target.segment_index != recorded_plans[-1].dragged_segment_index
         for target in recorded_plans[-1].changed_targets
     )
     assert recorded_plans[-1].changed_targets
-    assert presenter.is_animating() is True
-    assert presenter.paint_rect_overrides()
+    assert animation_owner.publication.displacement_rects_by_index
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     _process_events(app)
@@ -734,24 +741,26 @@ def test_reorder_keyboard_animation_first_frame_is_coherent(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    original_sync = cast(Any, overlay)._sync_reorder_view_state
+    render_publication = cast(Any, overlay)._render_publication
+    original_sync = render_publication.sync
     animation_frames: list[tuple[dict[int, QRectF], dict[int, QRectF]]] = []
 
     def record_animation_frame(*, reason: str) -> None:
         """Record frame override ownership while preserving real rendering."""
 
         if reason == "animation_frame":
+            publication = cast(Any, overlay)._animation_presentation.publication
             animation_frames.append(
                 (
-                    cast(Any, overlay)._animation_presenter.paint_rect_overrides(),
-                    cast(Any, overlay)._held_chip_presenter.paint_rect_overrides(),
+                    dict(publication.displacement_rects_by_index),
+                    dict(publication.held_rects_by_index),
                 )
             )
         original_sync(reason=reason)
 
     monkeypatch.setattr(
-        overlay,
-        "_sync_reorder_view_state",
+        render_publication,
+        "sync",
         record_animation_frame,
     )
 
@@ -787,9 +796,12 @@ def test_reorder_keyboard_suppression_clips_settled_projection(
     surface = surface_for(box)
     visible_region = cast(Any, surface)._preview_visible_region()
 
-    assert set(cast(Any, surface)._reorder_overlay_suppression_snapshots_by_index) == {
-        0
-    }
+    assert set(
+        cast(
+            Any,
+            surface,
+        )._reorder_surface_visual_state.state.suppression_snapshots_by_index
+    ) == {0}
     assert visible_region is not None
     hidden_region = QRegion(surface.viewport().rect()).subtracted(visible_region)
     assert not hidden_region.isEmpty()
@@ -815,20 +827,20 @@ def test_reorder_keyboard_blank_line_animation_survives_overlay_resize(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    cast(Any, overlay)._animation_presenter._duration_ms = 1000
-    cast(Any, overlay)._held_chip_presenter._duration_ms = 1000
+    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner.set_duration_ms(1000)
 
     QTest.keyClick(box, Qt.Key.Key_Down)
     _process_events(app)
 
-    assert overlay.drop_target() == PromptGapBlankLineDropTarget(
-        gap_index=0,
-        blank_line_index=0,
-    )
     assert (
-        cast(Any, overlay)._animation_presenter.paint_rect_overrides()
-        or cast(Any, overlay)._held_chip_presenter.paint_rect_overrides()
+        overlay.preview_build_facts.snapshot().drop_target
+        == PromptGapBlankLineDropTarget(
+            gap_index=0,
+            blank_line_index=0,
+        )
     )
+    assert animation_owner.publication.paint_rects_by_index
     before = _performance_counters(overlay)
 
     overlay.resize(overlay.width() + 1, overlay.height() + 1)
@@ -837,10 +849,7 @@ def test_reorder_keyboard_blank_line_animation_survives_overlay_resize(
 
     assert _counter_delta(before, after, "animation_settled_count") == 0
     assert _counter_delta(before, after, "held_animation_settled_count") == 0
-    assert (
-        cast(Any, overlay)._animation_presenter.paint_rect_overrides()
-        or cast(Any, overlay)._held_chip_presenter.paint_rect_overrides()
-    )
+    assert animation_owner.publication.paint_rects_by_index
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     _process_events(app)
@@ -864,16 +873,19 @@ def test_reorder_keyboard_return_from_blank_line_still_animates(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    cast(Any, overlay)._animation_presenter._duration_ms = 1000
-    cast(Any, overlay)._held_chip_presenter._duration_ms = 1000
+    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner.set_duration_ms(1000)
 
     QTest.keyClick(box, Qt.Key.Key_Down)
     _process_events(app)
 
     assert overlay.has_reordered() is True
-    assert overlay.drop_target() == PromptGapBlankLineDropTarget(
-        gap_index=0,
-        blank_line_index=0,
+    assert (
+        overlay.preview_build_facts.snapshot().drop_target
+        == PromptGapBlankLineDropTarget(
+            gap_index=0,
+            blank_line_index=0,
+        )
     )
     monkeypatch.setattr(overlay, "has_reordered", lambda: False)
     before_return = _performance_counters(overlay)
@@ -889,10 +901,7 @@ def test_reorder_keyboard_return_from_blank_line_still_animates(
     assert (
         _counter_delta(before_return, after_return, "animation_plan_applied_count") == 1
     )
-    assert (
-        cast(Any, overlay)._animation_presenter.paint_rect_overrides()
-        or cast(Any, overlay)._held_chip_presenter.paint_rect_overrides()
-    )
+    assert animation_owner.publication.paint_rects_by_index
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     _process_events(app)
@@ -913,22 +922,25 @@ def test_reorder_alt_right_captures_commit_snapshot_before_animation(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    presenter = cast(Any, overlay)._animation_presenter
-    original_apply_plan = presenter.apply_plan
+    animation_owner = cast(Any, overlay)._animation_presentation
+    original_apply_plan = animation_owner.apply_plan
     observed_orders: list[tuple[int, ...] | None] = []
 
-    def record_snapshot_before_animation(plan: Any) -> None:
-        """Record controller commit state when the display animation is applied."""
+    def record_snapshot_before_animation(plan: Any, **context: Any) -> None:
+        """Record the public overlay snapshot when display animation is applied."""
 
         _ = plan
-        reorder_controller = cast(Any, box)._interaction_controller._reorder
-        latest_snapshot = reorder_controller.latest_commit_snapshot
+        latest_snapshot = overlay.commit_snapshot()
         observed_orders.append(
             None if latest_snapshot is None else latest_snapshot.ordered_chip_indices
         )
-        original_apply_plan(plan)
+        original_apply_plan(plan, **context)
 
-    monkeypatch.setattr(presenter, "apply_plan", record_snapshot_before_animation)
+    monkeypatch.setattr(
+        animation_owner,
+        "apply_plan",
+        record_snapshot_before_animation,
+    )
 
     QTest.keyClick(box, Qt.Key.Key_Right)
     _process_events(app)
@@ -961,17 +973,17 @@ def test_reorder_vertical_keyboard_move_animates_to_lane_geometry(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    presenter = cast(Any, overlay)._animation_presenter
-    original_apply_plan = presenter.apply_plan
+    animation_owner = cast(Any, overlay)._animation_presentation
+    original_apply_plan = animation_owner.apply_plan
     recorded_plans: list[Any] = []
 
-    def record_apply_plan(plan: Any) -> None:
+    def record_apply_plan(plan: Any, **context: Any) -> None:
         """Record vertical keyboard plans while preserving presenter behavior."""
 
         recorded_plans.append(plan)
-        original_apply_plan(plan)
+        original_apply_plan(plan, **context)
 
-    monkeypatch.setattr(presenter, "apply_plan", record_apply_plan)
+    monkeypatch.setattr(animation_owner, "apply_plan", record_apply_plan)
     before = _performance_counters(overlay)
 
     QTest.keyClick(box, Qt.Key.Key_Up)
@@ -983,17 +995,17 @@ def test_reorder_vertical_keyboard_move_animates_to_lane_geometry(
     assert recorded_plans[-1].dragged_segment_index == 2
     assert recorded_plans[-1].changed_targets == ()
     assert _counter_delta(before, after, "held_animation_started_count") == 1
-    held_overrides = cast(Any, overlay)._held_chip_presenter.paint_rect_overrides()
+    held_overrides = cast(
+        Any, overlay
+    )._animation_presentation.publication.held_rects_by_index
     assert set(held_overrides) == {2}
-    target_geometry = cast(Any, overlay)._preview_chip_geometry_for_segment(2)
-    assert target_geometry is not None
-    assert held_overrides[2] != QRectF(target_geometry.hotspot_rect)
+    target_rect = overlay.preview_rect_for_segment(2)
+    assert target_rect is not None
+    assert held_overrides[2] != QRectF(target_rect)
     for target in recorded_plans[-1].changed_targets:
-        preview_geometry = cast(Any, overlay)._preview_chip_geometry_for_segment(
-            target.segment_index
-        )
-        assert preview_geometry is not None
-        preview_rect = QRectF(preview_geometry.hotspot_rect)
+        preview_rect_value = overlay.preview_rect_for_segment(target.segment_index)
+        assert preview_rect_value is not None
+        preview_rect = QRectF(preview_rect_value)
         assert target.target_rect.left() == preview_rect.left()
         assert target.target_rect.top() == preview_rect.top()
         assert target.target_rect.width() == preview_rect.width()
@@ -1034,7 +1046,6 @@ def test_reorder_keyboard_boundary_noop_builds_no_animation_plan(
 
 def test_reorder_animation_frame_syncs_suppression_without_raster_churn(
     widgets: list[QWidget],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Animation frames should own suppression without rebuilding prepared rasters."""
 
@@ -1044,43 +1055,42 @@ def test_reorder_animation_frame_syncs_suppression_without_raster_churn(
     cursor.setPosition(8)
     box.setTextCursor(cursor)
 
-    suppression_publications: list[dict[int, PromptReorderProjectionPaintSnapshot]] = []
-    original_suppression = box.set_reorder_overlay_suppression_snapshots
-
-    def count_suppression(
-        snapshots_by_index: dict[int, PromptReorderProjectionPaintSnapshot],
-    ) -> None:
-        """Count suppression publications while preserving real behavior."""
-
-        suppression_publications.append(dict(snapshots_by_index))
-        original_suppression(snapshots_by_index)
-
-    monkeypatch.setattr(
-        box,
-        "set_reorder_overlay_suppression_snapshots",
-        count_suppression,
-    )
-
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    surface = surface_for(box)
 
     QTest.keyClick(box, Qt.Key.Key_Left)
     _process_events(app)
 
-    cast(Any, overlay)._last_suppressed_chip_snapshots_by_index = {}
-    original_suppression({})
+    current_surface_state = surface._reorder_surface_visual_state.state  # noqa: SLF001
+    box.set_reorder_surface_visual_publication(
+        PromptReorderSurfaceVisualPublication(
+            mode=current_surface_state.mode,
+            chips=current_surface_state.chips,
+            suppression_snapshots_by_index={},
+        )
+    )
     before = _performance_counters(overlay)
-    before_suppression_call_count = len(suppression_publications)
-    cast(Any, overlay)._sync_reorder_animation_frame()
+    before_surface_revision = (
+        surface._reorder_surface_visual_state.state.revision  # noqa: SLF001
+    )
+    cast(Any, overlay)._handle_reorder_animation_frame()
     after = _performance_counters(overlay)
-    after_suppression_call_count = len(suppression_publications)
-    cast(Any, overlay)._sync_reorder_animation_frame()
+    after_first_surface_revision = (
+        surface._reorder_surface_visual_state.state.revision  # noqa: SLF001
+    )
+    cast(Any, overlay)._handle_reorder_animation_frame()
+    after_second_surface_revision = (
+        surface._reorder_surface_visual_state.state.revision  # noqa: SLF001
+    )
 
     assert after["raster_build_count"] == before["raster_build_count"]
-    assert after_suppression_call_count == before_suppression_call_count + 1
-    assert set(suppression_publications[-1]) == {0}
-    assert len(suppression_publications) == after_suppression_call_count
+    assert after_first_surface_revision == before_surface_revision + 1
+    assert set(
+        surface._reorder_surface_visual_state.state.suppression_snapshots_by_index  # noqa: SLF001
+    ) == {0}
+    assert after_second_surface_revision == after_first_surface_revision
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     _process_events(app)
@@ -1098,44 +1108,32 @@ def test_reorder_animation_frame_keeps_surface_text_for_chrome_only_preview_chip
     cursor.setPosition(8)
     box.setTextCursor(cursor)
 
-    suppression_publications: list[dict[int, PromptReorderProjectionPaintSnapshot]] = []
-    original_suppression = box.set_reorder_overlay_suppression_snapshots
-
-    def count_suppression(
-        snapshots_by_index: dict[int, PromptReorderProjectionPaintSnapshot],
-    ) -> None:
-        """Count suppression publications while preserving real behavior."""
-
-        suppression_publications.append(dict(snapshots_by_index))
-        original_suppression(snapshots_by_index)
-
-    monkeypatch.setattr(
-        box,
-        "set_reorder_overlay_suppression_snapshots",
-        count_suppression,
-    )
-
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
     monkeypatch.setattr(
-        cast(Any, overlay)._raster_cache,
-        "entries_for_snapshots",
-        lambda **_kwargs: {},
+        cast(Any, overlay)._raster_publication_owner,
+        "entries_for",
+        lambda _lane, **_kwargs: {},
     )
 
     QTest.keyClick(box, Qt.Key.Key_Left)
     _process_events(app)
 
-    cast(Any, overlay)._preview_visual_snapshots_by_index = {}
-    cast(Any, overlay)._last_suppressed_chip_snapshots_by_index = {}
-    original_suppression({})
-    suppression_count = len(suppression_publications)
-    cast(Any, overlay)._sync_reorder_animation_frame()
+    cast(Any, overlay)._preview_paint_snapshots.clear()
+    surface = surface_for(box)
+    current_surface_state = surface._reorder_surface_visual_state.state  # noqa: SLF001
+    box.set_reorder_surface_visual_publication(
+        PromptReorderSurfaceVisualPublication(
+            mode=current_surface_state.mode,
+            chips=current_surface_state.chips,
+            suppression_snapshots_by_index={},
+        )
+    )
+    cast(Any, overlay)._handle_reorder_animation_frame()
 
-    assert len(suppression_publications) == suppression_count
     assert (
-        surface_for(box)._reorder_overlay_suppression_snapshots_by_index  # noqa: SLF001
+        surface._reorder_surface_visual_state.state.suppression_snapshots_by_index  # noqa: SLF001
         == {}
     )
 
@@ -1179,9 +1177,6 @@ def test_reorder_unchanged_target_pointer_move_preserves_hot_path_counters(
     before_pointer_state = overlay.pointer_reorder_state()
     before_animation_state = overlay.animation_generation_state()
     telemetry_type = type(cast(Any, overlay)._telemetry)
-    tracker = cast(Any, overlay)._drop_target_tracker
-    original_resolve = tracker.resolve
-    tracker_resolve_count = 0
 
     with monkeypatch.context() as telemetry_patch:
         assert not hasattr(
@@ -1197,23 +1192,6 @@ def test_reorder_unchanged_target_pointer_move_preserves_hot_path_counters(
 
             raise AssertionError("unchanged target built heavy telemetry context")
 
-        def record_tracker_resolve(
-            resolver_input: Any,
-            *,
-            gesture_id: int | None = None,
-            event_id: int | None = None,
-        ) -> Any:
-            """Record that pointer movement used the projection drop-target tracker."""
-
-            nonlocal tracker_resolve_count
-            tracker_resolve_count += 1
-            return original_resolve(
-                resolver_input,
-                gesture_id=gesture_id,
-                event_id=event_id,
-            )
-
-        telemetry_patch.setattr(tracker, "resolve", record_tracker_resolve)
         for helper_name in (
             "style_context",
             "visual_context",
@@ -1240,7 +1218,6 @@ def test_reorder_unchanged_target_pointer_move_preserves_hot_path_counters(
 
         assert _counter_delta(before, after, "drag_move_count") == 1
         _assert_timing_observed(after, "max_drag_move_ms")
-        assert tracker_resolve_count == 1
         assert _counter_delta(before, after, "drop_target_no_change_count") == 1
         assert (
             after_pointer_state.active_drop_target
@@ -1409,18 +1386,18 @@ def test_reorder_target_change_paints_displaced_neighbors_after_preview_sync(
         text="alpha,beta,gamma,",
     )
     overlay = _open_reorder_overlay(editor)
-    presenter = cast(Any, overlay)._animation_presenter
-    presenter._duration_ms = 1000
+    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner.set_duration_ms(1000)
     recorded_plans: list[Any] = []
-    original_apply_plan = presenter.apply_plan
+    original_apply_plan = animation_owner.apply_plan
 
-    def record_apply_plan(plan: Any) -> None:
+    def record_apply_plan(plan: Any, **context: Any) -> None:
         """Record pointer displacement plans while preserving presenter behavior."""
 
         recorded_plans.append(plan)
-        original_apply_plan(plan)
+        original_apply_plan(plan, **context)
 
-    monkeypatch.setattr(presenter, "apply_plan", record_apply_plan)
+    monkeypatch.setattr(animation_owner, "apply_plan", record_apply_plan)
     first_chip = _overlay_chip_by_segment_index(overlay, 0)
     second_chip = _overlay_chip_by_segment_index(overlay, 1)
     first_target = first_chip.leading_global_point()
@@ -1581,16 +1558,16 @@ def test_reorder_wrapped_drag_preview_builds_wrapped_animation_plan(
     dragged_chip = _overlay_chip_by_segment_index(overlay, 3)
     target_chip = _overlay_chip_by_segment_index(overlay, 1)
     recorded_plans: list[Any] = []
-    presenter = cast(Any, overlay)._animation_presenter
-    original_apply_plan = presenter.apply_plan
+    animation_owner = cast(Any, overlay)._animation_presentation
+    original_apply_plan = animation_owner.apply_plan
 
-    def record_apply_plan(plan: Any) -> None:
+    def record_apply_plan(plan: Any, **context: Any) -> None:
         """Record integration plans while preserving presenter behavior."""
 
         recorded_plans.append(plan)
-        original_apply_plan(plan)
+        original_apply_plan(plan, **context)
 
-    monkeypatch.setattr(presenter, "apply_plan", record_apply_plan)
+    monkeypatch.setattr(animation_owner, "apply_plan", record_apply_plan)
     target_global = target_chip.leading_global_point()
 
     QTest.mousePress(
@@ -1613,11 +1590,9 @@ def test_reorder_wrapped_drag_preview_builds_wrapped_animation_plan(
     changed_targets = recorded_plans[-1].changed_targets
     assert changed_targets
     for target in changed_targets:
-        preview_geometry = cast(Any, overlay)._preview_chip_geometry_for_segment(
-            target.segment_index
-        )
-        assert preview_geometry is not None
-        preview_rect = QRectF(preview_geometry.hotspot_rect)
+        preview_rect_value = overlay.preview_rect_for_segment(target.segment_index)
+        assert preview_rect_value is not None
+        preview_rect = QRectF(preview_rect_value)
         assert target.target_rect.left() == preview_rect.left()
         assert target.target_rect.top() == preview_rect.top()
         assert target.target_rect.width() == preview_rect.width()
@@ -1652,15 +1627,15 @@ def test_reorder_animation_fallback_keeps_final_preview_correct(
     overlay = _open_reorder_overlay(editor)
     dragged_chip = _overlay_chip_by_segment_index(overlay, 3)
     target_chip = _overlay_chip_by_segment_index(overlay, 1)
-    presenter = cast(Any, overlay)._animation_presenter
+    animation_owner = cast(Any, overlay)._animation_presentation
     applied_generations: list[int] = []
 
-    def no_op_apply_plan(plan: Any) -> None:
+    def no_op_apply_plan(plan: Any, **_context: Any) -> None:
         """Simulate an animation presenter that cannot run animations."""
 
         applied_generations.append(plan.generation)
 
-    monkeypatch.setattr(presenter, "apply_plan", no_op_apply_plan)
+    monkeypatch.setattr(animation_owner, "apply_plan", no_op_apply_plan)
     target_global = target_chip.leading_global_point()
 
     QTest.mousePress(
@@ -1770,7 +1745,6 @@ def test_reorder_drag_proxy_font_invalidation_rebuilds_before_visible_use(
 
 def test_reorder_autoscroll_steps_do_not_rebuild_surface_projection(
     widgets: list[QWidget],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Autoscroll ticks should coalesce geometry/projection work behind counters."""
 
@@ -1809,26 +1783,6 @@ def test_reorder_autoscroll_steps_do_not_rebuild_surface_projection(
     before = _performance_counters(overlay)
 
     before_geometry_generation = overlay.geometry_generation_state().generation_id
-    tracker = cast(Any, overlay)._drop_target_tracker
-    original_resolve = tracker.resolve
-    resolved_geometry_generations: list[int] = []
-
-    def record_resolve_generation(
-        resolver_input: Any,
-        *,
-        gesture_id: int | None = None,
-        event_id: int | None = None,
-    ) -> Any:
-        """Record the geometry generation used for post-scroll target resolution."""
-
-        resolved_geometry_generations.append(resolver_input.geometry_generation_id)
-        return original_resolve(
-            resolver_input,
-            gesture_id=gesture_id,
-            event_id=event_id,
-        )
-
-    monkeypatch.setattr(tracker, "resolve", record_resolve_generation)
     cast(Any, overlay)._autoscroll.apply_step_for_tests()
     cast(Any, overlay)._autoscroll.apply_step_for_tests()
 
@@ -1906,8 +1860,16 @@ def test_reorder_autoscroll_steps_do_not_rebuild_surface_projection(
     assert (
         overlay.geometry_generation_state().generation_id > before_geometry_generation
     )
-    assert resolved_geometry_generations
-    assert resolved_geometry_generations[-1] > before_geometry_generation
+    resolution_delta = _counter_delta(
+        before,
+        after_release,
+        "drop_target_no_change_count",
+    ) + _counter_delta(
+        before,
+        after_release,
+        "drop_target_changed_count",
+    )
+    assert resolution_delta >= 1
 
 
 def test_reorder_surface_projection_rebuild_counter_tracks_cache_misses(

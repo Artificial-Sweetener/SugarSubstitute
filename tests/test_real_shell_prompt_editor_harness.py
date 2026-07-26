@@ -368,6 +368,31 @@ def test_real_shell_scene_title_resize_never_discards_uncommitted_typing(
     assert snapshot.caret_rect_intersects_viewport
 
 
+def test_real_shell_scene_title_typing_keeps_every_character_visually_owned(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Each title character must remain visible while a deferred wrap catches up."""
+
+    title = "**scene with a deliberately long title and many spaced words"
+    field = harness.add_prompt_workflow(initial_text="")
+    field.editor.resize(430, 260)
+    target = harness.focus_editor(field)
+
+    for character in title:
+        QTest.keyClicks(target, character)
+        snapshot = harness.capture_state_snapshot(
+            field,
+            label=f"scene-title-character-{len(field.editor.toPlainText())}",
+        )
+
+        assert snapshot.source_text == field.editor.toPlainText()
+        assert (
+            snapshot.projection_document_source_text == snapshot.source_text
+            or snapshot.transient_insertion_overlay_valid
+        )
+        assert snapshot.caret_rect_intersects_viewport
+
+
 @pytest.mark.parametrize(
     ("label", "initial_text", "cursor_position"),
     (
@@ -638,12 +663,17 @@ def test_real_shell_same_source_semantics_switch_rebuilds_scene_state(
     harness.wait_until(
         lambda: any(
             diagnostic.kind is PromptDiagnosticKind.UNSUPPORTED_SCENE_MARKER
-            for diagnostic in editor._diagnostics_feature_controller.snapshot.diagnostics
+            for diagnostic in editor._diagnostics_feature_controller.presentation.snapshot.diagnostics
         )
     )
 
     assert editor.toPlainText() == source
-    assert editor._scene_feature_controller.scene_key_for_source_position(0) is None
+    prepared_scene = editor._scene_position_preparation.prepare_position_context(
+        0,
+        reason="unsupported_scene_marker_assertion",
+    )
+    assert prepared_scene.context is not None
+    assert prepared_scene.context.scene_key is None
     assert (
         editor._document_service.scene_autocomplete_query_at_cursor(
             text=source,
@@ -1806,6 +1836,42 @@ def test_real_shell_region_separator_abuse_scenarios_remain_exact(
         assert canvas_counters.get("instrumented_layout_snapshot_count", 0.0) == 0.0
 
 
+@pytest.mark.parametrize(
+    "scenario_name",
+    (
+        "regional-separator-cross-partition-drag",
+        "regional-separator-leading-partition-exit",
+        "regional-separator-trailing-partition-exit",
+        "regional-separator-multi-partition-drag",
+    ),
+)
+def test_real_shell_regional_reorder_keeps_destinations_and_landing_shadow(
+    tmp_path: Path,
+    scenario_name: str,
+) -> None:
+    """Cross-region drags should retain every target and a prepared landing shadow."""
+
+    scenario = next(
+        candidate for candidate in prompt_scenarios() if candidate.name == scenario_name
+    )
+
+    with prompt_abuse_structural_instrumentation(enabled=True):
+        result = run_real_shell_scenario(
+            scenario,
+            repetition=0,
+            artifact_root=tmp_path,
+        )
+
+    assert result.correct, (
+        result.invariant_violations,
+        tuple(
+            (sample.label, sample.feature_mismatch, sample.actual_source_on_mismatch)
+            for sample in result.dispatch_samples
+            if not sample.feature_exact or not sample.source_exact
+        ),
+    )
+
+
 @pytest.mark.parametrize("seed", (7, 19, 73))
 def test_real_shell_seeded_region_separator_abuse_remains_exact(
     tmp_path: Path,
@@ -1902,7 +1968,7 @@ def test_real_shell_harness_reports_stale_visible_ghost_owner_state(
             suffix_text=" basket",
         )
     )
-    stale_preview_document = cast(Any, surface)._layout.projection_document
+    stale_preview_document = cast(Any, surface)._layout.frame.output.projection_document
 
     surface.set_autocomplete_preview_state(None)
     cast(Any, surface)._layout.set_projection(
@@ -2005,6 +2071,16 @@ def test_real_shell_harness_reports_headless_editor_common_sense_violations(
         replace(
             empty_selection_snapshot,
             paint_cache_key_present=True,
+            paint_cache_source_revision=-1,
+        )
+    )
+    autocomplete_preview_cache_mismatch = harness.invariant_violations(
+        replace(
+            empty_selection_snapshot,
+            autocomplete_preview_active=True,
+            paint_cache_key_present=True,
+            paint_cache_projection_document_identity_matches_layout=False,
+            paint_cache_layout_snapshot_identity_matches_layout=False,
             paint_cache_source_revision=-1,
         )
     )
@@ -2276,6 +2352,10 @@ def test_real_shell_harness_reports_headless_editor_common_sense_violations(
     assert any(
         violation.startswith("paint_cache_source_revision_mismatch")
         for violation in cache_source_revision_mismatch
+    )
+    assert not any(
+        violation.startswith("paint_cache_")
+        for violation in autocomplete_preview_cache_mismatch
     )
     assert "stale_transient_insertion_overlay" in stale_insertion_overlay
     assert any(

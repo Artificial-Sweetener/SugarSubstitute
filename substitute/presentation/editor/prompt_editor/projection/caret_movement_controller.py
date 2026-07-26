@@ -33,17 +33,17 @@ from .freshness_controller import (
     ProjectionFreshness,
     PromptProjectionFreshnessController,
 )
-from .layout_engine import PromptProjectionLayout
-from .model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretState,
-    PromptProjectionDocument,
     PromptProjectionSelection,
 )
-from .region_caret_navigation import skip_region_separator_caret_states
-from .selection_geometry import (
-    PromptProjectionHorizontalCaretTarget,
-    rects_nearly_equal,
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDocument,
 )
+from .region_caret_navigation import skip_region_separator_caret_states
+from ..geometry.aggregate import PromptProjectionGeometry
+from ..geometry.models import PromptProjectionHorizontalCaretTarget
+from ..geometry.selection import rects_nearly_equal
 
 
 class PromptProjectionCaretMovementHost(Protocol):
@@ -51,7 +51,6 @@ class PromptProjectionCaretMovementHost(Protocol):
 
     _anchor_state: PromptProjectionCaretState
     _cursor_state: PromptProjectionCaretState
-    _layout: PromptProjectionLayout
     _preferred_x: float | None
     _editor_state: PromptEditorDocumentState[
         PromptDocumentView,
@@ -91,7 +90,13 @@ class PromptProjectionCaretMovementController:
 
         self._host = host
 
-    def move_horizontally(self, direction: int, *, keep_anchor: bool) -> None:
+    def move_horizontally(
+        self,
+        geometry: PromptProjectionGeometry,
+        direction: int,
+        *,
+        keep_anchor: bool,
+    ) -> None:
         """Move the caret across plain text or collapsed token boundaries."""
 
         host = self._host
@@ -105,6 +110,7 @@ class PromptProjectionCaretMovementController:
         )
         selection = host._selection()
         origin_rect = self._movement_origin_rect_for_arrow_key(
+            geometry,
             origin_state=origin_state,
             keep_anchor=keep_anchor,
         )
@@ -112,13 +118,14 @@ class PromptProjectionCaretMovementController:
             next_cursor_state = origin_state
             caret_rect_override = None
         else:
-            local_target = host._layout.horizontal_line_local_adjacent_target(
+            local_target = geometry.caret.horizontal_line_local_adjacent_target(
                 origin_state,
                 direction=direction,
                 current_rect=origin_rect,
             )
             if local_target is not None:
                 local_target = self._visible_horizontal_target(
+                    geometry,
                     local_target,
                     direction=direction,
                 )
@@ -129,18 +136,20 @@ class PromptProjectionCaretMovementController:
                     cursor_state=local_target.state,
                     anchor_state=next_anchor_state,
                     caret_rect_override=self._visual_affinity_override_for_target(
+                        geometry,
                         local_target.state,
                         local_target.rect,
                     ),
                 )
                 return
-            visual_target = host._layout.horizontal_soft_wrap_transition(
+            visual_target = geometry.caret.horizontal_soft_wrap_transition(
                 origin_state,
                 direction=direction,
                 current_rect=origin_rect,
             )
             if visual_target is not None:
                 visual_target = self._visible_horizontal_target(
+                    geometry,
                     visual_target,
                     direction=direction,
                 )
@@ -160,7 +169,7 @@ class PromptProjectionCaretMovementController:
                         )
                     ):
                         local_target = (
-                            host._layout.horizontal_line_local_adjacent_target(
+                            geometry.caret.horizontal_line_local_adjacent_target(
                                 origin_state,
                                 direction=direction,
                                 current_rect=visual_target.rect,
@@ -175,6 +184,7 @@ class PromptProjectionCaretMovementController:
                         cursor_state=visual_target.state,
                         anchor_state=next_anchor_state,
                         caret_rect_override=self._visual_affinity_override_for_target(
+                            geometry,
                             visual_target.state,
                             visual_target.rect,
                         ),
@@ -194,7 +204,7 @@ class PromptProjectionCaretMovementController:
                 next_cursor_state,
                 direction=direction,
             )
-            caret_rect_override = host._layout.horizontal_line_edge_affinity(
+            caret_rect_override = geometry.caret.horizontal_line_edge_affinity(
                 next_cursor_state,
                 direction=direction,
                 origin_rect=origin_rect,
@@ -208,6 +218,7 @@ class PromptProjectionCaretMovementController:
 
     def _visible_horizontal_target(
         self,
+        geometry: PromptProjectionGeometry,
         target: PromptProjectionHorizontalCaretTarget,
         *,
         direction: int,
@@ -223,10 +234,16 @@ class PromptProjectionCaretMovementController:
             return target
         return PromptProjectionHorizontalCaretTarget(
             state=state,
-            rect=self._host._layout.cursor_rect(state, scroll_offset=0.0),
+            rect=geometry.caret.cursor_rect(state, scroll_offset=0.0),
         )
 
-    def move_vertically(self, direction: int, *, keep_anchor: bool) -> None:
+    def move_vertically(
+        self,
+        geometry: PromptProjectionGeometry,
+        direction: int,
+        *,
+        keep_anchor: bool,
+    ) -> None:
         """Move the caret vertically by adjacent visual line and preferred column."""
 
         host = self._host
@@ -249,6 +266,7 @@ class PromptProjectionCaretMovementController:
             keep_anchor=keep_anchor,
         )
         caret_rect = self._movement_origin_rect_for_arrow_key(
+            geometry,
             origin_state=origin_state,
             keep_anchor=keep_anchor,
         )
@@ -257,10 +275,10 @@ class PromptProjectionCaretMovementController:
             if host._preferred_x is None or not host._selection().is_empty
             else host._preferred_x
         )
-        current_line_index = host._layout.line_index_for_document_y(
+        current_line_index = geometry.caret.line_index_for_document_y(
             caret_rect.center().y()
         )
-        target = host._layout.vertical_caret_target(
+        target = geometry.caret.vertical_caret_target(
             origin_state,
             direction=direction,
             preferred_x=preferred_x,
@@ -277,7 +295,7 @@ class PromptProjectionCaretMovementController:
                 anchor_source_position=host._anchor_state.source_position,
             )
             return
-        target_line_index = host._layout.line_index_for_document_y(
+        target_line_index = geometry.caret.line_index_for_document_y(
             target.rect.center().y()
         )
         host._preferred_x = (
@@ -304,12 +322,13 @@ class PromptProjectionCaretMovementController:
 
     def _visual_affinity_override_for_target(
         self,
+        geometry: PromptProjectionGeometry,
         target_state: PromptProjectionCaretState,
         target_rect: QRectF,
     ) -> QRectF | None:
         """Return a caret override only when target differs from logical layout."""
 
-        layout_rect = self._host._layout.cursor_rect(target_state, scroll_offset=0.0)
+        layout_rect = geometry.caret.cursor_rect(target_state, scroll_offset=0.0)
         if rects_nearly_equal(target_rect, layout_rect):
             return None
         return QRectF(target_rect)
@@ -336,6 +355,7 @@ class PromptProjectionCaretMovementController:
 
     def _movement_origin_rect_for_arrow_key(
         self,
+        geometry: PromptProjectionGeometry,
         *,
         origin_state: PromptProjectionCaretState,
         keep_anchor: bool,
@@ -345,7 +365,7 @@ class PromptProjectionCaretMovementController:
         host = self._host
         if keep_anchor or host._selection().is_empty:
             return host._current_caret_document_rect()
-        return host._layout.cursor_rect(origin_state, scroll_offset=0.0)
+        return geometry.caret.cursor_rect(origin_state, scroll_offset=0.0)
 
 
 __all__ = [

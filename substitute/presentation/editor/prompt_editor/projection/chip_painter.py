@@ -23,8 +23,9 @@ from typing import Protocol
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QPainter, QPen
 
-from .layout_engine import PromptProjectionLayout
-from .model import PromptProjectionSelection
+from .content_selection_layer import EMPTY_PROJECTION_SELECTION_LAYER
+from .paint_input import PromptProjectionPaintInput
+from .painter import PromptProjectionPainter
 from .reorder_chip_geometry import PromptReorderChipGeometry
 
 
@@ -70,8 +71,8 @@ class PromptProjectionChipTextPaintPayload(Protocol):
     """Describe prepared projection text state consumed by chrome-only overlays."""
 
     @property
-    def layout(self) -> PromptProjectionLayout:
-        """Return the prepared projection layout used for text painting."""
+    def paint_input(self) -> PromptProjectionPaintInput:
+        """Return the complete prepared projection paint input."""
         ...
 
     @property
@@ -82,6 +83,11 @@ class PromptProjectionChipTextPaintPayload(Protocol):
 
 class PromptProjectionChipPainter:
     """Paint projection-owned semantic chip geometry and projected chip text."""
+
+    def __init__(self) -> None:
+        """Create the stateless shared projection painter."""
+
+        self._projection_painter = PromptProjectionPainter()
 
     def paint_chip_geometry(
         self,
@@ -105,10 +111,9 @@ class PromptProjectionChipPainter:
         self,
         *,
         painter: QPainter,
-        layout: PromptProjectionLayout,
+        paint_input: PromptProjectionPaintInput,
         visual: PromptProjectionChipTextVisual,
         clip_rect: QRectF,
-        selection: PromptProjectionSelection | None = None,
         scroll_offset: float = 0.0,
     ) -> None:
         """Paint one projection-backed chip label through the shared layout path."""
@@ -118,9 +123,10 @@ class PromptProjectionChipPainter:
             return
         painter.save()
         painter.translate(QPointF(text_translation))
-        layout.draw(
+        self._projection_painter.draw(
             painter,
-            selection=selection,
+            paint_input=paint_input,
+            selection_layer=EMPTY_PROJECTION_SELECTION_LAYER,
             scroll_offset=scroll_offset,
             clip_rect=clip_rect,
         )
@@ -138,7 +144,7 @@ class PromptProjectionChipPainter:
 
         self.paint_projection_text(
             painter=painter,
-            layout=payload.layout,
+            paint_input=payload.paint_input,
             visual=visual,
             clip_rect=clip_rect,
         )

@@ -157,7 +157,7 @@ def surface_for(box: PromptEditor) -> PromptProjectionSurface:
 def projection_paint_state_for(box: PromptEditor) -> PromptProjectionPaintState:
     """Return geometry-neutral visual state from the projection layout owner."""
 
-    return surface_for(box)._layout.paint_state  # noqa: SLF001
+    return surface_for(box)._layout.frame.paint_state  # noqa: SLF001
 
 
 def token_weight_controls_for(box: PromptEditor) -> PromptTokenWeightControls:

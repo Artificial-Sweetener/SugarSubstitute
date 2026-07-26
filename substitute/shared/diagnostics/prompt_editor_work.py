@@ -163,6 +163,46 @@ def record_prompt_editor_work_count(event: PromptEditorWorkEvent) -> None:
         observer.record(event, 0.0)
 
 
+def begin_prompt_editor_work() -> float | None:
+    """Start explicit owner timing only while an observer is active."""
+
+    if _ACTIVE_OBSERVER is None:
+        return None
+    return perf_counter()
+
+
+def complete_prompt_editor_work(
+    event: PromptEditorWorkEvent,
+    *,
+    started_at: float | None,
+) -> None:
+    """Complete explicitly timed owner work without a disabled-path wrapper."""
+
+    if started_at is None:
+        return
+    observer = _ACTIVE_OBSERVER
+    if observer is not None:
+        observer.record(event, (perf_counter() - started_at) * 1_000.0)
+
+
+def complete_prompt_editor_result_work(
+    result_event: Callable[[_Result], PromptEditorWorkEvent | None],
+    result: _Result,
+    *,
+    started_at: float | None,
+) -> None:
+    """Record an explicitly timed result without a disabled-path call wrapper."""
+
+    if started_at is None:
+        return
+    observer = _ACTIVE_OBSERVER
+    if observer is None:
+        return
+    measured_event = result_event(result)
+    if measured_event is not None:
+        complete_prompt_editor_work(measured_event, started_at=started_at)
+
+
 def prompt_editor_work_result_event(
     result_event: Callable[[_Result], PromptEditorWorkEvent | None],
 ) -> Callable[
@@ -240,6 +280,9 @@ def prompt_editor_paint_cache_event(result: str) -> PromptEditorWorkEvent:
 __all__ = [
     "PromptEditorWorkEvent",
     "PromptEditorWorkObserver",
+    "begin_prompt_editor_work",
+    "complete_prompt_editor_result_work",
+    "complete_prompt_editor_work",
     "observe_prompt_editor_work",
     "prompt_editor_paint_cache_event",
     "prompt_editor_work_bool_event",

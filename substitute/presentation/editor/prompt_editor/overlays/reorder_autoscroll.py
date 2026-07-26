@@ -21,23 +21,21 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from PySide6.QtCore import QPoint, QObject, QTimer
+from PySide6.QtCore import QPoint, QPointF, QObject, QTimer
 from PySide6.QtWidgets import QScrollBar
 
+from ..interactions.reorder_interaction_metrics import (
+    PromptReorderInteractionMetricsOwner,
+)
 from ..projection.observability import log_reorder_drag_timing, reorder_drag_started_at
-
+from .reorder_gesture_controller import PromptReorderGestureController
+from .reorder_interaction_diagnostics import (
+    PromptReorderInteractionDiagnosticsOwner,
+)
 
 _AUTOSCROLL_MARGIN = 36
 _AUTOSCROLL_STEP = 24
 _AUTOSCROLL_INTERVAL_MS = 30
-
-
-@dataclass(frozen=True, slots=True)
-class PromptReorderAutoscrollContext:
-    """Describe diagnostic identity for one autoscroll tick."""
-
-    gesture_id: int | None
-    event_id: int | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,8 +54,8 @@ class PromptReorderAutoscrollInvalidation:
     invalidation_index: int
 
 
-class PromptReorderAutoscrollController:
-    """Run bounded reorder autoscroll as a presentation UI-frame timer."""
+class PromptReorderAutoscrollOwner:
+    """Own bounded autoscroll and its complete invalidation lifecycle."""
 
     def __init__(
         self,
@@ -66,8 +64,14 @@ class PromptReorderAutoscrollController:
         scrollbar_provider: Callable[[], QScrollBar],
         overlay_height_provider: Callable[[], int],
         map_global_to_overlay: Callable[[QPoint], QPoint],
-        step_callback: Callable[[PromptReorderAutoscrollInvalidation], None],
-        context_provider: Callable[[], PromptReorderAutoscrollContext],
+        refresh_geometry: Callable[[str], None],
+        settle_animation: Callable[[str], None],
+        invalidate_refresh: Callable[[], None],
+        gesture: PromptReorderGestureController,
+        update_target: Callable[[QPointF, bool], bool],
+        emit_preview_layout_changed: Callable[[], None],
+        metrics: PromptReorderInteractionMetricsOwner,
+        diagnostics: PromptReorderInteractionDiagnosticsOwner,
         margin: int = _AUTOSCROLL_MARGIN,
         step: int = _AUTOSCROLL_STEP,
         interval_ms: int = _AUTOSCROLL_INTERVAL_MS,
@@ -77,8 +81,14 @@ class PromptReorderAutoscrollController:
         self._scrollbar_provider = scrollbar_provider
         self._overlay_height_provider = overlay_height_provider
         self._map_global_to_overlay = map_global_to_overlay
-        self._step_callback = step_callback
-        self._context_provider = context_provider
+        self._refresh_geometry = refresh_geometry
+        self._settle_animation = settle_animation
+        self._invalidate_refresh = invalidate_refresh
+        self._gesture = gesture
+        self._update_target = update_target
+        self._emit_preview_layout_changed = emit_preview_layout_changed
+        self._metrics = metrics
+        self._diagnostics = diagnostics
         self._margin = margin
         self._step = step
         self._direction = 0
@@ -86,6 +96,11 @@ class PromptReorderAutoscrollController:
         self._pointer_update_count = 0
         self._scroll_invalidation_count = 0
         self._noop_step_count = 0
+        self._schedule_count = 0
+        self._coalesced_count = 0
+        self._flush_count = 0
+        self._target_refresh_count = 0
+        self._pending_invalidation: PromptReorderAutoscrollInvalidation | None = None
         self._timer = QTimer(parent)
         self._timer.setInterval(interval_ms)
         self._timer.timeout.connect(self._apply_step)
@@ -113,6 +128,10 @@ class PromptReorderAutoscrollController:
         self._pointer_update_count = 0
         self._scroll_invalidation_count = 0
         self._noop_step_count = 0
+        self._schedule_count = 0
+        self._coalesced_count = 0
+        self._flush_count = 0
+        self._target_refresh_count = 0
 
     def counters(self) -> dict[str, int]:
         """Return test-facing autoscroll counters."""
@@ -121,7 +140,50 @@ class PromptReorderAutoscrollController:
             "autoscroll_pointer_update_count": self._pointer_update_count,
             "autoscroll_invalidation_count": self._scroll_invalidation_count,
             "autoscroll_noop_step_count": self._noop_step_count,
+            "autoscroll_schedule_count": self._schedule_count,
+            "autoscroll_coalesced_count": self._coalesced_count,
+            "autoscroll_flush_count": self._flush_count,
+            "autoscroll_target_refresh_count": self._target_refresh_count,
+            "autoscroll_pending_invalidation_count": int(
+                self._pending_invalidation is not None
+            ),
         }
+
+    def clear_pending_invalidation(self) -> None:
+        """Discard queued geometry refresh state at a lifecycle boundary."""
+
+        self._pending_invalidation = None
+
+    def flush_pending_invalidation(self, *, reason: str) -> bool:
+        """Consume and apply the latest coalesced scroll invalidation."""
+
+        invalidation = self._pending_invalidation
+        if invalidation is None:
+            return False
+        self._pending_invalidation = None
+        self._flush_count += 1
+        self._settle_animation(f"autoscroll_flush:{reason}")
+        self._refresh_geometry(reason)
+        before_target = self._gesture.state.active_drop_target
+        self._update_target(
+            QPointF(self._map_global_to_overlay(invalidation.global_position)),
+            False,
+        )
+        target_changed = before_target != self._gesture.state.active_drop_target
+        if target_changed:
+            self._target_refresh_count += 1
+        self._diagnostics.log_event(
+            "autoscroll.invalidation_flushed",
+            gesture_id=self._metrics.gesture_id,
+            event_id=self._metrics.event_id,
+            reason=reason,
+            direction=invalidation.direction,
+            previous_scroll_position=invalidation.previous_scroll_position,
+            next_scroll_position=invalidation.next_scroll_position,
+            invalidation_index=invalidation.invalidation_index,
+            target_changed=target_changed,
+        )
+        return True
 
     def update_for_pointer(self, global_position: QPoint) -> None:
         """Start or stop autoscroll based on the pointer position."""
@@ -164,7 +226,6 @@ class PromptReorderAutoscrollController:
         if self._direction == 0 or self._last_global_position is None:
             return
 
-        context = self._context_provider()
         started_at = reorder_drag_started_at()
         scrollbar = self._scrollbar_provider()
         previous_position = scrollbar.value()
@@ -180,8 +241,8 @@ class PromptReorderAutoscrollController:
             log_reorder_drag_timing(
                 "autoscroll.noop",
                 started_at=started_at,
-                gesture_id=context.gesture_id,
-                event_id=context.event_id,
+                gesture_id=self._metrics.gesture_id,
+                event_id=self._metrics.event_id,
                 direction=self._direction,
                 scrollbar_position=previous_position,
                 scrollbar_minimum=scrollbar.minimum(),
@@ -191,20 +252,25 @@ class PromptReorderAutoscrollController:
 
         scrollbar.setValue(next_position)
         self._scroll_invalidation_count += 1
-        self._step_callback(
-            PromptReorderAutoscrollInvalidation(
-                global_position=QPoint(self._last_global_position),
-                direction=self._direction,
-                previous_scroll_position=previous_position,
-                next_scroll_position=next_position,
-                invalidation_index=self._scroll_invalidation_count,
-            )
+        invalidation = PromptReorderAutoscrollInvalidation(
+            global_position=QPoint(self._last_global_position),
+            direction=self._direction,
+            previous_scroll_position=previous_position,
+            next_scroll_position=next_position,
+            invalidation_index=self._scroll_invalidation_count,
         )
+        if self._pending_invalidation is not None:
+            self._coalesced_count += 1
+        self._pending_invalidation = invalidation
+        self._schedule_count += 1
+        self._settle_animation("autoscroll_step")
+        self._invalidate_refresh()
+        self._emit_preview_layout_changed()
         log_reorder_drag_timing(
             "autoscroll.step",
             started_at=started_at,
-            gesture_id=context.gesture_id,
-            event_id=context.event_id,
+            gesture_id=self._metrics.gesture_id,
+            event_id=self._metrics.event_id,
             direction=self._direction,
             previous_position=previous_position,
             next_position=next_position,
@@ -212,7 +278,6 @@ class PromptReorderAutoscrollController:
 
 
 __all__ = [
-    "PromptReorderAutoscrollContext",
-    "PromptReorderAutoscrollController",
+    "PromptReorderAutoscrollOwner",
     "PromptReorderAutoscrollInvalidation",
 ]

@@ -303,6 +303,7 @@ def test_sync_prompt_editor_values_for_cube_scans_only_target_cube(
             "A": _CubeWidgetDouble([target_prompt]),
             "B": _CubeWidgetDouble([unrelated_prompt]),
         },
+        refresh_prompt_scene_diagnostics=lambda: None,
     )
 
     EditorPanelFieldStateController(

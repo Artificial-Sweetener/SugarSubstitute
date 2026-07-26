@@ -65,7 +65,10 @@ def surface_probe_state(surface: object) -> dict[str, object]:
     projection_document = getattr(projection, "document", None)
     active_projection_document = _call(surface, "active_projection_document")
     layout = getattr(surface, "_layout", None)
-    paint_cache = getattr(surface, "_projection_paint_cache", None)
+    frame = getattr(layout, "frame", None)
+    layout_output = getattr(frame, "output", None)
+    render_compositor = getattr(surface, "_render_compositor", None)
+    paint_cache = getattr(render_compositor, "content_cache_snapshot", None)
     freshness_controller = getattr(surface, "_projection_freshness_controller", None)
     pending_update = getattr(freshness_controller, "has_pending_update", None)
     stale_geometry = getattr(
@@ -94,12 +97,12 @@ def surface_probe_state(surface: object) -> dict[str, object]:
             getattr(active_projection_document, "projection_text", "")
         ),
         "layout_projection_document_id": id(
-            getattr(layout, "projection_document", None)
+            getattr(layout_output, "projection_document", None)
         ),
         "base_projection_document_id": id(projection_document),
         "active_projection_document_id": id(active_projection_document),
-        "paint_cache_key_present": getattr(paint_cache, "cache_key", None) is not None,
-        "paint_cache_key": repr(getattr(paint_cache, "cache_key", None)),
+        "paint_cache_key_present": getattr(paint_cache, "key", None) is not None,
+        "paint_cache_key": repr(getattr(paint_cache, "key", None)),
         "semantic_identity": repr(getattr(semantic, "identity", None)),
         "projection_semantic_identity": repr(
             getattr(projection_semantic, "identity", None)
@@ -130,12 +133,11 @@ def autocomplete_probe_state(coordinator: object) -> dict[str, object]:
 
     if not prompt_editor_probe_enabled():
         return _EMPTY_PROBE_STATE
-    sessions = getattr(coordinator, "_sessions", None)
-    state = getattr(sessions, "state", None)
+    publication = getattr(coordinator, "_session_publication", None)
+    state = getattr(publication, "state", None)
     session = getattr(state, "session", None)
-    presenter = getattr(coordinator, "_presenter", None)
-    has_active_session = getattr(sessions, "has_active_session", None)
-    panel_visible = getattr(presenter, "panel_visible", None)
+    has_active_session = getattr(publication, "has_active_session", None)
+    panel_visible = getattr(publication, "panel_visible", None)
     suggestions = tuple(
         str(getattr(suggestion, "tag", ""))
         for suggestion in getattr(session, "suggestions", ())

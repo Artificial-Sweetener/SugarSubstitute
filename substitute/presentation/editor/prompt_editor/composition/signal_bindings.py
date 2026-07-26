@@ -94,6 +94,7 @@ def bind_prompt_editor_signals(
     surface = collaborators.surface
     token_weight_controls = collaborators.token_weight_controls
     interaction_controller = collaborators.interaction_controller
+    weight_interaction = collaborators.weight_interaction
 
     surface.attach_focus_host(surface)
     surface.set_wheel_scroll_permission(editor._allow_surface_wheel_scroll)
@@ -125,18 +126,18 @@ def bind_prompt_editor_signals(
     editor.cursorPositionChanged.connect(
         interaction_controller.handle_cursor_position_changed
     )
-    surface.emphasisShortcutTriggered.connect(interaction_controller.modify_emphasis)
+    surface.emphasisShortcutTriggered.connect(weight_interaction.modify_emphasis)
     token_weight_controls.tokenWeightStepTriggered.connect(
-        interaction_controller.apply_token_weight_step_intent
+        weight_interaction.apply_token_weight_step_intent
     )
     token_weight_controls.tokenWeightWheelStepTriggered.connect(
-        interaction_controller.apply_token_weight_wheel_step_intent
+        weight_interaction.apply_token_weight_wheel_step_intent
     )
     token_weight_controls.visibleTokenRangeChanged.connect(
-        interaction_controller.handle_overlay_visible_token_range_changed
+        weight_interaction.handle_visible_token_range_changed
     )
     token_weight_controls.visibleTokenContentRangeChanged.connect(
-        interaction_controller.handle_overlay_visible_token_changed
+        weight_interaction.handle_visible_token_content_range_changed
     )
     editor.verticalScrollBar().valueChanged.connect(
         editor._scroll_delegate.handle_viewport_scroll_value_changed

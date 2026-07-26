@@ -63,7 +63,7 @@ def capture_action_checkpoint(
     if action.expected_diagnostics is not None:
         actual_diagnostics = tuple(
             (item.kind.value, item.source_start, item.source_end)
-            for item in prompt_editor._diagnostics_feature_controller.snapshot.diagnostics
+            for item in prompt_editor._diagnostics_feature_controller.presentation.snapshot.diagnostics
         )
         _append_mismatch(
             mismatches,

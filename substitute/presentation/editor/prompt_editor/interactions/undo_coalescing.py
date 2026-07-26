@@ -22,10 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Generic, Protocol, TypeVar
 
-from ..commands.execution import (
-    PromptEditExecution,
-    PromptPendingKeyEditBlockFlusher,
-)
+from ..commands.execution import PromptEditExecution
 
 TPayload = TypeVar("TPayload")
 
@@ -44,25 +41,6 @@ class PromptUndoCoalescingTimer(Protocol):
 
     def stop(self) -> None:
         """Stop the timer if it is currently active."""
-
-
-class PromptUndoCoalescingActions(PromptPendingKeyEditBlockFlusher, Protocol):
-    """Expose keymap-facing undo coalescing actions."""
-
-    def finish_delete_group(self, *, reason: str) -> None:
-        """Commit any active delete-key undo group."""
-
-    def finish_typing_group(self, *, reason: str) -> None:
-        """Commit any active typing undo group."""
-
-    def begin_delete_group(self, *, key: int, autorepeat: bool) -> None:
-        """Open or extend a delete-key undo group."""
-
-    def can_group_typed_text(self, text: str) -> bool:
-        """Return whether typed text can join the current typing group."""
-
-    def begin_or_extend_typing_group(self, text: str) -> None:
-        """Open or extend a typing undo group."""
 
 
 @dataclass(slots=True)
@@ -150,7 +128,6 @@ class PromptUndoCoalescingController(Generic[TPayload]):
 
 __all__ = [
     "DELETE_UNDO_COALESCE_IDLE_MS",
-    "PromptUndoCoalescingActions",
     "PromptUndoCoalescingController",
     "PromptUndoCoalescingTimer",
     "TYPING_UNDO_COALESCE_IDLE_MS",

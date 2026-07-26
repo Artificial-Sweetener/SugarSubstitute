@@ -55,14 +55,25 @@ class PromptAutocompleteScheduledLoraContextController:
         self,
         *,
         context_provider: PromptScheduledLoraContextProvider | None,
-        current_context: PromptAutocompleteScheduledLoraCurrentContext,
         enabled: bool,
     ) -> None:
-        """Store scheduled-LoRA collaborators without owning resolution."""
+        """Store scheduled-LoRA collaborators before its current-context owner binds."""
 
         self._context_provider = context_provider
-        self._current_context = current_context
+        self._current_context: PromptAutocompleteScheduledLoraCurrentContext | None = (
+            None
+        )
         self._enabled = enabled
+
+    def bind_current_context(
+        self,
+        current_context: PromptAutocompleteScheduledLoraCurrentContext,
+    ) -> None:
+        """Bind the sole live context owner after composition resolves the cycle."""
+
+        if self._current_context is not None:
+            raise RuntimeError("Scheduled-LoRA current context is already bound.")
+        self._current_context = current_context
 
     @property
     def enabled(self) -> bool:
@@ -82,7 +93,8 @@ class PromptAutocompleteScheduledLoraContextController:
         """Return cached trigger words and queue stale-safe refresh when cold."""
 
         provider = self._context_provider
-        if not self.enabled or provider is None:
+        current_context = self._current_context
+        if not self.enabled or provider is None or current_context is None:
             return PromptAutocompleteTriggerWordResult(
                 suggestions=(),
                 scheduled_lora_signature=(),
@@ -99,9 +111,9 @@ class PromptAutocompleteScheduledLoraContextController:
                 ),
                 query_identity=query_identity,
                 current_source_text=None,
-                current_source_identity=self._current_context.current_source_identity,
-                current_query_identity=self._current_context.current_query_identity,
-                refresh_current_query=self._current_context.refresh_current_query,
+                current_source_identity=current_context.current_source_identity,
+                current_query_identity=current_context.current_query_identity,
+                refresh_current_query=current_context.refresh_current_query,
             ),
         )
 

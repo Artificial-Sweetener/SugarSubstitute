@@ -24,6 +24,8 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 
 from collections.abc import Callable, Hashable
 
+import pytest
+
 from substitute.application.ports import PromptAutocompleteSuggestion
 from substitute.application.prompt_editor.autocomplete.queries import (
     PromptAutocompleteQuery,
@@ -182,7 +184,7 @@ def test_phase27_scene_context_owner_prepares_effective_prompt_text_and_identity
     portrait_mid = source.index("mid")
     cafe_mid = source.rindex("mid")
     controller = PromptAutocompleteSceneContextController(
-        scene_context_provider=_SceneIdentityProvider(),
+        scene_context_identity=lambda: _SceneIdentityProvider().scene_context_identity,
     )
     feature_identity = PromptFeatureSnapshotIdentity(feature_profile_id=("profile", 1))
     source_identity = PromptSourceIdentity(
@@ -239,9 +241,9 @@ def test_phase27_scheduled_lora_context_owner_delegates_prepared_stale_context()
     current_context = _ScheduledCurrentContext()
     controller = PromptAutocompleteScheduledLoraContextController(
         context_provider=provider,
-        current_context=current_context,
         enabled=True,
     )
+    controller.bind_current_context(current_context)
 
     result = controller.trigger_word_suggestions(
         "mid",
@@ -265,9 +267,9 @@ def test_phase27_scheduled_lora_context_owner_fails_closed_when_disabled() -> No
     current_context = _ScheduledCurrentContext()
     controller = PromptAutocompleteScheduledLoraContextController(
         context_provider=provider,
-        current_context=current_context,
         enabled=False,
     )
+    controller.bind_current_context(current_context)
 
     result = controller.trigger_word_suggestions(
         "mid",
@@ -281,3 +283,39 @@ def test_phase27_scheduled_lora_context_owner_fails_closed_when_disabled() -> No
     assert result.scheduled_lora_signature == ()
     assert provider.prewarm_calls == []
     assert provider.trigger_source_identity is None
+
+
+def test_phase27_scheduled_lora_context_owner_fails_closed_before_binding() -> None:
+    """Composition must not queue async work before a live context owner exists."""
+
+    provider = _ScheduledContextProvider()
+    controller = PromptAutocompleteScheduledLoraContextController(
+        context_provider=provider,
+        enabled=True,
+    )
+
+    result = controller.trigger_word_suggestions(
+        "mid",
+        "mid",
+        source_text="mid",
+        source_identity=None,
+        query_identity=("tag", "mid"),
+    )
+
+    assert result.suggestions == ()
+    assert result.scheduled_lora_signature == ()
+    assert provider.prewarm_calls == []
+    assert provider.trigger_source_identity is None
+
+
+def test_phase27_scheduled_lora_context_owner_rejects_rebinding() -> None:
+    """A composition error must not replace live async freshness authority."""
+
+    controller = PromptAutocompleteScheduledLoraContextController(
+        context_provider=_ScheduledContextProvider(),
+        enabled=True,
+    )
+    controller.bind_current_context(_ScheduledCurrentContext())
+
+    with pytest.raises(RuntimeError, match="already bound"):
+        controller.bind_current_context(_ScheduledCurrentContext())

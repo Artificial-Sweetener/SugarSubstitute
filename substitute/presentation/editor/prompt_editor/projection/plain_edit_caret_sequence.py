@@ -21,11 +21,13 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from typing import overload
 
-from .model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretMap,
     PromptProjectionCaretPlacement,
     PromptProjectionCaretState,
     PromptProjectionCaretStop,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
 )
 from .plain_edit_coordinates import PromptProjectionPlainEditCoordinates

@@ -132,6 +132,9 @@ class EditorPanelFieldStateHost(Protocol):
     cube_widgets: Mapping[str, object]
     _cube_states: Mapping[str, FieldStateCubeStateProtocol] | None
 
+    def refresh_prompt_scene_diagnostics(self) -> None:
+        """Refresh scene diagnostics after prompt state restoration."""
+
 
 @runtime_checkable
 class _ValueWritable(Protocol):
@@ -318,7 +321,7 @@ class EditorPanelFieldStateController:
             return
         for cube_widget in host.cube_widgets.values():
             self.sync_prompt_editor_values_for_widget(cube_widget)
-        self._refresh_prompt_scene_diagnostics_if_available()
+        host.refresh_prompt_scene_diagnostics()
 
     def sync_prompt_editor_values_for_cube(self, cube_alias: str) -> None:
         """Restore prompt-editor widget values for one cube alias."""
@@ -330,7 +333,7 @@ class EditorPanelFieldStateController:
         if cube_widget is None:
             return
         self.sync_prompt_editor_values_for_widget(cube_widget)
-        self._refresh_prompt_scene_diagnostics_if_available()
+        host.refresh_prompt_scene_diagnostics()
 
     def sync_prompt_editor_values_for_widget(self, cube_widget: object) -> None:
         """Restore prompt-editor widget values hosted by one cube widget."""
@@ -1094,13 +1097,6 @@ class EditorPanelFieldStateController:
             node = {}
             nodes[binding.node_name] = node
         return cast(dict[str, Any], node)
-
-    def _refresh_prompt_scene_diagnostics_if_available(self) -> None:
-        """Refresh scene diagnostics when the panel host exposes that API."""
-
-        refresh = getattr(self._host, "refresh_prompt_scene_diagnostics", None)
-        if callable(refresh):
-            refresh()
 
     @staticmethod
     def _connect_signal(signal: object, slot: Callable[..., None]) -> None:

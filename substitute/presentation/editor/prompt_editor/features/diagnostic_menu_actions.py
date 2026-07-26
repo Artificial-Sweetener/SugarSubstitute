@@ -40,7 +40,7 @@ from substitute.application.prompt_editor.diagnostics.unsupported_scenes import 
 )
 
 from ..commands.feature_commands import PromptFeatureSnapshotIdentity
-from .wildcard_controller import PromptWildcardContextAction
+from .wildcard_diagnostics import PromptWildcardContextAction
 
 
 @dataclass(frozen=True, slots=True)

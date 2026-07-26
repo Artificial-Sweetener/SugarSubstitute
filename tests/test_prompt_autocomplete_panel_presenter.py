@@ -263,12 +263,14 @@ def _presenter_with_panel(
         return panel
 
     presenter = PromptAutocompletePanelPresenter(
-        editor=editor,
+        host_widget=editor,
+        viewport=editor.viewport,
+        cursor_rect=editor.cursorRect,
         panel_factory=create_panel,
         lora_wall_factory=(
             None
             if lora_wall_factory is None
-            else lambda parent, *, thumbnail_cache: lora_wall_factory(parent)
+            else lambda parent, _thumbnail_cache: lora_wall_factory(parent)
         ),
         lora_thumbnail_cache=object() if lora_wall_factory is not None else None,
     )

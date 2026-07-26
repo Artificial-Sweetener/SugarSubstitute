@@ -71,7 +71,7 @@ from substitute.presentation.editor.panel.widgets.field_row import (
 from substitute.presentation.editor.panel.field_sync_controller import (
     EditorPanelFieldSyncController,
 )
-from substitute.presentation.editor.panel.prompt_profile_policy import (
+from substitute.presentation.editor.panel.prompt.profile_policy import (
     PanelPromptFieldProfileDecision,
 )
 from substitute.presentation.editor.panel.node_card_builder import (

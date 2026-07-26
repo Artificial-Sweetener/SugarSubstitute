@@ -64,7 +64,7 @@ from substitute.presentation.editor.prompt_editor.async_work import (
 from substitute.presentation.editor.prompt_editor.features import (
     PromptDiagnosticsFeatureController,
     PromptFeatureProfileController,
-    PromptWildcardFeatureController,
+    PromptWildcardDiagnosticsPresentation,
 )
 from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
@@ -488,21 +488,20 @@ def _diagnostics_controller(
                 )
             )
         ),
-        wildcard_feature=PromptWildcardFeatureController(
+        wildcard_feature=PromptWildcardDiagnosticsPresentation(
             feature_profile=PromptFeatureProfileController(
                 PromptEditorFeatureProfile.enabled_profile(
                     (PromptEditorFeature.WILDCARD_SYNTAX,)
                 )
             ),
             wildcard_catalog_gateway=cast(PromptWildcardCatalogGateway, object()),
-            request_channel=_ImmediateRequestChannel(),
         ),
         spellcheck_service=cast(Any, spellcheck_service),
+        diagnostics_service_factory=lambda _providers: cast(Any, service),
         request_channel=request_channel or _ImmediateRequestChannel(),
         debouncer=debouncer or _FakeDebouncer(),
     )
     controller.activate()
-    cast(Any, controller)._service = service
     if debouncer is not None:
         debouncer.request_count = 0
         debouncer.cancel_count = 0
@@ -530,7 +529,9 @@ def test_controller_dispatches_refresh_through_request_channel() -> None:
 
     assert request_channel.submitted_count == 1
     assert surface.diagnostics == (diagnostic,)
-    assert controller.visible_diagnostic_at_source_position(2) == diagnostic
+    assert (
+        controller.presentation.visible_diagnostic_at_source_position(2) == diagnostic
+    )
 
 
 def test_controller_debounces_text_changes_to_latest_snapshot() -> None:
@@ -585,8 +586,8 @@ def test_controller_failure_publishes_unavailable_snapshot_with_safe_log(
 
     assert surface.diagnostics == ()
     assert surface.clear_count == 1
-    assert controller.snapshot.unavailable_reason == "RuntimeError"
-    assert controller.snapshot.identity.stale is True
+    assert controller.presentation.snapshot.unavailable_reason == "RuntimeError"
+    assert controller.presentation.snapshot.identity.stale is True
     assert "prompt_diagnostics.refresh.failed" in caplog.text
     assert "error_type=RuntimeError" in caplog.text
     assert "secret prompt text" not in caplog.text
@@ -606,7 +607,7 @@ def test_controller_filters_active_word_before_updating_surface() -> None:
     assert service.snapshot_calls == ["beut"]
     assert not surface.diagnostics
     assert surface.clear_count == 1
-    assert controller.visible_diagnostic_at_source_position(2) is None
+    assert controller.presentation.visible_diagnostic_at_source_position(2) is None
 
 
 def test_controller_refreshes_visible_diagnostics_on_cursor_move_without_backend_refresh() -> (
@@ -660,8 +661,10 @@ def test_controller_context_lookup_uses_full_snapshot_for_active_word() -> None:
 
     assert not surface.diagnostics
     assert service.snapshot_calls == ["beut"]
-    assert controller.context_diagnostic_at_source_position(2) == diagnostic
-    assert controller.context_diagnostic_at_source_position(4) is None
+    assert (
+        controller.presentation.context_diagnostic_at_source_position(2) == diagnostic
+    )
+    assert controller.presentation.context_diagnostic_at_source_position(4) is None
 
 
 def test_controller_prepares_spelling_menu_actions_before_menu_read() -> None:
@@ -682,7 +685,7 @@ def test_controller_prepares_spelling_menu_actions_before_menu_read() -> None:
     spellcheck.suggestion_words.clear()
     editor.read_count = 0
 
-    snapshot = controller.prepared_menu_actions_for_source_position(5)
+    snapshot = controller.presentation.prepared_menu_actions_for_source_position(5)
 
     assert snapshot.ready is True
     assert snapshot.diagnostic_id == diagnostic.diagnostic_id
@@ -706,7 +709,7 @@ def test_controller_prepared_menu_actions_include_hidden_active_word() -> None:
     )
 
     controller.refresh_now()
-    snapshot = controller.prepared_menu_actions_for_source_position(2)
+    snapshot = controller.presentation.prepared_menu_actions_for_source_position(2)
 
     assert snapshot.ready is True
     assert snapshot.diagnostic_id == diagnostic.diagnostic_id
@@ -728,7 +731,7 @@ def test_controller_prepared_menu_actions_report_no_diagnostic_without_derivatio
     controller.refresh_now()
     editor.read_count = 0
 
-    snapshot = controller.prepared_menu_actions_for_source_position(4)
+    snapshot = controller.presentation.prepared_menu_actions_for_source_position(4)
 
     assert snapshot.ready is True
     assert snapshot.diagnostic_id is None
@@ -750,7 +753,7 @@ def test_controller_prepared_menu_actions_report_stale_source_identity() -> None
     editor.set_text("beautiful")
     editor.read_count = 0
 
-    snapshot = controller.prepared_menu_actions_for_source_position(2)
+    snapshot = controller.presentation.prepared_menu_actions_for_source_position(2)
 
     assert snapshot.ready is False
     assert snapshot.stale is True
@@ -773,7 +776,7 @@ def test_controller_context_lookup_ignores_stale_snapshot_ranges() -> None:
 
     editor.set_text("beautiful")
 
-    assert controller.context_diagnostic_at_source_position(2) is None
+    assert controller.presentation.context_diagnostic_at_source_position(2) is None
 
 
 def test_controller_replace_spelling_diagnostic_routes_command() -> None:
@@ -787,7 +790,7 @@ def test_controller_replace_spelling_diagnostic_routes_command() -> None:
         _FakeService(diagnostic),
     )
 
-    controller.replace_spelling_diagnostic(diagnostic, "type")
+    controller.presentation.replace_spelling_diagnostic(diagnostic, "type")
 
     assert editor.toPlainText() == "one type"
     assert editor.focused is True
@@ -805,7 +808,9 @@ def test_controller_filters_active_wildcard_diagnostic_while_editing() -> None:
     controller.refresh_now()
 
     assert not surface.diagnostics
-    assert controller.context_diagnostic_at_source_position(2) == diagnostic
+    assert (
+        controller.presentation.context_diagnostic_at_source_position(2) == diagnostic
+    )
 
     editor.set_text("{missing}, suffix")
     service._diagnostic = _wildcard_diagnostic(0, 9, "missing")  # noqa: SLF001
@@ -824,7 +829,7 @@ def test_wildcard_diagnostics_add_context_menu_explainer() -> None:
         _FakeService(diagnostic),
     )
 
-    actions = controller.actions_for_diagnostic(diagnostic)
+    actions = controller.presentation.actions_for_diagnostic(diagnostic)
 
     assert len(actions) == 1
     assert actions[0].label == "Wildcard not found"
@@ -843,7 +848,7 @@ def test_controller_prepares_wildcard_menu_action_explainer() -> None:
     )
 
     controller.refresh_now()
-    snapshot = controller.prepared_menu_actions_for_source_position(2)
+    snapshot = controller.presentation.prepared_menu_actions_for_source_position(2)
 
     assert len(snapshot.actions) == 1
     assert snapshot.actions[0].label == "Wildcard not found"
@@ -868,7 +873,7 @@ def test_controller_prepares_duplicate_menu_actions() -> None:
     )
 
     controller.refresh_now()
-    snapshot = controller.prepared_menu_actions_for_source_position(14)
+    snapshot = controller.presentation.prepared_menu_actions_for_source_position(14)
 
     assert [action.label for action in snapshot.actions] == [
         "Remove duplicate",

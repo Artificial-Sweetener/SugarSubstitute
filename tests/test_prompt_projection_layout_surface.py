@@ -33,7 +33,7 @@ from substitute.application.prompt_editor.document.views import (
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
-from substitute.presentation.editor.prompt_editor.projection.line_layout import (
+from substitute.presentation.editor.prompt_editor.layout.tag_keep_policy import (
     tag_keep_source_ranges_for_layout,
 )
 from substitute.presentation.editor.prompt_editor.projection.surface import (
@@ -56,7 +56,7 @@ if os.environ.get("PYTEST_XDIST_WORKER"):
 def _projection_line_texts(surface: PromptProjectionSurface) -> tuple[str, ...]:
     """Return visible text grouped by projection visual line."""
 
-    snapshot = cast(Any, surface)._layout.snapshot
+    snapshot = cast(Any, surface)._layout.frame.output.snapshot
     return tuple(
         "".join(
             fragment.text for fragment in line.fragments if hasattr(fragment, "text")
@@ -113,7 +113,7 @@ def test_projection_layout_keeps_short_tag_without_trailing_space_width() -> Non
         surface._rebuild_projection()  # noqa: SLF001
 
         line_texts = _projection_line_texts(surface)
-        snapshot = cast(Any, surface)._layout.snapshot
+        snapshot = cast(Any, surface)._layout.frame.output.snapshot
 
         assert "test test test," in "\n".join(line_texts)
         for range_start, range_end in tag_keep_source_ranges_for_layout(document_view):

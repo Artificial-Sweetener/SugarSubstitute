@@ -32,11 +32,15 @@ from PySide6.QtWidgets import QApplication, QWidget
 from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
     PromptSourceEditOrigin,
 )
+from substitute.presentation.editor.prompt_editor.projection.input_method_layer_preparer import (
+    PromptInputMethodRenderLayerPreparer,
+)
 import substitute.presentation.text_coordinates as text_coordinates_module
 from substitute.presentation.text_coordinates import TextCoordinateMap
 from tests.prompt_projection_surface_test_helpers import (
     new_projection_surface,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
+    render_surface_viewport,
     surface_edit_execution,
     surface_source_commands,
 )
@@ -104,6 +108,41 @@ def test_prompt_preedit_is_transient_and_exposes_complete_qt_queries(
         QRectF,
         surface.inputMethodQuery(Qt.InputMethodQuery.ImCursorRectangle),
     ).isValid()
+
+
+def test_prompt_preedit_paint_consumes_the_published_shaped_layer(
+    widgets: list[QWidget],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Paint must not shape preedit text or query its caret geometry."""
+
+    ensure_qapp()
+    surface = new_projection_surface()
+    widgets.append(surface)
+    surface.resize(400, 120)
+    surface.show()
+    QApplication.processEvents()
+    _set_source(surface, "prefix suffix")
+    surface.set_cursor_positions(cursor_position=7, anchor_position=7)
+    QApplication.sendEvent(surface, QInputMethodEvent("にほん", []))
+    controller = cast(Any, surface)._input_method_controller
+    assert controller.render_layer.layout is not None
+
+    def reject_preparation(*args: object, **kwargs: object) -> None:
+        """Reject input-method shaping reached from the paint stack."""
+
+        del args, kwargs
+        raise AssertionError("input-method preparation ran during paint")
+
+    monkeypatch.setattr(
+        PromptInputMethodRenderLayerPreparer,
+        "prepare",
+        reject_preparation,
+    )
+
+    image = render_surface_viewport(surface)
+
+    assert not image.isNull()
 
 
 def test_prompt_ime_commit_replaces_selection_once_and_round_trips_undo(

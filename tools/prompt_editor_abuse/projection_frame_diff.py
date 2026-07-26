@@ -26,8 +26,8 @@ from numpy.typing import NDArray
 from PySide6.QtCore import QPoint, QRectF
 from PySide6.QtGui import QImage, QPainter
 
-from substitute.presentation.editor.prompt_editor.projection.snapshot import (
-    PromptProjectionTextFragment,
+from substitute.presentation.editor.prompt_editor.projection.painter import (
+    PromptProjectionPainter,
 )
 
 _TILE_WIDTH = 96
@@ -42,7 +42,7 @@ def missing_projection_text_tiles(
     """Return visible layout tiles whose expected glyph pixels are absent."""
 
     surface = editor._surface
-    layout = surface._layout
+    frame = surface._layout.frame
     reference = _render_projection_reference(editor)
     expected_rgba = _rgba_pixels(reference)
     actual_rgba = _rgba_pixels(backing_store)
@@ -62,7 +62,7 @@ def missing_projection_text_tiles(
     )
     scroll_offset = float(surface._scroll_offset())
     missing: list[str] = []
-    for line_index, line in enumerate(layout.snapshot.lines):
+    for line_index, line in enumerate(frame.output.snapshot.lines):
         top = max(
             0,
             int(math.floor(viewport_origin.y() + line.top - scroll_offset)),
@@ -104,7 +104,7 @@ def _render_projection_reference(editor: Any) -> QImage:
     )
     image.fill(0)
     surface = editor._surface
-    layout = surface._layout
+    frame = surface._layout.frame
     viewport = editor.viewport()
     viewport_origin = viewport.mapTo(editor, QPoint())
     painter = QPainter(image)
@@ -112,19 +112,13 @@ def _render_projection_reference(editor: Any) -> QImage:
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
         painter.translate(viewport_origin)
         scroll_offset = float(surface._scroll_offset())
-        painter.translate(0.0, -scroll_offset)
-        painter.setClipRect(QRectF(viewport.rect()).translated(0.0, scroll_offset))
-        paint_styles: dict[str, Any] = {}
-        selection = surface._selection()
-        for line in layout.snapshot.lines:
-            for fragment in line.fragments:
-                if isinstance(fragment, PromptProjectionTextFragment):
-                    layout._painter._paint_text_fragment(
-                        painter,
-                        fragment,
-                        selection=selection,
-                        paint_styles=paint_styles,
-                    )
+        PromptProjectionPainter().draw(
+            painter,
+            paint_input=frame.paint_input,
+            selection=surface._selection(),
+            scroll_offset=scroll_offset,
+            clip_rect=QRectF(viewport.rect()),
+        )
     finally:
         painter.end()
     return image

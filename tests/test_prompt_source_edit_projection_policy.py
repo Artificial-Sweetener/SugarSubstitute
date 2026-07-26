@@ -20,8 +20,16 @@ from __future__ import annotations
 
 import pytest
 
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionToken,
+    PromptProjectionTokenKind,
+)
 from substitute.presentation.editor.prompt_editor.projection.source_edit_projection_policy import (
+    PromptSourceEditProjectionDecision,
     PromptSourceEditProjectionPolicy,
+)
+from substitute.presentation.editor.prompt_editor.projection.source_edit_syntax import (
+    is_deferred_syntax_autocomplete_prefix,
 )
 
 
@@ -94,3 +102,107 @@ def test_source_edit_projection_policy_allows_safe_plain_insert() -> None:
 
     assert decision.can_defer_projection
     assert decision.deferral_reason == "safe_typing"
+
+
+@pytest.mark.parametrize(
+    "reason",
+    (
+        "plain_single_character",
+        "plain_single_character_requires_layout",
+        "plain_single_character_delete",
+        "plain_single_character_delete_requires_layout",
+        "syntax_sensitive_autocomplete_prefix",
+    ),
+)
+def test_source_edit_projection_decision_allows_safe_wrap_recovery(
+    reason: str,
+) -> None:
+    """Plain edit decisions retain stale-safe recovery at wrap boundaries."""
+
+    decision = PromptSourceEditProjectionDecision(
+        can_defer_projection=False,
+        deferral_reason=reason,
+    )
+
+    assert decision.wrap_reflow_deferrable
+
+
+@pytest.mark.parametrize(
+    ("character", "comma_requires_projection", "expected"),
+    (
+        ("x", False, False),
+        ("(", False, True),
+        ("*", False, True),
+        (",", False, False),
+        (",", True, True),
+    ),
+)
+def test_source_edit_projection_policy_classifies_syntax_characters(
+    character: str,
+    comma_requires_projection: bool,
+    expected: bool,
+) -> None:
+    """Syntax and context-sensitive comma edits have one policy owner."""
+
+    assert (
+        PromptSourceEditProjectionPolicy().typed_character_requires_projection(
+            character,
+            comma_requires_projection=comma_requires_projection,
+        )
+        is expected
+    )
+
+
+@pytest.mark.parametrize(
+    ("text", "position", "focused_range", "expected"),
+    (
+        ("<", 0, None, True),
+        ("<lora:", len("<lora"), None, True),
+        ("prefix <lora:", len("prefix <lora"), None, False),
+        ("<lora:name>", len("<lora:name"), None, False),
+        ("alpha, <", len("alpha, "), (0, len("alpha")), True),
+        ("alpha, <", len("alpha, "), (6, len("alpha, ") + 1), False),
+    ),
+)
+def test_source_edit_projection_policy_classifies_autocomplete_prefix(
+    text: str,
+    position: int,
+    focused_range: tuple[int, int] | None,
+    expected: bool,
+) -> None:
+    """Only incomplete LoRA prefixes outside token interiors may defer."""
+
+    assert (
+        is_deferred_syntax_autocomplete_prefix(
+            start=position,
+            end=position,
+            replacement_text=text[position],
+            normalized_text=text,
+            focused_token_range=focused_range,
+        )
+        is expected
+    )
+
+
+def test_source_edit_projection_policy_queries_token_boundaries() -> None:
+    """Token intersection and interior checks share the projection policy owner."""
+
+    token = PromptProjectionToken(
+        token_id="token",
+        kind=PromptProjectionTokenKind.LORA,
+        source_start=4,
+        source_end=12,
+        display_text="lora",
+    )
+    policy = PromptSourceEditProjectionPolicy()
+
+    assert policy.source_range_intersects_tokens(start=3, end=5, tokens=(token,))
+    assert not policy.source_range_intersects_tokens(start=0, end=4, tokens=(token,))
+    assert policy.source_insertion_is_inside_token(
+        source_position=8,
+        tokens=(token,),
+    )
+    assert not policy.source_insertion_is_inside_token(
+        source_position=4,
+        tokens=(token,),
+    )

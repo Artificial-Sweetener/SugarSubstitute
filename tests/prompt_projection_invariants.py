@@ -19,9 +19,13 @@
 from __future__ import annotations
 
 from substitute.presentation.text_coordinates import TextCoordinateMap
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretPlacement,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
     PromptProjectionRunKind,
 )

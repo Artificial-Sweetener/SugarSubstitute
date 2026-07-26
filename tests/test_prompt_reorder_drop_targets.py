@@ -27,10 +27,12 @@ from substitute.application.prompt_editor.reorder.views import (
 )
 from substitute.presentation.editor.prompt_editor.projection.reorder_drop_targets import (
     PromptReorderBlankLineDropLane,
-    PromptReorderDropTargetResolverInput,
-    PromptReorderDropTargetTracker,
     PromptReorderDropTargetVisual,
     PromptReorderRowDropLane,
+)
+from substitute.presentation.editor.prompt_editor.projection.reorder_pointer_hit_testing import (
+    PromptReorderDropTargetResolverInput,
+    PromptReorderDropTargetTracker,
     axis_distance,
     point_drop_rect,
 )

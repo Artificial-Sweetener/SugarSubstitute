@@ -53,7 +53,7 @@ from substitute.presentation.editor.prompt_editor.projection.freshness_controlle
 from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
     PromptSourceEditOrigin,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
 )
 from tests.prompt_projection_test_helpers import ensure_qapp
@@ -172,6 +172,40 @@ def test_freshness_controller_schedules_safe_typing_only_when_unblocked() -> Non
     controller.clear_pending_after_immediate_apply()
 
     assert controller.has_pending_update() is False
+
+
+def test_freshness_controller_provisional_schedule_awaits_semantic_snapshot() -> None:
+    """Provisional wrap work remains replaceable by authoritative semantics."""
+
+    controller = _controller()
+    controller.set_defer_source_rebuilds_until_prompt_state(True)
+    controller.sync_layout_metrics(
+        commit_projection=True,
+        reorder_preview_active=False,
+        layout_identity=_layout_identity(source_revision=1),
+        content_height=100.0,
+        content_width=220.0,
+        layout_width=320.0,
+        display_mode=PromptProjectionDisplayMode.PROJECTED,
+    )
+
+    controller.schedule_provisional_safe_typing_update(
+        snapshot=_semantic_snapshot(
+            "alpha beta",
+            source_revision=2,
+            semantic_revision=2,
+        ),
+        previous_snapshot=_semantic_snapshot(
+            "alpha",
+            source_revision=1,
+            semantic_revision=1,
+        ),
+        source_revision=2,
+    )
+
+    assert controller.has_pending_update()
+    assert controller.can_schedule_prompt_state_projection(_blockers())
+    assert _freshness(controller) is ProjectionFreshness.STALE_SAFE
 
 
 def test_freshness_controller_source_rebuild_deferral_reasons() -> None:

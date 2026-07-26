@@ -49,7 +49,7 @@ import substitute.presentation.editor.panel.factories.choice_factory as choice_f
 import substitute.presentation.editor.panel.factories.field_pipeline as factories
 import substitute.presentation.editor.panel.factories.image_factory as image_factory
 import substitute.presentation.editor.panel.factories.numeric_factory as numeric_factory
-import substitute.presentation.editor.panel.factories.prompt_factory as prompt_factory
+import substitute.presentation.editor.panel.prompt.factory as prompt_factory
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
     PanelModelChoiceSnapshotController,
 )
@@ -307,8 +307,8 @@ class _FakePromptEditor:
         self.prompt_task_executor_factory = prompt_task_executor_factory
         self.danbooru_lookup_dispatcher_factory = danbooru_lookup_dispatcher_factory
 
-    def setPlainText(self, text: str) -> None:
-        """Record the assigned prompt text."""
+    def replaceBaselineSourceText(self, text: str) -> None:  # noqa: N802
+        """Record source-baseline prompt text."""
 
         self.text = text
 
