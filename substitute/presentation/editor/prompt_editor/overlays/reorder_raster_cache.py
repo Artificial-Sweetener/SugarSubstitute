@@ -292,13 +292,7 @@ class PromptReorderRasterCache:
     ) -> ReorderRasterKey:
         """Return the cache identity for one snapshot/style/DPR tuple."""
 
-        style_key = ReorderRasterStyleKey(
-            fill_rgba=style.fill_color.rgba(),
-            border_rgba=style.border_color.rgba(),
-            outline_only=style.outline_only,
-            outline_width=style.outline_width,
-            opacity=style.opacity,
-        )
+        style_key = reorder_raster_style_key(style)
         prepared = self._prepared_keys_by_segment_index.get(segment_index)
         if (
             prepared is not None
@@ -335,6 +329,18 @@ def _snapshot_content_key(snapshot: PromptReorderChipVisualSnapshot) -> object:
     )
 
 
+def reorder_raster_style_key(style: PromptChipPaintStyle) -> ReorderRasterStyleKey:
+    """Return the shared raster identity for one prepared chip style."""
+
+    return ReorderRasterStyleKey(
+        fill_rgba=style.fill_color.rgba(),
+        border_rgba=style.border_color.rgba(),
+        outline_only=style.outline_only,
+        outline_width=style.outline_width,
+        opacity=style.opacity,
+    )
+
+
 def _rect_size_key(rect: QRectF) -> tuple[float, float]:
     """Return a rounded width/height identity for a rect."""
 
@@ -368,4 +374,5 @@ __all__ = [
     "ReorderRasterEntry",
     "ReorderRasterKey",
     "ReorderRasterStyleKey",
+    "reorder_raster_style_key",
 ]

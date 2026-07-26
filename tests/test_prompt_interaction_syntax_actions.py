@@ -60,7 +60,7 @@ from substitute.presentation.editor.prompt_editor.core.editing.session import (
 from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptWeightControlIdentity,
 )
 from substitute.presentation.editor.prompt_editor.projection.session import (
@@ -525,7 +525,7 @@ def test_apply_syntax_action_can_consume_passive_actions_without_mutation() -> N
         mutation_service=cast(PromptMutationService, mutation_service),
     )
 
-    controller.apply_syntax_action(action)
+    controller.weight_interaction.apply_syntax_action(action)
 
     assert clear_calls == ["clear"]
     assert mutation_service.apply_syntax_action_calls == []
@@ -551,7 +551,7 @@ def test_apply_syntax_action_reuses_mouse_click_mutation_path() -> None:
     applied_mutations: list[tuple[PromptMutation, bool]] = []
     controller._apply_mutation = _record_applied_mutations(applied_mutations)
 
-    controller.apply_syntax_action(action)
+    controller.weight_interaction.apply_syntax_action(action)
 
     assert clear_calls == ["clear"]
     assert mutation_service.apply_syntax_action_calls == [("(cat:1.05)", action)]
@@ -578,7 +578,7 @@ def test_apply_syntax_action_keeps_transient_neutral_shell_visible_after_unwrap(
         mutation_service=cast(PromptMutationService, mutation_service),
     )
 
-    controller.apply_syntax_action(action)
+    controller.weight_interaction.apply_syntax_action(action)
 
     assert mutation_service.apply_syntax_action_calls == [("(cat:1.05)", action)]
     assert editor.toPlainText() == "cat"
@@ -603,7 +603,7 @@ def test_apply_overlay_syntax_action_marks_transient_neutral_shell_as_overlay_ow
         mutation_service=cast(PromptMutationService, mutation_service),
     )
 
-    controller.apply_overlay_syntax_action(action)
+    controller.weight_interaction.apply_overlay_syntax_action(action)
 
     assert editor.transient_neutral_emphasis_range() == (0, 3)
     assert (
@@ -630,7 +630,7 @@ def test_apply_overlay_syntax_action_starts_overlay_emphasis_adjustment_session(
         ),
     )
 
-    controller.apply_overlay_syntax_action(action)
+    controller.weight_interaction.apply_overlay_syntax_action(action)
 
     assert editor.emphasis_adjustment_session() == PromptEmphasisAdjustmentSession(
         owner=PromptEmphasisAdjustmentOwner.OVERLAY,
@@ -689,7 +689,7 @@ def test_handle_overlay_visible_token_changed_clears_overlay_owned_session_and_s
         owner=PromptTransientNeutralEmphasisOwner.OVERLAY,
     )
 
-    controller.handle_overlay_visible_token_changed(None)
+    controller.weight_interaction.handle_visible_token_content_range_changed(None)
 
     assert editor.emphasis_adjustment_session() is None
     assert editor.transient_neutral_emphasis_range() is None
@@ -710,7 +710,7 @@ def test_modify_emphasis_places_keyboard_neutral_caret_at_content_boundary() -> 
         ),
     )
 
-    controller.modify_emphasis(-0.05)
+    controller.weight_interaction.modify_emphasis(-0.05)
 
     assert editor.emphasis_content_boundary_calls == [(0, 3, True)]
     assert editor.emphasis_adjustment_session() == PromptEmphasisAdjustmentSession(
@@ -744,7 +744,7 @@ def test_apply_keyboard_emphasis_action_preserves_session_caret_boundary_prefere
         caret_boundary=PromptEmphasisCaretBoundary.END,
     )
 
-    controller.modify_emphasis(-0.05)
+    controller.weight_interaction.modify_emphasis(-0.05)
 
     assert editor.emphasis_content_boundary_calls == [(0, 3, True)]
 
@@ -765,7 +765,7 @@ def test_apply_syntax_action_routes_exact_weight_actions_through_emphasis_path()
         mutation_service=cast(PromptMutationService, mutation_service),
     )
 
-    controller.apply_syntax_action(action)
+    controller.weight_interaction.apply_syntax_action(action)
 
     assert mutation_service.apply_syntax_action_calls == [("(cat:1.05)", action)]
     assert editor.toPlainText() == "(cat:1.20)"
@@ -793,7 +793,7 @@ def test_apply_syntax_action_keeps_transient_neutral_shell_after_exact_neutral_s
         mutation_service=cast(PromptMutationService, mutation_service),
     )
 
-    controller.apply_syntax_action(action)
+    controller.weight_interaction.apply_syntax_action(action)
 
     assert mutation_service.apply_syntax_action_calls == [("cat", action)]
     assert editor.toPlainText() == "cat"
@@ -824,7 +824,7 @@ def test_modify_emphasis_uses_typed_mutation_result_to_refresh_cached_state() ->
         syntax_renderers=syntax_renderers,
     )
 
-    controller.modify_emphasis(0.05)
+    controller.weight_interaction.modify_emphasis(0.05)
 
     assert initial_document_service.build_calls == ["cat"]
     assert mutation_service.apply_syntax_action_calls == [

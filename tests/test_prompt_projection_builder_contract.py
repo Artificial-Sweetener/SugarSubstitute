@@ -42,12 +42,18 @@ from substitute.presentation.editor.prompt_editor.projection.builder import (
 from substitute.presentation.editor.prompt_editor.projection.caret_stop_sequence import (
     PromptProjectionCaretStopSequence,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
-    OBJECT_REPLACEMENT_CHARACTER,
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretPlacement,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
+    OBJECT_REPLACEMENT_CHARACTER,
     PromptProjectionRunKind,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionTokenKind,
     PromptProjectionTokenNavigationMode,
 )

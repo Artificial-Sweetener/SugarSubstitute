@@ -44,7 +44,7 @@ from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
     PromptLoraPixmapCacheKey,
     PromptLoraThumbnailCache,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionThumbnailVariant,
 )
 from substitute.shared.qt_thumbnail_codec import prepare_qt_thumbnail

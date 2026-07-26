@@ -83,7 +83,12 @@ def test_acceptance_controller_rejects_missing_selection_before_command() -> Non
     """Acceptance should fail closed when the session has no selected suggestion."""
 
     editor = _Editor()
-    controller = PromptAutocompleteAcceptanceController(editor=editor)
+    controller = PromptAutocompleteAcceptanceController(
+        cursor_position=lambda: editor.textCursor().position(),
+        current_source_identity=editor.prompt_command_source_identity,
+        execute_acceptance=editor.execute_autocomplete_acceptance,
+        complete_lora_replacement=editor.commit_lora_autocomplete_replacement,
+    )
 
     outcome = controller.accept_session(
         AutocompleteSession(
@@ -112,7 +117,12 @@ def test_acceptance_controller_propagates_command_rejection() -> None:
             reason="stale_source",
         )
     )
-    controller = PromptAutocompleteAcceptanceController(editor=editor)
+    controller = PromptAutocompleteAcceptanceController(
+        cursor_position=lambda: editor.textCursor().position(),
+        current_source_identity=editor.prompt_command_source_identity,
+        execute_acceptance=editor.execute_autocomplete_acceptance,
+        complete_lora_replacement=editor.commit_lora_autocomplete_replacement,
+    )
 
     outcome = controller.accept_session(
         AutocompleteSession(

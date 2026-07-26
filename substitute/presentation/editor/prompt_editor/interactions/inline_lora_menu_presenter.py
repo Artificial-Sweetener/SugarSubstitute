@@ -38,7 +38,9 @@ from ..features import (
     PromptLoraTokenContext,
     PromptLoraTriggerWordsAction,
 )
-from ..projection.model import PromptProjectionToken
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionToken,
+)
 from .external_url_action_runner import PromptExternalUrlActionRunner
 from .trigger_word_action_adapter import PromptTriggerWordActionAdapter
 

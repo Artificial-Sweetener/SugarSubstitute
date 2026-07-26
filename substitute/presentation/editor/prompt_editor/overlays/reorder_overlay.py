@@ -16,11 +16,6 @@
 
 """Render the prompt-segment reorder affordance over the text editor."""
 
-# mypy: disable-error-code="assignment,misc"
-# Overlay shell mixins share state initialized by SegmentReorderOverlay.
-# These suppressions keep the concrete QWidget shell typed without duplicating
-# that state into each mixin.
-
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -28,6 +23,7 @@ from typing import cast
 
 from PySide6.QtCore import (
     QEvent,
+    QPoint,
     QRect,
     Qt,
     Signal,
@@ -45,8 +41,15 @@ from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptReorderChipView,
 )
+from substitute.application.prompt_editor.reorder.intents import (
+    PromptReorderCancelIntent,
+    PromptReorderCommitIntent,
+    PromptReorderKeyboardMoveIntent,
+)
+from substitute.application.prompt_editor.reorder.session import (
+    PromptReorderCommitSnapshot,
+)
 from substitute.application.prompt_editor.reorder.views import (
-    PromptReorderDropTarget,
     PromptReorderLayoutView,
     PromptReorderPreviewSnapshot,
     PromptReorderStateView,
@@ -55,112 +58,126 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
 
-from ..geometry import (
+from ..geometry.widget_mapping import (
     autocomplete_panel_host,
-    reorder_overlay_content_rect,
-)
-from ..projection.reorder_chip_geometry import (
-    PromptReorderChipGeometry,
-    PromptReorderChipGeometrySnapshot,
-)
-from ..projection.reorder_drop_targets import (
-    PromptReorderBlankLineDropLane as _BlankLineDropLane,
-    PromptReorderDropTargetTracker,
-    PromptReorderDropTargetVisual as _DropTargetVisual,
-    PromptReorderRowDropLane as _RowDropLane,
 )
 from ..projection.reorder_interaction_geometry import (
     PromptReorderInteractionGeometry,
-    PromptReorderLayoutPolicy,
-    layout_view_key,
-    preview_snapshot_key,
 )
-from ..projection.observability import (
-    reorder_drag_started_at,
-    reorder_drag_target_kind,
+from ..projection.reorder_interaction_geometry_identity import (
+    reorder_geometry_generation_state,
+    reorder_preview_target_state,
 )
-from ..projection.reorder_placement_geometry import (
-    PromptReorderPlacementGeometry,
-    PromptReorderPlacementSnapshot,
-)
-from ..projection.reorder_visual_snapshot import PromptReorderProjectionPaintSnapshot
-from ..projection.reorder_animation import PromptReorderAnimationPlanner
+from ..projection.reorder_animation import PromptReorderAnimationPlan
+from ..projection.reorder_state import PromptReorderAnimationGenerationState
+from ..reorder_drag_proxy_state import PromptReorderDragProxyRenderStateBuilder
 from ..projection.reorder_state import (
     PromptReorderGeometryGenerationState,
     PromptReorderKeyboardState,
-    PromptReorderOverlayPositionGeometryKey,
-    PromptReorderOverlayRefreshGeometryKey,
     PromptReorderPointerState,
-    PromptReorderPreviewTargetIdentity as _PreviewTargetIdentity,
     PromptReorderPreviewTargetState,
-    ReorderPointerRegionGeometryKey as _PointerRegionGeometryKey,
-    ReorderLayoutViewKey as _ReorderLayoutViewKey,
-    ReorderLiveVisualGeometryKey as _LiveVisualGeometryKey,
-    ReorderPreviewSnapshotKey as _ReorderPreviewSnapshotKey,
-    reorder_pointer_region_geometry_key,
-    reorder_overlay_position_geometry_key,
-    reorder_overlay_refresh_geometry_key,
-    reorder_overlay_refresh_is_height_only_change,
 )
-from .chip_visuals import PromptChipVisual
 from .reorder_drag_proxy import (
     PromptReorderDragProxyWidget,
 )
-from .reorder_autoscroll import PromptReorderAutoscrollInvalidation
+from .reorder_drag_proxy_visual_owner import PromptReorderDragProxyVisualOwner
+from .reorder_drop_commit_diagnostics import PromptReorderDropCommitDiagnostics
 from .reorder_gesture_controller import (
-    PromptReorderCancelIntent,
-    PromptReorderCommitIntent,
     PromptReorderDragIntent,
-    PromptReorderDragPhase,
     PromptReorderDragProxyPlacementController,
     PromptReorderGestureController,
 )
-from ..models import PromptReorderCommitSnapshot
-from .reorder_view import PromptReorderVisualStyle
-from .reorder_telemetry import PromptReorderTelemetry
-from .reorder_landing_shadow import (
-    PromptReorderLandingShadowPresenter,
+from .reorder_held_drag_context import (
+    PromptReorderHeldDragContextOwner,
 )
-from .reorder_animation_presenter import PromptReorderAnimationPresenter
-from .reorder_displacement_session import ReorderDisplacementSession
-from .reorder_held_chip_presenter import PromptReorderHeldChipPresenter
+from .reorder_visual_style import PromptReorderVisualStyle
+from .reorder_overlay_visual_lifecycle import (
+    PromptReorderOverlayVisualLifecycleOwner,
+    PromptReorderThemeRefreshRequest,
+)
+from .reorder_overlay_session_activation import (
+    PromptReorderOverlaySessionActivationOwner,
+)
+from .reorder_visual_mode import PromptReorderVisualModeOwner
+from .reorder_visual_session import PromptReorderVisualSessionOwner
+from .reorder_viewport_geometry import PromptReorderViewportGeometryOwner
+from .reorder_telemetry import PromptReorderTelemetry
+from ..interactions.reorder_interaction_metrics import (
+    PromptReorderInteractionMetricsOwner,
+)
+from .reorder_interaction_diagnostics import (
+    PromptReorderInteractionDiagnosticsOwner,
+)
+from .reorder_keyboard_interaction import (
+    PromptReorderKeyboardInteractionOwner,
+    PromptReorderKeyboardVisualContext,
+)
+from .reorder_interaction_intents import PromptReorderInteractionIntentOwner
+from .reorder_insertion_marker_owner import PromptReorderInsertionMarkerOwner
+from .reorder_live_visual_owner import PromptReorderLiveVisualOwner
+from .reorder_landing_diagnostics import PromptReorderLandingDiagnostics
+from .reorder_landing_events import PromptReorderLandingEventPublisher
+from .reorder_landing_paint import PromptReorderLandingPaintOwner
+from .reorder_landing_request_owner import PromptReorderLandingRequestOwner
+from .reorder_landing_resolution import PromptReorderLandingResolutionOwner
+from .reorder_landing_session import PromptReorderLandingSessionOwner
+from .reorder_landing_state import PromptReorderLandingStateOwner
+from .reorder_animation_presentation import (
+    PromptReorderAnimationPresentationOwner,
+)
+from .reorder_autoscroll import PromptReorderAutoscrollOwner
 from .reorder_pointer_regions import (
     PromptReorderPointerInput,
     PromptReorderPointerRegion,
     PromptReorderPointerRegions,
 )
-from .reorder_overlay_animation import PromptReorderOverlayAnimationMixin
-from .reorder_overlay_geometry import PromptReorderOverlayGeometryMixin
-from .reorder_overlay_interaction import PromptReorderOverlayInteractionMixin
+from .reorder_refresh_identity import PromptReorderRefreshIdentityOwner
+from .reorder_pointer_region_visual_owner import (
+    PromptReorderPointerRegionVisualOwner,
+)
+from .reorder_pointer_move_owner import PromptReorderPointerMoveOwner
+from .reorder_pointer_target_resolution import (
+    PromptReorderPointerTargetResolutionOwner,
+)
+from .reorder_pointer_target_transition import (
+    PromptReorderPointerTargetTransitionOwner,
+)
+from .reorder_performance_counters import PromptReorderPerformanceCountersOwner
 from .reorder_overlay_ports import (
-    PromptReorderAutoscrollFactory,
-    PromptReorderDragProxyStateFactory,
     PromptReorderEditor,
-    PromptReorderOverlay,
-    PromptReorderOverlayRenderState,
     PromptReorderViewFactory,
 )
-from .reorder_paint_ownership import animation_plan_with_complete_paint_ownership
-from .reorder_raster_cache import PromptReorderRasterCache, ReorderRasterEntry
-from .reorder_raster_warm_scheduler import PromptReorderRasterWarmScheduler
-from .reorder_visual_cache import (
-    PromptReorderChipVisualSnapshot,
-    PromptReorderVisualSnapshotCache,
+from .reorder_commit_snapshot import prompt_reorder_commit_snapshot
+from .reorder_preview_frame_transition import (
+    PromptReorderPreviewFrameTransitionOwner,
 )
+from .reorder_preview_build_facts import PromptReorderPreviewBuildFactsOwner
+from .reorder_preview_sync_context import (
+    PromptReorderPreviewSyncContextOwner,
+    PromptReorderPreviewSyncIdentifiers,
+)
+from .reorder_preview_visual_owner import PromptReorderPreviewVisualOwner
+from .reorder_preview_paint_snapshot_owner import (
+    PromptReorderPreviewPaintSnapshotOwner,
+)
+from .reorder_preview_geometry_refresh_owner import (
+    PromptReorderPreviewGeometryRefreshOwner,
+)
+from .reorder_preview_layout_transition_owner import (
+    PromptReorderPreviewLayoutTransitionOwner,
+)
+from .reorder_raster_publication import PromptReorderRasterPublicationOwner
+from .reorder_render_publication_owner import (
+    PromptReorderRenderPublicationOwner,
+)
+from .reorder_pointer_drag_start_owner import PromptReorderPointerDragStartOwner
+from .reorder_pointer_drag_completion_owner import (
+    PromptReorderPointerDragCompletionOwner,
+)
+from .reorder_viewport_frame_refresh import PromptReorderViewportFrameRefreshOwner
 
-_INSERTION_WIDTH = 10.0
-_SHADOW_ACTUAL_MISMATCH_X = 8.0
-_SHADOW_ACTUAL_MISMATCH_Y = 8.0
-_SLOW_DRAG_MOVE_MS = 16.0
-_SLOW_LIVE_VISUALS_MS = 8.0
 
-
-class SegmentReorderOverlay(
-    PromptReorderOverlayInteractionMixin,
-    PromptReorderOverlayGeometryMixin,
-    PromptReorderOverlayAnimationMixin,
-    QWidget,
-):
+class SegmentReorderOverlay(QWidget):
     """Show prompt segment reorder affordances over the existing text surface."""
 
     previewLayoutChanged = Signal()
@@ -170,231 +187,463 @@ class SegmentReorderOverlay(
         editor: QWidget,
         *,
         geometry: PromptReorderInteractionGeometry,
+        preview_visual_owner: PromptReorderPreviewVisualOwner,
+        interaction_metrics: PromptReorderInteractionMetricsOwner,
         view_factory: PromptReorderViewFactory,
         gesture_controller: PromptReorderGestureController,
         drag_proxy_placement: PromptReorderDragProxyPlacementController,
-        autoscroll_factory: PromptReorderAutoscrollFactory,
         drag_proxy: PromptReorderDragProxyWidget,
-        drag_proxy_state_factory: PromptReorderDragProxyStateFactory,
+        drag_proxy_state_factory: PromptReorderDragProxyRenderStateBuilder,
     ) -> None:
         """Build one viewport-local reorder overlay for the supplied editor."""
 
         self._editor = cast(PromptReorderEditor, editor)
         super().__init__(self._editor.viewport())
         self._geometry = geometry
+        self._viewport_geometry = PromptReorderViewportGeometryOwner(self._editor)
+        self._refresh_identity = PromptReorderRefreshIdentityOwner()
+        self._preview_visual_owner = preview_visual_owner
+        self._preview_paint_snapshots = PromptReorderPreviewPaintSnapshotOwner(
+            build_projection_snapshots=(
+                self._editor.reorder_preview_chip_projection_paint_snapshots
+            ),
+            geometry_state=lambda: self._geometry.state,
+            preview_visuals=lambda: self._preview_visual_owner.visuals_by_index,
+        )
         self._telemetry = PromptReorderTelemetry()
-        self._landing_shadow = PromptReorderLandingShadowPresenter(
+        self._interaction_metrics = interaction_metrics
+        self._interaction_diagnostics = PromptReorderInteractionDiagnosticsOwner(
             telemetry=self._telemetry,
-            log_event=self._log_interaction_event,
-            log_timing=self._log_interaction_timing,
+            metrics=self._interaction_metrics,
         )
-        self._animation_presenter = PromptReorderAnimationPresenter(
-            parent=self,
-            frame_callback=self._sync_reorder_animation_frame,
+        self._live_visual_owner = PromptReorderLiveVisualOwner(
+            geometry=self._geometry,
+            metrics=self._interaction_metrics,
+            diagnostics=self._interaction_diagnostics,
         )
-        self._animation_planner = PromptReorderAnimationPlanner()
-        self._displacement_session = ReorderDisplacementSession()
-        self._held_chip_presenter = PromptReorderHeldChipPresenter(
-            parent=self,
-            frame_callback=self._sync_reorder_animation_frame,
+        self._drop_commit_diagnostics = PromptReorderDropCommitDiagnostics(
+            telemetry=self._telemetry,
+            diagnostics=self._interaction_diagnostics,
         )
-        self._raster_cache = PromptReorderRasterCache()
-        self._raster_warm_scheduler = PromptReorderRasterWarmScheduler(
+        self._interaction_intents = PromptReorderInteractionIntentOwner()
+        self._landing_state = PromptReorderLandingStateOwner()
+        self._landing_diagnostics = PromptReorderLandingDiagnostics(
+            telemetry=self._telemetry,
+            log_event=self._interaction_diagnostics.log_event,
+        )
+        self._landing_events = PromptReorderLandingEventPublisher(
+            telemetry=self._telemetry,
+            log_event=self._interaction_diagnostics.log_event,
+            log_timing=self._interaction_diagnostics.log_timing,
+        )
+        self._landing_session = PromptReorderLandingSessionOwner(
+            state=self._landing_state,
+            diagnostics=self._landing_diagnostics,
+            events=self._landing_events,
+        )
+        self._landing_resolution = PromptReorderLandingResolutionOwner(
+            telemetry=self._telemetry,
+            state=self._landing_state,
+            diagnostics=self._landing_diagnostics,
+            events=self._landing_events,
+        )
+        self._landing_paint = PromptReorderLandingPaintOwner(
+            telemetry=self._telemetry,
+            resolution=self._landing_resolution,
+            state=self._landing_state,
+            diagnostics=self._landing_diagnostics,
+            events=self._landing_events,
+        )
+        self._animation_presentation = PromptReorderAnimationPresentationOwner(
             parent=self,
-            cache=self._raster_cache,
+            frame_callback=self._handle_reorder_animation_frame,
+        )
+        self._raster_publication_owner = PromptReorderRasterPublicationOwner(
+            parent=self,
             entries_changed=self._publish_warmed_reorder_rasters,
         )
-        self._live_raster_entries_render_key: tuple[object, ...] | None = None
-        self._live_raster_entries_by_index: dict[int, ReorderRasterEntry] = {}
-        self._preview_raster_entries_render_key: tuple[object, ...] | None = None
-        self._preview_raster_entries_by_index: dict[int, ReorderRasterEntry] = {}
-        self._drop_target_tracker = PromptReorderDropTargetTracker()
         self.setObjectName("segmentReorderOverlay")
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setCursor(Qt.CursorShape.ArrowCursor)
         self.setMouseTracking(True)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
-        self._applying_theme_styles = False
         self._view = view_factory(self)
         self._view.setGeometry(self.rect())
         self._view.lower()
         self._view.show()
-        self._visual_style = PromptReorderVisualStyle.from_current_theme()
-        self._content_rect = QRect()
-        self._document_view: PromptDocumentView | None = None
-        self._source_identity: PromptSourceIdentity | None = None
-        self._original_layout_view: PromptReorderLayoutView | None = None
-        self._current_layout_view: PromptReorderLayoutView | None = None
-        self._base_drag_layout_view: PromptReorderLayoutView | None = None
-        self._preview_layout_view: PromptReorderLayoutView | None = None
-        self._original_reorder_state: PromptReorderStateView | None = None
-        self._current_reorder_state: PromptReorderStateView | None = None
-        self._base_drag_reorder_state: PromptReorderStateView | None = None
-        self._preview_reorder_state: PromptReorderStateView | None = None
-        self._preview_snapshot: PromptReorderPreviewSnapshot | None = None
-        self._base_drag_snapshot: PromptReorderPreviewSnapshot | None = None
-        self._preview_layout_target_identity: _PreviewTargetIdentity | None = None
-        self._preview_geometry_target_identity: _PreviewTargetIdentity | None = None
-        self._segments_by_index: dict[int, PromptReorderChipView] = {}
-        self._visuals_by_index: dict[int, PromptChipVisual] = {}
-        self._preview_visuals_by_index: dict[int, PromptChipVisual] = {}
-        self._live_visual_snapshots_by_index: dict[
-            int, PromptReorderChipVisualSnapshot
-        ] = {}
-        self._preview_visual_snapshots_by_index: dict[
-            int, PromptReorderChipVisualSnapshot
-        ] = {}
-        self._visual_snapshot_cache = PromptReorderVisualSnapshotCache()
-        self._chip_geometry_snapshot: PromptReorderChipGeometrySnapshot | None = None
-        self._preview_chip_geometry_snapshot: (
-            PromptReorderChipGeometrySnapshot | None
-        ) = None
-        self._base_drag_chip_geometry_snapshot: (
-            PromptReorderChipGeometrySnapshot | None
-        ) = None
-        self._last_live_visual_geometry_key: _LiveVisualGeometryKey | None = None
-        self._last_overlay_position_geometry_key: (
-            PromptReorderOverlayPositionGeometryKey | None
-        ) = None
-        self._last_overlay_refresh_geometry_key: (
-            PromptReorderOverlayRefreshGeometryKey | None
-        ) = None
-        self._last_pointer_region_geometry_key: _PointerRegionGeometryKey | None = None
-        self._render_state_sync_revision = 0
-        self._pending_autoscroll_invalidation: (
-            PromptReorderAutoscrollInvalidation | None
-        ) = None
+        initial_visual_style = PromptReorderVisualStyle.from_current_theme()
+        self._visual_session = PromptReorderVisualSessionOwner()
         self._pointer_regions = PromptReorderPointerRegions()
         self._pointer_input = PromptReorderPointerInput(
             regions=self._pointer_regions,
-            controller=self,
+            gesture_controller=self,
+            surface=self,
+            log_event=self._interaction_diagnostics.log_event,
         )
         self._chips_by_index = self._pointer_regions.regions_by_index
-        self._initial_ordered_indices: tuple[int, ...] = ()
-        self._ordered_segment_indices: list[int] = []
         self._gesture = gesture_controller
-        self._drag_handler: Callable[[PromptReorderDragIntent], None] | None = None
-        self._commit_handler: Callable[[PromptReorderCommitIntent], None] | None = None
-        self._cancel_handler: Callable[[PromptReorderCancelIntent], None] | None = None
-        self._placement_snapshot: PromptReorderPlacementSnapshot | None = None
-        self._active_placement: PromptReorderPlacementGeometry | None = None
-        self._drop_target_visuals: tuple[_DropTargetVisual, ...] = ()
-        self._drop_target_lanes: tuple[_RowDropLane | _BlankLineDropLane, ...] = ()
-        self._last_drop_commit_visual: PromptChipVisual | None = None
-        self._last_drop_commit_geometry: PromptReorderChipGeometry | None = None
-        self._last_drop_commit_target: PromptReorderDropTarget | None = None
-        self._last_drop_commit_placement: PromptReorderPlacementGeometry | None = None
-        self._last_drop_commit_segment_index: int | None = None
-        self._last_drop_commit_gesture_id: int | None = None
-        self._last_drop_commit_event_id: int | None = None
-        self._instrumentation_gesture_id: int | None = None
-        self._instrumentation_event_id: int | None = None
-        self._instrumentation_next_event_id = 0
-        self._instrumentation_drag_move_count = 0
-        self._instrumentation_target_change_count = 0
-        self._instrumentation_drop_target_no_change_count = 0
-        self._instrumentation_drop_target_changed_count = 0
-        self._instrumentation_no_lane_count = 0
-        self._instrumentation_anomaly_count = 0
-        self._instrumentation_split_shadow_count = 0
-        self._instrumentation_preview_sync_immediate_count = 0
-        self._instrumentation_preview_sync_deferred_count = 0
-        self._instrumentation_pointer_unexpected_work_count = 0
-        self._instrumentation_pointer_preview_rebuild_count = 0
-        self._instrumentation_pointer_full_refresh_count = 0
-        self._instrumentation_pointer_base_cache_miss_count = 0
-        self._instrumentation_pointer_paint_request_count = 0
-        self._instrumentation_refresh_work_unit_count = 0
-        self._instrumentation_skipped_refresh_count = 0
-        self._instrumentation_expected_diagnostic_count = 0
-        self._instrumentation_position_refresh_skip_count = 0
-        self._instrumentation_position_refresh_run_count = 0
-        self._instrumentation_preview_scheduler_request_count = 0
-        self._instrumentation_preview_scheduler_run_count = 0
-        self._instrumentation_preview_scheduler_stale_skip_count = 0
-        self._instrumentation_autoscroll_schedule_count = 0
-        self._instrumentation_autoscroll_coalesced_count = 0
-        self._instrumentation_autoscroll_flush_count = 0
-        self._instrumentation_autoscroll_target_refresh_count = 0
-        self._instrumentation_preview_geometry_suppressed_count = 0
-        self._instrumentation_preview_geometry_full_count = 0
-        self._instrumentation_base_drag_geometry_reuse_count = 0
-        self._instrumentation_base_drag_geometry_rebuild_count = 0
-        self._instrumentation_preview_geometry_reused_chip_count = 0
-        self._instrumentation_preview_geometry_rebuilt_chip_count = 0
-        self._instrumentation_preview_geometry_reuse_rejected_count = 0
-        self._instrumentation_marker_fallback_count = 0
-        self._instrumentation_animation_plan_build_count = 0
-        self._instrumentation_work_unit_id = 0
-        self._animation_generation_id = 0
-        self._animation_frame_batch_depth = 0
-        self._animation_frame_sync_pending = False
-        self._animated_pointer_region_indices: set[int] = set()
-        self._last_suppressed_chip_snapshots_by_index: dict[
-            int,
-            PromptReorderProjectionPaintSnapshot,
-        ] = {}
-        self._pointer_loop_depth = 0
-        self._instrumentation_max_drag_move_ms = 0.0
-        self._instrumentation_max_live_visuals_ms = 0.0
-        self._instrumentation_max_preview_sync_ms = 0.0
-        self._instrumentation_max_render_plan_ms = 0.0
-        self._instrumentation_raster_entries_render_cache_hit_count = 0
-        self._instrumentation_raster_entries_render_cache_miss_count = 0
-        self._drag_proxy_host = autocomplete_panel_host(cast(QWidget, self._editor))
-        self._drag_proxy = drag_proxy
-        self._drag_proxy_state_factory = drag_proxy_state_factory
-        self._drag_proxy_placement = drag_proxy_placement
-        self._drag_proxy.setParent(self._drag_proxy_host)
-        self._drag_proxy.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
-        self._drag_proxy.setFont(self._editor.viewport().font())
-        self._drag_proxy.hide()
-        self._autoscroll = autoscroll_factory(
-            self,
-            step_callback=self._handle_autoscroll_step,
-            context_provider=self._autoscroll_context,
+        self._visual_mode = PromptReorderVisualModeOwner(
+            geometry_state=lambda: self._geometry.state,
+            gesture=self._gesture,
         )
-        self._apply_theme_colors()
+        self._landing_request = PromptReorderLandingRequestOwner(
+            geometry=self._geometry,
+            gesture=self._gesture,
+            metrics=self._interaction_metrics,
+            preview_visuals=self._preview_visual_owner,
+            viewport=self._viewport_geometry,
+            visual_mode=self._visual_mode,
+            visual_session=self._visual_session,
+        )
+        self.preview_sync_context = PromptReorderPreviewSyncContextOwner(
+            geometry_state=lambda: self._geometry.state,
+            set_active_placement=self._geometry.set_active_placement,
+            dragged_segment_index=lambda: self._gesture.state.dragged_segment_index,
+            identifiers=lambda: PromptReorderPreviewSyncIdentifiers(
+                gesture_id=self._interaction_metrics.gesture_id,
+                event_id=self._interaction_metrics.event_id,
+                pointer_active=self._interaction_metrics.pointer_loop_active,
+            ),
+            build_landing_request=self._landing_request.build,
+            initial_shadow_sync=self._landing_resolution.initial_shadow_sync,
+        )
+        self._insertion_marker = PromptReorderInsertionMarkerOwner(
+            geometry=self._geometry,
+            gesture=self._gesture,
+            landing_preview=self._landing_resolution,
+            metrics=self._interaction_metrics,
+            diagnostics=self._interaction_diagnostics,
+            telemetry=self._telemetry,
+        )
+        self._render_publication = PromptReorderRenderPublicationOwner(
+            geometry=self._geometry,
+            gesture=self._gesture,
+            visual_mode=self._visual_mode,
+            landing_request=self._landing_request,
+            landing_preview=self._landing_paint,
+            live_visuals=self._live_visual_owner,
+            preview_visuals=self._preview_visual_owner,
+            preview_paint_snapshots=self._preview_paint_snapshots,
+            animation=self._animation_presentation,
+            raster=self._raster_publication_owner,
+            insertion_marker=self._insertion_marker,
+            metrics=self._interaction_metrics,
+            diagnostics=self._interaction_diagnostics,
+            visual_style=initial_visual_style,
+            device_pixel_ratio=self._view.devicePixelRatioF,
+            publish_surface=self._editor.set_reorder_surface_visual_publication,
+            publish_overlay=self._view.set_render_state,
+        )
+        self._preview_geometry_refresh = PromptReorderPreviewGeometryRefreshOwner(
+            geometry=self._geometry,
+            gesture=self._gesture,
+            viewport=self._viewport_geometry,
+            preview_visuals=self._preview_visual_owner,
+            preview_paint_snapshots=self._preview_paint_snapshots,
+            landing_request=self._landing_request,
+            landing_preview=self._landing_resolution,
+            metrics=self._interaction_metrics,
+            diagnostics=self._interaction_diagnostics,
+        )
+        self._pointer_target_resolution = PromptReorderPointerTargetResolutionOwner(
+            geometry=self._geometry,
+            gesture=self._gesture,
+            metrics=self._interaction_metrics,
+            telemetry=self._telemetry,
+            diagnostics=self._interaction_diagnostics,
+        )
+        self._keyboard_interaction = PromptReorderKeyboardInteractionOwner(
+            geometry=self._geometry,
+            gesture=self._gesture,
+            animation=self._animation_presentation,
+        )
+        self.preview_build_facts = PromptReorderPreviewBuildFactsOwner(
+            geometry_state=lambda: self._geometry.state,
+            gesture_facts=self._gesture.preview_build_facts,
+            keyboard_drop_target=self._keyboard_interaction.committable_drop_target,
+        )
+        self._drag_proxy_visual = PromptReorderDragProxyVisualOwner(
+            editor_viewport=self._editor.viewport(),
+            host=autocomplete_panel_host(cast(QWidget, self._editor)),
+            proxy=drag_proxy,
+            render_state_builder=drag_proxy_state_factory,
+            placement=drag_proxy_placement,
+            log_timing=self._interaction_diagnostics.log_timing,
+        )
+        self._preview_layout_transition = PromptReorderPreviewLayoutTransitionOwner(
+            geometry=self._geometry,
+            gesture=self._gesture,
+            viewport=self._viewport_geometry,
+            drag_proxy=self._drag_proxy_visual,
+            metrics=self._interaction_metrics,
+        )
+        self._held_drag_context = PromptReorderHeldDragContextOwner(
+            gesture=self._gesture,
+            geometry_state=lambda: self._geometry.state,
+            clear_geometry=lambda preserve_preview: self._geometry.clear_drag_context(
+                preserve_preview=preserve_preview
+            ),
+            live_visual_facts=lambda: (
+                self._live_visual_owner.visuals_by_index,
+                self._live_visual_owner.chip_geometry,
+            ),
+            regions_by_index=lambda: self._pointer_regions.regions_by_index,
+            proxy_sizes=lambda: (
+                self._drag_proxy_visual.size,
+                self._drag_proxy_visual.size_hint,
+            ),
+            capture_held_shadow=self._landing_session.capture_held_shadow,
+            clear_held_shadow=self._landing_session.clear_held_shadow,
+            clear_landing_paint=self._landing_paint.clear_held_shadow,
+        )
+        self._pointer_target_transition = PromptReorderPointerTargetTransitionOwner(
+            resolver=self._pointer_target_resolution,
+            geometry=self._geometry,
+            gesture=self._gesture,
+            animation=self._animation_presentation,
+            live_visuals=self._live_visual_owner,
+            preview_visuals=self._preview_visual_owner,
+            regions=self._pointer_regions,
+            drag_proxy=self._drag_proxy_visual,
+            landing=self._landing_session,
+            viewport=self._viewport_geometry,
+            visual_mode=self._visual_mode,
+            preview_layout_changed=self.previewLayoutChanged.emit,
+            metrics=self._interaction_metrics,
+            diagnostics=self._interaction_diagnostics,
+            telemetry=self._telemetry,
+        )
+        self._pointer_region_visual = PromptReorderPointerRegionVisualOwner(
+            regions=self._pointer_regions,
+            gesture=self._gesture,
+            visual_mode=self._visual_mode,
+            live_visuals=lambda: self._live_visual_owner.visuals_by_index,
+            preview_visuals=lambda: self._preview_visual_owner.visuals_by_index,
+            raise_drag_proxy=self._drag_proxy_visual.raise_proxy,
+            metrics=self._interaction_metrics,
+            diagnostics=self._interaction_diagnostics,
+            visual_style=initial_visual_style,
+        )
+        self._preview_frame_transition = PromptReorderPreviewFrameTransitionOwner(
+            geometry=self._geometry,
+            gesture=self._gesture,
+            visual_mode=self._visual_mode,
+            visual_session=self._visual_session,
+            viewport=self._viewport_geometry,
+            refresh_identity=self._refresh_identity,
+            live_visuals=self._live_visual_owner,
+            preview_visuals=self._preview_visual_owner,
+            preview_geometry=self._preview_geometry_refresh,
+            preview_paint_snapshots=self._preview_paint_snapshots,
+            pointer_region_visuals=self._pointer_region_visual,
+            pointer_regions=self._pointer_regions,
+            animation=self._animation_presentation,
+            render=self._render_publication,
+            drop_diagnostics=self._drop_commit_diagnostics,
+            metrics=self._interaction_metrics,
+            diagnostics=self._interaction_diagnostics,
+        )
+        self._viewport_frame_refresh = PromptReorderViewportFrameRefreshOwner(
+            geometry=self._geometry,
+            gesture=self._gesture,
+            visual_session=self._visual_session,
+            viewport=self._viewport_geometry,
+            refresh_identity=self._refresh_identity,
+            live_visuals=self._live_visual_owner,
+            preview_visuals=self._preview_visual_owner,
+            preview_geometry=self._preview_geometry_refresh,
+            preview_layout=self._preview_layout_transition,
+            pointer_region_visuals=self._pointer_region_visual,
+            drag_proxy=self._drag_proxy_visual,
+            animation=self._animation_presentation,
+            render=self._render_publication,
+            metrics=self._interaction_metrics,
+            diagnostics=self._interaction_diagnostics,
+            overlay_geometry=self.geometry,
+            set_overlay_geometry=self.setGeometry,
+        )
+        self._autoscroll = PromptReorderAutoscrollOwner(
+            parent=self,
+            scrollbar_provider=self._editor.verticalScrollBar,
+            overlay_height_provider=self.height,
+            map_global_to_overlay=self.mapFromGlobal,
+            refresh_geometry=lambda reason: self.request_geometry_refresh(
+                reason=reason
+            ),
+            settle_animation=lambda reason: self._animation_presentation.settle(
+                reason=reason
+            ),
+            invalidate_refresh=self._refresh_identity.invalidate_refresh,
+            gesture=self._gesture,
+            update_target=lambda local_pointer, emit_preview_changed: (
+                self._pointer_target_transition.update(
+                    local_pointer,
+                    emit_preview_changed=emit_preview_changed,
+                )
+            ),
+            emit_preview_layout_changed=self.emit_preview_layout_changed,
+            metrics=self._interaction_metrics,
+            diagnostics=self._interaction_diagnostics,
+        )
+        self._pointer_move = PromptReorderPointerMoveOwner(
+            gesture=self._gesture,
+            intents=self._interaction_intents,
+            metrics=self._interaction_metrics,
+            telemetry=self._telemetry,
+            diagnostics=self._interaction_diagnostics,
+            drag_proxy=self._drag_proxy_visual,
+            target_transition=self._pointer_target_transition,
+            autoscroll=self._autoscroll,
+            geometry=self._geometry,
+            map_global_to_overlay=self.mapFromGlobal,
+        )
+        self._performance_counters = PromptReorderPerformanceCountersOwner(
+            geometry=self._editor,
+            interaction=self._interaction_metrics,
+            drag_proxy=self._drag_proxy_visual,
+            autoscroll=self._autoscroll,
+            animation=self._animation_presentation,
+            raster=self._raster_publication_owner,
+            landing_preview=self._landing_paint,
+        )
+        self._pointer_drag_start = PromptReorderPointerDragStartOwner(
+            geometry=self._geometry,
+            gesture=self._gesture,
+            visual_mode=self._visual_mode,
+            live_visuals=self._live_visual_owner,
+            intents=self._interaction_intents,
+            metrics=self._interaction_metrics,
+            performance=self._performance_counters,
+            autoscroll=self._autoscroll,
+            diagnostics=self._interaction_diagnostics,
+            visual_session=self._visual_session,
+            landing_preview=self._landing_paint,
+            drop_diagnostics=self._drop_commit_diagnostics,
+            held_context=self._held_drag_context,
+            drag_proxy=self._drag_proxy_visual,
+            preview_layout=self._preview_layout_transition,
+            target_transition=self._pointer_target_transition,
+            pointer_regions=self._pointer_region_visual,
+            render=self._render_publication,
+            animation=self._animation_presentation,
+            map_global_to_overlay=self.mapFromGlobal,
+            preview_layout_changed=self.previewLayoutChanged.emit,
+        )
+        self._pointer_drag_completion = PromptReorderPointerDragCompletionOwner(
+            geometry=self._geometry,
+            gesture=self._gesture,
+            visual_mode=self._visual_mode,
+            live_visuals=self._live_visual_owner,
+            preview_visuals=self._preview_visual_owner,
+            intents=self._interaction_intents,
+            metrics=self._interaction_metrics,
+            autoscroll=self._autoscroll,
+            animation=self._animation_presentation,
+            landing_preview=self._landing_paint,
+            drop_diagnostics=self._drop_commit_diagnostics,
+            held_context=self._held_drag_context,
+            drag_proxy=self._drag_proxy_visual,
+            preview_layout=self._preview_layout_transition,
+            pointer_regions=self._pointer_region_visual,
+            region_widgets=self._pointer_regions,
+            render=self._render_publication,
+            diagnostics=self._interaction_diagnostics,
+            performance=self._performance_counters,
+            visual_session=self._visual_session,
+            preview_layout_changed=self.previewLayoutChanged.emit,
+        )
+        self._visual_lifecycle = PromptReorderOverlayVisualLifecycleOwner(
+            visual_style=initial_visual_style,
+            animation=self._animation_presentation,
+            preview_paint_snapshots=self._preview_paint_snapshots,
+            preview_visuals=self._preview_visual_owner,
+            raster=self._raster_publication_owner,
+            live_visuals=self._live_visual_owner,
+            refresh_identity=self._refresh_identity,
+            render=self._render_publication,
+            pointer_regions=self._pointer_region_visual,
+            drag_proxy=self._drag_proxy_visual,
+            refresh_geometry=lambda reason: self.refresh_geometry(reason=reason),
+        )
+        self._visual_lifecycle.apply_current_theme_style()
+        self._session_activation = PromptReorderOverlaySessionActivationOwner(
+            interaction_metrics=self._interaction_metrics,
+            animation=self._animation_presentation,
+            visual_lifecycle=self._visual_lifecycle,
+            drag_proxy=self._drag_proxy_visual,
+            autoscroll=self._autoscroll,
+            pointer_input=self._pointer_input,
+            pointer_regions=self._pointer_regions,
+            preview_visuals=self._preview_visual_owner,
+            landing_session=self._landing_session,
+            landing_preview=self._landing_paint,
+            live_visuals=self._live_visual_owner,
+            raster=self._raster_publication_owner,
+            held_drag_context=self._held_drag_context,
+            drop_diagnostics=self._drop_commit_diagnostics,
+            visual_session=self._visual_session,
+            geometry=self._geometry,
+            refresh_identity=self._refresh_identity,
+            gesture=self._gesture,
+            pointer_region_visuals=self._pointer_region_visual,
+            viewport_refresh=self._viewport_frame_refresh,
+            diagnostics=self._interaction_diagnostics,
+            lower_view=self._view.lower,
+        )
 
     def changeEvent(self, event: QEvent) -> None:
         """Refresh overlay colors after palette or theme changes."""
 
-        if (
-            event.type()
-            in (
-                QEvent.Type.PaletteChange,
-                QEvent.Type.ApplicationPaletteChange,
-                QEvent.Type.FontChange,
-                QEvent.Type.ApplicationFontChange,
-                QEvent.Type.StyleChange,
-            )
-            and not self._applying_theme_styles
+        if event.type() in (
+            QEvent.Type.PaletteChange,
+            QEvent.Type.ApplicationPaletteChange,
+            QEvent.Type.FontChange,
+            QEvent.Type.ApplicationFontChange,
+            QEvent.Type.StyleChange,
         ):
-            self._settle_chip_animations(reason="theme_or_font_change")
-            self._clear_reorder_visual_snapshots(reason="theme_or_font_change")
-            self._drag_proxy.setFont(self._editor.viewport().font())
-            self._drag_proxy_state_factory.invalidate(reason="theme_or_font_change")
-            self._apply_theme_colors()
-            self._ensure_drag_proxy_render_state()
-            self.refresh_geometry(reason="theme_change")
+            dragged_segment_index = self._gesture.state.dragged_segment_index
+            self._visual_lifecycle.refresh_theme(
+                PromptReorderThemeRefreshRequest(
+                    has_document=self._geometry.state.document_view is not None,
+                    dragged_segment=(
+                        None
+                        if dragged_segment_index is None
+                        else self._visual_session.segments_by_index[
+                            dragged_segment_index
+                        ]
+                    ),
+                    source_revision=self._visual_session.source_revision,
+                    gesture=self._gesture.state,
+                    gesture_id=self._interaction_metrics.gesture_id,
+                    event_id=self._interaction_metrics.event_id,
+                )
+            )
         super().changeEvent(event)
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         """Keep drag proxy placement synchronized when the overlay resizes."""
 
         super().resizeEvent(event)
-        self._view.setGeometry(self.rect())
-        self._sync_reorder_view_state(reason="overlay_resize")
+        view = getattr(self, "_view", None)
+        render = getattr(self, "_render_publication", None)
+        if view is None or render is None:
+            return
+        view.setGeometry(self.rect())
+        render.sync(reason="overlay_resize")
         if self._gesture.state.last_drag_global_position is not None:
-            self._move_drag_proxy(self._gesture.state.last_drag_global_position)
+            self._drag_proxy_visual.move(
+                self._gesture.state.last_drag_global_position,
+                gesture_id=self._interaction_metrics.gesture_id,
+                event_id=self._interaction_metrics.event_id,
+            )
 
     def showEvent(self, event: QShowEvent) -> None:
         """Refresh chip geometry after the overlay becomes visible to Qt."""
 
         super().showEvent(event)
-        if self._document_view is None:
-            self._refresh_overlay_rect()
+        if self._geometry.state.document_view is None:
+            self._viewport_frame_refresh.sync_overlay_rect()
             self._view.setGeometry(self.rect())
             return
         self.refresh_geometry(reason="overlay_show")
@@ -402,10 +651,7 @@ class SegmentReorderOverlay(
     def closeEvent(self, event: QCloseEvent) -> None:
         """Dispose the floating drag proxy when the overlay itself closes."""
 
-        self._settle_chip_animations(reason="overlay_close")
-        self._clear_reorder_visual_snapshots(reason="overlay_close")
-        self._drag_proxy.hide()
-        self._drag_proxy.deleteLater()
+        self._visual_lifecycle.close()
         super().closeEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
@@ -413,7 +659,7 @@ class SegmentReorderOverlay(
 
         self._pointer_input.press(
             event,
-            ordered_indices=tuple(self._ordered_segment_indices),
+            ordered_indices=self._geometry.state.ordered_segment_indices,
         )
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
@@ -421,7 +667,7 @@ class SegmentReorderOverlay(
 
         self._pointer_input.move(
             event,
-            ordered_indices=tuple(self._ordered_segment_indices),
+            ordered_indices=self._geometry.state.ordered_segment_indices,
         )
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
@@ -434,7 +680,7 @@ class SegmentReorderOverlay(
 
         region = self._pointer_regions.hit_test(
             event.position(),
-            ordered_indices=tuple(self._ordered_segment_indices),
+            ordered_indices=self._geometry.state.ordered_segment_indices,
         )
         self.set_hovered_segment(None if region is None else region.segment_index)
         super().enterEvent(event)
@@ -457,68 +703,41 @@ class SegmentReorderOverlay(
     ) -> None:
         """Populate overlay hotspots from the current reorder-chip snapshot."""
 
-        started_at = reorder_drag_started_at()
-        self._cancel_chip_animations(reason="set_chips")
-        self._clear_reorder_visual_snapshots(reason="set_chips")
-        self._drag_proxy.hide()
-        self._autoscroll.stop()
-        self._clear_pending_autoscroll_invalidation()
-        self._delete_existing_chips()
-        self._document_view = document_view
-        self._source_identity = source_identity
-        self._original_layout_view = reorder_layout_view
-        self._current_layout_view = reorder_layout_view
-        self._original_reorder_state = reorder_state
-        self._current_reorder_state = reorder_state
-        self._base_drag_reorder_state = None
-        self._preview_reorder_state = None
-        self._geometry.set_session(
+        self._session_activation.activate(
             document_view,
             reorder_layout_view,
             reorder_state,
-            ordered_indices=tuple(segment.index for segment in chips),
-        )
-        self._base_drag_layout_view = None
-        self._preview_layout_view = None
-        self._clear_preview_target_identity()
-        self._last_live_visual_geometry_key = None
-        self._last_overlay_position_geometry_key = None
-        self._last_overlay_refresh_geometry_key = None
-        self._last_pointer_region_geometry_key = None
-        segments = chips
-        self._segments_by_index = {segment.index: segment for segment in segments}
-        self._initial_ordered_indices = tuple(segment.index for segment in segments)
-        self._ordered_segment_indices = list(self._initial_ordered_indices)
-        self._gesture.reset_all()
-        active_segment_index = (
-            active_chip_index if active_chip_index in self._segments_by_index else None
-        )
-        if active_segment_index is not None:
-            self._gesture.activate_segment(active_segment_index)
-        self._placement_snapshot = None
-        self._active_placement = None
-        self._drop_target_visuals = ()
-        self._drop_target_lanes = ()
-        self._preview_snapshot = None
-        self._base_drag_snapshot = None
-        self._landing_shadow.reset_session_state()
-        self._pointer_regions.set_segments(segments)
-        self._pointer_input.reset()
-        self._view.lower()
-        self.refresh_geometry(reason="set_chips")
-        self._log_interaction_timing(
-            "overlay.set_chips",
-            started_at=started_at,
-            segment_count=len(segments),
-            row_count=len(reorder_layout_view.rows),
-            gap_count=len(reorder_layout_view.gaps),
+            chips=chips,
             active_chip_index=active_chip_index,
+            source_identity=source_identity,
         )
 
-    def set_render_state(self, state: PromptReorderOverlayRenderState) -> None:
-        """Accept externally prepared render state for the passive overlay port."""
+    def animation_generation_state(self) -> PromptReorderAnimationGenerationState:
+        """Return authoritative animation generation state for diagnostics."""
 
-        _ = state
+        return self._animation_presentation.generation_state(
+            geometry_generation_id=self._interaction_metrics.work_unit_id,
+            active_target=self._gesture.state.active_drop_target,
+        )
+
+    def apply_animation_plan(self, plan: PromptReorderAnimationPlan) -> None:
+        """Publish one projection-owned animation plan."""
+
+        self._animation_presentation.apply_plan(
+            plan,
+            preview_geometry=self._geometry.state.preview_chip_geometry_snapshot,
+        )
+
+    def _handle_reorder_animation_frame(self) -> None:
+        """Adapt one prepared animation frame to pointer and paint surfaces."""
+
+        self._animation_presentation.sync_pointer_regions(
+            regions_by_index=self._chips_by_index,
+            preview_active=self._visual_mode.preview_active(),
+            live_visuals_by_index=self._live_visual_owner.visuals_by_index,
+            preview_visuals_by_index=self._preview_visual_owner.visuals_by_index,
+        )
+        self._render_publication.sync(reason="animation_frame")
 
     def set_drag_handler(
         self,
@@ -526,7 +745,7 @@ class SegmentReorderOverlay(
     ) -> None:
         """Set the interaction callback used for drag intent publication."""
 
-        self._drag_handler = handler
+        self._interaction_intents.set_drag_handler(handler)
 
     def set_commit_handler(
         self,
@@ -534,7 +753,7 @@ class SegmentReorderOverlay(
     ) -> None:
         """Set the interaction callback used for commit intent publication."""
 
-        self._commit_handler = handler
+        self._interaction_intents.set_commit_handler(handler)
 
     def set_cancel_handler(
         self,
@@ -542,12 +761,79 @@ class SegmentReorderOverlay(
     ) -> None:
         """Set the interaction callback used for cancel intent publication."""
 
-        self._cancel_handler = handler
+        self._interaction_intents.set_cancel_handler(handler)
 
     def request_geometry_refresh(self, *, reason: str) -> None:
         """Request a bounded geometry refresh for the current overlay state."""
 
         self.refresh_geometry(reason=reason)
+
+    def flush_pending_autoscroll_invalidation(self, *, reason: str) -> bool:
+        """Expose the autoscroll owner's coalesced host-boundary flush."""
+
+        return self._autoscroll.flush_pending_invalidation(reason=reason)
+
+    def drag_move(self, segment_index: int, global_pos: QPoint) -> None:
+        """Route one pointer move into the focused reorder transition owner."""
+
+        self._pointer_move.move(segment_index, global_pos)
+
+    def start_drag(
+        self,
+        segment_index: int,
+        *,
+        global_pos: QPoint,
+        press_global_pos: QPoint,
+    ) -> None:
+        """Route one threshold crossing into the focused drag-start owner."""
+
+        self._pointer_drag_start.start(
+            segment_index,
+            global_position=global_pos,
+            press_global_position=press_global_pos,
+        )
+
+    def end_drag(self, segment_index: int) -> None:
+        """Route one pointer release into the focused completion owner."""
+
+        self._pointer_drag_completion.end(segment_index)
+
+    def cancel_drag(self) -> None:
+        """Route one cancellation into the focused completion owner."""
+
+        self._pointer_drag_completion.cancel()
+
+    def prepare_drag(self, segment_index: int) -> None:
+        """Prepare immutable held-chip presentation before threshold crossing."""
+
+        self._pointer_drag_start.prepare(segment_index)
+
+    def move_active_chip(self, intent: PromptReorderKeyboardMoveIntent) -> bool:
+        """Route one keyboard intent and publish its adapter-level visual events."""
+
+        result = self._keyboard_interaction.move(
+            direction=intent.direction,
+            gesture_id=self._interaction_metrics.gesture_id,
+            event_id=self._interaction_metrics.event_id,
+            visuals=PromptReorderKeyboardVisualContext(
+                segment_indices=tuple(self._chips_by_index),
+                preview_active=self._visual_mode.preview_active(),
+                live_visuals_by_index=self._live_visual_owner.visuals_by_index,
+                preview_visuals_by_index=(self._preview_visual_owner.visuals_by_index),
+            ),
+        )
+        if result.context_prepared:
+            self.emit_preview_layout_changed()
+        if not result.moved:
+            return False
+        self._pointer_region_visual.sync_interaction_state()
+        self.emit_preview_layout_changed()
+        return True
+
+    def reorder_performance_counters(self) -> dict[str, object]:
+        """Return deterministic reorder owner counters for diagnostics."""
+
+        return self._performance_counters.snapshot()
 
     def show_overlay(self) -> None:
         """Show the overlay without changing prompt source."""
@@ -557,40 +843,13 @@ class SegmentReorderOverlay(
     def hide_overlay(self) -> None:
         """Hide the overlay without changing prompt source."""
 
-        self._settle_chip_animations(reason="overlay_hide")
-        self._clear_reorder_visual_snapshots(reason="overlay_hide")
+        self._visual_lifecycle.hide()
         self.hide()
-
-    def _clear_reorder_visual_snapshots(self, *, reason: str) -> None:
-        """Clear cached full-chip visual snapshots and document suppression."""
-
-        self._settle_chip_animations(reason=f"{reason}_snapshot_clear")
-        self._live_visual_snapshots_by_index = {}
-        self._preview_visual_snapshots_by_index = {}
-        self._visual_snapshot_cache.clear()
-        self._raster_warm_scheduler.clear()
-        self._raster_cache.clear()
-        self._clear_reorder_raster_entry_cache()
-        self._last_live_visual_geometry_key = None
-        self._last_overlay_refresh_geometry_key = None
-        self._displacement_session.bump_raster_generation()
-        self._set_reorder_overlay_suppression({})
-        self._editor.set_reorder_surface_chrome(mode="live", chips=())
-
-    def _clear_reorder_raster_entry_cache(self) -> None:
-        """Clear render-state memoization that wraps the raster cache."""
-
-        self._live_raster_entries_render_key = None
-        self._live_raster_entries_by_index = {}
-        self._preview_raster_entries_render_key = None
-        self._preview_raster_entries_by_index = {}
 
     def _publish_warmed_reorder_rasters(self) -> None:
         """Publish one idle-built raster batch through the passive view owner."""
 
-        self._clear_reorder_raster_entry_cache()
-        if self.isVisible():
-            self._sync_reorder_view_state(reason="raster_warm_batch")
+        self._visual_lifecycle.publish_warmed_rasters(overlay_visible=self.isVisible())
 
     def set_preview_snapshot(
         self,
@@ -599,539 +858,32 @@ class SegmentReorderOverlay(
         base_drag_snapshot: PromptReorderPreviewSnapshot | None = None,
         ordered_chip_indices: tuple[int, ...],
     ) -> None:
-        """Apply one controller-built preview snapshot for chrome geometry refresh."""
+        """Route one preview projection into the frame-transition owner."""
 
-        started_at = reorder_drag_started_at()
-        animation_start_rects = self._current_visible_chip_rects_for_animation()
-        self._cancel_chip_animations(reason="preview_snapshot_refresh")
-        self._geometry.set_preview_snapshots(
+        self._preview_frame_transition.apply(
             snapshot,
             base_drag_snapshot=base_drag_snapshot,
             ordered_chip_indices=ordered_chip_indices,
-            dragged_segment_index=self._gesture.state.dragged_segment_index,
-            active_target=self._gesture.state.active_drop_target,
-            viewport_identity=self._overlay_position_geometry_key(),
-        )
-        self._preview_snapshot = self._geometry.preview_snapshot
-        self._base_drag_snapshot = self._geometry.base_drag_snapshot
-        self._ordered_segment_indices = list(self._geometry.ordered_segment_indices)
-        self._preview_layout_target_identity = (
-            self._geometry.preview_layout_target_identity
-        )
-        self._preview_geometry_target_identity = (
-            self._geometry.preview_geometry_target_identity
-        )
-        self._refresh_preview_geometry()
-        animation_plan = self._build_reorder_animation_plan_if_ready(
-            current_visuals=animation_start_rects
-        )
-        snapshot_indices = (
-            frozenset()
-            if animation_plan is None
-            else frozenset(
-                target.segment_index for target in animation_plan.changed_targets
-            )
-        )
-        dragged_segment_index = self._gesture.state.dragged_segment_index
-        if dragged_segment_index is not None:
-            snapshot_indices = snapshot_indices | {dragged_segment_index}
-        self._prepare_preview_visual_snapshots(snapshot_indices)
-        if animation_plan is not None:
-            animation_plan = animation_plan_with_complete_paint_ownership(
-                animation_plan,
-                snapshot_indices=frozenset(self._preview_visual_snapshots_by_index),
-            )
-        self._update_pointer_region_geometry()
-        if animation_plan is not None:
-            self.apply_animation_plan(animation_plan)
-        else:
-            self._sync_reorder_view_state(reason="set_preview_snapshot")
-        self._last_overlay_refresh_geometry_key = self._overlay_refresh_geometry_key()
-        self._last_overlay_position_geometry_key = self._overlay_position_geometry_key()
-        if self._gesture.state.active_drop_target is None:
-            self._log_interaction_event(
-                "preview_state.fresh",
-                gesture_id=self._instrumentation_gesture_id,
-                event_id=self._instrumentation_event_id,
-                reason="no_active_target",
-            )
-        elif self._active_placement is not None:
-            self._log_interaction_event(
-                "preview_state.caught_up",
-                gesture_id=self._instrumentation_gesture_id,
-                event_id=self._instrumentation_event_id,
-                active_target_kind=reorder_drag_target_kind(
-                    self._gesture.state.active_drop_target
-                ),
-                has_expected_landing=(
-                    self._active_placement.expected_landing_chip_index is not None
-                ),
-            )
-        if self._last_drop_commit_segment_index is not None:
-            self._log_post_drop_geometry_checkpoint(
-                checkpoint="set_preview_snapshot.after_surface_sync",
-                segment_index=self._last_drop_commit_segment_index,
-            )
-            self._clear_last_drop_commit_context()
-        self._log_interaction_timing(
-            "overlay.set_preview_snapshot",
-            started_at=started_at,
-            gesture_id=self._instrumentation_gesture_id,
-            event_id=self._instrumentation_event_id,
-            has_preview_snapshot=snapshot is not None,
-            has_base_drag_snapshot=base_drag_snapshot is not None,
-            ordered_count=len(self._ordered_segment_indices),
-            preview_visual_count=len(self._preview_visuals_by_index),
-            lane_count=len(self._drop_target_lanes),
         )
 
     def refresh_geometry(self, *, reason: str = "unspecified") -> None:
-        """Route one explicit invalidation reason to minimal overlay refresh work."""
+        """Route one explicit invalidation into the frame-transition owner."""
 
-        started_at = reorder_drag_started_at()
-        work_unit_id = self.next_instrumentation_work_unit_id()
-        self._instrumentation_refresh_work_unit_count += 1
-        previous_key = self._last_overlay_refresh_geometry_key
-        overlay_rect_changed = self._refresh_overlay_rect()
-        next_key = self._overlay_refresh_geometry_key()
-        self._last_overlay_position_geometry_key = self._overlay_position_geometry_key()
-        drag_active = self._gesture.state.dragged_segment_index is not None
-        key_changed = previous_key != next_key
-        preview_snapshot_changed = (
-            previous_key is None
-            or previous_key.preview_snapshot_key != next_key.preview_snapshot_key
-            or previous_key.preview_layout_key != next_key.preview_layout_key
-            or previous_key.active_target != next_key.active_target
-        )
-        height_only_geometry_change = (
-            previous_key is not None
-            and reorder_overlay_refresh_is_height_only_change(previous_key, next_key)
-        )
-        if (
-            key_changed
-            and not preview_snapshot_changed
-            and not height_only_geometry_change
-        ):
-            self._settle_chip_animations(reason=f"geometry_refresh:{reason}")
-        self._log_interaction_event(
-            "overlay.refresh_geometry.requested",
-            gesture_id=self._instrumentation_gesture_id,
-            event_id=self._instrumentation_event_id,
-            work_unit_id=work_unit_id,
-            reason=reason,
-            drag_active=drag_active,
-            has_preview_snapshot=self._preview_snapshot is not None,
-            has_base_drag_snapshot=self._base_drag_snapshot is not None,
-            geometry_key_changed=key_changed,
-            preview_key_changed=preview_snapshot_changed,
-            live_key_changed=(
-                previous_key is None
-                or previous_key.live_geometry_key != next_key.live_geometry_key
-            ),
-            viewport_width=next_key.viewport_width,
-            viewport_height=next_key.viewport_height,
-            scroll_offset=next_key.scroll_offset,
-            dragged_segment_index=self._gesture.state.dragged_segment_index,
-        )
-        if previous_key == next_key and self._visuals_by_index:
-            self._instrumentation_skipped_refresh_count += 1
-            proxy_changed = False
-            if overlay_rect_changed:
-                proxy_changed = self._sync_drag_proxy_geometry_if_needed(reason=reason)
-            elapsed_ms = self._log_interaction_timing(
-                "overlay.refresh_geometry.skip_unchanged",
-                started_at=started_at,
-                gesture_id=self._instrumentation_gesture_id,
-                event_id=self._instrumentation_event_id,
-                work_unit_id=work_unit_id,
-                reason=reason,
-                drag_active=drag_active,
-                content_width=self._content_rect.width(),
-                content_height=self._content_rect.height(),
-                visual_count=len(self._visuals_by_index),
-                preview_visual_count=len(self._preview_visuals_by_index),
-                lane_count=len(self._drop_target_lanes),
-                overlay_rect_changed=overlay_rect_changed,
-                proxy_changed=proxy_changed,
-            )
-            if elapsed_ms >= _SLOW_LIVE_VISUALS_MS:
-                self._log_interaction_event(
-                    "budget.position_refresh_exceeded",
-                    gesture_id=self._instrumentation_gesture_id,
-                    event_id=self._instrumentation_event_id,
-                    work_unit_id=work_unit_id,
-                    elapsed_ms=f"{elapsed_ms:.3f}",
-                    threshold_ms=f"{_SLOW_LIVE_VISUALS_MS:.3f}",
-                    reason=reason,
-                    skipped=True,
-                )
-            self._log_interaction_timing(
-                "overlay.refresh_geometry",
-                started_at=started_at,
-                gesture_id=self._instrumentation_gesture_id,
-                event_id=self._instrumentation_event_id,
-                work_unit_id=work_unit_id,
-                reason=reason,
-                skipped=True,
-                skipped_elapsed_ms=f"{elapsed_ms:.3f}",
-            )
-            return
-
-        if self._pointer_loop_depth > 0:
-            self.record_pointer_unexpected_work("full_refresh", reason=reason)
-
-        live_changed = self._refresh_live_chip_geometry_if_needed(reason=reason)
-        preview_changed = self._refresh_preview_geometry_if_needed(
-            reason=reason,
-            preserve_animation=height_only_geometry_change,
-        )
-        chip_geometry_changed = self._sync_pointer_region_geometry_if_needed(
-            reason=reason
-        )
-        proxy_changed = self._sync_drag_proxy_geometry_if_needed(reason=reason)
-        self._last_overlay_refresh_geometry_key = next_key
-        if (
-            key_changed
-            or live_changed
-            or preview_changed
-            or chip_geometry_changed
-            or proxy_changed
-        ):
-            self._sync_reorder_view_state(reason=reason)
-            if self._pointer_loop_depth > 0:
-                self.record_pointer_unexpected_work("paint_request", reason=reason)
-        event_name = self._refresh_geometry_event_name(
-            live_changed=live_changed,
-            preview_changed=preview_changed,
-            proxy_changed=proxy_changed,
-        )
-        self._log_interaction_timing(
-            event_name,
-            started_at=started_at,
-            gesture_id=self._instrumentation_gesture_id,
-            event_id=self._instrumentation_event_id,
-            work_unit_id=work_unit_id,
-            reason=reason,
-            drag_active=drag_active,
-            content_width=self._content_rect.width(),
-            content_height=self._content_rect.height(),
-            visual_count=len(self._visuals_by_index),
-            preview_visual_count=len(self._preview_visuals_by_index),
-            lane_count=len(self._drop_target_lanes),
-            live_changed=live_changed,
-            preview_changed=preview_changed,
-            chip_geometry_changed=chip_geometry_changed,
-            proxy_changed=proxy_changed,
-        )
-        self._log_interaction_timing(
-            "overlay.refresh_geometry",
-            started_at=started_at,
-            gesture_id=self._instrumentation_gesture_id,
-            event_id=self._instrumentation_event_id,
-            work_unit_id=work_unit_id,
-            reason=reason,
-            skipped=False,
-            content_width=self._content_rect.width(),
-            content_height=self._content_rect.height(),
-            visual_count=len(self._visuals_by_index),
-            preview_visual_count=len(self._preview_visuals_by_index),
-            lane_count=len(self._drop_target_lanes),
-        )
+        self._viewport_frame_refresh.refresh(reason=reason)
 
     def needs_position_refresh(
         self,
         *,
         reason: str = "unspecified",
     ) -> bool:
-        """Return whether viewport positioning inputs changed since the last sync."""
+        """Return whether viewport positioning changed since publication."""
 
-        work_unit_id = self.next_instrumentation_work_unit_id()
-        previous_key = self._last_overlay_position_geometry_key
-        next_key = self._overlay_position_geometry_key()
-        changed = previous_key != next_key
-        drag_active = self._gesture.state.dragged_segment_index is not None
-        self._log_interaction_event(
-            "overlay.position_refresh.requested",
-            gesture_id=self._instrumentation_gesture_id,
-            event_id=self._instrumentation_event_id,
-            work_unit_id=work_unit_id,
-            reason=reason,
-            drag_active=drag_active,
-            position_key_changed=changed,
-            viewport_width=next_key.viewport_width,
-            viewport_height=next_key.viewport_height,
-            scroll_offset=next_key.scroll_offset,
-            dragged_segment_index=self._gesture.state.dragged_segment_index,
-        )
-        if changed:
-            self._instrumentation_position_refresh_run_count += 1
-            self._log_interaction_event(
-                "overlay.position_refresh.ran",
-                gesture_id=self._instrumentation_gesture_id,
-                event_id=self._instrumentation_event_id,
-                work_unit_id=work_unit_id,
-                reason=reason,
-                drag_active=drag_active,
-                position_key_changed=True,
-            )
-            return True
-        self._instrumentation_position_refresh_skip_count += 1
-        self._log_interaction_event(
-            "overlay.position_refresh.skip_unchanged",
-            gesture_id=self._instrumentation_gesture_id,
-            event_id=self._instrumentation_event_id,
-            work_unit_id=work_unit_id,
-            reason=reason,
-            drag_active=drag_active,
-            position_key_changed=False,
-        )
-        return False
-
-    def _refresh_overlay_rect(self) -> bool:
-        """Sync overlay/content rect and return whether either rect changed."""
-
-        previous_geometry = QRect(self.geometry())
-        previous_content_rect = QRect(self._content_rect)
-        self.setGeometry(self._editor.viewport().rect())
-        self._content_rect = reorder_overlay_content_rect(self._editor)
-        return (
-            previous_geometry != self.geometry()
-            or previous_content_rect != self._content_rect
-        )
-
-    def _overlay_position_geometry_key(self) -> PromptReorderOverlayPositionGeometryKey:
-        """Return the cheap viewport identity used to gate overlay positioning."""
-
-        viewport_rect = self._editor.viewport().rect()
-        content_rect = reorder_overlay_content_rect(self._editor)
-        scrollbar = self._editor.verticalScrollBar()
-        return reorder_overlay_position_geometry_key(
-            viewport_left=viewport_rect.left(),
-            viewport_top=viewport_rect.top(),
-            viewport_width=viewport_rect.width(),
-            viewport_height=viewport_rect.height(),
-            content_left=content_rect.left(),
-            content_top=content_rect.top(),
-            content_width=content_rect.width(),
-            content_height=content_rect.height(),
-            scroll_offset=scrollbar.value(),
-        )
-
-    def _refresh_live_chip_geometry_if_needed(self, *, reason: str) -> bool:
-        """Refresh live chip geometry when live geometry identity changed."""
-
-        previous_visuals = self._visuals_by_index
-        self._visuals_by_index = self._build_visuals_if_needed(reason=reason)
-        return self._visuals_by_index != previous_visuals
-
-    def _refresh_preview_geometry_if_needed(
-        self,
-        *,
-        reason: str,
-        preserve_animation: bool,
-    ) -> bool:
-        """Refresh preview and base geometry when preview identity changed."""
-
-        if not preserve_animation:
-            self._settle_chip_animations(reason=f"{reason}_preview_geometry_refresh")
-        previous_preview_visuals = self._preview_visuals_by_index
-        previous_lane_count = len(self._drop_target_lanes)
-        self._update_preview_layout()
-        self._refresh_preview_geometry()
-        changed = (
-            previous_preview_visuals != self._preview_visuals_by_index
-            or previous_lane_count != len(self._drop_target_lanes)
-        )
-        if changed and self._pointer_loop_depth > 0:
-            self.record_pointer_unexpected_work("preview_rebuild", reason=reason)
-        return changed
-
-    def _sync_pointer_region_geometry_if_needed(self, *, reason: str) -> bool:
-        """Move logical pointer regions when visual geometry identity changed."""
-
-        next_key = self._pointer_region_geometry_key()
-        if next_key == self._last_pointer_region_geometry_key:
-            self._log_interaction_event(
-                "pointer_region_geometry.update_skipped_unchanged",
-                gesture_id=self._instrumentation_gesture_id,
-                event_id=self._instrumentation_event_id,
-                reason=reason,
-                chip_count=len(self._chips_by_index),
-            )
-            return False
-        self._last_pointer_region_geometry_key = next_key
-        self._update_pointer_region_geometry()
-        return True
-
-    def _sync_drag_proxy_geometry_if_needed(self, *, reason: str) -> bool:
-        """Move drag proxy for the last pointer position without preview work."""
-
-        if self._gesture.state.last_drag_global_position is None:
-            return False
-        previous_geometry = QRect(self._drag_proxy.geometry())
-        self._move_drag_proxy(self._gesture.state.last_drag_global_position)
-        changed = previous_geometry != self._drag_proxy.geometry()
-        self._log_interaction_event(
-            "overlay.refresh_geometry.proxy_only",
-            gesture_id=self._instrumentation_gesture_id,
-            event_id=self._instrumentation_event_id,
-            reason=reason,
-            proxy_changed=changed,
-        )
-        return changed
-
-    @staticmethod
-    def _refresh_geometry_event_name(
-        *,
-        live_changed: bool,
-        preview_changed: bool,
-        proxy_changed: bool,
-    ) -> str:
-        """Return the most specific refresh event name for completed work."""
-
-        if live_changed and preview_changed:
-            return "overlay.refresh_geometry.full"
-        if preview_changed:
-            return "overlay.refresh_geometry.preview_only"
-        if live_changed:
-            return "overlay.refresh_geometry.live_only"
-        if proxy_changed:
-            return "overlay.refresh_geometry.proxy_only"
-        return "overlay.refresh_geometry.skip_unchanged"
-
-    def _overlay_refresh_geometry_key(self) -> PromptReorderOverlayRefreshGeometryKey:
-        """Return a conservative identity for broad overlay refresh work."""
-
-        viewport_rect = self._editor.viewport().rect()
-        scrollbar = self._editor.verticalScrollBar()
-        source_text = (
-            "" if self._document_view is None else self._document_view.source_text
-        )
-        position_key = reorder_overlay_position_geometry_key(
-            viewport_left=viewport_rect.left(),
-            viewport_top=viewport_rect.top(),
-            viewport_width=viewport_rect.width(),
-            viewport_height=viewport_rect.height(),
-            content_left=self._content_rect.left(),
-            content_top=self._content_rect.top(),
-            content_width=self._content_rect.width(),
-            content_height=self._content_rect.height(),
-            scroll_offset=scrollbar.value(),
-        )
-        return reorder_overlay_refresh_geometry_key(
-            position_key=position_key,
-            source_text=source_text,
-            live_geometry_key=self._live_visual_geometry_key(),
-            current_layout_key=self._layout_view_key(self._current_layout_view),
-            preview_layout_key=self._layout_view_key(self._preview_layout_view),
-            base_drag_layout_key=self._layout_view_key(self._base_drag_layout_view),
-            preview_snapshot_key=self._preview_snapshot_key(self._preview_snapshot),
-            base_drag_snapshot_key=self._preview_snapshot_key(self._base_drag_snapshot),
-            dragged_segment_index=self._gesture.state.dragged_segment_index,
-            active_target=self._gesture.state.active_drop_target,
-        )
-
-    def _pointer_region_geometry_key(self) -> _PointerRegionGeometryKey:
-        """Return the current visual identity used to place pointer regions."""
-
-        preview_rects = tuple(
-            sorted(
-                (
-                    segment_index,
-                    visual.hotspot_rect.left(),
-                    visual.hotspot_rect.top(),
-                    visual.hotspot_rect.width(),
-                    visual.hotspot_rect.height(),
-                )
-                for segment_index, visual in self._preview_visuals_by_index.items()
-            )
-        )
-        live_rects = tuple(
-            sorted(
-                (
-                    segment_index,
-                    visual.hotspot_rect.left(),
-                    visual.hotspot_rect.top(),
-                    visual.hotspot_rect.width(),
-                    visual.hotspot_rect.height(),
-                )
-                for segment_index, visual in self._visuals_by_index.items()
-            )
-        )
-        return reorder_pointer_region_geometry_key(
-            dragged_segment_index=self._gesture.state.dragged_segment_index,
-            preview_mode_active=self._preview_mode_active(),
-            preview_rects=preview_rects,
-            live_rects=live_rects,
-        )
-
-    @staticmethod
-    def _layout_view_key(
-        layout_view: PromptReorderLayoutView | None,
-    ) -> _ReorderLayoutViewKey | None:
-        """Return a prompt-safe key for one reorder layout view."""
-
-        return layout_view_key(layout_view)
-
-    @staticmethod
-    def _preview_snapshot_key(
-        snapshot: PromptReorderPreviewSnapshot | None,
-    ) -> _ReorderPreviewSnapshotKey | None:
-        """Return a prompt-safe key for one preview snapshot."""
-
-        return preview_snapshot_key(snapshot)
-
-    def _preview_target_identity_for_active_target(
-        self,
-    ) -> _PreviewTargetIdentity | None:
-        """Return the preview identity expected for the active semantic target."""
-
-        return self._geometry.preview_target_identity_for_target(
-            dragged_segment_index=self._gesture.state.dragged_segment_index,
-            target=self._gesture.state.active_drop_target,
-            viewport_identity=self._overlay_position_geometry_key(),
-        )
-
-    def _preview_target_identity_matches_active_target(self) -> bool:
-        """Return whether current preview geometry belongs to the active target."""
-
-        return self._geometry.preview_geometry_matches_target(
-            dragged_segment_index=self._gesture.state.dragged_segment_index,
-            target=self._gesture.state.active_drop_target,
-            viewport_identity=self._overlay_position_geometry_key(),
-        )
-
-    def _clear_preview_target_identity(self) -> None:
-        """Clear target identity for preview layout and geometry snapshots."""
-
-        self._geometry.clear_preview_target_identity()
-        self._preview_layout_target_identity = None
-        self._preview_geometry_target_identity = None
-
-    def _preview_target_identity_context(
-        self,
-        identity: _PreviewTargetIdentity | None,
-        *,
-        prefix: str,
-    ) -> dict[str, object]:
-        """Return structured fields for one preview target identity."""
-
-        context = self._geometry.preview_target_identity_context(
-            identity,
-            prefix=prefix,
-        )
-        if identity is not None:
-            context.update(
-                self._telemetry.target_context(
-                    identity.target, prefix=f"{prefix}_target"
-                )
-            )
-        return context
+        return self._viewport_frame_refresh.needs_position_refresh(reason=reason)
 
     def ordered_chip_indices(self) -> list[int]:
         """Return the current flattened chip order tracked by this reorder session."""
 
-        return list(self._ordered_segment_indices)
+        return list(self._geometry.state.ordered_segment_indices)
 
     def retain_editor_focus(self) -> None:
         """Keep the host editor visually and keyboard-focused during reorder input."""
@@ -1143,34 +895,20 @@ class SegmentReorderOverlay(
 
         return self._gesture.state.active_segment_index
 
-    def dragged_segment_index(self) -> int | None:
-        """Return the segment currently being dragged, when one exists."""
-
-        return self._gesture.state.dragged_segment_index
-
-    def drop_target(self) -> PromptReorderDropTarget | None:
-        """Return the typed destination that would be committed on Alt release."""
-
-        if self._gesture.state.dragged_segment_index is not None:
-            return self._gesture.state.active_drop_target
-        if not self.has_reordered():
-            return None
-        return self._committable_keyboard_drop_target()
-
     def current_layout_view(self) -> PromptReorderLayoutView | None:
         """Return the current in-session reorder layout represented by the overlay."""
 
-        return self._current_layout_view
+        return self._geometry.state.current_layout_view
 
     def commit_snapshot(self) -> PromptReorderCommitSnapshot:
         """Return the prepared reorder state visible to interaction owners."""
 
-        return PromptReorderCommitSnapshot(
-            reorder_state=self._current_reorder_state,
-            layout_view=self._current_layout_view,
-            ordered_chip_indices=tuple(self._ordered_segment_indices),
-            active_segment_index=self._gesture.state.active_segment_index,
-            dragged_segment_index=self._gesture.state.dragged_segment_index,
+        state = self._geometry.state
+        gesture_state = self._gesture.state
+        return prompt_reorder_commit_snapshot(
+            state,
+            active_segment_index=gesture_state.active_segment_index,
+            dragged_segment_index=gesture_state.dragged_segment_index,
             has_reordered=self.has_reordered(),
         )
 
@@ -1184,24 +922,11 @@ class SegmentReorderOverlay(
 
         return self._gesture.keyboard_state()
 
-    def preview_reorder_state(self) -> PromptReorderStateView | None:
-        """Return authoritative source state for the active painted preview."""
-
-        if self._preview_mode_active():
-            return self._preview_reorder_state
-        if self.has_reordered():
-            return self._current_reorder_state
-        return None
-
-    def base_drag_reorder_state(self) -> PromptReorderStateView | None:
-        """Return authoritative source state for the base-drag preview."""
-
-        return self._base_drag_reorder_state
-
     def preview_target_state(self) -> PromptReorderPreviewTargetState:
         """Return display-only preview target state for focused tests."""
 
-        return self._geometry.preview_target_state(
+        return reorder_preview_target_state(
+            self._geometry.state,
             dragged_segment_index=self._gesture.state.dragged_segment_index,
             active_target=self._gesture.state.active_drop_target,
         )
@@ -1209,89 +934,51 @@ class SegmentReorderOverlay(
     def geometry_generation_state(self) -> PromptReorderGeometryGenerationState:
         """Return prepared geometry generation state without QWidget references."""
 
-        return self._geometry.geometry_generation_state(
-            generation_id=self._instrumentation_work_unit_id,
+        return reorder_geometry_generation_state(
+            self._geometry.state,
+            generation_id=self._interaction_metrics.work_unit_id,
             dragged_segment_index=self._gesture.state.dragged_segment_index,
             active_target=self._gesture.state.active_drop_target,
-            viewport_identity=self._overlay_position_geometry_key(),
+            viewport_identity=self._viewport_geometry.position_geometry_key(),
         )
 
     def preview_chip_indices(self) -> list[int]:
         """Return previewed chip indices in the current visible reorder order."""
 
-        if not self._preview_mode_active():
+        if not self._visual_mode.preview_active():
             return []
         return [
             segment_index
             for segment_index in self.ordered_chip_indices()
-            if segment_index in self._preview_visuals_by_index
+            if segment_index in self._preview_visual_owner.visuals_by_index
         ]
 
     def preview_rect_for_segment(self, segment_index: int) -> QRect | None:
         """Return one preview rect when the supplied segment is visibly previewed."""
 
-        preview_visual = self._preview_visuals_by_index.get(segment_index)
+        preview_visual = self._preview_visual_owner.visuals_by_index.get(segment_index)
         if preview_visual is None:
             return None
         return QRect(preview_visual.hotspot_rect)
 
-    def preview_layout_view(self) -> PromptReorderLayoutView | None:
-        """Return the layout currently represented by the reorder preview."""
-
-        return self._layout_for_painted_preview()
-
-    def base_drag_layout_view(self) -> PromptReorderLayoutView | None:
-        """Return the stable drag-base layout used for hit testing during drags."""
-
-        return self._base_drag_layout_view
-
-    def has_base_drag_placement_geometry(self) -> bool:
-        """Return whether drag hit testing has projection-owned placement geometry."""
-
-        return self._placement_snapshot is not None and bool(
-            self._placement_snapshot.placements
-        )
-
     def has_valid_initial_landing_shadow(self) -> bool:
         """Return whether the active drag has a chip-shaped landing shadow."""
 
-        result = self._landing_shadow.has_valid_initial_landing_shadow(
-            self._landing_shadow_request()
+        result = self._landing_resolution.has_valid_initial_landing_shadow(
+            self._landing_request.build()
         )
-        self._active_placement = result.active_placement
-        self._geometry.active_placement = self._active_placement
+        self._geometry.set_active_placement(result.active_placement)
         return result.geometry is not None
-
-    def should_flush_initial_landing_shadow_sync(self) -> bool:
-        """Return and consume the one allowed immediate first-shadow sync request."""
-
-        result = self._landing_shadow.should_flush_initial_landing_shadow_sync(
-            self._landing_shadow_request(),
-            base_drag_layout_available=self._base_drag_layout_view is not None,
-        )
-        self._active_placement = result.active_placement
-        self._geometry.active_placement = self._active_placement
-        return result.should_flush
 
     def drag_proxy_widget(self) -> QWidget:
         """Return the floating drag proxy widget used for segment dragging."""
 
-        return self._drag_proxy
-
-    def instrumentation_gesture_id(self) -> int | None:
-        """Return the current drag gesture identifier."""
-
-        return self._instrumentation_gesture_id
-
-    def instrumentation_event_id(self) -> int | None:
-        """Return the latest drag event identifier."""
-
-        return self._instrumentation_event_id
+        return self._drag_proxy_visual.widget
 
     def has_reordered(self) -> bool:
         """Return whether the current prospective order differs from the original."""
 
-        return self._current_reorder_state != self._original_reorder_state
+        return self._visual_mode.has_reordered()
 
     def set_hovered_segment(self, segment_index: int | None) -> None:
         """Track the segment currently under the pointer and repaint states."""
@@ -1299,15 +986,15 @@ class SegmentReorderOverlay(
         changed = self._gesture.set_hovered_segment(segment_index)
         if not changed:
             return
-        self._update_chip_states()
-        self._sync_reorder_view_state(reason="hovered_segment_changed")
+        self._pointer_region_visual.sync_interaction_state()
+        self._render_publication.sync(reason="hovered_segment_changed")
 
     def activate_segment(self, segment_index: int) -> None:
         """Track the segment that should retain selection if a commit happens."""
 
         self._gesture.activate_segment(segment_index)
-        self._update_chip_states()
-        self._sync_reorder_view_state(reason="active_segment_changed")
+        self._pointer_region_visual.sync_interaction_state()
+        self._render_publication.sync(reason="active_segment_changed")
 
     def set_pointer_cursor(self, cursor_shape: Qt.CursorShape) -> None:
         """Apply the cursor selected by the overlay's logical pointer owner."""
@@ -1336,59 +1023,9 @@ class SegmentReorderOverlay(
         """Track which segment pointer press is currently held down."""
 
         self._gesture.set_pressed_segment(segment_index)
-        self._update_chip_states()
+        self._pointer_region_visual.sync_interaction_state()
 
-    def _delete_existing_chips(self) -> None:
-        """Dispose any existing hotspots before repopulating the overlay."""
-
-        self._cancel_chip_animations(reason="delete_existing_chips")
-        self._pointer_input.reset()
-        self._pointer_regions.clear()
-        self._animated_pointer_region_indices.clear()
-        self._drop_target_visuals = ()
-        self._drop_target_lanes = ()
-        self._placement_snapshot = None
-        self._active_placement = None
-        self._preview_visuals_by_index = {}
-        self._landing_shadow.clear_held_shadow()
-        self._last_live_visual_geometry_key = None
-        self._preview_snapshot = None
-        self._base_drag_snapshot = None
-        self._preview_reorder_state = None
-        self._base_drag_reorder_state = None
-        self._visuals_by_index = {}
-        self._clear_reorder_raster_entry_cache()
-        self._clear_drag_intent_context()
-        self._clear_last_drop_commit_context()
-
-    def _apply_theme_colors(self) -> None:
-        """Refresh the palette-derived colors used by the reorder overlay."""
-
-        if self._applying_theme_styles:
-            return
-
-        self._applying_theme_styles = True
-        try:
-            self._visual_style = PromptReorderVisualStyle.from_current_theme()
-        finally:
-            self._applying_theme_styles = False
-
-    def _emit_preview_layout_changed(self) -> None:
+    def emit_preview_layout_changed(self) -> None:
         """Notify listeners that the reorder preview layout contract changed."""
 
         self.previewLayoutChanged.emit()
-
-
-__all__ = [
-    "PromptReorderCancelIntent",
-    "PromptReorderCommitIntent",
-    "PromptReorderDragIntent",
-    "PromptReorderDragPhase",
-    "PromptReorderLayoutPolicy",
-    "PromptReorderAutoscrollFactory",
-    "PromptReorderDragProxyStateFactory",
-    "PromptReorderOverlay",
-    "PromptReorderOverlayRenderState",
-    "PromptReorderViewFactory",
-    "SegmentReorderOverlay",
-]

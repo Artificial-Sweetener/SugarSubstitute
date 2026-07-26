@@ -97,6 +97,14 @@ class PromptReorderStateView:
 
 
 @dataclass(frozen=True, slots=True)
+class PromptReorderPreparedStateView:
+    """Publish authoritative reorder state with its matching derived layout."""
+
+    reorder_state: PromptReorderStateView
+    layout_view: PromptReorderLayoutView
+
+
+@dataclass(frozen=True, slots=True)
 class PromptReorderSessionView:
     """Expose one reorder-mode snapshot built from a single parsed prompt document."""
 
@@ -124,6 +132,7 @@ __all__ = [
     "PromptReorderGapView",
     "PromptReorderLayoutView",
     "PromptReorderPreviewSnapshot",
+    "PromptReorderPreparedStateView",
     "PromptReorderRowView",
     "PromptReorderSessionView",
     "PromptReorderStateView",

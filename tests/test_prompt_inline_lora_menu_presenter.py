@@ -50,7 +50,7 @@ from substitute.presentation.editor.prompt_editor.interactions import (
     PromptInlineLoraContextMenuPresenter,
     PromptTriggerWordActionAdapter,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )

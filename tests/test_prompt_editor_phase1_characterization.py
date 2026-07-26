@@ -49,8 +49,10 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 )
 from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionTokenKind,
 )
 from substitute.presentation.editor.prompt_editor.projection.paint_state import (
@@ -585,7 +587,7 @@ def test_phase1_weight_change_is_one_undoable_source_step(
         weight=1.25,
     )
 
-    cast(Any, box)._interaction_controller.apply_syntax_action(  # noqa: SLF001
+    cast(Any, box)._weight_interaction.apply_syntax_action(  # noqa: SLF001
         action
     )
     process_events(ensure_qapp())
@@ -855,17 +857,20 @@ def test_phase1_active_token_state_reuses_projection_caret_mapping(
         decoration_accent_ranges=(),
         scene_error_keys=frozenset(),
     )
-    cast(Any, surface)._layout.set_projection_paint_state(paint_state)
-    active_token = cast(Any, surface)._layout.effective_token_for_paint(token.token_id)
+    cast(Any, surface)._layout.frame.set_paint_state(paint_state)
+    active_token = cast(Any, surface)._layout.frame.paint_input.effective_token(
+        token.token_id
+    )
 
-    assert cast(Any, surface)._layout.projection_document is document
+    assert cast(Any, surface)._layout.frame.output.projection_document is document
     assert (
-        cast(Any, surface)._layout.projection_document.caret_map is document.caret_map
+        cast(Any, surface)._layout.frame.output.projection_document.caret_map
+        is document.caret_map
     )
     assert active_token is not None
     assert active_token.active is True
     assert any(
-        cast(Any, surface)._layout.effective_run_for_paint(run.run_id).active
+        cast(Any, surface)._layout.frame.paint_input.effective_run(run.run_id).active
         for run in document.runs
         if run.token_id == token.token_id
     )

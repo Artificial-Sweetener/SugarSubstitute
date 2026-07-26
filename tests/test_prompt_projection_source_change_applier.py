@@ -18,10 +18,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from dataclasses import is_dataclass
+from typing import Any, cast
 
-from PySide6.QtCore import QRectF, QSizeF
+import pytest
+from PySide6.QtCore import QRectF
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
@@ -71,20 +71,32 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
-from substitute.presentation.editor.prompt_editor.projection.source_change_applier import (
-    PromptProjectionCaretSync,
-    PromptProjectionFreshnessOutcome,
-    PromptProjectionFreshnessState,
-    PromptProjectionSignalOutcome,
-    PromptProjectionSourceChangeApplier,
-    PromptProjectionSourceDocumentOutcome,
-    PromptProjectionSourceDocumentRangeEdit,
-    PromptProjectionSourceStateApplicationRequest,
-    PromptProjectionSourceStateApplyPath,
-    PromptProjectionSourceStateOutcome,
-    PromptProjectionViewportInvalidation,
+from substitute.presentation.editor.prompt_editor.projection.source_commit_application import (
+    PromptProjectionSourceCommitApplication,
 )
-from substitute.presentation.editor.prompt_editor.projection.incremental_apply_controller import (
+from substitute.presentation.editor.prompt_editor.projection.source_change_transaction import (
+    PromptProjectionSourceChangeTransaction,
+)
+from substitute.presentation.editor.prompt_editor.projection.semantic_remap import (
+    PromptProjectionSemanticRemapper,
+)
+from substitute.presentation.editor.prompt_editor.projection.source_range_commit_application import (
+    PromptSourceRangeCommitApplication,
+)
+from substitute.presentation.editor.prompt_editor.projection.source_history_commit_application import (
+    PromptSourceHistoryCommitApplication,
+)
+from substitute.presentation.editor.prompt_editor.projection.source_projection_application import (
+    PromptSourceProjectionApplication,
+)
+from substitute.presentation.editor.prompt_editor.projection.source_document_commit_application import (
+    PromptSourceDocumentCommitApplication,
+)
+from substitute.presentation.editor.prompt_editor.projection.source_edit_projection_facts import (
+    PromptSourceEditProjectionFactContext,
+    PromptSourceEditProjectionFactResolver,
+)
+from substitute.presentation.editor.prompt_editor.projection.edit_pipeline_contracts import (
     PromptProjectionApplyPath,
     PromptProjectionSourceChangeApplyOutcome,
     PromptProjectionSourceChangeApplyRequest,
@@ -93,34 +105,29 @@ from substitute.presentation.editor.prompt_editor.projection.freshness_controlle
     ProjectionFreshness,
     PromptProjectionFreshnessBlockers,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.projection.edit_to_frame import (
+    PromptLayoutEditToFrameCoordinator,
+)
+from substitute.presentation.editor.prompt_editor.projection.tokens import (
+    PromptProjectionInlineObjectRendererRegistry,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretState,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
-)
-from substitute.presentation.editor.prompt_editor.projection.metrics import (
-    PromptProjectionMetrics,
-    PromptProjectionMetricsFactory,
-)
-from substitute.presentation.editor.prompt_editor.projection.layout_checkpoint import (
-    PromptProjectionLayoutCheckpoint,
 )
 from substitute.presentation.editor.prompt_editor.projection.transient_edit_overlays import (
     PromptProjectionTransientDeletionOverlay,
     PromptProjectionTransientEditOverlayController,
     PromptProjectionTransientInsertionOverlay,
 )
+from substitute.presentation.editor.prompt_editor.projection.undo_payload import (
+    PromptProjectionUndoPayload,
+)
 
 
-@dataclass(frozen=True, slots=True)
-class _ProjectionPayload:
-    """Carry projection restore state for source-change applier tests."""
-
-    cursor_state: PromptProjectionCaretState
-    anchor_state: PromptProjectionCaretState
-    expanded_source_range: tuple[int, int] | None
-    document_view: PromptDocumentView
-    render_plan: PromptSyntaxRenderPlan
-    layout_checkpoint: PromptProjectionLayoutCheckpoint | None = None
+_ProjectionPayload = PromptProjectionUndoPayload
 
 
 def _ensure_qapp() -> QApplication:
@@ -130,6 +137,13 @@ def _ensure_qapp() -> QApplication:
     if isinstance(app, QApplication):
         return app
     return QApplication([])
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _retained_qapplication() -> QApplication:
+    """Retain the Qt application while module tests exercise font-backed paths."""
+
+    return _ensure_qapp()
 
 
 class _SignalRecorder:
@@ -323,6 +337,29 @@ class _FreshnessControllerRecorder:
         _ = syntax_sensitive_autocomplete_prefix
         return self.can_defer_projection, self.deferral_reason
 
+    def can_extend_deferred_plain_source_edit(
+        self,
+        *,
+        previous_projection_freshness: ProjectionFreshness,
+        start: int,
+        end: int,
+        replacement_text: str,
+        typed_character_requires_immediate_projection: bool,
+        syntax_sensitive_autocomplete_prefix: bool,
+    ) -> bool:
+        """Mirror the focused deferred-chain eligibility contract."""
+
+        return (
+            previous_projection_freshness is ProjectionFreshness.STALE_SAFE
+            and start == end
+            and len(replacement_text) == 1
+            and replacement_text not in {"\n", "\r", "\t"}
+            and (
+                not typed_character_requires_immediate_projection
+                or syntax_sensitive_autocomplete_prefix
+            )
+        )
+
 
 class _ProjectionDocument:
     """Carry committed projection source text for deferred checks."""
@@ -333,37 +370,46 @@ class _ProjectionDocument:
         self.source_text = source_text
         self.tokens: tuple[object, ...] = ()
 
+    def token_by_id(self, token_id: str | None) -> None:
+        """Return no focused token from the minimal test document."""
 
-class _LayoutRecorder:
-    """Provide the minimal layout context consumed by transient overlay owners."""
+        _ = token_id
+        return None
 
-    document_margin = 4.0
 
-    def __init__(self) -> None:
-        """Create a layout recorder with real projection metrics."""
+class _ProjectionApplicatorRecorder:
+    """Record canonical-topology queries for the source-change host."""
 
-        _ensure_qapp()
-        self.metrics: PromptProjectionMetrics = PromptProjectionMetricsFactory().create(
-            base_font=QFont(),
-            document_margin=self.document_margin,
-            wrap_width=120.0,
+    def __init__(self, host: _SourceChangeHost) -> None:
+        """Store the host carrying configured query results."""
+
+        self._host = host
+
+    def source_edit_requires_canonical_rebuild(
+        self,
+        previous_source_text: str,
+        next_source_text: str,
+        *,
+        start: int,
+        end: int,
+    ) -> bool:
+        """Return the configured topology result and record its inputs."""
+
+        self._host.source_topology_checks.append(
+            (previous_source_text, next_source_text, start, end)
         )
-
-    def content_size(self) -> QSizeF:
-        """Return a stable content size."""
-
-        return QSizeF(120.0, 24.0)
+        return self._host.source_edit_requires_canonical_rebuild
 
 
-class _IncrementalApplyControllerRecorder:
-    """Record source-change projection application through the Phase 22.7 owner."""
+class _EditPipelineRecorder:
+    """Record source-change execution through the edit-pipeline owner."""
 
     def __init__(self) -> None:
         """Create a controller fake with incremental success defaults."""
 
         self.requests: list[PromptProjectionSourceChangeApplyRequest] = []
 
-    def apply_source_change_projection(
+    def apply(
         self,
         request: PromptProjectionSourceChangeApplyRequest,
     ) -> PromptProjectionSourceChangeApplyOutcome:
@@ -388,7 +434,7 @@ class _SourceChangeHost:
         self._mouse_handler = _MouseRecorder()
         self._source_document_adapter = _SourceDocumentRecorder()
         self._projection_freshness_controller = _FreshnessControllerRecorder()
-        self._incremental_apply_controller = _IncrementalApplyControllerRecorder()
+        self._edit_pipeline = _EditPipelineRecorder()
         document_view = PromptDocumentView(
             source_text="alpha",
             segments=(),
@@ -415,7 +461,9 @@ class _SourceChangeHost:
             render_plan=render_plan,
             projection_document=_ProjectionDocument("alpha"),
         )
-        self._layout = _LayoutRecorder()
+        self._layout = PromptLayoutEditToFrameCoordinator(
+            PromptProjectionInlineObjectRendererRegistry(())
+        )
         self._caret_visibility_prompt_state_revision = 0
         self._cursor_state = PromptProjectionCaretState(source_position=0)
         self._anchor_state = PromptProjectionCaretState(source_position=0)
@@ -442,6 +490,7 @@ class _SourceChangeHost:
         self.implicit_parenthesis_depth = 0
         self.source_edit_requires_canonical_rebuild = False
         self.source_topology_checks: list[tuple[str, str, int, int]] = []
+        self._projection_applicator = _ProjectionApplicatorRecorder(self)
 
     def emit_undo_available_changed(self, available: bool) -> None:
         """Record undo availability emission."""
@@ -502,67 +551,10 @@ class _SourceChangeHost:
         return PromptProjectionFreshnessBlockers(
             display_mode=PromptProjectionDisplayMode.PROJECTED,
             reorder_preview_active=False,
-            autocomplete_preview_active=False,
+            autocomplete_preview_active=self._session.autocomplete_preview is not None,
             exact_weight_edit_active=False,
             expanded_source_range_active=False,
         )
-
-    def _typed_character_requires_immediate_projection(
-        self,
-        character: str,
-        *,
-        start: int,
-        end: int,
-    ) -> bool:
-        """Treat no test character as syntax-sensitive."""
-
-        _ = character
-        _ = start
-        _ = end
-        return False
-
-    def _can_defer_syntax_sensitive_autocomplete_prefix(
-        self,
-        *,
-        start: int,
-        end: int,
-        replacement_text: str,
-        normalized_text: str,
-    ) -> bool:
-        """Allow syntax-sensitive autocomplete prefix deferral in tests."""
-
-        _ = start
-        _ = end
-        _ = replacement_text
-        _ = normalized_text
-        return True
-
-    def _source_range_intersects_projected_token(
-        self,
-        *,
-        start: int,
-        end: int,
-    ) -> bool:
-        """Return whether a fake projected token intersects the source range."""
-
-        _ = start
-        _ = end
-        return False
-
-    def _source_edit_requires_canonical_rebuild(
-        self,
-        previous_source_text: str,
-        next_source_text: str,
-        *,
-        start: int,
-        end: int,
-    ) -> bool:
-        """Return configured source-local projection topology safety."""
-
-        self.source_topology_checks.append(
-            (previous_source_text, next_source_text, start, end)
-        )
-        return self.source_edit_requires_canonical_rebuild
 
     def _current_caret_document_rect(self) -> QRectF:
         """Return stable caret geometry for transient overlay tests."""
@@ -679,6 +671,67 @@ class _SourceChangeHost:
         self.horizontal_origin_marks += 1
 
 
+def _source_change_applier(
+    host: _SourceChangeHost,
+) -> PromptProjectionSourceCommitApplication[_ProjectionPayload]:
+    """Compose the production fact resolver with the source-change owner."""
+
+    projection_facts = PromptSourceEditProjectionFactResolver(
+        cast(PromptSourceEditProjectionFactContext, host),
+        applicator=cast(Any, host._projection_applicator),
+        editor_state=cast(Any, host._editor_state),
+        freshness=cast(Any, host._projection_freshness_controller),
+        layout=host._layout,
+        overlays=host._transient_edit_overlays,
+    )
+    semantic_remapper = PromptProjectionSemanticRemapper()
+    projection_application = PromptSourceProjectionApplication(
+        cast(Any, host),
+        cast(Any, host),
+        editor_state=cast(Any, host._editor_state),
+        freshness=cast(Any, host._projection_freshness_controller),
+        pipeline=cast(Any, host._edit_pipeline),
+        overlays=host._transient_edit_overlays,
+    )
+    transaction = PromptProjectionSourceChangeTransaction[_ProjectionPayload](
+        cast(Any, host),
+        host._mouse_handler,
+        editor_state=cast(Any, host._editor_state),
+        freshness=cast(Any, host._projection_freshness_controller),
+        projection_application=projection_application,
+        semantic_remapper=semantic_remapper,
+        session=cast(Any, host._session),
+        source_document=cast(Any, host._source_document_adapter),
+    )
+    range_application = PromptSourceRangeCommitApplication[_ProjectionPayload](
+        cast(Any, host),
+        editor_state=cast(Any, host._editor_state),
+        projection_facts=projection_facts,
+        semantic_remapper=semantic_remapper,
+        session=cast(Any, host._session),
+        transaction=transaction,
+    )
+    history_application = PromptSourceHistoryCommitApplication[_ProjectionPayload](
+        cast(Any, host),
+        cast(Any, host),
+        editor_state=cast(Any, host._editor_state),
+        freshness=cast(Any, host._projection_freshness_controller),
+        projection_application=projection_application,
+        session=cast(Any, host._session),
+        source_document=cast(Any, host._source_document_adapter),
+    )
+    document_application = PromptSourceDocumentCommitApplication[_ProjectionPayload](
+        cast(Any, host),
+        cast(Any, host),
+        transaction=transaction,
+    )
+    return PromptProjectionSourceCommitApplication[_ProjectionPayload](
+        document=document_application,
+        history=history_application,
+        range_edit=range_application,
+    )
+
+
 def _session(source_text: str) -> PromptEditingSession[str]:
     """Return one editing session for projection contract tests."""
 
@@ -732,6 +785,7 @@ def _projection_payload(source_text: str) -> _ProjectionPayload:
             syntax_spans=(),
             renderer_views=(),
         ),
+        layout_checkpoint=None,
     )
 
 
@@ -820,29 +874,6 @@ def _document_commit(
     )
 
 
-def test_source_state_request_wraps_edit_commit_without_command_details() -> None:
-    """The projection contract should consume the sole committed edit result."""
-
-    commit = _range_commit(
-        _projection_session("alpha"),
-        start=5,
-        end=5,
-        replacement_text=" beta",
-    )
-
-    request = PromptProjectionSourceStateApplicationRequest(
-        commit=commit,
-        current_source_revision=7,
-        current_projection_source_text="alpha",
-        reason="source_replacement",
-    )
-
-    assert request.commit is commit
-    assert request.current_source_revision == 7
-    assert request.current_projection_source_text == "alpha"
-    assert request.reason == "source_replacement"
-
-
 def test_source_change_applier_applies_source_replacement_through_ports() -> None:
     """Committed replacement should update mirror, caret, diagnostics, and signals."""
 
@@ -854,7 +885,7 @@ def test_source_change_applier_applies_source_replacement_through_ports() -> Non
         replacement_text=" beta",
     )
     host = _SourceChangeHost()
-    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+    applier = _source_change_applier(host)
 
     applier.apply_edit_commit(commit)
 
@@ -885,7 +916,7 @@ def test_source_change_applier_uses_semantic_remapper_for_optimistic_state() -> 
         "plain_single_character_requires_layout"
     )
     host._session.expanded_source_range = (0, 5)
-    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+    applier = _source_change_applier(host)
 
     applier.apply_edit_commit(commit)
 
@@ -893,6 +924,39 @@ def test_source_change_applier_uses_semantic_remapper_for_optimistic_state() -> 
     assert host._editor_state.edit_semantic.document.source_text == "alpha!"
     assert host._editor_state.semantic.render_plan.renderer_views == ()
     assert host._session.expanded_source_range == (0, 6)
+    request = host._edit_pipeline.requests[-1]
+    assert not request.direct_deferred_feedback_allowed
+    assert request.wrap_reflow_deferrable
+
+
+def test_source_change_applier_does_not_stack_unrepresented_wrap_deferral() -> None:
+    """Do not defer again when semantic state was already behind live source."""
+
+    session = _projection_session("alpha")
+    first_commit = _range_commit(
+        session,
+        start=5,
+        end=5,
+        replacement_text="<",
+    )
+    host = _SourceChangeHost()
+    applier = _source_change_applier(host)
+    applier.apply_edit_commit(first_commit)
+    host._projection_freshness_controller.deferral_reason = (
+        "plain_single_character_requires_layout"
+    )
+    second_commit = _range_commit(
+        session,
+        start=6,
+        end=6,
+        replacement_text="h",
+    )
+
+    applier.apply_edit_commit(second_commit)
+
+    request = host._edit_pipeline.requests[-1]
+    assert not request.direct_deferred_feedback_allowed
+    assert not request.wrap_reflow_deferrable
 
 
 def test_source_change_applier_uses_applied_normalized_edit_for_region_topology() -> (
@@ -925,12 +989,12 @@ def test_source_change_applier_uses_applied_normalized_edit_for_region_topology(
         render_plan=host._editor_state.semantic.render_plan,
         projection_document=_ProjectionDocument(source),
     )
-    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+    applier = _source_change_applier(host)
 
     applier.apply_edit_commit(commit)
 
     normalized_source = "global\n[SEP]\n[SEP]\nregional"
-    request = host._incremental_apply_controller.requests[-1]
+    request = host._edit_pipeline.requests[-1]
     assert request.source_edit_start == completion_position
     assert request.source_edit_end == completion_position
     assert request.source_edit_replacement_text == "]\n"
@@ -957,11 +1021,11 @@ def test_source_change_applier_rebuilds_source_derived_projection_structure() ->
     host = _SourceChangeHost()
     host._projection_freshness_controller.can_defer_projection = True
     host.source_edit_requires_canonical_rebuild = True
-    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+    applier = _source_change_applier(host)
 
     applier.apply_edit_commit(commit)
 
-    request = host._incremental_apply_controller.requests[-1]
+    request = host._edit_pipeline.requests[-1]
     assert request.projection_deferral_reason == "source_projection_topology_changed"
     assert host.source_topology_checks[-1] == ("alpha", "alphax", 5, 5)
     assert host.marked_source_changes[-1] == (
@@ -984,7 +1048,7 @@ def test_source_change_applier_preserves_no_op_source_change_as_cursor_update() 
         record_undo=False,
     )
     host = _SourceChangeHost()
-    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+    applier = _source_change_applier(host)
 
     applier.apply_edit_commit(commit)
 
@@ -1007,7 +1071,7 @@ def test_source_change_applier_handles_full_source_scroll_and_geometry_warm() ->
         ),
     )
     host = _SourceChangeHost()
-    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+    applier = _source_change_applier(host)
 
     applier.apply_edit_commit(commit)
 
@@ -1034,7 +1098,7 @@ def test_source_change_applier_skips_projection_work_for_no_op_document_commit()
     host = _SourceChangeHost()
     semantic_identity = host._editor_state.semantic.identity
     projection_identity = host._editor_state.projection.identity
-    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+    applier = _source_change_applier(host)
 
     applier.apply_edit_commit(commit)
 
@@ -1042,7 +1106,7 @@ def test_source_change_applier_skips_projection_work_for_no_op_document_commit()
     assert host._editor_state.semantic.identity is semantic_identity
     assert host._editor_state.projection.identity is projection_identity
     assert host._source_document_adapter.range_fallback_calls == []
-    assert host._incremental_apply_controller.requests == []
+    assert host._edit_pipeline.requests == []
     assert host._scroll_bar.values == [0]
     assert host.geometry_warm_reasons == ["same_source"]
     assert host.textChanged.count == 0
@@ -1062,7 +1126,7 @@ def test_source_change_applier_rebuilds_preview_active_replacements() -> None:
     host = _SourceChangeHost()
     host._projection_freshness_controller.can_defer_projection = True
     host._session.autocomplete_preview = object()
-    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+    applier = _source_change_applier(host)
 
     applier.apply_edit_commit(commit)
 
@@ -1092,7 +1156,7 @@ def test_source_change_applier_rebuilds_whitespace_replacements() -> None:
     )
     host = _SourceChangeHost()
     host._projection_freshness_controller.can_defer_projection = True
-    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+    applier = _source_change_applier(host)
 
     applier.apply_edit_commit(commit)
 
@@ -1122,7 +1186,7 @@ def test_source_change_applier_restores_undo_state_through_ports() -> None:
     )
     assert commit is not None
     host = _SourceChangeHost()
-    applier = PromptProjectionSourceChangeApplier[_ProjectionPayload](host)
+    applier = _source_change_applier(host)
 
     applier.apply_edit_commit(commit)
 
@@ -1131,8 +1195,8 @@ def test_source_change_applier_restores_undo_state_through_ports() -> None:
     assert host._session.expanded_source_range == (0, 5)
     assert host.marked_source_changes == [(False, 9)]
     assert host.rebuilds == 0
-    assert len(host._incremental_apply_controller.requests) == 1
-    projection_request = host._incremental_apply_controller.requests[0]
+    assert len(host._edit_pipeline.requests) == 1
+    projection_request = host._edit_pipeline.requests[0]
     assert projection_request.previous_source_text == "alpha"
     assert projection_request.text == "alpha"
     assert projection_request.projection_deferral_reason == "history_restore"
@@ -1140,141 +1204,3 @@ def test_source_change_applier_restores_undo_state_through_ports() -> None:
     assert host.caret_blink_restarts == 1
     assert host.textChanged.count == 1
     assert host.cursorPositionChanged.count == 1
-
-
-def test_source_state_outcome_represents_deferred_overlay_path() -> None:
-    """Deferred typing should have typed viewport, caret, and freshness effects."""
-
-    outcome = PromptProjectionSourceStateOutcome(
-        apply_path=PromptProjectionSourceStateApplyPath.DEFERRED_OVERLAY,
-        source_revision=8,
-        source_document=PromptProjectionSourceDocumentOutcome(
-            range_edit=PromptProjectionSourceDocumentRangeEdit(
-                previous_text="alpha",
-                next_text="alphax",
-                start=5,
-                end=5,
-                replacement_text="x",
-            )
-        ),
-        viewport=PromptProjectionViewportInvalidation(
-            update_rects=("transient-insertion",),
-            invalidate_paint_cache=True,
-        ),
-        caret=PromptProjectionCaretSync(
-            cursor_position=6,
-            anchor_position=6,
-            ensure_visible=True,
-            restart_blink=True,
-            use_transient_geometry=True,
-            mark_horizontal_movement_origin=True,
-        ),
-        freshness=PromptProjectionFreshnessOutcome(
-            source_revision=8,
-            state=PromptProjectionFreshnessState.STALE_SAFE,
-            schedule_reason="safe_typing",
-            last_source_edit_deferrable=True,
-        ),
-        signals=PromptProjectionSignalOutcome(
-            emit_text_changed=True,
-            emit_cursor_position_changed=True,
-        ),
-        clear_autocomplete_preview=True,
-        clear_pointer_state=True,
-        remap_diagnostics=True,
-    )
-
-    assert outcome.apply_path is PromptProjectionSourceStateApplyPath.DEFERRED_OVERLAY
-    assert outcome.source_document.range_edit is not None
-    assert outcome.source_document.range_edit.replacement_text == "x"
-    assert outcome.viewport.update_rects == ("transient-insertion",)
-    assert outcome.caret.use_transient_geometry is True
-    assert outcome.freshness.state is PromptProjectionFreshnessState.STALE_SAFE
-    assert outcome.signals.emit_text_changed is True
-    assert outcome.clear_autocomplete_preview is True
-    assert outcome.remap_diagnostics is True
-
-
-def test_source_state_outcome_represents_cancelled_and_rebuild_fallback_paths() -> None:
-    """The baseline contract must name stale cancellation and rebuild recovery."""
-
-    cancelled = PromptProjectionSourceStateOutcome(
-        apply_path=PromptProjectionSourceStateApplyPath.CANCELLED_STALE,
-        freshness=PromptProjectionFreshnessOutcome(cancel_pending=True),
-    )
-    fallback = PromptProjectionSourceStateOutcome(
-        apply_path=PromptProjectionSourceStateApplyPath.FULL_REBUILD,
-        viewport=PromptProjectionViewportInvalidation(
-            update_viewport=True,
-            invalidate_layout=True,
-            invalidate_paint_cache=True,
-            invalidate_diagnostic_fragments=True,
-        ),
-        freshness=PromptProjectionFreshnessOutcome(
-            state=PromptProjectionFreshnessState.FRESH,
-            committed_metrics_changed=True,
-        ),
-    )
-
-    assert cancelled.apply_path is PromptProjectionSourceStateApplyPath.CANCELLED_STALE
-    assert cancelled.freshness.cancel_pending is True
-    assert fallback.apply_path is PromptProjectionSourceStateApplyPath.FULL_REBUILD
-    assert fallback.viewport.invalidate_layout is True
-    assert fallback.freshness.committed_metrics_changed is True
-
-
-def test_source_state_outcome_represents_restore_application_signals() -> None:
-    """Undo/redo restore inputs should become source-state signal/caret effects."""
-
-    session = _projection_session("alpha")
-    _range_commit(
-        session,
-        start=5,
-        end=5,
-        replacement_text=" beta",
-    )
-    commit = session.execute(
-        PromptUndoEdit(
-            current_snapshot=_projection_undo_snapshot("alpha beta"),
-        )
-    )
-    assert commit is not None
-
-    request = PromptProjectionSourceStateApplicationRequest(
-        commit=commit,
-        current_source_revision=8,
-        current_projection_source_text="alpha beta",
-        reason="undo",
-    )
-    outcome = PromptProjectionSourceStateOutcome(
-        apply_path=PromptProjectionSourceStateApplyPath.FULL_REBUILD,
-        source_revision=commit.next_snapshot.source_revision,
-        source_document=PromptProjectionSourceDocumentOutcome(full_text="alpha"),
-        caret=PromptProjectionCaretSync(cursor_position=5, anchor_position=5),
-        signals=PromptProjectionSignalOutcome(
-            emit_text_changed=commit.source_changed,
-            emit_cursor_position_changed=commit.cursor_changed,
-        ),
-    )
-
-    assert request.commit is commit
-    assert outcome.source_document.full_text == "alpha"
-    assert outcome.caret.cursor_position == 5
-    assert outcome.signals.emit_cursor_position_changed is True
-
-
-def test_source_state_contract_values_are_passive_dataclasses() -> None:
-    """The Phase 22.1 contract should stay passive and easy to move behind owners."""
-
-    passive_types = (
-        PromptProjectionCaretSync,
-        PromptProjectionFreshnessOutcome,
-        PromptProjectionSignalOutcome,
-        PromptProjectionSourceDocumentOutcome,
-        PromptProjectionSourceDocumentRangeEdit,
-        PromptProjectionSourceStateApplicationRequest,
-        PromptProjectionSourceStateOutcome,
-        PromptProjectionViewportInvalidation,
-    )
-
-    assert all(is_dataclass(passive_type) for passive_type in passive_types)

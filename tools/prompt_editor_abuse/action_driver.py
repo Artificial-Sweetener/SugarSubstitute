@@ -125,6 +125,12 @@ class PromptAbuseActionHost:
         del editor, value
         raise RuntimeError("Pointer reorder requires the reorder action host.")
 
+    def reorder_drag_sweep(self, editor: object) -> None:
+        """Sweep every prepared destination when the concrete host supports it."""
+
+        del editor
+        raise RuntimeError("Pointer reorder requires the reorder action host.")
+
     def reorder_drag_release(self, editor: object) -> None:
         """Release an active reorder chip drag when its host supports it."""
 
@@ -490,6 +496,8 @@ def dispatch_action(
             host.reorder_drag_threshold(editor)
         elif action.kind == "reorder_drag_move":
             host.reorder_drag_move(editor, action.value)
+        elif action.kind == "reorder_drag_sweep":
+            host.reorder_drag_sweep(editor)
         elif action.kind == "reorder_drag_release":
             host.reorder_drag_release(editor)
         elif action.kind == "reorder_drag_autoscroll":
@@ -979,7 +987,7 @@ def _viewport_point_for_source_position(editor: Any, position: int) -> QPoint:
     caret_state = surface.projection_document().caret_map.state_for_source_position(
         position
     )
-    rect = surface._layout.cursor_rect(
+    rect = surface._layout.frame.geometry.caret.cursor_rect(
         caret_state,
         scroll_offset=surface._scroll_offset(),
     )

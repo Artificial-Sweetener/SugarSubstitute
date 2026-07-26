@@ -85,7 +85,9 @@ def test_projection_surface_double_click_on_emphasis_selects_content_without_exp
     token = first_emphasis_token(box)
     assert token.content_start is not None
     assert token.content_end is not None
-    token_rect = surface_for(box)._layout.token_rect(token, scroll_offset=0.0)  # noqa: SLF001
+    token_rect = surface_for(box)._layout.frame.geometry.tokens.token_rect(
+        token, scroll_offset=0.0
+    )  # noqa: SLF001
     weight_rect = surface_for(box).token_weight_text_rect(token)
     assert token_rect is not None
     assert weight_rect is not None
@@ -159,7 +161,9 @@ def test_projection_surface_replaces_double_clicked_emphasis_content_without_exp
     token = first_emphasis_token(box)
     assert token.content_start is not None
     assert token.content_end is not None
-    token_rect = surface_for(box)._layout.token_rect(token, scroll_offset=0.0)  # noqa: SLF001
+    token_rect = surface_for(box)._layout.frame.geometry.tokens.token_rect(
+        token, scroll_offset=0.0
+    )  # noqa: SLF001
     weight_rect = surface_for(box).token_weight_text_rect(token)
     assert token_rect is not None
     assert weight_rect is not None

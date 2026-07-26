@@ -18,9 +18,11 @@
 
 from __future__ import annotations
 
-from .model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretMap,
     PromptProjectionCaretState,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionTokenKind,
 )
 

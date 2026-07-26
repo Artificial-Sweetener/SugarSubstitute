@@ -43,6 +43,9 @@ _QUEUED_REORDER_LIMITS: Mapping[str, float] = {
     "preview_scheduler_run_count": 1.0,
     "projection_snapshot_rebuild_count": 2.0,
 }
+_REORDER_ACTIVATION_LIMITS: Mapping[str, float] = {
+    "preview_geometry_full_count": 1.0,
+}
 _FORBIDDEN_POINTER_COUNTERS = frozenset(
     {
         "autoscroll_invalidation_count",
@@ -217,6 +220,14 @@ def prompt_abuse_structural_violations(
         counters = dict(delta.counter_deltas)
         if action_kind == "reorder_drag_move":
             violations.extend(_direct_reorder_move_violations(delta, counters))
+        elif delta.label == "key_press:'alt'":
+            violations.extend(
+                _counter_limit_violations(
+                    delta,
+                    counters,
+                    _REORDER_ACTIVATION_LIMITS,
+                )
+            )
         elif action_kind in {"event_turn", "drain_events"}:
             violations.extend(_queued_reorder_work_violations(delta, counters))
             violations.extend(

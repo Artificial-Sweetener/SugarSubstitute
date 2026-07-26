@@ -35,10 +35,10 @@ from substitute.application.prompt_editor.document.views import PromptSyntaxSpan
 from substitute.presentation.editor.prompt_editor.projection.session import (
     PromptTransientNeutralEmphasisOwner,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretPlacement,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
@@ -1371,10 +1371,12 @@ def test_projection_selection_paints_selected_empty_lines_for_clarity(
     surface = surface_for(box)
     blank_line = next(
         line
-        for line in surface._layout.snapshot.lines
+        for line in surface._layout.frame.output.snapshot.lines
         if not line.fragments  # noqa: SLF001
     )
-    selection_rects = surface._layout.selection_rects(surface._selection())  # noqa: SLF001
+    selection_rects = surface._layout.frame.geometry.selection.selection_rects(
+        surface._selection()
+    )  # noqa: SLF001
     blank_line_rect = next(
         rect for rect in selection_rects if abs(rect.top() - blank_line.top) < 1.0
     )
@@ -1407,14 +1409,18 @@ def test_projection_selection_shift_up_from_empty_line_paints_one_break_marker(
     process_events(app)
 
     surface = surface_for(box)
-    selection_rects = surface._layout.selection_rects(surface._selection())  # noqa: SLF001
+    selection_rects = surface._layout.frame.geometry.selection.selection_rects(
+        surface._selection()
+    )  # noqa: SLF001
     painted_line_tops = {
         round(rect.top(), 1) for rect in selection_rects if rect.width() >= 8.0
     }
 
     assert box.textCursor().selectedText() == "\n"
     assert len(painted_line_tops) == 1
-    assert painted_line_tops == {round(surface._layout.snapshot.lines[0].top, 1)}  # noqa: SLF001
+    assert painted_line_tops == {  # noqa: SLF001
+        round(surface._layout.frame.output.snapshot.lines[0].top, 1)
+    }
 
 
 def test_projection_selection_does_not_paint_blank_line_above_next_line_selection(
@@ -1434,10 +1440,12 @@ def test_projection_selection_does_not_paint_blank_line_above_next_line_selectio
     process_events(app)
 
     surface = surface_for(box)
-    selection_rects = surface._layout.selection_rects(surface._selection())  # noqa: SLF001
+    selection_rects = surface._layout.frame.geometry.selection.selection_rects(
+        surface._selection()
+    )  # noqa: SLF001
     empty_line = next(
         line
-        for line in surface._layout.snapshot.lines
+        for line in surface._layout.frame.output.snapshot.lines
         if not line.fragments and line.source_start < line_start  # noqa: SLF001
     )
 
@@ -1512,10 +1520,12 @@ def test_projection_selection_paints_empty_line_when_drag_endpoint_lands_on_it(
     surface = surface_for(box)
     blank_line = next(
         line
-        for line in surface._layout.snapshot.lines
+        for line in surface._layout.frame.output.snapshot.lines
         if not line.fragments  # noqa: SLF001
     )
-    selection_rects = surface._layout.selection_rects(surface._selection())  # noqa: SLF001
+    selection_rects = surface._layout.frame.geometry.selection.selection_rects(
+        surface._selection()
+    )  # noqa: SLF001
     blank_line_rect = next(
         rect for rect in selection_rects if abs(rect.top() - blank_line.top) < 1.0
     )
@@ -1573,7 +1583,9 @@ def test_projection_selection_drag_paints_highlight_before_mouse_release(
     process_events(app)
 
     surface = surface_for(box)
-    selection_rects = surface._layout.selection_rects(surface._selection())
+    selection_rects = surface._layout.frame.geometry.selection.selection_rects(
+        surface._selection()
+    )
     assert selection_rects
     sample_rect = selection_rects[0].translated(0.0, -surface._scroll_offset())
     sample_point = QPoint(

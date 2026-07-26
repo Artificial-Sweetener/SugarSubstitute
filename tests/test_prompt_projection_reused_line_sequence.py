@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from PySide6.QtCore import QRectF
 
-from substitute.presentation.editor.prompt_editor.projection.reused_line_sequence import (
+from substitute.presentation.editor.prompt_editor.layout.reused_lines import (
     PromptProjectionReusedLineSequence,
 )
-from substitute.presentation.editor.prompt_editor.projection.snapshot import (
+from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionLineCaretStopSnapshot,
     PromptProjectionLineSnapshot,
 )

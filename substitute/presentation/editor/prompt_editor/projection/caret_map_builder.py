@@ -24,13 +24,17 @@ from .caret_stop_sequence import (
     PromptProjectionCaretStopSequence,
     PromptProjectionCaretStopSequenceBuilder,
 )
-from .model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretMap,
     PromptProjectionCaretPlacement,
     PromptProjectionCaretState,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
     PromptProjectionRunKind,
     PromptProjectionRunRole,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
     PromptProjectionTokenNavigationMode,

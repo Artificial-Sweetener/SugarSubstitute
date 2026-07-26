@@ -24,7 +24,7 @@ from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
 
-from .incremental_editor import projection_affecting_render_plan_ranges
+from .render_plan_ranges import projection_affecting_render_plan_ranges
 
 
 def semantic_projection_change_range(

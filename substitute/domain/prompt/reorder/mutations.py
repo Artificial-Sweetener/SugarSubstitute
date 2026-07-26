@@ -113,6 +113,8 @@ def build_base_drag_state(
     dragged_offset = state.ordered_segment_indices.index(dragged_segment_index)
     remaining_indices = list(state.ordered_segment_indices)
     remaining_slots = list(state.separator_slots)
+    prefix_text = state.prefix_text
+    suffix_text = state.suffix_text
     remaining_indices.pop(dragged_offset)
 
     if not state.separator_slots:
@@ -121,13 +123,25 @@ def build_base_drag_state(
             partition_index_by_segment_index=state.partition_index_by_segment_index,
             separator_slots=(),
             has_trailing_comma=state.has_trailing_comma,
-            prefix_text=state.prefix_text,
-            suffix_text=state.suffix_text,
+            prefix_text=prefix_text,
+            suffix_text=suffix_text,
         )
 
     if dragged_offset == 0:
+        next_segment_index = state.ordered_segment_indices[1]
+        if (
+            state.partition_index_by_segment_index[next_segment_index]
+            != state.partition_index_by_segment_index[dragged_segment_index]
+        ):
+            prefix_text += _separator_slot_as_prefix(remaining_slots[0])
         del remaining_slots[0]
     elif dragged_offset == len(state.ordered_segment_indices) - 1:
+        previous_segment_index = state.ordered_segment_indices[-2]
+        if (
+            state.partition_index_by_segment_index[previous_segment_index]
+            != state.partition_index_by_segment_index[dragged_segment_index]
+        ):
+            suffix_text = _separator_slot_as_suffix(remaining_slots[-1]) + suffix_text
         remaining_slots.pop()
     else:
         remaining_slots[dragged_offset - 1] = _merge_separator_slots(
@@ -141,8 +155,8 @@ def build_base_drag_state(
         partition_index_by_segment_index=state.partition_index_by_segment_index,
         separator_slots=tuple(remaining_slots),
         has_trailing_comma=state.has_trailing_comma,
-        prefix_text=state.prefix_text,
-        suffix_text=state.suffix_text,
+        prefix_text=prefix_text,
+        suffix_text=suffix_text,
     )
 
 
@@ -159,11 +173,6 @@ def apply_line_drop_target_to_state(
         raise ValueError("row_index must reference an available reorder row.")
 
     destination_row = rows[target.row_index]
-    dragged_partition_index = base_drag_state.partition_index_by_segment_index[
-        dragged_segment_index
-    ]
-    if destination_row.partition_index != dragged_partition_index:
-        raise ValueError("A reorder drop cannot cross a regional prompt separator.")
     if not 0 <= target.insertion_index <= len(destination_row.segment_indices):
         raise ValueError(
             "insertion_index must reference a valid position inside the row."
@@ -202,7 +211,11 @@ def apply_line_drop_target_to_state(
 
     return PromptReorderState(
         ordered_segment_indices=tuple(ordered_segment_indices),
-        partition_index_by_segment_index=base_drag_state.partition_index_by_segment_index,
+        partition_index_by_segment_index=_partition_indices_after_drop(
+            base_drag_state,
+            dragged_segment_index=dragged_segment_index,
+            destination_partition_index=destination_row.partition_index,
+        ),
         separator_slots=tuple(separator_slots),
         has_trailing_comma=base_drag_state.has_trailing_comma,
         prefix_text=base_drag_state.prefix_text,
@@ -223,11 +236,6 @@ def apply_blank_line_drop_target_to_state(
         raise ValueError("gap_index must reference an available reorder gap.")
 
     targeted_gap = gaps[target.gap_index]
-    dragged_partition_index = base_drag_state.partition_index_by_segment_index[
-        dragged_segment_index
-    ]
-    if targeted_gap.partition_index != dragged_partition_index:
-        raise ValueError("A reorder drop cannot cross a regional prompt separator.")
     prefix_separator, suffix_separator = split_gap_for_blank_line_insert(
         targeted_gap.separator_text,
         blank_line_index=target.blank_line_index,
@@ -242,7 +250,11 @@ def apply_blank_line_drop_target_to_state(
 
     return PromptReorderState(
         ordered_segment_indices=tuple(ordered_segment_indices),
-        partition_index_by_segment_index=base_drag_state.partition_index_by_segment_index,
+        partition_index_by_segment_index=_partition_indices_after_drop(
+            base_drag_state,
+            dragged_segment_index=dragged_segment_index,
+            destination_partition_index=targeted_gap.partition_index,
+        ),
         separator_slots=tuple(separator_slots),
         has_trailing_comma=base_drag_state.has_trailing_comma,
         prefix_text=base_drag_state.prefix_text,
@@ -329,6 +341,39 @@ def _merge_separator_slots(left_slot: str, right_slot: str) -> str:
     ):
         return left_slot
     return normalize_reorder_separator_text(left_slot + right_slot_suffix)
+
+
+def _partition_indices_after_drop(
+    state: PromptReorderState,
+    *,
+    dragged_segment_index: int,
+    destination_partition_index: int,
+) -> tuple[int, ...]:
+    """Assign the moved segment to the structural partition at its destination."""
+
+    partition_indices = list(state.partition_index_by_segment_index)
+    partition_indices[dragged_segment_index] = destination_partition_index
+    return tuple(partition_indices)
+
+
+def _separator_slot_as_prefix(separator_text: str) -> str:
+    """Remove the line break formerly owned by content before an edge separator."""
+
+    if separator_text.startswith("\r\n"):
+        return separator_text[2:]
+    if separator_text.startswith(("\r", "\n")):
+        return separator_text[1:]
+    return separator_text
+
+
+def _separator_slot_as_suffix(separator_text: str) -> str:
+    """Remove the line break formerly owned by content after an edge separator."""
+
+    if separator_text.endswith("\r\n"):
+        return separator_text[:-2]
+    if separator_text.endswith(("\r", "\n")):
+        return separator_text[:-1]
+    return separator_text
 
 
 def _default_row_separator(

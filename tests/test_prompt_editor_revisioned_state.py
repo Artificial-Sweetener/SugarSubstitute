@@ -414,7 +414,7 @@ def test_frame_publisher_reuses_exact_layout_viewport_and_paint_references() -> 
         vertical_scroll=0,
         device_pixel_ratio=1.0,
     )
-    publisher.publish_prepared_paint(cast(Any, layout))
+    publisher.publish_prepared_paint(cast(Any, layout), cast(Any, layout.paint_state))
     layout_snapshot = state.layout
     viewport_snapshot = state.viewport
     paint_snapshot = state.paint
@@ -428,7 +428,7 @@ def test_frame_publisher_reuses_exact_layout_viewport_and_paint_references() -> 
         vertical_scroll=0,
         device_pixel_ratio=1.0,
     )
-    publisher.publish_prepared_paint(cast(Any, layout))
+    publisher.publish_prepared_paint(cast(Any, layout), cast(Any, layout.paint_state))
     assert state.layout is layout_snapshot
     assert state.viewport is viewport_snapshot
     assert state.paint is paint_snapshot

@@ -36,7 +36,9 @@ from ..lora_thumbnail_cache import (
     PromptLoraPixmapCacheKey,
     PromptLoraThumbnailCache,
 )
-from ..projection.model import PromptProjectionThumbnailVariant
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionThumbnailVariant,
+)
 from .cancellation import PromptEditorCancellationController
 from .execution import (
     PromptAsyncRequest,

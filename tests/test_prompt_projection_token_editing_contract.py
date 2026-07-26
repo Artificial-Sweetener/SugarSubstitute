@@ -29,7 +29,7 @@ from PySide6.QtGui import QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
@@ -167,7 +167,9 @@ def test_projection_token_editing_invalid_raw_edit_stays_expanded_until_parse_re
         width=240,
     )
     token = _first_emphasis_token(box)
-    token_rect = surface_for(box)._layout.token_rect(token, scroll_offset=0.0)  # noqa: SLF001
+    token_rect = surface_for(box)._layout.frame.geometry.tokens.token_rect(
+        token, scroll_offset=0.0
+    )  # noqa: SLF001
     assert token_rect is not None
 
     QTest.mouseDClick(

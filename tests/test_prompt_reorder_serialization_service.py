@@ -153,11 +153,15 @@ def test_prompt_reorder_serialization_service_preserves_regional_boundary() -> N
     )
     session = projection_service.build_reorder_session_view(document_view)
 
-    updated_state = drop_service.build_preview_drop_reorder_state_from_state(
+    base = drop_service.build_base_drag_state(
         document_view,
         session.reorder_state,
         current_layout_view=session.layout_view,
-        base_drag_layout_view=None,
+        dragged_segment_index=2,
+    )
+    updated = drop_service.build_preview_drop_state(
+        document_view,
+        base,
         dragged_segment_index=2,
         drop_target=PromptLineDropTarget(row_index=1, insertion_index=1),
     )
@@ -165,7 +169,7 @@ def test_prompt_reorder_serialization_service_preserves_regional_boundary() -> N
     assert (
         serialization_service.serialize_reorder_state_view(
             document_view,
-            updated_state,
+            updated.reorder_state,
         )
         == "global a, global b\n[SEP]\nregion b, region a"
     )

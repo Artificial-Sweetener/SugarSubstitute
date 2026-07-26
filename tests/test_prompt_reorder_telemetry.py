@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
+from typing import cast
 
 import pytest
 from PySide6.QtCore import QPointF, QRect, QRectF
@@ -35,6 +36,9 @@ from substitute.presentation.editor.prompt_editor.overlays.chip_visuals import (
 )
 from substitute.presentation.editor.prompt_editor.overlays.reorder_telemetry import (
     PromptReorderTelemetry,
+)
+from substitute.presentation.editor.prompt_editor.overlays.reorder_landing_models import (
+    PromptReorderHeldShadowGeometry,
 )
 from substitute.presentation.editor.prompt_editor.projection.observability import (
     log_reorder_drag_event,
@@ -225,7 +229,9 @@ def test_reorder_structural_context_builders_stay_prompt_safe(
         ),
         **telemetry.style_context(style, prefix="landing_style"),
         **telemetry.visual_context(visual, prefix="landing_visual"),
-        **telemetry.held_shadow_context(held_shadow),
+        **telemetry.held_shadow_context(
+            cast(PromptReorderHeldShadowGeometry, held_shadow)
+        ),
         **telemetry.visual_delta_context(visual, visual, prefix="landing_delta"),
     )
 

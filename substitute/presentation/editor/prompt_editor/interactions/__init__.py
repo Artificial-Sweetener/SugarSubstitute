@@ -19,35 +19,30 @@
 from __future__ import annotations
 
 from .autocomplete_acceptance import (
-    PromptAutocompleteAcceptanceCommandFactory,
     PromptAutocompleteAcceptanceController,
-    PromptAutocompleteAcceptanceEditor,
     PromptAutocompleteAcceptanceOutcome,
     PromptAutocompleteAcceptanceStatus,
 )
+from .autocomplete_acceptance_lifecycle import PromptAutocompleteAcceptanceLifecycle
 from .autocomplete_controller import (
-    PromptAutocompleteCoordinator,
-    PromptAutocompleteController,
-    PromptAutocompleteCursor,
-    PromptAutocompleteEditor,
-    PromptAutocompleteQueryEditor,
-    PromptAutocompleteQueryRefreshController,
+    PromptAutocompleteInputAdapter,
+    PromptAutocompleteInputPort,
 )
 from .autocomplete_session import (
     PromptAutocompleteSessionController,
     selected_autocomplete_suggestion,
     selected_lora_autocomplete_candidate,
 )
+from .autocomplete_session_publication import PromptAutocompleteSessionPublication
 from .autocomplete_timing import (
     PromptAutocompleteDismissReason,
     PromptAutocompleteLifecycleRequester,
     PromptAutocompleteRefreshTimer,
-    PromptAutocompleteSourceEditor,
     PromptAutocompleteSourceSnapshot,
     PromptAutocompleteSourceSnapshotController,
     PromptAutocompleteTimingController,
-    PromptAutocompleteTimingCursor,
 )
+from .controller import PromptInteractionEditor
 from ..commands.context_insertion import (
     PromptCommandContextInsertState,
     PromptCommandCursor,
@@ -103,67 +98,68 @@ from .lora_picker_presenter import (
 from .keymap import (
     PromptKeymapController,
     PromptKeymapHost,
+    PromptKeymapWeightPort,
     PromptSurfaceKeyHandler,
     PromptSurfaceKeyHost,
 )
 from .mouse_selection_controller import (
     PromptMouseSelectionController,
     PromptMouseSelectionHost,
+    PromptMouseSelectionWeightPort,
     PromptSurfaceMouseHandler,
     PromptSurfaceMouseHost,
     prompt_word_bounds,
 )
 from .prompt_menu_presenter import (
+    PromptContextMenuPreparationPort,
     PromptContextMenuRequestPresenter,
+    PromptContextMenuSnapshotReader,
     PromptMenuEditorHost,
     PromptSegmentPresetHostAdapter,
 )
-from .reorder_controller import (
-    PromptReorderController,
-    PromptReorderCursor,
-    PromptReorderEditorHost,
-    PromptReorderHost,
-    PromptReorderOverlayFactory,
-    PromptReorderOverlayPort,
+from .reorder_interaction import (
+    PromptReorderInteractionEditor,
+    PromptReorderInteractionHost,
+    PromptReorderInteractionOwner,
 )
-from .reorder_preview_sync import (
-    PromptReorderPreviewScheduler,
-    PromptReorderPreviewSyncContext,
-    PromptReorderPreviewSyncController,
-    PromptReorderPreviewSyncState,
+from .reorder_overlay_session import (
+    PromptReorderOverlaySessionEditor,
+    PromptReorderOverlaySessionHost,
+    PromptReorderOverlaySessionOwner,
 )
-from .reorder_session import PromptReorderSessionController
+from .reorder_commit_execution import (
+    PromptReorderCommandResultPort,
+    PromptReorderCommandSurface,
+    PromptReorderCommitExecution,
+    PromptReorderCommitExecutor,
+)
+from .reorder_cursor_selection import PromptReorderCursor
+from .reorder_overlay_port import PromptReorderOverlayFactory, PromptReorderOverlayPort
 from .trigger_word_action_adapter import PromptTriggerWordActionAdapter
 from .wheel_controller import (
     PromptSurfaceWheelHandler,
     PromptSurfaceWheelHost,
     PromptTokenWeightWheelIntentController,
     PromptWheelController,
-    PromptWheelHost,
     PromptWheelScrollResult,
 )
+from .weight_interaction import PromptWeightInteraction
 
 __all__ = [
-    "PromptAutocompleteAcceptanceCommandFactory",
     "PromptAutocompleteAcceptanceController",
-    "PromptAutocompleteAcceptanceEditor",
+    "PromptAutocompleteAcceptanceLifecycle",
     "PromptAutocompleteAcceptanceOutcome",
     "PromptAutocompleteAcceptanceStatus",
-    "PromptAutocompleteCoordinator",
-    "PromptAutocompleteController",
-    "PromptAutocompleteCursor",
+    "PromptAutocompleteInputAdapter",
+    "PromptAutocompleteInputPort",
     "PromptAutocompleteDismissReason",
-    "PromptAutocompleteEditor",
-    "PromptAutocompleteQueryEditor",
-    "PromptAutocompleteQueryRefreshController",
     "PromptAutocompleteLifecycleRequester",
     "PromptAutocompleteRefreshTimer",
     "PromptAutocompleteSessionController",
-    "PromptAutocompleteSourceEditor",
+    "PromptAutocompleteSessionPublication",
     "PromptAutocompleteSourceSnapshot",
     "PromptAutocompleteSourceSnapshotController",
     "PromptAutocompleteTimingController",
-    "PromptAutocompleteTimingCursor",
     "PromptClipboardHistoryActions",
     "PromptClipboardHistoryController",
     "PromptClipboardHistoryCursorSink",
@@ -172,6 +168,8 @@ __all__ = [
     "PromptContextMenuTextInsertionExecutor",
     "PromptTriggerWordInsertionExecutor",
     "PromptContextMenuRequestPresenter",
+    "PromptContextMenuPreparationPort",
+    "PromptContextMenuSnapshotReader",
     "PromptDanbooruDialogFactory",
     "PromptDanbooruDialogHostAdapter",
     "PromptDanbooruPasteScheduler",
@@ -189,6 +187,7 @@ __all__ = [
     "PromptInlineLoraMetadataActions",
     "PromptInlineLoraTriggerWordActions",
     "PromptInlineLoraShellMenu",
+    "PromptInteractionEditor",
     "PromptInteractionController",
     "PromptLoraPickerActivationSignal",
     "PromptLoraPickerDataSource",
@@ -198,20 +197,24 @@ __all__ = [
     "PromptSemanticRefreshPort",
     "PromptKeymapController",
     "PromptKeymapHost",
+    "PromptKeymapWeightPort",
     "PromptMenuEditorHost",
     "PromptMouseSelectionController",
     "PromptMouseSelectionHost",
-    "PromptReorderController",
+    "PromptMouseSelectionWeightPort",
     "PromptReorderCursor",
-    "PromptReorderEditorHost",
-    "PromptReorderHost",
+    "PromptReorderCommandResultPort",
+    "PromptReorderCommandSurface",
+    "PromptReorderCommitExecution",
+    "PromptReorderCommitExecutor",
+    "PromptReorderInteractionEditor",
+    "PromptReorderInteractionHost",
+    "PromptReorderInteractionOwner",
     "PromptReorderOverlayFactory",
     "PromptReorderOverlayPort",
-    "PromptReorderPreviewScheduler",
-    "PromptReorderPreviewSyncContext",
-    "PromptReorderPreviewSyncController",
-    "PromptReorderPreviewSyncState",
-    "PromptReorderSessionController",
+    "PromptReorderOverlaySessionEditor",
+    "PromptReorderOverlaySessionHost",
+    "PromptReorderOverlaySessionOwner",
     "PromptSegmentPresetHostAdapter",
     "PromptSurfaceKeyHandler",
     "PromptSurfaceKeyHost",
@@ -223,7 +226,7 @@ __all__ = [
     "PromptTextClipboard",
     "PromptTriggerWordActionAdapter",
     "PromptWheelController",
-    "PromptWheelHost",
+    "PromptWeightInteraction",
     "PromptWheelScrollResult",
     "is_emphasis_weight_action",
     "is_weight_syntax_action",

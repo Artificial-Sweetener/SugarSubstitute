@@ -30,25 +30,35 @@ from substitute.application.prompt_editor.document.views import (
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
-from substitute.presentation.editor.prompt_editor.projection import incremental_editor
+from substitute.presentation.editor.prompt_editor.projection import (
+    plain_text_document_editor,
+)
 from substitute.presentation.editor.prompt_editor.projection.builder import (
     PromptProjectionBuilder,
 )
-from substitute.presentation.editor.prompt_editor.projection.incremental_editor import (
+from substitute.presentation.editor.prompt_editor.projection.incremental_edit_contracts import (
     PromptProjectionIncrementalEdit,
-    PromptProjectionIncrementalEditor,
+)
+from substitute.presentation.editor.prompt_editor.projection.plain_text_document_editor import (
+    PromptPlainTextDocumentEditor,
 )
 from tests.prompt_projection_invariants import (
     validate_prompt_projection_document,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretMap,
     PromptProjectionCaretPlacement,
     PromptProjectionCaretState,
     PromptProjectionCaretStop,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.mapping import (
     PromptProjectionMapping,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
     PromptProjectionRunKind,
 )
@@ -116,11 +126,11 @@ def test_incremental_plain_text_edit_rejects_invalid_projection_document(
         raise ValueError("invalid source boundary count")
 
     monkeypatch.setattr(
-        incremental_editor,
-        "_apply_plain_text_document_edit",
+        plain_text_document_editor,
+        "apply_plain_text_document_edit",
         fail_incremental_apply,
     )
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -149,7 +159,7 @@ def test_incremental_plain_text_edit_rejects_region_topology_change() -> None:
 
     previous_text = "global\n[SEP]\npink witch hat"
     next_text = "global[SEP]\npink witch hat"
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -179,7 +189,7 @@ def test_incremental_plain_text_insert_preserves_caret_navigation() -> None:
     previous_text = "alpha beta"
     next_text = "alpha Xbeta"
     previous_document = _plain_text_projection_document(previous_text)
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -225,7 +235,7 @@ def test_incremental_plain_text_delete_preserves_caret_navigation() -> None:
     previous_text = "alpha Xbeta"
     next_text = "alpha beta"
     previous_document = _plain_text_projection_document(previous_text)
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -277,7 +287,7 @@ def test_incremental_insert_membership_does_not_read_previous_caret_stops() -> N
         previous_text,
         stops=base_stops,
     )
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -317,7 +327,7 @@ def test_repeated_incremental_insert_membership_uses_canonical_caret_map() -> No
     base_stops = _CountingCaretStopSequence(
         tuple(_plain_text_caret_stops(first_text, run_id="run-1"))
     )
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     first_result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -379,7 +389,7 @@ def test_repeated_incremental_insert_caret_sync_uses_canonical_caret_map() -> No
     base_stops = _CountingCaretStopSequence(
         tuple(_plain_text_caret_stops(first_text, run_id="run-1"))
     )
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     first_result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -445,7 +455,7 @@ def test_incremental_delete_membership_does_not_read_previous_caret_stops() -> N
         previous_text,
         stops=base_stops,
     )
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -484,7 +494,7 @@ def test_incremental_delete_build_does_not_read_previous_caret_stops() -> None:
     base_stops = _CountingCaretStopSequence(
         tuple(_plain_text_caret_stops(previous_text, run_id="run-1"))
     )
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -520,7 +530,7 @@ def test_repeated_incremental_delete_caret_sync_uses_canonical_caret_map() -> No
     base_stops = _CountingCaretStopSequence(
         tuple(_plain_text_caret_stops(first_text, run_id="run-1"))
     )
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     first_result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -590,7 +600,7 @@ def test_repeated_incremental_delete_rebuilds_canonical_caret_stops() -> None:
     """Repeated deletes should leave concrete stops for every source boundary."""
 
     text = "alpha ABCDEFGHIJKL beta gamma"
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
     document = _plain_text_projection_document(text)
     cursor_position = text.index("L") + 1
 
@@ -644,7 +654,7 @@ def test_noncontiguous_edits_keep_caret_transform_depth_bounded() -> None:
     """Hostile cursor relocation must never create recursive caret-map growth."""
 
     text = "x" * 240
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
     document = _plain_text_projection_document(text)
     observed_depth = 0
 
@@ -711,7 +721,7 @@ def test_long_repeated_incremental_inserts_rebuild_canonical_caret_stops() -> No
     """Long typing runs should leave concrete stops for every source boundary."""
 
     text = "alpha beta gamma"
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
     document = _plain_text_projection_document(text)
     cursor_position = text.index(" beta") + 1
 
@@ -763,7 +773,7 @@ def test_canonical_caret_stop_adjacent_lookup_does_not_read_base_stops() -> None
     base_stops = _CountingCaretStopSequence(
         tuple(_plain_text_caret_stops(first_text, run_id="run-1"))
     )
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     first_result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -827,7 +837,7 @@ def test_incremental_same_length_replacement_rebuilds_canonical_caret_stops() ->
     base_stops = _CountingCaretStopSequence(
         tuple(_plain_text_caret_stops(previous_text, run_id="run-1"))
     )
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -873,7 +883,7 @@ def test_incremental_plain_selection_delete_remaps_caret_stops_lazily() -> None:
     base_stops = _CountingCaretStopSequence(
         tuple(_plain_text_caret_stops(previous_text, run_id="run-1"))
     )
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -918,7 +928,7 @@ def test_incremental_scene_title_insert_updates_token_and_later_source_geometry(
     previous_text = "**One\nbody\n**Two\nmore"
     insert_at = len("**One")
     next_text = previous_text[:insert_at] + "X" + previous_text[insert_at:]
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -959,7 +969,7 @@ def test_incremental_scene_title_trailing_space_matches_canonical_projection() -
 
     previous_text = "**scene"
     next_text = f"{previous_text} "
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -995,7 +1005,7 @@ def test_incremental_scene_title_boundary_rejects_newline_topology_change() -> N
 
     previous_text = "**Scene"
     next_text = f"{previous_text}\n"
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(
@@ -1024,7 +1034,7 @@ def test_incremental_scene_title_edit_recomputes_duplicate_style() -> None:
     previous_text = "**One\nbody\n**Owe\nmore"
     replace_at = previous_text.index("w")
     next_text = previous_text[:replace_at] + "n" + previous_text[replace_at + 1 :]
-    editor = PromptProjectionIncrementalEditor()
+    editor = PromptPlainTextDocumentEditor()
 
     result = editor.try_build_plain_text_edit(
         PromptProjectionIncrementalEdit(

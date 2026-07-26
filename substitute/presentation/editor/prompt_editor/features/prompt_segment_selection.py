@@ -63,6 +63,9 @@ class PromptSegmentCursor(Protocol):
     def position(self) -> int:
         """Return current source cursor position."""
 
+    def setPosition(self, pos: int, mode: object | None = None) -> None:  # noqa: N802
+        """Move or extend the current source selection."""
+
 
 class PromptSegmentPresetHost(Protocol):
     """Describe prompt-editor hooks needed by segment preset ownership."""

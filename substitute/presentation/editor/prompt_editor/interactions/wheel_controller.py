@@ -30,7 +30,9 @@ from shiboken6 import isValid
 
 from substitute.presentation.widgets.wheel_intent import DEFAULT_WHEEL_GESTURE_IDLE_MS
 
-from ..projection.model import PromptProjectionToken
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionToken,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -414,35 +416,23 @@ class PromptSurfaceWheelHandler:
         return external_scroll_bar
 
 
-class PromptWheelHost(Protocol):
-    """Expose prompt-editor wheel event routes without leaking widget internals."""
-
-    def prompt_surface_handle_wheel_scroll(
-        self,
-        event: QWheelEvent,
-    ) -> PromptWheelScrollResult:
-        """Route one wheel event to prompt surface scrolling."""
-
-    def prompt_surface_wheel_event_is_allowed(self, event: QWheelEvent) -> bool:
-        """Return whether the prompt surface may consume one wheel event."""
-
-    def forward_wheel_event_to_editor_panel(self, event: QWheelEvent) -> None:
-        """Forward intentionally bubbled prompt wheel input to the editor panel."""
-
-
 class PromptWheelController:
     """Arbitrate prompt wheel intent between overlays, surface scroll, and panel."""
 
     def __init__(
         self,
-        host: PromptWheelHost,
         *,
+        allow_surface_scroll: Callable[[QWheelEvent], bool],
+        forward_to_editor_panel: Callable[[QWheelEvent], None],
+        handle_surface_scroll: Callable[[QWheelEvent], PromptWheelScrollResult],
         token_weight_wheel_intent: PromptTokenWeightWheelIntentController,
         token_weight_wheel_handler: Callable[[QWheelEvent], bool],
     ) -> None:
         """Bind wheel arbitration to the prompt editor host protocol."""
 
-        self._host = host
+        self._allow_surface_scroll = allow_surface_scroll
+        self._forward_to_editor_panel = forward_to_editor_panel
+        self._handle_surface_scroll = handle_surface_scroll
         self._token_weight_wheel_intent = token_weight_wheel_intent
         self._token_weight_wheel_handler = token_weight_wheel_handler
 
@@ -475,7 +465,7 @@ class PromptWheelController:
     def allow_surface_wheel_scroll(self, event: QWheelEvent) -> bool:
         """Return whether prompt-local surface scrolling is currently permitted."""
 
-        return self._host.prompt_surface_wheel_event_is_allowed(event)
+        return self._allow_surface_scroll(event)
 
     def handle_viewport_wheel_event(self, event: QWheelEvent) -> bool:
         """Route one host viewport wheel event through prompt-local owners."""
@@ -483,12 +473,12 @@ class PromptWheelController:
         if self._token_weight_wheel_handler(event):
             event.accept()
             return True
-        result = self._host.prompt_surface_handle_wheel_scroll(event)
+        result = self._handle_surface_scroll(event)
         if result is PromptWheelScrollResult.CONSUMED:
             event.accept()
             return True
         if result is PromptWheelScrollResult.BUBBLE:
-            self._host.forward_wheel_event_to_editor_panel(event)
+            self._forward_to_editor_panel(event)
             return True
         event.ignore()
         return True
@@ -499,6 +489,5 @@ __all__ = [
     "PromptSurfaceWheelHost",
     "PromptTokenWeightWheelIntentController",
     "PromptWheelController",
-    "PromptWheelHost",
     "PromptWheelScrollResult",
 ]

@@ -28,9 +28,11 @@ import pytest
 from PySide6.QtCore import QRect, QSize
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.presentation.editor.prompt_editor.geometry import (
-    autocomplete_panel_host,
+from substitute.presentation.editor.prompt_editor.geometry.autocomplete_panel import (
     compute_autocomplete_panel_rect,
+)
+from substitute.presentation.editor.prompt_editor.geometry.widget_mapping import (
+    autocomplete_panel_host,
     map_cursor_rect_to_host,
 )
 

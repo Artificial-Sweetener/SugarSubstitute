@@ -47,7 +47,10 @@ from ..commands.weight_commands import (
     PromptWeightCommandResult,
     PromptWeightCursorPolicy,
 )
-from ..projection.model import PromptProjectionToken, PromptProjectionTokenKind
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionToken,
+    PromptProjectionTokenKind,
+)
 from ..projection.session import (
     PromptEmphasisAdjustmentOwner,
     PromptEmphasisAdjustmentSession,

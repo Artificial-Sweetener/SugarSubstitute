@@ -14,77 +14,99 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Tests for prompt scene feature controller ownership."""
+"""Contracts for direct prompt-scene publication and preparation owners."""
 
 from __future__ import annotations
 
-from substitute.presentation.editor.prompt_editor.core.state.revisions import (
-    PromptSourceIdentity,
-)
+from pathlib import Path
 
 from substitute.application.prompt_editor.autocomplete.queries import (
     PromptSceneAutocompleteQuery,
 )
-from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
+from substitute.application.prompt_editor.document.semantics import (
+    OrdinaryPromptDocumentSemantics,
+)
 from substitute.application.prompt_editor.scenes.projection import (
     clear_prompt_scene_projection_cache,
 )
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptSourceIdentity,
+)
 from substitute.presentation.editor.prompt_editor.features import (
     PromptFeatureProfileController,
-    PromptSceneFeatureController,
+    PromptSceneContextPublication,
+    PromptScenePositionContextPreparation,
+)
+from substitute.presentation.editor.prompt_editor.features.scene_suggestions import (
+    scene_autocomplete_suggestions,
 )
 
 
-class _SceneHost:
-    """Provide source text and identity to the scene feature controller."""
+class _SceneSource:
+    """Provide observable source queries to the Qt-free scene owners."""
 
     def __init__(self, text: str, *, source_revision: int | None = 7) -> None:
-        """Store deterministic source state for controller tests."""
+        """Store deterministic source state."""
 
-        self._text = text
-        self._source_revision = source_revision
+        self.text = text
+        self.source_revision = source_revision
         self.read_count = 0
 
-    def toPlainText(self) -> str:
-        """Return the configured prompt source."""
+    def source_text(self) -> str:
+        """Return prompt source and record one explicit source read."""
 
         self.read_count += 1
-        return self._text
+        return self.text
 
-    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
-        """Return a command source identity matching the configured source."""
+    def source_identity(self) -> PromptSourceIdentity | None:
+        """Return source freshness without reading prompt text."""
 
-        if self._source_revision is None:
+        if self.source_revision is None:
             return None
         return PromptSourceIdentity(
-            source_revision=self._source_revision,
-            source_length=len(self._text),
+            source_revision=self.source_revision,
+            source_length=len(self.text),
         )
 
 
-def _controller(text: str) -> PromptSceneFeatureController:
-    """Build a scene feature controller with all optional features enabled."""
+def _owners(
+    text: str,
+) -> tuple[
+    PromptSceneContextPublication, PromptScenePositionContextPreparation, _SceneSource
+]:
+    """Build direct scene owners with all optional features enabled."""
 
-    return PromptSceneFeatureController(
-        host=_SceneHost(text),
-        feature_profile=PromptFeatureProfileController(
-            PromptEditorFeatureProfile.enabled_profile(())
-        ),
+    source = _SceneSource(text)
+    feature_profile = PromptFeatureProfileController(
+        PromptEditorFeatureProfile.enabled_profile(())
     )
+    document_semantics = OrdinaryPromptDocumentSemantics()
+    publication = PromptSceneContextPublication(
+        source_identity=source.source_identity,
+        feature_profile=feature_profile,
+        document_semantics=document_semantics,
+    )
+    preparation = PromptScenePositionContextPreparation(
+        source_text=source.source_text,
+        source_identity=source.source_identity,
+        publication=publication,
+        document_semantics=document_semantics,
+    )
+    return publication, preparation, source
 
 
-def test_scene_controller_publishes_titles_and_context_identity() -> None:
-    """Scene snapshots should carry source, cube, scene, and title readiness."""
+def test_scene_publication_carries_titles_and_context_identity() -> None:
+    """Publication should own workflow identity and autocomplete title state."""
 
-    controller = _controller("quality")
-
-    controller.set_context_identity(
+    publication, _, _ = _owners("quality")
+    publication.set_context_identity(
         cube_context_id=("cube", "node", "positive"),
         scene_context_id=("workflow", "scene-table"),
     )
-    controller.set_scene_autocomplete_titles(("Portrait", "Cafe"))
+    publication.set_scene_autocomplete_titles(("Portrait", "Cafe"))
 
-    snapshot = controller.snapshot
+    snapshot = publication.snapshot
     assert snapshot.identity.source_revision == 7
     assert snapshot.identity.cube_context_id == ("cube", "node", "positive")
     assert snapshot.identity.scene_context_id == ("workflow", "scene-table")
@@ -92,15 +114,16 @@ def test_scene_controller_publishes_titles_and_context_identity() -> None:
     assert snapshot.autocomplete.ready is True
 
 
-def test_scene_controller_prepares_title_suggestions() -> None:
-    """Scene autocomplete suggestions should dedupe and exclude exact no-op matches."""
+def test_scene_suggestions_consume_immutable_publication_state() -> None:
+    """Pure scene suggestion policy should dedupe and exclude exact no-op rows."""
 
-    controller = _controller("**Cafe")
-    controller.set_scene_autocomplete_titles(
+    publication, _, _ = _owners("**Cafe")
+    publication.set_scene_autocomplete_titles(
         ("Cafe", "Cafe Interior", "cafe interior", "Canal")
     )
 
-    suggestions = controller.scene_autocomplete_suggestions(
+    suggestions = scene_autocomplete_suggestions(
+        state=publication.snapshot.autocomplete,
         query=PromptSceneAutocompleteQuery(
             prefix="Cafe",
             marker_start=0,
@@ -115,120 +138,123 @@ def test_scene_controller_prepares_title_suggestions() -> None:
     assert all(suggestion.source_kind == "scene" for suggestion in suggestions)
 
 
-def test_scene_controller_resolves_queueable_scene_and_effective_context() -> None:
-    """Scene context should prepare queue action state and materialized prompt text."""
+def test_scene_suggestions_are_disabled_without_prepared_scene_titles() -> None:
+    """Pure policy should fail closed when scene publication is not ready."""
+
+    publication, _, _ = _owners("quality")
+    suggestions = scene_autocomplete_suggestions(
+        state=publication.snapshot.autocomplete,
+        query=PromptSceneAutocompleteQuery(
+            prefix="Cafe",
+            marker_start=0,
+            title_start=2,
+            cursor_position=6,
+            replacement_end=6,
+        ),
+        limit=10,
+    )
+
+    assert suggestions == ()
+
+
+def test_position_preparation_resolves_queueable_scene_and_effective_context() -> None:
+    """Preparation should materialize queue context and publish its action state."""
 
     clear_prompt_scene_projection_cache()
     source = "quality\n<lora:global:1>\n**Portrait\nportrait text\n**Cafe\ncafe text"
-    controller = _controller(source)
-    controller.set_queueable_scene_keys(frozenset({"portrait", "cafe"}))
+    publication, preparation, _ = _owners(source)
+    publication.set_queueable_scene_keys(frozenset({"portrait", "cafe"}))
 
-    context = controller.position_context(source.index("cafe text"))
+    context = preparation.position_context(source.index("cafe text"))
 
     assert context.scene_key == "cafe"
     assert context.queueable_scene_key == "cafe"
     assert context.effective_prompt_text == "quality\n<lora:global:1>\n\ncafe text"
-    assert controller.snapshot.queue_action.action_ready is True
-    assert controller.snapshot.queue_action.scene_key == "cafe"
+    assert publication.snapshot.queue_action.action_ready is True
+    assert publication.snapshot.queue_action.scene_key == "cafe"
 
 
-def test_scene_controller_enumerates_unique_effective_scene_prompts() -> None:
-    """Source lifecycle owners should receive every effective scene prompt once."""
+def test_position_preparation_enumerates_unique_effective_scene_prompts() -> None:
+    """Source lifecycle consumers should receive every effective prompt once."""
 
     clear_prompt_scene_projection_cache()
     source = "quality\n**Portrait\nportrait text\n**Cafe\ncafe text"
-    controller = _controller(source)
+    _, preparation, _ = _owners(source)
 
-    effective_prompts = controller.effective_prompt_texts()
+    effective_prompts = preparation.effective_prompt_texts()
 
     assert "quality\n\nportrait text" in effective_prompts
     assert "quality\n\ncafe text" in effective_prompts
     assert len(effective_prompts) == len(set(effective_prompts))
 
 
-def test_scene_controller_omits_unqueueable_scene_actions() -> None:
-    """Scene queue action state should stay unavailable for unqueueable scenes."""
+def test_position_preparation_omits_unqueueable_scene_actions() -> None:
+    """Prepared contexts should not publish actions for unavailable scene keys."""
 
     source = "quality\n**Portrait\nportrait text\n**Cafe\ncafe text"
-    controller = _controller(source)
-    controller.set_queueable_scene_keys(frozenset({"cafe"}))
+    publication, preparation, _ = _owners(source)
+    publication.set_queueable_scene_keys(frozenset({"cafe"}))
 
-    context = controller.position_context(source.index("portrait text"))
+    context = preparation.position_context(source.index("portrait text"))
 
     assert context.scene_key == "portrait"
     assert context.queueable_scene_key is None
     assert context.effective_prompt_text == "quality\n\nportrait text"
-    assert controller.snapshot.queue_action.action_ready is False
-    assert controller.snapshot.queue_action.scene_key is None
+    assert publication.snapshot.queue_action.action_ready is False
+    assert publication.snapshot.queue_action.scene_key is None
 
 
-def test_scene_controller_prepared_position_context_is_menu_safe_after_prepare() -> (
-    None
-):
-    """Prepared scene-position reads should not touch source text on menu open."""
+def test_prepared_position_context_is_menu_safe_after_prepare() -> None:
+    """Prepared reads must not touch source after explicit preparation."""
 
     clear_prompt_scene_projection_cache()
-    source = "quality\n**Portrait\nportrait text"
-    host = _SceneHost(source)
-    controller = PromptSceneFeatureController(
-        host=host,
-        feature_profile=PromptFeatureProfileController(
-            PromptEditorFeatureProfile.enabled_profile(())
-        ),
-    )
-    controller.set_queueable_scene_keys(frozenset({"portrait"}))
+    source_text = "quality\n**Portrait\nportrait text"
+    publication, preparation, source = _owners(source_text)
+    publication.set_queueable_scene_keys(frozenset({"portrait"}))
 
-    prepared = controller.prepare_position_context(
-        source.index("portrait text"),
+    prepared = preparation.prepare_position_context(
+        source_text.index("portrait text"),
         reason="test_pre_menu_prepare",
     )
-    read_count_after_prepare = host.read_count
-    menu_snapshot = controller.prepared_position_context(source.index("portrait text"))
+    reads_after_prepare = source.read_count
+    menu_snapshot = preparation.prepared_position_context(
+        source_text.index("portrait text")
+    )
 
     assert prepared.ready is True
     assert menu_snapshot.context is not None
     assert menu_snapshot.context.queueable_scene_key == "portrait"
-    assert host.read_count == read_count_after_prepare
+    assert source.read_count == reads_after_prepare
 
 
-def test_scene_controller_prepared_position_context_reports_unprepared_without_computing() -> (
-    None
-):
-    """Prepared scene-position reads should fail closed when no snapshot exists."""
+def test_prepared_position_context_fails_closed_without_preparation() -> None:
+    """Menu-safe reads should not derive scene state on demand."""
 
-    host = _SceneHost("quality\n**Portrait\nportrait text")
-    controller = PromptSceneFeatureController(
-        host=host,
-        feature_profile=PromptFeatureProfileController(
-            PromptEditorFeatureProfile.enabled_profile(())
-        ),
-    )
+    _, preparation, source = _owners("quality\n**Portrait\nportrait text")
 
-    snapshot = controller.prepared_position_context(0)
+    snapshot = preparation.prepared_position_context(0)
 
     assert snapshot.ready is False
     assert snapshot.stale is True
     assert snapshot.context is None
     assert snapshot.unavailable_reason == "scene_position_context_unprepared"
-    assert host.read_count == 0
+    assert source.read_count == 0
 
 
-def test_scene_controller_invalidates_prepared_position_when_queueable_keys_change() -> (
-    None
-):
-    """Queueable-scene changes should make old prepared position contexts stale."""
+def test_queue_key_publication_invalidates_prepared_position_context() -> None:
+    """Queue-key identity changes should make prior prepared state unavailable."""
 
-    source = "quality\n**Portrait\nportrait text"
-    controller = _controller(source)
-    controller.set_queueable_scene_keys(frozenset({"portrait"}))
-    source_position = source.index("portrait text")
+    source_text = "quality\n**Portrait\nportrait text"
+    publication, preparation, _ = _owners(source_text)
+    publication.set_queueable_scene_keys(frozenset({"portrait"}))
+    source_position = source_text.index("portrait text")
 
-    prepared = controller.prepare_position_context(
+    prepared = preparation.prepare_position_context(
         source_position,
         reason="test_pre_menu_prepare",
     )
-    controller.set_queueable_scene_keys(frozenset())
-    unavailable = controller.prepared_position_context(source_position)
+    publication.set_queueable_scene_keys(frozenset())
+    unavailable = preparation.prepared_position_context(source_position)
 
     assert prepared.context is not None
     assert prepared.context.queueable_scene_key == "portrait"
@@ -237,21 +263,44 @@ def test_scene_controller_invalidates_prepared_position_when_queueable_keys_chan
     assert unavailable.unavailable_reason == "scene_position_context_unprepared"
 
 
-def test_scene_controller_prepared_position_requires_source_identity() -> None:
-    """Menu-safe scene-position reads should not fall back to source text identity."""
+def test_prepared_position_context_requires_source_identity() -> None:
+    """Prepared reads should not fall back to prompt text when identity is absent."""
 
-    host = _SceneHost("quality\n**Portrait\nportrait text", source_revision=None)
-    controller = PromptSceneFeatureController(
-        host=host,
-        feature_profile=PromptFeatureProfileController(
-            PromptEditorFeatureProfile.enabled_profile(())
-        ),
-    )
+    source_text = "quality\n**Portrait\nportrait text"
+    publication, preparation, source = _owners(source_text)
+    source.source_revision = None
+    _ = publication
 
-    snapshot = controller.prepared_position_context(0)
+    snapshot = preparation.prepared_position_context(0)
 
     assert snapshot.ready is False
     assert snapshot.stale is True
     assert snapshot.context is None
     assert snapshot.unavailable_reason == "source_revision_unavailable"
-    assert host.read_count == 0
+    assert source.read_count == 0
+
+
+def test_scene_owners_replace_the_deleted_controller_without_qt_dependencies() -> None:
+    """Scene publication and preparation must remain direct, Qt-free authorities."""
+
+    feature_root = (
+        Path(__file__).parents[1]
+        / "substitute"
+        / "presentation"
+        / "editor"
+        / "prompt_editor"
+        / "features"
+    )
+    publication_source = (feature_root / "scene_publication.py").read_text(
+        encoding="utf-8"
+    )
+    preparation_source = (feature_root / "scene_position_context.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert not (feature_root / "scene_controller.py").exists()
+    assert "PromptSceneFeatureController" not in publication_source
+    assert "PromptSceneFeatureController" not in preparation_source
+    assert "PySide6" not in publication_source
+    assert "PySide6" not in preparation_source
+    assert "toPlainText" not in publication_source

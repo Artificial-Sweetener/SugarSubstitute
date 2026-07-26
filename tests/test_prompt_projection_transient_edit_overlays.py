@@ -18,16 +18,11 @@
 
 from __future__ import annotations
 
-from typing import cast
-
-from PySide6.QtCore import QRectF, QSizeF
-from PySide6.QtGui import QFont, QRegion
+from PySide6.QtCore import QRectF
+from PySide6.QtGui import QFont, QPalette, QRegion
 
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
-)
-from substitute.presentation.editor.prompt_editor.projection.layout_engine import (
-    PromptProjectionLayout,
 )
 from substitute.presentation.editor.prompt_editor.projection.metrics import (
     PromptProjectionMetrics,
@@ -39,43 +34,12 @@ from substitute.presentation.editor.prompt_editor.projection.transient_edit_over
     PromptProjectionTransientEditOverlayController,
     PromptProjectionTransientInsertionOverlay,
 )
+from substitute.presentation.editor.prompt_editor.projection.transient_edit_layer_owner import (
+    PromptTransientEditRenderLayerOwner,
+)
 
+from tests.prompt_projection_layout_test_helpers import projection_layout_for
 from tests.prompt_projection_test_helpers import ensure_qapp
-
-
-class _OverlayLayout:
-    """Provide deterministic layout geometry for overlay controller tests."""
-
-    document_margin = 8.0
-
-    def __init__(self) -> None:
-        """Create an empty fake layout."""
-
-        self.requested_ranges: list[tuple[int, int]] = []
-
-    def content_size(self) -> QSizeF:
-        """Return stable document content bounds."""
-
-        return QSizeF(120.0, 80.0)
-
-    def source_range_fragments(
-        self,
-        source_start: int,
-        source_end: int,
-        *,
-        viewport_rect: QRectF,
-        scroll_offset: float,
-    ) -> tuple[QRectF, ...]:
-        """Return one source fragment per requested single-character range."""
-
-        _ = viewport_rect
-        _ = scroll_offset
-        self.requested_ranges.append((source_start, source_end))
-        if (source_start, source_end) == (3, 4):
-            return (QRectF(15.0, 10.0, 5.0, 10.0),)
-        if (source_start, source_end) == (4, 5):
-            return (QRectF(20.0, 10.0, 5.0, 10.0),)
-        return ()
 
 
 def _projection_metrics() -> PromptProjectionMetrics:
@@ -168,6 +132,47 @@ def test_transient_edit_overlays_validate_against_live_source_state() -> None:
     assert controller.deletion_overlay is None
 
 
+def test_transient_edit_layer_publishes_complete_commands_before_paint() -> None:
+    """Transient insertion and deletion state should become one prepared layer."""
+
+    controller = PromptProjectionTransientEditOverlayController()
+    source_identity = PromptSourceIdentity(source_revision=3)
+    controller.set_overlays(
+        caret_geometry=None,
+        insertion_overlay=PromptProjectionTransientInsertionOverlay(
+            source_identity=source_identity,
+            committed_source_identity=PromptSourceIdentity(source_revision=2),
+            source_start=4,
+            text="x",
+            document_rect=QRectF(20.0, 8.0, 1.0, 14.0),
+        ),
+        deletion_overlay=PromptProjectionTransientDeletionOverlay(
+            source_identity=source_identity,
+            committed_source_identity=PromptSourceIdentity(source_revision=2),
+            source_start=2,
+            source_end=3,
+            document_rects=(QRectF(10.0, 8.0, 6.0, 14.0),),
+        ),
+    )
+    owner = PromptTransientEditRenderLayerOwner()
+
+    assert owner.prepare(
+        overlays=controller,
+        freshness_is_stale_safe=True,
+        source_identity=source_identity,
+        metrics=_projection_metrics(),
+        viewport_rect=QRectF(0.0, 0.0, 100.0, 40.0),
+        scroll_offset=2.0,
+        font=QFont(),
+        palette=QPalette(),
+    )
+    assert owner.layer.insertion is not None
+    assert owner.layer.insertion.text == "x"
+    assert owner.layer.deletion is not None
+    assert owner.layer.deletion.rects
+    assert owner.layer.content_visible_region is not None
+
+
 def test_transient_edit_overlays_extend_and_trim_pending_insertions() -> None:
     """Insertion overlays should merge adjacent typing and trim overlay deletes."""
 
@@ -179,7 +184,7 @@ def test_transient_edit_overlays_extend_and_trim_pending_insertions() -> None:
         committed_source_identity=PromptSourceIdentity(source_revision=2),
         current_caret_document_rect=QRectF(30.0, 6.0, 1.0, 14.0),
         freshness_is_stale_safe=True,
-        current_source_identity=PromptSourceIdentity(source_revision=2),
+        previous_source_identity=PromptSourceIdentity(source_revision=2),
     )
     assert first_overlay is not None
     controller.set_overlays(
@@ -195,7 +200,7 @@ def test_transient_edit_overlays_extend_and_trim_pending_insertions() -> None:
         committed_source_identity=PromptSourceIdentity(source_revision=2),
         current_caret_document_rect=QRectF(31.0, 6.0, 1.0, 14.0),
         freshness_is_stale_safe=True,
-        current_source_identity=PromptSourceIdentity(source_revision=3),
+        previous_source_identity=PromptSourceIdentity(source_revision=3),
     )
     assert next_overlay is not None
     assert next_overlay.source_start == 10
@@ -227,12 +232,50 @@ def test_transient_edit_overlays_extend_and_trim_pending_insertions() -> None:
     assert trimmed_overlay.text == "y"
 
 
+def test_transient_fallback_extends_the_existing_contiguous_insertion() -> None:
+    """Fallback feedback must preserve all text since the committed projection."""
+
+    controller = PromptProjectionTransientEditOverlayController()
+    committed_identity = PromptSourceIdentity(source_revision=2, source_length=10)
+    first_overlay = PromptProjectionTransientInsertionOverlay(
+        source_identity=PromptSourceIdentity(source_revision=3, source_length=11),
+        committed_source_identity=committed_identity,
+        source_start=10,
+        text="j",
+        document_rect=QRectF(30.0, 6.0, 1.0, 14.0),
+    )
+    controller.set_overlays(
+        caret_geometry=None,
+        insertion_overlay=first_overlay,
+        deletion_overlay=None,
+    )
+
+    extended = controller.fallback_insertion_overlay_for_edit(
+        start=11,
+        end=11,
+        replacement_text="f",
+        source_identity=PromptSourceIdentity(source_revision=4, source_length=12),
+        committed_source_identity=committed_identity,
+        current_caret_document_rect=QRectF(36.0, 6.0, 1.0, 14.0),
+        metrics=_projection_metrics(),
+        content_right=120.0,
+        document_margin=4.0,
+        source_line_content_left_inset=0.0,
+        freshness_is_stale_safe=True,
+        previous_source_identity=first_overlay.source_identity,
+    )
+
+    assert extended is not None
+    assert extended.source_start == 10
+    assert extended.text == "jf"
+    assert extended.document_rect == first_overlay.document_rect
+
+
 def test_transient_edit_overlays_merge_delete_geometry_and_repaint_bounds() -> None:
     """Deletion overlays should merge adjacent ranges and expose repaint geometry."""
 
     controller = PromptProjectionTransientEditOverlayController()
-    layout = _OverlayLayout()
-    typed_layout = cast(PromptProjectionLayout, layout)
+    layout, _projection = projection_layout_for("abcdef", text_width=100.0)
 
     first_overlay = controller.deletion_overlay_for_single_character_range(
         start=4,
@@ -240,7 +283,8 @@ def test_transient_edit_overlays_merge_delete_geometry_and_repaint_bounds() -> N
         source_identity=PromptSourceIdentity(source_revision=3),
         committed_source_identity=PromptSourceIdentity(source_revision=2),
         previous_overlay=None,
-        layout=typed_layout,
+        content_size=layout.frame.output.snapshot.content_size,
+        selection_geometry=layout.frame.geometry.selection,
         viewport_width=100.0,
         viewport_height=60.0,
     )
@@ -251,7 +295,8 @@ def test_transient_edit_overlays_merge_delete_geometry_and_repaint_bounds() -> N
         source_identity=PromptSourceIdentity(source_revision=4),
         committed_source_identity=PromptSourceIdentity(source_revision=2),
         previous_overlay=first_overlay,
-        layout=typed_layout,
+        content_size=layout.frame.output.snapshot.content_size,
+        selection_geometry=layout.frame.geometry.selection,
         viewport_width=100.0,
         viewport_height=60.0,
     )
@@ -259,15 +304,19 @@ def test_transient_edit_overlays_merge_delete_geometry_and_repaint_bounds() -> N
     assert second_overlay is not None
     assert second_overlay.source_start == 3
     assert second_overlay.source_end == 5
-    assert layout.requested_ranges == [(4, 5), (3, 4)]
+    assert len(second_overlay.document_rects) == 2
 
     erase_rects = controller.deletion_overlay_erase_rects(
         second_overlay,
         scroll_offset=2.0,
     )
     assert len(erase_rects) == 1
-    assert erase_rects[0].top() == 6.0
-    assert erase_rects[0].bottom() == 20.0
+    assert erase_rects[0].top() == (
+        min(rect.top() for rect in second_overlay.document_rects) - 4.0
+    )
+    assert erase_rects[0].bottom() == (
+        max(rect.bottom() for rect in second_overlay.document_rects)
+    )
 
     repaint_rect = controller.deletion_overlay_repaint_rect(
         previous_overlay=first_overlay,

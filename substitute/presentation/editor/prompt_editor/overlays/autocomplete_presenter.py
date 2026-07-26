@@ -19,12 +19,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Protocol, cast
+from typing import Protocol
 
 from PySide6.QtCore import QRect
 from PySide6.QtWidgets import QWidget
 
-from substitute.presentation.editor.prompt_editor.geometry import (
+from substitute.presentation.editor.prompt_editor.geometry.widget_mapping import (
     autocomplete_panel_host,
     map_cursor_rect_to_host,
 )
@@ -43,16 +43,6 @@ from .autocomplete_panel import (
     PromptAutocompleteRowRenderState,
     format_prompt_autocomplete_popularity,
 )
-
-
-class PromptAutocompletePresentationEditor(Protocol):
-    """Describe editor geometry needed by autocomplete presentation."""
-
-    def cursorRect(self) -> QRect:
-        """Return the caret rectangle in viewport coordinates."""
-
-    def viewport(self) -> QWidget:
-        """Return the editor viewport used for autocomplete geometry placement."""
 
 
 class PromptAutocompletePresenter(Protocol):
@@ -102,39 +92,25 @@ class PromptAutocompletePresenter(Protocol):
         """Hide autocomplete presentation without mutating source."""
 
 
-class PromptAutocompletePanelFactory(Protocol):
-    """Create autocomplete panel overlays for the active host widget."""
-
-    def __call__(self, parent: QWidget) -> PromptAutocompletePanel:
-        """Return one autocomplete panel parented to the supplied host."""
-
-
-class PromptAutocompleteLoraWallFactory(Protocol):
-    """Create presenter-supplied LoRA wall widgets for autocomplete panels."""
-
-    def __call__(
-        self,
-        parent: QWidget,
-        *,
-        thumbnail_cache: object,
-    ) -> PromptAutocompleteLoraWall:
-        """Return a LoRA wall for the supplied autocomplete panel parent."""
-
-
 class PromptAutocompletePanelPresenter:
     """Prepare autocomplete panel render state and drive the overlay."""
 
     def __init__(
         self,
         *,
-        editor: PromptAutocompletePresentationEditor,
-        panel_factory: PromptAutocompletePanelFactory,
-        lora_wall_factory: PromptAutocompleteLoraWallFactory | None = None,
+        host_widget: QWidget,
+        viewport: Callable[[], QWidget],
+        cursor_rect: Callable[[], QRect],
+        panel_factory: Callable[[QWidget], PromptAutocompletePanel],
+        lora_wall_factory: Callable[[QWidget, object], PromptAutocompleteLoraWall]
+        | None = None,
         lora_thumbnail_cache: object | None = None,
     ) -> None:
         """Store panel dependencies without owning autocomplete query policy."""
 
-        self._editor = editor
+        self._host_widget = host_widget
+        self._viewport = viewport
+        self._cursor_rect = cursor_rect
         self._panel_factory = panel_factory
         self._lora_wall_factory = lora_wall_factory
         self._lora_thumbnail_cache = lora_thumbnail_cache
@@ -255,7 +231,7 @@ class PromptAutocompletePanelPresenter:
     def _ensure_panel(self) -> PromptAutocompletePanel:
         """Create or reparent the autocomplete panel for the current host."""
 
-        panel_host = autocomplete_panel_host(cast(QWidget, self._editor))
+        panel_host = autocomplete_panel_host(self._host_widget)
         if self._panel is None or self._panel.parentWidget() is not panel_host:
             if self._panel is not None:
                 self._panel.deleteLater()
@@ -276,10 +252,7 @@ class PromptAutocompletePanelPresenter:
         panel = self._panel
         if panel is None:
             return None
-        self._lora_wall = self._lora_wall_factory(
-            panel,
-            thumbnail_cache=self._lora_thumbnail_cache,
-        )
+        self._lora_wall = self._lora_wall_factory(panel, self._lora_thumbnail_cache)
         return self._lora_wall
 
     def _render_state_for_session(
@@ -330,10 +303,10 @@ class PromptAutocompletePanelPresenter:
     def _anchor_rect(self) -> QRect:
         """Return the current caret rect mapped into the panel host."""
 
-        panel_host = autocomplete_panel_host(cast(QWidget, self._editor))
+        panel_host = autocomplete_panel_host(self._host_widget)
         return map_cursor_rect_to_host(
-            self._editor.viewport(),
-            self._editor.cursorRect(),
+            self._viewport(),
+            self._cursor_rect(),
             panel_host,
         )
 
@@ -347,9 +320,6 @@ class PromptAutocompletePanelPresenter:
 
 
 __all__ = [
-    "PromptAutocompletePanelFactory",
     "PromptAutocompletePanelPresenter",
-    "PromptAutocompleteLoraWallFactory",
-    "PromptAutocompletePresentationEditor",
     "PromptAutocompletePresenter",
 ]

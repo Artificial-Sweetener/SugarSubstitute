@@ -34,51 +34,18 @@ from substitute.shared.diagnostics.prompt_editor_work import (
     prompt_editor_work_event,
 )
 
+from ..geometry.aggregate import PromptProjectionGeometry
 from ..models import PromptEditorInteractionMode
-from ..projection.hit_testing import (
-    PromptProjectionCaretHit,
-    PromptProjectionDragSelectionTarget,
-)
-from ..projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretState,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
-
-
-class _PromptSurfaceMouseLayout(Protocol):
-    """Expose projection-owned geometry queries needed by pointer routing."""
-
-    def caret_hit_test(
-        self,
-        viewport_position: QPointF,
-        *,
-        scroll_offset: float,
-        preferred_line_index: int | None = None,
-    ) -> PromptProjectionCaretHit:
-        """Return one caret placement for a viewport-local pointer position."""
-
-    def resolve_drag_selection_endpoint(
-        self,
-        viewport_position: QPointF,
-        *,
-        scroll_offset: float,
-        anchor_line_index: int | None = None,
-        preferred_line_index: int | None = None,
-    ) -> PromptProjectionDragSelectionTarget:
-        """Return one drag-selection endpoint resolved by projection geometry."""
-
-    def hit_test(
-        self,
-        viewport_position: QPointF,
-        *,
-        scroll_offset: float,
-        preferred_line_index: int | None = None,
-    ) -> PromptProjectionCaretState:
-        """Return the logical caret state for one viewport-local position."""
-
-    def line_index_for_document_y(self, document_y: float) -> int | None:
-        """Return the wrapped visual line index for one document-local y value."""
+from substitute.presentation.editor.prompt_editor.projection.prepared_frame import (
+    PromptProjectionPreparedFrame,
+)
 
 
 class _PromptSurfaceMouseProjectionSession(Protocol):
@@ -93,7 +60,6 @@ class PromptSurfaceMouseHost(Protocol):
 
     _anchor_state: PromptProjectionCaretState
     _focus_host: QWidget | None
-    _layout: _PromptSurfaceMouseLayout
     _session: _PromptSurfaceMouseProjectionSession
     _weight_click_handler: Callable[[QPointF], bool] | None
     _weight_double_click_handler: Callable[[QPointF], bool] | None
@@ -161,9 +127,9 @@ class PromptSurfaceMouseHost(Protocol):
     ) -> None:
         """Persist projection-backed cursor and anchor states."""
 
-    def _token_at_viewport_position(
+    def token_at_viewport_position(
         self,
-        local_position: QPointF,
+        position: QPointF,
     ) -> PromptProjectionToken | None:
         """Return the projection token under a viewport-local position."""
 
@@ -202,7 +168,11 @@ class PromptSurfaceMouseHandler:
             self._host.viewport().mapFromGlobal(event.globalPosition().toPoint())
         )
 
-    def handle_mouse_press(self, event: QMouseEvent) -> bool:
+    def handle_mouse_press(
+        self,
+        event: QMouseEvent,
+        frame: PromptProjectionPreparedFrame,
+    ) -> bool:
         """Handle one public mouse press event from the surface."""
 
         self._host._finish_pending_key_edit_block(reason="mouse_press")
@@ -210,27 +180,39 @@ class PromptSurfaceMouseHandler:
         return self.handle_viewport_mouse_press(
             event,
             viewport_position=self.viewport_position_from_mouse_event(event),
+            frame=frame,
         )
 
-    def handle_mouse_move(self, event: QMouseEvent) -> bool:
+    def handle_mouse_move(
+        self,
+        event: QMouseEvent,
+        frame: PromptProjectionPreparedFrame,
+    ) -> bool:
         """Handle one public mouse move event from the surface."""
 
         return self.handle_viewport_mouse_move(
             event,
             viewport_position=self.viewport_position_from_mouse_event(event),
+            frame=frame,
         )
 
-    def handle_mouse_double_click(self, event: QMouseEvent) -> bool:
+    def handle_mouse_double_click(
+        self,
+        event: QMouseEvent,
+        frame: PromptProjectionPreparedFrame,
+    ) -> bool:
         """Handle one public mouse double-click event from the surface."""
 
         return self.handle_viewport_mouse_double_click(
             event,
             viewport_position=self.viewport_position_from_mouse_event(event),
+            frame=frame,
         )
 
     def handle_viewport_mouse_press(
         self,
         event: QMouseEvent,
+        frame: PromptProjectionPreparedFrame,
         *,
         viewport_position: QPointF,
     ) -> bool:
@@ -238,6 +220,7 @@ class PromptSurfaceMouseHandler:
 
         host = self._host
         host._flush_pending_projection_update(reason="mouse_press")
+        geometry = frame.geometry
         if event.button() == Qt.MouseButton.RightButton:
             if host._request_lora_context_menu(
                 viewport_position, event.globalPosition().toPoint()
@@ -260,11 +243,12 @@ class PromptSurfaceMouseHandler:
         if self._consume_pending_segment_word_selection_click(
             viewport_position=viewport_position,
             modifiers=event.modifiers(),
+            geometry=geometry,
         ):
             event.accept()
             return True
         self.clear_pending_segment_word_selection()
-        caret_hit = host._layout.caret_hit_test(
+        caret_hit = geometry.hit_testing.caret_hit_test(
             viewport_position,
             scroll_offset=host._scroll_offset(),
         )
@@ -278,8 +262,10 @@ class PromptSurfaceMouseHandler:
         caret_center_y = host._current_caret_document_rect().center().y()
         self._drag_selection_session = _DragSelectionSession(
             anchor_state=host._anchor_state,
-            anchor_line_index=host._layout.line_index_for_document_y(caret_center_y),
-            preferred_line_index=host._layout.line_index_for_document_y(caret_center_y),
+            anchor_line_index=geometry.caret.line_index_for_document_y(caret_center_y),
+            preferred_line_index=geometry.caret.line_index_for_document_y(
+                caret_center_y
+            ),
         )
         event.accept()
         return True
@@ -288,6 +274,7 @@ class PromptSurfaceMouseHandler:
     def handle_viewport_mouse_move(
         self,
         event: QMouseEvent,
+        frame: PromptProjectionPreparedFrame,
         *,
         viewport_position: QPointF,
     ) -> bool:
@@ -303,8 +290,9 @@ class PromptSurfaceMouseHandler:
             self.update_hovered_token(viewport_position)
             return False
         host._flush_pending_projection_update(reason="mouse_move_drag")
+        geometry = frame.geometry
         self.update_hovered_token(viewport_position)
-        drag_target = host._layout.resolve_drag_selection_endpoint(
+        drag_target = geometry.hit_testing.resolve_drag_selection_endpoint(
             viewport_position,
             scroll_offset=host._scroll_offset(),
             anchor_line_index=self._drag_selection_session.anchor_line_index,
@@ -332,6 +320,7 @@ class PromptSurfaceMouseHandler:
     def handle_viewport_mouse_double_click(
         self,
         event: QMouseEvent,
+        frame: PromptProjectionPreparedFrame,
         *,
         viewport_position: QPointF,
     ) -> bool:
@@ -339,6 +328,7 @@ class PromptSurfaceMouseHandler:
 
         host = self._host
         host._flush_pending_projection_update(reason="mouse_double_click")
+        geometry = frame.geometry
         if event.button() != Qt.MouseButton.LeftButton:
             return False
         self.clear_pending_segment_word_selection()
@@ -351,7 +341,7 @@ class PromptSurfaceMouseHandler:
             event.accept()
             return True
         self._ensure_focus_host_owns_pointer_interaction()
-        token = host._token_at_viewport_position(viewport_position)
+        token = host.token_at_viewport_position(viewport_position)
         if token is not None:
             token_selection_range = self._double_click_selection_range_for_token(token)
             if token_selection_range is not None:
@@ -374,7 +364,7 @@ class PromptSurfaceMouseHandler:
             self._drag_selection_session = None
             event.accept()
             return True
-        caret_state = host._layout.hit_test(
+        caret_state = geometry.hit_testing.hit_test(
             viewport_position,
             scroll_offset=host._scroll_offset(),
         )
@@ -397,7 +387,7 @@ class PromptSurfaceMouseHandler:
     def update_hovered_token(self, local_position: QPointF) -> None:
         """Refresh the token currently under the mouse pointer."""
 
-        token = self._host._token_at_viewport_position(local_position)
+        token = self._host.token_at_viewport_position(local_position)
         next_token_id = None if token is None else token.token_id
         if next_token_id == self._hovered_token_id:
             return
@@ -456,13 +446,14 @@ class PromptSurfaceMouseHandler:
         *,
         viewport_position: QPointF,
         modifiers: Qt.KeyboardModifier,
+        geometry: PromptProjectionGeometry,
     ) -> bool:
         """Select one clicked word after a whole-segment double-click selection."""
 
         pending_range = self._pending_segment_word_selection_range
         if pending_range is None or modifiers != Qt.KeyboardModifier.NoModifier:
             return False
-        caret_state = self._host._layout.hit_test(
+        caret_state = geometry.hit_testing.hit_test(
             viewport_position,
             scroll_offset=self._host._scroll_offset(),
         )
@@ -529,17 +520,11 @@ class PromptMouseSelectionHost(Protocol):
     def interaction_mode(self) -> PromptEditorInteractionMode:
         """Return the active editor interaction mode."""
 
-    def clear_mouse_emphasis_session(self) -> None:
-        """Clear transient emphasis state before mouse-owned syntax actions."""
-
     def syntax_action_at_mouse_position(
         self,
         position: QPointF,
     ) -> PromptSyntaxAction | None:
         """Return the prepared syntax action at one mouse position."""
-
-    def apply_mouse_syntax_action(self, action: PromptSyntaxAction) -> None:
-        """Apply one prepared syntax action through the existing feature owner."""
 
     def schedule_mouse_release_autocomplete_refresh(self) -> None:
         """Request autocomplete refresh after mouse-driven caret movement."""
@@ -548,13 +533,29 @@ class PromptMouseSelectionHost(Protocol):
         """Refresh active cursor-derived state after a mouse interaction."""
 
 
+class PromptMouseSelectionWeightPort(Protocol):
+    """Describe weight actions consumed by mouse syntax routing."""
+
+    def clear_mouse_emphasis_session(self) -> None:
+        """Clear mouse-owned emphasis state before a syntax action."""
+
+    def apply_syntax_action(self, action: PromptSyntaxAction) -> None:
+        """Apply one prepared syntax action."""
+
+
 class PromptMouseSelectionController:
     """Coordinate editor-level mouse press/release handoffs."""
 
-    def __init__(self, host: PromptMouseSelectionHost) -> None:
+    def __init__(
+        self,
+        host: PromptMouseSelectionHost,
+        *,
+        weights: PromptMouseSelectionWeightPort,
+    ) -> None:
         """Bind mouse orchestration to the existing behavior host."""
 
         self._host = host
+        self._weights = weights
 
     def handle_mouse_press(self, event: QMouseEvent) -> bool:
         """Consume syntax-owned inline clicks before normal text editing."""
@@ -562,12 +563,12 @@ class PromptMouseSelectionController:
         if self._host.interaction_mode is not PromptEditorInteractionMode.TEXT_EDITING:
             return False
 
-        self._host.clear_mouse_emphasis_session()
+        self._weights.clear_mouse_emphasis_session()
         syntax_action = self._host.syntax_action_at_mouse_position(event.position())
         if syntax_action is None:
             return False
 
-        self._host.apply_mouse_syntax_action(syntax_action)
+        self._weights.apply_syntax_action(syntax_action)
         return True
 
     def handle_mouse_release(self) -> None:

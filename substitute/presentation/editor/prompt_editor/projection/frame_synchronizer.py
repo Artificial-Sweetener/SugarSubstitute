@@ -23,18 +23,18 @@ from collections.abc import Callable
 
 from PySide6.QtWidgets import QAbstractScrollArea
 
-from substitute.application.appearance import SemanticPalette
-
 from .applicator import PromptProjectionApplicator
 from .frame_state import (
     PromptProjectionFrameStatePublisher,
     PromptProjectionLayoutWidthResolver,
 )
 from .freshness_controller import PromptProjectionFreshnessController
-from .layout_engine import PromptProjectionLayout
-from .model import PromptProjectionDisplayMode
+from .edit_to_frame import PromptLayoutEditToFrameCoordinator
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDisplayMode,
+)
 from .region_chrome import PromptRegionChrome
-from .reorder_preview_projection import PromptReorderPreviewProjectionService
+from .reorder_preview_projection_owner import PromptReorderPreviewProjectionOwner
 from .source_document import PromptProjectionSourceDocument
 from .source_line_chrome import PromptSourceLineChrome
 from .theme import semantic_palette_from_theme
@@ -47,9 +47,9 @@ class PromptProjectionFrameSynchronizer:
         self,
         *,
         host: QAbstractScrollArea,
-        layout: PromptProjectionLayout,
+        layout: PromptLayoutEditToFrameCoordinator,
         applicator: PromptProjectionApplicator,
-        reorder_preview: PromptReorderPreviewProjectionService,
+        reorder_preview: PromptReorderPreviewProjectionOwner,
         frame_state: PromptProjectionFrameStatePublisher,
         width_resolver: PromptProjectionLayoutWidthResolver,
         freshness: PromptProjectionFreshnessController,
@@ -88,25 +88,22 @@ class PromptProjectionFrameSynchronizer:
         semantic_palette = semantic_palette_from_theme()
         sync_result = self._applicator.sync_layout_state(
             layout=self._layout,
-            reorder_preview_layout=self._reorder_preview.preview_layout,
-            reorder_base_drag_layout=self._reorder_preview.base_drag_layout,
+            reorder_preview_frame=self._reorder_preview.preview_frame,
+            reorder_base_drag_frame=self._reorder_preview.base_drag_frame,
             layout_width=layout_width,
             font=self._host.font(),
             palette=self._host.palette(),
             semantic_palette=semantic_palette,
             content_left_inset=self._source_line_chrome.content_left_inset,
         )
-        layout_identity = self._frame_state.publish_layout(self._layout)
-        self._prepare_region_chrome(
-            self._layout,
+        layout_identity = self._frame_state.publish_layout(self._layout.frame.output)
+        preview_frame = self._reorder_preview.preview_frame
+        self._region_chrome.prepare_active(
+            self._layout.frame.output
+            if preview_frame is None
+            else preview_frame.output,
             semantic_palette=semantic_palette,
         )
-        preview_layout = self._reorder_preview.preview_layout
-        if preview_layout is not None:
-            self._prepare_region_chrome(
-                preview_layout,
-                semantic_palette=semantic_palette,
-            )
         self._source_document.sync_default_font(self._host.font())
         self._source_document.sync_text_width(layout_width)
 
@@ -131,27 +128,13 @@ class PromptProjectionFrameSynchronizer:
         )
         if should_emit_height:
             self._content_height_sink(sync_result.content_height)
+        self._frame_state.publish_layout(self._layout.frame.output)
         self._frame_state.publish_widget_viewport(
             viewport,
             horizontal_scroll=int(self._host.horizontalScrollBar().value()),
             vertical_scroll=int(round(self._scroll_offset())),
         )
-        self._frame_state.publish_prepared_paint(self._layout)
-
-    def _prepare_region_chrome(
-        self,
-        layout: PromptProjectionLayout,
-        *,
-        semantic_palette: SemanticPalette,
-    ) -> None:
-        """Prepare region chrome only for projected documents with separators."""
-
-        if (
-            layout.projection_document.display_mode
-            is PromptProjectionDisplayMode.PROJECTED
-            and layout.projection_document.region_structure.separators
-        ):
-            self._region_chrome.prepare(
-                layout,
-                semantic_palette=semantic_palette,
-            )
+        self._frame_state.publish_prepared_paint(
+            self._layout.frame.output,
+            self._layout.frame.paint_state,
+        )

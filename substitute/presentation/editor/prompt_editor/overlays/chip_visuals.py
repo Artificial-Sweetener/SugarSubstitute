@@ -207,8 +207,20 @@ class PromptChipVisualBuilder:
         ).toAlignedRect()
 
 
+def prompt_chip_bubble_union_rect(rects: tuple[QRectF, ...]) -> QRectF:
+    """Return the union covering one logical chip's visible bubble rects."""
+
+    if not rects:
+        return QRectF()
+    union_rect = QRectF(rects[0])
+    for rect in rects[1:]:
+        union_rect = union_rect.united(rect)
+    return union_rect
+
+
 __all__ = [
     "PROMPT_CHIP_BUBBLE_RADIUS",
     "PromptChipVisual",
     "PromptChipVisualBuilder",
+    "prompt_chip_bubble_union_rect",
 ]

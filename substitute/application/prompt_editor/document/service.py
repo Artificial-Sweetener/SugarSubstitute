@@ -72,6 +72,7 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderGapPlacement,
     PromptReorderGapView,
     PromptReorderLayoutView,
+    PromptReorderPreparedStateView,
     PromptReorderPreviewSnapshot,
     PromptReorderRowView,
     PromptReorderSessionView,
@@ -239,32 +240,38 @@ class PromptDocumentService:
             dragged_segment_index=dragged_segment_index,
         )
 
-    def build_base_drag_layout_view_from_layout(
+    def build_base_drag_state(
         self,
         document_view: PromptDocumentView,
-        layout_view: PromptReorderLayoutView,
+        state_view: PromptReorderStateView,
         *,
+        current_layout_view: PromptReorderLayoutView,
         dragged_segment_index: int,
-    ) -> PromptReorderLayoutView:
-        """Build the hidden-drag layout from the supplied in-session reorder layout."""
+    ) -> PromptReorderPreparedStateView:
+        """Build authoritative hidden-drag state with its matching layout."""
 
-        return self._reorder_drop_service.build_base_drag_layout_view_from_layout(
+        return self._reorder_drop_service.build_base_drag_state(
             document_view,
-            layout_view,
+            state_view,
+            current_layout_view=current_layout_view,
             dragged_segment_index=dragged_segment_index,
         )
 
-    def build_base_drag_reorder_state_from_state(
+    def build_preview_drop_state(
         self,
-        state_view: PromptReorderStateView,
+        document_view: PromptDocumentView,
+        base_drag_state_view: PromptReorderPreparedStateView,
         *,
         dragged_segment_index: int,
-    ) -> PromptReorderStateView:
-        """Return authoritative source state while one chip is lifted."""
+        drop_target: PromptReorderDropTarget,
+    ) -> PromptReorderPreparedStateView:
+        """Apply one drop target and return state with its matching layout."""
 
-        return self._reorder_drop_service.build_base_drag_reorder_state_from_state(
-            state_view,
+        return self._reorder_drop_service.build_preview_drop_state(
+            document_view,
+            base_drag_state_view,
             dragged_segment_index=dragged_segment_index,
+            drop_target=drop_target,
         )
 
     def build_preview_drop_layout_view(
@@ -278,44 +285,6 @@ class PromptDocumentService:
 
         return self._reorder_drop_service.build_preview_drop_layout_view(
             document_view,
-            dragged_segment_index=dragged_segment_index,
-            drop_target=drop_target,
-        )
-
-    def build_preview_drop_layout_view_from_layout(
-        self,
-        document_view: PromptDocumentView,
-        layout_view: PromptReorderLayoutView,
-        *,
-        dragged_segment_index: int,
-        drop_target: PromptReorderDropTarget,
-    ) -> PromptReorderLayoutView:
-        """Build one preview layout from the current in-session reorder layout."""
-
-        return self._reorder_drop_service.build_preview_drop_layout_view_from_layout(
-            document_view,
-            layout_view,
-            dragged_segment_index=dragged_segment_index,
-            drop_target=drop_target,
-        )
-
-    def build_preview_drop_reorder_state_from_state(
-        self,
-        document_view: PromptDocumentView,
-        state_view: PromptReorderStateView,
-        *,
-        current_layout_view: PromptReorderLayoutView,
-        base_drag_layout_view: PromptReorderLayoutView | None,
-        dragged_segment_index: int,
-        drop_target: PromptReorderDropTarget,
-    ) -> PromptReorderStateView:
-        """Apply a drop target to authoritative source state for commit/preview."""
-
-        return self._reorder_drop_service.build_preview_drop_reorder_state_from_state(
-            document_view,
-            state_view,
-            current_layout_view=current_layout_view,
-            base_drag_layout_view=base_drag_layout_view,
             dragged_segment_index=dragged_segment_index,
             drop_target=drop_target,
         )

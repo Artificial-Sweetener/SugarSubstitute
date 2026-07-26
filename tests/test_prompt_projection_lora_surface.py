@@ -52,7 +52,7 @@ from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
     PromptLoraThumbnailCache,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionThumbnailVariant,
     PromptProjectionToken,
     PromptProjectionTokenKind,
@@ -62,6 +62,7 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_preview imp
     PromptReorderProjectionSnapshot,
 )
 from substitute.presentation.editor.prompt_editor.projection.lora_surface_features import (
+    PromptSurfaceLoraFeatureDelegate,
     _is_visible_lora_thumbnail_candidate,
 )
 from tests.prompt_autocomplete_test_helpers import (
@@ -156,7 +157,7 @@ def test_projection_surface_requests_lora_context_menu_for_token_with_url(
     surface.loraContextMenuRequested.connect(
         lambda emitted_token, global_pos: emitted.append((emitted_token, global_pos))
     )
-    cast(Any, surface)._token_at_viewport_position = lambda _pos: token
+    cast(Any, surface).token_at_viewport_position = lambda _pos: token
 
     handled = surface._request_lora_context_menu(  # noqa: SLF001
         QPointF(4.0, 6.0),
@@ -187,7 +188,7 @@ def test_projection_surface_lora_context_menu_requires_url(
     surface.loraContextMenuRequested.connect(
         lambda emitted_token, global_pos: emitted.append((emitted_token, global_pos))
     )
-    cast(Any, surface)._token_at_viewport_position = lambda _pos: token
+    cast(Any, surface).token_at_viewport_position = lambda _pos: token
 
     handled = surface._request_lora_context_menu(  # noqa: SLF001
         QPointF(4.0, 6.0),
@@ -214,7 +215,7 @@ def test_projection_surface_lora_tooltip_uses_full_page_and_version_text(
         display_text="Extremely Long CivitAI Collection Page Name",
         lora_version_text="Overly Detailed Version Name",
     )
-    cast(Any, surface)._token_at_viewport_position = lambda _pos: token
+    cast(Any, surface).token_at_viewport_position = lambda _pos: token
 
     tooltip = surface._lora_tooltip_for_hover_event(  # noqa: SLF001
         surface.viewport(),
@@ -244,7 +245,7 @@ def test_projection_surface_lora_tooltip_reports_missing_lora(
         detail_text=r"Unknown\Missing",
         exists=False,
     )
-    cast(Any, surface)._token_at_viewport_position = lambda _pos: token
+    cast(Any, surface).token_at_viewport_position = lambda _pos: token
 
     tooltip = surface._lora_tooltip_for_hover_event(  # noqa: SLF001
         surface.viewport(),
@@ -269,7 +270,7 @@ def test_projection_surface_lora_tooltip_ignores_non_lora_tokens(
         source_end=8,
         display_text="cat",
     )
-    cast(Any, surface)._token_at_viewport_position = lambda _pos: token
+    cast(Any, surface).token_at_viewport_position = lambda _pos: token
 
     tooltip = surface._lora_tooltip_for_hover_event(  # noqa: SLF001
         surface.viewport(),
@@ -318,7 +319,10 @@ def test_projection_surface_rebuilds_when_lora_renderer_span_completes_plain_suf
         for run in projection_document.runs
         if run.token_id is not None
     ] == [("INLINE_OBJECT", "lora_chip")]
-    assert cast(Any, surface)._layout.snapshot.inline_object_fragment_count() == 1
+    assert (
+        cast(Any, surface)._layout.frame.output.snapshot.inline_object_fragment_count()
+        == 1
+    )
 
 
 def test_projection_surface_lora_chip_stays_within_text_row_height(
@@ -335,7 +339,7 @@ def test_projection_surface_lora_chip_stays_within_text_row_height(
     layout = cast(Any, surface)._layout
     line = next(
         line
-        for line in layout._snapshot.lines  # noqa: SLF001
+        for line in layout.frame.output.snapshot.lines
         if any(
             fragment.__class__.__name__ == "PromptProjectionInlineObjectFragment"
             for fragment in line.fragments
@@ -347,8 +351,11 @@ def test_projection_surface_lora_chip_stays_within_text_row_height(
         if fragment.__class__.__name__ == "PromptProjectionInlineObjectFragment"
     )
 
-    assert line.height == layout.metrics.text_line_height
-    assert lora_fragment.rect.height() < layout.metrics.text_line_height
+    assert line.height == layout.frame.output.configuration.metrics.text_line_height
+    assert (
+        lora_fragment.rect.height()
+        < layout.frame.output.configuration.metrics.text_line_height
+    )
 
 
 def test_projection_surface_lora_boundary_insert_keeps_inserted_text_plain(
@@ -373,15 +380,9 @@ def test_projection_surface_lora_boundary_insert_keeps_inserted_text_plain(
     apply_source_range_to_projection(
         surface,
         next_text,
-        cursor_position=insertion_position + 1,
-        anchor_position=insertion_position + 1,
-        emit_text_changed=True,
-        rebuild_immediately=True,
-        optimistic_prompt_state=None,
         source_edit_start=insertion_position,
         source_edit_end=insertion_position,
         source_edit_replacement_text="<",
-        previous_source_text=text,
     )
 
     shifted_lora_token = next(
@@ -538,6 +539,7 @@ def test_projection_surface_prewarms_lora_banners_after_layout_sync(
 ) -> None:
     """Projection rebuild should queue visible LoRA thumbnails after layout is current."""
 
+    ensure_qapp()
     surface = new_projection_surface()
     widgets.append(surface)
     surface.resize(420, 120)
@@ -551,18 +553,65 @@ def test_projection_surface_prewarms_lora_banners_after_layout_sync(
         if commit_projection:
             events.append("layout")
 
-    def record_prewarm() -> int:
-        """Record visible banner prewarm timing."""
+    def record_prewarm(
+        _delegate: PromptSurfaceLoraFeatureDelegate,
+        _geometry: object,
+    ) -> int:
+        """Record the authoritative visible-banner prewarm call."""
 
         events.append("prewarm")
         return 0
 
     monkeypatch.setattr(surface, "_sync_layout_state", record_sync_layout_state)
-    monkeypatch.setattr(surface, "_prewarm_visible_lora_banners", record_prewarm)
+    monkeypatch.setattr(
+        PromptSurfaceLoraFeatureDelegate,
+        "prewarm_visible_banners",
+        record_prewarm,
+    )
     install_lora_wildcard_prompt_state(surface, "<lora:midna:1>")
     surface._rebuild_projection()  # noqa: SLF001
 
     assert events[-2:] == ["layout", "prewarm"]
+
+
+def test_lora_thumbnail_publication_advances_only_relevant_content_media(
+    widgets: list[QWidget],
+) -> None:
+    """Unrelated thumbnail completion must not invalidate prompt rendering."""
+
+    ensure_qapp()
+    surface = new_projection_surface()
+    widgets.append(surface)
+    surface.resize(420, 120)
+    install_lora_wildcard_prompt_state(surface, "<lora:midna:1>")
+    token = next(
+        token
+        for token in surface.projection_document().tokens
+        if token.kind is PromptProjectionTokenKind.LORA
+    )
+    assert token.thumbnail_variants
+    storage_key = token.thumbnail_variants[0].storage_key
+    owner = surface._content_media_owner  # noqa: SLF001
+    render_owner = surface._render_frame_owner  # noqa: SLF001
+    initial_identity = owner.identity
+    initial_frame = render_owner.frame
+
+    surface._lora_feature_delegate.update_lora_thumbnail_pixmap(  # noqa: SLF001
+        surface._layout.frame.geometry,  # noqa: SLF001
+        "unrelated:thumbnail",
+    )
+
+    assert owner.identity is initial_identity
+    assert render_owner.frame is initial_frame
+
+    surface._lora_feature_delegate.update_lora_thumbnail_pixmap(  # noqa: SLF001
+        surface._layout.frame.geometry,  # noqa: SLF001
+        storage_key,
+    )
+
+    assert owner.identity.revision == initial_identity.revision + 1
+    assert render_owner.frame is not initial_frame
+    assert render_owner.frame.content_media_identity is owner.identity
 
 
 def test_projection_surface_prewarms_pending_lora_tokens_with_thumbnails() -> None:
@@ -696,13 +745,13 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
 
     monkeypatch.setattr(surface, "_rebuild_projection", fail_rebuild)
     monkeypatch.setattr(
-        cast(Any, surface)._incremental_apply_controller,
-        "can_apply_fast_trailing_insert_for_prompt_state",
+        cast(Any, surface)._edit_pipeline._trailing_strategy,
+        "can_apply_prompt_state_insert",
         lambda *_args, **_kwargs: False,
     )
     monkeypatch.setattr(
-        cast(Any, surface)._incremental_apply_controller,
-        "try_apply_scheduled_incremental_prompt_state_projection",
+        cast(Any, surface)._prompt_state_applier._strategy,
+        "try_incremental",
         lambda **_kwargs: False,
     )
 

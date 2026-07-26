@@ -37,7 +37,7 @@ from substitute.presentation.editor.panel.factories.numeric_factory import (
 )
 from substitute.presentation.editor.panel.view import EditorPanel
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
@@ -1265,7 +1265,7 @@ def _first_weighted_token(box: PromptEditor) -> PromptProjectionToken:
             }:
                 return cast(
                     PromptProjectionToken,
-                    layout.effective_token_for_paint(token.token_id) or token,
+                    layout.frame.paint_input.effective_token(token.token_id) or token,
                 )
         process_events(app, cycles=1)
     raise AssertionError("expected weighted token")

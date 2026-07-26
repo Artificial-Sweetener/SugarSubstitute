@@ -31,9 +31,13 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.projection.model import (
-    OBJECT_REPLACEMENT_CHARACTER,
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
+    OBJECT_REPLACEMENT_CHARACTER,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionTokenKind,
 )
 from tests.prompt_projection_test_helpers import (
@@ -180,7 +184,10 @@ def test_prompt_editor_raw_toggle_does_not_leave_cleared_transient_projection(
 
     assert surface._active_projection_requires_layout() is False
     assert surface.active_projection_document() is surface.projection_document()
-    assert surface._layout.projection_document is surface.projection_document()
+    assert (
+        surface._layout.frame.output.projection_document
+        is surface.projection_document()
+    )
 
 
 def test_prompt_editor_rich_rendering_defaults_to_projected_mode(

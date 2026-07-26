@@ -42,7 +42,7 @@ from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import
 from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
 )
-from substitute.presentation.editor.prompt_editor.geometry import (
+from substitute.presentation.editor.prompt_editor.geometry.autocomplete_panel import (
     compute_autocomplete_panel_rect,
 )
 from substitute.presentation.widgets.fluent_popup_frame import (

@@ -32,7 +32,7 @@ from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor.document.views import PromptSyntaxSpanView
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.projection.snapshot import (
+from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionInlineObjectFragment,
     PromptProjectionLineSnapshot,
     PromptProjectionTextFragment,
@@ -239,8 +239,8 @@ def test_paint_state_application_does_not_replace_layout_snapshot_geometry(
     box = _show_reported_prompt(widgets)
     surface = surface_for(box)
     layout = cast(Any, surface)._layout
-    before_snapshot_id = id(layout._snapshot)
-    before_document_id = id(layout.projection_document)
+    before_snapshot_id = id(layout.frame.output.snapshot)
+    before_document_id = id(layout.frame.output.projection_document)
     before = _signature_for_needles(
         box,
         "1girl,",
@@ -260,8 +260,8 @@ def test_paint_state_application_does_not_replace_layout_snapshot_geometry(
         "<lora:Anima\\style\\People'sWorks",
     )
 
-    assert id(layout._snapshot) == before_snapshot_id
-    assert id(layout.projection_document) == before_document_id
+    assert id(layout.frame.output.snapshot) == before_snapshot_id
+    assert id(layout.frame.output.projection_document) == before_document_id
     assert after == before
 
 
@@ -310,7 +310,7 @@ def _signature_for_needles(
 
     surface = surface_for(box)
     layout = cast(Any, surface)._layout
-    snapshot = layout._snapshot
+    snapshot = layout.frame.output.snapshot
     source_text = box.toPlainText()
     selected_lines = tuple(
         _line_geometry(layout, line, line_index)

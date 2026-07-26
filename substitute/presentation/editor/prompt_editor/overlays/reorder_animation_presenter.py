@@ -226,6 +226,11 @@ class PromptReorderAnimationPresenter(QObject):
             and animation.state() == QAbstractAnimation.State.Running
         )
 
+    def set_duration_ms(self, duration_ms: int) -> None:
+        """Set the duration used by subsequently prepared animations."""
+
+        self._duration_ms = duration_ms
+
     def counters(self) -> dict[str, int]:
         """Return deterministic counters for focused presenter and hot-path tests."""
 

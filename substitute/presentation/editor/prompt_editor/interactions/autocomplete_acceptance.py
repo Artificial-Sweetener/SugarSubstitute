@@ -22,8 +22,9 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Literal
 
 from substitute.presentation.editor.prompt_editor.commands.autocomplete_commands import (
     PromptAutocompleteAcceptance,
@@ -73,46 +74,26 @@ class PromptAutocompleteAcceptanceOutcome:
         return cls(status="rejected", reason=reason)
 
 
-class PromptAutocompleteAcceptanceCursor(Protocol):
-    """Describe read-only cursor behavior needed during acceptance fallback."""
-
-    def position(self) -> int:
-        """Return the current cursor position."""
-
-
-class PromptAutocompleteAcceptanceCommandFactory(Protocol):
-    """Execute prepared autocomplete acceptances through the command boundary."""
-
-    def execute_autocomplete_acceptance(
-        self,
-        acceptance: PromptAutocompleteAcceptance,
-    ) -> PromptCommandResult[object]:
-        """Execute one prepared autocomplete acceptance through commands."""
-
-
-class PromptAutocompleteAcceptanceEditor(
-    PromptAutocompleteAcceptanceCommandFactory,
-    Protocol,
-):
-    """Describe editor behavior consumed by autocomplete acceptance only."""
-
-    def textCursor(self) -> PromptAutocompleteAcceptanceCursor:
-        """Return the editor's live cursor for bounded acceptance fallback."""
-
-    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
-        """Return the current source identity used to reject stale commands."""
-
-    def commit_lora_autocomplete_replacement(self) -> None:
-        """Publish syntax state after accepting one complete LoRA replacement."""
-
-
 class PromptAutocompleteAcceptanceController:
     """Build prepared autocomplete acceptances and execute them through commands."""
 
-    def __init__(self, *, editor: PromptAutocompleteAcceptanceEditor) -> None:
-        """Store the command-capable editor without taking source ownership."""
+    def __init__(
+        self,
+        *,
+        cursor_position: Callable[[], int],
+        current_source_identity: Callable[[], PromptSourceIdentity | None],
+        execute_acceptance: Callable[
+            [PromptAutocompleteAcceptance],
+            PromptCommandResult[object],
+        ],
+        complete_lora_replacement: Callable[[], None],
+    ) -> None:
+        """Store the four focused commands required by autocomplete acceptance."""
 
-        self._editor = editor
+        self._cursor_position = cursor_position
+        self._current_source_identity = current_source_identity
+        self._execute_acceptance = execute_acceptance
+        self._complete_lora_replacement = complete_lora_replacement
 
     def accept_session(
         self,
@@ -158,8 +139,8 @@ class PromptAutocompleteAcceptanceController:
         suggestion = selected_autocomplete_suggestion(session)
         if suggestion is None or session.word_start is None:
             return PromptAutocompleteAcceptanceOutcome.rejected("missing_selection")
-        word_end = session.word_end or self._editor.textCursor().position()
-        command_result = self._editor.execute_autocomplete_acceptance(
+        word_end = session.word_end or self._cursor_position()
+        command_result = self._execute_acceptance(
             PromptTagAutocompleteAcceptance(
                 tag=suggestion.tag,
                 prefix=session.prefix,
@@ -186,7 +167,7 @@ class PromptAutocompleteAcceptanceController:
         query = session.scene_query
         if suggestion is None or query is None:
             return PromptAutocompleteAcceptanceOutcome.rejected("missing_selection")
-        command_result = self._editor.execute_autocomplete_acceptance(
+        command_result = self._execute_acceptance(
             PromptSceneAutocompleteAcceptance(
                 title=suggestion.tag,
                 title_start=query.title_start,
@@ -210,7 +191,7 @@ class PromptAutocompleteAcceptanceController:
         query = session.wildcard_query
         if suggestion is None or query is None:
             return PromptAutocompleteAcceptanceOutcome.rejected("missing_selection")
-        command_result = self._editor.execute_autocomplete_acceptance(
+        command_result = self._execute_acceptance(
             PromptWildcardAutocompleteAcceptance(
                 wildcard_name=suggestion.tag,
                 opener_start=query.opener_start,
@@ -234,7 +215,7 @@ class PromptAutocompleteAcceptanceController:
         query = session.lora_query
         if candidate is None or query is None:
             return PromptAutocompleteAcceptanceOutcome.rejected("missing_selection")
-        command_result = self._editor.execute_autocomplete_acceptance(
+        command_result = self._execute_acceptance(
             PromptLoraAutocompleteAcceptance(
                 replacement_text=candidate.replacement_text,
                 replacement_start=query.replacement_start,
@@ -243,7 +224,7 @@ class PromptAutocompleteAcceptanceController:
             )
         )
         if command_result.status != "rejected":
-            self._editor.commit_lora_autocomplete_replacement()
+            self._complete_lora_replacement()
         return PromptAutocompleteAcceptanceOutcome.accepted(command_result)
 
     def _prepared_identity_is_current(
@@ -254,7 +235,7 @@ class PromptAutocompleteAcceptanceController:
 
         if source_identity is None:
             return True
-        current_identity = self._editor.prompt_command_source_identity()
+        current_identity = self._current_source_identity()
         if current_identity is None:
             return False
         return source_identity.matches(
@@ -264,10 +245,7 @@ class PromptAutocompleteAcceptanceController:
 
 
 __all__ = [
-    "PromptAutocompleteAcceptanceCommandFactory",
     "PromptAutocompleteAcceptanceController",
-    "PromptAutocompleteAcceptanceCursor",
-    "PromptAutocompleteAcceptanceEditor",
     "PromptAutocompleteAcceptanceOutcome",
     "PromptAutocompleteAcceptanceStatus",
 ]

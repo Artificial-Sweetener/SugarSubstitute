@@ -34,8 +34,12 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 from .overlays.chip_visuals import PromptChipVisualBuilder
 from .overlays.reorder_drag_proxy import PromptReorderDragProxyRenderState
 from .projection.builder import PromptProjectionBuilder
-from .projection.layout_engine import PromptProjectionLayout
-from .projection.model import PromptProjectionDisplayMode, PromptProjectionDocument
+from .projection.edit_to_frame import PromptLayoutEditToFrameCoordinator
+from .projection.paint_input import PromptProjectionPaintInput
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDisplayMode,
+    PromptProjectionDocument,
+)
 from .projection.observability import (
     log_reorder_drag_timing,
     reorder_drag_started_at,
@@ -55,7 +59,7 @@ class PromptReorderDragProxyTextPaintPayload:
     """Carry prepared projection text state for the floating reorder proxy."""
 
     projection_document: PromptProjectionDocument
-    layout: PromptProjectionLayout
+    paint_input: PromptProjectionPaintInput
 
     @property
     def source_text(self) -> str:
@@ -247,7 +251,7 @@ class PromptReorderDragProxyRenderStateBuilder:
             prompt_document_view=preview_document_view,
         )
         layout.set_text_width(10_000.0)
-        content_size = layout.content_size()
+        content_size = layout.frame.output.snapshot.content_size
         layout_elapsed_ms = log_reorder_drag_timing(
             "drag_proxy_render_state.layout",
             started_at=phase_started_at,
@@ -257,7 +261,7 @@ class PromptReorderDragProxyRenderStateBuilder:
             content_height=f"{content_size.height():.2f}",
         )
         phase_started_at = reorder_drag_started_at()
-        fragments = layout.source_range_fragments(
+        fragments = layout.frame.geometry.selection.source_range_fragments(
             start=0,
             end=len(segment_text),
             viewport_rect=QRectF(
@@ -322,17 +326,19 @@ class PromptReorderDragProxyRenderStateBuilder:
             chrome_payload=visual,
             text_paint_payload=PromptReorderDragProxyTextPaintPayload(
                 projection_document=projection_document,
-                layout=layout,
+                paint_input=layout.frame.paint_input,
             ),
             fill_color=QColor(fill_color),
             border_color=QColor(border_color),
         )
 
     @staticmethod
-    def _build_layout(*, font: QFont, palette: QPalette) -> PromptProjectionLayout:
+    def _build_layout(
+        *, font: QFont, palette: QPalette
+    ) -> PromptLayoutEditToFrameCoordinator:
         """Return a projection layout configured for floating proxy rendering."""
 
-        layout = PromptProjectionLayout(
+        layout = PromptLayoutEditToFrameCoordinator(
             PromptProjectionInlineObjectRendererRegistry(
                 (
                     PromptEmphasisPrefixRenderer(),
@@ -343,7 +349,7 @@ class PromptReorderDragProxyRenderStateBuilder:
             )
         )
         layout.set_base_font(font)
-        layout.set_palette(palette)
+        layout.frame.set_palette(palette)
         return layout
 
     def _render_key(

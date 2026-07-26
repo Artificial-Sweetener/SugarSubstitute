@@ -70,11 +70,11 @@ class PromptReorderOverlayPositionGeometryKey:
     """Identify cheap viewport inputs required to position the reorder overlay.
 
     Writer:
-        `SegmentReorderOverlay` collects QWidget viewport/content scalars and
-        asks this projection-state helper to build the immutable identity.
+        `PromptReorderViewportGeometryOwner` collects bounded QWidget geometry
+        scalars and asks this module to build the immutable identity.
     Readers:
-        Overlay refresh and autoscroll paths compare this state to skip
-        unchanged positioning work without owning the key policy.
+        Refresh identity and pointer-target owners consume the key without
+        duplicating viewport geometry policy.
     State kind:
         Geometry-refresh state. It carries no QWidget references and does not
         mutate widgets or source text.
@@ -96,11 +96,12 @@ class PromptReorderOverlayRefreshGeometryKey:
     """Identify overlay refresh inputs that require geometry or preview work.
 
     Writer:
-        `SegmentReorderOverlay` supplies scalar viewport, source, layout,
-        snapshot, and target identities while this module owns the key shape.
+        `PromptReorderRefreshIdentityOwner` supplies session-scoped source,
+        viewport, layout, snapshot, and target facts while this module owns the
+        key shape.
     Readers:
-        Overlay refresh compares this state to keep `request_geometry_refresh`
-        a thin port with a cheap unchanged fast path.
+        The geometry refresh coordinator compares this state to preserve the
+        cheap unchanged path.
     State kind:
         Geometry-refresh state. It uses a source fingerprint instead of prompt
         text and carries no QWidget references.
@@ -331,8 +332,29 @@ def reorder_live_visual_geometry_key(
 ) -> ReorderLiveVisualGeometryKey:
     """Return the projection-owned identity for live chip visual fragments."""
 
+    return reorder_live_visual_geometry_key_from_fingerprint(
+        source_fingerprint=reorder_source_fingerprint(source_text),
+        segment_ranges=segment_ranges,
+        content_left=content_left,
+        content_top=content_top,
+        content_width=content_width,
+        scroll_offset=scroll_offset,
+    )
+
+
+def reorder_live_visual_geometry_key_from_fingerprint(
+    *,
+    source_fingerprint: ReorderSourceFingerprint,
+    segment_ranges: tuple[tuple[int, int, int], ...],
+    content_left: int,
+    content_top: int,
+    content_width: int,
+    scroll_offset: int,
+) -> ReorderLiveVisualGeometryKey:
+    """Build live geometry identity from an already revision-scoped fingerprint."""
+
     return (
-        reorder_source_fingerprint(source_text),
+        source_fingerprint,
         segment_ranges,
         content_left,
         content_top,
@@ -356,6 +378,35 @@ def reorder_overlay_refresh_geometry_key(
 ) -> PromptReorderOverlayRefreshGeometryKey:
     """Return the projection-owned identity for broad overlay refresh work."""
 
+    return reorder_overlay_refresh_geometry_key_from_fingerprint(
+        position_key=position_key,
+        source_fingerprint=reorder_source_fingerprint(source_text),
+        live_geometry_key=live_geometry_key,
+        current_layout_key=current_layout_key,
+        preview_layout_key=preview_layout_key,
+        base_drag_layout_key=base_drag_layout_key,
+        preview_snapshot_key=preview_snapshot_key,
+        base_drag_snapshot_key=base_drag_snapshot_key,
+        dragged_segment_index=dragged_segment_index,
+        active_target=active_target,
+    )
+
+
+def reorder_overlay_refresh_geometry_key_from_fingerprint(
+    *,
+    position_key: PromptReorderOverlayPositionGeometryKey,
+    source_fingerprint: ReorderSourceFingerprint,
+    live_geometry_key: ReorderLiveVisualGeometryKey,
+    current_layout_key: ReorderLayoutViewKey | None,
+    preview_layout_key: ReorderLayoutViewKey | None,
+    base_drag_layout_key: ReorderLayoutViewKey | None,
+    preview_snapshot_key: ReorderPreviewSnapshotKey | None,
+    base_drag_snapshot_key: ReorderPreviewSnapshotKey | None,
+    dragged_segment_index: int | None,
+    active_target: PromptReorderDropTarget | None,
+) -> PromptReorderOverlayRefreshGeometryKey:
+    """Build refresh identity without rescanning unchanged prompt source."""
+
     return PromptReorderOverlayRefreshGeometryKey(
         viewport_left=position_key.viewport_left,
         viewport_top=position_key.viewport_top,
@@ -366,7 +417,7 @@ def reorder_overlay_refresh_geometry_key(
         content_width=position_key.content_width,
         content_height=position_key.content_height,
         scroll_offset=position_key.scroll_offset,
-        source_fingerprint=reorder_source_fingerprint(source_text),
+        source_fingerprint=source_fingerprint,
         live_geometry_key=live_geometry_key,
         current_layout_key=current_layout_key,
         preview_layout_key=preview_layout_key,
@@ -451,8 +502,10 @@ __all__ = [
     "reorder_base_drag_geometry_key",
     "reorder_pointer_region_geometry_key",
     "reorder_live_visual_geometry_key",
+    "reorder_live_visual_geometry_key_from_fingerprint",
     "reorder_overlay_position_geometry_key",
     "reorder_overlay_refresh_geometry_key",
+    "reorder_overlay_refresh_geometry_key_from_fingerprint",
     "reorder_overlay_refresh_is_height_only_change",
     "reorder_source_fingerprint",
 ]

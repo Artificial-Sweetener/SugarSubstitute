@@ -19,9 +19,10 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import ClassVar, cast
+from types import SimpleNamespace
+from typing import Any, ClassVar, cast
 
-from PySide6.QtCore import QPointF, QRect, QRectF, Qt
+from PySide6.QtCore import QObject, QPointF, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QPaintEvent, QPixmap
 from PySide6.QtWidgets import QApplication
 from pytest import MonkeyPatch
@@ -33,17 +34,28 @@ from substitute.presentation.editor.prompt_editor.overlays.chip_visuals import (
 from substitute.presentation.editor.prompt_editor.overlays.chip_painter import (
     PromptChipPainter,
 )
-from substitute.presentation.editor.prompt_editor.overlays.reorder_view import (
-    PromptReorderLandingPreviewPaintState,
-    PromptReorderMarkerPaintState,
-    PromptReorderView,
-    PromptReorderViewRenderState,
-    PromptReorderViewRenderInput,
-    PromptReorderVisualStyle,
-    prompt_reorder_chip_paint_states,
+from substitute.presentation.editor.prompt_editor.overlays.reorder_interaction_visual import (
     prompt_reorder_chip_interaction_state,
     prompt_reorder_chip_interaction_states,
+)
+from substitute.presentation.editor.prompt_editor.overlays.reorder_prepared_visual import (
+    PromptReorderPreparedVisualOwner,
+)
+from substitute.presentation.editor.prompt_editor.overlays.reorder_render_state import (
+    PromptReorderLandingPreviewPaintState,
+    PromptReorderMarkerPaintState,
+    PromptReorderViewRenderInput,
+    PromptReorderViewRenderState,
+    prompt_reorder_chip_paint_states,
     prompt_reorder_view_render_state,
+)
+from substitute.presentation.editor.prompt_editor.overlays.reorder_view import (
+    PromptReorderView,
+)
+from substitute.presentation.editor.prompt_editor.overlays.reorder_visual_style import (
+    PromptReorderVisualStyle,
+    contrast_ratio,
+    readable_surface_text_color,
 )
 from substitute.presentation.editor.prompt_editor.overlays.reorder_visual_cache import (
     PromptReorderChipVisualSnapshot,
@@ -53,6 +65,9 @@ from substitute.presentation.editor.prompt_editor.overlays.reorder_raster_cache 
     ReorderRasterEntry,
     ReorderRasterKey,
     ReorderRasterStyleKey,
+)
+from substitute.presentation.editor.prompt_editor.overlays.reorder_raster_publication import (
+    PromptReorderRasterPublicationOwner,
 )
 from substitute.presentation.editor.prompt_editor.projection.reorder_visual_snapshot import (
     PromptReorderProjectionPaintSnapshot,
@@ -236,13 +251,13 @@ def test_reorder_overlay_prefers_readable_proxy_text_on_dark_surfaces() -> None:
     dark_surface = QColor(22, 24, 27)
     unreadable_preferred = QColor(0, 0, 0)
 
-    resolved = reorder_view_module._readable_surface_text_color(
+    resolved = readable_surface_text_color(
         preferred=unreadable_preferred,
         background=dark_surface,
     )
 
     assert resolved != unreadable_preferred
-    assert reorder_view_module._contrast_ratio(resolved, dark_surface) >= 4.5
+    assert contrast_ratio(resolved, dark_surface) >= 4.5
 
 
 def test_chip_interaction_state_maps_overlay_properties_and_cursor() -> None:
@@ -561,6 +576,88 @@ def test_reorder_view_render_state_assembles_prepared_paint_state() -> None:
     assert state.event_id == 9
 
 
+def test_reorder_view_paints_prepared_landing_shadow(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A published visual-backed landing shadow should reach the paint adapter."""
+
+    visual = _visual(120.0)
+    landing_preview = PromptReorderLandingPreviewPaintState(
+        style=_style().outline_style(opacity=0.5, outline_width=1.0),
+        visual=visual,
+    )
+    painted: list[PromptChipVisual] = []
+    monkeypatch.setattr(
+        PromptChipPainter,
+        "paint_chrome",
+        lambda self, *, painter, visual, style: painted.append(visual),
+    )
+
+    paint_host = cast(
+        PromptReorderView,
+        SimpleNamespace(_chip_painter=PromptChipPainter()),
+    )
+    PromptReorderView._paint_landing_preview(
+        paint_host,
+        cast(Any, object()),
+        landing_preview,
+    )
+
+    assert painted == [visual]
+
+
+def test_reorder_prepared_visual_owns_overlay_and_surface_atomically() -> None:
+    """Prepared preview paint should publish chips and suppression together."""
+
+    first_visual = _visual(80.0)
+    first_projection = _projection_snapshot(0)
+    first_snapshot = PromptReorderChipVisualSnapshot(
+        segment_index=0,
+        visual=first_visual,
+        projection_snapshot=first_projection,
+    )
+    dragged_projection = _projection_snapshot(1, left=120.0, text="beta")
+    dragged_snapshot = PromptReorderChipVisualSnapshot(
+        segment_index=1,
+        visual=_visual(120.0),
+        projection_snapshot=dragged_projection,
+    )
+
+    owner = PromptReorderPreparedVisualOwner()
+    publication = owner.prepare(
+        PromptReorderViewRenderInput(
+            visual_style=_style(),
+            preview_active=True,
+            live_ordered_segment_indices=(),
+            preview_ordered_segment_indices=(0, 1),
+            live_geometries_by_index={},
+            preview_geometries_by_index={},
+            live_visuals_by_index={},
+            preview_visuals_by_index={0: first_visual},
+            dragged_segment_index=1,
+            hovered_segment_index=None,
+            active_segment_index=None,
+            preview_visual_snapshots_by_index={
+                0: first_snapshot,
+                1: dragged_snapshot,
+            },
+        )
+    )
+
+    assert publication.revision == 1
+    assert owner.publication is publication
+    assert publication.surface.mode == "preview"
+    assert tuple(
+        chip.segment_index for chip in publication.overlay_state.preview_chips
+    ) == (0,)
+    assert publication.surface.chips == ()
+    assert publication.unsafe_transient_indices == ()
+    assert publication.surface.suppression_snapshots_by_index == {
+        0: first_projection,
+        1: dragged_projection,
+    }
+
+
 def test_reorder_view_render_state_uses_animation_paint_rect_overrides() -> None:
     """Animated chips should paint at presenter rects before final geometry settles."""
 
@@ -791,3 +888,73 @@ def test_reorder_raster_cache_retains_alternating_segment_variants() -> None:
     assert counters["raster_cache_hit_count"] == 1
     assert counters["raster_cache_stale_count"] == 1
     assert counters["raster_build_count"] == 2
+
+
+def test_reorder_raster_publication_owns_lane_reuse_and_warm_invalidation() -> None:
+    """Publish warmed entries once and reuse one exact render-state mapping."""
+
+    app = QApplication.instance() or QApplication([])
+    parent = QObject()
+    entries_changed: list[None] = []
+    owner = PromptReorderRasterPublicationOwner(
+        parent=parent,
+        entries_changed=lambda: entries_changed.append(None),
+    )
+    snapshot = PromptReorderChipVisualSnapshot(
+        segment_index=0,
+        visual=_visual(80.0),
+        projection_snapshot=_projection_snapshot(0, left=80.0),
+    )
+    style = _style().paint_style_for_segment(
+        0,
+        dragged_segment_index=None,
+        hovered_segment_index=None,
+        active_segment_index=None,
+    )
+
+    cold = owner.entries_for(
+        "live",
+        snapshots_by_index={0: snapshot},
+        styles_by_index={0: style},
+        device_pixel_ratio=1.0,
+    )
+    app.processEvents()
+    warm = owner.entries_for(
+        "live",
+        snapshots_by_index={0: snapshot},
+        styles_by_index={0: style},
+        device_pixel_ratio=1.0,
+    )
+    reused = owner.entries_for(
+        "live",
+        snapshots_by_index={0: snapshot},
+        styles_by_index={0: style},
+        device_pixel_ratio=1.0,
+    )
+    moved_snapshot = PromptReorderChipVisualSnapshot(
+        segment_index=0,
+        visual=_visual(120.0),
+        projection_snapshot=_projection_snapshot(
+            0,
+            left=120.0,
+            preview_generation=99,
+            geometry_generation=100,
+        ),
+    )
+    moved = owner.entries_for(
+        "live",
+        snapshots_by_index={0: moved_snapshot},
+        styles_by_index={0: style},
+        device_pixel_ratio=1.0,
+    )
+    counters = owner.counters().as_dict()
+
+    assert not cold
+    assert entries_changed == [None]
+    assert 0 in warm
+    assert reused is warm
+    assert moved is not warm
+    assert moved[0] is warm[0]
+    assert counters["raster_entries_render_cache_miss_count"] == 3
+    assert counters["raster_entries_render_cache_hit_count"] == 1
+    assert counters["raster_build_count"] == 1

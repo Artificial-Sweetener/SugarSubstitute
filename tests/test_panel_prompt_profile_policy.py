@@ -26,7 +26,7 @@ from substitute.domain.prompt.features.models import (
     PromptEditorFeatureProfile,
     PromptFeatureDecision,
 )
-from substitute.presentation.editor.panel.prompt_profile_policy import (
+from substitute.presentation.editor.panel.prompt.profile_policy import (
     PanelPromptProfilePolicy,
 )
 

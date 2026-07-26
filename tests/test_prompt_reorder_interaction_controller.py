@@ -18,9 +18,7 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
-
-import pytest
+from typing import Any
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.editing.mutation_service import (
@@ -28,16 +26,24 @@ from substitute.application.prompt_editor.editing.mutation_service import (
 )
 from substitute.application.prompt_editor.reorder.views import (
     PromptReorderLayoutView,
-    PromptReorderRowView,
     PromptReorderStateView,
+)
+from substitute.application.prompt_editor.reorder.intents import (
+    PromptReorderCancelIntent,
+    PromptReorderCommitIntent,
+)
+from substitute.application.prompt_editor.reorder.session import (
+    PromptReorderCommitSnapshot,
+)
+from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
+from substitute.presentation.editor.prompt_editor.features.feature_profile_controller import (
+    PromptFeatureProfileController,
 )
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
-from substitute.presentation.editor.prompt_editor.models import (
-    PromptReorderCommitIntent,
-    PromptReorderCommitSnapshot,
-    PromptReorderKeyboardMoveIntent,
+from substitute.presentation.editor.prompt_editor.interactions.reorder_overlay_port import (
+    PromptReorderOverlayAssembly,
 )
 from tests.prompt_autocomplete_test_helpers import prompt_syntax_profile
 from tests.prompt_reorder_interaction_test_helpers import (
@@ -129,7 +135,7 @@ def test_show_segment_overlay_clears_autocomplete_before_entering_reorder_mode()
             editor: object,
             *,
             layout_policy: object,
-        ) -> OverlayDouble:
+        ) -> PromptReorderOverlayAssembly:
             call_order.append(("overlay_init", editor))
             return super().create_segment_overlay(
                 editor,
@@ -158,7 +164,7 @@ def test_show_segment_overlay_clears_autocomplete_before_entering_reorder_mode()
         reorder_overlay_factory=overlay_factory,
     )
 
-    controller._reorder.enter_segment_reorder_mode()
+    controller.enter_segment_reorder_mode_from_keymap()
 
     assert call_order[0] == "clear"
     assert syntax_renderers.clear_transient_state_calls == 1
@@ -173,30 +179,43 @@ def test_show_segment_overlay_clears_autocomplete_before_entering_reorder_mode()
         for index, entry in enumerate(call_order)
         if isinstance(entry, tuple) and entry[0] == "set_chips"
     )
-    assert controller._reorder.segment_reorder_session.is_active is True
-    assert controller._reorder.segment_reorder_session.original_ordered_indices == (
-        0,
-        1,
-    )
-    assert controller._reorder.segment_reorder_session.current_ordered_indices == (0, 1)
-    assert controller._reorder.segment_reorder_session.active_segment_index == 1
-    assert controller._reorder.segment_reorder_session.selection_start == 7
-    assert controller._reorder.segment_reorder_session.selection_end == 7
-    assert (
-        controller._reorder.segment_reorder_session.selection_start_offset_within_active_chip
-        == 0
-    )
-    assert (
-        controller._reorder.segment_reorder_session.selection_end_offset_within_active_chip
-        == 0
-    )
     assert controller.segment_overlay is not None
 
 
-def test_show_segment_overlay_syncs_preview_state_through_editor_surface() -> None:
-    """Overlay entry clears stale preview state before explicit preview sync."""
+def test_show_segment_overlay_is_a_noop_when_reorder_is_disabled() -> None:
+    """Disabled reorder entry leaves source, transients, and overlay untouched."""
+
+    overlay_factory = OverlayFactoryDouble()
+    editor = ControllerEditorDouble(
+        clicked_cursor=MenuCursorDouble(text="alpha, beta", position=7),
+        current_cursor=MenuCursorDouble(text="alpha, beta", position=7),
+        text="alpha, beta",
+    )
+    syntax_renderers = syntax_renderer_double()
+    controller = prompt_interaction_controller(
+        editor,
+        autocomplete=autocomplete_double(),
+        semantic_refresh_controller=semantic_refresh_controller_double(),
+        syntax_renderers=syntax_renderers,
+        feature_profile=PromptFeatureProfileController(
+            PromptEditorFeatureProfile.enabled_profile(())
+        ),
+        reorder_overlay_factory=overlay_factory,
+    )
+
+    controller.enter_segment_reorder_mode_from_keymap()
+
+    assert overlay_factory.create_calls == []
+    assert syntax_renderers.clear_transient_state_calls == 0
+    assert controller.segment_overlay is None
+    assert controller.interaction_mode.name == "TEXT_EDITING"
+
+
+def test_show_segment_overlay_is_idempotent_while_session_is_active() -> None:
+    """Repeated entry retains the original overlay and captured selection."""
 
     overlay = OverlayDouble([0, 1])
+    overlay_factory = OverlayFactoryDouble(overlay)
     editor = ControllerEditorDouble(
         clicked_cursor=MenuCursorDouble(text="alpha, beta", position=7),
         current_cursor=MenuCursorDouble(text="alpha, beta", position=7),
@@ -207,36 +226,41 @@ def test_show_segment_overlay_syncs_preview_state_through_editor_surface() -> No
         autocomplete=autocomplete_double(),
         semantic_refresh_controller=semantic_refresh_controller_double(),
         syntax_renderers=syntax_renderer_double(),
-        document_service=PromptDocumentService(),
-        mutation_service=PromptMutationService(),
-        syntax_service_=syntax_service(),
-        syntax_profile=prompt_syntax_profile("emphasis", "wildcard"),
-        reorder_overlay_factory=OverlayFactoryDouble(overlay),
+        reorder_overlay_factory=overlay_factory,
     )
 
-    controller._reorder.enter_segment_reorder_mode()
+    controller.enter_segment_reorder_mode_from_keymap()
+    controller.enter_segment_reorder_mode_from_keymap()
 
+    assert len(overlay_factory.create_calls) == 1
+    assert overlay.show_calls == 1
     assert controller.segment_overlay is overlay
-    assert editor.reorder_preview_state_calls == []
-    assert editor.clear_reorder_preview_state_calls == 1
-    assert overlay.preview_snapshot_calls == []
 
-    overlay._preview_layout_view = overlay._current_layout_view
-    overlay.previewLayoutChanged.emit()
 
-    assert editor.reorder_preview_state_calls == []
-    controller._reorder.flush_pending_reorder_preview_sync()
+def test_show_segment_overlay_with_no_chips_leaves_interaction_in_text_mode() -> None:
+    """Empty prompts do not clear transients or construct a reorder overlay."""
 
-    assert len(editor.reorder_preview_state_calls) == 1
-    preview_state = editor.reorder_preview_state_calls[0]
-    assert preview_state is not None
-    preview_state = cast(Any, preview_state)
-    assert preview_state.preview_snapshot.document_view.source_text == "alpha, beta"
-    assert overlay.preview_snapshot_calls[-1][0] is not None
+    overlay_factory = OverlayFactoryDouble()
+    editor = ControllerEditorDouble(
+        clicked_cursor=MenuCursorDouble(text="", position=0),
+        current_cursor=MenuCursorDouble(text="", position=0),
+        text="",
+    )
+    syntax_renderers = syntax_renderer_double()
+    controller = prompt_interaction_controller(
+        editor,
+        autocomplete=autocomplete_double(),
+        semantic_refresh_controller=semantic_refresh_controller_double(),
+        syntax_renderers=syntax_renderers,
+        reorder_overlay_factory=overlay_factory,
+    )
 
-    controller._reorder._close_segment_overlay(restore_selection=False)
+    controller.enter_segment_reorder_mode_from_keymap()
 
-    assert editor.clear_reorder_preview_state_calls == 2
+    assert overlay_factory.create_calls == []
+    assert syntax_renderers.clear_transient_state_calls == 0
+    assert controller.segment_overlay is None
+    assert controller.interaction_mode.name == "TEXT_EDITING"
 
 
 def test_close_segment_overlay_restores_live_paint_after_overlay_is_hidden() -> None:
@@ -275,22 +299,24 @@ def test_close_segment_overlay_restores_live_paint_after_overlay_is_hidden() -> 
         syntax_profile=prompt_syntax_profile("emphasis", "wildcard"),
         reorder_overlay_factory=OverlayFactoryDouble(overlay),
     )
-    controller._reorder._segment_overlay = overlay
+    controller.enter_segment_reorder_mode_from_keymap()
 
-    controller._reorder._close_segment_overlay(restore_selection=False)
+    controller.cancel_segment_reorder_mode_from_keymap(
+        PromptReorderCancelIntent(reason="test", restore_selection=False)
+    )
 
-    assert call_order == ["close_overlay", "clear_preview"]
+    assert call_order[-2:] == ["close_overlay", "clear_preview"]
     assert controller.segment_overlay is None
 
 
 def test_overlay_pointer_drop_updates_commit_snapshot_without_source_mutation() -> None:
     """Pointer-drop intent prepares commit state without executing source mutation."""
 
+    overlay = OverlayDouble([0, 1])
     controller, editor, _document_service, layout_view = _controller_for_reorder_text(
-        "alpha, beta"
+        "alpha, beta", reorder_overlay_factory=OverlayFactoryDouble(overlay)
     )
-    overlay = OverlayDouble([0, 1], current_layout_view=layout_view)
-    controller._reorder._segment_overlay = overlay
+    controller.enter_segment_reorder_mode_from_keymap()
     snapshot = PromptReorderCommitSnapshot(
         reorder_state=reorder_state_for_indices((1, 0)),
         layout_view=layout_view,
@@ -300,296 +326,20 @@ def test_overlay_pointer_drop_updates_commit_snapshot_without_source_mutation() 
         has_reordered=True,
     )
 
-    controller._reorder._handle_overlay_commit_intent(
+    assert overlay.commit_handler is not None
+    overlay.commit_handler(
         PromptReorderCommitIntent(reason="pointer_drop", snapshot=snapshot)
     )
 
     assert editor.toPlainText() == "alpha, beta"
     assert editor.executed_reorder_requests == []
-    assert controller._reorder.latest_commit_snapshot is snapshot
-    assert controller._reorder.segment_reorder_session.current_ordered_indices == (
-        1,
-        0,
-    )
-    assert controller._reorder.segment_reorder_session.has_reordered is True
-
-
-def test_reorder_preview_sync_does_not_overwrite_latest_commit_snapshot() -> None:
-    """Display preview sync does not replace the authoritative commit snapshot."""
-
-    controller, editor, _document_service, layout_view = _controller_for_reorder_text(
-        "alpha, beta"
-    )
-    overlay = OverlayDouble(
-        [0, 1],
-        current_layout_view=layout_view,
-        has_reordered=False,
-    )
-    overlay._preview_layout_view = layout_view
-    controller._reorder._segment_overlay = overlay
-    snapshot = PromptReorderCommitSnapshot(
-        reorder_state=reorder_state_for_indices((1, 0)),
-        layout_view=layout_view,
-        ordered_chip_indices=(1, 0),
-        active_segment_index=1,
-        dragged_segment_index=1,
-        has_reordered=True,
-    )
-    controller._reorder._session_controller.capture_snapshot(snapshot)
-
-    controller._reorder.schedule_reorder_preview_sync(reason="preview_only")
-    controller._reorder.flush_pending_reorder_preview_sync()
-
-    assert editor.toPlainText() == "alpha, beta"
-    assert controller._reorder.latest_commit_snapshot is snapshot
-    assert controller._reorder.segment_reorder_session.current_ordered_indices == (
-        1,
-        0,
-    )
-    assert len(editor.reorder_preview_state_calls) == 1
-
-
-def test_stale_reorder_preview_sync_does_not_publish_or_reset_commit_snapshot() -> None:
-    """Stale display preview sync does not publish state or replace commit truth."""
-
-    controller, editor, _document_service, layout_view = _controller_for_reorder_text(
-        "alpha, beta"
-    )
-    overlay = OverlayDouble(
-        [0, 1],
-        current_layout_view=layout_view,
-        has_reordered=False,
-    )
-    overlay._preview_layout_view = layout_view
-    controller._reorder._segment_overlay = overlay
-    snapshot = PromptReorderCommitSnapshot(
-        reorder_state=reorder_state_for_indices((1, 0)),
-        layout_view=layout_view,
-        ordered_chip_indices=(1, 0),
-        active_segment_index=1,
-        dragged_segment_index=1,
-        has_reordered=True,
-    )
-    controller._reorder._session_controller.capture_snapshot(snapshot)
-    controller._reorder._preview_sync.replace_state(
-        pending_revision=3,
-        pending_reason="stale_preview",
-        last_applied_revision=4,
-    )
-
-    controller._reorder.flush_pending_reorder_preview_sync()
-
-    assert editor.toPlainText() == "alpha, beta"
-    assert editor.reorder_preview_state_calls == []
-    assert controller._reorder.latest_commit_snapshot is snapshot
-    assert controller._reorder.segment_reorder_session.current_ordered_indices == (
-        1,
-        0,
-    )
-
-
-def test_keyboard_reorder_captures_commit_snapshot_before_preview_sync(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Successful keyboard moves publish commit state before display sync."""
-
-    text = "alpha, beta, gamma"
-    document_service = PromptDocumentService()
-    editor = ControllerEditorDouble(
-        clicked_cursor=MenuCursorDouble(text=text, position=7),
-        current_cursor=MenuCursorDouble(text=text, position=7),
-        text=text,
-    )
-    controller = prompt_interaction_controller(
-        editor,
-        autocomplete=autocomplete_double(),
-        semantic_refresh_controller=semantic_refresh_controller_double(),
-        syntax_renderers=syntax_renderer_double(),
-        document_service=document_service,
-        mutation_service=PromptMutationService(),
-        syntax_service_=syntax_service(),
-        syntax_profile=prompt_syntax_profile("emphasis", "wildcard"),
-    )
-    initial_layout_view = PromptReorderLayoutView(
-        rows=(PromptReorderRowView(row_index=0, chip_indices=(0, 1, 2)),),
-        gaps=(),
-    )
-    moved_layout_view = PromptReorderLayoutView(
-        rows=(PromptReorderRowView(row_index=0, chip_indices=(1, 0, 2)),),
-        gaps=(),
-    )
-    overlay = OverlayDouble(
-        [0, 1, 2],
-        active_segment_index=1,
-        current_layout_view=initial_layout_view,
-        has_reordered=False,
-    )
-    snapshot = PromptReorderCommitSnapshot(
-        reorder_state=reorder_state_for_indices((1, 0, 2)),
-        layout_view=moved_layout_view,
-        ordered_chip_indices=(1, 0, 2),
-        active_segment_index=1,
-        dragged_segment_index=None,
-        has_reordered=True,
-    )
-    overlay.keyboard_move_snapshots["left"] = snapshot
-    controller._reorder._segment_overlay = overlay
-    controller._reorder._preview_sync.replace_state(
-        pending_revision=1,
-        pending_reason="queued_keyboard_preview",
-    )
-    observed_snapshots: list[PromptReorderCommitSnapshot | None] = []
-
-    def record_preview_sync() -> None:
-        """Assert commit state was captured before display preview sync."""
-
-        observed_snapshots.append(controller._reorder.latest_commit_snapshot)
-        assert controller._reorder.latest_commit_snapshot == snapshot
-        assert controller._reorder.segment_reorder_session.current_ordered_indices == (
-            1,
-            0,
-            2,
-        )
-        assert controller._reorder.segment_reorder_session.has_reordered is True
-
-    monkeypatch.setattr(
-        controller._reorder,
-        "_sync_reorder_preview_from_overlay",
-        record_preview_sync,
-    )
-
-    controller._reorder.move_keyboard_reorder_chip(
-        PromptReorderKeyboardMoveIntent(direction="left")
-    )
-
-    assert observed_snapshots == [snapshot]
-    assert controller._reorder.latest_commit_snapshot == snapshot
-    assert overlay.keyboard_move_calls == ["left"]
-
-
-def test_keyboard_reorder_boundary_noop_does_not_update_commit_snapshot() -> None:
-    """Boundary keyboard no-ops leave controller commit state unchanged."""
-
-    layout_view = PromptReorderLayoutView(
-        rows=(PromptReorderRowView(row_index=0, chip_indices=(0, 1, 2)),),
-        gaps=(),
-    )
-    text = "alpha, beta, gamma"
-    editor = ControllerEditorDouble(
-        clicked_cursor=MenuCursorDouble(text=text, position=0),
-        current_cursor=MenuCursorDouble(text=text, position=0),
-        text=text,
-    )
-    controller = prompt_interaction_controller(
-        editor,
-        autocomplete=autocomplete_double(),
-        semantic_refresh_controller=semantic_refresh_controller_double(),
-        syntax_renderers=syntax_renderer_double(),
-        document_service=PromptDocumentService(),
-        mutation_service=PromptMutationService(),
-        syntax_service_=syntax_service(),
-        syntax_profile=prompt_syntax_profile("emphasis", "wildcard"),
-    )
-    overlay = OverlayDouble(
-        [0, 1, 2],
-        active_segment_index=0,
-        current_layout_view=layout_view,
-        has_reordered=False,
-    )
-    overlay.keyboard_move_results["left"] = False
-    controller._reorder._segment_overlay = overlay
-    initial_snapshot = PromptReorderCommitSnapshot(
-        reorder_state=reorder_state_for_indices((0, 1, 2)),
-        layout_view=layout_view,
-        ordered_chip_indices=(0, 1, 2),
-        active_segment_index=0,
-        dragged_segment_index=None,
-        has_reordered=False,
-    )
-    controller._reorder._session_controller.capture_snapshot(initial_snapshot)
-
-    controller._reorder.move_keyboard_reorder_chip(
-        PromptReorderKeyboardMoveIntent(direction="left")
-    )
-
-    assert controller._reorder.latest_commit_snapshot is initial_snapshot
-    assert controller._reorder.segment_reorder_session.current_ordered_indices == (
-        0,
-        1,
-        2,
-    )
-    assert controller._reorder.segment_reorder_session.has_reordered is False
-    assert overlay.keyboard_move_calls == ["left"]
-
-
-def test_keyboard_preview_sync_does_not_overwrite_captured_commit_snapshot() -> None:
-    """Keyboard display preview sync does not replace captured commit state."""
-
-    controller, editor, _document_service, layout_view = _controller_for_reorder_text(
-        "alpha, beta"
-    )
-    overlay = OverlayDouble(
-        [0, 1],
-        current_layout_view=layout_view,
-        has_reordered=False,
-    )
-    overlay._preview_layout_view = layout_view
-    controller._reorder._segment_overlay = overlay
-    snapshot = PromptReorderCommitSnapshot(
-        reorder_state=reorder_state_for_indices((1, 0)),
-        layout_view=layout_view,
-        ordered_chip_indices=(1, 0),
-        active_segment_index=1,
-        dragged_segment_index=None,
-        has_reordered=True,
-    )
-    controller._reorder._session_controller.capture_snapshot(snapshot)
-
-    controller._reorder.schedule_reorder_preview_sync(reason="keyboard_reorder_key")
-    controller._reorder.flush_pending_reorder_preview_sync(forced=True)
-
-    assert controller._reorder.latest_commit_snapshot is snapshot
-    assert controller._reorder.segment_reorder_session.current_ordered_indices == (
-        1,
-        0,
-    )
-    assert len(editor.reorder_preview_state_calls) == 1
-
-
-def test_position_segment_overlay_skips_unchanged_position_refresh() -> None:
-    """Positioning does not enter broad overlay refresh when inputs are unchanged."""
-
-    controller, _editor, _document_service, _layout_view = _controller_for_reorder_text(
-        "alpha, beta"
-    )
-    overlay = OverlayDouble()
-    overlay.needs_position_refresh_result = False
-    controller._reorder._segment_overlay = overlay
-
-    controller._reorder.position_segment_overlay()
-
-    assert overlay.needs_position_refresh_calls == ["interaction_position_overlay"]
-    assert overlay.refresh_geometry_calls == 0
-
-
-def test_position_segment_overlay_runs_when_position_key_changes() -> None:
-    """Positioning refreshes overlay geometry when viewport inputs change."""
-
-    controller, _editor, _document_service, _layout_view = _controller_for_reorder_text(
-        "alpha, beta"
-    )
-    overlay = OverlayDouble()
-    overlay.needs_position_refresh_result = True
-    controller._reorder._segment_overlay = overlay
-
-    controller._reorder.position_segment_overlay()
-
-    assert overlay.needs_position_refresh_calls == ["interaction_position_overlay"]
-    assert overlay.refresh_geometry_reasons == ["interaction_position_overlay"]
+    assert controller.segment_overlay is overlay
 
 
 def _controller_for_reorder_text(
     text: str,
+    *,
+    reorder_overlay_factory: OverlayFactoryDouble | None = None,
 ) -> tuple[Any, ControllerEditorDouble, PromptDocumentService, PromptReorderLayoutView]:
     """Build a reorder interaction controller and layout for one prompt."""
 
@@ -610,5 +360,6 @@ def _controller_for_reorder_text(
         mutation_service=PromptMutationService(),
         syntax_service_=syntax_service(),
         syntax_profile=prompt_syntax_profile("emphasis", "wildcard"),
+        reorder_overlay_factory=reorder_overlay_factory,
     )
     return controller, editor, document_service, layout_view

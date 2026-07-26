@@ -18,9 +18,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Protocol
 
 from PySide6.QtCore import QPoint, QRect, QSize, Signal
 from PySide6.QtWidgets import QWidget
@@ -83,28 +82,6 @@ class PromptLoraActivationIntent:
 
     item_id: str
     payload: object | None = None
-
-
-class PromptLoraWallOverlay(Protocol):
-    """Render prepared LoRA items and relay activation intent."""
-
-    def set_render_state(self, state: PromptLoraWallRenderState) -> None:
-        """Replace the prepared LoRA wall state rendered by this overlay."""
-
-    def set_activation_handler(
-        self,
-        handler: Callable[[PromptLoraActivationIntent], None] | None,
-    ) -> None:
-        """Set the callback used when a prepared LoRA item is activated."""
-
-    def current_index(self) -> int:
-        """Return the highlighted prepared LoRA item index."""
-
-    def set_current_index(self, index: int) -> None:
-        """Highlight one prepared LoRA item without accepting it."""
-
-    def preferred_size(self) -> QSize:
-        """Return the wall's preferred size for the current render state."""
 
 
 class PromptLoraWallView(ModelPickerWallView):
@@ -298,7 +275,6 @@ __all__ = [
     "PromptLoraActivationIntent",
     "PromptLoraPickerPopup",
     "PromptLoraWallItemRenderState",
-    "PromptLoraWallOverlay",
     "PromptLoraWallRenderState",
     "PromptLoraWallView",
     "lora_item_aspect_ratio",

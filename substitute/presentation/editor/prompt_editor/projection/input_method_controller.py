@@ -18,19 +18,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Generic, Protocol, TypeVar, cast
+from typing import Generic, Protocol, TypeVar
 
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import (
     QColor,
     QFont,
     QInputMethodEvent,
-    QPainter,
     QPalette,
     QTextCharFormat,
-    QTextLayout,
-    QTextLine,
 )
 
 from substitute.presentation.text_coordinates import TextCoordinateMap
@@ -38,6 +34,12 @@ from substitute.presentation.text_coordinates import TextCoordinateMap
 from ..commands.source_service import PromptSourceCommandService
 from ..core.editing.ime import PromptImePreedit, PromptImeSession
 from ..core.editing.source_commands import PromptSourceEditOrigin
+from .input_method_layer_preparer import PromptInputMethodRenderLayerPreparer
+from .input_method_render_state import (
+    EMPTY_INPUT_METHOD_RENDER_LAYER,
+    PromptInputMethodRenderLayer,
+    PromptPreeditFormat,
+)
 
 TPayload = TypeVar("TPayload")
 
@@ -59,17 +61,14 @@ class PromptInputMethodHost(Protocol):
     def editing_enabled(self) -> bool:
         """Return whether the source accepts mutations."""
 
+    def font(self) -> QFont:
+        """Return the current presentation font."""
+
+    def palette(self) -> QPalette:
+        """Return the current presentation palette."""
+
     def input_method_caret_rect(self, source_position: int) -> QRectF:
         """Return a viewport-local caret rectangle for a source position."""
-
-
-@dataclass(frozen=True, slots=True)
-class PromptPreeditFormat:
-    """Describe one UTF-16 preedit format range."""
-
-    start: int
-    length: int
-    text_format: QTextCharFormat
 
 
 class PromptInputMethodController(Generic[TPayload]):
@@ -88,6 +87,8 @@ class PromptInputMethodController(Generic[TPayload]):
         self._ime_session = PromptImeSession()
         self._cursor_color: QColor | None = None
         self._formats: tuple[PromptPreeditFormat, ...] = ()
+        self._layer_preparer = PromptInputMethodRenderLayerPreparer()
+        self._render_layer = EMPTY_INPUT_METHOD_RENDER_LAYER
 
     @property
     def preedit_state(self) -> PromptImePreedit | None:
@@ -100,6 +101,12 @@ class PromptInputMethodController(Generic[TPayload]):
         """Return whether a non-empty preedit string is active."""
 
         return self._ime_session.is_composing
+
+    @property
+    def render_layer(self) -> PromptInputMethodRenderLayer:
+        """Return the currently published shaped preedit layer."""
+
+        return self._render_layer
 
     def handle_event(self, event: QInputMethodEvent) -> None:
         """Apply one Qt composition event without storing preedit in source text."""
@@ -149,6 +156,7 @@ class PromptInputMethodController(Generic[TPayload]):
         )
         self._cursor_color = cursor_color
         self._formats = _preedit_formats(event)
+        self.refresh_render_layer()
 
     def cancel(self) -> None:
         """Discard transient composition without mutating prompt source text."""
@@ -161,6 +169,7 @@ class PromptInputMethodController(Generic[TPayload]):
         self._ime_session.source_changed()
         if not self._ime_session.is_composing:
             self._clear_preedit_paint_state()
+            self.refresh_render_layer()
 
     def query(
         self,
@@ -214,30 +223,35 @@ class PromptInputMethodController(Generic[TPayload]):
             return 2_147_483_647
         return None
 
-    def paint(self, painter: QPainter, *, font: QFont, palette: QPalette) -> None:
-        """Paint the shaped preedit string and its input-method caret."""
+    def refresh_render_layer(
+        self,
+        *,
+        font: QFont | None = None,
+        palette: QPalette | None = None,
+    ) -> bool:
+        """Publish preedit glyph and cursor geometry for current presentation state."""
 
         state = self._ime_session.preedit
         if state is None:
-            return
-        layout, line = self._build_layout(font=font, palette=palette)
-        if not line.isValid():
-            return
-        origin = self._host.input_method_caret_rect(state.source_start).topLeft()
-        painter.save()
-        try:
-            layout.draw(painter, origin)
-            if state.cursor_visible:
-                cursor_x = _cursor_x(line, state.cursor_utf16)
-                painter.setPen(
-                    self._cursor_color or palette.color(QPalette.ColorRole.Text)
-                )
-                painter.drawLine(
-                    QPointF(origin.x() + cursor_x, origin.y()),
-                    QPointF(origin.x() + cursor_x, origin.y() + line.height()),
-                )
-        finally:
-            painter.restore()
+            if self._render_layer is EMPTY_INPUT_METHOD_RENDER_LAYER:
+                return False
+            self._render_layer = EMPTY_INPUT_METHOD_RENDER_LAYER
+            return True
+        resolved_font = self._host.font() if font is None else font
+        resolved_palette = self._host.palette() if palette is None else palette
+        next_layer = self._layer_preparer.prepare(
+            state,
+            formats=self._formats,
+            cursor_color=self._cursor_color,
+            font=resolved_font,
+            palette=resolved_palette,
+            base_caret_rect=self._host.input_method_caret_rect(state.source_start),
+            previous=self._render_layer,
+        )
+        if next_layer is self._render_layer:
+            return False
+        self._render_layer = next_layer
+        return True
 
     def cursor_rect(self, *, font: QFont, palette: QPalette) -> QRectF:
         """Return the viewport-local candidate-window rectangle for composition."""
@@ -245,17 +259,11 @@ class PromptInputMethodController(Generic[TPayload]):
         state = self._ime_session.preedit
         if state is None:
             return self._host.input_method_caret_rect(self._host.cursor_position)
-        _layout, line = self._build_layout(font=font, palette=palette)
-        base_rect = self._host.input_method_caret_rect(state.source_start)
-        if not line.isValid():
-            return base_rect
-        cursor_x = _cursor_x(line, state.cursor_utf16)
-        return QRectF(
-            base_rect.x() + cursor_x,
-            base_rect.y(),
-            max(1.0, base_rect.width()),
-            max(base_rect.height(), line.height()),
-        )
+        self.refresh_render_layer(font=font, palette=palette)
+        candidate_rect = self._render_layer.candidate_rect
+        if candidate_rect is None:
+            return self._host.input_method_caret_rect(state.source_start)
+        return QRectF(*candidate_rect)
 
     def _commit_event(
         self,
@@ -306,47 +314,12 @@ class PromptInputMethodController(Generic[TPayload]):
         next_preedit_start = replacement_start + len(commit_text)
         return result_text, next_preedit_start
 
-    def _build_layout(
-        self, *, font: QFont, palette: QPalette
-    ) -> tuple[QTextLayout, QTextLine]:
-        """Build one short-lived shaped layout for the bounded preedit string."""
-
-        state = self._ime_session.preedit
-        if state is None:
-            return QTextLayout(), QTextLine()
-        layout = QTextLayout(state.text, font)
-        formats = [
-            _layout_format_range(
-                start=format_range.start,
-                length=format_range.length,
-                text_format=format_range.text_format,
-            )
-            for format_range in self._formats
-        ]
-        if not formats:
-            default_format = QTextCharFormat()
-            default_format.setForeground(palette.brush(QPalette.ColorRole.Text))
-            default_format.setFontUnderline(True)
-            formats.append(
-                _layout_format_range(
-                    start=0,
-                    length=TextCoordinateMap(state.text).utf16_length,
-                    text_format=default_format,
-                )
-            )
-        layout.setFormats(formats)
-        layout.beginLayout()
-        line = layout.createLine()
-        if line.isValid():
-            line.setLineWidth(1_000_000.0)
-        layout.endLayout()
-        return layout, line
-
     def _clear_preedit(self) -> None:
         """Clear core composition and presentation-only paint attributes."""
 
         self._ime_session.cancel()
         self._clear_preedit_paint_state()
+        self.refresh_render_layer()
 
     def _clear_preedit_paint_state(self) -> None:
         """Clear Qt paint values associated with inactive composition."""
@@ -408,30 +381,7 @@ def _preedit_formats(event: QInputMethodEvent) -> tuple[PromptPreeditFormat, ...
     return tuple(formats)
 
 
-def _cursor_x(line: QTextLine, utf16_position: int) -> float:
-    """Return a shaped line x-coordinate for a clamped UTF-16 position."""
-
-    result = cast(tuple[float, int], line.cursorToX(max(0, utf16_position)))
-    return float(result[0])
-
-
-def _layout_format_range(
-    *,
-    start: int,
-    length: int,
-    text_format: QTextCharFormat,
-) -> QTextLayout.FormatRange:
-    """Build one mutable Qt layout format range with typed assignments."""
-
-    format_range = QTextLayout.FormatRange()
-    format_range.start = start
-    format_range.length = length
-    format_range.format = text_format
-    return format_range
-
-
 __all__ = [
     "PromptInputMethodController",
     "PromptInputMethodHost",
-    "PromptPreeditFormat",
 ]

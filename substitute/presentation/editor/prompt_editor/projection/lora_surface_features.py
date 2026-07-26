@@ -39,10 +39,12 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 )
 
 from ..core.state.editor_state import PromptEditorDocumentState
+from ..geometry.aggregate import PromptProjectionGeometry
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
-from .layout_engine import PromptProjectionLayout
-from .model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionThumbnailVariant,
     PromptProjectionToken,
     PromptProjectionTokenKind,
@@ -52,7 +54,6 @@ from .model import (
 class PromptSurfaceLoraFeatureHost(Protocol):
     """Expose prepared projection state needed by LoRA viewport feature requests."""
 
-    _layout: PromptProjectionLayout
     _editor_state: PromptEditorDocumentState[
         PromptDocumentView,
         PromptSyntaxRenderPlan,
@@ -75,12 +76,9 @@ class PromptSurfaceLoraFeatureHost(Protocol):
     ) -> None:
         """Emit one prepared LoRA context-menu request."""
 
-    def _invalidate_projection_content_cache(self, *, reason: str) -> None:
-        """Invalidate cached projection content after thumbnail media changes."""
-
-    def _token_at_viewport_position(
+    def token_at_viewport_position(
         self,
-        local_position: QPointF,
+        position: QPointF,
     ) -> PromptProjectionToken | None:
         """Return the prepared projection token under one viewport-local point."""
 
@@ -121,6 +119,7 @@ class PromptSurfaceLoraFeatureDelegate:
         host: PromptSurfaceLoraFeatureHost,
         *,
         thumbnail_cache: PromptLoraThumbnailCache,
+        publish_thumbnail_media: Callable[[str], None],
         thumbnail_preloader: PromptSurfaceLoraThumbnailPreloader | None = None,
     ) -> None:
         """Bind LoRA tooltip, context, and thumbnail behavior to a surface host."""
@@ -128,6 +127,7 @@ class PromptSurfaceLoraFeatureDelegate:
         self._host = host
         self._thumbnail_cache = thumbnail_cache
         self._thumbnail_preloader = thumbnail_preloader
+        self._publish_thumbnail_media = publish_thumbnail_media
         self._tooltip_filter: FluentToolTipFilter | None = None
 
     @property
@@ -161,7 +161,7 @@ class PromptSurfaceLoraFeatureDelegate:
         token = (
             self._host.hovered_token()
             if local_position is None
-            else self._host._token_at_viewport_position(local_position)
+            else self._host.token_at_viewport_position(local_position)
         )
         if token is None:
             return None
@@ -174,7 +174,7 @@ class PromptSurfaceLoraFeatureDelegate:
     ) -> bool:
         """Emit a LoRA context-menu request when the clicked token has actions."""
 
-        token = self._host._token_at_viewport_position(viewport_position)
+        token = self._host.token_at_viewport_position(viewport_position)
         if (
             token is None
             or token.kind is not PromptProjectionTokenKind.LORA
@@ -185,10 +185,15 @@ class PromptSurfaceLoraFeatureDelegate:
         self._host._emit_lora_context_menu_request(token, global_pos)
         return True
 
-    def preload_visible_banners(self, *, on_complete: Callable[[], None]) -> bool:
+    def preload_visible_banners(
+        self,
+        geometry: PromptProjectionGeometry,
+        *,
+        on_complete: Callable[[], None],
+    ) -> bool:
         """Preload visible LoRA banners and notify when queued work is ready."""
 
-        queued_count = self.prewarm_visible_banners()
+        queued_count = self.prewarm_visible_banners(geometry)
         preloader = self._thumbnail_preloader
         if preloader is None:
             return False
@@ -198,7 +203,10 @@ class PromptSurfaceLoraFeatureDelegate:
         preloader.run_when_idle(on_complete)
         return True
 
-    def prewarm_visible_banners(self) -> int:
+    def prewarm_visible_banners(
+        self,
+        geometry: PromptProjectionGeometry,
+    ) -> int:
         """Queue thumbnail loads for visible found LoRA chips after layout."""
 
         preloader = self._thumbnail_preloader
@@ -216,7 +224,7 @@ class PromptSurfaceLoraFeatureDelegate:
                 continue
             if not _is_visible_lora_thumbnail_candidate(token):
                 continue
-            token_rect = self._host._layout.token_rect(
+            token_rect = geometry.tokens.token_rect(
                 token,
                 scroll_offset=scroll_offset,
             )
@@ -247,19 +255,21 @@ class PromptSurfaceLoraFeatureDelegate:
                 return queued_count
         return queued_count
 
-    def update_lora_thumbnail_pixmap(self, storage_key: str) -> None:
+    def update_lora_thumbnail_pixmap(
+        self,
+        geometry: PromptProjectionGeometry,
+        storage_key: str,
+    ) -> None:
         """Repaint visible LoRA chips that reference a ready thumbnail asset."""
 
         if not storage_key:
             return
-        self._host._invalidate_projection_content_cache(reason="lora_thumbnail_ready")
         viewport = self._host.viewport()
         viewport_rect = QRectF(viewport.rect())
         if viewport_rect.isEmpty():
             return
         scroll_offset = float(self._host.verticalScrollBar().value())
-        matched_count = 0
-        repainted_count = 0
+        media_published = False
         for token in self._host._editor_state.projection.document.tokens:
             if token.kind is not PromptProjectionTokenKind.LORA:
                 continue
@@ -268,14 +278,15 @@ class PromptSurfaceLoraFeatureDelegate:
                 for variant in token.thumbnail_variants
             ):
                 continue
-            matched_count += 1
-            token_rect = self._host._layout.token_rect(
+            if not media_published:
+                self._publish_thumbnail_media(storage_key)
+                media_published = True
+            token_rect = geometry.tokens.token_rect(
                 token,
                 scroll_offset=scroll_offset,
             )
             if token_rect is None or not token_rect.intersects(viewport_rect):
                 continue
-            repainted_count += 1
             viewport.update(token_rect.toAlignedRect().adjusted(-2, -2, 2, 2))
 
 

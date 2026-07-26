@@ -23,11 +23,9 @@ from typing import cast
 from PySide6.QtGui import QFont, QTextDocument, QTextOption
 from PySide6.QtWidgets import QApplication
 
-from substitute.presentation.editor.prompt_editor.projection.source_change_applier import (
-    PromptProjectionSourceDocumentRangeEdit,
-)
 from substitute.presentation.editor.prompt_editor.projection.source_document import (
     PromptProjectionSourceDocument,
+    PromptProjectionSourceDocumentRangeEdit,
 )
 
 

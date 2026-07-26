@@ -80,7 +80,7 @@ def _controller(
     """Build a search controller with deterministic feature state."""
 
     return PromptSearchFeatureController(
-        host=_SearchHost(source_revision),
+        source_identity=_SearchHost(source_revision).prompt_command_source_identity,
         surface=surface,
         feature_profile=PromptFeatureProfileController(
             PromptEditorFeatureProfile.enabled_profile(())

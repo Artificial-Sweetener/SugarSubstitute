@@ -688,7 +688,7 @@ def _prepared_context_event_for_source_text(
         Any, editor
     )._shell_context_menu._source_position_for_global_pos(event.globalPos())
     assert source_position is not None
-    cast(Any, editor)._scene_feature_controller.prepare_position_context(
+    cast(Any, editor)._scene_position_preparation.prepare_position_context(
         source_position,
         reason="test_context_menu_scene_position",
     )
@@ -1963,7 +1963,7 @@ def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
     context_prompt_snapshot = cast(
         Any,
         editor,
-    )._scene_feature_controller.prepare_position_context(
+    )._scene_position_preparation.prepare_position_context(
         source_position,
         reason="test_context_menu_scene_position",
     )

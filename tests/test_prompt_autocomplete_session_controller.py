@@ -52,7 +52,7 @@ from substitute.presentation.editor.prompt_editor.projection.autocomplete_ghost_
     PromptAutocompleteGhostTextPublisher,
     PromptAutocompleteGhostTextSourceSnapshot,
 )
-from tests.prompt_autocomplete_test_helpers import build_test_autocomplete_coordinator
+from tests.prompt_autocomplete_test_helpers import build_test_autocomplete_stack
 from tests.prompt_editor_controller_test_helpers import (
     EmptyAutocompleteGateway,
     TextAutocompleteEditorDouble,
@@ -70,6 +70,7 @@ class _VisibilityRecordingPresenter:
 
         self.visible = visible
         self.visibility_handler: Callable[[bool], None] | None = None
+        self.presented_sessions: list[AutocompleteSession] = []
 
     @property
     def panel(self) -> None:
@@ -80,7 +81,7 @@ class _VisibilityRecordingPresenter:
     def present_session(self, session: AutocompleteSession) -> bool:
         """Record one present request and return the configured visibility."""
 
-        _ = session
+        self.presented_sessions.append(session)
         return self.visible
 
     def set_activation_handler(self, handler: Callable[[Any], None] | None) -> None:
@@ -350,32 +351,20 @@ def test_refresh_geometry_preserves_active_session_and_updates_surfaces() -> Non
         prefix="1g",
     )
     session_controller = autocomplete_session_controller_with_session(mod, session)
-    refresh_calls: list[str] = []
-    coordinator = build_test_autocomplete_coordinator(
+    presenter = _VisibilityRecordingPresenter(visible=True)
+    autocomplete_stack = build_test_autocomplete_stack(
         SimpleNamespace(
             set_autocomplete_preview_state=lambda _preview_state: None,
             viewport=lambda: SimpleNamespace(rect=lambda: "viewport-rect"),
         ),
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
+        autocomplete_presenter=presenter,
         autocomplete_session_controller=session_controller,
     )
 
-    def record_visible_panel() -> bool:
-        """Record panel presentation and report successful visibility."""
+    autocomplete_stack.input_adapter.refresh_geometry()
 
-        refresh_calls.append("panel")
-        return True
-
-    setattr(coordinator, "_present_panel", record_visible_panel)
-    setattr(
-        coordinator,
-        "_publish_inline_completion_preview",
-        lambda: refresh_calls.append("preview"),
-    )
-
-    coordinator.refresh_geometry()
-
-    assert refresh_calls == ["panel", "preview"]
+    assert presenter.presented_sessions == [session]
     assert session_controller.session is session
 
 
@@ -405,17 +394,17 @@ def test_hidden_panel_prevents_autocomplete_ghost_publication() -> None:
             source_text="1g",
         )
     )
-    coordinator = build_test_autocomplete_coordinator(
+    autocomplete_stack = build_test_autocomplete_stack(
         editor,
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         autocomplete_presenter=presenter,
         autocomplete_ghost_text_publisher=PromptAutocompleteGhostTextPublisher(
-            preview_sink=editor,
+            publish_preview_state=editor.set_autocomplete_preview_state,
         ),
         autocomplete_session_controller=session_controller,
     )
 
-    coordinator.refresh_geometry()
+    autocomplete_stack.input_adapter.refresh_geometry()
 
     assert editor.autocomplete_preview_state is None
 
@@ -446,16 +435,16 @@ def test_panel_hide_clears_existing_autocomplete_ghost_text() -> None:
             source_text="1g",
         )
     )
-    coordinator = build_test_autocomplete_coordinator(
+    autocomplete_stack = build_test_autocomplete_stack(
         editor,
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         autocomplete_presenter=presenter,
         autocomplete_ghost_text_publisher=PromptAutocompleteGhostTextPublisher(
-            preview_sink=editor,
+            publish_preview_state=editor.set_autocomplete_preview_state,
         ),
         autocomplete_session_controller=session_controller,
     )
-    coordinator.refresh_geometry()
+    autocomplete_stack.input_adapter.refresh_geometry()
     assert editor.autocomplete_preview_state is not None
 
     presenter.set_visible(False)
@@ -479,14 +468,20 @@ def test_autocomplete_handle_key_press_leaves_enter_to_editor_text_input() -> No
             prefix="1g",
         ),
     )
-    coordinator = build_test_autocomplete_coordinator(
+    autocomplete_stack = build_test_autocomplete_stack(
         SimpleNamespace(isAncestorOf=lambda _widget: False),
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         autocomplete_session_controller=session_controller,
     )
 
-    assert coordinator.handle_key_press(key_event(Qt.Key.Key_Return)) is False
-    assert coordinator.handle_key_press(key_event(Qt.Key.Key_Enter)) is False
+    assert (
+        autocomplete_stack.input_adapter.handle_key_press(key_event(Qt.Key.Key_Return))
+        is False
+    )
+    assert (
+        autocomplete_stack.input_adapter.handle_key_press(key_event(Qt.Key.Key_Enter))
+        is False
+    )
 
 
 def test_lora_autocomplete_handle_key_press_leaves_enter_to_editor_text_input() -> None:
@@ -501,14 +496,20 @@ def test_lora_autocomplete_handle_key_press_leaves_enter_to_editor_text_input() 
             lora_candidates=(_lora_candidate("midna"),),
         ),
     )
-    coordinator = build_test_autocomplete_coordinator(
+    autocomplete_stack = build_test_autocomplete_stack(
         SimpleNamespace(),
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         autocomplete_session_controller=session_controller,
     )
 
-    assert coordinator.handle_key_press(key_event(Qt.Key.Key_Return)) is False
-    assert coordinator.handle_key_press(key_event(Qt.Key.Key_Enter)) is False
+    assert (
+        autocomplete_stack.input_adapter.handle_key_press(key_event(Qt.Key.Key_Return))
+        is False
+    )
+    assert (
+        autocomplete_stack.input_adapter.handle_key_press(key_event(Qt.Key.Key_Enter))
+        is False
+    )
 
 
 def test_focus_lost_dismissal_keeps_session_when_panel_is_under_pointer(
@@ -529,16 +530,14 @@ def test_focus_lost_dismissal_keeps_session_when_panel_is_under_pointer(
             selected_index=0,
         ),
     )
-    coordinator = build_test_autocomplete_coordinator(
+    autocomplete_stack = build_test_autocomplete_stack(
         SimpleNamespace(isAncestorOf=lambda _widget: False),
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
+        autocomplete_presenter=_VisibilityRecordingPresenter(visible=True),
         autocomplete_session_controller=session_controller,
     )
-    coordinator._presenter = SimpleNamespace(
-        panel_under_mouse=lambda: True,
-    )
 
-    coordinator.dismiss_autocomplete("focus_lost")
+    autocomplete_stack.input_adapter.dismiss_autocomplete("focus_lost")
 
     assert session_controller.state.lifecycle == "active"
 
@@ -565,13 +564,13 @@ def test_focus_lost_dismissal_keeps_session_for_editor_descendant(
             selected_index=0,
         ),
     )
-    coordinator = build_test_autocomplete_coordinator(
+    autocomplete_stack = build_test_autocomplete_stack(
         editor,
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         autocomplete_session_controller=session_controller,
     )
 
-    coordinator.dismiss_autocomplete("focus_lost")
+    autocomplete_stack.input_adapter.dismiss_autocomplete("focus_lost")
 
     assert session_controller.state.lifecycle == "active"
 
@@ -594,17 +593,13 @@ def test_focus_lost_dismissal_clears_when_focus_leaves_editor_flow(
             selected_index=0,
         ),
     )
-    coordinator = build_test_autocomplete_coordinator(
+    autocomplete_stack = build_test_autocomplete_stack(
         SimpleNamespace(isAncestorOf=lambda _widget: False),
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         autocomplete_session_controller=session_controller,
     )
-    coordinator._presenter = SimpleNamespace(
-        hide=lambda: None,
-        panel_under_mouse=lambda: False,
-    )
 
-    coordinator.dismiss_autocomplete("focus_lost")
+    autocomplete_stack.input_adapter.dismiss_autocomplete("focus_lost")
 
     assert session_controller.state.lifecycle == "idle"
 

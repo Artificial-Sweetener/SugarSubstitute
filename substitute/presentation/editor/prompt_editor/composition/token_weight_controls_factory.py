@@ -24,7 +24,7 @@ from typing import cast
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QWidget
 
-from ..geometry import autocomplete_panel_host
+from ..geometry.widget_mapping import autocomplete_panel_host
 from ..interactions import PromptTokenWeightWheelIntentController
 from ..overlays.token_weight_controls import (
     PromptTokenWeightControls,

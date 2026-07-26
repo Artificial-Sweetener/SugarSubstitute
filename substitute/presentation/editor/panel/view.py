@@ -157,14 +157,12 @@ from .choice_field_surface_reconciler import (
 )
 from .preset_context_refresh import PanelPresetContextRefreshCoordinator
 from .presenter import EditorPanelPresenter
-from .prompt_context_controller import (
+from .prompt.context import (
     EditorPanelPromptContextController,
-    EditorPanelPromptContextHost,
 )
-from .prompt_profile_policy import PanelPromptFieldProfileDecision
-from .prompt_scene_diagnostics_controller import (
+from .prompt.profile_policy import PanelPromptFieldProfileDecision
+from .prompt.scene_diagnostics import (
     EditorPanelPromptSceneDiagnosticsController,
-    EditorPanelPromptSceneDiagnosticsHost,
 )
 from .runtime_issue_presenter import (
     EditorPanelRuntimeIssueHost,
@@ -197,7 +195,7 @@ from .prompt.preset_adapter import (
     PanelPromptSegmentPresetAdapter,
 )
 from .node_card_builder import NodeCardBuilder, NodeCardPromptFieldInputs
-from .widgets.cube_section import CubeSectionBuilder
+from .widgets.cube_section import cube_section_builder_for_panel
 
 _LOGGER = get_logger("presentation.editor.panel.view")
 
@@ -246,32 +244,6 @@ def _cube_reveal_controller_for_panel(
         )
         setattr(panel, "_cube_reveal_controller", controller)
     return cast(EditorPanelCubeRevealController, controller)
-
-
-def _prompt_context_for_panel(panel: object) -> EditorPanelPromptContextController:
-    """Return a prompt-context controller for an editor-panel-like host."""
-
-    controller = getattr(panel, "_prompt_context_controller", None)
-    if controller is None:
-        controller = EditorPanelPromptContextController(
-            cast(EditorPanelPromptContextHost, panel)
-        )
-        setattr(panel, "_prompt_context_controller", controller)
-    return cast(EditorPanelPromptContextController, controller)
-
-
-def _prompt_scene_diagnostics_for_panel(
-    panel: object,
-) -> EditorPanelPromptSceneDiagnosticsController:
-    """Return a scene diagnostics controller for an editor-panel-like host."""
-
-    controller = getattr(panel, "_prompt_scene_diagnostics_controller", None)
-    if controller is None:
-        controller = EditorPanelPromptSceneDiagnosticsController(
-            cast(EditorPanelPromptSceneDiagnosticsHost, panel)
-        )
-        setattr(panel, "_prompt_scene_diagnostics_controller", controller)
-    return cast(EditorPanelPromptSceneDiagnosticsController, controller)
 
 
 def _search_controller_for_panel(panel: object) -> EditorPanelSearchController:
@@ -426,14 +398,6 @@ _PROJECTION_INVALIDATING_REASONS: frozenset[BehaviorRefreshReason] = frozenset(
     for reason in _BEHAVIOR_TRANSACTION_INVALIDATING_REASONS
     if reason != "model_options_changed"
 )
-
-
-def _refresh_prompt_scene_diagnostics_if_available(panel: object) -> None:
-    """Refresh scene diagnostics when the panel double exposes the full API."""
-
-    refresh = getattr(panel, "refresh_prompt_scene_diagnostics", None)
-    if callable(refresh):
-        refresh()
 
 
 class EditorPanel(QWidget):
@@ -886,7 +850,7 @@ class EditorPanel(QWidget):
         self._cube_visibility_btns: dict[str, ToggleTransparentDropDownToolButton] = {}
         self._cube_visibility_menus: dict[str, CheckableMenu] = {}
         self._cube_registry = EditorCubeRegistry(cast(EditorCubeRegistryHost, self))
-        self._cube_section_builder = CubeSectionBuilder(self)
+        self._cube_section_builder = cube_section_builder_for_panel(self)
         self._field_value_change_coordinator = PanelFieldValueChangeCoordinator(
             host=cast(DynamicFieldRefreshHost, self),
             preset_context=self._preset_context_refresh,
@@ -912,13 +876,9 @@ class EditorPanel(QWidget):
         self._node_card_mode_controller = NodeCardModeController()
         self._projection_coordinator = EditorPanelProjectionCoordinator(self)
         self._behavior_applier = behavior_applier_for_panel(self)
-        self._prompt_context_controller = EditorPanelPromptContextController(
-            cast(EditorPanelPromptContextHost, self)
-        )
+        self._prompt_context_controller = EditorPanelPromptContextController(self)
         self._prompt_scene_diagnostics_controller = (
-            EditorPanelPromptSceneDiagnosticsController(
-                cast(EditorPanelPromptSceneDiagnosticsHost, self)
-            )
+            EditorPanelPromptSceneDiagnosticsController(self)
         )
         self._search_controller = EditorPanelSearchController(
             cast(EditorPanelSearchHost, self)
@@ -994,21 +954,19 @@ class EditorPanel(QWidget):
     ) -> None:
         """Attach workflow-scene diagnostics refresh to one prompt editor."""
 
-        _prompt_scene_diagnostics_for_panel(self).configure_prompt_scene_diagnostics(
+        self._prompt_scene_diagnostics_controller.configure_prompt_scene_diagnostics(
             prompt_editor
         )
 
     def _schedule_prompt_scene_diagnostics(self) -> None:
         """Defer scene diagnostics until prompt text has reached workflow buffers."""
 
-        _prompt_scene_diagnostics_for_panel(self).schedule_prompt_scene_diagnostics()
+        self._prompt_scene_diagnostics_controller.schedule_prompt_scene_diagnostics()
 
     def _refresh_scheduled_prompt_scene_diagnostics(self) -> None:
         """Apply one deferred prompt-scene diagnostics refresh."""
 
-        _prompt_scene_diagnostics_for_panel(
-            self
-        ).refresh_scheduled_prompt_scene_diagnostics()
+        self._prompt_scene_diagnostics_controller.refresh_scheduled_prompt_scene_diagnostics()
 
     def _configure_prompt_text_search_refresh(
         self,
@@ -1033,22 +991,22 @@ class EditorPanel(QWidget):
     def refresh_prompt_scene_diagnostics(self) -> None:
         """Push current workflow scene diagnostics into all live prompt editors."""
 
-        _prompt_scene_diagnostics_for_panel(self).refresh_prompt_scene_diagnostics()
+        self._prompt_scene_diagnostics_controller.refresh_prompt_scene_diagnostics()
 
     def _clear_prompt_scene_diagnostics(self) -> None:
         """Clear scene diagnostics from all live prompt editors."""
 
-        _prompt_scene_diagnostics_for_panel(self).clear_prompt_scene_diagnostics()
+        self._prompt_scene_diagnostics_controller.clear_prompt_scene_diagnostics()
 
     def _current_prompt_scene_analysis(self) -> WorkflowSceneAnalysis | None:
         """Return current workflow scene analysis when editor state is ready."""
 
-        return _prompt_scene_diagnostics_for_panel(self).current_prompt_scene_analysis()
+        return self._prompt_scene_diagnostics_controller.current_prompt_scene_analysis()
 
     def _handle_prompt_scene_queue_requested(self, scene_key: str) -> None:
         """Forward one prompt scene queue request when the scene is runnable."""
 
-        _prompt_scene_diagnostics_for_panel(self).handle_prompt_scene_queue_requested(
+        self._prompt_scene_diagnostics_controller.handle_prompt_scene_queue_requested(
             scene_key
         )
 
@@ -1555,7 +1513,7 @@ class EditorPanel(QWidget):
     ) -> EditorBehaviorSnapshot | None:
         """Resolve and cache the latest node-behavior snapshot for the active panel state."""
 
-        return _prompt_context_for_panel(self).build_behavior_snapshot(
+        return self._prompt_context_controller.build_behavior_snapshot(
             search_hidden_keys=search_hidden_keys,
             override_hidden_field_keys=override_hidden_field_keys,
             node_search_text=node_search_text,
@@ -1565,19 +1523,19 @@ class EditorPanel(QWidget):
     def begin_behavior_refresh_transaction(self, *, reason: str) -> None:
         """Start an explicit behavior snapshot reuse boundary for one refresh flow."""
 
-        _prompt_context_for_panel(self).begin_behavior_refresh_transaction(
+        self._prompt_context_controller.begin_behavior_refresh_transaction(
             reason=reason
         )
 
     def end_behavior_refresh_transaction(self, *, reason: str) -> None:
         """Complete the active behavior snapshot reuse boundary when present."""
 
-        _prompt_context_for_panel(self).end_behavior_refresh_transaction(reason=reason)
+        self._prompt_context_controller.end_behavior_refresh_transaction(reason=reason)
 
     def invalidate_behavior_refresh_transaction(self, *, reason: str) -> None:
         """Drop the active behavior transaction before a state-changing refresh."""
 
-        _prompt_context_for_panel(self).invalidate_behavior_refresh_transaction(
+        self._prompt_context_controller.invalidate_behavior_refresh_transaction(
             reason=reason
         )
 
@@ -1592,7 +1550,7 @@ class EditorPanel(QWidget):
     ) -> tuple[Hashable, ...]:
         """Return the identity key that makes transaction snapshot reuse safe."""
 
-        return _prompt_context_for_panel(self).behavior_snapshot_reuse_key(
+        return self._prompt_context_controller.behavior_snapshot_reuse_key(
             workflow_overrides=workflow_overrides,
             search_hidden_keys=search_hidden_keys,
             override_hidden_field_keys=override_hidden_field_keys,
@@ -1603,7 +1561,7 @@ class EditorPanel(QWidget):
     def current_behavior_snapshot(self) -> EditorBehaviorSnapshot | None:
         """Return the latest cached behavior snapshot for external toolbar rendering."""
 
-        return _prompt_context_for_panel(self).current_behavior_snapshot()
+        return self._prompt_context_controller.current_behavior_snapshot()
 
     def set_current_behavior_snapshot(
         self,
@@ -1611,12 +1569,12 @@ class EditorPanel(QWidget):
     ) -> None:
         """Publish the latest behavior snapshot through prompt-context ownership."""
 
-        _prompt_context_for_panel(self).set_current_behavior_snapshot(snapshot)
+        self._prompt_context_controller.set_current_behavior_snapshot(snapshot)
 
     def workflow_prompt_context(self) -> WorkflowPromptContext:
         """Return the current workflow context used by prompt-field resolvers."""
 
-        return _prompt_context_for_panel(self).workflow_prompt_context()
+        return self._prompt_context_controller.workflow_prompt_context()
 
     def begin_projection_prompt_context(
         self,
@@ -1627,7 +1585,7 @@ class EditorPanel(QWidget):
     ) -> None:
         """Capture immutable prompt-analysis workflow state for one projection."""
 
-        _prompt_context_for_panel(self).begin_projection_prompt_context(
+        self._prompt_context_controller.begin_projection_prompt_context(
             cube_states=cube_states,
             stack_order=stack_order,
             reason=reason,
@@ -1636,7 +1594,7 @@ class EditorPanel(QWidget):
     def clear_projection_prompt_context(self, *, reason: str) -> None:
         """Clear projection-scoped prompt state before live editing resumes."""
 
-        _prompt_context_for_panel(self).clear_projection_prompt_context(reason=reason)
+        self._prompt_context_controller.clear_projection_prompt_context(reason=reason)
 
     def _build_projection_prompt_context(
         self,
@@ -1647,7 +1605,7 @@ class EditorPanel(QWidget):
     ) -> WorkflowPromptContext:
         """Return a workflow prompt context detached from live cube mutation."""
 
-        return _prompt_context_for_panel(self).build_projection_prompt_context(
+        return self._prompt_context_controller.build_projection_prompt_context(
             cube_states=cube_states,
             stack_order=stack_order,
             reason=reason,
@@ -1661,7 +1619,7 @@ class EditorPanel(QWidget):
     ) -> dict[str, object]:
         """Return cube snapshots whose buffers no longer alias live state."""
 
-        return _prompt_context_for_panel(self).snapshot_prompt_cube_states(
+        return self._prompt_context_controller.snapshot_prompt_cube_states(
             cube_states=cube_states,
             stack_order=stack_order,
         )
@@ -1669,14 +1627,12 @@ class EditorPanel(QWidget):
     def _snapshot_prompt_workflow_overrides(self) -> Mapping[str, object]:
         """Return workflow overrides detached from live mutation."""
 
-        return _prompt_context_for_panel(self).snapshot_prompt_workflow_overrides()
+        return self._prompt_context_controller.snapshot_prompt_workflow_overrides()
 
     def _prompt_workflow_context_for_feature_profiles(self) -> WorkflowPromptContext:
         """Return the active prompt context for feature-profile resolution."""
 
-        return _prompt_context_for_panel(
-            self
-        ).prompt_workflow_context_for_feature_profiles()
+        return self._prompt_context_controller.prompt_workflow_context_for_feature_profiles()
 
     def _workflow_prompt_context_key(
         self,
@@ -1684,7 +1640,7 @@ class EditorPanel(QWidget):
     ) -> tuple[Hashable, ...]:
         """Return the refresh-scoped identity key for prompt workflow context reuse."""
 
-        return _prompt_context_for_panel(self).workflow_prompt_context_key(
+        return self._prompt_context_controller.workflow_prompt_context_key(
             workflow_overrides
         )
 
@@ -1747,7 +1703,7 @@ class EditorPanel(QWidget):
     ) -> Callable[[str], tuple[PromptScheduledLora, ...]] | None:
         """Return a narrow resolver callable bound to one prompt field context."""
 
-        return _prompt_context_for_panel(self).scheduled_lora_resolver_for_prompt(
+        return self._prompt_context_controller.scheduled_lora_resolver_for_prompt(
             cube_alias,
             prompt_node_name,
             prompt_field_key,
@@ -1762,7 +1718,7 @@ class EditorPanel(QWidget):
     ) -> PromptEditorFeatureProfile | None:
         """Return the resolved prompt feature profile for one prompt field."""
 
-        return _prompt_context_for_panel(self).prompt_feature_profile_for_prompt(
+        return self._prompt_context_controller.prompt_feature_profile_for_prompt(
             cube_alias,
             prompt_node_name,
             prompt_field_key,
@@ -1778,7 +1734,7 @@ class EditorPanel(QWidget):
     ) -> PanelPromptFieldProfileDecision:
         """Return prepared prompt feature and syntax profiles for one field."""
 
-        return _prompt_context_for_panel(self).prompt_field_profile_for_prompt(
+        return self._prompt_context_controller.prompt_field_profile_for_prompt(
             cube_alias,
             prompt_node_name,
             prompt_field_key,
@@ -1962,7 +1918,7 @@ class EditorPanel(QWidget):
 
         builder = getattr(self, "_cube_section_builder", None)
         if builder is None:
-            builder = CubeSectionBuilder(self)
+            builder = cube_section_builder_for_panel(self)
             setattr(self, "_cube_section_builder", builder)
         return builder.build_cube_section(route_key)
 
@@ -2109,7 +2065,7 @@ class EditorPanel(QWidget):
             return
 
         applier.apply_snapshot(snapshot)
-        _refresh_prompt_scene_diagnostics_if_available(self)
+        self.refresh_prompt_scene_diagnostics()
         log_debug(
             _LOGGER,
             "Refreshed editor behavior state",

@@ -18,10 +18,10 @@
 
 from __future__ import annotations
 
-from substitute.presentation.editor.prompt_editor.projection.snapshot import (
+from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionLineSnapshot,
 )
-from substitute.presentation.editor.prompt_editor.projection.visible_line_range import (
+from substitute.presentation.editor.prompt_editor.geometry.visible_lines import (
     PromptProjectionSourceLineIndex,
     visible_projection_lines,
 )

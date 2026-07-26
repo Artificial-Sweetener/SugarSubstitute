@@ -90,7 +90,9 @@ from .model_choice_snapshot_controller import PanelModelChoiceSnapshotController
 from .choice_field_surface_reconciler import ChoiceFieldSurfaceReconciliationResult
 from .projection_preparation import BehaviorRefreshReason
 from .projection_session import EditorSurfaceProjectionSignature
-from .prompt_profile_policy import PanelPromptFieldProfileDecision
+from .prompt.context import EditorPanelPromptContextController
+from .prompt.profile_policy import PanelPromptFieldProfileDecision
+from .prompt.scene_diagnostics import EditorPanelPromptSceneDiagnosticsController
 from .service_bundle import EditorPanelExecutionFactories
 
 class EditorPanel(QWidget):
@@ -109,7 +111,8 @@ class EditorPanel(QWidget):
     dimension_preset_source: EditorDimensionPresetMenuSource | None
     _cube_states: Mapping[str, Any] | None
     _stack_order: list[str] | None
-    _prompt_context_controller: Any
+    _prompt_context_controller: EditorPanelPromptContextController
+    _prompt_scene_diagnostics_controller: EditorPanelPromptSceneDiagnosticsController
 
     def __init__(
         self,

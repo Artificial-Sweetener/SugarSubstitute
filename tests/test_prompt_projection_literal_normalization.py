@@ -27,9 +27,13 @@ from PySide6.QtCore import QPoint, QRect, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.presentation.editor.prompt_editor.projection.model import (
-    OBJECT_REPLACEMENT_CHARACTER,
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretPlacement,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
+    OBJECT_REPLACEMENT_CHARACTER,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionTokenKind,
 )
 from tests.prompt_projection_test_helpers import (

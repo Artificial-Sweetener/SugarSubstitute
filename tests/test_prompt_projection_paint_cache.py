@@ -18,6 +18,9 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+from typing import cast
+
 from substitute.application.prompt_editor.document.views import (
     PromptRegionStructureView,
 )
@@ -26,7 +29,8 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtGui import QColor, QFont, QPalette
+from PySide6.QtCore import QRectF, Qt
+from PySide6.QtGui import QColor, QFont, QPainter, QPalette, QPixmap
 
 from substitute.domain.appearance import RgbColor, SemanticPalette
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
@@ -45,18 +49,32 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 from substitute.presentation.editor.prompt_editor.projection.caret_map_builder import (
     build_prompt_projection_caret_map,
 )
-from substitute.presentation.editor.prompt_editor.projection.layout_engine import (
-    PromptProjectionLayout,
+from substitute.presentation.editor.prompt_editor.projection.content_selection_layer import (
+    EMPTY_PROJECTION_SELECTION_LAYER,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.projection.content_media_state import (
+    PromptProjectionContentMediaIdentity,
+)
+from substitute.presentation.editor.prompt_editor.projection.edit_to_frame import (
+    PromptLayoutEditToFrameCoordinator,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.mapping import (
     PromptProjectionMapping,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
     PromptProjectionRunKind,
 )
 from substitute.presentation.editor.prompt_editor.projection.paint_cache import (
     PromptProjectionPaintCache,
+)
+from substitute.presentation.editor.prompt_editor.projection.paint_input import (
+    PromptProjectionPaintInput,
+    PromptProjectionPaintStyleKey,
 )
 from substitute.presentation.editor.prompt_editor.projection.tokens import (
     PromptProjectionInlineObjectRendererRegistry,
@@ -83,18 +101,24 @@ def test_projection_content_cache_key_tracks_prepared_and_style_inputs() -> None
     paint_identity = _paint_identity(source_revision=7)
 
     key = cache.cache_key_for(
-        layout=layout,
+        paint_input=layout.frame.paint_input,
         paint_identity=paint_identity,
-        font=font,
-        palette=palette,
-        semantic_palette=semantic_palette,
+        media_identity=_media_identity(),
     )
 
     assert key.paint_identity == paint_identity
-    assert key.display_mode is PromptProjectionDisplayMode.PROJECTED
-    assert key.font_key == font.toString()
-    assert key.palette_cache_key == int(palette.cacheKey())
-    assert key.semantic_accent == (1, 2, 3)
+    assert key.style.display_mode is PromptProjectionDisplayMode.PROJECTED
+    assert key.style.font_key == font.toString()
+    assert key.style.palette_cache_key == int(palette.cacheKey())
+    assert key.style.semantic_accent == (1, 2, 3)
+    assert (
+        cache.cache_key_for(
+            paint_input=layout.frame.paint_input,
+            paint_identity=paint_identity,
+            media_identity=_media_identity(revision=1),
+        )
+        != key
+    )
 
     assert (
         _cache_key_for(
@@ -178,10 +202,153 @@ def test_projection_content_cache_key_tracks_prepared_and_style_inputs() -> None
     )
 
 
+def test_prepared_frame_retains_paint_input_for_unchanged_style_publication() -> None:
+    """Repeated frame synchronization must not rebuild unchanged paint inputs."""
+
+    ensure_qapp()
+    font = QFont()
+    palette = QPalette()
+    semantic_palette = _semantic_palette(accent=RgbColor(1, 2, 3))
+    layout = _layout_for(
+        "alpha beta",
+        font=font,
+        palette=palette,
+        semantic_palette=semantic_palette,
+    )
+    paint_input = layout.frame.paint_input
+
+    layout.frame.set_palette(QPalette(palette))
+    layout.frame.set_semantic_palette(semantic_palette)
+
+    assert layout.frame.paint_input is paint_input
+
+
+def test_prepared_frame_rebuilds_paint_input_for_changed_style_publication() -> None:
+    """Changed palette state must publish a new prepared paint input."""
+
+    ensure_qapp()
+    font = QFont()
+    palette = QPalette()
+    semantic_palette = _semantic_palette(accent=RgbColor(1, 2, 3))
+    layout = _layout_for(
+        "alpha beta",
+        font=font,
+        palette=palette,
+        semantic_palette=semantic_palette,
+    )
+    paint_input = layout.frame.paint_input
+    changed_palette = QPalette(palette)
+    changed_palette.setColor(QPalette.ColorRole.Text, QColor("#303030"))
+
+    layout.frame.set_palette(changed_palette)
+
+    assert layout.frame.paint_input is not paint_input
+
+
+def test_projection_content_cache_hit_key_consumes_only_prepared_style() -> None:
+    """Keep font and palette queries out of cache-key lookup."""
+
+    style_key = PromptProjectionPaintStyleKey(
+        display_mode=PromptProjectionDisplayMode.PROJECTED,
+        font_key="prepared-font",
+        palette_cache_key=17,
+        text_color=18,
+        placeholder_color=19,
+        semantic_accent=(1, 2, 3),
+        semantic_error_foreground=(4, 5, 6),
+    )
+    paint_input = cast(PromptProjectionPaintInput, _PreparedStyleOnlyInput(style_key))
+
+    key = PromptProjectionPaintCache().cache_key_for(
+        paint_input=paint_input,
+        paint_identity=_paint_identity(source_revision=7),
+        media_identity=_media_identity(),
+    )
+
+    assert key.style.font_key == "prepared-font"
+    assert key.style.palette_cache_key == 17
+
+
+def test_projection_content_cache_hit_reuses_existing_identity() -> None:
+    """Keep a warm full-viewport paint free of cache-key replacement."""
+
+    ensure_qapp()
+    layout = _layout_for(
+        "alpha beta",
+        font=QFont(),
+        palette=QPalette(),
+        semantic_palette=_semantic_palette(accent=RgbColor(1, 2, 3)),
+    )
+    cache = PromptProjectionPaintCache()
+    paint_identity = _paint_identity(source_revision=7)
+    viewport_rect = QRectF(0.0, 0.0, 240.0, 120.0)
+    pixmap = QPixmap(240, 120)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    try:
+        first_result = cache.paint_projection_content(
+            painter,
+            paint_input=layout.frame.paint_input,
+            selection_layer=EMPTY_PROJECTION_SELECTION_LAYER,
+            scroll_offset=0.0,
+            clip_rect=viewport_rect,
+            viewport_rect=viewport_rect,
+            excluded_region=None,
+            paint_identity=paint_identity,
+            media_identity=_media_identity(),
+            device_pixel_ratio=1.0,
+        )
+        first_key = cache.cache_key
+        second_result = cache.paint_projection_content(
+            painter,
+            paint_input=layout.frame.paint_input,
+            selection_layer=EMPTY_PROJECTION_SELECTION_LAYER,
+            scroll_offset=0.0,
+            clip_rect=viewport_rect,
+            viewport_rect=viewport_rect,
+            excluded_region=None,
+            paint_identity=paint_identity,
+            media_identity=_media_identity(),
+            device_pixel_ratio=1.0,
+        )
+        second_key = cache.cache_key
+        media_result = cache.paint_projection_content(
+            painter,
+            paint_input=layout.frame.paint_input,
+            selection_layer=EMPTY_PROJECTION_SELECTION_LAYER,
+            scroll_offset=0.0,
+            clip_rect=viewport_rect,
+            viewport_rect=viewport_rect,
+            excluded_region=None,
+            paint_identity=paint_identity,
+            media_identity=_media_identity(revision=1),
+            device_pixel_ratio=1.0,
+        )
+    finally:
+        painter.end()
+
+    assert first_result == "miss"
+    assert second_result == "hit"
+    assert first_key is second_key
+    assert media_result == "miss"
+    assert first_key is not cache.cache_key
+    assert cache.cache_key is not None
+    assert cache.cache_key.media_identity == _media_identity(revision=1)
+
+
+class _PreparedStyleOnlyInput:
+    """Expose only the style value allowed on cache-key lookup."""
+
+    def __init__(self, style_key: PromptProjectionPaintStyleKey) -> None:
+        """Store one already-prepared style key."""
+
+        self.style_key = style_key
+
+
 def _cache_key_for(
     cache: PromptProjectionPaintCache,
     *,
-    layout: PromptProjectionLayout,
+    layout: PromptLayoutEditToFrameCoordinator,
     paint_identity: PromptPaintIdentity,
     font: QFont,
     palette: QPalette,
@@ -190,12 +357,23 @@ def _cache_key_for(
     """Return a content-cache key with stable non-varied paint inputs."""
 
     return cache.cache_key_for(
-        layout=layout,
+        paint_input=replace(
+            layout.frame.paint_input,
+            base_font=font,
+            palette=palette,
+            semantic_palette=semantic_palette,
+        ),
         paint_identity=paint_identity,
-        font=font,
-        palette=palette,
-        semantic_palette=semantic_palette,
+        media_identity=_media_identity(),
     )
+
+
+def _media_identity(
+    revision: int = 0,
+) -> PromptProjectionContentMediaIdentity:
+    """Return one explicit presentation-media revision for cache contracts."""
+
+    return PromptProjectionContentMediaIdentity(revision=revision)
 
 
 def _paint_identity(
@@ -235,13 +413,15 @@ def _layout_for(
     palette: QPalette,
     semantic_palette: SemanticPalette,
     content_left_inset: float = 0.0,
-) -> PromptProjectionLayout:
+) -> PromptLayoutEditToFrameCoordinator:
     """Return one laid-out plain-text projection for cache-key tests."""
 
-    layout = PromptProjectionLayout(PromptProjectionInlineObjectRendererRegistry(()))
+    layout = PromptLayoutEditToFrameCoordinator(
+        PromptProjectionInlineObjectRendererRegistry(())
+    )
     layout.set_base_font(font)
-    layout.set_palette(palette)
-    layout.set_semantic_palette(semantic_palette)
+    layout.frame.set_palette(palette)
+    layout.frame.set_semantic_palette(semantic_palette)
     layout.set_content_left_inset(content_left_inset)
     layout.set_projection(_plain_text_document(text))
     layout.set_text_width(240.0)

@@ -39,10 +39,14 @@ from substitute.application.prompt_editor.lora.resolution import (
 from substitute.presentation.semantic_colors import semantic_error_color
 from substitute.presentation.widgets.banner_text_painter import BannerTextPainter
 
-from .model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretPlacement,
     PromptProjectionCaretState,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
 )
 from .metrics import projection_text_line_height

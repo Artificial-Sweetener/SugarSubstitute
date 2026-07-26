@@ -50,9 +50,11 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_preview imp
     PromptReorderPreviewState,
     PromptReorderProjectionSnapshot,
 )
-from substitute.presentation.editor.prompt_editor.projection.reorder_preview_projection import (
+from substitute.presentation.editor.prompt_editor.projection.reorder_preview_projection_contracts import (
     PromptReorderPreviewProjectionContext,
-    PromptReorderPreviewProjectionService,
+)
+from substitute.presentation.editor.prompt_editor.projection.reorder_preview_projection_owner import (
+    PromptReorderPreviewProjectionOwner,
 )
 from substitute.presentation.editor.prompt_editor.projection.theme import (
     semantic_palette_from_theme,
@@ -145,7 +147,7 @@ def test_reorder_projection_service_reuses_identical_base_layout(
     assert counters["preview_projection_incremental_layout_count"] == 0
     assert counters["preview_projection_exact_layout_reuse_count"] == 1
     assert service.base_drag_document is service.preview_document
-    assert service.base_drag_layout is service.preview_layout
+    assert service.base_drag_frame is service.preview_frame
 
 
 def test_reorder_projection_service_clears_preview_only_state(
@@ -179,9 +181,9 @@ def test_reorder_projection_service_clears_preview_only_state(
     assert invalidation.clear_all_geometry_reason == "reorder_preview_clear"
     assert service.preview_state is None
     assert service.preview_document is None
-    assert service.preview_layout is None
+    assert service.preview_frame is None
     assert service.base_drag_document is None
-    assert service.base_drag_layout is None
+    assert service.base_drag_frame is None
     assert not service.is_active()
 
 
@@ -253,6 +255,102 @@ def test_reorder_projection_service_incremental_target_preserves_lru_revisit(
     assert _counter(after_revisit, "preview_projection_lru_cache_hit_count") == (
         _counter(before_revisit, "preview_projection_lru_cache_hit_count") + 1
     )
+
+
+def test_reorder_projection_service_reflows_drag_snapshot_across_separator(
+    app: QApplication,
+) -> None:
+    """Removing a regional chip should reflow from before its caretless separator."""
+
+    _ = app
+    service = _service()
+    preview_state = _build_reorder_preview_state(
+        "tag00\n[SEP]\nred, blue, green",
+        dragged_chip_index=1,
+        drop_target=PromptLineDropTarget(row_index=1, insertion_index=0),
+    )
+
+    service.set_preview_state(
+        preview_state,
+        context=_context(active_drop_target_identity=("line", 1, 0)),
+        font=QFont(),
+        palette=QPalette(),
+        semantic_palette=semantic_palette_from_theme(),
+    )
+
+    assert service.preview_document is not None
+    assert service.preview_frame is not None
+    assert service.base_drag_document is not None
+    assert service.base_drag_frame is not None
+    assert service.base_drag_document.source_text == "tag00\n[SEP]\nblue, green"
+    assert tuple(
+        (line.source_start, line.source_end)
+        for line in service.base_drag_frame.output.snapshot.lines
+    ) == ((0, 6), (6, 12), (12, 23))
+
+
+def test_reorder_projection_service_reflows_across_second_separator_boundary(
+    app: QApplication,
+) -> None:
+    """Target changes must preserve the caret host before a later separator."""
+
+    _ = app
+    source = (
+        "best quality, score_7, masterpiece, very aesthetic\n\n"
+        "2girls, standing, full body, looking at viewer, outdoors, "
+        "cherry blossoms, school uniform,\n\n"
+        "[SEP]\n"
+        "1girl, red hair, long hair, green eyes, smile, blazer, pleated skirt, "
+        "black thighhighs,\n\n"
+        "[SEP]\n"
+        "1girl, blue hair, short hair, blue eyes, serious, cardigan, "
+        "pleated skirt, kneehighs\n"
+    )
+    service = _service()
+    first_target = PromptLineDropTarget(row_index=2, insertion_index=0)
+    next_target = PromptLineDropTarget(row_index=2, insertion_index=7)
+    separator_starts_by_target: list[tuple[int, ...]] = []
+
+    for target in (first_target, next_target):
+        service.set_preview_state(
+            _build_reorder_preview_state(
+                source,
+                dragged_chip_index=11,
+                drop_target=target,
+            ),
+            context=_context(
+                active_drop_target_identity=(
+                    "line",
+                    target.row_index,
+                    target.insertion_index,
+                )
+            ),
+            font=QFont(),
+            palette=QPalette(),
+            semantic_palette=semantic_palette_from_theme(),
+        )
+        assert service.preview_document is not None
+        assert service.preview_frame is not None
+        assert service.base_drag_document is not None
+        assert service.base_drag_frame is not None
+        separator_starts = tuple(
+            run.projection_start
+            for run in service.preview_document.runs
+            if run.is_structural_row
+        )
+        separator_starts_by_target.append(separator_starts)
+        for document, frame in (
+            (service.preview_document, service.preview_frame),
+            (service.base_drag_document, service.base_drag_frame),
+        ):
+            caret_rects = frame.output.snapshot.caret_rects_by_projection_position
+            assert all(
+                run.projection_start in caret_rects
+                for run in document.runs
+                if run.is_structural_row
+            )
+
+    assert separator_starts_by_target == [(144, 234), (144, 234)]
 
 
 @pytest.mark.parametrize(
@@ -419,10 +517,10 @@ def test_reorder_projection_service_cache_logging_context_is_prompt_safe(
     assert "projection_cache_snapshot_hash" in messages
 
 
-def _service() -> PromptReorderPreviewProjectionService:
+def _service() -> PromptReorderPreviewProjectionOwner:
     """Build one preview projection service for focused ownership tests."""
 
-    return PromptReorderPreviewProjectionService(
+    return PromptReorderPreviewProjectionOwner(
         projection_applicator=PromptProjectionApplicator(PromptProjectionBuilder()),
         thumbnail_cache=PromptLoraThumbnailCache(),
     )

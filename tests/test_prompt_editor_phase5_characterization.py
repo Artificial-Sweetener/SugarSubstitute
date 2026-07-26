@@ -454,13 +454,19 @@ def test_phase5_scene_autocomplete_queue_and_effective_prompt_context(
         )
         == "quality\n"
     )
-    scene_feature = cast(Any, editor)._scene_feature_controller
+    scene_preparation = cast(Any, editor)._scene_position_preparation
     assert (
-        scene_feature.queueable_scene_key_for_source_position(scene_position)
+        scene_preparation.prepare_position_context(
+            scene_position,
+            reason="phase5_scene_queue_assertion",
+        ).context.queueable_scene_key
         == "canal night"
     )
     assert (
-        scene_feature.queueable_scene_key_for_source_position(universal_position)
+        scene_preparation.prepare_position_context(
+            universal_position,
+            reason="phase5_universal_queue_assertion",
+        ).context.queueable_scene_key
         is None
     )
     assert editor.current_source_line_index() == accepted_text[:scene_position].count(
@@ -629,10 +635,10 @@ def test_phase5_scheduled_lora_context_async_boundaries_and_lru(
     autocomplete._scheduled_lora_context = (
         PromptAutocompleteScheduledLoraContextController(
             context_provider=provider,
-            current_context=autocomplete,
             enabled=True,
         )
     )
+    autocomplete._scheduled_lora_context.bind_current_context(autocomplete)
 
     assert provider.prewarm("secret prompt") is True
     assert provider.prewarm("secret prompt") is False

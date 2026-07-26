@@ -41,9 +41,14 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderLayoutView,
     PromptReorderRowView,
 )
+from substitute.application.prompt_editor.reorder.intents import (
+    PromptReorderCommitIntent,
+)
+from substitute.application.prompt_editor.reorder.commit import (
+    PromptReorderLayoutCommitRequest,
+)
 from substitute.presentation.editor.prompt_editor.commands.reorder_commands import (
     PromptReorderCommandResult,
-    PromptReorderLayoutCommitRequest,
     build_reorder_layout_commit_command,
 )
 from tests.prompt_editor_command_test_helpers import execute_prompt_command
@@ -56,15 +61,12 @@ from substitute.presentation.editor.prompt_editor.core.editing.session import (
 from substitute.presentation.editor.prompt_editor.core.editing.transactions import (
     PromptUndoSnapshot,
 )
-from substitute.presentation.editor.prompt_editor.models import (
-    PromptEditorInteractionMode,
-    SegmentReorderSession,
-)
 from tests.prompt_autocomplete_test_helpers import prompt_syntax_profile
 from tests.prompt_reorder_interaction_test_helpers import (
     ControllerEditorDouble,
     MenuCursorDouble,
     OverlayDouble,
+    OverlayFactoryDouble,
     autocomplete_double,
     prompt_interaction_controller,
     reorder_state_for_indices,
@@ -87,13 +89,8 @@ def test_commit_and_close_segment_overlay_routes_reorder_through_command() -> No
     mutation_service = ReorderMutationService(reorder_result=mutation)
     editor = CommandEditorDouble(
         clicked_cursor=MenuCursorDouble(text="alpha, beta", position=0),
-        current_cursor=MenuCursorDouble(text="alpha, beta", position=0),
+        current_cursor=MenuCursorDouble(text="alpha, beta", position=7),
         text="alpha, beta",
-    )
-    controller = _controller_for_commit(
-        editor,
-        document_service=document_service,
-        mutation_service=mutation_service,
     )
     committed_layout_view = PromptReorderLayoutView(
         rows=(PromptReorderRowView(row_index=0, chip_indices=(1, 0)),),
@@ -105,21 +102,37 @@ def test_commit_and_close_segment_overlay_routes_reorder_through_command() -> No
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
         current_layout_view=committed_layout_view,
     )
-    controller._reorder._segment_overlay = overlay
-    controller._reorder._interaction_mode = PromptEditorInteractionMode.SEGMENT_REORDER
+    controller = _controller_for_commit(
+        editor,
+        document_service=document_service,
+        mutation_service=mutation_service,
+        reorder_overlay_factory=OverlayFactoryDouble(overlay),
+    )
+    controller.enter_segment_reorder_mode_from_keymap()
+    overlay._ordered_indices = [1, 0]
+    overlay._current_reorder_state = reorder_state_for_indices((1, 0))
+    overlay._current_layout_view = committed_layout_view
+    overlay._active_segment_index = 1
+    overlay._has_reordered = True
+    assert overlay.commit_handler is not None
+    overlay.commit_handler(
+        PromptReorderCommitIntent(
+            reason="pointer_drop", snapshot=overlay.commit_snapshot()
+        )
+    )
 
-    controller._reorder.commit_and_close_segment_overlay()
+    controller.commit_segment_reorder_mode_from_keymap(
+        PromptReorderCommitIntent(reason="test")
+    )
 
     assert mutation_service.reorder_layout_calls == [
         ("alpha, beta", reorder_state_for_indices((1, 0)), 1)
     ]
-    assert editor.executed_reorder_requests == [
-        PromptReorderLayoutCommitRequest(
-            reorder_state=reorder_state_for_indices((1, 0)),
-            layout_view=committed_layout_view,
-            selected_chip_index=1,
-        )
-    ]
+    assert len(editor.executed_reorder_requests) == 1
+    request = editor.executed_reorder_requests[0]
+    assert request.reorder_state == reorder_state_for_indices((1, 0))
+    assert request.layout_view == committed_layout_view
+    assert request.selected_chip_index == 1
     assert editor.toPlainText() == "beta, alpha"
     assert editor.set_plain_text_calls == ["beta, alpha"]
     assert editor.replace_document_text_calls == []
@@ -147,11 +160,6 @@ def test_commit_and_close_segment_overlay_restores_caret_relative_to_moved_chip_
         current_cursor=MenuCursorDouble(text="alpha, beta", position=7),
         text="alpha, beta",
     )
-    controller = _controller_for_commit(
-        editor,
-        document_service=document_service,
-        mutation_service=mutation_service,
-    )
     committed_layout_view = PromptReorderLayoutView(
         rows=(PromptReorderRowView(row_index=0, chip_indices=(1, 0)),),
         gaps=(),
@@ -162,23 +170,28 @@ def test_commit_and_close_segment_overlay_restores_caret_relative_to_moved_chip_
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
         current_layout_view=committed_layout_view,
     )
-    controller._reorder._segment_overlay = overlay
-    controller._reorder._interaction_mode = PromptEditorInteractionMode.SEGMENT_REORDER
-    controller._reorder._session_controller.replace_session(
-        SegmentReorderSession(
-            is_active=True,
-            original_ordered_indices=(0, 1),
-            current_ordered_indices=(1, 0),
-            active_segment_index=1,
-            selection_start=7,
-            selection_end=7,
-            selection_start_offset_within_active_chip=0,
-            selection_end_offset_within_active_chip=0,
-            has_reordered=True,
+    controller = _controller_for_commit(
+        editor,
+        document_service=document_service,
+        mutation_service=mutation_service,
+        reorder_overlay_factory=OverlayFactoryDouble(overlay),
+    )
+    controller.enter_segment_reorder_mode_from_keymap()
+    overlay._ordered_indices = [1, 0]
+    overlay._current_reorder_state = reorder_state_for_indices((1, 0))
+    overlay._current_layout_view = committed_layout_view
+    overlay._active_segment_index = 1
+    overlay._has_reordered = True
+    assert overlay.commit_handler is not None
+    overlay.commit_handler(
+        PromptReorderCommitIntent(
+            reason="pointer_drop", snapshot=overlay.commit_snapshot()
         )
     )
 
-    controller._reorder.commit_and_close_segment_overlay()
+    controller.commit_segment_reorder_mode_from_keymap(
+        PromptReorderCommitIntent(reason="test")
+    )
 
     assert editor.toPlainText() == "beta, alpha"
     assert editor.textCursor().selectionStart() == 0
@@ -209,11 +222,6 @@ def test_commit_and_close_segment_overlay_forwards_typed_gap_drop_target() -> No
         ),
         text="alpha,\n\n\n\n\nbeta, gamma",
     )
-    controller = _controller_for_commit(
-        editor,
-        document_service=document_service,
-        mutation_service=mutation_service,
-    )
     committed_layout_view = PromptReorderLayoutView(
         rows=(
             PromptReorderRowView(row_index=0, chip_indices=(0,)),
@@ -233,10 +241,28 @@ def test_commit_and_close_segment_overlay_forwards_typed_gap_drop_target() -> No
         drop_target=PromptGapBlankLineDropTarget(gap_index=0, blank_line_index=1),
         current_layout_view=committed_layout_view,
     )
-    controller._reorder._segment_overlay = overlay
-    controller._reorder._interaction_mode = PromptEditorInteractionMode.SEGMENT_REORDER
+    controller = _controller_for_commit(
+        editor,
+        document_service=document_service,
+        mutation_service=mutation_service,
+        reorder_overlay_factory=OverlayFactoryDouble(overlay),
+    )
+    controller.enter_segment_reorder_mode_from_keymap()
+    overlay._ordered_indices = [0, 2, 1]
+    overlay._current_reorder_state = reorder_state_for_indices((0, 2, 1))
+    overlay._current_layout_view = committed_layout_view
+    overlay._active_segment_index = 2
+    overlay._has_reordered = True
+    assert overlay.commit_handler is not None
+    overlay.commit_handler(
+        PromptReorderCommitIntent(
+            reason="pointer_drop", snapshot=overlay.commit_snapshot()
+        )
+    )
 
-    controller._reorder.commit_and_close_segment_overlay()
+    controller.commit_segment_reorder_mode_from_keymap(
+        PromptReorderCommitIntent(reason="test")
+    )
 
     assert mutation_service.reorder_layout_calls == [
         (
@@ -245,13 +271,11 @@ def test_commit_and_close_segment_overlay_forwards_typed_gap_drop_target() -> No
             2,
         )
     ]
-    assert editor.executed_reorder_requests == [
-        PromptReorderLayoutCommitRequest(
-            reorder_state=reorder_state_for_indices((0, 2, 1)),
-            layout_view=committed_layout_view,
-            selected_chip_index=2,
-        )
-    ]
+    assert len(editor.executed_reorder_requests) == 1
+    request = editor.executed_reorder_requests[0]
+    assert request.reorder_state == reorder_state_for_indices((0, 2, 1))
+    assert request.layout_view == committed_layout_view
+    assert request.selected_chip_index == 2
     assert editor.toPlainText() == "alpha,\n\ngamma,\n\n\nbeta"
 
 
@@ -396,6 +420,7 @@ def _controller_for_commit(
     *,
     document_service: PromptDocumentService,
     mutation_service: ReorderMutationService,
+    reorder_overlay_factory: OverlayFactoryDouble,
 ) -> Any:
     """Build a reorder controller for commit command tests."""
 
@@ -408,4 +433,5 @@ def _controller_for_commit(
         mutation_service=cast(PromptMutationService, mutation_service),
         syntax_service_=syntax_service(),
         syntax_profile=prompt_syntax_profile("emphasis", "wildcard"),
+        reorder_overlay_factory=reorder_overlay_factory,
     )

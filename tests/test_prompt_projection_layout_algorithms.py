@@ -23,10 +23,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
-from substitute.presentation.editor.prompt_editor.projection import (
-    layout_engine as projection_layout_module,
+from substitute.presentation.editor.prompt_editor.layout import (
+    edit_policy as projection_layout_policy,
 )
-from substitute.presentation.editor.prompt_editor.projection.line_layout import (
+from substitute.presentation.editor.prompt_editor.layout.tag_keep_policy import (
     tag_keep_source_ranges_for_layout,
 )
 
@@ -85,7 +85,7 @@ def test_projection_layout_infers_edited_tag_keep_range_from_source_text() -> No
         segments=(),
     )
 
-    requires_reflow = projection_layout_module._plain_edit_requires_tag_keep_reflow(  # noqa: SLF001
+    requires_reflow = projection_layout_policy.plain_edit_requires_tag_keep_reflow(
         cast(Any, document_view),
         previous_source_text=source_text,
         lines=(cast(Any, line),),
@@ -147,7 +147,7 @@ def test_projection_layout_detects_word_count_change_in_kept_tag() -> None:
         f"{previous_text[:edit_start]}{replacement_text}{previous_text[edit_start:]}"
     )
 
-    changed = projection_layout_module._plain_edit_changes_local_tag_keep_ranges(  # noqa: SLF001
+    changed = projection_layout_policy.plain_edit_changes_local_tag_keep_ranges(
         previous_text,
         next_text,
         edit_start=edit_start,
@@ -165,7 +165,7 @@ def test_projection_layout_ignores_character_edit_with_stable_kept_tag() -> None
     edit_start = previous_text.index("beta") + len("be")
     next_text = f"{previous_text[:edit_start]}x{previous_text[edit_start:]}"
 
-    changed = projection_layout_module._plain_edit_changes_local_tag_keep_ranges(  # noqa: SLF001
+    changed = projection_layout_policy.plain_edit_changes_local_tag_keep_ranges(
         previous_text,
         next_text,
         edit_start=edit_start,
@@ -183,7 +183,7 @@ def test_projection_layout_ignores_character_insert_at_kept_tag_start() -> None:
     edit_start = previous_text.index("beta")
     next_text = f"{previous_text[:edit_start]}x{previous_text[edit_start:]}"
 
-    changed = projection_layout_module._plain_edit_changes_local_tag_keep_ranges(  # noqa: SLF001
+    changed = projection_layout_policy.plain_edit_changes_local_tag_keep_ranges(
         previous_text,
         next_text,
         edit_start=edit_start,
@@ -201,7 +201,7 @@ def test_projection_layout_ignores_first_character_in_empty_trailing_tag() -> No
     edit_start = len(previous_text)
     next_text = f"{previous_text}x"
 
-    changed = projection_layout_module._plain_edit_changes_local_tag_keep_ranges(  # noqa: SLF001
+    changed = projection_layout_policy.plain_edit_changes_local_tag_keep_ranges(
         previous_text,
         next_text,
         edit_start=edit_start,

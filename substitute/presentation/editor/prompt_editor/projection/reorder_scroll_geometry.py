@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QRect, QRectF
 
@@ -30,9 +29,10 @@ from .reorder_chip_geometry import (
     PromptReorderChipGeometrySnapshot,
     PromptReorderChipLineGeometry,
 )
-
-if TYPE_CHECKING:
-    from .layout_engine import PromptProjectionLayout
+from .reorder_geometry import (
+    PromptProjectionReorderGeometry,
+    PromptProjectionReorderGeometryState,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +53,8 @@ class PromptReorderScrollGeometryBuildResult:
 
 
 def build_reorder_geometry_after_scroll(
-    projection_layout: PromptProjectionLayout,
+    reorder_geometry: PromptProjectionReorderGeometry,
+    geometry_state: PromptProjectionReorderGeometryState,
     *,
     layout_view: PromptReorderLayoutView,
     chip_rendered_ranges_by_index: dict[int, tuple[int, int]],
@@ -67,7 +68,7 @@ def build_reorder_geometry_after_scroll(
 
     visible_indices = visible_reorder_chip_indices(
         chip_rendered_ranges_by_index,
-        visible_source_bounds=projection_layout.visible_source_bounds(
+        visible_source_bounds=geometry_state.viewport_geometry.visible_source_bounds(
             viewport_rect=current_viewport_rect,
             scroll_offset=current_scroll_offset,
         ),
@@ -79,7 +80,8 @@ def build_reorder_geometry_after_scroll(
         current_scroll_offset=current_scroll_offset,
         visible_chip_indices=visible_indices,
     )
-    rebuilt_snapshot = projection_layout.reorder_chip_geometry_snapshot(
+    rebuilt_snapshot = reorder_geometry.reorder_chip_geometry_snapshot(
+        state=geometry_state,
         layout_view=layout_view,
         chip_rendered_ranges_by_index=chip_rendered_ranges_by_index,
         chip_owned_ranges_by_index=chip_owned_ranges_by_index,

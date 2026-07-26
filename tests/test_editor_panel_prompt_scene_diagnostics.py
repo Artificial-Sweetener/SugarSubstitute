@@ -25,7 +25,7 @@ from typing import cast
 from PySide6.QtCore import QTimer
 import pytest
 
-import substitute.presentation.editor.panel.prompt_scene_diagnostics_controller as mod
+import substitute.presentation.editor.panel.prompt.scene_diagnostics as mod
 
 
 class _SignalDouble:
@@ -91,7 +91,10 @@ def test_prompt_scene_diagnostics_signal_configuration_is_idempotent() -> None:
     controller = mod.EditorPanelPromptSceneDiagnosticsController(
         cast(
             mod.EditorPanelPromptSceneDiagnosticsHost,
-            SimpleNamespace(findChildren=lambda _type: []),
+            SimpleNamespace(
+                findChildren=lambda _type: [],
+                current_behavior_snapshot=lambda: None,
+            ),
         )
     )
 
@@ -123,7 +126,10 @@ def test_prompt_scene_diagnostics_scheduling_coalesces_until_refresh(
     controller = mod.EditorPanelPromptSceneDiagnosticsController(
         cast(
             mod.EditorPanelPromptSceneDiagnosticsHost,
-            SimpleNamespace(findChildren=lambda _type: []),
+            SimpleNamespace(
+                findChildren=lambda _type: [],
+                current_behavior_snapshot=lambda: None,
+            ),
         )
     )
 
@@ -149,6 +155,7 @@ def test_prompt_scene_diagnostics_clear_when_analysis_unavailable() -> None:
         _stack_order=[],
         _cube_states={},
         findChildren=lambda _type: [editor],
+        current_behavior_snapshot=lambda: None,
     )
     controller = mod.EditorPanelPromptSceneDiagnosticsController(
         cast(mod.EditorPanelPromptSceneDiagnosticsHost, host)

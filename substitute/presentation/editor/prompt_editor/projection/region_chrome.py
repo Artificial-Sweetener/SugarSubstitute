@@ -14,16 +14,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Prepare and paint immutable accent chrome for regional prompt structure."""
+"""Prepare immutable accent chrome for regional prompt structure."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Protocol
 
 from PySide6.QtCore import QLineF, Qt
-from PySide6.QtGui import QPainter, QPen
+from PySide6.QtGui import QPen
 
 from substitute.application.appearance import SemanticPalette
 from substitute.application.prompt_editor.document.views import (
@@ -32,44 +31,19 @@ from substitute.application.prompt_editor.document.views import (
 from substitute.domain.appearance import RgbColor
 
 from .metrics import PromptProjectionMetrics
-from .model import PromptProjectionDisplayMode, PromptProjectionDocument
-from .snapshot import PromptProjectionLineSnapshot
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDisplayMode,
+    PromptProjectionDocument,
+)
+from ..layout.contracts import PromptLayoutOutput
+from ..layout.models import PromptProjectionLineSnapshot
 from .theme import qcolor_from_rgb
+from .region_chrome_state import PromptRegionChromeSnapshot
 
 _DIVIDER_MAX_WIDTH = 36.0
 _DIVIDER_CONTENT_WIDTH_RATIO = 0.2
 _STROKE_WIDTH = 2.0
 _RAIL_CONTENT_GAP = 3.0
-
-
-class PromptRegionChromeLayout(Protocol):
-    """Expose immutable layout state needed to prepare regional chrome."""
-
-    @property
-    def projection_document(self) -> PromptProjectionDocument:
-        """Return the projection document owning regional structure."""
-        ...
-
-    @property
-    def metrics(self) -> PromptProjectionMetrics:
-        """Return the geometry metrics used by the layout snapshot."""
-        ...
-
-    @property
-    def line_snapshots(self) -> Sequence[PromptProjectionLineSnapshot]:
-        """Return the immutable visual lines in document order."""
-        ...
-
-
-@dataclass(frozen=True, slots=True)
-class PromptRegionChromeSnapshot:
-    """Store paint-ready separator and regional rail geometry."""
-
-    divider_lines: tuple[QLineF, ...]
-    rail_lines: tuple[QLineF, ...]
-    paint_lines: tuple[QLineF, ...]
-    pen: QPen
-    visited_line_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,8 +83,9 @@ class PromptRegionChrome:
     def __init__(self) -> None:
         """Initialize empty snapshots keyed by live layout identity."""
 
-        self._entries_by_layout_id: dict[int, _RegionChromeCacheEntry] = {}
+        self._entries_by_snapshot_id: dict[int, _RegionChromeCacheEntry] = {}
         self._prepare_count = 0
+        self._active_snapshot: PromptRegionChromeSnapshot | None = None
 
     @property
     def prepare_count(self) -> int:
@@ -118,32 +93,38 @@ class PromptRegionChrome:
 
         return self._prepare_count
 
+    @property
+    def active_snapshot(self) -> PromptRegionChromeSnapshot | None:
+        """Return the regional layer explicitly published for current paint."""
+
+        return self._active_snapshot
+
     def prepare(
         self,
-        layout: PromptRegionChromeLayout,
+        output: PromptLayoutOutput,
         *,
         semantic_palette: SemanticPalette,
     ) -> PromptRegionChromeSnapshot:
         """Build immutable divider and rail geometry in one visual-line pass."""
 
-        metrics = layout.metrics
-        projection_document = layout.projection_document
+        metrics = output.configuration.metrics
+        projection_document = output.projection_document
         cached_snapshot = self._matching_snapshot(
-            layout,
+            output,
             semantic_palette=semantic_palette,
         )
         if cached_snapshot is not None:
             return cached_snapshot
         if projection_document.display_mode is PromptProjectionDisplayMode.RAW:
             return self._empty_snapshot(
-                layout,
+                output,
                 semantic_palette=semantic_palette,
                 count_preparation=False,
             )
         structure = projection_document.region_structure
         if not structure.separators:
             return self._empty_snapshot(
-                layout,
+                output,
                 semantic_palette=semantic_palette,
                 count_preparation=True,
             )
@@ -151,7 +132,7 @@ class PromptRegionChrome:
         regional_partitions = tuple(
             partition for partition in structure.partitions if not partition.is_global
         )
-        line_probe = _RegionLineProbe(layout.line_snapshots)
+        line_probe = _RegionLineProbe(output.snapshot.lines)
         divider_lines: list[QLineF] = []
         divider_width = min(
             _DIVIDER_MAX_WIDTH,
@@ -189,6 +170,8 @@ class PromptRegionChrome:
         pen = _accent_pen(semantic_palette)
         paint_lines = (*rail_lines, *divider_lines)
         snapshot = PromptRegionChromeSnapshot(
+            layout_snapshot_identity=id(output.snapshot),
+            accent=semantic_palette.accent,
             divider_lines=tuple(divider_lines),
             rail_lines=rail_lines,
             paint_lines=paint_lines,
@@ -196,7 +179,7 @@ class PromptRegionChrome:
             visited_line_count=line_probe.visited_line_count,
         )
         self._store_snapshot(
-            layout,
+            output,
             snapshot,
             semantic_palette=semantic_palette,
         )
@@ -204,7 +187,7 @@ class PromptRegionChrome:
 
     def _empty_snapshot(
         self,
-        layout: PromptRegionChromeLayout,
+        output: PromptLayoutOutput,
         *,
         semantic_palette: SemanticPalette,
         count_preparation: bool,
@@ -214,6 +197,8 @@ class PromptRegionChrome:
         if count_preparation:
             self._prepare_count += 1
         snapshot = PromptRegionChromeSnapshot(
+            layout_snapshot_identity=id(output.snapshot),
+            accent=semantic_palette.accent,
             divider_lines=(),
             rail_lines=(),
             paint_lines=(),
@@ -221,7 +206,7 @@ class PromptRegionChrome:
             visited_line_count=0,
         )
         self._store_snapshot(
-            layout,
+            output,
             snapshot,
             semantic_palette=semantic_palette,
         )
@@ -229,40 +214,40 @@ class PromptRegionChrome:
 
     def _store_snapshot(
         self,
-        layout: PromptRegionChromeLayout,
+        output: PromptLayoutOutput,
         snapshot: PromptRegionChromeSnapshot,
         *,
         semantic_palette: SemanticPalette,
     ) -> None:
         """Store a bounded set of live and preview layout snapshots."""
 
-        layout_id = id(layout)
-        self._entries_by_layout_id[layout_id] = _RegionChromeCacheEntry(
-            projection_document=layout.projection_document,
-            metrics=layout.metrics,
-            line_snapshots=layout.line_snapshots,
+        snapshot_id = id(output.snapshot)
+        self._entries_by_snapshot_id[snapshot_id] = _RegionChromeCacheEntry(
+            projection_document=output.projection_document,
+            metrics=output.configuration.metrics,
+            line_snapshots=output.snapshot.lines,
             accent=semantic_palette.accent,
             snapshot=snapshot,
         )
-        while len(self._entries_by_layout_id) > 4:
-            oldest_layout_id = next(iter(self._entries_by_layout_id))
-            del self._entries_by_layout_id[oldest_layout_id]
+        while len(self._entries_by_snapshot_id) > 4:
+            oldest_snapshot_id = next(iter(self._entries_by_snapshot_id))
+            del self._entries_by_snapshot_id[oldest_snapshot_id]
 
     def _matching_snapshot(
         self,
-        layout: PromptRegionChromeLayout,
+        output: PromptLayoutOutput,
         *,
         semantic_palette: SemanticPalette,
     ) -> PromptRegionChromeSnapshot | None:
         """Return cached geometry only for the exact immutable layout owners."""
 
-        entry = self._entries_by_layout_id.get(id(layout))
+        entry = self._entries_by_snapshot_id.get(id(output.snapshot))
         if entry is None:
             return None
         if (
-            entry.projection_document is not layout.projection_document
-            or entry.metrics is not layout.metrics
-            or entry.line_snapshots is not layout.line_snapshots
+            entry.projection_document is not output.projection_document
+            or entry.metrics is not output.configuration.metrics
+            or entry.line_snapshots is not output.snapshot.lines
             or entry.accent != semantic_palette.accent
         ):
             return None
@@ -270,40 +255,40 @@ class PromptRegionChrome:
 
     def snapshot_for(
         self,
-        layout: PromptRegionChromeLayout,
+        output: PromptLayoutOutput,
     ) -> PromptRegionChromeSnapshot | None:
         """Return only explicitly prepared geometry for one layout."""
 
-        entry = self._entries_by_layout_id.get(id(layout))
+        entry = self._entries_by_snapshot_id.get(id(output.snapshot))
         if entry is None:
             return None
         if (
-            entry.projection_document is not layout.projection_document
-            or entry.metrics is not layout.metrics
-            or entry.line_snapshots is not layout.line_snapshots
+            entry.projection_document is not output.projection_document
+            or entry.metrics is not output.configuration.metrics
+            or entry.line_snapshots is not output.snapshot.lines
         ):
             return None
         return entry.snapshot
 
-    def paint(
+    def prepare_active(
         self,
-        painter: QPainter,
+        output: PromptLayoutOutput,
         *,
-        layout: PromptRegionChromeLayout,
-        scroll_offset: float,
+        semantic_palette: SemanticPalette,
     ) -> None:
-        """Paint cached document-local geometry without deriving or copying it."""
+        """Prepare only regional output and publish it as the active layer."""
 
-        snapshot = self.snapshot_for(layout)
-        if snapshot is None or not snapshot.paint_lines:
+        projection_document = output.projection_document
+        if (
+            projection_document.display_mode is PromptProjectionDisplayMode.RAW
+            or not projection_document.region_structure.separators
+        ):
+            self._active_snapshot = None
             return
-        painter.save()
-        try:
-            painter.translate(0.0, -scroll_offset)
-            painter.setPen(snapshot.pen)
-            painter.drawLines(snapshot.paint_lines)
-        finally:
-            painter.restore()
+        self._active_snapshot = self.prepare(
+            output,
+            semantic_palette=semantic_palette,
+        )
 
 
 def _line_intersects_partition(
@@ -419,6 +404,4 @@ def _accent_pen(semantic_palette: SemanticPalette) -> QPen:
 
 __all__ = [
     "PromptRegionChrome",
-    "PromptRegionChromeLayout",
-    "PromptRegionChromeSnapshot",
 ]

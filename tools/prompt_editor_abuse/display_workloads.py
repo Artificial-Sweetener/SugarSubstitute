@@ -71,7 +71,7 @@ def _search_highlight_scenario(source: str) -> PromptAbuseScenario:
 
     cursor = len(source) // 2
     ranges = tuple(
-        (index, index + len("masterpiece"))
+        (index, len("masterpiece"))
         for index in _substring_indexes(source, "masterpiece")
     )
     actions: list[PromptAbuseAction] = []

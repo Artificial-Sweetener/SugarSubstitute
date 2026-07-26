@@ -30,6 +30,7 @@ from tests.prompt_reorder_interaction_test_helpers import (
     ControllerEditorDouble,
     MenuCursorDouble,
     OverlayDouble,
+    OverlayFactoryDouble,
     SyntaxRendererCoordinatorDouble,
     autocomplete_double,
     prompt_interaction_controller,
@@ -161,12 +162,13 @@ def test_handle_resize_and_scroll_refresh_syntax_renderer_geometry() -> None:
     """Resize, move, and scroll updates request renderer geometry recomputation."""
 
     syntax_renderers = syntax_renderer_double()
+    overlay = OverlayDouble([0], has_reordered=False)
     controller = _controller(
         StateEditorDouble(text="(cat:1.05)", position=3),
         syntax_renderers=syntax_renderers,
+        reorder_overlay_factory=OverlayFactoryDouble(overlay),
     )
-    overlay = OverlayDouble([0], has_reordered=False)
-    controller._reorder._segment_overlay = overlay
+    controller.enter_segment_reorder_mode_from_keymap()
     initial_refresh_calls = syntax_renderers.refresh_geometry_calls
 
     controller.handle_resize()
@@ -224,6 +226,7 @@ def _controller(
     *,
     document_service: PromptDocumentService | None = None,
     syntax_renderers: SyntaxRendererCoordinatorDouble | None = None,
+    reorder_overlay_factory: OverlayFactoryDouble | None = None,
 ) -> Any:
     """Build a prompt interaction controller for state-coordination tests."""
 
@@ -236,4 +239,5 @@ def _controller(
         mutation_service=PromptMutationService(),
         syntax_service_=syntax_service(),
         syntax_profile=prompt_syntax_profile("emphasis", "wildcard"),
+        reorder_overlay_factory=reorder_overlay_factory,
     )

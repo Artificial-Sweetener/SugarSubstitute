@@ -28,6 +28,8 @@ from PySide6.QtWidgets import QApplication
 
 from substitute.application.prompt_editor.document.views import PromptReorderChipView
 
+from .reorder_event_ports import PromptReorderEventLogger
+
 
 @dataclass(slots=True)
 class PromptReorderPointerRegion:
@@ -138,8 +140,8 @@ class PromptReorderPointerRegions:
         self._regions_by_index.clear()
 
 
-class PromptReorderPointerController(Protocol):
-    """Receive semantic pointer gestures from the single overlay input surface."""
+class PromptReorderPointerGestureController(Protocol):
+    """Receive semantic pointer gestures from the overlay input owner."""
 
     def set_hovered_segment(self, segment_index: int | None) -> None:
         """Track the segment currently under the pointer."""
@@ -168,14 +170,15 @@ class PromptReorderPointerController(Protocol):
     def end_drag(self, segment_index: int) -> None:
         """Finish an active semantic drag."""
 
+
+class PromptReorderPointerSurface(Protocol):
+    """Apply focus and cursor effects selected by logical pointer input."""
+
     def retain_editor_focus(self) -> None:
         """Keep keyboard focus on the underlying editor."""
 
     def set_pointer_cursor(self, cursor_shape: Qt.CursorShape) -> None:
         """Apply the cursor selected by the logical pointer owner."""
-
-    def log_interaction_event(self, event: str, **context: object) -> None:
-        """Record prompt-safe pointer telemetry."""
 
 
 class PromptReorderPointerInput:
@@ -185,12 +188,16 @@ class PromptReorderPointerInput:
         self,
         *,
         regions: PromptReorderPointerRegions,
-        controller: PromptReorderPointerController,
+        gesture_controller: PromptReorderPointerGestureController,
+        surface: PromptReorderPointerSurface,
+        log_event: PromptReorderEventLogger,
     ) -> None:
         """Initialize pointer state for one reorder overlay."""
 
         self._regions = regions
-        self._controller = controller
+        self._gesture_controller = gesture_controller
+        self._surface = surface
+        self._log_event = log_event
         self._pressed_segment_index: int | None = None
         self._press_global_pos: QPoint | None = None
         self._drag_started = False
@@ -205,7 +212,7 @@ class PromptReorderPointerInput:
         """Prime a semantic drag when a left press lands inside a chip region."""
 
         self._log_mouse_event("mouse.press", event)
-        self._controller.retain_editor_focus()
+        self._surface.retain_editor_focus()
         if event.button() != Qt.MouseButton.LeftButton:
             event.accept()
             return
@@ -214,18 +221,18 @@ class PromptReorderPointerInput:
         )
         if region is None:
             self._clear_press()
-            self._controller.set_hovered_segment(None)
-            self._controller.set_pointer_cursor(Qt.CursorShape.ArrowCursor)
+            self._gesture_controller.set_hovered_segment(None)
+            self._surface.set_pointer_cursor(Qt.CursorShape.ArrowCursor)
             event.accept()
             return
         segment_index = region.segment_index
         self._pressed_segment_index = segment_index
         self._press_global_pos = event.globalPosition().toPoint()
         self._drag_started = False
-        self._controller.activate_segment(segment_index)
-        self._controller.set_pressed_segment(segment_index)
-        self._controller.prepare_drag(segment_index)
-        self._controller.set_pointer_cursor(Qt.CursorShape.ClosedHandCursor)
+        self._gesture_controller.activate_segment(segment_index)
+        self._gesture_controller.set_pressed_segment(segment_index)
+        self._gesture_controller.prepare_drag(segment_index)
+        self._surface.set_pointer_cursor(Qt.CursorShape.ClosedHandCursor)
         event.accept()
 
     def move(
@@ -246,14 +253,14 @@ class PromptReorderPointerInput:
                 event.position(), ordered_indices=ordered_indices
             )
             hovered_index = None if region is None else region.segment_index
-            self._controller.set_hovered_segment(hovered_index)
-            self._controller.set_pointer_cursor(
+            self._gesture_controller.set_hovered_segment(hovered_index)
+            self._surface.set_pointer_cursor(
                 Qt.CursorShape.ArrowCursor if region is None else region.cursor_shape
             )
             event.accept()
             return
 
-        self._controller.retain_editor_focus()
+        self._surface.retain_editor_focus()
         global_pos = event.globalPosition().toPoint()
         drag_distance = (
             0
@@ -266,7 +273,7 @@ class PromptReorderPointerInput:
             and drag_distance >= QApplication.startDragDistance()
         ):
             self._drag_started = True
-            self._controller.log_interaction_event(
+            self._log_event(
                 "mouse.drag_threshold_crossed",
                 segment_index=pressed_segment_index,
                 global_x=global_pos.x(),
@@ -274,14 +281,14 @@ class PromptReorderPointerInput:
                 drag_distance=drag_distance,
                 threshold=QApplication.startDragDistance(),
             )
-            self._controller.start_drag(
+            self._gesture_controller.start_drag(
                 pressed_segment_index,
                 global_pos=global_pos,
                 press_global_pos=self._press_global_pos,
             )
         elif self._drag_started:
-            self._controller.drag_move(pressed_segment_index, global_pos)
-        self._controller.set_pointer_cursor(Qt.CursorShape.ClosedHandCursor)
+            self._gesture_controller.drag_move(pressed_segment_index, global_pos)
+        self._surface.set_pointer_cursor(Qt.CursorShape.ClosedHandCursor)
         event.accept()
 
     def release(self, event: QMouseEvent) -> None:
@@ -293,13 +300,13 @@ class PromptReorderPointerInput:
             event.button() == Qt.MouseButton.LeftButton
             and pressed_segment_index is not None
         ):
-            self._controller.retain_editor_focus()
+            self._surface.retain_editor_focus()
             if self._drag_started:
-                self._controller.end_drag(pressed_segment_index)
+                self._gesture_controller.end_drag(pressed_segment_index)
             else:
-                self._controller.set_pressed_segment(None)
+                self._gesture_controller.set_pressed_segment(None)
             self._clear_press()
-            self._controller.set_pointer_cursor(Qt.CursorShape.OpenHandCursor)
+            self._surface.set_pointer_cursor(Qt.CursorShape.OpenHandCursor)
         event.accept()
 
     def leave(self) -> None:
@@ -307,8 +314,8 @@ class PromptReorderPointerInput:
 
         if self._pressed_segment_index is not None:
             return
-        self._controller.set_hovered_segment(None)
-        self._controller.set_pointer_cursor(Qt.CursorShape.ArrowCursor)
+        self._gesture_controller.set_hovered_segment(None)
+        self._surface.set_pointer_cursor(Qt.CursorShape.ArrowCursor)
 
     def reset(self) -> None:
         """Clear all pointer state when the reorder session ends."""
@@ -339,7 +346,7 @@ class PromptReorderPointerInput:
             if self._press_global_pos is None
             else (global_pos - self._press_global_pos).manhattanLength()
         )
-        self._controller.log_interaction_event(
+        self._log_event(
             event_name,
             segment_index=self._pressed_segment_index,
             button=str(event.button()),

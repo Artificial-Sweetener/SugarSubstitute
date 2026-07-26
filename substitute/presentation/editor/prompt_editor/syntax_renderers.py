@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Protocol, cast
+from typing import Protocol
 
 from PySide6.QtCore import QPointF
 
@@ -47,7 +47,9 @@ from .core.state.revisions import (
     PromptSourceIdentity,
 )
 from .core.state.semantic_state import PromptEditorSemanticSnapshot
-from .projection.model import PromptProjectionDocument
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDocument,
+)
 
 _LOGGER = get_logger("presentation.editor.prompt_editor.syntax_renderers")
 
@@ -134,36 +136,15 @@ class PromptSyntaxRendererCoordinator:
         return None
 
 
-class _PromptSyntaxStateCursor(Protocol):
-    """Describe the cursor API needed for active syntax ownership."""
-
-    def position(self) -> int:
-        """Return the current source cursor position."""
-
-
-class PromptSyntaxStateEditor(Protocol):
-    """Describe editor state needed to publish prompt syntax snapshots."""
-
-    def toPlainText(self) -> str:
-        """Return the editor's current source text."""
-
-    def textCursor(self) -> _PromptSyntaxStateCursor:
-        """Return the editor cursor used for active syntax lookup."""
-
-    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
-        """Return the current source identity for stale-result checks."""
-
-    def active_syntax_span(self) -> PromptSyntaxSpanView | None:
-        """Return the editor-owned active syntax span when available."""
-
-
 class PromptSyntaxStateController:
     """Own current prompt syntax snapshots and renderer publication."""
 
     def __init__(
         self,
         *,
-        editor: PromptSyntaxStateEditor,
+        active_syntax_span: Callable[[], PromptSyntaxSpanView | None],
+        cursor_position: Callable[[], int],
+        editor_session_id: int,
         renderers: PromptSyntaxRendererCoordinator,
         document_service: PromptDocumentService,
         syntax_service: PromptSyntaxService,
@@ -173,20 +154,24 @@ class PromptSyntaxStateController:
             PromptSyntaxRenderPlan,
             PromptProjectionDocument,
         ],
+        source_text: Callable[[], str],
         source_changed_callback: Callable[[str], None] | None = None,
     ) -> None:
         """Build the initial prompt snapshot and store publication collaborators."""
 
-        self._editor = editor
+        self._active_syntax_span_provider = active_syntax_span
+        self._cursor_position = cursor_position
+        self._editor_session_id = editor_session_id
         self._renderers = renderers
         self._document_service = document_service
         self._syntax_service = syntax_service
         self._syntax_profile = syntax_profile
         self._state = state
+        self._source_text = source_text
         self._source_changed_callback = source_changed_callback
         self._pending_document_view: PromptDocumentView | None = None
         initial_document_view = self._document_service.build_document_view(
-            self._editor.toPlainText()
+            self._source_text()
         )
         self._active_syntax_span: PromptSyntaxSpanView | None = None
         self.replace_prompt_state(initial_document_view)
@@ -244,7 +229,7 @@ class PromptSyntaxStateController:
         renderer.set_prompt_state(self._state.semantic)
         renderer.set_active_span(
             self._active_syntax_span,
-            cursor_position=self._editor.textCursor().position(),
+            cursor_position=self._cursor_position(),
         )
 
     def syntax_action_at(self, position: QPointF) -> PromptSyntaxAction | None:
@@ -255,7 +240,7 @@ class PromptSyntaxStateController:
     def current_semantic_source_text(self) -> str:
         """Return current editor source text for semantic refresh freshness."""
 
-        return self._editor.toPlainText()
+        return self._source_text()
 
     def current_semantic_document_source_text(self) -> str:
         """Return the source text represented by the cached semantic snapshot."""
@@ -271,7 +256,7 @@ class PromptSyntaxStateController:
         """Republish exact same-text semantics under the live source identity."""
 
         semantic = self._state.semantic
-        if semantic.document.source_text != self._editor.toPlainText():
+        if semantic.document.source_text != self._source_text():
             return False
         if semantic.identity.source is self._state.source_identity:
             return True
@@ -290,15 +275,15 @@ class PromptSyntaxStateController:
     ) -> PromptAsyncResultIdentity:
         """Return current source identity for semantic stale-result checks."""
 
-        source_identity = self._editor.prompt_command_source_identity()
+        source_identity = self._state.source_identity
         if source_identity is not None and source_identity.source_length is None:
             source_identity = PromptSourceIdentity(
                 source_revision=source_identity.source_revision,
-                source_length=len(self._editor.toPlainText()),
+                source_length=len(self._source_text()),
             )
         return PromptAsyncResultIdentity(
             request_id=request_id,
-            editor_session_id=id(self._editor),
+            editor_session_id=self._editor_session_id,
             source_identity=source_identity,
             feature_profile_id=tuple(self._syntax_profile.enabled_syntaxes),
             scene_context_id=None,
@@ -395,12 +380,12 @@ class PromptSyntaxStateController:
     ) -> bool:
         """Replace cached prompt state using an already prepared render plan."""
 
-        if document_view.source_text != self._editor.toPlainText():
+        if document_view.source_text != self._source_text():
             _LOGGER.warning(
                 "Prompt semantic publication rejected mismatched source"
                 " | prepared_source_length=%s live_source_length=%s",
                 len(document_view.source_text),
-                len(self._editor.toPlainText()),
+                len(self._source_text()),
             )
             return False
         previous_snapshot = self._state.semantic
@@ -432,8 +417,8 @@ class PromptSyntaxStateController:
     def refresh_active_span(self) -> None:
         """Publish the cursor-derived active syntax span to renderers."""
 
-        cursor_position = self._editor.textCursor().position()
-        editor_active_span = self._editor_active_syntax_span()
+        cursor_position = self._cursor_position()
+        editor_active_span = self._active_syntax_span_provider()
         self._active_syntax_span = editor_active_span or self._syntax_span_at_position(
             cursor_position
         )
@@ -441,14 +426,6 @@ class PromptSyntaxStateController:
             self._active_syntax_span,
             cursor_position=cursor_position,
         )
-
-    def _editor_active_syntax_span(self) -> PromptSyntaxSpanView | None:
-        """Return the editor-owned active syntax span when the host exposes it."""
-
-        active_span_getter = getattr(self._editor, "active_syntax_span", None)
-        if active_span_getter is None:
-            return None
-        return cast(PromptSyntaxSpanView | None, active_span_getter())
 
     def _syntax_span_at_position(
         self,
@@ -466,6 +443,5 @@ __all__ = [
     "PromptSyntaxRenderer",
     "PromptSyntaxRendererCoordinator",
     "PromptSyntaxStateController",
-    "PromptSyntaxStateEditor",
     "PromptEditorSemanticSnapshot",
 ]

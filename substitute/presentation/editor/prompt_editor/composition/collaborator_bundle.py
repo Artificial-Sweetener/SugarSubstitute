@@ -79,23 +79,27 @@ if TYPE_CHECKING:
     )
     from ..commands.execution import PromptEditExecution
     from ..features import (
+        PromptAutocompleteQueryResultLifecycle,
         PromptDanbooruActionController,
         PromptFeatureProfileController,
         PromptSegmentPresetController,
         PromptSegmentPresetSource,
-        PromptSceneFeatureController,
+        PromptSceneContextPublication,
+        PromptScenePositionContextPreparation,
         PromptSearchFeatureController,
-        PromptWildcardFeatureController,
+        PromptWildcardAutocompletePresentation,
+        PromptWildcardDiagnosticsPresentation,
     )
     from ..interactions import (
-        PromptAutocompleteController,
+        PromptAutocompleteInputPort,
         PromptExternalUrlOpener,
         PromptInlineLoraContextMenuPresenter,
         PromptInteractionController,
+        PromptWeightInteraction,
         PromptWheelController,
     )
     from ..lora_thumbnail_cache import PromptLoraThumbnailCache
-    from ..projection.surface import PromptProjectionUndoPayload
+    from ..projection.undo_payload import PromptProjectionUndoPayload
     from ..projection.surface import PromptProjectionSurface
     from ..syntax_renderers import PromptSyntaxRendererCoordinator
     from ..overlays import PromptTokenWeightControls
@@ -103,6 +107,14 @@ PromptEditorTaskExecutorFactory = Callable[[QWidget, str], PromptEditorTaskExecu
 DanbooruWikiLookupDispatcherFactory = Callable[
     [QWidget], QtDanbooruWikiLookupDispatcher
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class PromptEditorAutocompleteCollaborators:
+    """Keep autocomplete interaction and query/result owners explicitly paired."""
+
+    autocomplete: PromptAutocompleteInputPort
+    query_result_lifecycle: PromptAutocompleteQueryResultLifecycle
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,17 +161,20 @@ class PromptEditorCollaborators:
     scheduled_lora_resolver: Callable[[str], tuple[PromptScheduledLora, ...]]
     scheduled_lora_context_provider: PromptScheduledLoraContextProvider
     feature_profile_controller: PromptFeatureProfileController
-    scene_feature_controller: PromptSceneFeatureController
+    scene_context_publication: PromptSceneContextPublication
+    scene_position_preparation: PromptScenePositionContextPreparation
     search_feature_controller: PromptSearchFeatureController
-    wildcard_feature_controller: PromptWildcardFeatureController
+    wildcard_autocomplete_presentation: PromptWildcardAutocompletePresentation
+    wildcard_diagnostics_presentation: PromptWildcardDiagnosticsPresentation
     segment_preset_controller: PromptSegmentPresetController
     danbooru_action_controller: PromptDanbooruActionController
-    autocomplete: PromptAutocompleteController
+    autocomplete: PromptAutocompleteInputPort
     document_service: PromptDocumentService
     mutation_service: PromptMutationService
     syntax_profile: PromptSyntaxProfile
     syntax_service: PromptSyntaxService
     token_weight_controls: PromptTokenWeightControls
+    weight_interaction: PromptWeightInteraction
     wheel_controller: PromptWheelController
     syntax_renderer_coordinator: PromptSyntaxRendererCoordinator
     interaction_controller: PromptInteractionController

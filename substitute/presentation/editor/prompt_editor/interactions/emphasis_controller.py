@@ -41,7 +41,7 @@ from ..commands.weight_commands import (
     PromptWeightCommandResult,
     PromptWeightCursorPolicy,
 )
-from ..projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionTokenKind,
     PromptWeightControlIdentity,
     prompt_weight_content_identity,

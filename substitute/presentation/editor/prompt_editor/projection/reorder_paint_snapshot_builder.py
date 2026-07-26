@@ -23,7 +23,7 @@ from collections.abc import Mapping, Sequence
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QColor, QFont, QPalette
 
-from .model import PromptProjectionDocument
+from .paint_input import PromptProjectionPaintInput
 from .painter import PromptProjectionPainter
 from .reorder_visual_snapshot import (
     PromptReorderInlineObjectPaintFragment,
@@ -33,13 +33,12 @@ from .reorder_visual_snapshot import (
     PromptReorderTextPaintFragment,
     reorder_projection_paint_content_key,
 )
-from .snapshot import (
+from ..layout.models import (
     PromptProjectionInlineObjectFragment,
     PromptProjectionLineSnapshot,
     PromptProjectionTextFragment,
 )
-from .tokens import PromptProjectionInlineObjectRendererRegistry
-from .visible_line_range import (
+from ..geometry.visible_lines import (
     PromptProjectionSourceLineIndex,
     visible_projection_lines,
 )
@@ -50,22 +49,12 @@ class PromptReorderPaintSnapshotBuilder:
 
     def __init__(
         self,
-        *,
-        projection_document: PromptProjectionDocument,
-        lines: Sequence[PromptProjectionLineSnapshot],
-        painter: PromptProjectionPainter,
-        inline_object_renderers: PromptProjectionInlineObjectRendererRegistry,
-        base_font: QFont,
-        palette: QPalette,
+        paint_input: PromptProjectionPaintInput,
     ) -> None:
         """Bind immutable layout inputs needed for one snapshot extraction batch."""
 
-        self._projection_document = projection_document
-        self._lines = lines
-        self._painter = painter
-        self._inline_object_renderers = inline_object_renderers
-        self._base_font = base_font
-        self._palette = palette
+        self._paint_input = paint_input
+        self._painter = PromptProjectionPainter()
 
     def build(
         self,
@@ -163,7 +152,7 @@ class PromptReorderPaintSnapshotBuilder:
         """Return one source index over the current vertical viewport window."""
 
         visible_lines = visible_projection_lines(
-            self._lines,
+            self._paint_input.layout_snapshot.lines,
             document_top=viewport_rect.top() + scroll_offset,
             document_bottom=viewport_rect.bottom() + scroll_offset,
         )
@@ -186,8 +175,14 @@ class PromptReorderPaintSnapshotBuilder:
         )
         if not chunks:
             return ()
-        font = self._painter.font_for_fragment(fragment)
-        color = self._painter.text_color_for_fragment(fragment)
+        font = self._painter.font_for_fragment(
+            fragment,
+            paint_input=self._paint_input,
+        )
+        color = self._painter.text_color_for_fragment(
+            fragment,
+            paint_input=self._paint_input,
+        )
         return tuple(
             _text_paint_fragment(
                 fragment,
@@ -212,9 +207,11 @@ class PromptReorderPaintSnapshotBuilder:
 
         if not _source_positions_overlap(fragment.source_positions, source_ranges):
             return None
-        run = self._projection_document.run_by_id(fragment.run_id)
-        token = self._projection_document.token_by_id(fragment.token_id)
-        renderer = self._inline_object_renderers.renderer_for(fragment.renderer_key)
+        run = self._paint_input.projection_document.run_by_id(fragment.run_id)
+        token = self._paint_input.projection_document.token_by_id(fragment.token_id)
+        renderer = self._paint_input.inline_object_renderers.renderer_for(
+            fragment.renderer_key
+        )
         if run is None or token is None or renderer is None:
             return None
         return PromptReorderInlineObjectPaintFragment(
@@ -222,8 +219,8 @@ class PromptReorderPaintSnapshotBuilder:
             rect=fragment.rect.translated(0.0, -scroll_offset),
             run=run,
             token=token,
-            base_font=QFont(self._base_font),
-            palette=QPalette(self._palette),
+            base_font=QFont(self._paint_input.base_font),
+            palette=QPalette(self._paint_input.palette),
         )
 
 

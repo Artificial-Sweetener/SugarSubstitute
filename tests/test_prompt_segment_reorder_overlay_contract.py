@@ -31,11 +31,15 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QScrollArea, QVBoxLayout, QWidget
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfileService,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.reorder.intents import (
+    PromptReorderCommitIntent,
 )
 from substitute.application.ports import (
     PromptAutocompleteSuggestion,
@@ -43,11 +47,10 @@ from substitute.application.ports import (
     PromptWildcardResolution,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.models import (
-    PromptReorderCommitIntent,
-)
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionTokenKind,
 )
 from substitute.presentation.editor.prompt_editor.overlays import (
@@ -57,6 +60,9 @@ from substitute.presentation.editor.prompt_editor.overlays import (
 )
 from substitute.presentation.editor.prompt_editor.composition.reorder_overlay_factory import (
     PromptSegmentReorderOverlayFactory,
+)
+from substitute.presentation.editor.prompt_editor.interactions.reorder_interaction_metrics import (
+    PromptReorderInteractionMetricsOwner,
 )
 from substitute.presentation.editor.prompt_editor.projection.reorder_preview import (
     PromptReorderPreviewState,
@@ -201,17 +207,21 @@ def _create_overlay(
     syntax_profile = PromptSyntaxProfileService().default_profile()
     document_view = document_service.build_document_view(text)
     reorder_session = document_service.build_reorder_session_view(document_view)
-    overlay = PromptSegmentReorderOverlayFactory(
+    overlay_assembly = PromptSegmentReorderOverlayFactory(
         document_service=document_service,
         syntax_service=syntax_service,
         syntax_profile=syntax_profile,
+        geometry_owner=surface_for(editor).reorder_geometry_owner,
+        interaction_metrics=PromptReorderInteractionMetricsOwner(),
     ).create_segment_overlay(editor, layout_policy=document_service)
+    overlay = cast(SegmentReorderOverlay, overlay_assembly.overlay)
     _connect_preview_sync(
         editor,
         overlay,
         document_service=document_service,
         syntax_service=syntax_service,
         syntax_profile=syntax_profile,
+        document_view=document_view,
     )
     overlay.set_chips(
         document_view,
@@ -227,6 +237,35 @@ def _create_overlay(
     overlay.refresh_geometry()
     process_events(app)
     return editor, overlay
+
+
+def test_segment_overlay_factory_returns_ready_preview_ports_before_activation() -> (
+    None
+):
+    """Factory composition must publish ready preview ports before session entry."""
+
+    widgets: list[QWidget] = []
+    editor = _create_editor(
+        widgets,
+        width=640,
+        height=360,
+        text="alpha, beta",
+    )
+    document_service = PromptDocumentService()
+    assembly = PromptSegmentReorderOverlayFactory(
+        document_service=document_service,
+        syntax_service=PromptSyntaxService(_EmptyPromptWildcardCatalogGateway()),
+        syntax_profile=PromptSyntaxProfileService().default_profile(),
+        geometry_owner=surface_for(editor).reorder_geometry_owner,
+        interaction_metrics=PromptReorderInteractionMetricsOwner(),
+    ).create_segment_overlay(editor, layout_policy=document_service)
+
+    assert assembly.preview_build_facts.snapshot().dragged_segment_index is None
+    assert assembly.preview_sync_context.snapshot().dragged_segment_index is None
+
+    assembly.overlay.close()
+    for widget in widgets:
+        widget.close()
 
 
 def _pointer_regions(overlay: QWidget) -> list[PromptReorderPointerTarget]:
@@ -277,7 +316,7 @@ def test_segment_reorder_overlay_materializes_only_viewport_pointer_regions(
     )
 
     initial_indices = {_chip_segment_index(chip) for chip in _pointer_regions(overlay)}
-    initial_visual_indices = set(cast(Any, overlay)._visuals_by_index)
+    initial_visual_indices = set(cast(Any, overlay)._live_visual_owner.visuals_by_index)
 
     assert initial_indices == initial_visual_indices
     assert overlay.findChildren(QWidget, "segmentChip") == []
@@ -288,7 +327,9 @@ def test_segment_reorder_overlay_materializes_only_viewport_pointer_regions(
     process_events(app)
 
     scrolled_indices = {_chip_segment_index(chip) for chip in _pointer_regions(overlay)}
-    scrolled_visual_indices = set(cast(Any, overlay)._visuals_by_index)
+    scrolled_visual_indices = set(
+        cast(Any, overlay)._live_visual_owner.visuals_by_index
+    )
     assert scrolled_indices == scrolled_visual_indices
     assert overlay.findChildren(QWidget, "segmentChip") == []
     assert 0 < len(scrolled_indices) < segment_count
@@ -362,15 +403,17 @@ def _connect_preview_sync(
     document_service: PromptDocumentService,
     syntax_service: PromptSyntaxService,
     syntax_profile: object,
+    document_view: PromptDocumentView,
 ) -> None:
     """Mirror the controller's preview-state synchronization for direct overlay tests."""
 
     def _sync_preview_state() -> None:
         """Push one overlay preview update through the editor surface."""
 
-        preview_layout_view = overlay.preview_layout_view()
-        base_drag_layout_view = overlay.base_drag_layout_view()
-        ordered_chip_indices = tuple(overlay.ordered_chip_indices())
+        preview_facts = overlay.preview_build_facts.snapshot()
+        preview_layout_view = preview_facts.preview_layout_view
+        base_drag_layout_view = preview_facts.base_drag_layout_view
+        ordered_chip_indices = preview_facts.ordered_chip_indices
         if preview_layout_view is None and base_drag_layout_view is None:
             overlay.set_preview_snapshot(
                 None,
@@ -379,10 +422,8 @@ def _connect_preview_sync(
             )
             editor.clear_reorder_preview_state()
             return
-        document_view = cast(Any, overlay)._document_view
-        assert document_view is not None
         if preview_layout_view is None:
-            current_layout_view = cast(Any, overlay)._current_layout_view
+            current_layout_view = overlay.current_layout_view()
             assert base_drag_layout_view is not None
             assert current_layout_view is not None
             current_snapshot = document_service.build_reorder_preview_snapshot(
@@ -478,7 +519,7 @@ def _connect_preview_sync(
                 ),
                 base_drag_snapshot=base_drag_projection_snapshot,
                 ordered_chip_indices=ordered_chip_indices,
-                dragged_chip_index=overlay.dragged_segment_index(),
+                dragged_chip_index=overlay.pointer_reorder_state().dragged_segment_index,
             )
         )
         overlay.set_preview_snapshot(
@@ -501,8 +542,7 @@ def _set_preview_layout(
     document_service = PromptDocumentService()
     syntax_service = PromptSyntaxService(_EmptyPromptWildcardCatalogGateway())
     syntax_profile = PromptSyntaxProfileService().default_profile()
-    document_view = cast(Any, overlay)._document_view
-    assert document_view is not None
+    document_view = document_service.build_document_view(editor.toPlainText())
     preview_snapshot = document_service.build_reorder_preview_snapshot(
         document_view,
         cast(Any, layout_view),
@@ -591,7 +631,9 @@ def test_segment_reorder_overlay_hosts_passive_reorder_view(
     assert view.focusPolicy() == Qt.FocusPolicy.NoFocus
     assert view.testAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
     assert view.render_state.live_chips == ()
-    surface_chrome = cast(Any, editor)._surface._reorder_surface_chrome_snapshot
+    surface_chrome = cast(
+        Any, editor
+    )._surface._reorder_surface_visual_state.state.chrome_snapshot
     assert surface_chrome is not None
     assert len(surface_chrome.chips) == 3
     assert view.render_state.preview_active is False
@@ -759,15 +801,15 @@ def test_segment_reorder_overlay_cancel_restores_drag_state(
     QTest.mouseMove(dragged_chip.overlay, dragged_chip.mapFromGlobal(target_global), 10)
     process_events(app)
 
-    assert overlay.dragged_segment_index() == 1
+    assert overlay.pointer_reorder_state().dragged_segment_index == 1
     assert proxy.isVisible() is True
 
     overlay.cancel_drag()
     process_events(app)
 
     assert editor.toPlainText() == "alpha, beta, gamma"
-    assert overlay.dragged_segment_index() is None
-    assert overlay.drop_target() is None
+    assert overlay.pointer_reorder_state().dragged_segment_index is None
+    assert overlay.preview_build_facts.snapshot().drop_target is None
     assert overlay.ordered_chip_indices() == [0, 1, 2]
     assert overlay.has_reordered() is False
     pointer_state = overlay.pointer_reorder_state()
@@ -876,7 +918,7 @@ def test_segment_reorder_overlay_drag_proxy_projects_lora_without_banners(
     assert text_paint_payload is not None
     lora_renderer = cast(
         Any, text_paint_payload
-    ).layout.inline_object_renderers.renderer_for("lora_chip")
+    ).paint_input.inline_object_renderers.renderer_for("lora_chip")
 
     assert drag_proxy_projection_document is not None
     assert any(
@@ -1052,7 +1094,7 @@ def test_segment_reorder_overlay_keeps_preview_geometry_for_long_drag(
     process_events(app)
 
     assert preview_signal_count >= 2
-    assert overlay.drop_target() is not None
+    assert overlay.preview_build_facts.snapshot().drop_target is not None
     assert overlay.ordered_chip_indices()[0] == 1
     assert _preview_rect(overlay, 1) is not None
 
@@ -1211,7 +1253,7 @@ def test_segment_reorder_overlay_reports_no_reorder_when_drag_stays_in_place(
 
     assert overlay.ordered_chip_indices() == [0, 1, 2]
     assert overlay.has_reordered() is False
-    assert overlay.dragged_segment_index() is None
+    assert overlay.pointer_reorder_state().dragged_segment_index is None
 
 
 def test_segment_reorder_overlay_emits_typed_pointer_drop_snapshot(

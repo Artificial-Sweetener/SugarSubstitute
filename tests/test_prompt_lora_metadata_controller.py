@@ -24,6 +24,7 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 
 import importlib
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, cast
 
 from PySide6.QtCore import QSize
@@ -48,14 +49,15 @@ from substitute.presentation.editor.prompt_editor.async_work.scheduled_lora_disp
 from substitute.presentation.editor.prompt_editor.features import (
     CatalogSnapshotReadiness,
     PromptFeatureProfileController,
-    PromptLoraMetadataFeatureController,
+    PromptLoraMetadataPresentation,
+    PromptLoraMetadataRefreshLifecycle,
     PromptLoraTriggerWordController,
     PromptLoraTokenContext,
 )
 from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
     PromptLoraThumbnailCache,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionThumbnailVariant,
 )
 from tests.prompt_autocomplete_test_helpers import prompt_syntax_profile
@@ -242,6 +244,14 @@ class _ImmediateDispatcher:
         callback()
 
 
+@dataclass(frozen=True, slots=True)
+class _LoraMetadataOwners:
+    """Expose the independently owned LoRA metadata test composition."""
+
+    presentation: PromptLoraMetadataPresentation
+    refresh: PromptLoraMetadataRefreshLifecycle
+
+
 class _FailingLoraPickerCatalog:
     """Raise when picker rows are refreshed."""
 
@@ -299,23 +309,17 @@ class _PromptEditorLoraMetadataRefreshDouble:
             interaction_controller or _LoraMetadataInteractionControllerDouble()
         )
         self._lora_thumbnail_cache = thumbnail_cache or _LoraThumbnailCacheDouble()
-        self._lora_metadata_feature_controller = PromptLoraMetadataFeatureController(
-            host=self,
-            feature_profile=PromptFeatureProfileController.from_legacy_syntax(
-                prompt_syntax_profile("lora")
-            ),
+        owners = _metadata_owners(
+            host=cast(_LoraMetadataHost, self),
             lora_catalog=(
                 cast(Any, _FailingLoraPickerCatalog()) if picker_error else None
             ),
-            lora_schedule_service=PromptLoraScheduleService(),
-            scheduled_lora_service=PromptScheduledLoraService(),
-            main_thread_dispatcher=cast(
-                PromptEditorMainThreadDispatcher,
-                _ImmediateDispatcher(),
-            ),
+            dispatcher=cast(_QueuedDispatcher, _ImmediateDispatcher()),
         )
+        self._lora_metadata_presentation = owners.presentation
+        self._lora_metadata_refresh = owners.refresh
         if dirty:
-            self._lora_metadata_feature_controller.mark_dirty()
+            self._lora_metadata_refresh.mark_dirty()
 
     def isVisible(self) -> bool:  # noqa: N802
         """Return whether the fake editor is visible."""
@@ -435,7 +439,7 @@ def test_refresh_lora_metadata_keeps_dirty_flag_when_picker_refresh_fails() -> N
     refreshed = mod.PromptEditor.refresh_lora_metadata_if_visible(editor)
 
     assert refreshed is True
-    assert editor._lora_metadata_feature_controller.dirty is False
+    assert editor._lora_metadata_refresh.dirty is False
 
 
 def test_refresh_lora_metadata_keeps_dirty_flag_when_projection_queue_fails() -> None:
@@ -451,7 +455,7 @@ def test_refresh_lora_metadata_keeps_dirty_flag_when_projection_queue_fails() ->
     refreshed = mod.PromptEditor.refresh_lora_metadata_if_visible(editor)
 
     assert refreshed is True
-    assert editor._lora_metadata_feature_controller.dirty is True
+    assert editor._lora_metadata_refresh.dirty is True
 
 
 def test_refresh_lora_metadata_keeps_dirty_flag_when_projection_not_queued() -> None:
@@ -467,7 +471,7 @@ def test_refresh_lora_metadata_keeps_dirty_flag_when_projection_not_queued() -> 
     refreshed = mod.PromptEditor.refresh_lora_metadata_if_visible(editor)
 
     assert refreshed is True
-    assert editor._lora_metadata_feature_controller.dirty is True
+    assert editor._lora_metadata_refresh.dirty is True
 
 
 def test_refresh_lora_metadata_clears_dirty_flag_after_successful_queue() -> None:
@@ -479,7 +483,7 @@ def test_refresh_lora_metadata_clears_dirty_flag_after_successful_queue() -> Non
     refreshed = mod.PromptEditor.refresh_lora_metadata_if_visible(editor)
 
     assert refreshed is True
-    assert editor._lora_metadata_feature_controller.dirty is False
+    assert editor._lora_metadata_refresh.dirty is False
     assert editor._lora_thumbnail_cache.clear_calls == 0
 
 
@@ -494,7 +498,7 @@ def test_catalog_update_lora_metadata_refresh_preserves_thumbnail_cache() -> Non
     )
 
     assert refreshed is True
-    assert editor._lora_metadata_feature_controller.dirty is False
+    assert editor._lora_metadata_refresh.dirty is False
     assert editor._lora_thumbnail_cache.clear_calls == 0
 
 
@@ -526,21 +530,15 @@ def test_picker_refresh_updates_inline_lora_render_metadata() -> None:
             return None
 
     editor = _PromptEditorLoraMetadataRefreshDouble()
-    editor._lora_metadata_feature_controller = PromptLoraMetadataFeatureController(
-        host=editor,
-        feature_profile=PromptFeatureProfileController.from_legacy_syntax(
-            prompt_syntax_profile("lora")
-        ),
+    owners = _metadata_owners(
+        host=cast(_LoraMetadataHost, editor),
         lora_catalog=cast(Any, _PickerRefreshCatalog()),
-        lora_schedule_service=PromptLoraScheduleService(),
-        scheduled_lora_service=PromptScheduledLoraService(),
-        main_thread_dispatcher=cast(
-            PromptEditorMainThreadDispatcher,
-            _ImmediateDispatcher(),
-        ),
+        dispatcher=cast(_QueuedDispatcher, _ImmediateDispatcher()),
     )
+    editor._lora_metadata_presentation = owners.presentation
+    editor._lora_metadata_refresh = owners.refresh
 
-    result = editor._lora_metadata_feature_controller.refresh_lora_picker_snapshot_now(
+    result = editor._lora_metadata_refresh.refresh_lora_picker_snapshot_now(
         reason="test",
     )
 
@@ -555,17 +553,13 @@ def test_lora_metadata_controller_coalesces_pending_render_refreshes() -> None:
 
     dispatcher = _QueuedDispatcher()
     editor = _PromptEditorLoraMetadataRefreshDouble()
-    editor._lora_metadata_feature_controller = PromptLoraMetadataFeatureController(
-        host=editor,
-        feature_profile=PromptFeatureProfileController.from_legacy_syntax(
-            prompt_syntax_profile("lora")
-        ),
+    owners = _metadata_owners(
+        host=cast(_LoraMetadataHost, editor),
         lora_catalog=None,
-        lora_schedule_service=PromptLoraScheduleService(),
-        scheduled_lora_service=PromptScheduledLoraService(),
-        main_thread_dispatcher=cast(PromptEditorMainThreadDispatcher, dispatcher),
+        dispatcher=dispatcher,
     )
-    controller = editor._lora_metadata_feature_controller
+    editor._lora_metadata_presentation = owners.presentation
+    controller = owners.refresh
 
     assert controller.schedule_render_metadata_refresh(reason="lora_metadata") is True
     assert controller.schedule_render_metadata_refresh(reason="lora_metadata") is True
@@ -581,7 +575,7 @@ def test_lora_metadata_controller_coalesces_render_refresh() -> None:
 
     dispatcher = _QueuedDispatcher()
     host = _LoraMetadataHost()
-    controller = _controller(host=host, dispatcher=dispatcher)
+    controller = _metadata_owners(host=host, dispatcher=dispatcher).refresh
 
     assert controller.schedule_render_metadata_refresh(reason="lora_metadata") is True
     assert controller.schedule_render_metadata_refresh(reason="lora_metadata") is True
@@ -672,14 +666,14 @@ def test_lora_metadata_controller_reprojects_actions_for_catalog_revision() -> N
 
     host = _LoraMetadataHost()
     catalog = _LoraCatalog((_item("Midna"),))
-    metadata_controller = _controller(
+    metadata_owners = _metadata_owners(
         host=host,
         dispatcher=_QueuedDispatcher(),
         lora_catalog=catalog,
     )
     controller = _trigger_controller(
         host=host,
-        catalog_revision=lambda: metadata_controller.snapshot.catalog_revision,
+        catalog_revision=lambda: metadata_owners.presentation.snapshot.catalog_revision,
     )
     scheduled_lora = PromptScheduledLora(
         prompt_name="midna",
@@ -694,14 +688,14 @@ def test_lora_metadata_controller_reprojects_actions_for_catalog_revision() -> N
         prompt_text=prompt_text,
     )
 
-    result = metadata_controller.refresh_lora_picker_snapshot_now(reason="test")
+    result = metadata_owners.refresh.refresh_lora_picker_snapshot_now(reason="test")
     snapshot = controller.snapshot_for_prompt(prompt_text=prompt_text)
 
     assert result.revision_changed is True
     assert len(snapshot.trigger_word_actions) == 1
     assert (
         snapshot.identity.catalog_revision
-        == metadata_controller.snapshot.catalog_revision
+        == metadata_owners.presentation.snapshot.catalog_revision
     )
 
 
@@ -908,7 +902,9 @@ def test_trigger_word_controller_prewarms_raw_and_effective_scene_prompts() -> N
 def test_lora_metadata_controller_preserves_model_page_action_identity() -> None:
     """Model-page actions should carry prepared URL and source/catalog identity."""
 
-    controller = _controller(host=_LoraMetadataHost(), dispatcher=_QueuedDispatcher())
+    controller = _metadata_owners(
+        host=_LoraMetadataHost(), dispatcher=_QueuedDispatcher()
+    ).presentation
 
     action = controller.model_page_action_for_token(
         PromptLoraTokenContext(
@@ -936,11 +932,11 @@ def test_lora_metadata_snapshot_publishes_warm_picker_rows() -> None:
 
     host = _LoraMetadataHost()
     catalog = _LoraCatalog((_item("Midna"),))
-    controller = _controller(
+    controller = _metadata_owners(
         host=host,
         dispatcher=_QueuedDispatcher(),
         lora_catalog=catalog,
-    )
+    ).presentation
 
     snapshot = controller.lora_picker_snapshot
 
@@ -959,11 +955,12 @@ def test_lora_metadata_snapshot_publishes_cold_picker_without_listing() -> None:
     """Cold picker rows should stay unavailable until explicit refresh runs."""
 
     catalog = _LoraCatalog((_item("Midna"),), cached=None)
-    controller = _controller(
+    owners = _metadata_owners(
         host=_LoraMetadataHost(),
         dispatcher=_QueuedDispatcher(),
         lora_catalog=catalog,
     )
+    controller = owners.presentation
 
     snapshot = controller.lora_picker_snapshot
 
@@ -978,13 +975,14 @@ def test_lora_metadata_snapshot_publishes_cold_picker_without_listing() -> None:
 def test_lora_metadata_snapshot_marks_dirty_state_stale() -> None:
     """Dirty LoRA metadata should publish a stale prepared snapshot."""
 
-    controller = _controller(
+    owners = _metadata_owners(
         host=_LoraMetadataHost(),
         dispatcher=_QueuedDispatcher(),
         lora_catalog=_LoraCatalog((_item("Midna"),)),
     )
+    controller = owners.presentation
 
-    controller.mark_dirty()
+    owners.refresh.mark_dirty()
 
     assert controller.snapshot.stale is True
     assert controller.snapshot.identity.stale is True
@@ -992,19 +990,20 @@ def test_lora_metadata_snapshot_marks_dirty_state_stale() -> None:
         CatalogSnapshotReadiness.STALE
     )
     assert controller.lora_picker_snapshot.items == (_item("Midna"),)
-    assert controller.dirty is True
+    assert owners.refresh.dirty is True
 
 
 def test_lora_metadata_snapshot_records_refresh_failure() -> None:
     """Catalog refresh failure should produce an unavailable snapshot reason."""
 
-    controller = _controller(
+    owners = _metadata_owners(
         host=_LoraMetadataHost(),
         dispatcher=_QueuedDispatcher(),
         lora_catalog=_LoraCatalog((), fail=True),
     )
+    controller = owners.presentation
 
-    result = controller.refresh_lora_picker_snapshot_now(reason="test")
+    result = owners.refresh.refresh_lora_picker_snapshot_now(reason="test")
 
     assert result.rows_changed is False
     assert controller.lora_picker_snapshot.status.readiness is (
@@ -1018,13 +1017,14 @@ def test_lora_metadata_snapshot_reflects_revision_change_on_refresh() -> None:
 
     catalog = _LoraCatalog((_item("Mineru"),))
     dispatcher = _QueuedDispatcher()
-    controller = _controller(
+    owners = _metadata_owners(
         host=_LoraMetadataHost(),
         dispatcher=dispatcher,
         lora_catalog=catalog,
     )
+    controller = owners.presentation
 
-    result = controller.refresh_lora_picker_snapshot_now(reason="test")
+    result = owners.refresh.refresh_lora_picker_snapshot_now(reason="test")
 
     assert result.revision_changed is True
     assert catalog.refresh_calls == 1
@@ -1036,14 +1036,14 @@ def test_lora_metadata_visible_picker_refresh_consumes_cached_snapshot_only() ->
     """Visible popup refresh should not refresh or list LoRA catalog rows."""
 
     catalog = _LoraCatalog((_item("Mineru"),), cached=(_item("Midna"),))
-    controller = _controller(
+    controller = _metadata_owners(
         host=_LoraMetadataHost(),
         dispatcher=_QueuedDispatcher(),
         lora_catalog=catalog,
-    )
+    ).presentation
     catalog.cached = (_item("Mineru"),)
 
-    assert controller.refresh_visible_picker_data() is True
+    assert controller.refresh_picker_from_cache() is True
 
     assert catalog.cached_calls == 2
     assert catalog.refresh_calls == 0
@@ -1054,12 +1054,12 @@ def test_lora_metadata_visible_picker_refresh_consumes_cached_snapshot_only() ->
 def test_lora_metadata_snapshot_disables_picker_without_feature_gate() -> None:
     """Disabled LoRA picker feature should publish unavailable picker readiness."""
 
-    controller = _controller(
+    controller = _metadata_owners(
         host=_LoraMetadataHost(),
         dispatcher=_QueuedDispatcher(),
         syntaxes=("wildcard",),
         lora_catalog=_LoraCatalog((_item("Midna"),)),
-    )
+    ).presentation
 
     assert controller.lora_picker_ready is False
     assert controller.snapshot.action_ready is False
@@ -1068,25 +1068,32 @@ def test_lora_metadata_snapshot_disables_picker_without_feature_gate() -> None:
     )
 
 
-def _controller(
+def _metadata_owners(
     *,
     host: _LoraMetadataHost,
     dispatcher: _QueuedDispatcher,
     lora_catalog: _LoraCatalog | None = None,
     syntaxes: tuple[str, ...] = ("lora",),
-) -> PromptLoraMetadataFeatureController:
-    """Return a LoRA metadata controller for tests."""
+) -> _LoraMetadataOwners:
+    """Build the explicit presentation and refresh owners for one test."""
 
-    return PromptLoraMetadataFeatureController(
-        host=host,
-        feature_profile=PromptFeatureProfileController.from_legacy_syntax(
-            prompt_syntax_profile(*syntaxes)
-        ),
+    feature_profile = PromptFeatureProfileController.from_legacy_syntax(
+        prompt_syntax_profile(*syntaxes)
+    )
+    presentation = PromptLoraMetadataPresentation(
+        identity_port=host,
+        feature_profile=feature_profile,
         lora_catalog=lora_catalog,
         lora_schedule_service=PromptLoraScheduleService(),
         scheduled_lora_service=PromptScheduledLoraService(),
-        main_thread_dispatcher=cast(PromptEditorMainThreadDispatcher, dispatcher),
+        thumbnail_repository_available=False,
     )
+    refresh = PromptLoraMetadataRefreshLifecycle(
+        host=host,
+        presentation=presentation,
+        dispatcher=cast(PromptEditorMainThreadDispatcher, dispatcher),
+    )
+    return _LoraMetadataOwners(presentation=presentation, refresh=refresh)
 
 
 def _trigger_controller(

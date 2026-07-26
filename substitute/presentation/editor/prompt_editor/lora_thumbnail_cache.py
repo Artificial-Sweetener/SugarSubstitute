@@ -33,7 +33,9 @@ from substitute.shared.logging.logger import (
 )
 from substitute.shared.qt_thumbnail_codec import image_from_qt_thumbnail_payload
 
-from .projection.model import PromptProjectionThumbnailVariant
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionThumbnailVariant,
+)
 
 type PromptLoraPixmapCacheKey = tuple[str, int, int, int, float]
 

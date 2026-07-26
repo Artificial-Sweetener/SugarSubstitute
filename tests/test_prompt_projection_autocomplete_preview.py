@@ -35,17 +35,24 @@ from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.autocomplete_preview_state import (
     PromptAutocompletePreviewState,
 )
+from substitute.presentation.editor.prompt_editor.features import (
+    PromptAutocompleteQueryState,
+)
 from substitute.presentation.editor.prompt_editor.projection.builder import (
     PromptProjectionBuilder,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
-    OBJECT_REPLACEMENT_CHARACTER,
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
     PromptProjectionInlinePreview,
-    PromptProjectionRunKind,
-    PromptProjectionTokenKind,
     PromptProjectionTransientState,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
+    OBJECT_REPLACEMENT_CHARACTER,
+    PromptProjectionRunKind,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionTokenKind,
 )
 from substitute.presentation.editor.prompt_editor.projection.session import (
     PromptProjectionSession,
@@ -200,7 +207,6 @@ def test_surface_keeps_committed_projection_separate_from_active_preview(
 @_SKIP_SURFACE_TEST_UNDER_XDIST
 def test_lora_autocomplete_accept_materializes_chip_immediately(
     widgets: list[QWidget],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Accepting a LoRA completion should publish projection state immediately."""
 
@@ -232,14 +238,19 @@ def test_lora_autocomplete_accept_materializes_chip_immediately(
         has_selection=False,
     )
     assert query is not None
-    autocomplete = cast(Any, box)._autocomplete
-    monkeypatch.setattr(autocomplete, "_present_panel", lambda: None)
-    monkeypatch.setattr(
-        autocomplete, "_publish_inline_completion_preview", lambda: None
+    query_lifecycle = cast(Any, box)._autocomplete_query_result_lifecycle
+    query_lifecycle.refresh_results_for_query_state(
+        PromptAutocompleteQueryState(
+            source_revision=0,
+            source_length=len(box.toPlainText()),
+            source_text=box.toPlainText(),
+            cursor_position=len(box.toPlainText()),
+            has_selection=False,
+            lora_query=query,
+        )
     )
-    autocomplete.refresh_for_lora_query(query)
 
-    autocomplete.accept_lora_selection()
+    cast(Any, box)._autocomplete.accept_lora_selection()
 
     assert box.toPlainText() == f"<lora:{prompt_name}:1.00>"
     assert PromptProjectionTokenKind.LORA in projection_token_kinds(surface_for(box))

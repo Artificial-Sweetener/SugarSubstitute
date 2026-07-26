@@ -72,7 +72,7 @@ from substitute.presentation.editor.prompt_editor.commands.diagnostic_commands i
 from substitute.presentation.editor.prompt_editor.features import (
     PromptDiagnosticsFeatureController,
     PromptFeatureProfileController,
-    PromptWildcardFeatureController,
+    PromptWildcardDiagnosticsPresentation,
 )
 from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
     PromptCursorState,
@@ -486,7 +486,6 @@ def test_phase3_async_diagnostics_ignore_stale_snapshots() -> None:
         surface=surface,
         request_channel=request_channel,
     )
-    cast(Any, controller)._service = service
     request_channel.handles.clear()
 
     controller.refresh_now()
@@ -521,7 +520,9 @@ def test_phase3_spelling_context_actions_replace_ignore_and_add_dictionary() -> 
     controller.refresh_now()
     spellcheck.suggestion_words.clear()
 
-    actions = controller.actions_for_diagnostic(_spelling_diagnostic(4, 8, "typo"))
+    actions = controller.presentation.actions_for_diagnostic(
+        _spelling_diagnostic(4, 8, "typo")
+    )
 
     assert [action.label for action in actions] == [
         "type",
@@ -557,7 +558,9 @@ def test_phase3_duplicate_context_actions_remove_emphasize_and_ignore() -> None:
         duplicate_end=17,
     )
     remove_controller = _diagnostics_controller(remove_editor, remove_diagnostic)
-    remove_actions = remove_controller.actions_for_diagnostic(remove_diagnostic)
+    remove_actions = remove_controller.presentation.actions_for_diagnostic(
+        remove_diagnostic
+    )
     assert remove_actions[0].label == "Remove duplicate"
     assert remove_actions[0].callback is not None
     remove_actions[0].callback()
@@ -576,7 +579,7 @@ def test_phase3_duplicate_context_actions_remove_emphasize_and_ignore() -> None:
         emphasize_editor,
         emphasize_diagnostic,
     )
-    emphasize_actions = emphasize_controller.actions_for_diagnostic(
+    emphasize_actions = emphasize_controller.presentation.actions_for_diagnostic(
         emphasize_diagnostic
     )
     assert emphasize_actions[1].label == "Emphasize first"
@@ -593,7 +596,9 @@ def test_phase3_duplicate_context_actions_remove_emphasize_and_ignore() -> None:
     )
     ignore_controller.refresh_now()
     assert ignore_surface.diagnostics == (remove_diagnostic,)
-    ignore_actions = ignore_controller.actions_for_diagnostic(remove_diagnostic)
+    ignore_actions = ignore_controller.presentation.actions_for_diagnostic(
+        remove_diagnostic
+    )
     assert ignore_actions[2].label == "Ignore duplicate"
     assert ignore_actions[2].callback is not None
     ignore_actions[2].callback()
@@ -641,10 +646,16 @@ def test_phase3_diagnostic_decorations_preserve_autocomplete_selection_and_curso
     surface.set_diagnostics((diagnostic,))
     viewport_rect = QRectF(surface.viewport().rect())
     scroll_offset = cast(float, cast(Any, surface)._scroll_offset())
-    diagnostic_fragments = cast(Any, surface)._diagnostic_fragments_for_paint(
+    layout_identity = cast(Any, surface)._frame_state.current_layout_identity(
+        cast(Any, surface)._layout.frame.output
+    )
+    assert layout_identity is not None
+    diagnostic_fragments = cast(Any, surface)._diagnostic_layer_owner.fragments(
         diagnostic,
+        geometry=cast(Any, surface)._layout.frame.geometry,
         viewport_rect=viewport_rect,
         scroll_offset=scroll_offset,
+        layout_identity=layout_identity,
     )
     pixmap = QPixmap(surface.viewport().size())
     surface.viewport().render(pixmap)
@@ -852,6 +863,7 @@ def _diagnostics_controller(
         PromptEditorFeatureProfile.enabled_profile(
             (
                 PromptEditorFeature.WILDCARD_SYNTAX,
+                PromptEditorFeature.SPELLCHECK,
                 PromptEditorFeature.DUPLICATE_SEGMENT_DIAGNOSTICS,
             )
         )
@@ -860,17 +872,20 @@ def _diagnostics_controller(
         host=editor,
         surface=surface or _FakeSurface(),
         feature_profile=feature_profile,
-        wildcard_feature=PromptWildcardFeatureController(
+        wildcard_feature=PromptWildcardDiagnosticsPresentation(
             feature_profile=feature_profile,
             wildcard_catalog_gateway=cast(Any, EmptyPromptWildcardCatalogGateway()),
-            request_channel=_ImmediateRequestChannel(),
+        ),
+        spellcheck_service=cast(Any, object()),
+        diagnostics_service_factory=lambda _providers: cast(Any, service),
+        spellcheck_provider_factory=lambda _service: cast(
+            Any,
+            spellcheck_provider or _FakeSpellcheckProvider(),
         ),
         request_channel=request_channel or _ImmediateRequestChannel(),
         debouncer=_ImmediateDebouncer(),
     )
     controller.activate()
-    cast(Any, controller)._service = service
-    cast(Any, controller)._spellcheck_provider = spellcheck_provider
     return controller
 
 

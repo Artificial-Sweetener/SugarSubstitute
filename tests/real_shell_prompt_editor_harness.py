@@ -110,7 +110,7 @@ from substitute.presentation.editor.panel.overrides_controller import (
     GlobalOverridesManager,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.projection.snapshot import (
+from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionInlineObjectFragment,
 )
 from substitute.presentation.shell.generation_action_controller import (
@@ -147,6 +147,7 @@ from tests.prompt_autocomplete_test_helpers import (
     EmptyPromptWildcardCatalogGateway,
     RecordingPromptAutocompleteGateway,
 )
+from tests.prompt_autocomplete_harness_state import autocomplete_owner_state
 from tests.execution_test_helpers import immediate_editor_panel_execution_factories
 
 
@@ -1218,9 +1219,9 @@ class RealShellPromptEditorHarness:
 
         target = self.focus_editor(field)
         surface = cast(Any, field.editor)._surface
-        incremental_controller = surface._incremental_apply_controller
+        edit_pipeline = surface._edit_pipeline
         original_rebuild = surface._rebuild_projection
-        original_apply = incremental_controller.apply_source_change_projection
+        original_apply = edit_pipeline.apply
         canonical_rebuild_count = 0
         apply_paths: list[str] = []
         incremental_rejection_reasons: list[str] = []
@@ -1239,22 +1240,26 @@ class RealShellPromptEditorHarness:
             outcome = original_apply(request)
             apply_paths.append(str(outcome.apply_path.value))
             incremental_rejection_reasons.append(
-                str(incremental_controller._incremental_editor.last_rejection_reason)
-            )
-            layout_rejection_reasons.append(
-                str(surface._layout.last_incremental_reflow_rejection_reason)
+                str(outcome.incremental_rejection_reason)
             )
             return outcome
 
+        def record_layout_rejection(reason: str) -> None:
+            """Record one rejected incremental frame transition."""
+
+            layout_rejection_reasons.append(reason)
+
         surface._rebuild_projection = counted_rebuild
-        incremental_controller.apply_source_change_projection = recorded_apply
+        edit_pipeline.apply = recorded_apply
+        surface._layout.set_incremental_rejection_observer(record_layout_rejection)
         started_at = perf_counter()
         try:
             input_action(target)
             self.process_events(cycles=8)
         finally:
             surface._rebuild_projection = original_rebuild
-            incremental_controller.apply_source_change_projection = original_apply
+            edit_pipeline.apply = original_apply
+            surface._layout.set_incremental_rejection_observer(None)
 
         sample = _scene_projection_timeline_sample(
             field.editor,
@@ -1284,8 +1289,8 @@ class RealShellPromptEditorHarness:
         for _cycle in range(4):
             QApplication.processEvents()
         surface = cast(Any, editor)._surface
-        preview_layout = surface._reorder_preview_projection.preview_layout
-        layout = preview_layout if preview_layout is not None else surface._layout
+        preview_frame = surface._reorder_preview_projection.preview_frame
+        frame = preview_frame if preview_frame is not None else surface._layout.frame
         viewport = surface.viewport()
         image = QImage(
             max(1, editor.width()),
@@ -1300,7 +1305,7 @@ class RealShellPromptEditorHarness:
             painter.end()
 
         source_lines = surface._source_line_chrome.source_line_rects(
-            layout=layout,
+            geometry=frame.geometry,
             viewport_rect=QRectF(viewport.rect()),
             scroll_offset=surface._scroll_offset(),
         )
@@ -1325,7 +1330,7 @@ class RealShellPromptEditorHarness:
             reorder_overlay_active=bool(
                 isinstance(segment_overlay, QWidget) and segment_overlay.isVisible()
             ),
-            projection_preview_active=preview_layout is not None,
+            projection_preview_active=preview_frame is not None,
             line_colors=tuple(line_colors),
         )
 
@@ -1849,10 +1854,18 @@ class RealShellPromptEditorHarness:
                     "handle_key_press",
                     "dismiss_autocomplete",
                     "retarget_from_query_state",
-                    "refresh_for_query",
-                    "_present_active_surfaces",
-                    "_publish_inline_completion_preview",
-                    "_clear_inline_completion_preview",
+                ),
+            ),
+            (
+                getattr(autocomplete, "_session_publication", None),
+                "autocomplete session publication owner",
+                (
+                    "publish_result",
+                    "retarget_from_query_state",
+                    "move_suggestion_selection",
+                    "move_lora_selection",
+                    "dismiss",
+                    "refresh_geometry",
                 ),
             ),
             (
@@ -1976,7 +1989,7 @@ class RealShellPromptEditorHarness:
         selection_end = cursor.selectionEnd()
         display_mode = _safe_enum_value(editor.displayMode())
         autocomplete_preview = _autocomplete_preview_state(editor)
-        autocomplete_state = _autocomplete_owner_state(editor)
+        autocomplete_state = autocomplete_owner_state(editor)
         projection_state = _projection_owner_state(editor)
         expected_suffix = _expected_ghost_suffix(editor, autocomplete_preview)
         observed_event_start_index = max(0, len(self._observed_events) - 10000)
@@ -2766,7 +2779,11 @@ class RealShellPromptEditorHarness:
                     "paint_cache_ghosted_runs_without_preview_state:"
                     f"{','.join(snapshot.paint_cache_ghosted_run_ids)}"
                 )
-        cache_can_be_reused = snapshot.selection_range[0] == snapshot.selection_range[1]
+        cache_can_be_reused = (
+            snapshot.selection_range[0] == snapshot.selection_range[1]
+            and not snapshot.autocomplete_preview_active
+            and snapshot.paint_is_current
+        )
         if snapshot.paint_cache_key_present and cache_can_be_reused:
             if not snapshot.paint_cache_projection_document_identity_matches_layout:
                 violations.append("paint_cache_projection_document_identity_mismatch")
@@ -4283,50 +4300,6 @@ def _autocomplete_preview_source_position(preview: object | None) -> int | None:
     return position if isinstance(position, int) else None
 
 
-def _autocomplete_owner_state(editor: PromptEditor) -> dict[str, Any]:
-    """Return autocomplete lifecycle state from production owners."""
-
-    autocomplete = getattr(editor, "_autocomplete", None)
-    if autocomplete is None:
-        interaction = getattr(editor, "_interaction_controller", None)
-        autocomplete = getattr(interaction, "_autocomplete", None)
-    sessions = getattr(autocomplete, "_sessions", None)
-    state = getattr(sessions, "state", None)
-    session = getattr(state, "session", None)
-    presenter = getattr(autocomplete, "_presenter", None)
-    ghost_snapshot = getattr(state, "ghost_text_source_snapshot", None)
-    suggestions = tuple(
-        suggestion.tag
-        for suggestion in getattr(session, "suggestions", ())
-        if isinstance(getattr(suggestion, "tag", None), str)
-    )
-    has_active_session = getattr(sessions, "has_active_session", None)
-    panel_visible = getattr(presenter, "panel_visible", None)
-    panel_under_mouse = getattr(presenter, "panel_under_mouse", None)
-    return {
-        "lifecycle": _safe_enum_value(getattr(state, "lifecycle", "idle")),
-        "mode": str(getattr(session, "mode", "none")),
-        "selected_index": int(getattr(session, "selected_index", -1)),
-        "prefix": str(getattr(session, "prefix", "")),
-        "word_start": getattr(session, "word_start", None),
-        "word_end": getattr(session, "word_end", None),
-        "active_tag_end": getattr(session, "active_tag_end", None),
-        "suggestions": suggestions,
-        "has_active": bool(has_active_session())
-        if callable(has_active_session)
-        else False,
-        "presenter_panel_visible": bool(panel_visible())
-        if callable(panel_visible)
-        else False,
-        "presenter_panel_under_mouse": bool(panel_under_mouse())
-        if callable(panel_under_mouse)
-        else False,
-        "source_revision": getattr(ghost_snapshot, "source_revision", None),
-        "snapshot_source_length": getattr(ghost_snapshot, "source_length", None),
-        "snapshot_cursor_position": getattr(ghost_snapshot, "cursor_position", None),
-    }
-
-
 def _scene_projection_timeline_sample(
     editor: PromptEditor,
     *,
@@ -4397,16 +4370,29 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         surface.active_projection_document() if surface is not None else None
     )
     layout = getattr(surface, "_layout", None)
-    layout_projection_document = getattr(layout, "projection_document", None)
+    prepared_frame = getattr(layout, "frame", None)
+    layout_output = getattr(prepared_frame, "output", None)
+    layout_geometry = getattr(prepared_frame, "geometry", None)
+    layout_configuration = getattr(layout_output, "configuration", None)
+    layout_projection_document = getattr(
+        layout_output,
+        "projection_document",
+        None,
+    )
     region_chrome = getattr(surface, "_region_chrome", None)
     region_chrome_snapshot_for = getattr(region_chrome, "snapshot_for", None)
     region_chrome_snapshot = (
-        region_chrome_snapshot_for(layout)
-        if callable(region_chrome_snapshot_for)
+        region_chrome_snapshot_for(layout_output)
+        if callable(region_chrome_snapshot_for) and layout_output is not None
         else None
     )
-    paint_cache = getattr(surface, "_projection_paint_cache", None)
-    paint_cache_key = getattr(paint_cache, "cache_key", None)
+    render_compositor = getattr(surface, "_render_compositor", None)
+    content_cache_snapshot = getattr(
+        render_compositor,
+        "content_cache_snapshot",
+        None,
+    )
+    paint_cache_key = getattr(content_cache_snapshot, "key", None)
     paint_cache_identity = getattr(paint_cache_key, "paint_identity", None)
     paint_cache_state = (
         getattr(paint_state_snapshot, "state", None)
@@ -4462,8 +4448,8 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         anchor_position=getattr(anchor_state, "source_position", None),
     )
     selection = _surface_selection(surface)
-    selection_rects = _layout_selection_rects(layout, selection)
-    layout_metrics = getattr(layout, "metrics", None)
+    selection_rects = _layout_selection_rects(layout_geometry, selection)
+    layout_metrics = getattr(layout_configuration, "metrics", None)
     scroll_offset = _surface_scroll_offset(surface)
     insertion_overlay_viewport_rect = _transient_insertion_overlay_viewport_rect(
         transient_overlays=transient_overlays,
@@ -4500,8 +4486,7 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     horizontal_scrollbar = (
         surface.horizontalScrollBar() if surface is not None else None
     )
-    layout_content_size = _layout_content_size(layout)
-    layout_metrics = getattr(layout, "metrics", None)
+    layout_content_size = _layout_content_size(layout_output)
     shell_sizing = getattr(editor, "_sizing", None)
     caret_token_id = getattr(caret_state, "token_id", None)
     anchor_token_id = getattr(anchor_state, "token_id", None)
@@ -4693,15 +4678,18 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         ),
         "projection_token_count": len(getattr(projection_document, "tokens", ())),
         "projection_run_count": len(getattr(projection_document, "runs", ())),
-        "layout_line_count": _layout_count(layout, "line_count"),
-        "layout_text_fragment_count": _layout_count(layout, "text_fragment_count"),
+        "layout_line_count": _layout_count(layout_output, "line_count"),
+        "layout_text_fragment_count": _layout_count(
+            layout_output,
+            "text_fragment_count",
+        ),
         "layout_inline_object_fragment_count": _layout_count(
-            layout,
+            layout_output,
             "inline_object_fragment_count",
         ),
         "layout_content_width": layout_content_size[0],
         "layout_content_height": layout_content_size[1],
-        "layout_text_width": float(getattr(layout, "_text_width", 0.0)),
+        "layout_text_width": float(getattr(layout_configuration, "text_width", 0.0)),
         "projection_metrics_text_line_height": _optional_float(
             getattr(layout_metrics, "text_line_height", None)
         ),
@@ -4718,7 +4706,7 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
             getattr(layout_metrics, "content_left_inset", None)
         ),
         "projection_metrics_content_height": _projection_metrics_content_height(
-            layout=layout,
+            layout_output=layout_output,
             metrics=layout_metrics,
         ),
         "shell_natural_height": _optional_int(
@@ -4733,14 +4721,14 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
             shell_sizing
         ),
         "visible_layout_rows": _visible_layout_rows(
-            layout=layout,
+            layout_output=layout_output,
             metrics=layout_metrics,
             source_text=editor.toPlainText(),
             viewport_rect=viewport_rect,
             scroll_offset=scroll_offset,
         ),
         "visible_text_fragments": _visible_text_fragments(
-            layout=layout,
+            layout_output=layout_output,
             metrics=layout_metrics,
             source_text=editor.toPlainText(),
             viewport_rect=viewport_rect,
@@ -4920,22 +4908,22 @@ def _valid_transient_caret_geometry(
     return result
 
 
-def _layout_count(layout: object | None, metric_name: str) -> int:
+def _layout_count(layout_output: object | None, metric_name: str) -> int:
     """Return one prepared geometry count from the public layout snapshot."""
 
-    snapshot = getattr(layout, "snapshot", None)
+    snapshot = getattr(layout_output, "snapshot", None)
     metric = getattr(snapshot, metric_name, None)
     result = metric() if callable(metric) else None
     return int(result) if isinstance(result, int) else 0
 
 
-def _layout_content_size(layout: object | None) -> tuple[float, float]:
+def _layout_content_size(layout_output: object | None) -> tuple[float, float]:
     """Return layout content width and height without painting."""
 
-    content_size = getattr(layout, "content_size", None)
-    if not callable(content_size):
+    snapshot = getattr(layout_output, "snapshot", None)
+    size = getattr(snapshot, "content_size", None)
+    if size is None:
         return (0.0, 0.0)
-    size = content_size()
     width = getattr(size, "width", None)
     height = getattr(size, "height", None)
     return (
@@ -4946,7 +4934,7 @@ def _layout_content_size(layout: object | None) -> tuple[float, float]:
 
 def _visible_layout_rows(
     *,
-    layout: object | None,
+    layout_output: object | None,
     metrics: object | None,
     source_text: str,
     viewport_rect: QRect,
@@ -4954,14 +4942,14 @@ def _visible_layout_rows(
 ) -> tuple[PromptEditorVisibleLayoutRow, ...]:
     """Return projection rows that should be visible in the current viewport."""
 
-    snapshot = getattr(layout, "snapshot", None)
+    snapshot = getattr(layout_output, "snapshot", None)
     lines = getattr(snapshot, "lines", ())
     if not isinstance(lines, Sequence):
         return ()
     viewport_top = float(viewport_rect.top())
     viewport_bottom = float(viewport_rect.bottom())
     rows: list[PromptEditorVisibleLayoutRow] = []
-    projection_document = getattr(layout, "projection_document", None)
+    projection_document = getattr(layout_output, "projection_document", None)
     region_structure = getattr(projection_document, "region_structure", None)
     projection_display_mode = _safe_enum_value(
         getattr(projection_document, "display_mode", "")
@@ -5034,7 +5022,7 @@ def _visible_layout_rows(
 
 def _visible_text_fragments(
     *,
-    layout: object | None,
+    layout_output: object | None,
     metrics: object | None,
     source_text: str,
     viewport_rect: QRect,
@@ -5042,7 +5030,7 @@ def _visible_text_fragments(
 ) -> tuple[PromptEditorVisibleTextFragment, ...]:
     """Return projection text fragments visible in the current viewport."""
 
-    snapshot = getattr(layout, "snapshot", None)
+    snapshot = getattr(layout_output, "snapshot", None)
     fragments = getattr(snapshot, "text_fragments", ())
     if not isinstance(fragments, Sequence):
         return ()
@@ -5140,12 +5128,12 @@ def _metrics_text_baseline(
 
 def _projection_metrics_content_height(
     *,
-    layout: object | None,
+    layout_output: object | None,
     metrics: object | None,
 ) -> float | None:
     """Return the content height implied by metrics and current layout rows."""
 
-    snapshot = getattr(layout, "snapshot", None)
+    snapshot = getattr(layout_output, "snapshot", None)
     lines = getattr(snapshot, "lines", ())
     content_height_for_rows = getattr(metrics, "content_height_for_rows", None)
     if not isinstance(lines, Sequence) or not callable(content_height_for_rows):
@@ -5225,12 +5213,13 @@ def _surface_selection(surface: object | None) -> object | None:
 
 
 def _layout_selection_rects(
-    layout: object | None,
+    geometry: object | None,
     selection: object | None,
 ) -> tuple[QRectF, ...]:
-    """Return document-local selection rects from the projection layout owner."""
+    """Return document-local selection rects from the geometry owner."""
 
-    selection_rects = getattr(layout, "selection_rects", None)
+    selection_geometry = getattr(geometry, "selection", None)
+    selection_rects = getattr(selection_geometry, "selection_rects", None)
     if not callable(selection_rects):
         return ()
     return _qrectf_sequence(selection_rects(selection))
@@ -5255,7 +5244,7 @@ def _compact_editor_state(editor: PromptEditor) -> dict[str, Any]:
 
     cursor = cast(Any, editor).textCursor()
     preview = _autocomplete_preview_state(editor)
-    autocomplete_state = _autocomplete_owner_state(editor)
+    autocomplete_state = autocomplete_owner_state(editor)
     return {
         "source": editor.toPlainText(),
         "cursor": cursor.position(),

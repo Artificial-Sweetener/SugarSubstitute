@@ -30,8 +30,10 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.application.ports import PromptWildcardResolution
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     OBJECT_REPLACEMENT_CHARACTER,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
@@ -111,7 +113,9 @@ def wildcard_token_for_range(
 def token_rect_for(box: PromptEditor, token: PromptProjectionToken) -> QRectF:
     """Return the viewport-local rect occupied by one wildcard token."""
 
-    token_rect = surface_for(box)._layout.token_rect(  # noqa: SLF001
+    token_rect = surface_for(  # noqa: SLF001
+        box
+    )._layout.frame.geometry.tokens.token_rect(
         token,
         scroll_offset=float(box.verticalScrollBar().value()),
     )

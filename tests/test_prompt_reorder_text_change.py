@@ -40,15 +40,12 @@ from substitute.presentation.editor.prompt_editor.async_work import (
     PromptSemanticRefreshResult,
     PromptStaleResultGuard,
 )
-from substitute.presentation.editor.prompt_editor.models import (
-    PromptEditorInteractionMode,
-    SegmentReorderSession,
-)
 from tests.prompt_autocomplete_test_helpers import prompt_syntax_profile
 from tests.prompt_reorder_interaction_test_helpers import (
     ControllerEditorDouble,
     MenuCursorDouble,
     OverlayDouble,
+    OverlayFactoryDouble,
     autocomplete_double,
     prompt_interaction_controller,
     syntax_renderer_double,
@@ -76,6 +73,7 @@ def test_handle_text_changed_cancels_active_reorder_mode_before_refreshing_promp
         current_cursor=MenuCursorDouble(text="alpha, beta", position=0),
         text="alpha, beta",
     )
+    overlay = OverlayDouble([1, 0], active_segment_index=1, has_reordered=True)
     controller = prompt_interaction_controller(
         editor,
         autocomplete=autocomplete_double(),
@@ -85,22 +83,11 @@ def test_handle_text_changed_cancels_active_reorder_mode_before_refreshing_promp
         mutation_service=PromptMutationService(),
         syntax_service_=resolved_syntax_service,
         syntax_profile=syntax_profile,
+        reorder_overlay_factory=OverlayFactoryDouble(overlay),
     )
     controller_holder.append(controller)
     semantic_refresh_controller._host = controller._syntax_state
-    overlay = OverlayDouble([1, 0], active_segment_index=1, has_reordered=True)
-    controller._reorder._segment_overlay = overlay
-    controller._reorder._interaction_mode = PromptEditorInteractionMode.SEGMENT_REORDER
-    controller._reorder._session_controller.replace_session(
-        SegmentReorderSession(
-            is_active=True,
-            original_ordered_indices=(0, 1),
-            current_ordered_indices=(0, 1),
-            active_segment_index=1,
-            selection_start=0,
-            selection_end=0,
-        )
-    )
+    controller.enter_segment_reorder_mode_from_keymap()
     editor.setPlainText("gamma, delta")
 
     controller.handle_text_changed()

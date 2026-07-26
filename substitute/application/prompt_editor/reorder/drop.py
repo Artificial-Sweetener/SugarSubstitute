@@ -28,7 +28,6 @@ from substitute.domain.prompt.reorder.models import PromptReorderState
 from substitute.domain.prompt.reorder.mutations import (
     apply_drop_target_to_state,
     build_base_drag_state,
-    split_gap_for_blank_line_insert,
 )
 from substitute.shared.logging.logger import elapsed_ms_since, get_logger, log_debug
 
@@ -37,20 +36,16 @@ from substitute.application.prompt_editor.document.projector import (
 )
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.reorder.gap_layout import (
-    between_row_gaps,
     gap_by_index,
-    layout_view_from_rows_and_gaps,
     split_after_last_row_gap_for_insert,
     trailing_edge_separator_text,
     trailing_edge_separator_text_for_hidden_chip,
-    with_edge_gaps_from_layout,
     with_trailing_edge_gap,
 )
 from substitute.application.prompt_editor.reorder.projection import (
     domain_state_from_view,
     domain_target_from_view,
     layout_view_from_state,
-    state_from_layout_view,
     state_view_from_domain,
 )
 from substitute.application.prompt_editor.reorder.views import (
@@ -60,6 +55,7 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderGapPlacement,
     PromptReorderGapView,
     PromptReorderLayoutView,
+    PromptReorderPreparedStateView,
     PromptReorderStateView,
 )
 
@@ -103,64 +99,43 @@ class PromptReorderDropService:
         )
         return layout_view
 
-    def build_base_drag_layout_view_from_layout(
+    def build_base_drag_state(
         self,
         document_view: PromptDocumentView,
-        layout_view: PromptReorderLayoutView,
+        state_view: PromptReorderStateView,
         *,
+        current_layout_view: PromptReorderLayoutView,
         dragged_segment_index: int,
-    ) -> PromptReorderLayoutView:
-        """Build the hidden-drag layout from the supplied in-session reorder layout."""
+    ) -> PromptReorderPreparedStateView:
+        """Build one authoritative hidden-drag state and its derived layout."""
 
         started_at = time.perf_counter()
         base_drag_state = build_base_drag_state(
-            state_from_layout_view(
-                layout_view,
-                has_trailing_comma=document_view.has_trailing_comma,
-            ),
+            domain_state_from_view(state_view),
             dragged_segment_index=dragged_segment_index,
         )
         base_drag_layout = layout_view_from_state(base_drag_state)
         updated_layout = with_trailing_edge_gap(
             base_drag_layout,
             separator_text=trailing_edge_separator_text_for_hidden_chip(
-                layout_view,
+                current_layout_view,
                 dragged_segment_index=dragged_segment_index,
                 has_trailing_comma=document_view.has_trailing_comma,
             ),
         )
+        prepared_state = PromptReorderPreparedStateView(
+            reorder_state=state_view_from_domain(base_drag_state),
+            layout_view=updated_layout,
+        )
         _log_reorder_drop(
-            "build_base_drag_layout_view_from_layout",
+            "build_base_drag_state",
             started_at=started_at,
             text_length=len(document_view.source_text),
             chip_index=dragged_segment_index,
             row_count=len(updated_layout.rows),
             gap_count=len(updated_layout.gaps),
         )
-        return updated_layout
-
-    def build_base_drag_reorder_state_from_state(
-        self,
-        state_view: PromptReorderStateView,
-        *,
-        dragged_segment_index: int,
-    ) -> PromptReorderStateView:
-        """Return authoritative source state while one chip is lifted."""
-
-        started_at = time.perf_counter()
-        updated_state = state_view_from_domain(
-            build_base_drag_state(
-                domain_state_from_view(state_view),
-                dragged_segment_index=dragged_segment_index,
-            )
-        )
-        _log_reorder_drop(
-            "build_base_drag_reorder_state_from_state",
-            started_at=started_at,
-            chip_index=dragged_segment_index,
-            chip_count=len(updated_state.ordered_chip_indices),
-        )
-        return updated_state
+        return prepared_state
 
     def build_preview_drop_layout_view(
         self,
@@ -193,115 +168,74 @@ class PromptReorderDropService:
         )
         return layout_view
 
-    def build_preview_drop_layout_view_from_layout(
+    def build_preview_drop_state(
         self,
         document_view: PromptDocumentView,
-        layout_view: PromptReorderLayoutView,
+        base_drag_state_view: PromptReorderPreparedStateView,
         *,
         dragged_segment_index: int,
         drop_target: PromptReorderDropTarget,
-    ) -> PromptReorderLayoutView:
-        """Build one preview layout from the current in-session reorder layout."""
+    ) -> PromptReorderPreparedStateView:
+        """Apply one target to the prepared base and derive its matching layout."""
 
         started_at = time.perf_counter()
-        if document_view.region_structure.separators:
-            preview_state = apply_drop_target_to_state(
-                build_base_drag_state(
-                    state_from_layout_view(
-                        layout_view,
-                        has_trailing_comma=document_view.has_trailing_comma,
-                    ),
-                    dragged_segment_index=dragged_segment_index,
-                ),
-                dragged_segment_index=dragged_segment_index,
-                target=domain_target_from_view(drop_target),
-            )
-            return layout_view_from_state(preview_state)
-        base_drag_layout = self.build_base_drag_layout_view_from_layout(
-            document_view,
-            layout_view,
-            dragged_segment_index=dragged_segment_index,
-        )
-        preview_layout = apply_drop_target_to_layout_view(
-            base_drag_layout,
-            dragged_segment_index=dragged_segment_index,
-            drop_target=drop_target,
-            has_trailing_comma=document_view.has_trailing_comma,
-        )
-        _log_reorder_drop(
-            "build_preview_drop_layout_view_from_layout",
-            started_at=started_at,
-            text_length=len(document_view.source_text),
-            chip_index=dragged_segment_index,
-            drop_target_kind=_drop_target_kind(drop_target),
-            row_count=len(preview_layout.rows),
-            gap_count=len(preview_layout.gaps),
-        )
-        return preview_layout
-
-    def build_preview_drop_reorder_state_from_state(
-        self,
-        document_view: PromptDocumentView,
-        state_view: PromptReorderStateView,
-        *,
-        current_layout_view: PromptReorderLayoutView,
-        base_drag_layout_view: PromptReorderLayoutView | None,
-        dragged_segment_index: int,
-        drop_target: PromptReorderDropTarget,
-    ) -> PromptReorderStateView:
-        """Apply a drop target to authoritative source state for commit/preview."""
-
-        started_at = time.perf_counter()
-        base_drag_state = build_base_drag_state(
-            domain_state_from_view(state_view),
-            dragged_segment_index=dragged_segment_index,
+        base_drag_state = domain_state_from_view(base_drag_state_view.reorder_state)
+        trailing_separator = trailing_edge_separator_text(
+            base_drag_state_view.layout_view
         )
         if isinstance(drop_target, PromptGapBlankLineDropTarget):
-            target_gap = (
-                None
-                if base_drag_layout_view is None
-                else gap_by_index(base_drag_layout_view, drop_target.gap_index)
+            target_gap = gap_by_index(
+                base_drag_state_view.layout_view,
+                drop_target.gap_index,
             )
             if (
                 target_gap is not None
                 and target_gap.placement is PromptReorderGapPlacement.AFTER_LAST_ROW
             ):
-                updated_state = state_view_from_domain(
-                    append_chip_to_after_last_gap_state(
-                        base_drag_state,
-                        target_gap=target_gap,
-                        dragged_segment_index=dragged_segment_index,
+                _prefix_separator, trailing_separator = (
+                    split_after_last_row_gap_for_insert(
+                        target_gap.separator_text,
                         blank_line_index=drop_target.blank_line_index,
                     )
                 )
-                _log_reorder_drop(
-                    "build_preview_drop_reorder_state_from_state",
-                    started_at=started_at,
-                    text_length=len(document_view.source_text),
-                    chip_index=dragged_segment_index,
-                    gap_index=drop_target.gap_index,
-                    drop_target_kind=_drop_target_kind(drop_target),
-                    chip_count=len(updated_state.ordered_chip_indices),
+                updated_domain_state = append_chip_to_after_last_gap_state(
+                    base_drag_state,
+                    target_gap=target_gap,
+                    dragged_segment_index=dragged_segment_index,
+                    blank_line_index=drop_target.blank_line_index,
                 )
-                return updated_state
-
-        _ = current_layout_view
-        updated_state = state_view_from_domain(
-            apply_drop_target_to_state(
+            else:
+                updated_domain_state = apply_drop_target_to_state(
+                    base_drag_state,
+                    dragged_segment_index=dragged_segment_index,
+                    target=domain_target_from_view(drop_target),
+                )
+        else:
+            updated_domain_state = apply_drop_target_to_state(
                 base_drag_state,
                 dragged_segment_index=dragged_segment_index,
                 target=domain_target_from_view(drop_target),
             )
+        updated_state = state_view_from_domain(updated_domain_state)
+        updated_layout = with_trailing_edge_gap(
+            layout_view_from_state(updated_domain_state),
+            separator_text=trailing_separator,
+        )
+        prepared_state = PromptReorderPreparedStateView(
+            reorder_state=updated_state,
+            layout_view=updated_layout,
         )
         _log_reorder_drop(
-            "build_preview_drop_reorder_state_from_state",
+            "build_preview_drop_state",
             started_at=started_at,
             text_length=len(document_view.source_text),
             chip_index=dragged_segment_index,
             drop_target_kind=_drop_target_kind(drop_target),
             chip_count=len(updated_state.ordered_chip_indices),
+            row_count=len(updated_layout.rows),
+            gap_count=len(updated_layout.gaps),
         )
-        return updated_state
+        return prepared_state
 
 
 def append_chip_to_after_last_gap_state(
@@ -329,117 +263,6 @@ def append_chip_to_after_last_gap_state(
         has_trailing_comma=base_drag_state.has_trailing_comma,
         prefix_text=base_drag_state.prefix_text,
         suffix_text=base_drag_state.suffix_text,
-    )
-
-
-def apply_drop_target_to_layout_view(
-    base_drag_layout: PromptReorderLayoutView,
-    *,
-    dragged_segment_index: int,
-    drop_target: PromptReorderDropTarget,
-    has_trailing_comma: bool,
-) -> PromptReorderLayoutView:
-    """Apply one drop target to an in-session layout, including edge gaps."""
-
-    if isinstance(drop_target, PromptLineDropTarget):
-        preview_state = apply_drop_target_to_state(
-            state_from_layout_view(
-                base_drag_layout,
-                has_trailing_comma=has_trailing_comma,
-            ),
-            dragged_segment_index=dragged_segment_index,
-            target=domain_target_from_view(drop_target),
-        )
-        return with_edge_gaps_from_layout(
-            layout_view_from_state(preview_state),
-            source_layout=base_drag_layout,
-        )
-
-    return apply_blank_line_drop_target_to_layout_view(
-        base_drag_layout,
-        dragged_segment_index=dragged_segment_index,
-        drop_target=drop_target,
-    )
-
-
-def apply_blank_line_drop_target_to_layout_view(
-    base_drag_layout: PromptReorderLayoutView,
-    *,
-    dragged_segment_index: int,
-    drop_target: PromptGapBlankLineDropTarget,
-) -> PromptReorderLayoutView:
-    """Insert the dragged chip into any visible blank-line gap."""
-
-    target_gap = gap_by_index(base_drag_layout, drop_target.gap_index)
-    if target_gap is None:
-        raise ValueError("gap_index must reference an available reorder gap.")
-
-    if target_gap.placement is PromptReorderGapPlacement.AFTER_LAST_ROW:
-        return apply_after_last_row_gap_drop(
-            base_drag_layout,
-            target_gap=target_gap,
-            dragged_segment_index=dragged_segment_index,
-            blank_line_index=drop_target.blank_line_index,
-        )
-
-    return apply_between_row_gap_drop(
-        base_drag_layout,
-        target_gap=target_gap,
-        dragged_segment_index=dragged_segment_index,
-        blank_line_index=drop_target.blank_line_index,
-    )
-
-
-def apply_between_row_gap_drop(
-    base_drag_layout: PromptReorderLayoutView,
-    *,
-    target_gap: PromptReorderGapView,
-    dragged_segment_index: int,
-    blank_line_index: int,
-) -> PromptReorderLayoutView:
-    """Insert the dragged chip into a blank line between two populated rows."""
-
-    gaps_between_rows = list(between_row_gaps(base_drag_layout))
-    gap_offset = gaps_between_rows.index(target_gap)
-    prefix_separator, suffix_separator = split_gap_for_blank_line_insert(
-        target_gap.separator_text,
-        blank_line_index=blank_line_index,
-    )
-    row_indices = [row.chip_indices for row in base_drag_layout.rows]
-    row_indices.insert(gap_offset + 1, (dragged_segment_index,))
-
-    between_separator_texts = [gap.separator_text for gap in gaps_between_rows]
-    between_separator_texts[gap_offset] = prefix_separator
-    between_separator_texts.insert(gap_offset + 1, suffix_separator)
-    return layout_view_from_rows_and_gaps(
-        row_indices,
-        between_separator_texts=tuple(between_separator_texts),
-        trailing_edge_separator_text=trailing_edge_separator_text(base_drag_layout),
-    )
-
-
-def apply_after_last_row_gap_drop(
-    base_drag_layout: PromptReorderLayoutView,
-    *,
-    target_gap: PromptReorderGapView,
-    dragged_segment_index: int,
-    blank_line_index: int,
-) -> PromptReorderLayoutView:
-    """Insert the dragged chip into a blank line after the final populated row."""
-
-    prefix_separator, suffix_separator = split_after_last_row_gap_for_insert(
-        target_gap.separator_text,
-        blank_line_index=blank_line_index,
-    )
-    row_indices = [row.chip_indices for row in base_drag_layout.rows]
-    row_indices.append((dragged_segment_index,))
-    between_separator_texts = tuple(
-        gap.separator_text for gap in between_row_gaps(base_drag_layout)
-    ) + (prefix_separator,)
-    return layout_view_from_rows_and_gaps(
-        row_indices,
-        between_separator_texts=between_separator_texts,
-        trailing_edge_separator_text=suffix_separator,
     )
 
 
@@ -493,8 +316,4 @@ def _log_reorder_drop(
 __all__ = [
     "PromptReorderDropService",
     "append_chip_to_after_last_gap_state",
-    "apply_after_last_row_gap_drop",
-    "apply_between_row_gap_drop",
-    "apply_blank_line_drop_target_to_layout_view",
-    "apply_drop_target_to_layout_view",
 ]

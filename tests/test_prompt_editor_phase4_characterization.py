@@ -44,6 +44,18 @@ from substitute.presentation.editor.prompt_editor.autocomplete_preview_state imp
 from substitute.presentation.editor.prompt_editor.projection.surface import (
     PromptProjectionSurface,
 )
+from substitute.presentation.editor.prompt_editor.projection.source_line_renderer import (
+    PromptSourceLineChromeRenderer,
+)
+from substitute.presentation.editor.prompt_editor.projection.search_highlight_renderer import (
+    PromptSearchHighlightRenderer,
+)
+from substitute.presentation.editor.prompt_editor.geometry.selection import (
+    PromptSelectionGeometry,
+)
+from substitute.presentation.editor.prompt_editor.geometry.source_line_queries import (
+    PromptSourceLineQueries,
+)
 from tests.prompt_projection_test_helpers import (
     ensure_qapp,
     process_events,
@@ -111,7 +123,11 @@ def test_phase4_layout_wrap_fragments_caret_and_width_reflow(
     )
     blank_caret = box.cursorRect()
     expected_content_left = (
-        cast(float, cast(Any, surface)._layout.document_margin) + 28.0
+        cast(
+            float,
+            cast(Any, surface)._layout.frame.output.configuration.document_margin,
+        )
+        + 28.0
     )
 
     box.setGeometry(box.x(), box.y(), 520, box.height())
@@ -243,8 +259,9 @@ def test_phase4_search_and_source_line_chrome_track_projection_state(
     source_line_rects = box.source_line_rects()
     before_scroll_tops = tuple(rect.rect.top() for rect in source_line_rects)
     chrome = cast(Any, surface)._source_line_chrome
-    inactive_color = chrome.search_match_color(surface.palette(), active=False)
-    active_color = chrome.search_match_color(surface.palette(), active=True)
+    search_highlights = cast(Any, surface)._search_highlight_layer
+    inactive_color = search_highlights.match_color(surface.palette(), active=False)
+    active_color = search_highlights.match_color(surface.palette(), active=True)
 
     diagnostic = _spelling_diagnostic(text.rindex("alpha"), text.rindex("alpha") + 5)
     surface.set_diagnostics((diagnostic,))
@@ -273,6 +290,59 @@ def test_phase4_search_and_source_line_chrome_track_projection_state(
     assert not pixmap.isNull()
     if box.verticalScrollBar().maximum() > 0:
         assert after_scroll_tops != before_scroll_tops
+
+
+def test_phase4_search_highlight_draw_uses_only_prepared_commands(
+    widgets: list[QWidget],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Drawing search chrome must not query projection geometry."""
+
+    text = "alpha beta alpha"
+    box = _show_phase4_editor(widgets, text=text, width=360)
+    surface = surface_for(box)
+    surface.set_search_matches(
+        ((0, len("alpha")), (text.rindex("alpha"), len("alpha"))),
+        active_index=1,
+    )
+    search_highlights = cast(Any, surface)._search_highlight_layer
+    assert search_highlights.layer.rects
+    prepared_layer = search_highlights.layer
+
+    def reject_geometry_lookup(
+        *_args: object,
+        **_kwargs: object,
+    ) -> tuple[QRectF, ...]:
+        """Fail if prepared drawing reaches back into geometry."""
+
+        raise AssertionError("search drawing queried projection geometry")
+
+    monkeypatch.setattr(
+        PromptSelectionGeometry,
+        "source_range_document_fragments",
+        reject_geometry_lookup,
+    )
+    surface.set_search_matches(
+        ((0, len("alpha")), (text.rindex("alpha"), len("alpha"))),
+        active_index=0,
+    )
+    recolored_layer = search_highlights.layer
+    assert recolored_layer is not prepared_layer
+    pixmap = QPixmap(surface.viewport().size())
+    painter = QPainter(pixmap)
+    try:
+        PromptSearchHighlightRenderer().draw(
+            painter,
+            recolored_layer,
+            viewport_rect=QRectF(surface.viewport().rect()),
+            scroll_offset=cast(Any, surface)._scroll_offset(),
+        )
+    finally:
+        painter.end()
+
+    assert not pixmap.isNull()
+    cast(Any, surface)._prepare_search_highlight_layer()
+    assert search_highlights.layer is recolored_layer
 
 
 def test_phase4_source_line_chrome_tracks_scroll_for_long_prompts(
@@ -307,6 +377,82 @@ def test_phase4_source_line_chrome_tracks_scroll_for_long_prompts(
     assert cast(Any, surface_for(box))._source_line_chrome.content_left_inset == 32.0
 
 
+def test_phase4_source_line_draw_uses_only_prepared_commands(
+    widgets: list[QWidget],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Drawing source-line chrome must not query projection geometry."""
+
+    box = _show_phase4_editor(widgets, text="alpha\nbeta\ngamma", width=360)
+    box.set_source_line_chrome_enabled(True)
+    surface = surface_for(box)
+    source_line_chrome = cast(Any, surface)._source_line_chrome
+
+    def reject_geometry_lookup(
+        *_args: object,
+        **_kwargs: object,
+    ) -> tuple[object, ...]:
+        """Fail if prepared drawing reaches back into source-line geometry."""
+
+        raise AssertionError("source-line drawing queried projection geometry")
+
+    monkeypatch.setattr(
+        PromptSourceLineQueries,
+        "visible_rects",
+        reject_geometry_lookup,
+    )
+    pixmap = QPixmap(surface.viewport().size())
+    painter = QPainter(pixmap)
+    try:
+        PromptSourceLineChromeRenderer().draw(painter, source_line_chrome.layer)
+    finally:
+        painter.end()
+
+    assert not pixmap.isNull()
+
+
+def test_phase4_projection_selection_draw_uses_only_prepared_commands(
+    widgets: list[QWidget],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Drawing selected content must not query projection selection geometry."""
+
+    text = "(alpha:1.05), beta"
+    box = _show_phase4_editor(widgets, text=text, width=360)
+    surface = surface_for(box)
+    _select_source_range(box, 0, text.index(","))
+    assert not cast(Any, surface)._selection_layer_owner.layer.is_empty
+
+    def reject_geometry_lookup(*_args: object, **_kwargs: object) -> object:
+        """Fail if prepared selection drawing reaches back into geometry."""
+
+        raise AssertionError("selection drawing queried projection geometry")
+
+    monkeypatch.setattr(
+        PromptSelectionGeometry,
+        "selection_rects",
+        reject_geometry_lookup,
+    )
+    monkeypatch.setattr(
+        PromptSelectionGeometry,
+        "text_fragment_selection_bounds",
+        reject_geometry_lookup,
+    )
+    cast(Any, surface)._selection_layer_owner.refresh()
+    pixmap = QPixmap(surface.viewport().size())
+    painter = QPainter(pixmap)
+    try:
+        cast(Any, surface)._render_compositor.draw_content(
+            painter,
+            cast(Any, surface)._render_frame_owner.frame,
+            event_clip=QRectF(surface.viewport().rect()),
+        )
+    finally:
+        painter.end()
+
+    assert not pixmap.isNull()
+
+
 def test_phase4_paint_composition_uses_preview_layout_and_suppresses_caret_for_selection(
     widgets: list[QWidget],
 ) -> None:
@@ -325,6 +471,7 @@ def test_phase4_paint_composition_uses_preview_layout_and_suppresses_caret_for_s
         active_index=1,
     )
     surface.set_diagnostics((_spelling_diagnostic(typo_start, len(text)),))
+    base_cache_key = cast(Any, surface)._render_compositor.content_cache_snapshot.key
     surface.set_autocomplete_preview_state(
         PromptAutocompletePreviewState(
             source_position=alpha_start,
@@ -335,13 +482,10 @@ def test_phase4_paint_composition_uses_preview_layout_and_suppresses_caret_for_s
     pixmap = QPixmap(surface.viewport().size())
     painter = QPainter(pixmap)
     try:
-        projection_paint_result = cast(Any, surface)._paint_projection_content(
+        projection_paint_result = cast(Any, surface)._render_compositor.draw_content(
             painter,
-            selection=cast(Any, surface)._selection(),
-            scroll_offset=cast(float, cast(Any, surface)._scroll_offset()),
-            clip_rect=QRectF(surface.viewport().rect()),
-            viewport_rect=QRectF(surface.viewport().rect()),
-            excluded_region=None,
+            cast(Any, surface)._render_frame_owner.frame,
+            event_clip=QRectF(surface.viewport().rect()),
         )
     finally:
         painter.end()
@@ -352,13 +496,16 @@ def test_phase4_paint_composition_uses_preview_layout_and_suppresses_caret_for_s
 
     assert ", sharp focus" in active_projection_document.projection_text
     assert projection_paint_result == "preview"
-    assert cast(Any, surface)._projection_paint_cache.cache_key is None
+    assert (
+        cast(Any, surface)._render_compositor.content_cache_snapshot.key
+        is base_cache_key
+    )
     assert (
         cast(Any, surface)
-        ._source_line_chrome.search_match_color(surface.palette(), active=True)
+        ._search_highlight_layer.match_color(surface.palette(), active=True)
         .alpha()
         > cast(Any, surface)
-        ._source_line_chrome.search_match_color(surface.palette(), active=False)
+        ._search_highlight_layer.match_color(surface.palette(), active=False)
         .alpha()
     )
     assert cast(Any, surface)._session.diagnostics
@@ -391,7 +538,7 @@ def test_phase4_clearing_autocomplete_preview_restores_base_projection_layout(
     )
     assert (
         "backpack basket"
-        in cast(Any, surface)._layout.projection_document.projection_text
+        in cast(Any, surface)._layout.frame.output.projection_document.projection_text
     )
 
     surface.set_autocomplete_preview_state(None)
@@ -402,28 +549,27 @@ def test_phase4_clearing_autocomplete_preview_restores_base_projection_layout(
         not in cast(Any, surface).active_projection_document().projection_text
     )
     assert (
-        cast(Any, surface)._layout.projection_document
+        cast(Any, surface)._layout.frame.output.projection_document
         is cast(Any, surface).projection_document()
     )
     assert (
         "backpack basket"
-        not in cast(Any, surface)._layout.projection_document.projection_text
+        not in cast(
+            Any, surface
+        )._layout.frame.output.projection_document.projection_text
     )
     pixmap = QPixmap(surface.viewport().size())
     painter = QPainter(pixmap)
     try:
-        cast(Any, surface)._paint_projection_content(
+        cast(Any, surface)._render_compositor.draw_content(
             painter,
-            selection=cast(Any, surface)._selection(),
-            scroll_offset=cast(float, cast(Any, surface)._scroll_offset()),
-            clip_rect=QRectF(surface.viewport().rect()),
-            viewport_rect=QRectF(surface.viewport().rect()),
-            excluded_region=None,
+            cast(Any, surface)._render_frame_owner.frame,
+            event_clip=QRectF(surface.viewport().rect()),
         )
     finally:
         painter.end()
 
-    cache_key = cast(Any, surface)._projection_paint_cache.cache_key
+    cache_key = cast(Any, surface)._render_compositor.content_cache_snapshot.key
     current_paint = cast(Any, surface).editor_state.current_paint
     assert current_paint is not None
     assert not current_paint.state.ghosted_run_ids
@@ -468,13 +614,10 @@ def test_phase4_projection_scheduling_and_small_repaint_paths_are_scoped(
     pixmap = QPixmap(surface.viewport().size())
     painter = QPainter(pixmap)
     try:
-        result = cast(Any, surface)._paint_projection_content(
+        result = cast(Any, surface)._render_compositor.draw_content(
             painter,
-            selection=cast(Any, surface)._selection(),
-            scroll_offset=cast(float, cast(Any, surface)._scroll_offset()),
-            clip_rect=QRectF(0.0, 0.0, 8.0, 8.0),
-            viewport_rect=QRectF(surface.viewport().rect()),
-            excluded_region=None,
+            cast(Any, surface)._render_frame_owner.frame,
+            event_clip=QRectF(0.0, 0.0, 8.0, 8.0),
         )
     finally:
         painter.end()
@@ -579,7 +722,7 @@ def _flush_projection_update_scheduler(surface: PromptProjectionSurface) -> None
 def _projection_line_texts(surface: PromptProjectionSurface) -> tuple[str, ...]:
     """Return visible text grouped by projection visual line."""
 
-    snapshot = cast(Any, surface)._layout.snapshot
+    snapshot = cast(Any, surface)._layout.frame.output.snapshot
     return tuple(
         "".join(
             fragment.text for fragment in line.fragments if hasattr(fragment, "text")

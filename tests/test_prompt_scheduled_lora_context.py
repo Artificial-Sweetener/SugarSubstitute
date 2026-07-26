@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from substitute.application.prompt_editor.lora.scheduled import PromptScheduledLora
-from tests.prompt_autocomplete_test_helpers import build_test_autocomplete_coordinator
+from tests.prompt_autocomplete_test_helpers import build_test_autocomplete_stack
 from tests.prompt_editor_controller_test_helpers import (
     DeferredScheduledLoraContextProvider,
     EmptyAutocompleteGateway,
@@ -48,7 +48,7 @@ def test_prewarm_scheduled_lora_context_caches_full_scheduled_loras() -> None:
         return (scheduled_lora,)
 
     provider = DeferredScheduledLoraContextProvider(resolve_scheduled_loras)
-    _ = build_test_autocomplete_coordinator(
+    _ = build_test_autocomplete_stack(
         TextAutocompleteEditorDouble("mid"),
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         scheduled_lora_context_provider=provider,
@@ -71,12 +71,12 @@ def test_prewarm_scheduled_lora_context_requires_async_trigger_context() -> None
     """Scheduled-LoRA prewarm only schedules through the async trigger path."""
 
     provider = DeferredScheduledLoraContextProvider(lambda _text: ())
-    _ = build_test_autocomplete_coordinator(
+    _ = build_test_autocomplete_stack(
         TextAutocompleteEditorDouble("mid"),
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         limit=10,
     )
-    _ = build_test_autocomplete_coordinator(
+    _ = build_test_autocomplete_stack(
         TextAutocompleteEditorDouble("mid"),
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         limit=10,

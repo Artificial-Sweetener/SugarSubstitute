@@ -44,10 +44,14 @@ from substitute.presentation.editor.prompt_editor.interactions.deletion_controll
     PromptDeletionResolver,
     PromptSurfaceDeletionController,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretState,
-    PromptProjectionDocument,
     PromptProjectionSelection,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
 )
 

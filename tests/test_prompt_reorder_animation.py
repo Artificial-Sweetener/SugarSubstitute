@@ -43,8 +43,12 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_animation i
 from substitute.presentation.editor.prompt_editor.overlays.reorder_animation_presenter import (
     PromptReorderAnimationPresenter,
 )
-from substitute.presentation.editor.prompt_editor.overlays.reorder_paint_ownership import (
+from substitute.presentation.editor.prompt_editor.overlays.reorder_animation_paint_policy import (
     animation_plan_with_complete_paint_ownership,
+)
+from substitute.presentation.editor.prompt_editor.overlays.reorder_animation_visual_owner import (
+    PromptReorderAnimationVisualOwner,
+    PromptReorderHeldChipAnimationTarget,
 )
 
 
@@ -422,6 +426,63 @@ def _presenter_plan(
         immediate_targets=immediate_targets,
         stale=stale,
     )
+
+
+@_WINDOWS_XDIST_QT_SKIP
+def test_animation_visual_owner_publishes_held_and_displacement_atomically() -> None:
+    """Pointer and paint consumers should observe one combined frame revision."""
+
+    app, host, _chips = _host_with_chips()
+    published_revisions: list[int] = []
+    owner_holder: list[PromptReorderAnimationVisualOwner] = []
+
+    def capture_publication() -> None:
+        """Record the exact revision published after presenter batching."""
+
+        published_revisions.append(owner_holder[0].publication.revision)
+
+    try:
+        owner = PromptReorderAnimationVisualOwner(
+            parent=host,
+            frame_callback=capture_publication,
+        )
+        owner_holder.append(owner)
+        plan = _presenter_plan(
+            generation=1,
+            changed_targets=(
+                PromptReorderAnimationTarget(
+                    segment_index=0,
+                    start_rect=QRectF(0.0, 0.0, 20.0, 10.0),
+                    target_rect=QRectF(40.0, 0.0, 20.0, 10.0),
+                    target_visible=True,
+                ),
+            ),
+        )
+
+        owner.apply_plan(
+            plan,
+            held_target=PromptReorderHeldChipAnimationTarget(
+                generation=1,
+                segment_index=1,
+                start_rect=QRectF(24.0, 0.0, 20.0, 10.0),
+                target_rect=QRectF(64.0, 0.0, 20.0, 10.0),
+            ),
+        )
+        publication = owner.publication
+
+        assert published_revisions == [1]
+        assert set(publication.displacement_rects_by_index) == {0}
+        assert set(publication.held_rects_by_index) == {1}
+        assert set(publication.paint_rects_by_index) == {0, 1}
+
+        owner.cancel(reason="test")
+
+        assert published_revisions == [1, 2]
+        assert not owner.publication.paint_rects_by_index
+    finally:
+        host.close()
+        host.deleteLater()
+        _process_events(app)
 
 
 @_WINDOWS_XDIST_QT_SKIP

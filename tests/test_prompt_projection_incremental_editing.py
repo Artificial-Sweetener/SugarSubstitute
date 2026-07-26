@@ -35,15 +35,26 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 from substitute.presentation.editor.prompt_editor.core.editing.source_buffer import (
     PromptSourceSnapshot,
 )
-from substitute.presentation.editor.prompt_editor.projection.model import (
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretState,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionTokenKind,
 )
-from substitute.presentation.editor.prompt_editor.projection.incremental_editor import (
+from substitute.presentation.editor.prompt_editor.projection.incremental_edit_contracts import (
     PromptProjectionPlainTextApplyResult,
     PromptProjectionPlainTextApplyStatus,
 )
-from substitute.presentation.editor.prompt_editor.projection.snapshot import (
+from substitute.presentation.editor.prompt_editor.projection.source_edit_projection_policy import (
+    PromptSourceEditProjectionDecision,
+)
+from substitute.presentation.editor.prompt_editor.projection.source_edit_projection_facts import (
+    PromptSourceEditProjectionFactResolver,
+)
+from substitute.presentation.editor.prompt_editor.projection.render_frame import (
+    PromptProjectionContentPaintMode,
+)
+from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionLineSnapshot,
 )
 from substitute.presentation.editor.prompt_editor.projection.surface import (
@@ -86,7 +97,7 @@ if os.environ.get("PYTEST_XDIST_WORKER"):
 def _projection_line_texts(surface: PromptProjectionSurface) -> tuple[str, ...]:
     """Return visible text grouped by projection visual line."""
 
-    snapshot = cast(Any, surface)._layout.snapshot
+    snapshot = cast(Any, surface)._layout.frame.output.snapshot
     return tuple(
         "".join(
             fragment.text for fragment in line.fragments if hasattr(fragment, "text")
@@ -116,7 +127,7 @@ def _projection_lines(
 
     return cast(
         tuple[PromptProjectionLineSnapshot, ...],
-        cast(Any, surface)._layout.snapshot.lines,
+        cast(Any, surface)._layout.frame.output.snapshot.lines,
     )
 
 
@@ -148,10 +159,10 @@ def test_projection_surface_caret_move_clears_stale_active_lora_paint(
         """Return active token ranges from layout-owned paint state."""
 
         layout = cast(Any, surface)._layout
-        active_token_ids = layout.paint_state.active_token_ids
+        active_token_ids = layout.frame.paint_state.active_token_ids
         return tuple(
             (token.source_start, token.source_end)
-            for token in layout.projection_document.tokens
+            for token in layout.frame.output.projection_document.tokens
             if token.token_id in active_token_ids
         )
 
@@ -186,15 +197,9 @@ def test_projection_surface_immediate_syntax_insert_preserves_unaffected_semanti
     apply_source_range_to_projection(
         surface,
         next_text,
-        cursor_position=len(next_text),
-        anchor_position=len(next_text),
-        emit_text_changed=True,
-        rebuild_immediately=True,
-        optimistic_prompt_state=None,
         source_edit_start=len(text),
         source_edit_end=len(text),
         source_edit_replacement_text="<",
-        previous_source_text=text,
     )
 
     assert surface.projection_document().source_text == next_text
@@ -226,15 +231,9 @@ def test_projection_surface_immediate_delete_preserves_shifted_semantics(
     apply_source_range_to_projection(
         surface,
         next_text,
-        cursor_position=0,
-        anchor_position=0,
-        emit_text_changed=True,
-        rebuild_immediately=True,
-        optimistic_prompt_state=None,
         source_edit_start=0,
         source_edit_end=1,
         source_edit_replacement_text="",
-        previous_source_text=text,
     )
 
     shifted_lora_token = next(
@@ -534,53 +533,6 @@ def test_projection_surface_scheduled_plain_selection_delete_uses_incremental_ap
     assert surface.projection_document().source_text == next_text
 
 
-def test_projection_surface_allows_plain_layout_miss_fallback_deferral(
-    widgets: list[QWidget],
-) -> None:
-    """Fallback deferral is limited to text that can be safely overlaid."""
-
-    box = show_prompt_editor(
-        widgets,
-        text="(cat:1.05), alpha beta",
-        width=360,
-    )
-    surface = surface_for(box)
-    text = box.toPlainText()
-    cursor_position = len(text)
-
-    assert cast(
-        Any, surface
-    )._incremental_apply_controller._can_defer_immediate_projection_fallback_edit(
-        previous_text=text,
-        next_text=f"{text[:cursor_position]}x{text[cursor_position:]}",
-        start=cursor_position,
-        end=cursor_position,
-        replacement_text="x",
-        projection_deferral_reason="plain_single_character_requires_layout",
-    )
-    middle_position = box.toPlainText().index(" beta")
-    assert not cast(
-        Any, surface
-    )._incremental_apply_controller._can_defer_immediate_projection_fallback_edit(
-        previous_text=text,
-        next_text=f"{text[:middle_position]}x{text[middle_position:]}",
-        start=middle_position,
-        end=middle_position,
-        replacement_text="x",
-        projection_deferral_reason="plain_single_character_requires_layout",
-    )
-    assert not cast(
-        Any, surface
-    )._incremental_apply_controller._can_defer_immediate_projection_fallback_edit(
-        previous_text=text,
-        next_text=f"{text[:middle_position]}\n{text[middle_position:]}",
-        start=middle_position,
-        end=middle_position,
-        replacement_text="\n",
-        projection_deferral_reason="control_character",
-    )
-
-
 def test_projection_surface_empty_middle_line_typing_uses_incremental_layout(
     widgets: list[QWidget],
     monkeypatch: pytest.MonkeyPatch,
@@ -651,7 +603,7 @@ def test_projection_surface_middle_plain_backspace_publishes_real_layout(
     )
     rebuild_count = 0
     upstream_token = first_emphasis_token(box)
-    upstream_token_rect = surface._layout.token_rect(  # noqa: SLF001
+    upstream_token_rect = surface._layout.frame.geometry.tokens.token_rect(  # noqa: SLF001
         upstream_token,
         scroll_offset=0.0,
     )
@@ -666,7 +618,7 @@ def test_projection_surface_middle_plain_backspace_publishes_real_layout(
     assert surface.has_stale_projection_geometry() is False
     assert _valid_transient_deletion_overlay(surface) is None
     current_upstream_token = first_emphasis_token(box)
-    current_upstream_token_rect = surface._layout.token_rect(  # noqa: SLF001
+    current_upstream_token_rect = surface._layout.frame.geometry.tokens.token_rect(  # noqa: SLF001
         current_upstream_token,
         scroll_offset=0.0,
     )
@@ -716,7 +668,7 @@ def test_projection_surface_middle_plain_typing_publishes_real_layout(
     )
     rebuild_count = 0
     upstream_token = first_emphasis_token(box)
-    upstream_token_rect = surface._layout.token_rect(  # noqa: SLF001
+    upstream_token_rect = surface._layout.frame.geometry.tokens.token_rect(  # noqa: SLF001
         upstream_token,
         scroll_offset=0.0,
     )
@@ -729,7 +681,7 @@ def test_projection_surface_middle_plain_typing_publishes_real_layout(
     assert surface.has_stale_projection_geometry() is False
     assert valid_transient_insertion_overlay(surface) is None
     current_upstream_token = first_emphasis_token(box)
-    current_upstream_token_rect = surface._layout.token_rect(  # noqa: SLF001
+    current_upstream_token_rect = surface._layout.frame.geometry.tokens.token_rect(  # noqa: SLF001
         current_upstream_token,
         scroll_offset=0.0,
     )
@@ -934,10 +886,10 @@ def test_projection_surface_projected_token_delete_preserves_unaffected_tokens(
     assert surface.has_stale_projection_geometry() is False
 
 
-def test_projection_surface_source_edit_invalidates_projection_content_cache(
+def test_projection_surface_source_edit_rejects_stale_content_by_revision(
     widgets: list[QWidget],
 ) -> None:
-    """Source edits should not allow a stale projection pixmap cache hit."""
+    """Source edits should replace cache identity without manual invalidation."""
 
     box = show_prompt_editor(
         widgets,
@@ -946,9 +898,10 @@ def test_projection_surface_source_edit_invalidates_projection_content_cache(
     )
     surface = surface_for(box)
     render_surface_viewport(surface)
-    paint_cache = cast(Any, surface)._projection_paint_cache
-    assert paint_cache.cache_key is not None
-    assert paint_cache.cache_pixmap is not None
+    compositor = cast(Any, surface)._render_compositor
+    initial_cache = compositor.content_cache_snapshot
+    assert initial_cache.key is not None
+    assert initial_cache.has_pixmap
 
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
@@ -958,8 +911,83 @@ def test_projection_surface_source_edit_invalidates_projection_content_cache(
     QTest.keyClick(box, Qt.Key.Key_Backspace)
 
     assert box.toPlainText() == "alpha bet"
-    assert paint_cache.cache_key is None
-    assert paint_cache.cache_pixmap is None
+    retained_cache = compositor.content_cache_snapshot
+    assert retained_cache.key is not None
+    current_paint = cast(Any, surface).editor_state.current_paint
+    assert current_paint is not None
+    assert retained_cache.key.paint_identity in {
+        initial_cache.key.paint_identity,
+        current_paint.identity,
+    }
+
+    render_surface_viewport(surface)
+
+    refreshed_cache = compositor.content_cache_snapshot
+    assert refreshed_cache.key is not None
+    assert refreshed_cache.key.paint_identity is current_paint.identity
+
+
+def test_projection_surface_transient_edit_reuses_valid_content_cache(
+    widgets: list[QWidget],
+) -> None:
+    """Stale-safe feedback must retain and reuse the valid base content cache."""
+
+    box = show_prompt_editor(
+        widgets,
+        text="(cat:1.05), ",
+        width=360,
+    )
+    surface = surface_for(box)
+    delay_projection_update_scheduler(surface)
+    render_surface_viewport(surface)
+    compositor = cast(Any, surface)._render_compositor
+    initial_cache = compositor.content_cache_snapshot
+    assert initial_cache.key is not None
+    assert initial_cache.has_pixmap
+    cursor_position = len(box.toPlainText())
+    surface.set_cursor_positions(
+        cursor_position=cursor_position,
+        anchor_position=cursor_position,
+    )
+
+    QTest.keyClicks(box, "xy")
+
+    frame = cast(Any, surface)._render_frame_owner.frame
+    assert frame.content_mode is PromptProjectionContentPaintMode.CACHED
+    assert frame.transient_layer.insertion is not None
+    render_surface_viewport(surface)
+    assert compositor.content_cache_snapshot == initial_cache
+
+
+def test_projection_surface_terminal_separator_continues_one_transient_insertion(
+    widgets: list[QWidget],
+) -> None:
+    """Typing after a completed terminal separator must retain the whole edit chain."""
+
+    box = show_prompt_editor(
+        widgets,
+        text="global\n[SEP]\n[SEP",
+        width=360,
+    )
+    surface = surface_for(box)
+    cursor_position = len(box.toPlainText())
+    surface.set_cursor_positions(
+        cursor_position=cursor_position,
+        anchor_position=cursor_position,
+    )
+
+    QTest.keyClicks(box, "]")
+    assert box.toPlainText() == "global\n[SEP]\n[SEP]\n"
+    QTest.keyClicks(box, "j")
+    first_overlay = valid_transient_insertion_overlay(surface)
+    assert first_overlay is not None
+    assert first_overlay.text == "j"
+    QTest.keyClicks(box, "f")
+
+    second_overlay = valid_transient_insertion_overlay(surface)
+    assert second_overlay is not None
+    assert second_overlay.source_start == len("global\n[SEP]\n[SEP]\n")
+    assert second_overlay.text == "jf"
 
 
 def test_projection_surface_backspace_updates_for_immediate_visibility(
@@ -1316,7 +1344,9 @@ def test_projection_surface_wrapped_visual_line_suffix_typing_uses_authoritative
     cursor_position = next(
         position
         for position in range(len(text))
-        if cast(Any, surface)._layout.source_position_at_visual_line_content_end(
+        if cast(
+            Any, surface
+        )._layout.frame.geometry.caret.source_position_at_visual_line_content_end(
             position
         )
         and text[position] not in {"\n", "\r"}
@@ -1406,36 +1436,34 @@ def test_projection_surface_fallback_backspace_uses_canonical_reflow_without_ove
 
     monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
     monkeypatch.setattr(
-        cast(Any, surface)._source_change_applier,
-        "_transient_single_character_deletion_overlay",
-        lambda *, start, end, source_identity: None,
+        PromptSourceEditProjectionFactResolver,
+        "resolve",
+        lambda _self, **_kwargs: PromptSourceEditProjectionDecision(
+            can_defer_projection=False,
+            deferral_reason="test_forced_immediate_fallback",
+        ),
     )
     monkeypatch.setattr(
-        cast(Any, surface)._source_change_applier,
-        "_can_defer_source_rebuild_for_edit",
-        lambda **_kwargs: (False, "test_forced_immediate_fallback"),
+        cast(Any, surface)._edit_pipeline._trailing_strategy,
+        "try_plain_delete",
+        lambda **_kwargs: None,
     )
     monkeypatch.setattr(
-        cast(Any, surface)._incremental_apply_controller,
-        "try_apply_fast_trailing_plain_delete_projection",
-        lambda **_kwargs: False,
+        cast(Any, surface)._edit_pipeline._trailing_strategy,
+        "try_newline_delete",
+        lambda **_kwargs: None,
     )
     monkeypatch.setattr(
-        cast(Any, surface)._incremental_apply_controller,
-        "try_apply_fast_trailing_newline_delete_projection",
-        lambda **_kwargs: False,
-    )
-    monkeypatch.setattr(
-        cast(Any, surface)._incremental_apply_controller,
-        "try_apply_incremental_plain_text_projection",
+        cast(Any, surface)._edit_pipeline._reflow_strategy,
+        "try_incremental",
         lambda **_kwargs: PromptProjectionPlainTextApplyResult(
             status=PromptProjectionPlainTextApplyStatus.REJECTED
         ),
     )
     monkeypatch.setattr(
-        cast(Any, surface)._incremental_apply_controller,
-        "try_defer_immediate_projection_fallback_update",
-        lambda **_kwargs: False,
+        cast(Any, surface)._edit_pipeline._deferred_strategy,
+        "try_defer_fallback",
+        lambda _request: False,
     )
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
@@ -1489,14 +1517,16 @@ def test_projection_surface_backspace_newline_uses_incremental_layout(
         anchor_position=cursor_position,
     )
     rebuild_count = 0
-    previous_line_count = cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
+    previous_line_count = cast(  # noqa: SLF001
+        Any, surface
+    )._layout.frame.output.snapshot.line_count()
 
     QTest.keyClick(box, Qt.Key.Key_Backspace)
 
     assert box.toPlainText() == "alphabeta"
     assert rebuild_count == 0
     assert (
-        cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
+        cast(Any, surface)._layout.frame.output.snapshot.line_count()  # noqa: SLF001
         == previous_line_count - 1
     )
     assert cast(Any, surface)._caret_visibility_prompt_state_revision is None
@@ -1534,14 +1564,16 @@ def test_projection_surface_middle_enter_uses_incremental_layout(
         anchor_position=cursor_position,
     )
     rebuild_count = 0
-    previous_line_count = cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
+    previous_line_count = cast(  # noqa: SLF001
+        Any, surface
+    )._layout.frame.output.snapshot.line_count()
 
     QTest.keyClick(box, Qt.Key.Key_Return)
 
     assert box.toPlainText() == "alpha\nbeta"
     assert rebuild_count == 0
     assert (
-        cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
+        cast(Any, surface)._layout.frame.output.snapshot.line_count()  # noqa: SLF001
         == previous_line_count + 1
     )
     assert surface.has_stale_projection_geometry() is False
@@ -1631,7 +1663,9 @@ def test_projection_surface_middle_enter_with_inset_keeps_ordered_line_carets(
     first_line_positions = tuple(
         caret_stop.projection_position for caret_stop in first_line.caret_stops
     )
-    content_left = surface._layout.document_margin + 24.0  # noqa: SLF001
+    content_left = (  # noqa: SLF001
+        surface._layout.frame.output.configuration.document_margin + 24.0
+    )
     caret_rect = box.cursorRect()
     assert box.toPlainText() == "alpha\nbeta"
     assert rebuild_count == 0
@@ -1733,14 +1767,16 @@ def test_projection_surface_trailing_enter_uses_incremental_newline_layout(
         anchor_position=cursor_position,
     )
     rebuild_count = 0
-    previous_line_count = cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
+    previous_line_count = cast(  # noqa: SLF001
+        Any, surface
+    )._layout.frame.output.snapshot.line_count()
 
     QTest.keyClick(box, Qt.Key.Key_Return)
 
     assert box.toPlainText() == "alpha\n"
     assert rebuild_count == 0
     assert (
-        cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
+        cast(Any, surface)._layout.frame.output.snapshot.line_count()  # noqa: SLF001
         == previous_line_count + 1
     )
     assert surface.has_stale_projection_geometry() is False
@@ -1776,14 +1812,16 @@ def test_projection_surface_trailing_newline_backspace_uses_incremental_layout(
         anchor_position=cursor_position,
     )
     rebuild_count = 0
-    previous_line_count = cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
+    previous_line_count = cast(  # noqa: SLF001
+        Any, surface
+    )._layout.frame.output.snapshot.line_count()
 
     QTest.keyClick(box, Qt.Key.Key_Backspace)
 
     assert box.toPlainText() == "alpha"
     assert rebuild_count == 0
     assert (
-        cast(Any, surface)._layout.snapshot.line_count()  # noqa: SLF001
+        cast(Any, surface)._layout.frame.output.snapshot.line_count()  # noqa: SLF001
         == previous_line_count - 1
     )
     assert surface.has_stale_projection_geometry() is False

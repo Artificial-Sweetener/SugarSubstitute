@@ -31,10 +31,7 @@ from .autocomplete_panel import (
     format_prompt_autocomplete_popularity,
 )
 from .autocomplete_presenter import (
-    PromptAutocompleteLoraWallFactory,
-    PromptAutocompletePanelFactory,
     PromptAutocompletePanelPresenter,
-    PromptAutocompletePresentationEditor,
     PromptAutocompletePresenter,
 )
 from .chip_painter import PromptChipPainter, PromptChipPaintStyle
@@ -44,7 +41,6 @@ from .lora_wall import (
     PromptLoraActivationIntent,
     PromptLoraPickerPopup,
     PromptLoraWallItemRenderState,
-    PromptLoraWallOverlay,
     PromptLoraWallRenderState,
     PromptLoraWallView,
     lora_item_aspect_ratio,
@@ -53,44 +49,33 @@ from .lora_wall import (
     wall_items_for_loras,
 )
 from .reorder_drag_proxy import (
-    PromptReorderDragProxy,
     PromptReorderDragProxyPlacement,
     PromptReorderDragProxyRenderState,
     PromptReorderDragProxyWidget,
 )
 from .reorder_autoscroll import (
-    PromptReorderAutoscrollContext,
-    PromptReorderAutoscrollController,
+    PromptReorderAutoscrollOwner,
 )
-from .reorder_animation_presenter import PromptReorderAnimationPresenter
 from .reorder_gesture_controller import (
+    PromptReorderDragIntent,
+    PromptReorderDragPhase,
     PromptReorderDragProxyPlacementContext,
     PromptReorderDragProxyPlacementController,
     PromptReorderGestureController,
     PromptReorderGestureSnapshot,
     PromptReorderGestureStateView,
 )
-from .reorder_overlay import (
-    PromptReorderAutoscrollFactory,
-    PromptReorderCancelIntent,
-    PromptReorderCommitIntent,
-    PromptReorderDragIntent,
-    PromptReorderDragPhase,
-    PromptReorderDragProxyStateFactory,
-    PromptReorderLayoutPolicy,
-    PromptReorderOverlay,
-    PromptReorderOverlayRenderState,
-    PromptReorderViewFactory,
-    SegmentReorderOverlay,
-)
-from .reorder_view import (
+from .reorder_overlay import SegmentReorderOverlay
+from .reorder_overlay_ports import PromptReorderViewFactory
+from ..projection.reorder_interaction_geometry import PromptReorderLayoutPolicy
+from .reorder_render_state import (
     PromptReorderChipPaintState,
     PromptReorderLandingPreviewPaintState,
     PromptReorderMarkerPaintState,
-    PromptReorderView,
     PromptReorderViewRenderState,
-    PromptReorderVisualStyle,
 )
+from .reorder_view import PromptReorderView
+from .reorder_visual_style import PromptReorderVisualStyle
 from .token_weight_controls import (
     PromptTokenWeightExactEditHost,
     PromptTokenWeightControls,
@@ -123,14 +108,11 @@ __all__ = [
     "PromptAutocompleteActivationIntent",
     "PromptAutocompleteLoraActivationSignal",
     "PromptAutocompleteLoraWall",
-    "PromptAutocompleteLoraWallFactory",
     "PromptAutocompleteLoraWallRenderState",
     "PromptAutocompleteOverlay",
     "PromptAutocompletePanel",
-    "PromptAutocompletePanelFactory",
     "PromptAutocompletePanelPresenter",
     "PromptAutocompletePanelRenderState",
-    "PromptAutocompletePresentationEditor",
     "PromptAutocompletePresenter",
     "PromptAutocompleteRow",
     "PromptAutocompleteRowRenderState",
@@ -142,31 +124,21 @@ __all__ = [
     "PromptLoraActivationIntent",
     "PromptLoraPickerPopup",
     "PromptLoraWallItemRenderState",
-    "PromptLoraWallOverlay",
     "PromptLoraWallRenderState",
     "PromptLoraWallView",
-    "PromptReorderCancelIntent",
     "PromptReorderChipPaintState",
-    "PromptReorderCommitIntent",
-    "PromptReorderAutoscrollFactory",
     "PromptReorderDragIntent",
     "PromptReorderDragPhase",
-    "PromptReorderAutoscrollContext",
-    "PromptReorderAutoscrollController",
-    "PromptReorderAnimationPresenter",
-    "PromptReorderDragProxy",
+    "PromptReorderAutoscrollOwner",
     "PromptReorderDragProxyPlacement",
     "PromptReorderDragProxyPlacementContext",
     "PromptReorderDragProxyPlacementController",
     "PromptReorderDragProxyRenderState",
-    "PromptReorderDragProxyStateFactory",
     "PromptReorderDragProxyWidget",
     "PromptReorderGestureController",
     "PromptReorderGestureSnapshot",
     "PromptReorderGestureStateView",
     "PromptReorderLayoutPolicy",
-    "PromptReorderOverlay",
-    "PromptReorderOverlayRenderState",
     "PromptReorderViewFactory",
     "PromptReorderLandingPreviewPaintState",
     "PromptReorderMarkerPaintState",

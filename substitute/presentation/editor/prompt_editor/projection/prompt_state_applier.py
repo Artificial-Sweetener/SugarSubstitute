@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from typing import Protocol, cast
 
 from PySide6.QtCore import QObject
+from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.projection.syntax_service import (
@@ -45,16 +46,17 @@ from .freshness_controller import (
     PromptProjectionFreshnessBlockers,
     PromptProjectionFreshnessController,
 )
-from .incremental_apply_controller import (
-    PromptProjectionApplyPath,
-    PromptProjectionApplyViewport,
-    PromptProjectionIncrementalApplyController,
-)
-from .layout_engine import PromptProjectionLayout
-from .model import (
+from .edit_pipeline_contracts import PromptProjectionApplyPath
+from .edit_to_frame import PromptLayoutEditToFrameCoordinator
+from .prompt_state_projection_strategy import PromptStateProjectionStrategy
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretState,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
@@ -78,12 +80,6 @@ class PromptProjectionPromptStateHost(Protocol):
 
     _projection_applicator: PromptProjectionApplicator
     _projection_freshness_controller: PromptProjectionFreshnessController
-    _incremental_apply_controller: PromptProjectionIncrementalApplyController
-    _editor_state: PromptEditorDocumentState[
-        PromptDocumentView,
-        PromptSyntaxRenderPlan,
-        PromptProjectionDocument,
-    ]
     _active_projection_document: PromptProjectionDocument
     _display_mode: PromptProjectionDisplayMode
     _session: PromptProjectionSession
@@ -92,7 +88,17 @@ class PromptProjectionPromptStateHost(Protocol):
     _anchor_state: PromptProjectionCaretState
     _caret_visibility_prompt_state_revision: int | None
     _last_rendered_active_span_range: tuple[int, int] | None
-    _layout: PromptProjectionLayout
+    _layout: PromptLayoutEditToFrameCoordinator
+
+    @property
+    def _editor_state(
+        self,
+    ) -> PromptEditorDocumentState[
+        PromptDocumentView,
+        PromptSyntaxRenderPlan,
+        PromptProjectionDocument,
+    ]:
+        """Return the revisioned prompt document state."""
 
     @property
     def cursor_position(self) -> int:
@@ -102,7 +108,7 @@ class PromptProjectionPromptStateHost(Protocol):
     def anchor_position(self) -> int:
         """Return the current source anchor position."""
 
-    def viewport(self) -> PromptProjectionApplyViewport:
+    def viewport(self) -> QWidget:
         """Return the projection viewport sink."""
 
     def _visible_scroll_bar(self) -> object:
@@ -161,11 +167,13 @@ class PromptProjectionPromptStateApplier:
         host: PromptProjectionPromptStateHost,
         *,
         frame_state: PromptProjectionFrameStatePublisher,
+        strategy: PromptStateProjectionStrategy,
     ) -> None:
         """Create an applier around a projection surface sink."""
 
         self._host = host
         self._frame_state = frame_state
+        self._strategy = strategy
 
     def set_prompt_state(
         self,
@@ -398,7 +406,7 @@ class PromptProjectionPromptStateApplier:
                 decoration_accent_ranges=host._decoration_accent_ranges(),
                 scene_error_keys=host._scene_error_keys,
                 current_document=host._editor_state.projection.document,
-                layout=host._layout,
+                frame=host._layout.frame,
             )
         )
         if result is None:
@@ -410,8 +418,11 @@ class PromptProjectionPromptStateApplier:
         host._editor_state.publish_projection(result.projection_document)
         host._last_rendered_active_span_range = result.active_span_range
         host._active_projection_document = host._editor_state.projection.document
-        self._frame_state.publish_layout(host._layout)
-        self._frame_state.publish_prepared_paint(host._layout)
+        self._frame_state.publish_layout(host._layout.frame.output)
+        self._frame_state.publish_prepared_paint(
+            host._layout.frame.output,
+            host._layout.frame.paint_state,
+        )
         self._apply_pending_auto_exact_weight_edit()
         host.viewport().update()
         return True
@@ -427,8 +438,11 @@ class PromptProjectionPromptStateApplier:
         host._editor_state.stage_edit_semantic(snapshot)
         host._editor_state.publish_projection(projection_document)
         host._active_projection_document = projection_document
-        self._frame_state.publish_layout(host._layout)
-        self._frame_state.publish_prepared_paint(host._layout)
+        self._frame_state.publish_layout(host._layout.frame.output)
+        self._frame_state.publish_prepared_paint(
+            host._layout.frame.output,
+            host._layout.frame.paint_state,
+        )
 
     def apply_scheduled_projection_update(
         self,
@@ -560,16 +574,14 @@ class PromptProjectionPromptStateApplier:
             previous_fast_render_plan = (
                 previous_render_plan_for_fast_path or previous_render_plan
             )
-            if host._incremental_apply_controller.can_apply_fast_trailing_insert_for_prompt_state(
-                render_plan,
+            fast_insert_applied = self._strategy.try_trailing_insert(
+                document_view=document_view,
+                render_plan=render_plan,
                 previous_render_plan=previous_fast_render_plan,
-            ):
-                fast_insert_applied = host._incremental_apply_controller.try_apply_fast_trailing_plain_insert_projection(
-                    document_view=document_view,
-                    render_plan=render_plan,
-                )
+            )
             if not fast_insert_applied:
-                scheduled_incremental_applied = host._incremental_apply_controller.try_apply_scheduled_incremental_prompt_state_projection(
+                scheduled_incremental_applied = self._strategy.try_incremental(
+                    previous_text=previous_projection.document.source_text,
                     document_view=document_view,
                     render_plan=render_plan,
                     previous_render_plan=previous_fast_render_plan,

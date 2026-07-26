@@ -38,7 +38,7 @@ from substitute.application.editor_search import (
     TextSearchMatch,
 )
 from substitute.domain.links import PromptEndpoint, PromptEndpointIndex
-from substitute.presentation.editor.panel.prompt_profile_policy import (
+from substitute.presentation.editor.panel.prompt.profile_policy import (
     PanelPromptFieldProfileDecision,
 )
 from substitute.presentation.editor.panel.projection_models import ProjectedCubeBuild
@@ -677,6 +677,7 @@ def test_refresh_node_behavior_state_updates_cards_buffers_and_hidden_fields(
             snapshot_calls.append(kwargs),
             snapshot,
         )[1],
+        refresh_prompt_scene_diagnostics=lambda: None,
         set_hidden_field_keys=lambda keys: hidden_calls.append(set(keys)),
         _rebuild_all_cube_visibility_menus=lambda: rebuild_calls.append(True),
     )
@@ -729,10 +730,12 @@ def test_behavior_refresh_transaction_reuses_matching_snapshot(
         _behavior_refresh_transaction=None,
         node_behavior_service=_NodeBehaviorService(),
         _workflow_overrides=lambda: {"seed": {"value": 7}},
+        current_behavior_snapshot=lambda: None,
     )
+    fake._prompt_context_controller = mod.EditorPanelPromptContextController(fake)
     caplog.set_level(
         logging.INFO,
-        logger="sugarsubstitute.presentation.editor.panel.prompt_context_controller",
+        logger="sugarsubstitute.presentation.editor.panel.prompt.context",
     )
 
     mod.EditorPanel.begin_behavior_refresh_transaction(
@@ -789,7 +792,10 @@ def test_behavior_refresh_transaction_builds_fresh_after_link_change() -> None:
         set_hidden_field_keys=lambda _keys: None,
         apply_node_card_behavior_decisions=lambda decisions: applied.append(decisions),
         _rebuild_all_cube_visibility_menus=lambda: None,
+        current_behavior_snapshot=lambda: None,
+        refresh_prompt_scene_diagnostics=lambda: None,
     )
+    fake._prompt_context_controller = mod.EditorPanelPromptContextController(fake)
 
     mod.EditorPanel.begin_behavior_refresh_transaction(fake, reason="cube_added")
     mod.EditorPanel._build_behavior_snapshot(fake)
@@ -819,6 +825,7 @@ def test_model_option_refresh_invalidates_behavior_without_projection(
         _current_search_hidden_keys=None,
         _current_search_matching_nodes=None,
         _build_behavior_snapshot=lambda **_kwargs: snapshot,
+        refresh_prompt_scene_diagnostics=lambda: None,
     )
     monkeypatch.setattr(
         mod.EditorPanel,
@@ -838,12 +845,6 @@ def test_model_option_refresh_invalidates_behavior_without_projection(
             restore_previous_state=lambda: None,
         ),
     )
-    monkeypatch.setattr(
-        mod,
-        "_refresh_prompt_scene_diagnostics_if_available",
-        lambda _panel: None,
-    )
-
     mod.EditorPanel.refresh_node_behavior_state(
         fake,
         reason="model_options_changed",
@@ -933,6 +934,10 @@ def test_refresh_prompt_scene_diagnostics_scopes_errors_and_autocomplete() -> No
         },
         _clear_prompt_scene_diagnostics=lambda: None,
         findChildren=lambda _class: [authority_editor, negative_editor],
+        current_behavior_snapshot=lambda: fake._last_behavior_snapshot,
+    )
+    fake._prompt_scene_diagnostics_controller = (
+        mod.EditorPanelPromptSceneDiagnosticsController(fake)
     )
 
     mod.EditorPanel.refresh_prompt_scene_diagnostics(fake)
@@ -984,6 +989,10 @@ def test_prompt_scene_queue_request_forwards_only_runnable_scene_keys() -> None:
             )
         },
         promptSceneQueueRequested=SimpleNamespace(emit=emitted_keys.append),
+        current_behavior_snapshot=lambda: fake._last_behavior_snapshot,
+    )
+    fake._prompt_scene_diagnostics_controller = (
+        mod.EditorPanelPromptSceneDiagnosticsController(fake)
     )
 
     mod.EditorPanel._handle_prompt_scene_queue_requested(fake, "portrait")
@@ -1002,6 +1011,10 @@ def test_prompt_scene_queue_request_without_analysis_is_suppressed() -> None:
         _stack_order=[],
         _cube_states={},
         promptSceneQueueRequested=SimpleNamespace(emit=emitted_keys.append),
+        current_behavior_snapshot=lambda: None,
+    )
+    fake._prompt_scene_diagnostics_controller = (
+        mod.EditorPanelPromptSceneDiagnosticsController(fake)
     )
 
     mod.EditorPanel._handle_prompt_scene_queue_requested(fake, "portrait")

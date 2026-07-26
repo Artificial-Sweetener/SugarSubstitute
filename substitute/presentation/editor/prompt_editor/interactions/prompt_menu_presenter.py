@@ -34,13 +34,15 @@ from substitute.presentation.widgets.save_preset_dialog import (
 )
 
 from ..features import (
-    PromptContextMenuActionController,
     PromptContextMenuActionSnapshot,
+    PromptContextMenuSnapshot,
+    PromptContextMenuSnapshotRequest,
     PromptSegmentPresetController,
     PromptSegmentPresetDialogResult,
     PromptSegmentPresetSaveDialogRequest,
     PromptSegmentSelectionSnapshot,
 )
+from ..features.prompt_segment_selection import PromptSegmentCursor
 from ..shell import (
     PromptShellContextMenuOpening,
     PromptShellPromptMenuRequest,
@@ -68,29 +70,62 @@ class PromptMenuEditorHost(Protocol):
         """Return this host's direct Qt parent."""
 
 
+class PromptContextMenuSnapshotReader(Protocol):
+    """Read one already-prepared immutable prompt context-menu snapshot."""
+
+    def snapshot_for_menu(
+        self,
+        request: PromptContextMenuSnapshotRequest,
+    ) -> PromptContextMenuSnapshot:
+        """Return the immutable snapshot for one context-menu opening."""
+
+
+class PromptContextMenuPreparationPort(Protocol):
+    """Prepare only the feature state required before a context-menu read."""
+
+    def prepare_selection(
+        self,
+        *,
+        selected_text: str,
+        selection_range: tuple[int, int] | None,
+        read_only: bool,
+        reason: str,
+    ) -> None:
+        """Prepare selection-dependent state before a context-menu read."""
+
+    def prepare_opening(self, *, source_position: int, reason: str) -> None:
+        """Prepare source-position state before a context-menu read."""
+
+
 class PromptSegmentPresetHostAdapter:
     """Expose prompt segment host behavior without making PromptEditor the owner."""
 
     def __init__(
         self,
         *,
-        host: PromptMenuEditorHost,
+        host_widget: QWidget,
+        cursor_provider: Callable[[], PromptSegmentCursor],
+        cursor_setter: Callable[[object], None],
+        source_text_provider: Callable[[], str],
         source_identity_provider: Callable[[], PromptSourceIdentity | None],
     ) -> None:
-        """Store editor accessors used by prompt segment presentation logic."""
+        """Store the explicit prompt and Qt bindings used by segment presentation."""
 
-        self._host = host
+        self._host_widget = host_widget
+        self._cursor_provider = cursor_provider
+        self._cursor_setter = cursor_setter
+        self._source_text_provider = source_text_provider
         self._source_identity_provider = source_identity_provider
 
-    def textCursor(self) -> QTextCursor:  # noqa: N802
+    def textCursor(self) -> PromptSegmentCursor:  # noqa: N802
         """Return the source-backed prompt cursor."""
 
-        return self._host.textCursor()
+        return self._cursor_provider()
 
     def toPlainText(self) -> str:  # noqa: N802
         """Return the current prompt source text."""
 
-        return self._host.toPlainText()
+        return self._source_text_provider()
 
     def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
         """Return the current source identity when available."""
@@ -103,27 +138,26 @@ class PromptSegmentPresetHostAdapter:
         editor_panel = self._ancestor_editor_panel()
         if editor_panel is not None:
             return editor_panel
-        host_widget = cast(QWidget, self._host)
-        window = self._host.window()
-        if isinstance(window, QWidget) and window is not host_widget:
+        window = self._host_widget.window()
+        if isinstance(window, QWidget) and window is not self._host_widget:
             return window
-        parent = self._host.parentWidget()
+        parent = self._host_widget.parentWidget()
         if parent is not None:
             return parent
-        return host_widget
+        return self._host_widget
 
     def restore_prompt_segment_selection(self, *, start: int, end: int) -> None:
         """Restore a prompt segment selection through the host cursor."""
 
-        cursor = self._host.textCursor()
+        cursor = self._cursor_provider()
         cursor.setPosition(start)
         cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
-        self._host.setTextCursor(cursor)
+        self._cursor_setter(cursor)
 
     def _ancestor_editor_panel(self) -> QWidget | None:
         """Return the owning editor panel widget when this editor is panel-hosted."""
 
-        parent = self._host.parentWidget()
+        parent = self._host_widget.parentWidget()
         while parent is not None:
             if parent.__class__.__name__ == "EditorPanel":
                 return parent
@@ -137,7 +171,8 @@ class PromptContextMenuRequestPresenter:
     def __init__(
         self,
         *,
-        action_snapshot_provider: PromptContextMenuActionController,
+        snapshot_reader: PromptContextMenuSnapshotReader,
+        preparation: PromptContextMenuPreparationPort,
         segment_presets: PromptSegmentPresetController,
         trigger_word_action_adapter: PromptTriggerWordActionAdapter,
         schedule_lora: Callable[[], None],
@@ -149,7 +184,8 @@ class PromptContextMenuRequestPresenter:
     ) -> None:
         """Store feature and shell callbacks for prompt-menu request building."""
 
-        self._action_snapshot_provider = action_snapshot_provider
+        self._snapshot_reader = snapshot_reader
+        self._preparation = preparation
         self._segment_presets = segment_presets
         self._trigger_word_action_adapter = trigger_word_action_adapter
         self._schedule_lora = schedule_lora
@@ -174,7 +210,7 @@ class PromptContextMenuRequestPresenter:
             else (selection_snapshot[0], selection_snapshot[1])
         )
         read_only = self._is_read_only()
-        self._action_snapshot_provider.prepare_menu_selection(
+        self._preparation.prepare_selection(
             selected_text=selected_text,
             selection_range=selection_range,
             read_only=read_only,
@@ -189,7 +225,7 @@ class PromptContextMenuRequestPresenter:
     ) -> None:
         """Prepare source-position menu state before shell reads menu actions."""
 
-        self._action_snapshot_provider.prepare_menu_opening(
+        self._preparation.prepare_opening(
             source_position=opening.source_position,
             reason=reason,
         )
@@ -228,8 +264,8 @@ class PromptContextMenuRequestPresenter:
     ) -> PromptShellPromptMenuRequest:
         """Adapt one menu opening into shell presentation inputs."""
 
-        action_snapshot = (
-            self._action_snapshot_provider.prepared_action_snapshot_for_menu(
+        snapshot = self._snapshot_reader.snapshot_for_menu(
+            PromptContextMenuSnapshotRequest(
                 source_position=opening.source_position,
                 selected_text=opening.selected_text,
                 selection_range=(
@@ -241,7 +277,7 @@ class PromptContextMenuRequestPresenter:
                 rich_prompt_rendering_enabled=self._rich_prompt_rendering_enabled(),
             )
         )
-        return self._request_for_snapshot(opening, action_snapshot)
+        return self._request_for_snapshot(opening, snapshot.actions)
 
     def _request_for_snapshot(
         self,
@@ -353,7 +389,9 @@ class PromptContextMenuRequestPresenter:
 
 
 __all__ = [
+    "PromptContextMenuPreparationPort",
     "PromptContextMenuRequestPresenter",
+    "PromptContextMenuSnapshotReader",
     "PromptMenuEditorHost",
     "PromptSegmentPresetHostAdapter",
 ]

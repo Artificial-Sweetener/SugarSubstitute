@@ -22,11 +22,10 @@ import cProfile
 from pathlib import Path
 from typing import Any, cast
 
-from substitute.presentation.editor.prompt_editor.projection.layout_engine import (
-    PromptProjectionIncrementalLayoutResult,
+from substitute.presentation.editor.prompt_editor.layout.contracts import (
+    PromptLayoutDamage,
 )
-from substitute.presentation.editor.prompt_editor.projection import layout_engine
-from substitute.presentation.editor.prompt_editor.projection.snapshot import (
+from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionLineSnapshot,
 )
 
@@ -69,9 +68,9 @@ def capture_scenario_diagnostics(
         target = mounted.target
         action_host = mounted.action_host
         surface = cast(Any, field.editor)._surface
-        incremental_controller = surface._incremental_apply_controller
+        edit_pipeline = surface._edit_pipeline
         original_rebuild = surface._projection_applicator.rebuild_projection
-        original_apply = incremental_controller.apply_source_change_projection
+        original_apply = edit_pipeline.apply
         original_incremental_paint = (
             surface._update_incremental_plain_text_projection_paint
         )
@@ -81,7 +80,7 @@ def capture_scenario_diagnostics(
         layout_rejections: list[str] = []
         reflowed_line_counts: list[int] = []
         reflow_mismatch_reasons: list[str] = []
-        original_line_match = layout_engine._line_matches_shifted_plain_edit  # noqa: SLF001
+        layout_coordinator = surface._layout
 
         def counted_rebuild(*args: Any, **kwargs: Any) -> object:
             """Count and invoke one production canonical projection rebuild."""
@@ -95,54 +94,47 @@ def capture_scenario_diagnostics(
 
             outcome = original_apply(request)
             apply_paths.append(str(outcome.apply_path.value))
-            incremental_rejections.append(
-                str(incremental_controller._incremental_editor.last_rejection_reason)
-            )
-            layout_rejections.append(
-                str(surface._layout.last_incremental_reflow_rejection_reason)
-            )
+            incremental_rejections.append(str(outcome.incremental_rejection_reason))
             return outcome
 
         def recorded_incremental_paint(
-            layout_result: PromptProjectionIncrementalLayoutResult,
+            layout_result: PromptLayoutDamage,
         ) -> object:
             """Record bounded-reflow scope before invoking production painting."""
 
             reflowed_line_counts.append(int(layout_result.reflowed_line_count))
             return original_incremental_paint(layout_result)
 
-        def recorded_line_match(
+        def record_line_mismatch(
             next_line: PromptProjectionLineSnapshot,
             previous_line: PromptProjectionLineSnapshot,
             *,
             source_delta: int,
             projection_delta: int,
-        ) -> bool:
+        ) -> None:
             """Record why one diagnostic suffix-convergence probe missed."""
 
-            matches = original_line_match(
-                next_line,
-                previous_line,
-                source_delta=source_delta,
-                projection_delta=projection_delta,
-            )
-            if not matches:
-                reflow_mismatch_reasons.append(
-                    _line_reflow_mismatch_reason(
-                        next_line,
-                        previous_line,
-                        source_delta=source_delta,
-                        projection_delta=projection_delta,
-                    )
+            reflow_mismatch_reasons.append(
+                _line_reflow_mismatch_reason(
+                    next_line,
+                    previous_line,
+                    source_delta=source_delta,
+                    projection_delta=projection_delta,
                 )
-            return matches
+            )
+
+        def record_layout_rejection(reason: str) -> None:
+            """Record one rejected incremental frame transition."""
+
+            layout_rejections.append(reason)
 
         surface._projection_applicator.rebuild_projection = counted_rebuild
-        incremental_controller.apply_source_change_projection = recorded_apply
+        edit_pipeline.apply = recorded_apply
         surface._update_incremental_plain_text_projection_paint = (
             recorded_incremental_paint
         )
-        layout_engine._line_matches_shifted_plain_edit = recorded_line_match  # noqa: SLF001
+        layout_coordinator.set_reflow_mismatch_observer(record_line_mismatch)
+        layout_coordinator.set_incremental_rejection_observer(record_layout_rejection)
         action_profilers: list[cProfile.Profile] = []
         action_profiles: list[PromptAbuseActionProfile] = []
         try:
@@ -170,11 +162,12 @@ def capture_scenario_diagnostics(
                 )
         finally:
             surface._projection_applicator.rebuild_projection = original_rebuild
-            incremental_controller.apply_source_change_projection = original_apply
+            edit_pipeline.apply = original_apply
             surface._update_incremental_plain_text_projection_paint = (
                 original_incremental_paint
             )
-            layout_engine._line_matches_shifted_plain_edit = original_line_match  # noqa: SLF001
+            layout_coordinator.set_reflow_mismatch_observer(None)
+            layout_coordinator.set_incremental_rejection_observer(None)
 
         return PromptAbuseDiagnostics(
             canonical_rebuild_count=canonical_rebuild_count,

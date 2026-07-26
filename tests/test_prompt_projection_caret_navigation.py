@@ -31,7 +31,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.projection.snapshot import (
+from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionLineSnapshot,
 )
 from substitute.presentation.editor.prompt_editor.projection.surface import (
@@ -63,7 +63,7 @@ def _projection_lines(
 
     return cast(
         tuple[PromptProjectionLineSnapshot, ...],
-        cast(Any, surface)._layout.snapshot.lines,
+        cast(Any, surface)._layout.frame.output.snapshot.lines,
     )
 
 
@@ -90,7 +90,9 @@ class _CaretPlacementHarness:
     def content_left(self) -> float:
         """Return the document-local x coordinate where editable content starts."""
 
-        return float(cast(Any, self._surface)._layout.document_margin) + max(
+        return float(
+            cast(Any, self._surface)._layout.frame.output.configuration.document_margin
+        ) + max(
             0.0,
             self._inset,
         )
@@ -210,7 +212,9 @@ class _CaretPlacementHarness:
         """Place the caret using the production layout hit-test for one visual line."""
 
         line = _projection_lines(self._surface)[line_index]
-        caret_hit = cast(Any, self._surface)._layout.caret_hit_test(
+        caret_hit = cast(
+            Any, self._surface
+        )._layout.frame.geometry.hit_testing.caret_hit_test(
             QPointF(
                 max(0.0, self.content_left - 12.0),
                 line.top + (line.height / 2.0),
@@ -291,7 +295,7 @@ class _CaretPlacementHarness:
         """Fail when the live caret rect disagrees with the logical layout rect."""
 
         caret_rect = self.assert_caret_valid(label)
-        layout_rect = cast(Any, self._surface)._layout.cursor_rect(
+        layout_rect = cast(Any, self._surface)._layout.frame.geometry.caret.cursor_rect(
             cast(Any, self._surface)._cursor_state,
             scroll_offset=0.0,
         )
@@ -425,7 +429,9 @@ def test_projection_surface_incremental_blank_line_click_uses_content_start(
     assert box.toPlainText() == "alpha\n\nbeta"
     assert rebuild_count == 0
     blank_line = _projection_lines(surface)[1]
-    content_left = surface._layout.document_margin + 24.0  # noqa: SLF001
+    content_left = (  # noqa: SLF001
+        surface._layout.frame.output.configuration.document_margin + 24.0
+    )
     QTest.mouseClick(
         box.viewport(),
         Qt.MouseButton.LeftButton,
@@ -1186,7 +1192,7 @@ def test_projection_surface_inside_text_click_preserves_boundary_precision(
     )
     surface = surface_for(box)
     expected_position = 3
-    expected_rect = surface._layout.cursor_rect(  # noqa: SLF001
+    expected_rect = surface._layout.frame.geometry.caret.cursor_rect(  # noqa: SLF001
         surface.projection_document().caret_map.state_for_source_position(
             expected_position
         ),

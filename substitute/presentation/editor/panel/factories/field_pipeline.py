@@ -88,7 +88,7 @@ from substitute.presentation.editor.panel.factories.numeric_factory import (
 from substitute.presentation.editor.panel.factories.native_comfy_widget_factory import (
     NativeComfyWidgetFactory,
 )
-from substitute.presentation.editor.panel.factories.prompt_factory import (
+from substitute.presentation.editor.panel.prompt.factory import (
     PromptEditorFieldBuildRequest,
     PromptEditorFieldFactory,
 )
@@ -99,7 +99,7 @@ from substitute.presentation.editor.panel.model_choice_snapshot_controller impor
     PanelModelChoiceSnapshotController,
     PanelModelChoiceSnapshotRequest,
 )
-from substitute.presentation.editor.panel.prompt_profile_policy import (
+from substitute.presentation.editor.panel.prompt.profile_policy import (
     PanelPromptProfilePolicy,
 )
 from substitute.presentation.editor.panel.service_bundle import (

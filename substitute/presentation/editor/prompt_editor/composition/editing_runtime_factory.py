@@ -47,7 +47,8 @@ from ..projection.editing_runtime import (
     PromptProjectionEditingRuntime,
     PromptProjectionEditingRuntimeFactory,
 )
-from ..projection.surface import PromptProjectionSurface, PromptProjectionUndoPayload
+from ..projection.surface import PromptProjectionSurface
+from ..projection.undo_payload import PromptProjectionUndoPayload
 
 
 class QtPromptTextClipboard:
