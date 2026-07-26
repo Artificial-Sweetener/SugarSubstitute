@@ -32,10 +32,16 @@ from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor.document.views import PromptSyntaxSpanView
 from substitute.presentation.editor.prompt_editor import PromptEditor
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDocument,
+)
 from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionInlineObjectFragment,
     PromptProjectionLineSnapshot,
     PromptProjectionTextFragment,
+)
+from substitute.presentation.editor.prompt_editor.projection.edit_to_frame import (
+    PromptLayoutEditToFrameCoordinator,
 )
 from tests.prompt_projection_test_helpers import (
     ensure_qapp,
@@ -346,7 +352,7 @@ def _line_contains_source_needle(
 
 
 def _line_geometry(
-    layout: object,
+    layout: PromptLayoutEditToFrameCoordinator,
     line: PromptProjectionLineSnapshot,
     index: int,
 ) -> _LineGeometry:
@@ -364,7 +370,7 @@ def _line_geometry(
 
 
 def _line_text(
-    projection_document: object,
+    projection_document: PromptProjectionDocument,
     line: PromptProjectionLineSnapshot,
 ) -> str:
     """Return visible text for one line, including inline-object display text."""

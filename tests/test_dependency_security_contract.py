@@ -69,7 +69,12 @@ def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
     quality_script = _job_script(workflow["jobs"]["quality"])
     platform_script = _job_script(workflow["jobs"]["platform-tests"])
 
-    assert "npm audit --audit-level=high" in quality_script
+    assert "npm run audit:release" in quality_script
+    release_audit_script = PROJECT_ROOT / "scripts" / "audit-release-dependencies.mjs"
+    audit_source = release_audit_script.read_text(encoding="utf-8")
+    assert '"audit", "--json"' in audit_source
+    assert "ignoredAdvisoryIds" in audit_source
+    assert "1124334" in audit_source
     assert "-m pip_audit" in platform_script
     assert "--local --strict --progress-spinner off" in platform_script
     assert workflow["env"]["PIP_AUDIT_IGNORED_VULNERABILITY"] == "CVE-2026-24049"

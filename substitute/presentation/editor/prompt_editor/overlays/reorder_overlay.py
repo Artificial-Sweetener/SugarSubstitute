@@ -93,8 +93,8 @@ from .reorder_held_drag_context import (
 from .reorder_visual_style import PromptReorderVisualStyle
 from .reorder_overlay_visual_lifecycle import (
     PromptReorderOverlayVisualLifecycleOwner,
-    PromptReorderThemeRefreshRequest,
 )
+from .reorder_theme_refresh import PromptReorderThemeRefreshRequest
 from .reorder_overlay_session_activation import (
     PromptReorderOverlaySessionActivationOwner,
 )

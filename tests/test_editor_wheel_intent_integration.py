@@ -24,7 +24,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
-from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
+from PySide6.QtCore import QElapsedTimer, QEvent, QPoint, QPointF, Qt
 from PySide6.QtGui import QCursor, QMouseEvent, QWheelEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QSlider, QWidget
@@ -130,6 +130,22 @@ def _hover_mouse_move(widget: QWidget, local_point: QPoint) -> QMouseEvent:
         Qt.MouseButton.NoButton,
         Qt.KeyboardModifier.NoModifier,
     )
+
+
+def _wait_for_observable_state(
+    app: QApplication,
+    predicate: Callable[[], bool],
+    *,
+    timeout_ms: int = 1_000,
+) -> bool:
+    """Process Qt events until an observable state satisfies one predicate."""
+
+    elapsed = QElapsedTimer()
+    elapsed.start()
+    while not predicate() and elapsed.elapsed() < timeout_ms:
+        QTest.qWait(10)
+        process_events(app)
+    return predicate()
 
 
 def _send_pointer_enter(widget: QWidget) -> None:
@@ -1702,10 +1718,10 @@ def test_prompt_weight_dwell_accents_when_pointer_is_over_content_text() -> None
     assert _token_weight_wheel_owner(box).candidate_token is not None
     assert _first_weighted_token(box).decoration_accented is False
 
-    QTest.qWait(450)
-    process_events(app, cycles=5)
-
-    assert _first_weighted_token(box).decoration_accented is True
+    assert _wait_for_observable_state(
+        app,
+        lambda: _first_weighted_token(box).decoration_accented,
+    )
 
     for widget in widgets:
         widget.close()
