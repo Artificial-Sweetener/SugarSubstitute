@@ -358,15 +358,17 @@ def _line_geometry(
         source_end=line.source_end,
         top=round(line.top, 6),
         height=round(line.height, 6),
-        text=_line_text(layout, line),
+        text=_line_text(layout.frame.output.projection_document, line),
         fragments=tuple(_fragment_geometry(fragment) for fragment in line.fragments),
     )
 
 
-def _line_text(layout: object, line: PromptProjectionLineSnapshot) -> str:
+def _line_text(
+    projection_document: object,
+    line: PromptProjectionLineSnapshot,
+) -> str:
     """Return visible text for one line, including inline-object display text."""
 
-    projection_document = cast(Any, layout).projection_document
     line_text = ""
     for fragment in line.fragments:
         if isinstance(fragment, PromptProjectionTextFragment):

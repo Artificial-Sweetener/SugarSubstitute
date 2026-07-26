@@ -1292,7 +1292,7 @@ def test_prompt_editor_wildcard_diagnostics_activate_from_wildcard_feature(
     assert controller.can_activate()
 
     controller.activate()
-    service = cast(Any, controller)._service
+    service = cast(Any, controller)._providers.service
 
     assert any(
         isinstance(provider, PromptWildcardDiagnosticProvider)
@@ -1820,8 +1820,8 @@ def test_prompt_editor_context_menu_uses_cached_scheduled_loras(
         scheduled_lora_resolver=resolve_no_loras,
     )
     prompt_text = editor.toPlainText()
-    autocomplete = cast(Any, editor)._autocomplete
-    provider = autocomplete._scheduled_lora_context._context_provider
+    lifecycle = cast(Any, editor)._autocomplete_refresh_controller._lifecycle_requester
+    provider = lifecycle._result_controller._trigger_word_provider._context_provider
     assert provider is not None
     cache_key = provider.cache_key_for_prompt(prompt_text)
     provider.complete_for_tests(
@@ -1969,8 +1969,8 @@ def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
     )
     assert context_prompt_snapshot.context is not None
     context_prompt_text = context_prompt_snapshot.context.effective_prompt_text
-    autocomplete = cast(Any, editor)._autocomplete
-    provider = autocomplete._scheduled_lora_context._context_provider
+    lifecycle = cast(Any, editor)._autocomplete_refresh_controller._lifecycle_requester
+    provider = lifecycle._result_controller._trigger_word_provider._context_provider
     assert provider is not None
     cache_key = provider.cache_key_for_prompt(context_prompt_text)
     provider.complete_for_tests(

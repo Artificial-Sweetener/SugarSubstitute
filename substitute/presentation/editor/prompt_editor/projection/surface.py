@@ -3206,7 +3206,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             reorder_mode = "live"
             preview_visible_region = None
             reorder_instrumentation = None
-        self._render_compositor.discard_stale_content_cache(paint_identity)
         self._input_method_controller.refresh_render_layer()
         caret_visible = (
             preview_frame is None

@@ -128,7 +128,6 @@ class PromptProjectionFrameSynchronizer:
         )
         if should_emit_height:
             self._content_height_sink(sync_result.content_height)
-        self._frame_state.publish_layout(self._layout.frame.output)
         self._frame_state.publish_widget_viewport(
             viewport,
             horizontal_scroll=int(self._host.horizontalScrollBar().value()),

@@ -1407,7 +1407,6 @@ def test_projection_surface_repeated_backspace_publishes_real_layout(
     overlay = _valid_transient_deletion_overlay(surface)
     assert box.toPlainText() == "alp"
     assert overlay is None
-    assert cast(Any, surface)._transient_deletion_visible_region() is None
     assert surface.has_stale_projection_geometry() is False
 
 
@@ -1479,7 +1478,6 @@ def test_projection_surface_fallback_backspace_uses_canonical_reflow_without_ove
     assert box.toPlainText() == "alpha be"
     assert first_overlay is None
     assert second_overlay is None
-    assert cast(Any, surface)._transient_deletion_visible_region() is None
     assert surface.has_pending_projection_update() is False
     assert surface.has_stale_projection_geometry() is False
     assert surface.projection_document().source_text == "alpha be"
