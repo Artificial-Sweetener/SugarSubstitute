@@ -60,7 +60,7 @@ jobs:
       - name: Install release dependencies
         run: npm ci
       - name: Audit release dependencies
-        run: npm audit --audit-level=high
+        run: npm run audit:release
       - name: Check license headers
         run: .\.venv\Scripts\python.exe tools\license_headers.py --check
       - name: Check formatting

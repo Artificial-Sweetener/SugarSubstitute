@@ -450,6 +450,9 @@ class PromptEditorStateSnapshot:
     layout_uses_projection_document: bool
     layout_uses_active_projection_document: bool
     paint_cache_key_present: bool
+    last_content_paint_result: str
+    last_content_paint_frame_is_current: bool
+    paint_cache_identity_matches_render_frame: bool
     paint_cache_source_revision: int | None
     paint_cache_projection_document_identity_matches_layout: bool
     paint_cache_layout_snapshot_identity_matches_layout: bool
@@ -2156,6 +2159,15 @@ class RealShellPromptEditorHarness:
                 projection_state["layout_uses_active_projection_document"]
             ),
             paint_cache_key_present=bool(projection_state["paint_cache_key_present"]),
+            last_content_paint_result=str(
+                projection_state["last_content_paint_result"]
+            ),
+            last_content_paint_frame_is_current=bool(
+                projection_state["last_content_paint_frame_is_current"]
+            ),
+            paint_cache_identity_matches_render_frame=bool(
+                projection_state["paint_cache_identity_matches_render_frame"]
+            ),
             paint_cache_source_revision=_optional_int(
                 projection_state["paint_cache_source_revision"]
             ),
@@ -2779,15 +2791,25 @@ class RealShellPromptEditorHarness:
                     "paint_cache_ghosted_runs_without_preview_state:"
                     f"{','.join(snapshot.paint_cache_ghosted_run_ids)}"
                 )
-        cache_can_be_reused = (
+        cache_was_reused = (
             snapshot.selection_range[0] == snapshot.selection_range[1]
             and not snapshot.autocomplete_preview_active
             and snapshot.paint_is_current
+            and snapshot.last_content_paint_result == "hit"
+            and snapshot.last_content_paint_frame_is_current
         )
-        if snapshot.paint_cache_key_present and cache_can_be_reused:
-            if not snapshot.paint_cache_projection_document_identity_matches_layout:
+        if snapshot.paint_cache_key_present and cache_was_reused:
+            if not snapshot.paint_cache_identity_matches_render_frame:
+                violations.append("paint_cache_identity_mismatch_render_frame")
+            if (
+                not projection_is_allowed_to_lag
+                and not snapshot.paint_cache_projection_document_identity_matches_layout
+            ):
                 violations.append("paint_cache_projection_document_identity_mismatch")
-            if not snapshot.paint_cache_layout_snapshot_identity_matches_layout:
+            if (
+                not projection_is_allowed_to_lag
+                and not snapshot.paint_cache_layout_snapshot_identity_matches_layout
+            ):
                 violations.append("paint_cache_layout_snapshot_identity_mismatch")
             if (
                 not projection_is_allowed_to_lag
@@ -4393,6 +4415,17 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         None,
     )
     paint_cache_key = getattr(content_cache_snapshot, "key", None)
+    last_content_paint_result = str(
+        getattr(content_cache_snapshot, "last_paint_result", "unpainted")
+    )
+    last_content_paint_identity = getattr(
+        content_cache_snapshot,
+        "last_paint_identity",
+        None,
+    )
+    render_frame_owner = getattr(surface, "_render_frame_owner", None)
+    render_frame = getattr(render_frame_owner, "frame", None)
+    render_frame_paint_identity = getattr(render_frame, "paint_identity", None)
     paint_cache_identity = getattr(paint_cache_key, "paint_identity", None)
     paint_cache_state = (
         getattr(paint_state_snapshot, "state", None)
@@ -4628,6 +4661,14 @@ def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
             layout_projection_document is active_projection_document
         ),
         "paint_cache_key_present": paint_cache_key is not None,
+        "last_content_paint_result": last_content_paint_result,
+        "last_content_paint_frame_is_current": (
+            last_content_paint_identity is render_frame_paint_identity
+        ),
+        "paint_cache_identity_matches_render_frame": (
+            paint_cache_key is None
+            or paint_cache_identity is last_content_paint_identity
+        ),
         "paint_cache_source_revision": getattr(
             paint_cache_source_identity,
             "source_revision",

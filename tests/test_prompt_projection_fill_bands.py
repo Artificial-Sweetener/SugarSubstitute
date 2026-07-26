@@ -317,16 +317,13 @@ def test_projection_surface_fill_bands_reuse_cache_for_same_view_state(
 
         nonlocal row_rect_call_count
         row_rect_call_count += 1
-        return cast(
-            tuple[QRectF, ...],
-            original_row_rects(
-                _geometry,
-                cast(Any, state),
-                start,
-                end,
-                viewport_rect=viewport_rect,
-                scroll_offset=scroll_offset,
-            ),
+        return original_row_rects(
+            _geometry,
+            cast(Any, state),
+            start,
+            end,
+            viewport_rect=viewport_rect,
+            scroll_offset=scroll_offset,
         )
 
     monkeypatch.setattr(  # noqa: SLF001

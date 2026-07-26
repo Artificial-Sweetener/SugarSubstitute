@@ -21,7 +21,6 @@ from __future__ import annotations
 from PySide6.QtCore import QRectF
 from PySide6.QtGui import QPainter
 
-
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
     begin_prompt_editor_work,
@@ -34,10 +33,8 @@ from .caret_renderer import PromptCaretRenderer
 from .diagnostic_renderer import PromptDiagnosticRenderer
 from .input_method_renderer import PromptInputMethodRenderer
 from .observability import log_reorder_drag_timing, reorder_drag_started_at
-from .paint_cache import (
-    PromptProjectionContentCacheSnapshot,
-    PromptProjectionPaintCache,
-)
+from .paint_cache import PromptProjectionPaintCache
+from .paint_cache_telemetry import PromptProjectionContentCacheSnapshot
 from .region_chrome_renderer import PromptRegionChromeRenderer
 from .render_frame import (
     PromptProjectionContentPaintMode,
