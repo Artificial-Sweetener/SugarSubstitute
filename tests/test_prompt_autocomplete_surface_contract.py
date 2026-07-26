@@ -861,7 +861,7 @@ def _active_projection_line_texts(box: PromptEditor) -> tuple[str, ...]:
         surface,
         "_layout",
     )
-    snapshot = cast(Any, layout)._snapshot
+    snapshot = layout.frame.output.snapshot
     return tuple(
         "".join(
             fragment.text for fragment in line.fragments if hasattr(fragment, "text")

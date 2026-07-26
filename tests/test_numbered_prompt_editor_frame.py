@@ -199,7 +199,10 @@ def test_numbered_prompt_editor_forwards_complete_runtime_service_bundle() -> No
         == lora_catalog.cache_revision
     )
     assert editor._syntax_service._prompt_lora_catalog_service is lora_catalog
-    assert editor._diagnostics_feature_controller._spellcheck_service is spellcheck
+    assert (
+        editor._diagnostics_feature_controller._providers._spellcheck_service
+        is spellcheck
+    )
     assert editor._lora_thumbnail_cache.asset_repository is thumbnails
     assert editor._segment_preset_controller._preset_source is segments
     assert editor._external_url_action_runner._open_url is open_url

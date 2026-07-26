@@ -280,7 +280,7 @@ def test_prompt_card_full_width_row_grows_with_prompt_editor_on_narrow_resize(
         prompt_editor = wrapper.findChild(PromptEditor)
         assert prompt_editor is not None
         assert (
-            prompt_editor._autocomplete._result_controller._prompt_autocomplete_gateway
+            prompt_editor._autocomplete_refresh_controller._lifecycle_requester._result_controller._prompt_autocomplete_gateway
             is autocomplete_gateway
         )
 
