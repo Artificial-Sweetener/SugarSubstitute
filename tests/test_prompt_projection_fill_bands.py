@@ -32,6 +32,9 @@ from PySide6.QtWidgets import QWidget
 from substitute.presentation.editor.prompt_editor.projection.fill_band_cache import (
     PromptProjectionFillBandCacheKey,
 )
+from substitute.presentation.editor.prompt_editor.projection.reorder_geometry import (
+    PromptProjectionReorderGeometry,
+)
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
@@ -298,10 +301,12 @@ def test_projection_surface_fill_bands_reuse_cache_for_same_view_state(
         width=360,
     )
     surface = surface_for(box)
-    original_row_rects = cast(Any, surface._layout).source_range_row_rects  # noqa: SLF001
+    original_row_rects = PromptProjectionReorderGeometry.source_range_row_rects
     row_rect_call_count = 0
 
     def count_row_rects(
+        _geometry: PromptProjectionReorderGeometry,
+        state: object,
         start: int,
         end: int,
         *,
@@ -315,6 +320,8 @@ def test_projection_surface_fill_bands_reuse_cache_for_same_view_state(
         return cast(
             tuple[QRectF, ...],
             original_row_rects(
+                _geometry,
+                cast(Any, state),
                 start,
                 end,
                 viewport_rect=viewport_rect,
@@ -323,7 +330,7 @@ def test_projection_surface_fill_bands_reuse_cache_for_same_view_state(
         )
 
     monkeypatch.setattr(  # noqa: SLF001
-        cast(Any, surface._layout),
+        PromptProjectionReorderGeometry,
         "source_range_row_rects",
         count_row_rects,
     )
