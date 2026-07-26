@@ -24,6 +24,10 @@ import math
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QPainter, QPixmap, QRegion
 
+from substitute.presentation.editor.prompt_editor.core.state.revisions import (
+    PromptPaintIdentity,
+)
+
 from ..debug_probe import log_prompt_editor_probe, prompt_editor_probe_enabled
 from .content_selection_layer import (
     EMPTY_PROJECTION_SELECTION_LAYER,
