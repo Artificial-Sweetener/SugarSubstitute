@@ -95,6 +95,7 @@ class PromptReorderPreviewProjectionProvider:
         document_view: PromptDocumentView,
         layout_view: PromptReorderLayoutView | None,
         reorder_state: PromptReorderStateView | None = None,
+        include_edge_gaps: bool,
         cache_namespace: str,
         source_revision: int,
         viewport_width: int,
@@ -115,12 +116,14 @@ class PromptReorderPreviewProjectionProvider:
             self._document_service.build_reorder_preview_snapshot(
                 document_view,
                 layout_view,
+                include_edge_gaps=include_edge_gaps,
             )
             if reorder_state is None
             else self._document_service.build_reorder_preview_snapshot_from_state(
                 document_view,
                 reorder_state,
                 layout_view=layout_view,
+                include_edge_gaps=include_edge_gaps,
             )
         )
         snapshot_elapsed_ms = log_reorder_drag_timing(

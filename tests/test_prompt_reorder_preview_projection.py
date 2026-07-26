@@ -64,6 +64,7 @@ def test_reorder_projection_snapshot_cache_reuses_render_plan_for_same_layout() 
     first_result = provider.build_projection_snapshot(
         document_view=document_view,
         layout_view=layout_view,
+        include_edge_gaps=True,
         cache_namespace="preview",
         source_revision=1,
         viewport_width=480,
@@ -75,6 +76,7 @@ def test_reorder_projection_snapshot_cache_reuses_render_plan_for_same_layout() 
     second_result = provider.build_projection_snapshot(
         document_view=document_view,
         layout_view=layout_view,
+        include_edge_gaps=True,
         cache_namespace="preview",
         source_revision=1,
         viewport_width=480,
@@ -110,6 +112,7 @@ def test_reorder_projection_snapshot_cache_shares_content_across_consumer_roles(
     first_result = provider.build_projection_snapshot(
         document_view=document_view,
         layout_view=layout_view,
+        include_edge_gaps=True,
         cache_namespace="preview",
         source_revision=1,
         viewport_width=480,
@@ -121,6 +124,7 @@ def test_reorder_projection_snapshot_cache_shares_content_across_consumer_roles(
     second_result = provider.build_projection_snapshot(
         document_view=document_view,
         layout_view=layout_view,
+        include_edge_gaps=True,
         cache_namespace="base_drag",
         source_revision=1,
         viewport_width=480,

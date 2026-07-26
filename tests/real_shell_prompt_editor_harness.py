@@ -34,6 +34,7 @@ from PySide6 import QtCore
 from PySide6.QtCore import (
     QCoreApplication,
     QEventLoop,
+    QLineF,
     QPoint,
     QRect,
     QRectF,
@@ -112,6 +113,7 @@ from substitute.presentation.editor.panel.overrides_controller import (
 from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionInlineObjectFragment,
+    PromptProjectionTextFragment,
 )
 from substitute.presentation.shell.generation_action_controller import (
     GenerationActionController,
@@ -272,6 +274,36 @@ class PromptSourceLineChromeRenderProbe:
     reorder_overlay_active: bool
     projection_preview_active: bool
     line_colors: tuple[tuple[int, tuple[int, int, int, int]], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PromptReorderRenderedLayoutSnapshot:
+    """Capture the active reorder render frame as geometry-comparable facts."""
+
+    label: str
+    preview_active: bool
+    source_text: str
+    projection_text: str
+    content_size: tuple[float, float]
+    line_rects: tuple[tuple[float, float, float, float], ...]
+    fragments: tuple[
+        tuple[str, str, tuple[float, float, float, float]],
+        ...,
+    ]
+    region_divider_lines: tuple[tuple[float, float, float, float], ...]
+    region_rail_lines: tuple[tuple[float, float, float, float], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PromptReorderChipChromeSnapshot:
+    """Capture exact paint ownership and border style for one reorder chip."""
+
+    label: str
+    segment_index: int
+    paint_owners: tuple[str, ...]
+    border_colors: tuple[tuple[int, int, int, int], ...]
+    animation_override_active: bool
+    unsafe_transient: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -1335,6 +1367,108 @@ class RealShellPromptEditorHarness:
             ),
             projection_preview_active=preview_frame is not None,
             line_colors=tuple(line_colors),
+        )
+
+    @staticmethod
+    def capture_reorder_rendered_layout(
+        field: PromptFieldHandle,
+        *,
+        label: str,
+    ) -> PromptReorderRenderedLayoutSnapshot:
+        """Capture the exact preview-or-live frame currently rendered by the surface."""
+
+        surface = cast(Any, field.editor)._surface
+        preview_frame = surface._reorder_preview_projection.preview_frame
+        frame = preview_frame if preview_frame is not None else surface._layout.frame
+        output = frame.output
+        snapshot = output.snapshot
+        fragments: list[tuple[str, str, tuple[float, float, float, float]]] = []
+        ordered_fragments = sorted(
+            (*snapshot.text_fragments, *snapshot.inline_object_fragments),
+            key=lambda fragment: (
+                fragment.rect.top(),
+                fragment.rect.left(),
+                fragment.projection_start,
+            ),
+        )
+        for fragment in ordered_fragments:
+            if isinstance(fragment, PromptProjectionTextFragment):
+                fragment_kind, fragment_value = "text", fragment.text
+            else:
+                fragment_kind, fragment_value = "inline", fragment.renderer_key
+            fragments.append(
+                (
+                    fragment_kind,
+                    fragment_value,
+                    _qrectf_tuple(fragment.rect),
+                )
+            )
+        content_size = snapshot.content_size
+        render_frame = surface._render_frame_owner.frame
+        region_layer = render_frame.region_layer
+        return PromptReorderRenderedLayoutSnapshot(
+            label=label,
+            preview_active=preview_frame is not None,
+            source_text=output.projection_document.source_text,
+            projection_text=output.projection_document.projection_text,
+            content_size=(float(content_size.width()), float(content_size.height())),
+            line_rects=tuple(_qrectf_tuple(line.rect) for line in snapshot.lines),
+            fragments=tuple(fragments),
+            region_divider_lines=(
+                ()
+                if region_layer is None
+                else tuple(_qlinef_tuple(line) for line in region_layer.divider_lines)
+            ),
+            region_rail_lines=(
+                ()
+                if region_layer is None
+                else tuple(_qlinef_tuple(line) for line in region_layer.rail_lines)
+            ),
+        )
+
+    @staticmethod
+    def capture_reorder_chip_chrome(
+        field: PromptFieldHandle,
+        *,
+        segment_index: int,
+        label: str,
+    ) -> PromptReorderChipChromeSnapshot:
+        """Capture every current chrome owner for one semantic reorder chip."""
+
+        overlay = cast(Any, field.editor)._segment_overlay
+        publication = overlay._render_publication.publication
+        overlay_state = publication.overlay_state
+        overlay_chips = (
+            overlay_state.preview_chips
+            if overlay_state.preview_active
+            else overlay_state.live_chips
+        )
+        owners_and_styles = [
+            ("surface", chip.style)
+            for chip in publication.surface.chips
+            if chip.segment_index == segment_index
+        ]
+        owners_and_styles.extend(
+            ("overlay", chip.style)
+            for chip in overlay_chips
+            if chip.segment_index == segment_index
+        )
+        animation = overlay._animation_presentation.publication
+        return PromptReorderChipChromeSnapshot(
+            label=label,
+            segment_index=segment_index,
+            paint_owners=tuple(owner for owner, _style in owners_and_styles),
+            border_colors=tuple(
+                (
+                    style.border_color.red(),
+                    style.border_color.green(),
+                    style.border_color.blue(),
+                    style.border_color.alpha(),
+                )
+                for _owner, style in owners_and_styles
+            ),
+            animation_override_active=(segment_index in animation.paint_rects_by_index),
+            unsafe_transient=(segment_index in publication.unsafe_transient_indices),
         )
 
     def paste_text(self, field: PromptFieldHandle, text: str) -> None:
@@ -5244,6 +5378,12 @@ def _qrectf_tuple(rect: QRectF) -> tuple[float, float, float, float]:
     return (rect.left(), rect.top(), rect.width(), rect.height())
 
 
+def _qlinef_tuple(line: QLineF) -> tuple[float, float, float, float]:
+    """Return stable endpoints for one floating-point Qt line."""
+
+    return (line.x1(), line.y1(), line.x2(), line.y2())
+
+
 def _surface_selection(surface: object | None) -> object | None:
     """Return the projection-owned source selection model from the surface."""
 
@@ -6687,6 +6827,8 @@ __all__ = [
     "PromptEditorStateSnapshot",
     "PromptSceneProjectionTimelineSample",
     "PromptProjectionTypingPathProbe",
+    "PromptReorderRenderedLayoutSnapshot",
+    "PromptReorderChipChromeSnapshot",
     "PromptSourceLineChromeRenderProbe",
     "PromptEditorVisibleLayoutRow",
     "PromptEditorVisibleTextFragment",

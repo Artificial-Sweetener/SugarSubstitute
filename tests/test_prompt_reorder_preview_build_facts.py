@@ -101,9 +101,13 @@ def test_pointer_preview_facts_use_one_active_geometry_generation() -> None:
 
 
 def test_keyboard_preview_facts_resolve_layout_target_without_pointer_state() -> None:
-    """Keyboard facts should resolve the committed target only after a reorder."""
+    """Keyboard facts should pair current layout, state, and committed target."""
 
-    state = _state()
+    state = replace(
+        _state(),
+        preview_layout_view=None,
+        preview_reorder_state=None,
+    )
     target = PromptLineDropTarget(row_index=0, insertion_index=1)
     keyboard = _Keyboard(target)
     geometry = _Geometry(state)
@@ -121,7 +125,7 @@ def test_keyboard_preview_facts_resolve_layout_target_without_pointer_state() ->
     facts = owner.snapshot()
 
     assert facts.preview_layout_view is state.current_layout_view
-    assert facts.preview_reorder_state is state.preview_reorder_state
+    assert facts.preview_reorder_state is state.current_reorder_state
     assert facts.dragged_segment_index is None
     assert facts.drop_target is target
     assert keyboard.query_count == 1

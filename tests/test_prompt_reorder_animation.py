@@ -84,6 +84,7 @@ def test_animation_requires_complete_projection_paint_snapshot() -> None:
         reason="paint_ownership_test",
     )
 
+    assert plan.animated_segment_indices == frozenset({0})
     safe_plan = animation_plan_with_complete_paint_ownership(
         plan,
         snapshot_indices=frozenset(),
@@ -156,6 +157,7 @@ def test_same_line_move_produces_settled_target_rect_shift() -> None:
     )
     assert plan.immediate_segment_indices == frozenset()
     assert plan.skipped_segment_indices == frozenset()
+    assert plan.animated_segment_indices == frozenset({0, 1})
 
 
 def test_wrapped_move_uses_next_line_settled_target_rect() -> None:

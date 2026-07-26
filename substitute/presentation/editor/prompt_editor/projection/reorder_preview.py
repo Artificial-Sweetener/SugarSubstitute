@@ -25,6 +25,10 @@ from substitute.application.prompt_editor.document.views import PromptDocumentVi
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxRenderPlan,
 )
+from substitute.application.prompt_editor.reorder.views import (
+    PromptGapBlankLineDropTarget,
+    PromptLineDropTarget,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,7 +58,20 @@ class PromptReorderPreviewState:
     instrumentation_reason: str = ""
 
 
+def reorder_drop_target_identity(target: object | None) -> Hashable | None:
+    """Return the stable projection-cache identity for one application target."""
+
+    if isinstance(target, PromptLineDropTarget):
+        return ("line", target.row_index, target.insertion_index)
+    if isinstance(target, PromptGapBlankLineDropTarget):
+        return ("gap", target.gap_index, target.blank_line_index)
+    if isinstance(target, Hashable):
+        return target
+    return None
+
+
 __all__ = [
+    "reorder_drop_target_identity",
     "PromptReorderPreviewState",
     "PromptReorderProjectionSnapshot",
 ]

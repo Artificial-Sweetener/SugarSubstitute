@@ -67,9 +67,10 @@ class PromptReorderPreviewBuildFactsOwner:
             active_drop_target=active_drop_target,
         )
         preview_reorder_state = None
-        if preview_layout is not None:
+        # Pointer state stays provisional; keyboard moves promote state before painting.
+        if dragged_segment_index is not None and preview_layout is not None:
             preview_reorder_state = geometry.preview_reorder_state
-        elif has_reordered:
+        elif preview_layout is not None or has_reordered:
             preview_reorder_state = geometry.current_reorder_state
 
         if dragged_segment_index is not None:

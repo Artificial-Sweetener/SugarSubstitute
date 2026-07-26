@@ -542,10 +542,7 @@ class PromptMutationService:
             )
             if selected_range is not None:
                 selection_range = SourceRange(*selected_range)
-        mutation_text = _preserve_source_trailing_comma_spacing(
-            preview_snapshot.text,
-            source_text=text,
-        )
+        mutation_text = preview_snapshot.text
         return self._mutation_from_document(
             text=mutation_text,
             document=self._document_projector.parse_document(mutation_text),
@@ -580,10 +577,7 @@ class PromptMutationService:
             )
             if selected_range is not None:
                 selection_range = SourceRange(*selected_range)
-        mutation_text = _preserve_source_trailing_comma_spacing(
-            preview_snapshot.text,
-            source_text=text,
-        )
+        mutation_text = preview_snapshot.text
         return self._mutation_from_document(
             text=mutation_text,
             document=self._document_projector.parse_document(mutation_text),
@@ -625,16 +619,6 @@ def _to_decimal(value: float | Decimal) -> Decimal:
     if isinstance(value, Decimal):
         return value
     return Decimal(str(value))
-
-
-def _preserve_source_trailing_comma_spacing(text: str, *, source_text: str) -> str:
-    """Avoid inventing final horizontal whitespace for bare trailing-comma prompts."""
-
-    if not text.endswith(", "):
-        return text
-    if source_text.endswith(","):
-        return text[:-1]
-    return text
 
 
 def _replace_wildcard_tag(

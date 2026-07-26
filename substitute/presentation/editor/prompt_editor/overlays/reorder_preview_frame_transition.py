@@ -147,9 +147,7 @@ class PromptReorderPreviewFrameTransitionOwner:
         snapshot_indices = (
             frozenset()
             if animation_plan is None
-            else frozenset(
-                target.segment_index for target in animation_plan.changed_targets
-            )
+            else animation_plan.animated_segment_indices
         )
         dragged_segment_index = self._gesture.state.dragged_segment_index
         if dragged_segment_index is not None:
