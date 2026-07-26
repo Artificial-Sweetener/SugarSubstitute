@@ -739,10 +739,11 @@ def test_real_shell_nearby_inline_sep_text_preserves_visual_source_order(
         assert "fasdfsa" in snapshot.projection_text
         assert typed_text not in snapshot.source_text
         assert not snapshot.caret_inside_region_separator
+    immediate_violations = harness.invariant_violations(immediate)
     assert all(
         violation.startswith("shell_height_contract_mismatch:")
-        for violation in harness.invariant_violations(immediate)
-    )
+        for violation in immediate_violations
+    ), immediate_violations
     assert not harness.invariant_violations(settled)
 
 

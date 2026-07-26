@@ -19,13 +19,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
-
-from substitute.application.prompt_editor.document.views import PromptReorderChipView
-
 from .reorder_animation_presentation import PromptReorderAnimationPresentationOwner
 from .reorder_drag_proxy_visual_owner import PromptReorderDragProxyVisualOwner
-from .reorder_gesture_controller import PromptReorderGestureStateView
 from .reorder_live_visual_owner import PromptReorderLiveVisualOwner
 from .reorder_pointer_region_visual_owner import PromptReorderPointerRegionVisualOwner
 from .reorder_preview_paint_snapshot_owner import (
@@ -36,18 +31,7 @@ from .reorder_raster_publication import PromptReorderRasterPublicationOwner
 from .reorder_refresh_identity import PromptReorderRefreshIdentityOwner
 from .reorder_render_publication_owner import PromptReorderRenderPublicationOwner
 from .reorder_visual_style import PromptReorderVisualStyle
-
-
-@dataclass(frozen=True, slots=True)
-class PromptReorderThemeRefreshRequest:
-    """Describe the prepared drag-proxy facts relevant to a theme refresh."""
-
-    has_document: bool
-    dragged_segment: PromptReorderChipView | None
-    source_revision: int | None
-    gesture: PromptReorderGestureStateView
-    gesture_id: int | None
-    event_id: int | None
+from .reorder_theme_refresh import PromptReorderThemeRefreshRequest
 
 
 class PromptReorderOverlayVisualLifecycleOwner:

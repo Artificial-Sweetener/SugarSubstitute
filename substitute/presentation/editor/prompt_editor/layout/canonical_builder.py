@@ -883,6 +883,19 @@ class PromptProjectionLineLayoutBuilder:
                         prefer_after=False,
                     ),
                 )
+                available_width = max(1.0, content_width - line_width)
+                candidate_length = _visible_wrap_candidate_length(
+                    remaining_text,
+                    candidate_length=candidate_length,
+                    available_width=available_width,
+                    font=cluster_font,
+                    measurement_cache=measurement_cache,
+                )
+                if candidate_length == 0:
+                    if line_width > 0.0:
+                        finish_line([])
+                        continue
+                    candidate_length = 1
                 break_decision = _adjust_break_for_word_integrity(
                     cluster_text,
                     consumed_cluster_length=consumed_cluster_length,
@@ -1548,6 +1561,36 @@ def _text_width(text: str, font: QFont) -> float:
     """Return the unwrapped text width using the same layout engine as fragments."""
 
     return _unwrapped_text_offsets(text, font)[-1]
+
+
+def _visible_wrap_candidate_length(
+    text: str,
+    *,
+    candidate_length: int,
+    available_width: float,
+    font: QFont,
+    measurement_cache: _TextMeasurementCache,
+) -> int:
+    """Return the longest Qt wrap candidate whose cursor boundary is visible.
+
+    ``QTextLine.textLength()`` can retain trailing whitespace after its natural
+    width fits the line. The caret still advances through that whitespace, so
+    the projection must move it to the next visual line when its boundary would
+    exceed the available paint width.
+    """
+
+    bounded_length = min(max(1, candidate_length), len(text))
+    boundary_offsets = measurement_cache.unwrapped_text_offsets(text, font)
+    if boundary_offsets[bounded_length] <= available_width + _WIDTH_EPSILON:
+        return bounded_length
+    return max(
+        (
+            index
+            for index in range(1, bounded_length + 1)
+            if boundary_offsets[index] <= available_width + _WIDTH_EPSILON
+        ),
+        default=0,
+    )
 
 
 def _adjust_break_for_word_integrity(

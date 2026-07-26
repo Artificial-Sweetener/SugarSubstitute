@@ -6,7 +6,8 @@
   "type": "module",
   "packageManager": "npm@10.9.2",
   "scripts": {
-    "release": "semantic-release"
+    "release": "semantic-release",
+    "audit:release": "node scripts/audit-release-dependencies.mjs"
   },
   "devDependencies": {
     "@semantic-release/changelog": "6.0.3",

@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
@@ -34,28 +33,13 @@ from .content_selection_layer import (
     PromptProjectionSelectionLayer,
 )
 from .content_media_state import PromptProjectionContentMediaIdentity
-from .paint_input import (
-    PromptProjectionPaintInput,
-    PromptProjectionPaintStyleKey,
+from .paint_cache_telemetry import (
+    PromptProjectionContentCacheKey,
+    PromptProjectionContentCacheSnapshot,
+    PromptProjectionPaintCacheTelemetry,
 )
+from .paint_input import PromptProjectionPaintInput
 from .painter import PromptProjectionPainter
-
-
-@dataclass(frozen=True, slots=True)
-class PromptProjectionContentCacheKey:
-    """Identify one reusable viewport-local projection content pixmap."""
-
-    paint_identity: PromptPaintIdentity
-    style: PromptProjectionPaintStyleKey
-    media_identity: PromptProjectionContentMediaIdentity
-
-
-@dataclass(frozen=True, slots=True)
-class PromptProjectionContentCacheSnapshot:
-    """Expose immutable content-cache state for diagnostics and contracts."""
-
-    key: PromptProjectionContentCacheKey | None
-    has_pixmap: bool
 
 
 class PromptProjectionPaintCache:
@@ -66,6 +50,7 @@ class PromptProjectionPaintCache:
 
         self._cache_key: PromptProjectionContentCacheKey | None = None
         self._cache_pixmap: QPixmap | None = None
+        self._telemetry = PromptProjectionPaintCacheTelemetry()
         self._painter = PromptProjectionPainter()
 
     @property
@@ -85,7 +70,7 @@ class PromptProjectionPaintCache:
         """Return immutable diagnostic state without exposing cache mutation."""
 
         pixmap = self._cache_pixmap
-        return PromptProjectionContentCacheSnapshot(
+        return self._telemetry.snapshot(
             key=self._cache_key,
             has_pixmap=pixmap is not None and not pixmap.isNull(),
         )
@@ -110,6 +95,7 @@ class PromptProjectionPaintCache:
             clip_rect=clip_rect,
             excluded_region=excluded_region,
         )
+        self._telemetry.record("direct", paint_identity=None)
 
     def paint_projection_content(
         self,
@@ -161,6 +147,7 @@ class PromptProjectionPaintCache:
                     result="bypass",
                     cache_key_present=self._cache_key is not None,
                 )
+            self._telemetry.record("bypass", paint_identity=paint_identity)
             return "bypass"
 
         style_key = paint_input.style_key
@@ -183,6 +170,7 @@ class PromptProjectionPaintCache:
                     cache_key=repr(cached_key),
                     cache_key_present=True,
                 )
+            self._telemetry.record("hit", paint_identity=paint_identity)
             return "hit"
 
         if _is_small_projection_content_repaint(
@@ -203,6 +191,10 @@ class PromptProjectionPaintCache:
                     result="bypass_small_cache_miss",
                     cache_key_present=self._cache_key is not None,
                 )
+            self._telemetry.record(
+                "bypass_small_cache_miss",
+                paint_identity=paint_identity,
+            )
             return "bypass_small_cache_miss"
 
         cache_key = PromptProjectionContentCacheKey(
@@ -226,6 +218,7 @@ class PromptProjectionPaintCache:
                 cache_key=repr(cache_key),
                 cache_key_present=True,
             )
+        self._telemetry.record("miss", paint_identity=paint_identity)
         return "miss"
 
     def cache_key_for(

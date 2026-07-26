@@ -2057,6 +2057,9 @@ def test_real_shell_harness_reports_headless_editor_common_sense_violations(
         replace(
             empty_selection_snapshot,
             paint_cache_key_present=True,
+            last_content_paint_result="hit",
+            last_content_paint_frame_is_current=True,
+            paint_cache_identity_matches_render_frame=False,
             paint_cache_projection_document_identity_matches_layout=False,
         )
     )
@@ -2064,6 +2067,9 @@ def test_real_shell_harness_reports_headless_editor_common_sense_violations(
         replace(
             snapshot,
             paint_cache_key_present=True,
+            last_content_paint_result="hit",
+            last_content_paint_frame_is_current=True,
+            paint_cache_identity_matches_render_frame=False,
             paint_cache_projection_document_identity_matches_layout=False,
         )
     )
@@ -2071,6 +2077,9 @@ def test_real_shell_harness_reports_headless_editor_common_sense_violations(
         replace(
             empty_selection_snapshot,
             paint_cache_key_present=True,
+            last_content_paint_result="hit",
+            last_content_paint_frame_is_current=True,
+            paint_cache_identity_matches_render_frame=False,
             paint_cache_source_revision=-1,
         )
     )
@@ -2345,6 +2354,7 @@ def test_real_shell_harness_reports_headless_editor_common_sense_violations(
     assert (
         "paint_cache_projection_document_identity_mismatch" in cache_document_mismatch
     )
+    assert "paint_cache_identity_mismatch_render_frame" in cache_document_mismatch
     assert (
         "paint_cache_projection_document_identity_mismatch"
         not in selected_cache_document_mismatch
