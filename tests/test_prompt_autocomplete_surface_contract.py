@@ -3140,7 +3140,7 @@ def test_prompt_editor_real_widget_commits_actual_reorder_on_alt_release(
 
     assert second_chip.cursor().shape() == Qt.CursorShape.OpenHandCursor
     assert _editor_reorder_preview_document(box) is not None
-    assert _editor_reorder_preview_text(box) == "beta, alpha, "
+    assert _editor_reorder_preview_text(box) == "beta, alpha,"
     ordered_segment_indices = cast(Any, overlay).ordered_chip_indices()
     preview_segment_indices = _overlay_preview_segment_indices(overlay)
 

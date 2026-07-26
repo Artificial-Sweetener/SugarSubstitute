@@ -17,11 +17,16 @@
 """Verify atomic reorder preview-state construction below interaction adapters."""
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
-from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
+from substitute.application.prompt_editor.reorder.views import (
+    PromptGapBlankLineDropTarget,
+    PromptLineDropTarget,
+)
+from substitute.presentation.editor.prompt_editor.projection.reorder_preview import (
+    reorder_drop_target_identity,
+)
 from substitute.presentation.editor.prompt_editor.projection.reorder_preview_state_builder import (
     PromptReorderPreviewBuildRequest,
     PromptReorderPreviewStateBuilder,
-    reorder_drop_target_identity,
 )
 from substitute.presentation.editor.prompt_editor.projection.reorder_projection_snapshot_provider import (
     PromptReorderPreviewProjectionProvider,
@@ -145,6 +150,56 @@ def test_preview_state_builder_reuses_equal_active_and_base_projection() -> None
     )
     assert publication.base_drag_snapshot is publication.preview_snapshot
     assert publication.preview_state.active_drop_target_identity == ("line", 0, 0)
+
+
+def test_preview_state_builder_excludes_uncommitted_trailing_gap_from_active_frame() -> (
+    None
+):
+    """Active keyboard previews should serialize the same layout as their commit."""
+
+    document_service, builder = _builder()
+    document_view = document_service.build_document_view("alpha,\n\nbeta,")
+    session = document_service.build_reorder_session_view(document_view)
+    base = document_service.build_base_drag_state(
+        document_view,
+        session.reorder_state,
+        current_layout_view=session.layout_view,
+        dragged_segment_index=1,
+    )
+    drop_target = PromptGapBlankLineDropTarget(gap_index=0, blank_line_index=0)
+    preview = document_service.build_preview_drop_state(
+        document_view,
+        base,
+        dragged_segment_index=1,
+        drop_target=drop_target,
+    )
+
+    publication = builder.build(
+        PromptReorderPreviewBuildRequest(
+            document_view=document_view,
+            preview_layout_view=preview.layout_view,
+            base_drag_layout_view=base.layout_view,
+            preview_reorder_state=preview.reorder_state,
+            base_drag_reorder_state=base.reorder_state,
+            ordered_chip_indices=preview.reorder_state.ordered_chip_indices,
+            dragged_segment_index=1,
+            drop_target=drop_target,
+            source_revision=3,
+            viewport_width=320,
+            gesture_id=5,
+            event_id=7,
+            reason="keyboard_reorder_key",
+        )
+    )
+
+    expected_text = "alpha,\nbeta,"
+    assert publication.preview_state is not None
+    assert publication.preview_snapshot is not None
+    assert publication.preview_snapshot.text == expected_text
+    assert (
+        publication.preview_state.preview_snapshot.document_view.source_text
+        == expected_text
+    )
 
 
 def test_reorder_drop_target_identity_rejects_unhashable_adapter_values() -> None:

@@ -1930,6 +1930,14 @@ def test_show_main_window_adds_main_window_to_shell_body(
     frame = composition.show_main_window(
         context,
         comfy_output_stream=cast(Any, object()),
+        runtime_services=cast(
+            Any,
+            SimpleNamespace(
+                appearance_runtime=SimpleNamespace(
+                    resolve_preferences=_resolved_appearance_stub
+                )
+            ),
+        ),
     )
 
     assert len(added_body_widgets) == 1
@@ -2162,6 +2170,14 @@ def test_show_main_window_wires_titlebar_close_button_to_window_close(
         context,
         comfy_output_stream=cast(Any, object()),
         shutdown_request=_noop_shutdown_request,
+        runtime_services=cast(
+            Any,
+            SimpleNamespace(
+                appearance_runtime=SimpleNamespace(
+                    resolve_preferences=_resolved_appearance_stub
+                )
+            ),
+        ),
     )
 
     assert connected_callbacks == [frame.close]

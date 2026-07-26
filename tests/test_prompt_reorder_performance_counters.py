@@ -664,15 +664,17 @@ def test_reorder_keyboard_targets_blank_line_before_next_populated_row(
             blank_line_index=0,
         )
     )
-    assert _editor_reorder_preview_text(box) == (
-        "empty eyes, sharp teeth, halo behind head, \ntoo many rabbits,\nbacklighting, "
+    expected_reordered_text = (
+        "empty eyes, sharp teeth, halo behind head, \ntoo many rabbits,\nbacklighting,"
     )
+    assert _editor_reorder_preview_text(box) == expected_reordered_text
     assert box.toPlainText() == text
     assert _counter_delta(before, after, "animation_plan_build_count") == 1
     assert _counter_delta(before, after, "animation_plan_applied_count") == 1
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     _process_events(app)
+    assert box.toPlainText() == expected_reordered_text
 
 
 def test_reorder_alt_left_builds_keyboard_animation_plan(
@@ -743,20 +745,36 @@ def test_reorder_keyboard_animation_first_frame_is_coherent(
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
     render_publication = cast(Any, overlay)._render_publication
     original_sync = render_publication.sync
-    animation_frames: list[tuple[dict[int, QRectF], dict[int, QRectF]]] = []
+    animation_frames: list[
+        tuple[
+            dict[int, QRectF],
+            dict[int, QRectF],
+            tuple[int, ...],
+            tuple[int, ...],
+        ]
+    ] = []
 
     def record_animation_frame(*, reason: str) -> None:
         """Record frame override ownership while preserving real rendering."""
 
+        original_sync(reason=reason)
         if reason == "animation_frame":
             publication = cast(Any, overlay)._animation_presentation.publication
+            prepared = render_publication.publication
+            overlay_state = prepared.overlay_state
+            overlay_chips = (
+                overlay_state.preview_chips
+                if overlay_state.preview_active
+                else overlay_state.live_chips
+            )
             animation_frames.append(
                 (
                     dict(publication.displacement_rects_by_index),
                     dict(publication.held_rects_by_index),
+                    tuple(chip.segment_index for chip in prepared.surface.chips),
+                    tuple(chip.segment_index for chip in overlay_chips),
                 )
             )
-        original_sync(reason=reason)
 
     monkeypatch.setattr(
         render_publication,
@@ -771,6 +789,9 @@ def test_reorder_keyboard_animation_first_frame_is_coherent(
     first_frame = animation_frames[0]
     assert first_frame[0]
     assert set(first_frame[1]) == {1}
+    assert 1 not in first_frame[2]
+    assert 1 in first_frame[3]
+    assert render_publication.publication.unsafe_transient_indices == ()
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     _process_events(app)
@@ -801,7 +822,7 @@ def test_reorder_keyboard_suppression_clips_settled_projection(
             Any,
             surface,
         )._reorder_surface_visual_state.state.suppression_snapshots_by_index
-    ) == {0}
+    ) == {0, 1}
     assert visible_region is not None
     hidden_region = QRegion(surface.viewport().rect()).subtracted(visible_region)
     assert not hidden_region.isEmpty()
@@ -1089,7 +1110,7 @@ def test_reorder_animation_frame_syncs_suppression_without_raster_churn(
     assert after_first_surface_revision == before_surface_revision + 1
     assert set(
         surface._reorder_surface_visual_state.state.suppression_snapshots_by_index  # noqa: SLF001
-    ) == {0}
+    ) == {0, 1}
     assert after_second_surface_revision == after_first_surface_revision
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)

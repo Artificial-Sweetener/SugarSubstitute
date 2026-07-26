@@ -77,6 +77,15 @@ class PromptReorderAnimationPlan:
     fallbacks: tuple[PromptReorderAnimationFallback, ...] = ()
     stale: bool = False
 
+    @property
+    def animated_segment_indices(self) -> frozenset[int]:
+        """Return every displaced or held chip represented by the plan."""
+
+        indices = {target.segment_index for target in self.changed_targets}
+        if self.dragged_segment_index is not None:
+            indices.add(self.dragged_segment_index)
+        return frozenset(indices)
+
 
 class PromptReorderAnimationPlanner:
     """Build stale-safe animation plans without owning widgets or timers."""

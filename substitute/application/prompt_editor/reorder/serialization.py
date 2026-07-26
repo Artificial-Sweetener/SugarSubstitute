@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 
 from substitute.domain.prompt.reorder.derivation import build_reorder_chips
 from substitute.domain.prompt.reorder.models import PromptReorderSerialization
@@ -119,6 +120,11 @@ class PromptReorderSerializationService:
             include_edge_gaps=include_edge_gaps,
             has_trailing_comma=state.has_trailing_comma,
         )
+        if not include_edge_gaps:
+            preview_snapshot = _align_trailing_comma_spacing(
+                preview_snapshot,
+                source_text=document_view.source_text,
+            )
         _log_reorder_serialization(
             "build_reorder_preview_snapshot",
             started_at=started_at,
@@ -148,6 +154,11 @@ class PromptReorderSerializationService:
             include_edge_gaps=include_edge_gaps,
             has_trailing_comma=state.has_trailing_comma,
         )
+        if not include_edge_gaps:
+            preview_snapshot = _align_trailing_comma_spacing(
+                preview_snapshot,
+                source_text=document_view.source_text,
+            )
         _log_reorder_serialization(
             "build_reorder_preview_snapshot_from_state",
             started_at=started_at,
@@ -305,6 +316,18 @@ def gap_slot_indices_from_layout_view(
             gap_slot_indices.append((between_gaps[row_index], slot_index))
             slot_index += 1
     return tuple(gap_slot_indices)
+
+
+def _align_trailing_comma_spacing(
+    snapshot: PromptReorderPreviewSnapshot,
+    *,
+    source_text: str,
+) -> PromptReorderPreviewSnapshot:
+    """Preserve bare source trailing commas in commit-equivalent snapshots."""
+
+    if snapshot.text.endswith(", ") and source_text.endswith(","):
+        return replace(snapshot, text=snapshot.text[:-1])
+    return snapshot
 
 
 def _log_reorder_serialization(

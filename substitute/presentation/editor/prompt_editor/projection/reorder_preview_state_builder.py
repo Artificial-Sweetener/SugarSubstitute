@@ -18,14 +18,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Hashable
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.reorder.views import (
-    PromptGapBlankLineDropTarget,
-    PromptLineDropTarget,
+    PromptReorderGapPlacement,
     PromptReorderLayoutView,
     PromptReorderPreviewSnapshot,
     PromptReorderStateView,
@@ -40,7 +39,7 @@ from .observability import (
 from .reorder_interaction_geometry_identity import (
     reorder_layout_view_key as layout_view_key,
 )
-from .reorder_preview import PromptReorderPreviewState
+from .reorder_preview import PromptReorderPreviewState, reorder_drop_target_identity
 from .reorder_projection_snapshot_provider import (
     PromptReorderPreviewProjectionProvider,
     PromptReorderPreviewProjectionResult,
@@ -144,6 +143,7 @@ class PromptReorderPreviewStateBuilder:
             request,
             layout_view=current_layout,
             reorder_state=None,
+            include_edge_gaps=True,
             cache_namespace="current",
             record_render_plan_elapsed=record_render_plan_elapsed,
         )
@@ -151,6 +151,7 @@ class PromptReorderPreviewStateBuilder:
             request,
             layout_view=base_layout,
             reorder_state=request.base_drag_reorder_state,
+            include_edge_gaps=True,
             cache_namespace="base_drag",
             record_render_plan_elapsed=record_render_plan_elapsed,
         )
@@ -197,6 +198,7 @@ class PromptReorderPreviewStateBuilder:
             request,
             layout_view=preview_layout,
             reorder_state=request.preview_reorder_state,
+            include_edge_gaps=False,
             cache_namespace="preview",
             record_render_plan_elapsed=record_render_plan_elapsed,
         )
@@ -219,6 +221,10 @@ class PromptReorderPreviewStateBuilder:
             base_layout is not None
             and base_layout == preview_layout
             and request.base_drag_reorder_state == request.preview_reorder_state
+            and not any(
+                gap.placement is PromptReorderGapPlacement.AFTER_LAST_ROW
+                for gap in preview_layout.gaps
+            )
         ):
             base_result = preview_result
             log_reorder_drag_event(
@@ -237,6 +243,7 @@ class PromptReorderPreviewStateBuilder:
                     request,
                     layout_view=base_layout,
                     reorder_state=request.base_drag_reorder_state,
+                    include_edge_gaps=True,
                     cache_namespace="base_drag",
                     record_render_plan_elapsed=record_render_plan_elapsed,
                 )
@@ -293,6 +300,7 @@ class PromptReorderPreviewStateBuilder:
         *,
         layout_view: PromptReorderLayoutView,
         reorder_state: PromptReorderStateView | None,
+        include_edge_gaps: bool,
         cache_namespace: str,
         record_render_plan_elapsed: Callable[[float], object] | None,
     ) -> PromptReorderPreviewProjectionResult:
@@ -302,6 +310,7 @@ class PromptReorderPreviewStateBuilder:
             document_view=request.document_view,
             layout_view=layout_view,
             reorder_state=reorder_state,
+            include_edge_gaps=include_edge_gaps,
             cache_namespace=cache_namespace,
             source_revision=request.source_revision,
             viewport_width=request.viewport_width,
@@ -315,21 +324,8 @@ class PromptReorderPreviewStateBuilder:
         return result
 
 
-def reorder_drop_target_identity(target: object | None) -> Hashable | None:
-    """Return the stable projection-cache identity for one application target."""
-
-    if isinstance(target, PromptLineDropTarget):
-        return ("line", target.row_index, target.insertion_index)
-    if isinstance(target, PromptGapBlankLineDropTarget):
-        return ("gap", target.gap_index, target.blank_line_index)
-    if isinstance(target, Hashable):
-        return target
-    return None
-
-
 __all__ = [
     "PromptReorderPreviewBuildRequest",
     "PromptReorderPreviewPublication",
     "PromptReorderPreviewStateBuilder",
-    "reorder_drop_target_identity",
 ]
