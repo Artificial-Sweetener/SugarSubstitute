@@ -485,6 +485,7 @@ def test_phase3_async_diagnostics_ignore_stale_snapshots() -> None:
         _spelling_diagnostic(0, 7, "oldword"),
         surface=surface,
         request_channel=request_channel,
+        diagnostics_service=service,
     )
     request_channel.handles.clear()
 
@@ -740,7 +741,7 @@ def test_phase3_reorder_entry_exposes_chip_identity_and_source_metadata(
     overlay = _enter_reorder_mode(box)
     chips = _overlay_pointer_regions(overlay)
     chips_by_index = {cast(int, chip.property("segmentIndex")): chip for chip in chips}
-    segments_by_index = cast(Any, overlay)._segments_by_index
+    segments_by_index = cast(Any, overlay)._visual_session.segments_by_index
 
     assert sorted(chips_by_index) == [0, 1, 2, 3]
     assert [chips_by_index[index].property("segmentText") for index in range(4)] == [
@@ -852,13 +853,16 @@ def _diagnostics_controller(
     *,
     surface: _FakeSurface | None = None,
     spellcheck_provider: _FakeSpellcheckProvider | None = None,
+    diagnostics_service: _FakeDiagnosticsService | None = None,
     request_channel: _DeferredRequestChannel[PromptDiagnosticSnapshot]
     | _ImmediateRequestChannel[PromptDiagnosticSnapshot]
     | None = None,
 ) -> PromptDiagnosticsFeatureController:
     """Return a controller wired to deterministic diagnostic dependencies."""
 
-    service = _StaticDiagnosticsService(editor.toPlainText(), diagnostic)
+    service = diagnostics_service or _StaticDiagnosticsService(
+        editor.toPlainText(), diagnostic
+    )
     feature_profile = PromptFeatureProfileController(
         PromptEditorFeatureProfile.enabled_profile(
             (

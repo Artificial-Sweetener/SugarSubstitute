@@ -280,12 +280,15 @@ def test_phase5_widget_feature_gates_suppress_visible_editor_behaviors(
     )
     interaction = cast(Any, editor)._interaction_controller
     autocomplete = cast(Any, editor)._autocomplete
+    publication = cast(
+        Any, editor
+    )._autocomplete_refresh_controller._lifecycle_requester._publication
 
     _move_cursor(editor, len(editor.toPlainText()))
     cast(Any, editor)._autocomplete_refresh_controller.refresh_from_current_state()
     process_events(app)
 
-    assert autocomplete._sessions.session.mode == "none"
+    assert publication.session.mode == "none"
 
     editor.setPlainText("(cat:1.00), dog")
     process_events(app)
@@ -331,12 +334,15 @@ def test_phase5_widget_feature_gates_cover_lora_diagnostics_and_danbooru(
         danbooru_wiki_service=_StubDanbooruWikiService(),
     )
     autocomplete = cast(Any, editor)._autocomplete
+    publication = cast(
+        Any, editor
+    )._autocomplete_refresh_controller._lifecycle_requester._publication
 
     _move_cursor(editor, len(editor.toPlainText()))
     cast(Any, editor)._autocomplete_refresh_controller.refresh_from_current_state()
     process_events(app)
 
-    assert autocomplete._sessions.session.mode == "none"
+    assert publication.session.mode == "none"
     assert cast(Any, editor)._danbooru_action_controller.url_import_enabled is False
 
     editor.setPlainText("alpha")
@@ -414,12 +420,15 @@ def test_phase5_scene_autocomplete_queue_and_effective_prompt_context(
     editor.set_scene_autocomplete_titles(("Cafe Interior", "Canal Night", "Portrait"))
     _move_cursor(editor, text.index("Ca") + len("Ca"))
     autocomplete = cast(Any, editor)._autocomplete
+    publication = cast(
+        Any, editor
+    )._autocomplete_refresh_controller._lifecycle_requester._publication
 
     cast(Any, editor)._autocomplete_refresh_controller.refresh_from_current_state()
     process_events(app)
 
-    assert autocomplete._sessions.session.mode == "scene"
-    assert [row.tag for row in autocomplete._sessions.session.suggestions] == [
+    assert publication.session.mode == "scene"
+    assert [row.tag for row in publication.session.suggestions] == [
         "Cafe Interior",
         "Canal Night",
     ]
@@ -626,19 +635,20 @@ def test_phase5_scheduled_lora_context_async_boundaries_and_lru(
         ),
         scheduled_lora_resolver=resolver,
     )
-    autocomplete = cast(Any, editor)._autocomplete
+    lifecycle = cast(Any, editor)._autocomplete_refresh_controller._lifecycle_requester
+    result_controller = lifecycle._result_controller
     provider = PromptScheduledLoraContextCoordinator(
         resolver=resolver,
         enabled=True,
         executor=cast(Any, executor),
     )
-    autocomplete._scheduled_lora_context = (
+    result_controller._trigger_word_provider = (
         PromptAutocompleteScheduledLoraContextController(
             context_provider=provider,
             enabled=True,
         )
     )
-    autocomplete._scheduled_lora_context.bind_current_context(autocomplete)
+    result_controller._trigger_word_provider.bind_current_context(lifecycle)
 
     assert provider.prewarm("secret prompt") is True
     assert provider.prewarm("secret prompt") is False
@@ -664,11 +674,8 @@ def test_phase5_scheduled_lora_context_async_boundaries_and_lru(
     )
     refresh_calls: list[PromptAutocompleteQuery] = []
     monkeypatch.setattr(provider, "_cache_limit", 64)
-    autocomplete._latest_tag_query = query
     current_key = provider.cache_key_for_prompt("mi")
-    current_query_identity = autocomplete._result_controller.safe_tag_query_identity(
-        query
-    )
+    current_query_identity = result_controller.safe_tag_query_identity(query)
 
     editor.setPlainText("changed")
     process_events(app)
@@ -688,7 +695,6 @@ def test_phase5_scheduled_lora_context_async_boundaries_and_lru(
 
     editor.setPlainText("mi")
     process_events(app)
-    autocomplete._latest_tag_query = query
     provider.complete_for_tests(
         cache_key=current_key,
         prompt_text="mi",
@@ -748,7 +754,12 @@ def test_phase5_restore_lifecycle_and_caret_state_remain_source_safe(
     _move_cursor(editor, len("**Ca"))
     cast(Any, editor)._autocomplete_refresh_controller.refresh_from_current_state()
     process_events(app)
-    assert cast(Any, editor)._autocomplete._sessions.session.mode == "scene"
+    assert (
+        cast(
+            Any, editor
+        )._autocomplete_refresh_controller._lifecycle_requester._publication.session.mode
+        == "scene"
+    )
 
     metadata_catchup_calls = 0
     focus_out_reasons: list[str] = []
@@ -833,7 +844,12 @@ def test_phase5_restore_lifecycle_and_caret_state_remain_source_safe(
 
     assert hidden_source == "**Ca"
     assert editor.toPlainText() == hidden_source
-    assert cast(Any, editor)._autocomplete._sessions.session.mode == "none"
+    assert (
+        cast(
+            Any, editor
+        )._autocomplete_refresh_controller._lifecycle_requester._publication.session.mode
+        == "none"
+    )
     assert metadata_catchup_calls >= 2
     assert focus_out_reasons == ["focus_out"]
     assert focus_out_controller_calls == 1

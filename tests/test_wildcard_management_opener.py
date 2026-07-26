@@ -87,7 +87,7 @@ def test_wildcard_management_opener_constructs_modal_with_caller_parent(
     assert modal.parent() is parent
     editor = cast(Any, modal._editor.editor())
     assert (
-        editor._autocomplete._result_controller._prompt_autocomplete_gateway.__class__
+        editor._autocomplete_refresh_controller._lifecycle_requester._result_controller._prompt_autocomplete_gateway.__class__
         is (EmptyPromptAutocompleteGateway)
     )
     assert (
@@ -142,11 +142,13 @@ def test_wildcard_management_modal_rejects_scene_markers_without_projecting_scen
     assert all(token.kind.value != "scene" for token in projection.tokens)
     marker = next(
         diagnostic
-        for diagnostic in diagnostics.snapshot.diagnostics
+        for diagnostic in diagnostics.presentation.snapshot.diagnostics
         if diagnostic.kind is PromptDiagnosticKind.UNSUPPORTED_SCENE_MARKER
     )
     assert (marker.source_start, marker.source_end) == (0, 2)
-    actions = diagnostics.prepared_menu_actions_for_source_position(0).actions
+    actions = diagnostics.presentation.prepared_menu_actions_for_source_position(
+        0
+    ).actions
     assert tuple(action.label for action in actions) == (
         "Scenes aren’t supported in wildcard values.",
     )
@@ -206,7 +208,7 @@ def test_wildcard_modal_rejects_scene_markers_only_inside_csv_values(
     process_events(app)
     markers = tuple(
         diagnostic
-        for diagnostic in diagnostics.snapshot.diagnostics
+        for diagnostic in diagnostics.presentation.snapshot.diagnostics
         if diagnostic.kind is PromptDiagnosticKind.UNSUPPORTED_SCENE_MARKER
     )
 
@@ -240,7 +242,7 @@ def test_wildcard_modal_isolates_only_duplicate_diagnostics_by_value(
     process_events(app)
     duplicates = tuple(
         diagnostic
-        for diagnostic in diagnostics.snapshot.diagnostics
+        for diagnostic in diagnostics.presentation.snapshot.diagnostics
         if diagnostic.kind is PromptDiagnosticKind.DUPLICATE_SEGMENT
     )
 
@@ -316,7 +318,7 @@ def test_wildcard_asset_switch_rebinds_diagnostic_value_mapping(
     )
     assert any(
         diagnostic.kind is PromptDiagnosticKind.WILDCARD
-        for diagnostic in diagnostics.snapshot.diagnostics
+        for diagnostic in diagnostics.presentation.snapshot.diagnostics
     )
 
     csv_asset_id = next(
@@ -335,7 +337,7 @@ def test_wildcard_asset_switch_rebinds_diagnostic_value_mapping(
     )
     assert all(
         diagnostic.kind is not PromptDiagnosticKind.WILDCARD
-        for diagnostic in diagnostics.snapshot.diagnostics
+        for diagnostic in diagnostics.presentation.snapshot.diagnostics
     )
 
     txt_asset_id = next(
@@ -357,7 +359,7 @@ def test_wildcard_asset_switch_rebinds_diagnostic_value_mapping(
     )
     assert any(
         diagnostic.kind is PromptDiagnosticKind.WILDCARD
-        for diagnostic in diagnostics.snapshot.diagnostics
+        for diagnostic in diagnostics.presentation.snapshot.diagnostics
     )
 
 

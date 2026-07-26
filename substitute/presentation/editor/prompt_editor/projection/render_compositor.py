@@ -21,9 +21,6 @@ from __future__ import annotations
 from PySide6.QtCore import QRectF
 from PySide6.QtGui import QPainter
 
-from substitute.presentation.editor.prompt_editor.core.state.revisions import (
-    PromptPaintIdentity,
-)
 
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
@@ -73,13 +70,6 @@ class PromptProjectionRenderCompositor:
         """Return immutable content-cache state for diagnostics and tests."""
 
         return self._content_cache.snapshot
-
-    def discard_stale_content_cache(
-        self, paint_identity: PromptPaintIdentity | None
-    ) -> None:
-        """Release cached pixels that cannot serve the frame about to publish."""
-
-        self._content_cache.discard_if_stale(paint_identity)
 
     def draw(
         self,

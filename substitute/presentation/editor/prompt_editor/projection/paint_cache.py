@@ -24,10 +24,6 @@ import math
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QPainter, QPixmap, QRegion
 
-from substitute.presentation.editor.prompt_editor.core.state.revisions import (
-    PromptPaintIdentity,
-)
-
 from ..debug_probe import log_prompt_editor_probe, prompt_editor_probe_enabled
 from .content_selection_layer import (
     EMPTY_PROJECTION_SELECTION_LAYER,
@@ -110,15 +106,6 @@ class PromptProjectionPaintCache:
             clip_rect=clip_rect,
             excluded_region=excluded_region,
         )
-
-    def discard_if_stale(self, paint_identity: PromptPaintIdentity | None) -> None:
-        """Discard content retained for a different prepared paint identity."""
-
-        cached_key = self._cache_key
-        if cached_key is None or cached_key.paint_identity is paint_identity:
-            return
-        self._cache_key = None
-        self._cache_pixmap = None
 
     def paint_projection_content(
         self,
