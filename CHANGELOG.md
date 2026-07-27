@@ -1,3 +1,33 @@
+# [0.19.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.18.1...v0.19.0) (2026-07-27)
+
+
+### Bug Fixes
+
+* **controls:** render portable binding labels ([1616dec](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/1616decf6e573eb97f8aaf86ab03b4e61bb6ab85))
+* **generation:** synchronize randomized seed requests ([a72fc2b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/a72fc2bb57d4cce215baea8da6e91b579aea60dc))
+* **launcher:** enforce single application launch ([329d0eb](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/329d0ebf905df2f5dd1a8aabe4514a8c54e36bb6))
+* **prompt-editor:** ignore stale render-frame cache probes ([7bd2cca](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/7bd2cca91f75542af916c7478feb7b7837965c80))
+* **prompt-editor:** preserve separator boundary deletions ([2148f9d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/2148f9d67cc7268f802e4692956bdaeaeefadab7))
+* **prompt-editor:** restore cache identity typing ([757c001](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/757c0014d1b86bf5694f655b702b3b230fb1ca77))
+* **prompt-editor:** stabilize cross-platform gates ([066193d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/066193d50ccf787fb728cfeab9466f78c1fc5d55))
+* **prompt-editor:** stabilize keyboard reorder preview ([9e0fa0f](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/9e0fa0facf32abed144721700e05b5e9a11729bf))
+* **prompt-editor:** stabilize separator edits and transient feedback ([e315310](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e31531087fd94faca967ebbf3867db7fe669e160))
+* **settings:** support prefix search ([1b6e764](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/1b6e7644201f2122101f41a492c8b3e05743eb89))
+* **splash:** center launch splash on cursor display ([cc633b0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/cc633b055176dd32c6ec158340542701eb9f9f0c))
+
+
+### Features
+
+* **controls:** add configurable generation bindings ([01c481c](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/01c481c1c830fad95383cd49ea830b517aff5a8c))
+* **localization:** add Spanish support ([934aa6b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/934aa6b1aa95ef7c854d5d4687db7338a26e774e))
+* **prompt-editor:** add regional separator editing ([bc6c6a7](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/bc6c6a7bb9157f9e39bf32034e9cab8e7f06d4f5))
+* **shell:** request attention for unfocused completions ([c8316ed](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/c8316ed6e8867e11a597acdfda5b784eebc259ea))
+
+
+### Reverts
+
+* **prompt-editor:** preserve separator boundary deletions ([a5b286c](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/a5b286ce9a8575eecf99ecc20bd7ef85273c6a97))
+
 ## [0.18.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.18.0...v0.18.1) (2026-07-22)
 
 
