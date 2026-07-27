@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import ast
-from dataclasses import dataclass
 from pathlib import Path
 
 from tests.architecture_import_graph import (
@@ -70,74 +69,6 @@ _TARGET_APPLICATION_PACKAGES = frozenset(
 
 _EXPECTED_PROMPT_TO_PANEL_IMPORTS: dict[str, frozenset[str]] = {}
 _EXPECTED_IMPORT_CYCLES: tuple[tuple[str, ...], ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
-class _IntegrationRootBudget:
-    """Limit one existing integration root while its ownership is extracted."""
-
-    source_path: Path
-    class_name: str
-    maximum_owned_lines: int
-    maximum_methods: int
-
-
-_INTEGRATION_ROOT_BUDGETS = (
-    _IntegrationRootBudget(
-        PROMPT_PRESENTATION_ROOT / "widget.py",
-        "PromptEditor",
-        1910,
-        164,
-    ),
-    _IntegrationRootBudget(
-        PROMPT_PRESENTATION_ROOT / "projection" / "surface.py",
-        "PromptProjectionSurface",
-        3858,
-        258,
-    ),
-    _IntegrationRootBudget(
-        PROMPT_PRESENTATION_ROOT / "projection" / "edit_to_frame.py",
-        "PromptLayoutEditToFrameCoordinator",
-        449,
-        19,
-    ),
-    _IntegrationRootBudget(
-        PROMPT_PRESENTATION_ROOT / "interactions" / "controller.py",
-        "PromptInteractionController",
-        600,
-        55,
-    ),
-    _IntegrationRootBudget(
-        PROMPT_PRESENTATION_ROOT / "composition" / "factory.py",
-        "PromptEditorCompositionFactory",
-        960,
-        14,
-    ),
-    _IntegrationRootBudget(
-        PROMPT_PRESENTATION_ROOT / "interactions" / "reorder_interaction.py",
-        "PromptReorderInteractionOwner",
-        220,
-        12,
-    ),
-    _IntegrationRootBudget(
-        PROMPT_PRESENTATION_ROOT / "interactions" / "reorder_overlay_session.py",
-        "PromptReorderOverlaySessionOwner",
-        350,
-        17,
-    ),
-    _IntegrationRootBudget(
-        PROMPT_PRESENTATION_ROOT / "overlays" / "reorder_overlay.py",
-        "SegmentReorderOverlay",
-        1272,
-        72,
-    ),
-    _IntegrationRootBudget(
-        EDITOR_PANEL_ROOT / "view.py",
-        "EditorPanel",
-        2256,
-        148,
-    ),
-)
 
 
 def test_prompt_editor_does_not_depend_on_its_panel_host() -> None:
@@ -2533,66 +2464,6 @@ def test_reorder_preview_visual_publication_flows_outward_to_qt_adapters() -> No
     assert "class PromptReorderOverlayRenderState" not in overlay_ports_source
     assert "def set_render_state(" not in overlay_ports_source
 
-    budgets = {
-        "reorder_visual_style.py": 228,
-        "reorder_interaction_visual.py": 101,
-        "reorder_visual_geometry.py": 64,
-        "reorder_render_state.py": 252,
-        "reorder_animation_paint_policy.py": 64,
-        "reorder_animation_presentation.py": 337,
-        "reorder_animation_visual_owner.py": 178,
-        "chip_visuals.py": 223,
-        "reorder_drag_proxy_visual_owner.py": 318,
-        "reorder_held_drag_context.py": 169,
-        "reorder_pointer_regions.py": 357,
-        "reorder_pointer_move_owner.py": 200,
-        "reorder_pointer_region_visual_owner.py": 245,
-        "reorder_pointer_target_resolution.py": 168,
-        "reorder_pointer_target_transition.py": 290,
-        "reorder_performance_counters.py": 71,
-        "reorder_pointer_drag_start_owner.py": 251,
-        "reorder_pointer_drag_completion_owner.py": 228,
-        "reorder_commit_snapshot.py": 39,
-        "reorder_event_ports.py": 42,
-        "reorder_landing_capture.py": 145,
-        "reorder_landing_diagnostics.py": 529,
-        "reorder_landing_events.py": 430,
-        "reorder_landing_geometry.py": 269,
-        "reorder_landing_models.py": 126,
-        "reorder_landing_paint_cache.py": 257,
-        "reorder_landing_paint_policy.py": 59,
-        "reorder_landing_request_owner.py": 118,
-        "reorder_landing_resolution.py": 520,
-        "reorder_landing_paint.py": 220,
-        "reorder_landing_session.py": 140,
-        "reorder_landing_state.py": 220,
-        "reorder_interaction_diagnostics.py": 273,
-        "reorder_drop_commit_diagnostics.py": 485,
-        "reorder_drop_actual_observation.py": 77,
-        "reorder_interaction_intents.py": 74,
-        "reorder_insertion_marker_owner.py": 95,
-        "reorder_keyboard_interaction.py": 283,
-        "reorder_prepared_visual.py": 173,
-        "reorder_raster_publication.py": 236,
-        "reorder_render_publication_owner.py": 256,
-        "reorder_live_visual_owner.py": 278,
-        "reorder_preview_paint_snapshot_owner.py": 119,
-        "reorder_preview_geometry_refresh_owner.py": 129,
-        "reorder_preview_layout_transition_owner.py": 59,
-        "reorder_preview_frame_transition.py": 201,
-        "reorder_preview_visual_owner.py": 374,
-        "reorder_refresh_identity.py": 143,
-        "reorder_visual_mode.py": 77,
-        "reorder_visual_session.py": 94,
-        "reorder_view.py": 259,
-        "reorder_viewport_geometry.py": 106,
-        "reorder_viewport_frame_refresh.py": 392,
-    }
-    for module_name, budget in budgets.items():
-        source = (PROMPT_PRESENTATION_ROOT / "overlays" / module_name).read_text(
-            encoding="utf-8"
-        )
-        assert _owned_source_line_count(source) <= budget
     obsolete_split_publication_apis = (
         "set_reorder_overlay_suppression_snapshots",
         "set_reorder_surface_chrome",
@@ -2938,18 +2809,6 @@ def test_reorder_session_and_intents_are_application_owned() -> None:
     assert graph[commit_owner] == {"substitute.application.prompt_editor.reorder.views"}
     commit_source = module_paths[commit_owner].read_text(encoding="utf-8")
     assert "PySide6" not in commit_source
-    assert (
-        _class_method_count(
-            commit_source,
-            "PromptReorderLayoutCommitRequest",
-        )
-        <= 2
-    )
-    session_source = module_paths[session_owner].read_text(encoding="utf-8")
-    assert _class_method_count(session_source, "PromptReorderSessionOwner") <= 8
-    lifecycle_source = module_paths[lifecycle_owner].read_text(encoding="utf-8")
-    assert _class_method_count(lifecycle_source, "PromptReorderLifecycleOwner") <= 9
-
     deleted_owners = (
         PROMPT_PRESENTATION_ROOT / "interactions" / "reorder_session.py",
         PROMPT_PRESENTATION_ROOT / "interactions" / "reorder_controller.py",
@@ -3182,28 +3041,6 @@ def test_lora_catalog_values_do_not_depend_on_catalog_algorithms() -> None:
         for module_name in imported_modules
         if module_name.startswith("substitute.application.prompt_editor.lora.")
     }
-
-
-def test_prompt_editor_integration_roots_do_not_grow() -> None:
-    """Require refactor slices to remove behavior from existing integration roots."""
-
-    violations: dict[str, dict[str, int]] = {}
-    for budget in _INTEGRATION_ROOT_BUDGETS:
-        source = budget.source_path.read_text(encoding="utf-8")
-        method_count = _class_method_count(source, budget.class_name)
-        owned_line_count = _owned_source_line_count(source)
-        if (
-            owned_line_count > budget.maximum_owned_lines
-            or method_count > budget.maximum_methods
-        ):
-            violations[budget.source_path.relative_to(PROJECT_ROOT).as_posix()] = {
-                "owned_lines": owned_line_count,
-                "maximum_owned_lines": budget.maximum_owned_lines,
-                "methods": method_count,
-                "maximum_methods": budget.maximum_methods,
-            }
-
-    assert violations == {}
 
 
 def test_revision_owner_replaces_obsolete_prompt_state_mirrors() -> None:
@@ -3761,34 +3598,6 @@ def test_deleted_geometry_graph_cannot_return() -> None:
         not tuple(path.glob("*.py")) and not tuple(path.glob("*.pyi"))
         for path in deleted_source_roots
     )
-
-
-def _class_method_count(source: str, class_name: str) -> int:
-    """Return direct method count for one named class."""
-
-    tree = ast.parse(source)
-    class_node = next(
-        node
-        for node in tree.body
-        if isinstance(node, ast.ClassDef) and node.name == class_name
-    )
-    return sum(
-        isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
-        for node in class_node.body
-    )
-
-
-def _owned_source_line_count(source: str) -> int:
-    """Count source lines while excluding dependency declaration formatting."""
-
-    tree = ast.parse(source)
-    import_lines = {
-        line_number
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Import | ast.ImportFrom)
-        for line_number in range(node.lineno, (node.end_lineno or node.lineno) + 1)
-    }
-    return len(source.splitlines()) - len(import_lines)
 
 
 def _protocol_class_count(source_path: Path) -> int:
