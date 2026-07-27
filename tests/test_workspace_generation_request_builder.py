@@ -23,6 +23,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
+from substitute.application.generation import (
+    GenerationRequest,
+    SeedRandomizationResult,
+    SeedValueChange,
+)
 from substitute.application.node_behavior import (
     EditorBehaviorSnapshot,
     LiveNodeDefinitionError,
@@ -43,6 +48,7 @@ from substitute.presentation.shell.workspace_generation_request_builder import (
     node_payload_has_authored_bypass,
     preflight_live_node_definitions,
     pruned_workflow_for_generation,
+    synchronize_generation_request_seed_scopes,
     workflow_issue_pruning_service,
     workflow_buffer_nodes_for_alias,
     workflow_stack_order,
@@ -57,6 +63,52 @@ SOURCE_PATH = (
     / "shell"
     / "workspace_generation_request_builder.py"
 )
+
+
+def test_synchronize_generation_request_seed_scopes_uses_randomized_value() -> None:
+    """Randomized global seeds should replace stale request-scope values."""
+
+    original_scope = GlobalOverrideSerializationScope(
+        override_key="seed",
+        value=7,
+        mode="global",
+        full_participation=True,
+        participant_fields=frozenset({("Demo", "KSampler", "seed")}),
+    )
+    request = GenerationRequest(
+        workflow_id="workflow-a",
+        workflow_name="Recipe A",
+        workflow=cast(Any, SimpleNamespace()),
+        global_override_scopes={"seed": original_scope},
+    )
+
+    synchronized = synchronize_generation_request_seed_scopes(
+        request,
+        SeedRandomizationResult(
+            changes=(
+                SeedValueChange(
+                    override_key="seed",
+                    previous_value=7,
+                    value=41,
+                ),
+            )
+        ),
+    )
+
+    assert synchronized is not request
+    assert request.global_override_scopes == {"seed": original_scope}
+    assert synchronized.global_override_scopes is not None
+    assert synchronized.global_override_scopes[
+        "seed"
+    ] == GlobalOverrideSerializationScope(
+        override_key="seed",
+        value=41,
+        mode="global",
+        full_participation=True,
+        participant_fields=frozenset({("Demo", "KSampler", "seed")}),
+    )
+
+
 WORKSPACE_CONTROLLER_SOURCE = (
     PROJECT_ROOT / "substitute" / "presentation" / "shell" / "workspace_controller.py"
 )

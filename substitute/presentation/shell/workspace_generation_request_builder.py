@@ -19,11 +19,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
 from substitute.application.generation import (
     GenerationRequest,
+    SeedRandomizationResult,
     WorkflowIssuePruningService,
 )
 from substitute.application.node_behavior import LiveNodeDefinitionError
@@ -69,6 +70,36 @@ class GenerationRequestBuildView(Protocol):
 
     def get_active_workflow(self) -> object:
         """Return the active workflow state."""
+
+
+def synchronize_generation_request_seed_scopes(
+    request: GenerationRequest,
+    result: SeedRandomizationResult,
+) -> GenerationRequest:
+    """Return a request whose override scopes carry its randomized seed values."""
+
+    scopes = request.global_override_scopes
+    override_seed_values = {
+        change.override_key: change.value
+        for change in result.changes
+        if change.override_key is not None
+    }
+    if scopes is None or not override_seed_values:
+        return request
+
+    synchronized_scopes = dict(scopes)
+    changed = False
+    for scope_key, scope in scopes.items():
+        seed_value = override_seed_values.get(scope.override_key)
+        if seed_value is None:
+            seed_value = override_seed_values.get(str(scope_key))
+        if seed_value is None or scope.value == seed_value:
+            continue
+        synchronized_scopes[scope_key] = replace(scope, value=seed_value)
+        changed = True
+    if not changed:
+        return request
+    return replace(request, global_override_scopes=synchronized_scopes)
 
 
 def active_behavior_snapshot(
@@ -421,6 +452,7 @@ __all__ = [
     "node_payload_has_authored_bypass",
     "preflight_live_node_definitions",
     "pruned_workflow_for_generation",
+    "synchronize_generation_request_seed_scopes",
     "workflow_issue_pruning_service",
     "workflow_buffer_nodes_for_alias",
     "workflow_stack_order",

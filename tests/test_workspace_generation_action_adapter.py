@@ -29,6 +29,9 @@ from substitute.application.generation import (
     SeedRandomizationService,
 )
 from substitute.application.node_behavior import EditorBehaviorSnapshot
+from substitute.domain.generation.seed_control import SeedControlState, SeedMode
+from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.workflow import WorkflowState
 from substitute.application.ports import InterruptResult
 from substitute.presentation.shell.workspace_generation_controller import (
     GenerationUiBindings,
@@ -171,6 +174,77 @@ def test_build_generation_action_bindings_routes_feedback_and_randomizes_request
     assert bindings.on_timing is dispatcher.on_timing
     assert bindings.on_completed is dispatcher.on_completed
     assert bindings.build_queued_generation_snapshots() == ()
+
+
+def test_locking_after_generation_reuses_the_submitted_seed() -> None:
+    """Locking a random seed should preserve the seed submitted by the prior run."""
+
+    workflow = WorkflowState(global_overrides={"seed": {"value": 7, "mode": "global"}})
+    seed_values = iter((41, 99))
+    seed_randomization_service = SeedRandomizationService()
+    view = SimpleNamespace(
+        generation_feedback_dispatcher=_dispatcher(),
+        generation_action_controller=SimpleNamespace(
+            apply_generation_action_availability=lambda: None
+        ),
+        editor_panels={},
+    )
+
+    def _build_request() -> GenerationRequest:
+        """Build a request over the authoritative live workflow."""
+
+        seed_value = workflow.global_overrides["seed"]["value"]
+        return GenerationRequest(
+            workflow_id="workflow-a",
+            workflow_name="Recipe A",
+            workflow=cast(Any, workflow),
+            global_override_scopes={
+                "seed": GlobalOverrideSerializationScope(
+                    override_key="seed",
+                    value=seed_value,
+                    mode="global",
+                    full_participation=True,
+                    participant_fields=frozenset({("Demo", "KSampler", "seed")}),
+                )
+            },
+        )
+
+    def _randomize(
+        *,
+        request: GenerationRequest,
+        behavior_snapshot: EditorBehaviorSnapshot | None,
+    ) -> SeedRandomizationResult:
+        """Randomize through the real seed policy with deterministic values."""
+
+        return seed_randomization_service.randomize_workflow_seeds(
+            workflow=cast(WorkflowState, request.workflow),
+            behavior_snapshot=behavior_snapshot,
+            randint=lambda _lower, _upper: next(seed_values),
+        )
+
+    bindings = cast(
+        Any,
+        build_generation_action_bindings(
+            view=cast(GenerationActionBindingView, view),
+            build_generation_request=_build_request,
+            randomize_generation_request_seeds=_randomize,
+            build_queued_generation_snapshots=lambda: (),
+            capture_queued_generation_preparation=lambda: object(),
+        ),
+    )
+
+    first_request = bindings.build_generation_request()
+    first_submitted_seed = first_request.workflow.global_overrides["seed"]["value"]
+    assert first_request.global_override_scopes is not None
+    first_scope_seed = first_request.global_override_scopes["seed"].value
+    workflow.override_control_states["seed"] = SeedControlState(SeedMode.FIXED)
+    second_request = bindings.build_generation_request()
+
+    assert first_submitted_seed == 41
+    assert first_scope_seed == 41
+    assert second_request.global_override_scopes is not None
+    assert second_request.workflow.global_overrides["seed"]["value"] == 41
+    assert second_request.global_override_scopes["seed"].value == 41
 
 
 def test_handle_generate_clicked_routes_mode_and_bindings_to_controller() -> None:

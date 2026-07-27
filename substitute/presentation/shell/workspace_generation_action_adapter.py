@@ -37,6 +37,7 @@ from substitute.presentation.shell.workspace_generation_controller import (
 )
 from substitute.presentation.shell.workspace_generation_request_builder import (
     active_behavior_snapshot,
+    synchronize_generation_request_seed_scopes,
 )
 from substitute.presentation.shell.workspace_ports import (
     GenerationActionRefreshProtocol,
@@ -154,11 +155,11 @@ def build_generation_action_bindings(
         """Build a request and randomize model-owned seeds before serialization."""
 
         request = build_generation_request()
-        randomize_generation_request_seeds(
+        result = randomize_generation_request_seeds(
             request=request,
             behavior_snapshot=active_behavior_snapshot(view, request.workflow_id),
         )
-        return request
+        return synchronize_generation_request_seed_scopes(request, result)
 
     return GenerationUiBindings(
         build_generation_request=build_generation_request_with_randomized_seeds,
