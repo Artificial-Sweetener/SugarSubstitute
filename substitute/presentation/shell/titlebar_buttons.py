@@ -97,6 +97,12 @@ from qframelesswindow.titlebar.title_bar_buttons import (  # type: ignore[import
 )
 
 from substitute.presentation.resources.app_icon import AppIcon
+from substitute.presentation.generation_action_icons import (
+    CONTINUOUS_GENERATION_ACTION_ICON,
+    GENERATE_ACTION_ICON,
+    SKIP_GENERATION_ACTION_ICON,
+    STOP_GENERATION_ACTION_ICON,
+)
 from substitute.presentation.widgets.menu_model import MenuItem, MenuModel
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
 from substitute.presentation.semantic_colors import (
@@ -158,7 +164,6 @@ _QUEUE_BADGE_DARK_FILL = QColor("#000000")
 _ALERT_ICON_RADIUS = 7.0
 _QUEUE_BADGE_HEIGHT = 12.0
 _COLLAPSE_DURATION_MS = 160
-_CONTINUOUS_GENERATION_ICON = AppIcon.INFINITY_HIGH_CONTRAST
 _GENERATION_REVEAL_BUTTON_WIDTH = 46
 _GENERATION_REVEAL_CHEVRON_HALF_WIDTH = 2.75
 _GENERATION_REVEAL_CHEVRON_HALF_HEIGHT = 4.25
@@ -589,7 +594,7 @@ class GenerationTitleBarSegmentButton(TitleBarButton):  # type: ignore[misc]
     def _icon_size(self) -> float:
         """Return the visual icon rect size for the current segment glyph."""
 
-        if self._icon is _CONTINUOUS_GENERATION_ICON:
+        if self._icon is CONTINUOUS_GENERATION_ACTION_ICON:
             return _CONTINUOUS_SEGMENT_ICON_SIZE
         if self.role == "skip":
             return _SKIP_SEGMENT_ICON_SIZE
@@ -1273,13 +1278,13 @@ class GenerationTitleBarActionCluster(QWidget):
                         "generation_mode.generate",
                         app_text("Generate"),
                         callback=lambda: self.generateModeSelected.emit("generate"),
-                        icon=FIF.PLAY_SOLID,
+                        icon=GENERATE_ACTION_ICON,
                     ),
                     MenuItem(
                         "generation_mode.continuous",
                         app_text("Continuous"),
                         callback=lambda: self.generateModeSelected.emit("continuous"),
-                        icon=_CONTINUOUS_GENERATION_ICON,
+                        icon=CONTINUOUS_GENERATION_ACTION_ICON,
                     ),
                 )
             )
@@ -1291,13 +1296,13 @@ class GenerationTitleBarActionCluster(QWidget):
 
         self.playButton = GenerationTitleBarSegmentButton(
             "play",
-            FIF.PLAY_SOLID,
+            GENERATE_ACTION_ICON,
             app_text("Generate"),
             self,
         )
         self.skipButton = GenerationTitleBarSegmentButton(
             "skip",
-            AppIcon.NEXT_24_FILLED,
+            SKIP_GENERATION_ACTION_ICON,
             app_text("Skip generation"),
             self,
         )
@@ -1309,7 +1314,7 @@ class GenerationTitleBarActionCluster(QWidget):
         )
         self.stopButton = GenerationTitleBarSegmentButton(
             "stop",
-            AppIcon.STOP_SOLID,
+            STOP_GENERATION_ACTION_ICON,
             app_text("Stop generation"),
             self,
         )
@@ -1379,9 +1384,9 @@ class GenerationTitleBarActionCluster(QWidget):
         """Apply the play segment icon, tooltip, and accessible name."""
 
         if play_mode == "generate":
-            icon: object = FIF.PLAY_SOLID
+            icon: object = GENERATE_ACTION_ICON
         elif play_mode == "continuous":
-            icon = _CONTINUOUS_GENERATION_ICON
+            icon = CONTINUOUS_GENERATION_ACTION_ICON
         else:
             icon = FIF.PAUSE_BOLD
         self.playButton.set_segment_icon(icon)
