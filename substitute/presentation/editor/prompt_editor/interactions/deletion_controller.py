@@ -155,6 +155,12 @@ class PromptDeletionResolver:
         separator_intent = self._separator_edge_intent(context, direction)
         if separator_intent is not None:
             return separator_intent
+        adjacent_separator_intent = self._adjacent_separator_edge_intent(
+            context,
+            direction,
+        )
+        if adjacent_separator_intent is not None:
+            return adjacent_separator_intent
         adjacent_state = (
             context.projection_document.caret_map.previous_state(context.cursor_state)
             if direction is PromptDeletionDirection.BACKWARD
@@ -264,6 +270,46 @@ class PromptDeletionResolver:
                 token.source_start + 1,
             )
         return None
+
+    @staticmethod
+    def _adjacent_separator_edge_intent(
+        context: PromptDeletionContext,
+        direction: PromptDeletionDirection,
+    ) -> PromptDeletionIntent | None:
+        """Delete one bracket when a visible caret sits beside a separator line."""
+
+        for separator in context.projection_document.region_structure.separators:
+            if (
+                direction is PromptDeletionDirection.BACKWARD
+                and context.cursor_position == separator.line_end
+            ):
+                return PromptDeletionIntent.delete_range(
+                    separator.token_end - 1,
+                    separator.token_end,
+                )
+            if (
+                direction is PromptDeletionDirection.FORWARD
+                and context.cursor_position
+                == _line_break_start_before_separator(
+                    context.source_text,
+                    separator.line_start,
+                )
+            ):
+                return PromptDeletionIntent.delete_range(
+                    separator.token_start,
+                    separator.token_start + 1,
+                )
+        return None
+
+
+def _line_break_start_before_separator(text: str, line_start: int) -> int:
+    """Return the source boundary immediately before one separator line."""
+
+    if line_start >= 2 and text[line_start - 2 : line_start] == "\r\n":
+        return line_start - 2
+    if line_start >= 1 and text[line_start - 1] in "\r\n":
+        return line_start - 1
+    return line_start
 
 
 class PromptSurfaceDeletionController(Generic[TPayload]):

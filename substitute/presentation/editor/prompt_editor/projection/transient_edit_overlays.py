@@ -256,6 +256,7 @@ class PromptProjectionTransientEditOverlayController:
         source_identity: PromptSourceIdentity,
         committed_source_identity: PromptSourceIdentity,
         current_caret_document_rect: QRectF,
+        insertion_overlay: PromptProjectionTransientInsertionOverlay | None,
         metrics: PromptProjectionMetrics,
         projection_document: PromptProjectionDocument,
         caret_navigation: PromptCaretNavigation,
@@ -265,10 +266,16 @@ class PromptProjectionTransientEditOverlayController:
         if replacement_text:
             if len(replacement_text) != 1 or replacement_text in {"\n", "\r"}:
                 return None
-            document_rect = QRectF(current_caret_document_rect).translated(
-                metrics.text_advance(replacement_text),
-                0.0,
-            )
+            if insertion_overlay is None:
+                document_rect = QRectF(current_caret_document_rect).translated(
+                    metrics.text_advance(replacement_text),
+                    0.0,
+                )
+            else:
+                document_rect = QRectF(insertion_overlay.document_rect).translated(
+                    metrics.text_advance(insertion_overlay.text),
+                    0.0,
+                )
         elif end == start + 1:
             caret_state = projection_document.caret_map.state_for_source_position(start)
             document_rect = caret_navigation.cursor_rect(caret_state, scroll_offset=0.0)
@@ -413,6 +420,7 @@ class PromptProjectionTransientEditOverlayController:
         source_identity: PromptSourceIdentity,
         committed_source_identity: PromptSourceIdentity,
         current_caret_document_rect: QRectF,
+        insertion_overlay: PromptProjectionTransientInsertionOverlay | None,
         metrics: PromptProjectionMetrics,
         content_right: float,
         document_margin: float,
@@ -435,8 +443,16 @@ class PromptProjectionTransientEditOverlayController:
                 max(base_rect.height(), metrics.text_line_height),
             )
         elif replacement_text:
-            advance = metrics.text_advance(replacement_text)
-            document_rect = QRectF(base_rect).translated(advance, 0.0)
+            if insertion_overlay is None:
+                document_rect = QRectF(base_rect).translated(
+                    metrics.text_advance(replacement_text),
+                    0.0,
+                )
+            else:
+                document_rect = QRectF(insertion_overlay.document_rect).translated(
+                    metrics.text_advance(insertion_overlay.text),
+                    0.0,
+                )
             if document_rect.left() > content_right + 0.01:
                 document_rect.moveLeft(
                     document_margin + max(0.0, source_line_content_left_inset)

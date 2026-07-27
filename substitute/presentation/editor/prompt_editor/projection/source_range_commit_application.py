@@ -134,6 +134,7 @@ class PromptSourceRangeCommitApplication(Generic[TProjectionPayload]):
                 start=start,
                 end=end,
                 replacement_text=replacement_text,
+                region_structure_requires_rebuild=region_structure_requires_rebuild,
             )
             if not projection_decision.can_defer_projection
             and self._semantic_remapper.should_use_optimistic_prompt_state_for_immediate_edit(

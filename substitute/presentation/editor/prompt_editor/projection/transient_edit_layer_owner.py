@@ -158,6 +158,10 @@ def _prepare_insertion(
         font=QFont(font),
         text_rgba=int(palette.color(QPalette.ColorRole.Text).rgba()),
         background_rgba=int(palette.color(QPalette.ColorRole.Base).rgba()),
+        erase_underlying_content=(
+            overlay.committed_source_identity.source_length is None
+            or overlay.source_start < overlay.committed_source_identity.source_length
+        ),
     )
 
 

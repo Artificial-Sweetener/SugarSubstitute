@@ -41,10 +41,11 @@ class PromptTransientEditRenderer:
         painter.save()
         try:
             painter.setFont(command.font)
-            painter.fillRect(
-                rect.adjusted(-1.0, 0.0, 1.0, 0.0),
-                QColor.fromRgba(command.background_rgba),
-            )
+            if command.erase_underlying_content:
+                painter.fillRect(
+                    rect.adjusted(-1.0, 0.0, 1.0, 0.0),
+                    QColor.fromRgba(command.background_rgba),
+                )
             painter.setPen(QColor.fromRgba(command.text_rgba))
             painter.drawText(
                 QPointF(rect.left(), command.baseline),

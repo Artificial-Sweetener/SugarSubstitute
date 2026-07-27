@@ -387,10 +387,10 @@ def test_real_shell_raw_caret_inside_marker_resolves_when_rich_mode_returns(
     assert not harness.invariant_violations(rich)
 
 
-def test_real_shell_backspace_at_region_start_deletes_line_break_before_text(
+def test_real_shell_backspace_at_region_start_deletes_separator_closing_bracket(
     harness: RealShellPromptEditorHarness,
 ) -> None:
-    """Backspace at regional text should delete its preceding newline, not `]`."""
+    """Backspace from regional text should expose a partial SEP marker."""
 
     source = "global\n[SEP]\npink witch hat"
     field = harness.add_prompt_workflow(initial_text=source)
@@ -403,18 +403,105 @@ def test_real_shell_backspace_at_region_start_deletes_line_break_before_text(
 
     assert before.cursor_position == regional_start
     assert before.caret_state_placement == "plain_text"
-    assert after.source_text == "global\n[SEP]pink witch hat"
-    assert after.cursor_position == regional_start - 1
-    assert after.projection_text.count("\ufffc") == 0
-    assert "[SEP]" in after.projection_text
+    assert after.source_text == "global\n[SEP\npink witch hat"
+    assert after.cursor_position == source.index("[SEP]") + len("[SEP")
+    assert "[SEP" in after.projection_text
+    assert "[SEP]" not in after.projection_text
     assert not any(row.is_structural for row in after.visible_layout_rows)
     assert not harness.invariant_violations(after)
 
 
-def test_real_shell_delete_before_separator_removes_decoration_atomically(
+def test_real_shell_backspace_below_separator_decoration_rebuilds_immediately(
     harness: RealShellPromptEditorHarness,
 ) -> None:
-    """Deleting the leading newline must not retain stale separator chrome."""
+    """Backspace beside a separator must delete its closing bracket atomically."""
+
+    source = "global\n[SEP]\nregional"
+    field = harness.add_prompt_workflow(initial_text=source)
+    regional_start = source.index("regional")
+    harness.click_projected_source_position(field, regional_start)
+    clicked = harness.capture_state_snapshot(
+        field,
+        label="separator-below-backspace-clicked",
+    )
+
+    immediate = harness.press_key_and_capture_immediate_state(
+        field,
+        Qt.Key.Key_Backspace,
+        label="separator-below-backspace-immediate",
+    )
+    settled = harness.capture_state_snapshot(
+        field,
+        label="separator-below-backspace-settled",
+    )
+
+    for snapshot in (immediate, settled):
+        assert snapshot.source_text == "global\n[SEP\nregional"
+        assert snapshot.document_view_region_separator_count == 0
+        assert snapshot.projection_region_separator_count == 0
+        assert not any(row.is_structural for row in snapshot.visible_layout_rows)
+    assert clicked.cursor_position == regional_start
+    assert clicked.caret_state_placement == "plain_text"
+    assert not harness.invariant_violations(settled)
+
+
+def test_real_shell_backspace_removes_extra_line_below_separator_decoration(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Backspace at regional text removes its visible blank line without demoting SEP."""
+
+    source = "global\n[SEP]\n\nregional"
+    field = harness.add_prompt_workflow(initial_text=source)
+    regional_start = source.index("regional")
+
+    harness.click_projected_source_position(field, regional_start)
+    clicked = harness.capture_state_snapshot(
+        field,
+        label="separator-extra-line-backspace-clicked",
+    )
+    harness.press_key(field, Qt.Key.Key_Backspace)
+    settled = harness.capture_state_snapshot(
+        field,
+        label="separator-extra-line-backspace-settled",
+    )
+
+    assert clicked.cursor_position == regional_start
+    assert clicked.caret_state_placement == "plain_text"
+    assert settled.source_text == "global\n[SEP]\nregional"
+    assert settled.cursor_position == regional_start - 1
+    assert settled.document_view_region_separator_count == 1
+    assert settled.projection_region_separator_count == 1
+    assert sum(row.is_structural for row in settled.visible_layout_rows) == 1
+    assert not harness.invariant_violations(settled)
+
+
+def test_real_shell_backspace_on_separator_closing_bracket_reveals_partial_marker(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Deleting `]` should reveal editable partial marker text rather than full SEP."""
+
+    source = "global\n[SEP]\nregional"
+    separator_end = source.index("[SEP]") + len("[SEP]")
+    field = harness.add_prompt_workflow(initial_text=source)
+    harness.set_source_cursor_position(field, separator_end)
+    before = harness.capture_state_snapshot(field, label="separator-closing-before")
+
+    harness.press_key(field, Qt.Key.Key_Backspace)
+    after = harness.capture_state_snapshot(field, label="separator-closing-after")
+
+    assert before.caret_state_placement == "token_trailing_edge"
+    assert after.source_text == "global\n[SEP\nregional"
+    assert "[SEP" in after.projection_text
+    assert "[SEP]" not in after.projection_text
+    assert after.projection_region_separator_count == 0
+    assert not any(row.is_structural for row in after.visible_layout_rows)
+    assert not harness.invariant_violations(after)
+
+
+def test_real_shell_delete_before_separator_deletes_opening_bracket(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Delete before a separator should expose its partial marker text."""
 
     source = "global\n[SEP]\npink witch hat"
     field = harness.add_prompt_workflow(initial_text=source)
@@ -426,18 +513,18 @@ def test_real_shell_delete_before_separator_removes_decoration_atomically(
         field, label="after-separator-leading-delete"
     )
 
-    assert after.source_text == "global[SEP]\npink witch hat"
-    assert after.cursor_position == global_end
-    assert after.projection_text.count("\ufffc") == 0
-    assert "[SEP]" in after.projection_text
+    assert after.source_text == "global\nSEP]\npink witch hat"
+    assert after.cursor_position == global_end + 1
+    assert "SEP]" in after.projection_text
+    assert "[SEP]" not in after.projection_text
     assert not any(row.is_structural for row in after.visible_layout_rows)
     assert not harness.invariant_violations(after)
 
 
-def test_real_shell_repeated_delete_never_combines_separator_text_and_decoration(
+def test_real_shell_repeated_delete_exposes_partial_separator_text(
     harness: RealShellPromptEditorHarness,
 ) -> None:
-    """Repeated Delete should transition from decoration-only to literal-only."""
+    """Repeated Delete may remove blank lines before exposing one partial marker."""
 
     source = "global\n\n[SEP]\npink witch hat"
     field = harness.add_prompt_workflow(initial_text=source)
@@ -453,14 +540,14 @@ def test_real_shell_repeated_delete_never_combines_separator_text_and_decoration
         field,
         label="separator-delete-preserves-structure-settled",
     )
-    immediate_literal = harness.press_key_and_capture_immediate_state(
+    immediate_partial = harness.press_key_and_capture_immediate_state(
         field,
         Qt.Key.Key_Delete,
-        label="separator-delete-invalidates-structure",
+        label="separator-delete-exposes-partial-marker",
     )
-    now_literal = harness.capture_state_snapshot(
+    now_partial = harness.capture_state_snapshot(
         field,
-        label="separator-delete-invalidates-structure-settled",
+        label="separator-delete-exposes-partial-marker-settled",
     )
 
     for snapshot in (immediate_structural, still_structural):
@@ -469,22 +556,14 @@ def test_real_shell_repeated_delete_never_combines_separator_text_and_decoration
         assert "[SEP]" not in snapshot.projection_text
         assert sum(row.is_structural for row in snapshot.visible_layout_rows) == 1
         assert not snapshot.transient_deletion_overlay_present
-    for snapshot in (immediate_literal, now_literal):
-        assert snapshot.source_text == "global[SEP]\npink witch hat"
-        assert snapshot.projection_text.count("\ufffc") == 0, (
-            snapshot.label,
-            snapshot.document_view_source_text,
-            snapshot.document_view_region_separator_count,
-            snapshot.projection_document_source_text,
-            snapshot.projection_region_separator_count,
-            snapshot.projection_freshness,
-            snapshot.projection_has_pending_update,
-        )
-        assert "[SEP]" in snapshot.projection_text
+    for snapshot in (immediate_partial, now_partial):
+        assert snapshot.source_text == "global\nSEP]\npink witch hat"
+        assert "SEP]" in snapshot.projection_text
+        assert "[SEP]" not in snapshot.projection_text
         assert not any(row.is_structural for row in snapshot.visible_layout_rows)
         assert not snapshot.transient_deletion_overlay_present
     assert not harness.invariant_violations(still_structural)
-    assert not harness.invariant_violations(now_literal)
+    assert not harness.invariant_violations(now_partial)
 
 
 def test_real_shell_horizontal_navigation_crosses_separator_without_stalling(
@@ -1581,6 +1660,32 @@ def test_real_shell_deferred_typing_keeps_transient_overlay_state_valid(
     assert after.transient_insertion_overlay_present
     assert after.transient_insertion_overlay_valid
     assert not violations
+
+
+def test_real_shell_trailing_typing_keeps_caret_aligned_without_erasing_background(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Keep accumulated end typing aligned without painting a foreign backing fill."""
+
+    field = harness.add_prompt_workflow(initial_text="alpha")
+    harness.move_cursor_to_end(field)
+    before = harness.capture_state_snapshot(field, label="trailing-typing-before")
+    after = harness.type_text_and_capture_immediate_state(
+        field,
+        "xyz",
+        label="trailing-typing-immediate",
+    )
+    surface = field.editor._surface
+    command = surface._render_frame_owner.frame.transient_layer.insertion
+
+    assert command is not None
+    assert command.text == "xyz"
+    assert before.caret_rect is not None
+    assert after.transient_insertion_overlay_viewport_rect is not None
+    assert after.caret_rect is not None
+    assert command.rect[0] == pytest.approx(before.caret_rect[0])
+    assert after.caret_rect[0] == pytest.approx(command.rect[0] + command.rect[2])
+    assert not command.erase_underlying_content
 
 
 def test_real_shell_space_after_deferred_typing_updates_projection_or_bridge(

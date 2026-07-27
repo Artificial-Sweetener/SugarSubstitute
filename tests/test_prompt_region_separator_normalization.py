@@ -85,6 +85,29 @@ def test_typed_malformed_separator_remains_ordinary_source() -> None:
         assert normalization.text == text
 
 
+@pytest.mark.parametrize(
+    ("text", "position", "expected"),
+    (
+        ("global\n[SEP]pink", len("global\n[SEP]"), "global\n[SEP]\npink"),
+        ("global[SEP]\npink", len("global"), "global\n[SEP]\npink"),
+        ("global\r\n[SEP]pink", len("global\r\n[SEP]"), "global\r\n[SEP]\r\npink"),
+    ),
+)
+def test_typed_deletion_restores_complete_separator_line_boundaries(
+    text: str,
+    position: int,
+    expected: str,
+) -> None:
+    """A deletion may expose malformed marker text, but never a complete marker."""
+
+    normalization = PromptSourceNormalizationService().normalize_for_typed_deletion(
+        text,
+        position=position,
+    )
+
+    assert normalization.text == expected
+
+
 def test_extra_closing_bracket_does_not_renormalize_completed_separator() -> None:
     """Typing after a complete marker must preserve the authored `[SEP]]` text."""
 

@@ -56,6 +56,7 @@ class PromptTransientInsertionCommand:
     font: QFont
     text_rgba: int
     background_rgba: int
+    erase_underlying_content: bool
 
 
 @dataclass(frozen=True, slots=True)
