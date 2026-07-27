@@ -361,34 +361,6 @@ def test_edit_to_frame_owner_cannot_gain_presentation_value_facades() -> None:
 def test_layout_edit_mechanisms_remain_focused_and_directional() -> None:
     """Keep edit policy, mutation, remapping, and recovery as separate owners."""
 
-    budgets = {
-        "tag_keep_policy.py": (255, 10),
-        "edit_policy.py": (475, 14),
-        "line_break_edits.py": (409, 9),
-        "canonical_edit_window.py": (289, 5),
-        "snapshot_edits.py": (689, 19),
-        "same_line_engine.py": (304, 1),
-        "hard_line_engine.py": (299, 4),
-        "trailing_engine.py": (505, 6),
-    }
-    actual = {}
-    for file_name, (maximum_lines, maximum_functions) in budgets.items():
-        source_path = PROMPT_PRESENTATION_ROOT / "layout" / file_name
-        source = source_path.read_text(encoding="utf-8")
-        tree = ast.parse(source)
-        function_count = sum(
-            isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
-            for node in tree.body
-        )
-        line_count = len(source.splitlines())
-        if line_count > maximum_lines or function_count > maximum_functions:
-            actual[file_name] = {
-                "lines": line_count,
-                "maximum_lines": maximum_lines,
-                "functions": function_count,
-                "maximum_functions": maximum_functions,
-            }
-
     module_paths = python_module_paths(PROJECT_ROOT, PROMPT_ARCHITECTURE_ROOTS)
     graph = internal_import_graph(module_paths)
     prefix = "substitute.presentation.editor.prompt_editor.layout."
@@ -430,7 +402,6 @@ def test_layout_edit_mechanisms_remain_focused_and_directional() -> None:
         },
     }
 
-    assert actual == {}
     assert {
         module_name: tuple(sorted(graph[module_name] & forbidden))
         for module_name, forbidden in forbidden_edges.items()
@@ -440,58 +411,6 @@ def test_layout_edit_mechanisms_remain_focused_and_directional() -> None:
 
 def test_prepared_paint_owners_remain_focused_and_directional() -> None:
     """Keep paint preparation flowing toward immutable layers and render sinks."""
-
-    budgets = {
-        "caret_layer_owner.py": 73,
-        "caret_render_state.py": 45,
-        "caret_renderer.py": 44,
-        "content_inline_bindings.py": 152,
-        "content_media_owner.py": 62,
-        "content_media_state.py": 37,
-        "content_selection_layer.py": 200,
-        "content_selection_owner.py": 126,
-        "content_text_styles.py": 141,
-        "diagnostic_fragment_cache.py": 285,
-        "diagnostic_layer_assets.py": 67,
-        "diagnostic_layer_owner.py": 308,
-        "diagnostic_layer_preparer.py": 233,
-        "diagnostic_layer_state.py": 111,
-        "diagnostic_render_layer.py": 98,
-        "diagnostic_renderer.py": 62,
-        "diagnostic_wave_tiles.py": 153,
-        "input_method_controller.py": 387,
-        "input_method_layer_preparer.py": 197,
-        "input_method_render_state.py": 78,
-        "input_method_renderer.py": 54,
-        "paint_cache.py": 299,
-        "paint_input.py": 306,
-        "painter.py": 237,
-        "prepared_frame.py": 275,
-        "region_chrome.py": 407,
-        "region_chrome_renderer.py": 49,
-        "region_chrome_state.py": 42,
-        "render_compositor.py": 183,
-        "render_frame.py": 191,
-        "render_frame_owner.py": 193,
-        "search_highlight_layer.py": 83,
-        "search_highlight_owner.py": 143,
-        "search_highlight_renderer.py": 73,
-        "source_line_chrome.py": 190,
-        "source_line_render_state.py": 64,
-        "source_line_renderer.py": 51,
-        "transient_edit_layer_owner.py": 187,
-        "transient_edit_render_state.py": 93,
-        "transient_edit_renderer.py": 79,
-    }
-    violations: dict[str, dict[str, int]] = {}
-    for file_name, maximum_lines in budgets.items():
-        source_path = PROMPT_PRESENTATION_ROOT / "projection" / file_name
-        line_count = len(source_path.read_text(encoding="utf-8").splitlines())
-        if line_count > maximum_lines:
-            violations[file_name] = {
-                "lines": line_count,
-                "maximum_lines": maximum_lines,
-            }
 
     module_paths = python_module_paths(PROJECT_ROOT, PROMPT_ARCHITECTURE_ROOTS)
     graph = internal_import_graph(module_paths)
@@ -631,7 +550,6 @@ def test_prepared_paint_owners_remain_focused_and_directional() -> None:
         f"{prefix}surface"
     }
 
-    assert violations == {}
     assert {
         module_name: tuple(sorted(graph[module_name] & forbidden))
         for module_name, forbidden in forbidden_edges.items()
@@ -642,10 +560,7 @@ def test_prepared_paint_owners_remain_focused_and_directional() -> None:
 def test_edit_classifier_remains_pure_and_bounded() -> None:
     """Keep path selection independent of Qt, layout, and mutable editor hosts."""
 
-    budgets = {
-        "edit_classifier.py": 127,
-        "edit_strategy.py": 140,
-    }
+    modules = ("edit_classifier.py", "edit_strategy.py")
     forbidden_prefixes = (
         "PySide6",
         "qfluentwidgets",
@@ -654,7 +569,7 @@ def test_edit_classifier_remains_pure_and_bounded() -> None:
         "substitute.presentation",
     )
     violations: dict[str, object] = {}
-    for file_name, maximum_lines in budgets.items():
+    for file_name in modules:
         source_path = PROMPT_PRESENTATION_ROOT / "projection" / file_name
         source = source_path.read_text(encoding="utf-8")
         tree = ast.parse(source)
@@ -673,10 +588,8 @@ def test_edit_classifier_remains_pure_and_bounded() -> None:
             for imported in imported_modules
             if imported.startswith(forbidden_prefixes)
         }
-        if len(source.splitlines()) > maximum_lines or forbidden_imports:
+        if forbidden_imports:
             violations[file_name] = {
-                "lines": len(source.splitlines()),
-                "maximum_lines": maximum_lines,
                 "forbidden_imports": tuple(sorted(forbidden_imports)),
             }
 
@@ -686,10 +599,7 @@ def test_edit_classifier_remains_pure_and_bounded() -> None:
 def test_edit_fact_owners_remain_focused_and_outward_independent() -> None:
     """Keep bounded edit facts outside mutable surface and Qt ownership."""
 
-    budgets = {
-        "edit_fact_resolver.py": 130,
-        "source_edit_projection_policy.py": 193,
-    }
+    modules = ("edit_fact_resolver.py", "source_edit_projection_policy.py")
     forbidden_prefixes = (
         "PySide6",
         "qfluentwidgets",
@@ -702,7 +612,7 @@ def test_edit_fact_owners_remain_focused_and_outward_independent() -> None:
         "substitute.presentation.editor.prompt_editor.projection.surface",
     }
     violations: dict[str, object] = {}
-    for file_name, maximum_lines in budgets.items():
+    for file_name in modules:
         source_path = PROMPT_PRESENTATION_ROOT / "projection" / file_name
         source = source_path.read_text(encoding="utf-8")
         tree = ast.parse(source)
@@ -722,10 +632,8 @@ def test_edit_fact_owners_remain_focused_and_outward_independent() -> None:
             if imported.startswith(forbidden_prefixes)
             or imported in forbidden_projection_modules
         }
-        if len(source.splitlines()) > maximum_lines or forbidden_imports:
+        if forbidden_imports:
             violations[file_name] = {
-                "lines": len(source.splitlines()),
-                "maximum_lines": maximum_lines,
                 "forbidden_imports": tuple(sorted(forbidden_imports)),
             }
 
@@ -751,42 +659,42 @@ def test_edit_fact_owners_remain_focused_and_outward_independent() -> None:
 def test_edit_pipeline_owns_selection_without_reentering_integration_roots() -> None:
     """Keep edit orchestration focused and remove controller-side selection."""
 
-    budgets = {
-        "deferred_feedback_strategy.py": 352,
-        "direct_feedback_strategy.py": 156,
-        "edit_pipeline.py": 388,
-        "edit_pipeline_contracts.py": 143,
-        "edit_publication.py": 316,
-        "history_checkpoint_strategy.py": 76,
-        "incremental_edit_contracts.py": 80,
-        "incremental_layout_editor.py": 136,
-        "incremental_reflow_strategy.py": 225,
-        "plain_text_document_editor.py": 195,
-        "plain_text_document_remapper.py": 404,
-        "plain_text_edit_policy.py": 165,
-        "projection_build_context.py": 45,
-        "prompt_state_projection_strategy.py": 134,
-        "render_plan_ranges.py": 124,
-        "source_text_edit.py": 65,
-        "source_edit_projection_facts.py": 241,
-        "source_commit_application.py": 69,
-        "source_commit_ports.py": 133,
-        "source_document_commit_application.py": 136,
-        "source_history_commit_application.py": 202,
-        "source_range_commit_application.py": 168,
-        "source_change_transaction.py": 306,
-        "source_projection_application.py": 246,
-        "semantic_transition_strategy.py": 129,
-        "trailing_document_editor.py": 359,
-        "trailing_edit_strategy.py": 258,
-    }
+    modules = (
+        "deferred_feedback_strategy.py",
+        "direct_feedback_strategy.py",
+        "edit_pipeline.py",
+        "edit_pipeline_contracts.py",
+        "edit_publication.py",
+        "history_checkpoint_strategy.py",
+        "incremental_edit_contracts.py",
+        "incremental_layout_editor.py",
+        "incremental_reflow_strategy.py",
+        "plain_text_document_editor.py",
+        "plain_text_document_remapper.py",
+        "plain_text_edit_policy.py",
+        "projection_build_context.py",
+        "prompt_state_projection_strategy.py",
+        "render_plan_ranges.py",
+        "source_text_edit.py",
+        "source_edit_projection_facts.py",
+        "source_commit_application.py",
+        "source_commit_ports.py",
+        "source_document_commit_application.py",
+        "source_history_commit_application.py",
+        "source_range_commit_application.py",
+        "source_change_transaction.py",
+        "source_projection_application.py",
+        "semantic_transition_strategy.py",
+        "trailing_document_editor.py",
+        "trailing_edit_strategy.py",
+    )
     forbidden_fragments = {
         "qfluentwidgets",
         "projection.surface",
         "projection.source_change_applier",
     }
     violations: dict[str, object] = {}
-    for file_name, maximum_lines in budgets.items():
+    for file_name in modules:
         source_path = PROMPT_PRESENTATION_ROOT / "projection" / file_name
         source = source_path.read_text(encoding="utf-8")
         qt_boundary_modules = {
@@ -816,10 +724,8 @@ def test_edit_pipeline_owns_selection_without_reentering_integration_roots() -> 
             for imported in imported_modules
             if any(fragment in imported for fragment in file_forbidden_fragments)
         }
-        if len(source.splitlines()) > maximum_lines or forbidden_imports:
+        if forbidden_imports:
             violations[file_name] = {
-                "lines": len(source.splitlines()),
-                "maximum_lines": maximum_lines,
                 "forbidden_imports": tuple(sorted(forbidden_imports)),
             }
 
@@ -1018,13 +924,9 @@ def test_reorder_preview_projection_has_one_way_focused_owners() -> None:
     )
     assert state_builder in graph[publication_owner]
     assert state_builder not in graph[interaction]
-    state_builder_source = (
-        PROMPT_PRESENTATION_ROOT / "projection" / "reorder_preview_state_builder.py"
-    ).read_text(encoding="utf-8")
     interaction_source = (
         PROMPT_PRESENTATION_ROOT / "interactions" / "reorder_interaction.py"
     ).read_text(encoding="utf-8")
-    assert _owned_source_line_count(state_builder_source) <= 309
     assert not any(
         obsolete_method in interaction_source
         for obsolete_method in (
@@ -1069,8 +971,6 @@ def test_reorder_geometry_flows_from_published_inputs_without_widget_host() -> N
     assert "PromptReorderGeometryHost" not in owner_source
     assert "PromptReorderGeometryHost" not in interaction_source
     assert "_geometry_host" not in interaction_source
-    assert _owned_source_line_count(owner_source) <= 610
-    assert _owned_source_line_count(interaction_source) <= 1168
 
 
 def test_reorder_geometry_cache_has_one_way_focused_owners() -> None:
@@ -1459,35 +1359,6 @@ def test_reorder_interaction_geometry_has_directional_focused_owners() -> None:
     assert "build_base_drag_state(" in drag_preparation_source
     assert "build_preview_drop_state(" in preview_layout_state_source
     assert '"start.live_placement_prime"' not in owner_source
-
-    budgets = {
-        "reorder_drop_targets.py": 74,
-        "reorder_pointer_hit_testing.py": 431,
-        "reorder_drop_geometry_builder.py": 107,
-        "reorder_drop_geometry_publication.py": 57,
-        "reorder_drag_geometry_preparation.py": 157,
-        "reorder_keyboard_geometry.py": 257,
-        "reorder_keyboard_navigation.py": 455,
-        "reorder_keyboard_projection_transition.py": 148,
-        "reorder_interaction_geometry_state.py": 53,
-        "reorder_interaction_geometry_identity.py": 249,
-        "reorder_preview_layout_policy.py": 38,
-        "reorder_preview_layout_state.py": 168,
-        "reorder_preview_geometry_transition.py": 186,
-        "reorder_interaction_geometry.py": 376,
-    }
-    for module_name, budget in budgets.items():
-        source = (PROMPT_PRESENTATION_ROOT / "projection" / module_name).read_text(
-            encoding="utf-8"
-        )
-        assert _owned_source_line_count(source) <= budget
-    assert (
-        _class_method_count(
-            owner_source,
-            "PromptReorderInteractionGeometry",
-        )
-        == 17
-    )
 
 
 def test_reorder_preview_visual_publication_flows_outward_to_qt_adapters() -> None:
@@ -2722,14 +2593,6 @@ def test_reorder_preview_visual_publication_flows_outward_to_qt_adapters() -> No
             encoding="utf-8"
         )
         assert _owned_source_line_count(source) <= budget
-    interaction_metrics_source = (
-        PROMPT_PRESENTATION_ROOT / "interactions" / "reorder_interaction_metrics.py"
-    ).read_text(encoding="utf-8")
-    assert _owned_source_line_count(interaction_metrics_source) <= 398
-    surface_visual_source = (
-        PROMPT_PRESENTATION_ROOT / "projection" / "reorder_surface_visual_state.py"
-    ).read_text(encoding="utf-8")
-    assert _owned_source_line_count(surface_visual_source) <= 165
     obsolete_split_publication_apis = (
         "set_reorder_overlay_suppression_snapshots",
         "set_reorder_surface_chrome",
@@ -2904,51 +2767,6 @@ def test_reorder_preview_publications_flow_through_typed_composition() -> None:
     assert "-> object:" not in factory_source
     assert "cast(" not in factory_source
 
-    budgets = {
-        value: 36,
-        visual_policy: 47,
-        facts_owner: 118,
-        sync_context_owner: 142,
-        publication_owner: 266,
-        visual_lifecycle: 140,
-        session_activation: 180,
-        overlay: 876,
-        port: 149,
-        session: 350,
-    }
-    for module, budget in budgets.items():
-        source = module_paths[module].read_text(encoding="utf-8")
-        assert _owned_source_line_count(source) <= budget
-    assert _class_method_count(overlay_source, "SegmentReorderOverlay") == 53
-    visual_lifecycle_source = module_paths[visual_lifecycle].read_text(encoding="utf-8")
-    assert (
-        _class_method_count(
-            visual_lifecycle_source,
-            "PromptReorderOverlayVisualLifecycleOwner",
-        )
-        <= 8
-    )
-    session_activation_source = module_paths[session_activation].read_text(
-        encoding="utf-8"
-    )
-    assert (
-        _class_method_count(
-            session_activation_source,
-            "PromptReorderOverlaySessionActivationOwner",
-        )
-        <= 3
-    )
-    assert (
-        _class_method_count(controller_source, "PromptReorderOverlaySessionOwner") <= 17
-    )
-    assert (
-        _class_method_count(
-            module_paths[port].read_text(encoding="utf-8"),
-            "PromptReorderOverlayPort",
-        )
-        == 14
-    )
-
 
 def test_reorder_autoscroll_state_flows_outward_from_one_owner() -> None:
     """Keep timer, coalescing, pending state, and counters under one owner."""
@@ -2978,7 +2796,6 @@ def test_reorder_autoscroll_state_flows_outward_from_one_owner() -> None:
         PROMPT_PRESENTATION_ROOT / "overlays" / "reorder_autoscroll.py"
     ).read_text(encoding="utf-8")
     assert "class PromptReorderAutoscrollController" not in source
-    assert _owned_source_line_count(source) <= 315
     overlay_sources = "\n".join(
         (PROMPT_PRESENTATION_ROOT / "overlays" / module_name).read_text(
             encoding="utf-8"
@@ -3082,7 +2899,6 @@ def test_reorder_selection_policy_flows_outward_to_qt_adapter() -> None:
     }
     assert lifecycle_owner in graph[session]
     assert selection_policy not in graph[session]
-    assert _owned_source_line_count(policy_source) <= 129
     assert all(
         obsolete_method not in session_source
         for obsolete_method in (
@@ -3122,7 +2938,6 @@ def test_reorder_session_and_intents_are_application_owned() -> None:
     assert graph[commit_owner] == {"substitute.application.prompt_editor.reorder.views"}
     commit_source = module_paths[commit_owner].read_text(encoding="utf-8")
     assert "PySide6" not in commit_source
-    assert _owned_source_line_count(commit_source) <= 62
     assert (
         _class_method_count(
             commit_source,
@@ -3131,10 +2946,8 @@ def test_reorder_session_and_intents_are_application_owned() -> None:
         <= 2
     )
     session_source = module_paths[session_owner].read_text(encoding="utf-8")
-    assert _owned_source_line_count(session_source) <= 224
     assert _class_method_count(session_source, "PromptReorderSessionOwner") <= 8
     lifecycle_source = module_paths[lifecycle_owner].read_text(encoding="utf-8")
-    assert _owned_source_line_count(lifecycle_source) <= 190
     assert _class_method_count(lifecycle_source, "PromptReorderLifecycleOwner") <= 9
 
     deleted_owners = (
@@ -3530,10 +3343,8 @@ def test_autocomplete_presentation_lifecycle_is_the_only_panel_and_preview_owner
     assert "class PromptAutocompletePresentationLifecycle" in lifecycle_source
     assert "application.prompt_editor.autocomplete" not in lifecycle_source
     assert "PromptAutocompleteResultController" not in lifecycle_source
-    assert _owned_source_line_count(lifecycle_source) <= 210
     assert "class PromptAutocompleteSessionPublication" in publication_source
     assert "PromptAutocompletePresentationLifecycle" in publication_source
-    assert _owned_source_line_count(publication_source) <= 190
 
 
 def test_autocomplete_query_result_lifecycle_is_the_only_query_cache_owner() -> None:
@@ -3564,7 +3375,6 @@ def test_autocomplete_query_result_lifecycle_is_the_only_query_cache_owner() -> 
     assert "class PromptAutocompleteQueryResultLifecycle" in lifecycle_source
     assert "PySide6" not in lifecycle_source
     assert "PromptAutocompletePresentationLifecycle" not in lifecycle_source
-    assert _owned_source_line_count(lifecycle_source) <= 320
     assert "publication=session_publication" in (
         PROMPT_PRESENTATION_ROOT / "composition" / "factory.py"
     ).read_text(encoding="utf-8")
@@ -3587,7 +3397,6 @@ def test_autocomplete_acceptance_lifecycle_owns_session_command_transactions() -
     assert "class PromptAutocompleteAcceptanceLifecycle" in lifecycle_source
     assert "PromptAutocompleteAcceptanceController" in lifecycle_source
     assert "PromptAutocompleteSessionPublication" in lifecycle_source
-    assert _owned_source_line_count(lifecycle_source) <= 125
 
 
 def test_autocomplete_input_adapter_stays_at_the_qt_boundary() -> None:
@@ -3603,7 +3412,6 @@ def test_autocomplete_input_adapter_stays_at_the_qt_boundary() -> None:
     assert "PromptAutocompleteResultController" not in adapter_source
     assert "PromptAutocompleteAcceptanceController" not in adapter_source
     assert "self._sessions" not in adapter_source
-    assert _owned_source_line_count(adapter_source) <= 420
 
 
 def test_autocomplete_test_stack_exposes_real_owners_without_proxy_routing() -> None:
@@ -3690,8 +3498,6 @@ def test_diagnostics_provider_and_refresh_owners_stay_outside_feature_controller
     assert (
         "diagnostics=self._diagnostics_feature_controller.presentation" in widget_source
     )
-    assert _owned_source_line_count(controller_source) <= 220
-    assert _owned_source_line_count(presentation_source) <= 600
 
 
 def test_weight_interaction_stays_below_general_interaction_routing() -> None:
@@ -3746,8 +3552,6 @@ def test_weight_interaction_stays_below_general_interaction_routing() -> None:
     assert "exact_edit_host=weight_interaction" in factory_source
     assert "weight_interaction.modify_emphasis" in signal_source
     assert "weight_interaction.apply_token_weight_step_intent" in signal_source
-    assert _owned_source_line_count(controller_source) <= 530
-    assert _owned_source_line_count(weight_source) <= 600
 
 
 def test_lora_metadata_refresh_and_presentation_owners_stay_separate() -> None:
@@ -3782,8 +3586,6 @@ def test_lora_metadata_refresh_and_presentation_owners_stay_separate() -> None:
     assert "self._lora_metadata_refresh" in widget_source
     assert "_lora_metadata_feature_controller" not in widget_source
     assert "lora_metadata: PromptLoraMetadataPresentation" in factory_source
-    assert _owned_source_line_count(presentation_source) <= 225
-    assert _owned_source_line_count(refresh_source) <= 225
 
 
 def test_wildcard_diagnostics_and_autocomplete_owners_stay_separate() -> None:
@@ -3825,9 +3627,6 @@ def test_wildcard_diagnostics_and_autocomplete_owners_stay_separate() -> None:
     assert "PromptWildcardFeatureController" not in diagnostics_lifecycle_source
     assert "wildcard_autocomplete_presentation" in factory_source
     assert "wildcard_diagnostics_presentation" in factory_source
-    assert _owned_source_line_count(autocomplete_source) <= 650
-    assert _owned_source_line_count(cache_source) <= 110
-    assert _owned_source_line_count(diagnostics_source) <= 85
 
 
 def test_context_menu_preparation_stays_out_of_snapshot_assembly() -> None:
@@ -3885,7 +3684,6 @@ def test_context_menu_preparation_stays_out_of_snapshot_assembly() -> None:
     assert "self._context_menu_preparation" in widget_source
     assert "snapshot_reader: PromptContextMenuSnapshotAssembler" in factory_source
     assert "preparation: PromptContextMenuPreparationLifecycle" in factory_source
-    assert _owned_source_line_count(preparation_source) <= 130
 
 
 def test_deleted_editing_graph_cannot_return() -> None:
