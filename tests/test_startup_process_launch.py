@@ -99,6 +99,10 @@ def test_start_ready_app_process_launches_with_hidden_stdio(
         return object()
 
     monkeypatch.setattr(
+        "substitute.app.bootstrap.startup_process_launch.restart_application_launch_environment",
+        lambda _command: {"SUGAR_SUBSTITUTE_LAUNCH_GUARD_TOKEN": "restart-token"},
+    )
+    monkeypatch.setattr(
         "substitute.app.bootstrap.startup_process_launch.subprocess.Popen",
         _fake_popen,
     )
@@ -125,11 +129,21 @@ def test_start_ready_app_process_handles_empty_and_failed_commands(
 ) -> None:
     """Failed launches should return false without logging full local command paths."""
 
+    canceled_handoffs: list[tuple[Sequence[str], dict[str, str]]] = []
+
     def _raise_os_error(_command: Sequence[str], **_kwargs: object) -> object:
         """Raise the broad process-launch failure handled by the launcher."""
 
         raise OSError("launch failed")
 
+    monkeypatch.setattr(
+        "substitute.app.bootstrap.startup_process_launch.restart_application_launch_environment",
+        lambda _command: {"SUGAR_SUBSTITUTE_LAUNCH_GUARD_TOKEN": "restart-token"},
+    )
+    monkeypatch.setattr(
+        "substitute.app.bootstrap.startup_process_launch.cancel_restart_application_launch_environment",
+        lambda command, environment: canceled_handoffs.append((command, environment)),
+    )
     monkeypatch.setattr(
         "substitute.app.bootstrap.startup_process_launch.subprocess.Popen",
         _raise_os_error,
@@ -146,6 +160,63 @@ def test_start_ready_app_process_handles_empty_and_failed_commands(
 
     assert "Failed to start fresh app process" in caplog.text
     assert str(tmp_path) not in caplog.text
+    assert len(canceled_handoffs) == 1
+
+
+def test_start_ready_app_process_rejects_an_unauthorized_handoff(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A fresh app child must not start without one-use restart authority."""
+
+    entrypoint = tmp_path / "app" / "main.py"
+    entrypoint.parent.mkdir()
+    entrypoint.write_text("print('ready')", encoding="utf-8")
+    monkeypatch.setattr(
+        "substitute.app.bootstrap.startup_process_launch.restart_application_launch_environment",
+        lambda _command: None,
+    )
+    monkeypatch.setattr(
+        "substitute.app.bootstrap.startup_process_launch.subprocess.Popen",
+        lambda *_args, **_kwargs: pytest.fail(
+            "Unauthorized handoffs must stop before process creation."
+        ),
+    )
+
+    assert start_ready_app_process([sys.executable, str(entrypoint)]) is False
+
+
+def test_start_ready_app_process_uses_a_controlled_restart_environment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A legitimate in-app restart should receive its dedicated handoff token."""
+
+    entrypoint = tmp_path / "app" / "main.py"
+    entrypoint.parent.mkdir()
+    entrypoint.write_text("print('ready')", encoding="utf-8")
+    observed: dict[str, object] = {}
+
+    def _fake_popen(_command: Sequence[str], **kwargs: object) -> object:
+        """Record the private replacement environment without starting a process."""
+
+        observed["kwargs"] = kwargs
+        return object()
+
+    monkeypatch.setattr(
+        "substitute.app.bootstrap.startup_process_launch.restart_application_launch_environment",
+        lambda _command: {"SUGAR_SUBSTITUTE_LAUNCH_GUARD_TOKEN": "restart-token"},
+    )
+    monkeypatch.setattr(
+        "substitute.app.bootstrap.startup_process_launch.subprocess.Popen",
+        _fake_popen,
+    )
+
+    assert start_ready_app_process([sys.executable, str(entrypoint), "--ready"]) is True
+
+    kwargs = observed["kwargs"]
+    assert isinstance(kwargs, dict)
+    assert kwargs["env"] == {"SUGAR_SUBSTITUTE_LAUNCH_GUARD_TOKEN": "restart-token"}
 
 
 def test_process_launch_imports_only_runtime_launch_boundaries() -> None:

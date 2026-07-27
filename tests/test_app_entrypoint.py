@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -27,6 +28,9 @@ import pytest
 
 import main as app_entrypoint
 from substitute.app.bootstrap.startup_timing import StartupTimingRecord
+from sugarsubstitute_shared.application_launch_guard import (
+    APPLICATION_LAUNCH_TOKEN_ENV,
+)
 
 
 def test_main_starts_early_splash_and_passes_it_to_bootstrap(
@@ -35,6 +39,11 @@ def test_main_starts_early_splash_and_passes_it_to_bootstrap(
     """Root entrypoint should hand the early splash into app bootstrap."""
 
     calls: list[tuple[str, object]] = []
+    monkeypatch.setattr(
+        app_entrypoint,
+        "_enter_application_launch_guard",
+        lambda **_kwargs: True,
+    )
     splash = _Splash()
     relay = _CancelRelay()
     argv = ["main.py", "--install-root=E:\\SugarSubstitute"]
@@ -129,6 +138,11 @@ def test_main_closes_early_splash_when_bootstrap_fails(
 
     splash = _Splash()
     relay = _CancelRelay()
+    monkeypatch.setattr(
+        app_entrypoint,
+        "_enter_application_launch_guard",
+        lambda **_kwargs: True,
+    )
     env_file_module = ModuleType("substitute.app.bootstrap.env_file")
     env_file_module.load_env_file = lambda _path: None  # type: ignore[attr-defined]
     early_splash_module = ModuleType("substitute.app.bootstrap.early_launch_splash")
@@ -161,6 +175,70 @@ def test_main_closes_early_splash_when_bootstrap_fails(
         app_entrypoint.main()
 
     assert splash.closed is True
+
+
+def test_main_refuses_to_start_splash_when_launch_guard_is_held(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A concurrent application process should exit before starting a splash."""
+
+    monkeypatch.setattr(
+        app_entrypoint,
+        "_enter_application_launch_guard",
+        lambda **_kwargs: False,
+    )
+    monkeypatch.setattr(
+        app_entrypoint,
+        "resolve_early_startup_locale",
+        lambda *_args, **_kwargs: pytest.fail(
+            "Rejected launches must stop before splash localization."
+        ),
+    )
+
+    app_entrypoint.main()
+
+
+def test_entrypoint_consumes_launch_authority_before_bootstrap(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The app must clear its inherited token immediately after claiming it."""
+
+    observed: dict[str, object] = {}
+    guard = object()
+
+    def enter_guard(
+        install_root: Path,
+        *,
+        inherited_token: str | None = None,
+    ) -> object:
+        """Record the token presented to the launch guard."""
+
+        observed["install_root"] = install_root
+        observed["inherited_token"] = inherited_token
+        return guard
+
+    monkeypatch.setattr(
+        app_entrypoint,
+        "ApplicationLaunchGuard",
+        SimpleNamespace(enter=enter_guard),
+    )
+    monkeypatch.setenv(APPLICATION_LAUNCH_TOKEN_ENV, "initial-handoff")
+    monkeypatch.setattr(app_entrypoint, "_PROCESS_LAUNCH_GUARD", None)
+
+    assert (
+        app_entrypoint._enter_application_launch_guard(
+            argv=["main.py", f"--install-root={tmp_path}"],
+            app_root=tmp_path / "app",
+        )
+        is True
+    )
+    assert observed == {
+        "install_root": tmp_path.resolve(),
+        "inherited_token": "initial-handoff",
+    }
+    assert APPLICATION_LAUNCH_TOKEN_ENV not in os.environ
+    assert app_entrypoint._PROCESS_LAUNCH_GUARD is guard
 
 
 class _Splash:

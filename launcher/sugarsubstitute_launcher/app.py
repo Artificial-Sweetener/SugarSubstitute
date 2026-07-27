@@ -27,6 +27,9 @@ from pathlib import Path
 from typing import Any, cast
 
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments, parse_launcher_args
+from launcher.sugarsubstitute_launcher.application_launch import (
+    enter_installed_application_launch,
+)
 from launcher.sugarsubstitute_launcher.connectivity import ReleaseConnectivityVerifier
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import (
@@ -58,6 +61,7 @@ from launcher.sugarsubstitute_launcher.splash_session import (
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
+from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
 from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
 from sugarsubstitute_shared.localization import format_locale_argument
 from sugarsubstitute_shared.windows_long_paths import operational_path
@@ -115,7 +119,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     app_launch_error: Exception | None = None
+    launch_guard: ApplicationLaunchGuard | None = None
     if should_launch_installed_app(args=args, startup_plan=startup_plan):
+        launch_guard = enter_installed_application_launch(layout)
+        if launch_guard is None:
+            _LOGGER.info(
+                "Ignored launch request because SugarSubstitute is already running."
+            )
+            return 0
         splash_session = None
         try:
             config = LauncherConfig.load(layout.config_path)
@@ -148,7 +159,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         extra_args=(locale_argument,),
                     ),
                     splash_session,
-                )
+                ),
+                environment=launch_guard.initial_handoff_environment(),
             )
             return 0
         except Exception as error:
@@ -174,21 +186,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         locale_override=args.locale_override,
     )
 
-    window = _launcher_main_window_class()(
-        initial_layout=layout,
-        continue_install=args.continue_install,
-        repair=_should_show_repair(
-            args=args,
-            startup_plan=startup_plan,
-            app_launch_error=app_launch_error,
-        ),
-        update_check_enabled=not args.no_update_check,
-        handoff_geometry=args.handoff_geometry,
-    )
-    window.show()
-    if owns_application:
-        return int(application.exec())
-    return 0
+    try:
+        window = _launcher_main_window_class()(
+            initial_layout=layout,
+            continue_install=args.continue_install,
+            repair=_should_show_repair(
+                args=args,
+                startup_plan=startup_plan,
+                app_launch_error=app_launch_error,
+            ),
+            update_check_enabled=not args.no_update_check,
+            handoff_geometry=args.handoff_geometry,
+        )
+        window.show()
+        if owns_application:
+            return int(application.exec())
+        return 0
+    finally:
+        if launch_guard is not None:
+            launch_guard.release()
 
 
 def _explicit_release_source(manifest_url: str | None) -> ReleaseSource:

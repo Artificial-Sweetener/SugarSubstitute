@@ -29,6 +29,9 @@ from typing import IO, Any
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.runtime import runtime_environment
+from sugarsubstitute_shared.application_launch_guard import (
+    clear_inherited_application_launch_token,
+)
 from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
     subprocess_working_directory,
@@ -64,6 +67,7 @@ def start_launcher_splash_session(
 ) -> LauncherSplashSession | None:
     """Start the shared splash host process for production app handoff."""
 
+    process: subprocess.Popen[str] | None = None
     try:
         process = _start_splash_host_process(
             layout=layout,
@@ -73,6 +77,8 @@ def start_launcher_splash_session(
         spec = _read_ready_spec(process=process, timeout_seconds=_READY_TIMEOUT_SECONDS)
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
         _LOGGER.warning("Shared launcher splash session unavailable: %r", error)
+        if process is not None:
+            _terminate_failed_splash_host(process)
         return None
 
     _start_background_pipe_reader(
@@ -92,6 +98,24 @@ def start_launcher_splash_session(
     )
 
 
+def _terminate_failed_splash_host(process: subprocess.Popen[str]) -> None:
+    """Stop a visible splash host whose session could not be handed off."""
+
+    if process.poll() is not None:
+        return
+    try:
+        process.terminate()
+        process.wait(timeout=2.0)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        try:
+            process.wait(timeout=2.0)
+        except subprocess.TimeoutExpired:
+            _LOGGER.warning("Failed splash host did not exit after forced termination.")
+    except OSError as error:
+        _LOGGER.warning("Failed to terminate unusable splash host: %r", error)
+
+
 def _start_splash_host_process(
     *,
     layout: InstallLayout,
@@ -109,7 +133,7 @@ def _start_splash_host_process(
     return popen(
         command,
         cwd=subprocess_working_directory(layout.root),
-        env=runtime_environment(layout=layout),
+        env=_splash_host_environment(layout),
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -120,6 +144,14 @@ def _start_splash_host_process(
         startupinfo=_hidden_process_startup_info(),
         shell=False,
     )
+
+
+def _splash_host_environment(layout: InstallLayout) -> dict[str, str]:
+    """Build a runtime environment without application handoff authority."""
+
+    environment = runtime_environment(layout=layout)
+    clear_inherited_application_launch_token(environment)
+    return environment
 
 
 def _read_ready_spec(

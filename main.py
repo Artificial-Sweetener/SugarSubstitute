@@ -25,7 +25,16 @@ from pathlib import Path
 from PySide6.QtCore import QLocale
 
 from substitute.app.bootstrap.startup_timing import StartupTimingRecord
+from sugarsubstitute_shared.application_launch_guard import (
+    ApplicationLaunchGuard,
+    application_launch_install_root,
+    clear_inherited_application_launch_token,
+    inherited_application_launch_token,
+)
 from sugarsubstitute_shared.localization import resolve_early_startup_locale
+
+
+_PROCESS_LAUNCH_GUARD: ApplicationLaunchGuard | None = None
 
 
 def _record_elapsed(
@@ -47,9 +56,11 @@ def _record_elapsed(
 
 def main() -> None:
     """Execute startup flow and exit with Qt event-loop code."""
+    app_root = Path(__file__).resolve().parent
+    if not _enter_application_launch_guard(argv=sys.argv, app_root=app_root):
+        return
     startup_records: list[StartupTimingRecord] = []
     phase_started_at = time.perf_counter()
-    app_root = Path(__file__).resolve().parent
     phase_started_at = _record_elapsed(
         startup_records,
         "entrypoint.resolve_app_root",
@@ -106,6 +117,24 @@ def main() -> None:
         if early_splash is not None:
             early_splash.close()
     sys.exit(exit_code)
+
+
+def _enter_application_launch_guard(*, argv: list[str], app_root: Path) -> bool:
+    """Claim this application process before any splash can be created."""
+
+    global _PROCESS_LAUNCH_GUARD
+    install_root = application_launch_install_root(argv, app_root=app_root)
+    try:
+        guard = ApplicationLaunchGuard.enter(
+            install_root,
+            inherited_token=inherited_application_launch_token(),
+        )
+    finally:
+        clear_inherited_application_launch_token()
+    if guard is None:
+        return False
+    _PROCESS_LAUNCH_GUARD = guard
+    return True
 
 
 if __name__ == "__main__":

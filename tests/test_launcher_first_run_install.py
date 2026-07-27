@@ -386,16 +386,20 @@ def test_child_process_environment_removes_pyinstaller_temp_path(
     bundled_bin = meipass / "PySide6"
     normal_bin = tmp_path / "normal-bin"
     monkeypatch.setattr(sys, "_MEIPASS", str(meipass), raising=False)
-    monkeypatch.setenv(
-        "PATH",
-        f"{bundled_bin}{os.pathsep}{normal_bin}",
-    )
+    parent_environment = {
+        "PATH": f"{bundled_bin}{os.pathsep}{normal_bin}",
+        "HANDOFF": "private",
+    }
 
-    environment = process._child_process_environment()  # noqa: SLF001
+    environment = process._child_process_environment(  # noqa: SLF001
+        parent_environment
+    )
 
     path_entries = environment["PATH"].split(os.pathsep)
     assert str(bundled_bin) not in path_entries
     assert str(normal_bin) in path_entries
+    assert environment["HANDOFF"] == "private"
+    assert str(bundled_bin) in parent_environment["PATH"]
 
 
 def test_app_payload_installer_rejects_checksum_mismatch(tmp_path: Path) -> None:

@@ -22,7 +22,7 @@ import ast
 import json
 import sys
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -61,6 +61,9 @@ from launcher.sugarsubstitute_launcher.ui.main_window import (
     resolve_initial_install_release_source,
 )
 from launcher.sugarsubstitute_launcher.release_sources import LocalFolderReleaseSource
+from sugarsubstitute_shared.application_launch_guard import (
+    APPLICATION_LAUNCH_TOKEN_ENV,
+)
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
 from sugarsubstitute_shared.localization import LanguagePreference, resolve_locale
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
@@ -586,8 +589,20 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
     layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
     layout.runtime_python.write_text("", encoding="utf-8")
     started_commands: list[list[str]] = []
+    started_environments: list[dict[str, str]] = []
+
+    def record_app_start(
+        command: Sequence[str],
+        *,
+        environment: Mapping[str, str],
+    ) -> None:
+        """Record the command and isolated environment passed to the app child."""
+
+        started_commands.append(list(command))
+        started_environments.append(dict(environment))
 
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    monkeypatch.setenv(APPLICATION_LAUNCH_TOKEN_ENV, "inherited-poison-token")
     monkeypatch.setattr(
         launcher_app,
         "start_launcher_splash_session",
@@ -596,7 +611,7 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
     monkeypatch.setattr(
         launcher_app,
         "start_detached",
-        lambda command: started_commands.append(list(command)),
+        record_app_start,
     )
     monkeypatch.setattr(
         launcher_app,
@@ -613,6 +628,10 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
             "--locale=en",
         ]
     ]
+    assert len(started_environments) == 1
+    assert started_environments[0][APPLICATION_LAUNCH_TOKEN_ENV] != (
+        "inherited-poison-token"
+    )
 
 
 def test_launcher_main_runs_pre_launch_update_before_app_handoff(
@@ -629,11 +648,22 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
     layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
     layout.runtime_python.write_text("", encoding="utf-8")
     calls: list[str] = []
+    child_environments: list[dict[str, str]] = []
     progress_client = object()
     splash_session = SimpleNamespace(
         client=progress_client,
         app_arguments=("--splash-session-endpoint=127.0.0.1:49152",),
     )
+
+    def record_app_start(
+        command: Sequence[str],
+        *,
+        environment: Mapping[str, str],
+    ) -> None:
+        """Record launch ordering and the app child's private environment."""
+
+        calls.extend(["launch", *command])
+        child_environments.append(dict(environment))
 
     class _FakeUpdateOrchestrator:
         """Record pre-launch update orchestration."""
@@ -671,7 +701,7 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
     monkeypatch.setattr(
         launcher_app,
         "start_detached",
-        lambda command: calls.extend(["launch", *command]),
+        record_app_start,
     )
     monkeypatch.setattr(
         launcher_app,
@@ -689,6 +719,8 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
         "--locale=en",
         "--splash-session-endpoint=127.0.0.1:49152",
     ]
+    assert len(child_environments) == 1
+    assert APPLICATION_LAUNCH_TOKEN_ENV in child_environments[0]
 
 
 def test_launcher_main_hands_off_pending_launcher_update_instead_of_app(

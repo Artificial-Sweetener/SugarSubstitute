@@ -24,8 +24,12 @@ import subprocess
 import sys
 from typing import Any
 
-from substitute.shared.logging.logger import get_logger, log_exception
+from substitute.shared.logging.logger import get_logger, log_error, log_exception
 from substitute.shared.startup_trace import trace_mark
+from sugarsubstitute_shared.application_launch_guard import (
+    cancel_restart_application_launch_environment,
+    restart_application_launch_environment,
+)
 from sugarsubstitute_shared.windows_long_paths import (
     operational_path,
     subprocess_working_directory,
@@ -48,6 +52,16 @@ def start_ready_app_process(command: Sequence[str]) -> bool:
         creationflags = subprocess.CREATE_NO_WINDOW
 
     working_directory = launch_command_working_directory(command)
+    restart_environment = restart_application_launch_environment(command)
+    if restart_environment is None:
+        log_error(
+            _LOGGER,
+            "Rejected fresh app process without a controlled restart handoff",
+            executable_name=_command_executable_name(command),
+            argument_count=len(command),
+            working_directory_present=working_directory is not None,
+        )
+        return False
     try:
         subprocess.Popen(  # noqa: S603
             list(command),
@@ -62,8 +76,10 @@ def start_ready_app_process(command: Sequence[str]) -> bool:
             close_fds=True,
             creationflags=creationflags,
             startupinfo=startupinfo,
+            env=restart_environment,
         )
     except OSError:
+        cancel_restart_application_launch_environment(command, restart_environment)
         log_exception(
             _LOGGER,
             "Failed to start fresh app process",

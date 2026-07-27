@@ -23,7 +23,7 @@ import ctypes
 import os
 import subprocess
 import sys
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -78,6 +78,7 @@ def start_detached(
     command: Sequence[str],
     *,
     startup_timeout_seconds: float = APP_STARTUP_TIMEOUT_SECONDS,
+    environment: Mapping[str, str] | None = None,
 ) -> None:
     """Start a child process hidden and fail if it exits during startup."""
 
@@ -105,7 +106,7 @@ def start_detached(
                         if working_directory is not None
                         else None
                     ),
-                    env=_child_process_environment(),
+                    env=_child_process_environment(environment),
                     stdin=subprocess.DEVNULL,
                     stdout=log_file,
                     stderr=subprocess.STDOUT,
@@ -179,18 +180,20 @@ def _standard_child_process_dll_search_path() -> Iterator[None]:
             kernel32.SetDllDirectoryW(meipass)
 
 
-def _child_process_environment() -> dict[str, str]:
+def _child_process_environment(
+    environment: Mapping[str, str] | None = None,
+) -> dict[str, str]:
     """Return a subprocess environment independent from PyInstaller internals."""
 
-    environment = os.environ.copy()
+    child_environment = dict(os.environ if environment is None else environment)
     meipass = getattr(sys, "_MEIPASS", None)
     if isinstance(meipass, str) and meipass:
-        environment["PATH"] = os.pathsep.join(
+        child_environment["PATH"] = os.pathsep.join(
             path
-            for path in environment.get("PATH", "").split(os.pathsep)
+            for path in child_environment.get("PATH", "").split(os.pathsep)
             if path and not _is_relative_to(Path(path), Path(meipass))
         )
-    return environment
+    return child_environment
 
 
 def _is_relative_to(path: Path, parent: Path) -> bool:

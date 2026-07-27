@@ -65,6 +65,7 @@ Thumbs.db
 /comfyui/
 /cubes/
 /custom_nodes/
+/launcher/locks/
 
 # Windows reserved device name accidentally created
 CON
