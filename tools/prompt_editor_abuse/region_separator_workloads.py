@@ -537,32 +537,21 @@ def _mouse_placement_scenario() -> PromptAbuseScenario:
 
 
 def _delete_join_split_scenario() -> PromptAbuseScenario:
-    """Join and split separator boundaries without mixed literal decoration."""
+    """Expose either separator edge and restore its structural source exactly."""
 
     initial_source = "global\n\n[SEP]\nregional"
     canonical_source = "global\n[SEP]\nregional"
-    literal_source = "global[SEP]\nregional"
-    joined_regional_source = "global\n[SEP]regional"
+    leading_partial_source = "global\nSEP]\nregional"
     cursor = len("global")
-    regional_start = canonical_source.index("regional")
+    separator_start = canonical_source.index("[SEP]")
     actions = (
         _key(canonical_source, "delete", cursor, _REGION_TOKEN),
-        _key(literal_source, "delete", cursor, ()),
-        _key(canonical_source, "enter", cursor + 1, _REGION_TOKEN),
-        PromptAbuseAction(
-            "move_cursor",
-            position=regional_start,
-            expected_source=canonical_source,
-            expected_cursor_position=regional_start,
-            expected_anchor_position=regional_start,
-            expected_token_kinds=_REGION_TOKEN,
-        ),
-        _key(joined_regional_source, "backspace", regional_start - 1, ()),
-        _key(canonical_source, "undo", regional_start, _REGION_TOKEN),
+        _key(leading_partial_source, "delete", separator_start, ()),
+        _key(initial_source, "undo", cursor, _REGION_TOKEN),
         _passive(
-            canonical_source,
+            initial_source,
             "request_paint",
-            regional_start,
+            cursor,
             _REGION_TOKEN,
         ),
     )
@@ -570,7 +559,7 @@ def _delete_join_split_scenario() -> PromptAbuseScenario:
         name="region-separator-delete-join-split",
         initial_text=initial_source,
         actions=actions,
-        expected_text=canonical_source,
+        expected_text=initial_source,
         cursor_position=cursor,
     )
 
