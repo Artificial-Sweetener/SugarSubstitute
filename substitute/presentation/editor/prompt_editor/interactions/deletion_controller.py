@@ -71,6 +71,8 @@ class PromptDeletionIntent:
     start: int | None = None
     end: int | None = None
     token_to_expand: PromptProjectionToken | None = None
+    cursor_position: int | None = None
+    exact_source: bool = False
 
     def __post_init__(self) -> None:
         """Reject ambiguous or invalid deletion outcomes."""
@@ -83,12 +85,26 @@ class PromptDeletionIntent:
                 raise ValueError("A deletion range must be non-empty and ordered.")
         if has_range == (self.token_to_expand is not None):
             raise ValueError("A deletion intent must select exactly one action.")
+        if self.cursor_position is not None and self.cursor_position < 0:
+            raise ValueError("A deletion cursor position must be non-negative.")
 
     @classmethod
-    def delete_range(cls, start: int, end: int) -> "PromptDeletionIntent":
+    def delete_range(
+        cls,
+        start: int,
+        end: int,
+        *,
+        cursor_position: int | None = None,
+        exact_source: bool = False,
+    ) -> "PromptDeletionIntent":
         """Return one exact half-open source deletion."""
 
-        return cls(start=start, end=end)
+        return cls(
+            start=start,
+            end=end,
+            cursor_position=cursor_position,
+            exact_source=exact_source,
+        )
 
     @classmethod
     def expand_token(cls, token: PromptProjectionToken) -> "PromptDeletionIntent":
@@ -143,6 +159,29 @@ class PromptDeletionResolver:
         if start == end or not self._can_use_stale_raw_boundary(context, start, end):
             return None
         return PromptDeletionIntent.delete_range(start, end)
+
+    def separator_leading_line_break_intent(
+        self,
+        context: PromptDeletionContext,
+        direction: PromptDeletionDirection,
+    ) -> PromptDeletionIntent | None:
+        """Return deletion of the line break immediately before a separator."""
+
+        if direction is not PromptDeletionDirection.FORWARD:
+            return None
+        start, end = self.adjacent_grapheme_range(context, direction)
+        if context.source_text[start:end] not in {"\n", "\r", "\r\n"}:
+            return None
+        if any(
+            start
+            == _line_break_start_before_separator(
+                context.source_text,
+                separator.line_start,
+            )
+            for separator in context.projection_document.region_structure.separators
+        ):
+            return PromptDeletionIntent.delete_range(start, end, exact_source=True)
+        return None
 
     def projected_intent(
         self,
@@ -259,6 +298,7 @@ class PromptDeletionResolver:
             return PromptDeletionIntent.delete_range(
                 token.source_end - 1,
                 token.source_end,
+                cursor_position=token.source_end,
             )
         if (
             direction is PromptDeletionDirection.FORWARD
@@ -284,20 +324,10 @@ class PromptDeletionResolver:
                 and context.cursor_position == separator.line_end
             ):
                 return PromptDeletionIntent.delete_range(
-                    separator.token_end - 1,
                     separator.token_end,
-                )
-            if (
-                direction is PromptDeletionDirection.FORWARD
-                and context.cursor_position
-                == _line_break_start_before_separator(
-                    context.source_text,
-                    separator.line_start,
-                )
-            ):
-                return PromptDeletionIntent.delete_range(
-                    separator.token_start,
-                    separator.token_start + 1,
+                    separator.line_end,
+                    cursor_position=separator.token_end,
+                    exact_source=True,
                 )
         return None
 
@@ -371,6 +401,15 @@ class PromptSurfaceDeletionController(Generic[TPayload]):
                 cancel_stale_safe_first=False,
             )
             return
+        separator_line_break_intent = (
+            self._resolver.separator_leading_line_break_intent(
+                context,
+                direction,
+            )
+        )
+        if separator_line_break_intent is not None:
+            self._apply_intent(separator_line_break_intent, command_name=reason)
+            return
         raw_intent = self._resolver.raw_boundary_intent(context, direction)
         if raw_intent is not None:
             self._apply_intent(raw_intent, command_name=reason)
@@ -392,7 +431,7 @@ class PromptSurfaceDeletionController(Generic[TPayload]):
         *,
         command_name: str,
     ) -> None:
-        """Apply exactly one source command or one projection expansion."""
+        """Apply one source command or projection expansion with explicit fidelity."""
 
         token = intent.token_to_expand
         if token is not None:
@@ -407,6 +446,9 @@ class PromptSurfaceDeletionController(Generic[TPayload]):
             origin=PromptSourceEditOrigin.TYPED,
             command_name=command_name,
             finish_pending_key_edits=False,
+            exact_source=intent.exact_source,
+            cursor_position=intent.cursor_position,
+            anchor_position=intent.cursor_position,
         )
 
 
