@@ -64,6 +64,45 @@ def normalize_typed_region_separator(
     )
 
 
+def normalize_typed_region_separator_after_deletion(
+    text: str,
+    *,
+    position: int,
+) -> PromptRegionSeparatorNormalization:
+    """Restore line boundaries when one deletion leaves a complete marker inline."""
+
+    marker_starts = tuple(
+        marker_start
+        for marker_start in (
+            position - len(REGION_SEPARATOR_TOKEN),
+            position,
+        )
+        if (
+            marker_start >= 0
+            and text[marker_start : marker_start + len(REGION_SEPARATOR_TOKEN)]
+            == REGION_SEPARATOR_TOKEN
+            and not is_escaped_prompt_character(text, marker_start)
+        )
+    )
+    normalization = _normalize_marker_starts(
+        text,
+        marker_starts,
+        ensure_trailing_line=False,
+    )
+    if (
+        text.startswith(REGION_SEPARATOR_TOKEN, position)
+        and position > 0
+        and text[position - 1] not in "\r\n"
+    ):
+        boundary_positions = list(normalization.boundary_positions)
+        boundary_positions[position] = position
+        return PromptRegionSeparatorNormalization(
+            text=normalization.text,
+            boundary_positions=tuple(boundary_positions),
+        )
+    return normalization
+
+
 def normalize_empty_region_insertion(
     text: str,
     *,

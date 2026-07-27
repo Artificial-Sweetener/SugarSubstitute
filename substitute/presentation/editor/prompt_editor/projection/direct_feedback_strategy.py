@@ -111,6 +111,15 @@ class PromptDirectFeedbackStrategy:
             )
         )
         caret_rect = self._context._current_caret_document_rect()
+        insertion_overlay = self._overlays.single_character_insertion_overlay(
+            start=start,
+            replacement_text=replacement_text,
+            source_identity=source_identity,
+            committed_source_identity=committed_source_identity,
+            current_caret_document_rect=caret_rect,
+            freshness_is_stale_safe=self._freshness.has_stale_projection_geometry(),
+            previous_source_identity=request.previous_source_identity,
+        )
         caret_geometry = self._overlays.single_character_edit_caret_geometry(
             start=start,
             end=end,
@@ -120,18 +129,10 @@ class PromptDirectFeedbackStrategy:
             source_identity=source_identity,
             committed_source_identity=committed_source_identity,
             current_caret_document_rect=caret_rect,
+            insertion_overlay=insertion_overlay,
             metrics=self._layout.frame.output.configuration.metrics,
             projection_document=self._editor_state.projection.document,
             caret_navigation=self._layout.frame.geometry.caret,
-        )
-        insertion_overlay = self._overlays.single_character_insertion_overlay(
-            start=start,
-            replacement_text=replacement_text,
-            source_identity=source_identity,
-            committed_source_identity=committed_source_identity,
-            current_caret_document_rect=caret_rect,
-            freshness_is_stale_safe=self._freshness.has_stale_projection_geometry(),
-            previous_source_identity=request.previous_source_identity,
         )
         previous_insertion_overlay = self._overlays.insertion_overlay
         self._overlays.set_overlays(

@@ -39,6 +39,8 @@ def region_structure_edit_requires_rebuild(
 
     if not 0 <= start <= end <= len(previous_text):
         return True
+    if not _structure_matches_source(previous_text, structure):
+        return True
     replacement_length = len(next_text) - (len(previous_text) - (end - start))
     if replacement_length < 0:
         return True
@@ -71,6 +73,28 @@ def region_structure_edit_requires_rebuild(
         for candidate in previous_candidates
     )
     return remapped_previous_candidates != next_candidates
+
+
+def _structure_matches_source(
+    text: str,
+    structure: PromptRegionStructureView,
+) -> bool:
+    """Return whether every stored separator still owns its canonical source line."""
+
+    for separator in structure.separators:
+        token_start = separator.token_start
+        token_end = separator.token_end
+        if (
+            separator.line_start != token_start
+            or token_start < 0
+            or token_end > len(text)
+            or text[token_start:token_end] != REGION_SEPARATOR_TOKEN
+            or (token_start > 0 and text[token_start - 1] not in "\r\n")
+            or (token_end < len(text) and text[token_end] not in "\r\n")
+            or separator.line_end != _separator_line_end(text, token_end)
+        ):
+            return False
+    return True
 
 
 def _extends_content_line_before_separator(
@@ -324,9 +348,9 @@ def _shift_separator_line_end(
     end: int,
     delta: int,
 ) -> int:
-    """Keep an insertion after a consumed separator line outside that line."""
+    """Keep edits beginning after a consumed separator line outside that line."""
 
-    if start == end and position == start:
+    if position <= start:
         return position
     return _shift_position(position, start, end, delta)
 

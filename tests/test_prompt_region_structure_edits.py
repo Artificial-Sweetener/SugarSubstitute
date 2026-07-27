@@ -286,6 +286,56 @@ def test_content_insertion_after_separator_line_keeps_its_boundary(
 
 
 @pytest.mark.parametrize("line_ending", ("\n", "\r\n"))
+def test_content_deletion_after_separator_line_keeps_its_boundary(
+    line_ending: str,
+) -> None:
+    """Keep separator ownership stable when Backspace removes a regional blank line."""
+
+    previous_text = f"global{line_ending}[SEP]{line_ending}{line_ending}regional"
+    separator_start = previous_text.index("[SEP]")
+    separator_end = separator_start + len("[SEP]")
+    separator_line_end = separator_end + len(line_ending)
+    structure = PromptRegionStructureView(
+        separators=(
+            PromptRegionSeparatorView(
+                separator_start,
+                separator_end,
+                separator_start,
+                separator_line_end,
+            ),
+        ),
+        partitions=(
+            PromptRegionPartitionView(0, 0, separator_start, True),
+            PromptRegionPartitionView(
+                1,
+                separator_line_end,
+                len(previous_text),
+                False,
+            ),
+        ),
+    )
+    deletion_end = separator_line_end + len(line_ending)
+
+    remapped = remap_region_structure_after_edit(
+        structure,
+        start=separator_line_end,
+        end=deletion_end,
+        replacement_text="",
+    )
+
+    assert remapped.separators == structure.separators
+    assert remapped.partitions == (
+        structure.partitions[0],
+        PromptRegionPartitionView(
+            1,
+            separator_line_end,
+            len(previous_text) - len(line_ending),
+            False,
+        ),
+    )
+
+
+@pytest.mark.parametrize("line_ending", ("\n", "\r\n"))
 def test_separator_preceding_line_break_deletion_requires_rebuild(
     line_ending: str,
 ) -> None:
@@ -323,4 +373,36 @@ def test_separator_preceding_line_break_deletion_requires_rebuild(
         structure,
         start=line_break_start,
         end=separator_start,
+    )
+
+
+def test_stale_separator_line_end_requires_rebuild_before_backspace_below_it() -> None:
+    """Never remap Backspace through a separator whose owned newline is stale."""
+
+    previous_text = "global\n[SEP]\nregional"
+    separator_start = previous_text.index("[SEP]")
+    separator_end = separator_start + len("[SEP]")
+    regional_start = previous_text.index("regional")
+    next_text = previous_text[: regional_start - 1] + previous_text[regional_start:]
+    structure = PromptRegionStructureView(
+        separators=(
+            PromptRegionSeparatorView(
+                separator_start,
+                separator_end,
+                separator_start,
+                separator_end,
+            ),
+        ),
+        partitions=(
+            PromptRegionPartitionView(0, 0, separator_start, True),
+            PromptRegionPartitionView(1, separator_end, len(previous_text), False),
+        ),
+    )
+
+    assert region_structure_edit_requires_rebuild(
+        previous_text,
+        next_text,
+        structure,
+        start=regional_start - 1,
+        end=regional_start,
     )

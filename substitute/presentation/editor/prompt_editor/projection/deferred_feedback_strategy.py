@@ -169,8 +169,11 @@ class PromptDeferredFeedbackStrategy:
         """Publish generalized provisional feedback after strategy fallback."""
 
         previous_insertion_overlay = self._overlays.insertion_overlay
-        caret_geometry = self._fallback_caret_geometry(request)
         insertion_overlay = self._fallback_insertion_overlay(request)
+        caret_geometry = self._fallback_caret_geometry(
+            request,
+            insertion_overlay=insertion_overlay,
+        )
         deletion_overlay = self._fallback_deletion_overlay(request)
         self._overlays.set_overlays(
             caret_geometry=caret_geometry,
@@ -251,6 +254,8 @@ class PromptDeferredFeedbackStrategy:
     def _fallback_caret_geometry(
         self,
         request: PromptProjectionSourceChangeApplyRequest,
+        *,
+        insertion_overlay: PromptProjectionTransientInsertionOverlay | None,
     ) -> PromptProjectionTransientCaretGeometry | None:
         """Return provisional caret geometry while catch-up is pending."""
 
@@ -264,6 +269,7 @@ class PromptDeferredFeedbackStrategy:
             source_identity=self._editor_state.source_identity,
             committed_source_identity=self._committed_source_identity(),
             current_caret_document_rect=(self._context._current_caret_document_rect()),
+            insertion_overlay=insertion_overlay,
             metrics=configuration.metrics,
             content_right=self._content_right(),
             document_margin=configuration.document_margin,

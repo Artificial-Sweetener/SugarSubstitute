@@ -35,9 +35,11 @@ from substitute.application.prompt_editor.editing.literal_parentheses import (
     is_explicit_weighted_emphasis_group,
 )
 from substitute.application.prompt_editor.editing.region_separator_normalization import (
+    PromptRegionSeparatorNormalization,
     normalize_empty_region_insertion,
     normalize_pasted_region_separators,
     normalize_typed_region_separator,
+    normalize_typed_region_separator_after_deletion,
 )
 
 
@@ -208,6 +210,21 @@ class PromptSourceNormalizationService:
             ),
         )
 
+    def normalize_for_typed_deletion(
+        self,
+        text: str,
+        *,
+        position: int,
+    ) -> PromptSourceNormalization:
+        """Preserve complete regional separators after one typed deletion."""
+
+        return _region_separator_normalization(
+            normalize_typed_region_separator_after_deletion(
+                text,
+                position=position,
+            )
+        )
+
     def normalize_literal_parentheses_for_storage(self, text: str) -> str:
         """Return text with literal parenthesized groups escaped for storage."""
 
@@ -226,6 +243,17 @@ def _parenthesis_normalization(
         text=result.text,
         boundary_positions=result.boundary_positions,
         transitions=result.transitions,
+    )
+
+
+def _region_separator_normalization(
+    result: PromptRegionSeparatorNormalization,
+) -> PromptSourceNormalization:
+    """Adapt regional separator normalization to the source command contract."""
+
+    return PromptSourceNormalization(
+        text=result.text,
+        boundary_positions=result.boundary_positions,
     )
 
 

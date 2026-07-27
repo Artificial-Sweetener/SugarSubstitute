@@ -83,6 +83,14 @@ class PromptSourceNormalizer(Protocol):
     ) -> PromptSourceNormalizationResult:
         """Normalize one typed edit inside one full prompt string."""
 
+    def normalize_for_typed_deletion(
+        self,
+        text: str,
+        *,
+        position: int,
+    ) -> PromptSourceNormalizationResult:
+        """Normalize one typed deletion inside one full prompt string."""
+
 
 class PromptSourceEditOrigin(str, Enum):
     """Identify the explicit producer of one source edit."""
@@ -427,7 +435,10 @@ def _normalize_range_edit(
         )
     if origin is PromptSourceEditOrigin.TYPED:
         if original_end != start:
-            return _identity_source_normalization(updated_text)
+            return normalizer.normalize_for_typed_deletion(
+                updated_text,
+                position=replacement_end,
+            )
         if any(
             intent.contains_edit(start, original_end) for intent in protected_intents
         ):
