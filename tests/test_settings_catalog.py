@@ -18,8 +18,14 @@
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QLabel, QWidget
+from typing import cast
 
+from PySide6.QtWidgets import QApplication, QLabel, QWidget
+from sugarsubstitute_shared.presentation.localization import TranslationManager
+
+from substitute.presentation.settings.language_settings import (
+    build_language_settings_section,
+)
 from substitute.presentation.settings.settings_catalog import (
     SettingsControlEntry,
     SettingsPageEntry,
@@ -63,6 +69,38 @@ def test_settings_search_matches_aliases_and_preserves_catalog_order() -> None:
     assert tuple(result.page.page_id for result in results) == (
         "generation",
         "model_sources",
+    )
+
+
+def test_settings_search_matches_typed_term_prefixes() -> None:
+    """Settings type-ahead should find a complete indexed term from its beginning."""
+
+    page = _page("appearance", 10, title="Appearance", keywords=("language",))
+
+    results = search_settings_catalog((page,), "lang")
+
+    assert tuple(result.setting_id for result in results) == ("appearance.control",)
+
+
+def test_settings_search_finds_the_language_control_from_its_prefix() -> None:
+    """The registered Language control should remain discoverable as users type."""
+
+    language_section = build_language_settings_section(
+        cast(TranslationManager, object())
+    )
+    page = SettingsPageEntry(
+        page_id="appearance",
+        title="Appearance",
+        subtitle="",
+        icon=None,
+        order=10,
+        sections=(language_section,),
+    )
+
+    results = search_settings_catalog((page,), "lang")
+
+    assert tuple(result.setting_id for result in results) == (
+        "appearance.language.application_language",
     )
 
 
