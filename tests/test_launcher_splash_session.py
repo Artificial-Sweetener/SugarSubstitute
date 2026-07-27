@@ -23,10 +23,15 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.splash_session import (
     append_splash_session_args,
     start_launcher_splash_session,
+)
+from sugarsubstitute_shared.application_launch_guard import (
+    APPLICATION_LAUNCH_TOKEN_ENV,
 )
 from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
@@ -35,6 +40,7 @@ from sugarsubstitute_shared.windows_long_paths import (
 
 
 def test_launcher_splash_session_starts_host_and_returns_app_args(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """The launcher should execute the app-payload host and parse its session spec."""
@@ -47,6 +53,7 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
         "token": "x" * 32,
         "host_pid": 1234,
     }
+    monkeypatch.setenv(APPLICATION_LAUNCH_TOKEN_ENV, "app-only-token")
 
     def _fake_popen(command: list[str], **kwargs: Any) -> _FakeProcess:
         """Record host process creation and return a ready fake process."""
@@ -75,21 +82,23 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
     ]
     assert calls[0]["cwd"] == subprocess_working_directory(layout.root)
     assert calls[0]["env"]["PYTHONPATH"] == subprocess_path(layout.app_dir)
+    assert APPLICATION_LAUNCH_TOKEN_ENV not in calls[0]["env"]
 
 
 def test_launcher_splash_session_returns_none_for_invalid_ready_payload(
     tmp_path: Path,
 ) -> None:
-    """Malformed host output should leave app startup on its direct-splash fallback."""
+    """Malformed host output should stop its splash before direct fallback starts."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    process = _FakeProcess(stdout='{"type":"not-ready"}\n')
 
     def _fake_popen(command: list[str], **kwargs: Any) -> _FakeProcess:
         """Return invalid stdout while accepting the host command."""
 
         _ = command
         _ = kwargs
-        return _FakeProcess(stdout='{"type":"not-ready"}\n')
+        return process
 
     assert (
         start_launcher_splash_session(
@@ -99,6 +108,8 @@ def test_launcher_splash_session_returns_none_for_invalid_ready_payload(
         )
         is None
     )
+    assert process.terminated is True
+    assert process.wait_timeouts == [2.0]
 
 
 def test_append_splash_session_args_preserves_command_without_session() -> None:
@@ -118,3 +129,28 @@ class _FakeProcess:
 
         self.stdout = StringIO(stdout)
         self.stderr = StringIO("")
+        self.terminated = False
+        self.killed = False
+        self.wait_timeouts: list[float] = []
+
+    def poll(self) -> int | None:
+        """Report the fake process as running until it is terminated."""
+
+        return 0 if self.terminated or self.killed else None
+
+    def terminate(self) -> None:
+        """Record graceful process termination."""
+
+        self.terminated = True
+
+    def kill(self) -> None:
+        """Record forced process termination."""
+
+        self.killed = True
+
+    def wait(self, timeout: float | None = None) -> int:
+        """Record the bounded wait and report successful process exit."""
+
+        if timeout is not None:
+            self.wait_timeouts.append(timeout)
+        return 0
