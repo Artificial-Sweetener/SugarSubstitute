@@ -107,14 +107,14 @@ def keyboard_modifier_preview(event: QKeyEvent) -> str:
 
 
 def display_keyboard_binding(binding: str | None) -> ApplicationText:
-    """Render a stored binding with native names and spaced chord separators."""
+    """Render a stored binding consistently with spaced chord separators."""
 
     if not binding:
         return app_text("Not set")
     sequence = QKeySequence.fromString(
         binding, QKeySequence.SequenceFormat.PortableText
     )
-    rendered = sequence.toString(QKeySequence.SequenceFormat.NativeText)
+    rendered = sequence.toString(QKeySequence.SequenceFormat.PortableText)
     return _spaced_binding_display(rendered or binding)
 
 
