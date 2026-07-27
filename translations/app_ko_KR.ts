@@ -805,11 +805,6 @@ Prompt preview:
       <translation>캔버스 탭 데모</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="160"></location>
-      <source>Change</source>
-      <translation>변경</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1356"></location>
       <source>Change the colors that appear in Substitute.</source>
       <translation>Substitute에 표시되는 색상을 변경합니다.</translation>
@@ -6285,11 +6280,6 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="408"></location>
       <source>That Python executable did not work</source>
       <translation>해당 Python 실행 파일이 작동하지 않았습니다</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="224"></location>
-      <source>That binding is already assigned to another control.</source>
-      <translation>이 할당은 이미 다른 컨트롤에 지정되어 있습니다.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="58"></location>

@@ -860,11 +860,6 @@ Prompt preview:
       <translation>画布标签页演示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="160"></location>
-      <source>Change</source>
-      <translation>更改</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1356"></location>
       <source>Change the colors that appear in Substitute.</source>
       <translation>更改 Substitute 中显示的颜色。</translation>
@@ -6340,11 +6335,6 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="408"></location>
       <source>That Python executable did not work</source>
       <translation>该 Python 可执行文件无法使用</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="224"></location>
-      <source>That binding is already assigned to another control.</source>
-      <translation>该绑定已分配给其他控件。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="58"></location>

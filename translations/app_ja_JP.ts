@@ -860,11 +860,6 @@ Prompt preview:
       <translation>キャンバスタブのデモ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="160"></location>
-      <source>Change</source>
-      <translation>変更</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1356"></location>
       <source>Change the colors that appear in Substitute.</source>
       <translation>Substitute に表示される色を変更します。</translation>
@@ -6340,11 +6335,6 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="408"></location>
       <source>That Python executable did not work</source>
       <translation>その Python 実行ファイルは使用できませんでした</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="224"></location>
-      <source>That binding is already assigned to another control.</source>
-      <translation>その割り当てはすでに別のコントロールに使用されています。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="58"></location>

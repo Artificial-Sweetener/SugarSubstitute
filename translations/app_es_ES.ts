@@ -860,11 +860,6 @@ Vista previa del prompt:
       <translation>Demostración de pestaña de lienzo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="160"></location>
-      <source>Change</source>
-      <translation>Cambiar</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1356"></location>
       <source>Change the colors that appear in Substitute.</source>
       <translation>Cambia los colores que aparecen en Substitute.</translation>
@@ -6340,11 +6335,6 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="408"></location>
       <source>That Python executable did not work</source>
       <translation>Ese ejecutable de Python no funcionó</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="224"></location>
-      <source>That binding is already assigned to another control.</source>
-      <translation>Esa asignación ya pertenece a otro control.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="58"></location>
