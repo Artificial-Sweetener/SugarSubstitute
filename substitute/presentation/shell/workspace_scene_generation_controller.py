@@ -33,6 +33,7 @@ from substitute.application.generation import (
     GenerationPreparationResult,
     GenerationRequest,
     GenerationRunStarted,
+    SeedRandomizationResult,
 )
 from sugarsubstitute_shared.presentation.localization import (
     translate_application_message,
@@ -49,6 +50,9 @@ from substitute.application.prompt_editor.scenes.workflow_analysis import (
     PromptSceneAnalysisService,
     WorkflowScene,
     WorkflowSceneAnalysis,
+)
+from substitute.presentation.shell.workspace_generation_request_builder import (
+    synchronize_generation_request_seed_scopes,
 )
 
 if TYPE_CHECKING:
@@ -83,7 +87,7 @@ class SceneGenerationSeedRandomizer(Protocol):
         *,
         request: GenerationRequest,
         behavior_snapshot: "EditorBehaviorSnapshot | None",
-    ) -> None:
+    ) -> SeedRandomizationResult:
         """Apply seed randomization before request capture."""
 
 
@@ -343,7 +347,11 @@ def build_scene_generation_snapshots_from_context(
 
     request = context.request
     behavior_snapshot = context.behavior_snapshot
-    randomize_request_seeds(request=request, behavior_snapshot=behavior_snapshot)
+    seed_result = randomize_request_seeds(
+        request=request,
+        behavior_snapshot=behavior_snapshot,
+    )
+    request = synchronize_generation_request_seed_scopes(request, seed_result)
     result = preparation_service.prepare_scene_snapshots(
         request=CapturedGenerationRequest.capture(
             request=request,
@@ -381,7 +389,11 @@ def build_scene_generation_snapshot_from_context(
         workflow_id=request.workflow_id,
         preflight_error=preflight_error,
     )
-    randomize_request_seeds(request=request, behavior_snapshot=behavior_snapshot)
+    seed_result = randomize_request_seeds(
+        request=request,
+        behavior_snapshot=behavior_snapshot,
+    )
+    request = synchronize_generation_request_seed_scopes(request, seed_result)
     return preparation_service.prepare_scene_snapshot(
         request=CapturedGenerationRequest.capture(
             request=request,

@@ -66,6 +66,7 @@ from substitute.presentation.shell.workspace_generation_request_builder import (
     GenerationWorkflowPruneReport,
     active_behavior_snapshot,
     build_generation_request_for_view,
+    synchronize_generation_request_seed_scopes,
 )
 from substitute.presentation.shell.workspace_generation_snapshot_builder import (
     capture_queued_snapshot_preparation,
@@ -254,10 +255,11 @@ class WorkspaceController:
             self._views.generation,
             request.workflow_id,
         )
-        self._collaborators.generation_seed_randomizer(
+        seed_result = self._collaborators.generation_seed_randomizer(
             request=request,
             behavior_snapshot=behavior_snapshot,
         )
+        request = synchronize_generation_request_seed_scopes(request, seed_result)
         view = self._views.generation
         preparation = capture_queued_snapshot_preparation(
             request=request,
@@ -291,10 +293,11 @@ class WorkspaceController:
     ) -> GenerationJobSnapshot:
         """Capture one queued Sugar script snapshot from an active request."""
 
-        self._collaborators.generation_seed_randomizer(
+        seed_result = self._collaborators.generation_seed_randomizer(
             request=request,
             behavior_snapshot=behavior_snapshot,
         )
+        request = synchronize_generation_request_seed_scopes(request, seed_result)
         return generation_snapshot_from_request(
             request=request,
             behavior_snapshot=behavior_snapshot,

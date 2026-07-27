@@ -32,6 +32,7 @@ from substitute.application.generation import (
     GenerationJobSnapshot,
     GenerationPreparationResult,
     GenerationRequest,
+    SeedRandomizationResult,
 )
 from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.application.recipes.recipe_io_service import WorkflowLike
@@ -338,11 +339,12 @@ def test_build_scene_generation_snapshots_from_context_prepares_and_tracks_run()
         *,
         request: GenerationRequest,
         behavior_snapshot: EditorBehaviorSnapshot | None,
-    ) -> None:
+    ) -> SeedRandomizationResult:
         """Record randomization and mutate the live workflow before capture."""
 
         randomized.append((request, behavior_snapshot))
         setattr(request.workflow, "randomized_marker", "after-randomization")
+        return SeedRandomizationResult()
 
     def _bookkeeping(**values: object) -> None:
         """Record scene-run bookkeeping values."""
@@ -433,11 +435,12 @@ def test_build_scene_generation_snapshot_from_context_validates_and_prepares_sce
         *,
         request: GenerationRequest,
         behavior_snapshot: EditorBehaviorSnapshot | None,
-    ) -> None:
+    ) -> SeedRandomizationResult:
         """Record seed randomization."""
 
         assert behavior_snapshot is context.behavior_snapshot
         randomize_calls.append(request)
+        return SeedRandomizationResult()
 
     result = build_scene_generation_snapshot_from_context(
         context=context,
@@ -499,11 +502,12 @@ def test_build_scene_generation_snapshot_from_context_rejects_unknown_scene_firs
         *,
         request: GenerationRequest,
         behavior_snapshot: EditorBehaviorSnapshot | None,
-    ) -> None:
+    ) -> SeedRandomizationResult:
         """Record unexpected randomization."""
 
         nonlocal randomize_calls
         randomize_calls += 1
+        return SeedRandomizationResult()
 
     with pytest.raises(_ScenePreflightError) as raised:
         build_scene_generation_snapshot_from_context(

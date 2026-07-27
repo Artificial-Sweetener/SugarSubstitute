@@ -25,6 +25,7 @@ import pytest
 from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.domain.links.prompt_endpoints import PromptEndpoint, PromptEndpointIndex
 from substitute.domain.node_behavior import PromptRole
+from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
 from tests.workspace_controller_generation_support import (
     SeedRandomizationRecorder,
     replace_seed_randomizer,
@@ -41,12 +42,18 @@ def test_build_generation_snapshot_randomizes_before_serialization(
     order: list[str] = []
     workflow = SimpleNamespace(seed="original")
 
-    def _serialize_workflow_to_sugar_script(candidate: object) -> str:
+    def _serialize_workflow_to_sugar_script(
+        candidate: object,
+        *,
+        global_override_scopes: object,
+    ) -> str:
         """Serialize only after seed randomization."""
 
         order.append("serialize")
         assert candidate is workflow
         assert workflow.seed == "randomized"
+        assert isinstance(global_override_scopes, dict)
+        assert global_override_scopes["seed"].value == 1
         return f"# sugar {workflow.seed}"
 
     def _flush_dirty_masks() -> bool:
@@ -89,7 +96,17 @@ def test_build_generation_snapshot_randomizes_before_serialization(
         editor_panels={},
         cube_load_service=SimpleNamespace(),
         cube_stack_service=SimpleNamespace(),
-        active_override_manager=None,
+        active_override_manager=SimpleNamespace(
+            current_serialization_scopes=lambda: {
+                "seed": GlobalOverrideSerializationScope(
+                    override_key="seed",
+                    value=0,
+                    mode="global",
+                    full_participation=True,
+                    participant_fields=frozenset(),
+                )
+            }
+        ),
         recipe_io_service=SimpleNamespace(
             serialize_workflow_to_sugar_script=_serialize_workflow_to_sugar_script
         ),
