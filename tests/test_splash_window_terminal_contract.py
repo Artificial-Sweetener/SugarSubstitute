@@ -29,6 +29,7 @@ if os.environ.get("PYTEST_XDIST_WORKER"):
         allow_module_level=True,
     )
 
+from PySide6.QtCore import QPoint, QRect
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
 
@@ -65,6 +66,76 @@ def _end_of_document_bottom_gap(splash: SplashWindow) -> int:
     cursor_rect = splash.log_view.cursorRect(cursor)
     viewport_rect = splash.log_view.viewport().rect()
     return int(viewport_rect.bottom() - cursor_rect.bottom())
+
+
+@pytest.mark.parametrize(
+    ("cursor_screen_present", "expected_geometry"),
+    (
+        (True, QRect(1600, 100, 1920, 1080)),
+        (False, QRect(-1280, 0, 1280, 1024)),
+    ),
+)
+def test_splash_centers_on_cursor_screen_with_primary_screen_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+    cursor_screen_present: bool,
+    expected_geometry: QRect,
+) -> None:
+    """Splash placement should prefer the cursor display before using primary."""
+
+    _app()
+
+    class _Screen:
+        """Expose the available geometry required by splash placement."""
+
+        def __init__(self, geometry: QRect) -> None:
+            """Store one deterministic available desktop region."""
+
+            self._geometry = geometry
+
+        def availableGeometry(self) -> QRect:
+            """Return the region used for centering."""
+
+            return self._geometry
+
+    cursor_screen = _Screen(QRect(1600, 100, 1920, 1080))
+    primary_screen = _Screen(QRect(-1280, 0, 1280, 1024))
+
+    class _Cursor:
+        """Return a stable cursor position for monitor selection."""
+
+        @staticmethod
+        def pos() -> QPoint:
+            """Return the global cursor position passed to Qt screen lookup."""
+
+            return QPoint(2100, 400)
+
+    class _GuiApplication:
+        """Expose deterministic screen selection without native display state."""
+
+        @staticmethod
+        def screenAt(position: QPoint) -> _Screen | None:
+            """Return the cursor screen when this scenario exposes one."""
+
+            assert position == QPoint(2100, 400)
+            return cursor_screen if cursor_screen_present else None
+
+        @staticmethod
+        def primaryScreen() -> _Screen:
+            """Return the fallback screen when cursor lookup has no result."""
+
+            return primary_screen
+
+    monkeypatch.setattr(splash_window, "QCursor", _Cursor)
+    monkeypatch.setattr(splash_window, "QGuiApplication", _GuiApplication)
+    splash = SplashWindow(backdrop_mode=None)
+
+    splash.center_on_screen()
+
+    assert splash.pos() == QPoint(
+        expected_geometry.left() + (expected_geometry.width() - splash.width()) // 2,
+        expected_geometry.top() + (expected_geometry.height() - splash.height()) // 2,
+    )
+    splash.close()
 
 
 def test_splash_window_routes_append_log_through_shared_terminal_view(

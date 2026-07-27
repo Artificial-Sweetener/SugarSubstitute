@@ -21,7 +21,14 @@ from __future__ import annotations
 from typing import Protocol, cast
 
 from PySide6.QtCore import QEvent, QRect, Qt, Signal, Slot
-from PySide6.QtGui import QFontMetrics, QIcon, QMouseEvent, QPixmap
+from PySide6.QtGui import (
+    QCursor,
+    QFontMetrics,
+    QGuiApplication,
+    QIcon,
+    QMouseEvent,
+    QPixmap,
+)
 from PySide6.QtWidgets import QAbstractButton, QLabel, QSizePolicy, QVBoxLayout, QWidget
 from qfluentwidgets import FluentStyleSheet
 from qframelesswindow import AcrylicWindow
@@ -166,9 +173,11 @@ class SplashWindow(AcrylicWindow):
         self._drag_widgets = {container, visual}
 
     def center_on_screen(self) -> None:
-        """Center the splash window on the active screen."""
+        """Center the splash window on the screen containing the cursor."""
 
-        screen = self.screen().availableGeometry()
+        screen = _cursor_screen_geometry()
+        if screen is None:
+            return
         self.move(
             screen.left() + (screen.width() - self.width()) // 2,
             screen.top() + (screen.height() - self.height()) // 2,
@@ -327,3 +336,12 @@ def _is_dark_theme_enabled() -> bool:
         return bool(isDarkTheme())
     except ImportError:  # pragma: no cover - lightweight test stubs
         return True
+
+
+def _cursor_screen_geometry() -> QRect | None:
+    """Return usable geometry for the cursor screen with a primary-screen fallback."""
+
+    screen = QGuiApplication.screenAt(QCursor.pos())
+    if screen is None:
+        screen = QGuiApplication.primaryScreen()
+    return screen.availableGeometry() if screen is not None else None
