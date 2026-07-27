@@ -318,6 +318,10 @@ Prömpt prëvïëw:
       <translation>⟦Åctïöns ···⟧</translation>
     </message>
     <message>
+      <source>Activate Generate</source>
+      <translation>⟦Åctïvàtë Gënëràtë ···⟧</translation>
+    </message>
+    <message>
       <source>Activating %1 Comfy target at %2:%3.</source>
       <translation>⟦Åctïvàtïng %1 Cömfy tàrgët àt %2:%3. ···⟧</translation>
     </message>
@@ -452,6 +456,10 @@ Prömpt prëvïëw:
     <message>
       <source>Applying planned changes.</source>
       <translation>⟦Åpplyïng plànnëd chàngës. ···⟧</translation>
+    </message>
+    <message>
+      <source>Assign keyboard controls for generation actions.</source>
+      <translation>⟦Åssïgn këyböàrd cöntröls för gënëràtïön àctïöns. ···⟧</translation>
     </message>
     <message>
       <source>Attached ComfyUI folder does not exist: %1</source>
@@ -636,6 +644,10 @@ Prömpt prëvïëw:
     <message>
       <source>Canvas Tab Demo</source>
       <translation>⟦Cànvàs Tàb Dëmö ···⟧</translation>
+    </message>
+    <message>
+      <source>Change</source>
+      <translation>⟦Chàngë ···⟧</translation>
     </message>
     <message>
       <source>Change the colors that appear in Substitute.</source>
@@ -1370,6 +1382,10 @@ Prömpt prëvïëw:
       <translation>⟦Cömpösë rëlàtïvë földërs ànd fïlënàmë wïthöüt thë .png ëxtënsïön. ···⟧</translation>
     </message>
     <message>
+      <source>Configure keyboard and future input controls.</source>
+      <translation>⟦Cönfïgürë këyböàrd ànd fütürë ïnpüt cöntröls. ···⟧</translation>
+    </message>
+    <message>
       <source>Configured</source>
       <translation>⟦Cönfïgürëd ···⟧</translation>
     </message>
@@ -1452,6 +1468,10 @@ Prömpt prëvïëw:
     <message>
       <source>Control which Danbooru ratings may render as image previews.</source>
       <translation>⟦Cöntröl whïch Dànböörü ràtïngs mày rëndër às ïmàgë prëvïëws. ···⟧</translation>
+    </message>
+    <message>
+      <source>Controls</source>
+      <translation>⟦Cöntröls ···⟧</translation>
     </message>
     <message>
       <source>Copy</source>
@@ -2482,6 +2502,10 @@ Install these nodes now?</source>
       <translation>⟦Këëp yöür ïntërnët cönnëctïön àvàïlàblë whïlë sëtüp rüns. ···⟧</translation>
     </message>
     <message>
+      <source>Keyboard</source>
+      <translation>⟦Këyböàrd ···⟧</translation>
+    </message>
+    <message>
       <source>Kind: %1</source>
       <translation>⟦Kïnd: %1 ···⟧</translation>
     </message>
@@ -3058,6 +3082,10 @@ Install these nodes now?</source>
       <translation>⟦Nöt löàdëd ···⟧</translation>
     </message>
     <message>
+      <source>Not set</source>
+      <translation>⟦Nöt sët ···⟧</translation>
+    </message>
+    <message>
       <source>Number of queued generations to create</source>
       <translation>⟦Nümbër öf qüëüëd gënëràtïöns tö crëàtë ···⟧</translation>
     </message>
@@ -3372,6 +3400,14 @@ Install these nodes now?</source>
     <message>
       <source>Preparing your existing ComfyUI setup.</source>
       <translation>⟦Prëpàrïng yöür ëxïstïng CömfyÜÏ sëtüp. ···⟧</translation>
+    </message>
+    <message>
+      <source>Press a key combination...</source>
+      <translation>⟦Prëss à këy cömbïnàtïön... ···⟧</translation>
+    </message>
+    <message>
+      <source>Press a key together with the modifier.</source>
+      <translation>⟦Prëss à këy tögëthër wïth thë mödïfïër. ···⟧</translation>
     </message>
     <message>
       <source>Preview</source>
@@ -3930,6 +3966,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rünnïng ···⟧</translation>
     </message>
     <message>
+      <source>Runs the currently selected regular or infinite generation action.</source>
+      <translation>⟦Rüns thë cürrëntly sëlëctëd rëgülàr ör ïnfïnïtë gënëràtïön àctïön. ···⟧</translation>
+    </message>
+    <message>
       <source>Runtime and system information</source>
       <translation>⟦Rüntïmë ànd systëm ïnförmàtïön ···⟧</translation>
     </message>
@@ -4306,6 +4346,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Skïp gënëràtïön ···⟧</translation>
     </message>
     <message>
+      <source>Skips the active queued generation when available.</source>
+      <translation>⟦Skïps thë àctïvë qüëüëd gënëràtïön whën àvàïlàblë. ···⟧</translation>
+    </message>
+    <message>
       <source>Smart Select</source>
       <translation>⟦Smàrt Sëlëct ···⟧</translation>
     </message>
@@ -4424,6 +4468,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Stop the other process using %1:%2, or choose a different managed port.</source>
       <translation>⟦Stöp thë öthër pröcëss üsïng %1:%2, ör chöösë à dïffërënt mànàgëd pört. ···⟧</translation>
+    </message>
+    <message>
+      <source>Stops continuous or queued generation when available.</source>
+      <translation>⟦Stöps cöntïnüöüs ör qüëüëd gënëràtïön whën àvàïlàblë. ···⟧</translation>
     </message>
     <message>
       <source>Substitute BackEnd API version is incompatible.</source>
@@ -4908,6 +4956,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Swàp wïdth &amp; hëïght ···⟧</translation>
     </message>
     <message>
+      <source>Switches the primary Generate control and updates its visible mode.</source>
+      <translation>⟦Swïtchës thë prïmàry Gënëràtë cöntröl ànd üpdàtës ïts vïsïblë mödë. ···⟧</translation>
+    </message>
+    <message>
       <source>Sync</source>
       <translation>⟦Sync ···⟧</translation>
     </message>
@@ -4984,8 +5036,20 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thàt Pythön ëxëcütàblë dïd nöt wörk ···⟧</translation>
     </message>
     <message>
+      <source>That binding is already assigned to another control.</source>
+      <translation>⟦Thàt bïndïng ïs àlrëàdy àssïgnëd tö ànöthër cöntröl. ···⟧</translation>
+    </message>
+    <message>
+      <source>That combination is reserved by Windows.</source>
+      <translation>⟦Thàt cömbïnàtïön ïs rësërvëd by Wïndöws. ···⟧</translation>
+    </message>
+    <message>
       <source>That environment could not be verified</source>
       <translation>⟦Thàt ënvïrönmënt cöüld nöt bë vërïfïëd ···⟧</translation>
+    </message>
+    <message>
+      <source>That key cannot be used as a control.</source>
+      <translation>⟦Thàt këy cànnöt bë üsëd às à cöntröl. ···⟧</translation>
     </message>
     <message>
       <source>The ComfyUI folder couldn't be found</source>
@@ -5284,6 +5348,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Tïtlë: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Toggle Regular / Infinite mode</source>
+      <translation>⟦Tögglë Rëgülàr / Ïnfïnïtë mödë ···⟧</translation>
+    </message>
+    <message>
       <source>Toggle between expanded and compact cube cards.</source>
       <translation>⟦Tögglë bëtwëën ëxpàndëd ànd cömpàct cübë càrds. ···⟧</translation>
     </message>
@@ -5490,6 +5558,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Use Comfy Connection settings to change the selected server.</source>
       <translation>⟦Üsë Cömfy Cönnëctïön sëttïngs tö chàngë thë sëlëctëd sërvër. ···⟧</translation>
+    </message>
+    <message>
+      <source>Use Ctrl or Alt, a function key, or a navigation-cluster key.</source>
+      <translation>⟦Üsë Ctrl ör Ålt, à fünctïön këy, ör à nàvïgàtïön-clüstër këy. ···⟧</translation>
     </message>
     <message>
       <source>Use Current</source>

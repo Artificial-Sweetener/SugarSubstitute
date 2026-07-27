@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.about import AboutInfoService
+from substitute.application.controls import ControlBindingService
 from substitute.application.appearance import AppearanceRestartCoordinator
 from substitute.application.comfy_environment import ComfyEnvironmentService
 from substitute.application.cube_library import CubeLibraryManagementService
@@ -55,6 +56,10 @@ from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.resources.app_icon import AppIcon
 from substitute.presentation.settings.comfy_connection_page import (
     ComfyConnectionSettingsPage,
+)
+from substitute.presentation.settings.controls_page import (
+    ControlsSettingsPage,
+    build_controls_search_catalog_entry,
 )
 from substitute.presentation.settings.comfy_environment_page import (
     ComfyEnvironmentPage,
@@ -106,6 +111,7 @@ COMFYUI_SECTION_ID = "comfyui"
 LIBRARY_SECTION_ID = "library"
 GENERATION_SECTION_ID = "generation"
 PROMPT_EDITING_SECTION_ID = "prompt_editing"
+CONTROLS_SECTION_ID = "controls"
 MODEL_SOURCES_SECTION_ID = "model_sources"
 
 
@@ -130,6 +136,7 @@ def create_settings_workspace(
     appearance_runtime: AppearanceRuntimeProtocol,
     appearance_restart_coordinator: AppearanceRestartCoordinator,
     prompt_editor_preference_service: PromptEditorPreferenceService,
+    control_binding_service: ControlBindingService | None = None,
     danbooru_preference_service: DanbooruPreferenceService,
     danbooru_cache_repository: DanbooruCacheRepository,
     civitai_preference_service: CivitaiPreferenceService,
@@ -198,6 +205,11 @@ def create_settings_workspace(
             show_restart_requirements=show_restart_requirements,
         )
     )
+    controls_catalog_entry = (
+        build_controls_search_catalog_entry(control_binding_service)
+        if control_binding_service is not None
+        else None
+    )
     appearance_entry = SettingsPageEntry(
         page_id=appearance_entry.page_id,
         title=appearance_entry.title,
@@ -212,6 +224,7 @@ def create_settings_workspace(
     catalog_search_pages = (
         generation_entry,
         prompt_entry,
+        *((controls_catalog_entry,) if controls_catalog_entry is not None else ()),
         model_sources_entry,
         comfy_search_entry,
         appearance_entry,
@@ -225,6 +238,7 @@ def create_settings_workspace(
         ),
         generation_entry,
         prompt_entry,
+        *((controls_catalog_entry,) if controls_catalog_entry is not None else ()),
         model_sources_entry,
         SettingsNavigationDescriptor(
             page_id=LIBRARY_SECTION_ID,
@@ -251,6 +265,25 @@ def create_settings_workspace(
                 parent=parent,
                 task_runner_factory=task_runner_factory,
             ),
+        ),
+        *(
+            (
+                SettingsPageDescriptor(
+                    page_id=CONTROLS_SECTION_ID,
+                    title=app_text("Controls"),
+                    subtitle=app_text("Configure keyboard and future input controls."),
+                    icon=AppIcon.CURSOR_HOVER_20_REGULAR,
+                    create_widget=lambda parent: ControlsSettingsPage(
+                        control_binding_service,
+                        capture_active_changed=lambda active: setattr(
+                            parent.window(), "controls_keyboard_capture_active", active
+                        ),
+                        parent=parent,
+                    ),
+                ),
+            )
+            if control_binding_service is not None
+            else ()
         ),
         SettingsPageDescriptor(
             page_id=generation_entry.page_id,
@@ -439,6 +472,7 @@ __all__ = [
     "ABOUT_SECTION_ID",
     "APPEARANCE_SECTION_ID",
     "COMFYUI_SECTION_ID",
+    "CONTROLS_SECTION_ID",
     "GENERATION_SECTION_ID",
     "LIBRARY_SECTION_ID",
     "MODEL_SOURCES_SECTION_ID",

@@ -372,6 +372,9 @@ def capture_dependencies(
     shell.prompt_editor_preference_service = (
         dependencies.prompt_editor_preference_service
     )
+    shell.control_binding_service = getattr(
+        dependencies, "control_binding_service", None
+    )
     shell._open_reconfigure_window = dependencies.open_reconfigure_window
     shell._reconfigure_window = None
     shell.appearance_runtime = dependencies.appearance_runtime
@@ -919,6 +922,13 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
     shell._restore_asset_preload = None
     shell._startup_autosave_unmuted_marked = False
     shell.session_autosave_controller.ensure_coordinator()
+    install_event_filter = getattr(
+        shell.shell_event_filter_controller,
+        "install_on_application",
+        None,
+    )
+    if callable(install_event_filter):
+        install_event_filter()
     shell.workspace_layout_controller.log_editor_width_trace(
         "initialized durable layout state"
     )

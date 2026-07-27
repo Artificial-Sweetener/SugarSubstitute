@@ -74,6 +74,7 @@ class SettingsRouteController:
             appearance_restart_coordinator=shell.appearance_restart_coordinator,
             comfy_connection_settings_service=shell.comfy_connection_settings_service,
             prompt_editor_preference_service=shell.prompt_editor_preference_service,
+            control_binding_service=getattr(shell, "control_binding_service", None),
             danbooru_preference_service=shell.danbooru_preference_service,
             danbooru_cache_repository=shell.danbooru_cache_repository,
             civitai_preference_service=shell.civitai_preference_service,

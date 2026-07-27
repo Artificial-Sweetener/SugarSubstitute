@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from PySide6.QtCore import QEvent
+from PySide6.QtCore import QCoreApplication, QEvent, QObject
 
 from substitute.presentation.shell.shell_event_filter_controller import (
     ShellEventFilterController,
@@ -94,3 +94,35 @@ def test_unhandled_event_returns_none_for_qt_fallback() -> None:
     controller = ShellEventFilterController(shell)
 
     assert controller.handle_event_filter_event(_Event(object())) is None
+
+
+def test_application_filter_installs_only_when_explicitly_requested() -> None:
+    """Avoid routing Qt events through a shell until its composition is complete."""
+
+    application = QCoreApplication.instance() or QCoreApplication([])
+
+    class _Shell(QObject):
+        """Expose the minimum shell surface for filter installation."""
+
+        def __init__(self) -> None:
+            """Initialize shell state before filtering begins."""
+
+            super().__init__()
+            self.installed = False
+
+        def eventFilter(self, _source: QObject, _event: QEvent) -> bool:
+            """Record installation-driven event delivery."""
+
+            self.installed = True
+            return False
+
+    shell = _Shell()
+    controller = ShellEventFilterController(shell)
+
+    assert shell.installed is False
+
+    controller.install_on_application()
+    application.sendEvent(application, QEvent(QEvent.Type.ApplicationActivate))
+
+    assert shell.installed is True
+    application.removeEventFilter(shell)

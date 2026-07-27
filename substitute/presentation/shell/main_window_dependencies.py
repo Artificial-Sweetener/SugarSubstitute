@@ -44,6 +44,7 @@ if TYPE_CHECKING:
         CivitaiPreferenceService,
     )
     from substitute.application.comfy_environment import ComfyEnvironmentService
+    from substitute.application.controls import ControlBindingService
     from substitute.application.cube_library import CubeLibraryManagementService
     from substitute.application.cubes import CubeLoadService
     from substitute.application.danbooru import (
@@ -299,6 +300,7 @@ class MainWindowDependencies:
         ]
         | None
     ) = None
+    control_binding_service: ControlBindingService | None = None
 
 
 __all__ = ["InstallationPathBundle", "MainWindowDependencies"]
