@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from PySide6.QtWidgets import QWidget
 from sugarsubstitute_shared.presentation.localization import render_application_text
 
 from substitute.application.generation import GenerationFailure
@@ -32,6 +33,9 @@ from substitute.application.ports import (
     ModelLoadProgressUpdate,
 )
 from substitute.application.workflows import LiveFinalOutputEvent, LivePreviewEvent
+from substitute.presentation.shell.window_attention import (
+    request_window_attention_if_inactive,
+)
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
 _LOGGER = get_logger("presentation.shell.generation_feedback_presenter")
@@ -224,12 +228,26 @@ class GenerationFeedbackPresenter:
         )
 
     def apply_generation_completed(self, event: ListenerCompleted) -> None:
-        """Clear non-visual completion state without exposing prior output images."""
+        """Clear completion state and request attention when the shell is unfocused."""
 
         workflow_id = event.workflow_id
         self.mark_sampler_progress_model_field_clear_needed()
         self.clear_model_field_load_progress_for_workflow(workflow_id)
         self._shell._taskbar_progress_presenter.clear_progress()
+        shell_window_provider = getattr(self._shell, "window", None)
+        shell_window = (
+            shell_window_provider() if callable(shell_window_provider) else None
+        )
+        if isinstance(shell_window, QWidget) and request_window_attention_if_inactive(
+            shell_window
+        ):
+            log_info(
+                _LOGGER,
+                "Requested platform attention for completed generation",
+                workflow_id=workflow_id,
+                prompt_id=event.prompt_id,
+                generation_run_id=event.generation_run_id,
+            )
 
     def clear_model_field_load_progress_for_workflow(self, workflow_id: str) -> None:
         """Clear model-loading progress for one workflow editor panel."""

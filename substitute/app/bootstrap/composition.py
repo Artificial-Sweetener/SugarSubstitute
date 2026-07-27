@@ -105,6 +105,9 @@ from substitute.presentation.resources.app_icon import application_icon
 from substitute.presentation.shell.generation_titlebar_control_registry import (
     GenerationTitleBarControlRegistry,
 )
+from substitute.presentation.shell.window_attention import (
+    request_window_attention_if_inactive,
+)
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
@@ -119,6 +122,7 @@ _LOGGER = get_logger("app.bootstrap.composition")
 ShutdownRequest = Callable[[QWidget | None], None]
 WINDOWS_APP_USER_MODEL_ID = "SugarSubstitute.SugarSubstitute"
 DISABLE_WINDOWS_APP_USER_MODEL_ID_ENV = "SUBSTITUTE_DISABLE_APP_USER_MODEL_ID"
+_SHELL_ATTENTION_DELAY_MS = 200
 
 if TYPE_CHECKING:
     from substitute.application.model_metadata import ModelCatalogSnapshot
@@ -2964,7 +2968,7 @@ def _activate_shell_window(frame: object) -> None:
 
 
 def _request_shell_activation(frame: QWidget) -> None:
-    """Request shell foreground activation immediately and after Qt settles."""
+    """Request shell foreground activation, then OS attention if it remains inactive."""
 
     trace_mark("shell.activation.requested", **_widget_geometry_fields(frame))
     _activate_shell_window(frame)
@@ -2973,6 +2977,23 @@ def _request_shell_activation(frame: QWidget) -> None:
         delay_ms=0,
     )
     QTimer.singleShot(0, lambda: _activate_shell_window(frame))
+    trace_mark(
+        "shell.attention.scheduled",
+        delay_ms=_SHELL_ATTENTION_DELAY_MS,
+    )
+    QTimer.singleShot(
+        _SHELL_ATTENTION_DELAY_MS,
+        lambda: _request_shell_attention_if_inactive(frame),
+    )
+
+
+def _request_shell_attention_if_inactive(frame: QWidget) -> None:
+    """Request platform attention when foreground activation was denied."""
+
+    if not request_window_attention_if_inactive(frame):
+        trace_mark("shell.attention.skip", reason="already_active")
+        return
+    trace_mark("shell.attention.requested", **_widget_geometry_fields(frame))
 
 
 def _startup_phase(startup_timer: StartupTimer | None, name: str) -> Any:

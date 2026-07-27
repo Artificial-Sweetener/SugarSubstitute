@@ -2325,7 +2325,7 @@ def test_show_built_main_window_applies_initial_shell_placement_pre_show(
         ("raise",),
         ("activate",),
     ]
-    assert len(scheduled) == 1
+    assert len(scheduled) == 2
     callback = cast(Callable[[], None], scheduled[0][1])
     callback()
     assert calls == [
@@ -2336,6 +2336,44 @@ def test_show_built_main_window_applies_initial_shell_placement_pre_show(
         ("raise",),
         ("activate",),
     ]
+
+
+def test_inactive_shell_requests_platform_attention_after_activation_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A visible but unfocused shell should request attention instead of stealing focus."""
+
+    app = QApplication.instance() or QApplication([])
+    alerts: list[tuple[QWidget, int]] = []
+
+    class _Frame(QWidget):
+        """Expose a visible shell that the platform declined to activate."""
+
+        def isActiveWindow(self) -> bool:
+            """Report the denied foreground activation deterministically."""
+
+            return False
+
+    class _AttentionApplication:
+        """Record the Qt platform-attention request."""
+
+        @staticmethod
+        def alert(widget: QWidget, milliseconds: int) -> None:
+            """Record the widget and lifetime supplied to Qt."""
+
+            alerts.append((widget, milliseconds))
+
+    frame = _Frame()
+    monkeypatch.setattr(
+        "substitute.presentation.shell.window_attention.QApplication",
+        _AttentionApplication,
+    )
+
+    composition._request_shell_attention_if_inactive(frame)
+
+    assert alerts == [(frame, 0)]
+    frame.close()
+    app.processEvents()
 
 
 def test_show_built_main_window_restores_maximized_display_state() -> None:

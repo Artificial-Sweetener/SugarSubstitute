@@ -21,6 +21,9 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+from PySide6.QtWidgets import QApplication, QWidget
+
 from substitute.application.errors import ErrorReport, ErrorReportKind
 from substitute.application.generation import GenerationFailure
 from substitute.application.ports import (
@@ -38,6 +41,7 @@ from substitute.domain.generation import OutputResultPosition
 from substitute.presentation.shell.generation_feedback_presenter import (
     GenerationFeedbackPresenter,
 )
+import substitute.presentation.shell.window_attention as window_attention
 
 
 def test_output_image_submits_to_output_pipeline(tmp_path: Path) -> None:
@@ -141,6 +145,47 @@ def test_generation_completion_clears_nonvisual_progress_only() -> None:
     assert model_clears == ["wf-1"]
     assert taskbar_clears == ["taskbar"]
     assert preview_clears == []
+
+
+def test_generation_completion_requests_attention_when_shell_is_unfocused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A completed generation should use native attention without changing focus."""
+
+    _ = QApplication.instance() or QApplication([])
+    attention_requests: list[tuple[QWidget, int]] = []
+
+    class _ShellWindow(QWidget):
+        """Expose a visible window whose focus belongs to another application."""
+
+        def isActiveWindow(self) -> bool:
+            """Report that the shell is not the active application window."""
+
+            return False
+
+    class _AttentionApplication:
+        """Record the Qt native-attention request."""
+
+        @staticmethod
+        def alert(window: QWidget, milliseconds: int) -> None:
+            """Capture the target and requested alert lifetime."""
+
+            attention_requests.append((window, milliseconds))
+
+    shell_window = _ShellWindow()
+    shell = _feedback_shell(window=lambda: shell_window)
+    monkeypatch.setattr(window_attention, "QApplication", _AttentionApplication)
+
+    GenerationFeedbackPresenter(shell).apply_generation_completed(
+        ListenerCompleted(
+            workflow_id="wf-1",
+            generation_run_id="run-1",
+            prompt_id="pid-1",
+        )
+    )
+
+    assert attention_requests == [(shell_window, 0)]
+    shell_window.close()
 
 
 def test_model_load_progress_routes_to_source_model_picker() -> None:
