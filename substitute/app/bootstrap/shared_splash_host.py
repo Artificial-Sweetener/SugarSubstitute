@@ -116,6 +116,7 @@ def main(argv: list[str] | None = None) -> int:
             server=server,
         )
     )
+    splash.center_on_screen()
     splash.show()
     _write_ready_message(stream=sys.stdout, server=server)
 

@@ -25,6 +25,8 @@ import subprocess
 from threading import Event
 from typing import Any, cast
 
+import pytest
+
 from substitute.application.execution import (
     CancellationSource,
     ExecutionContext,
@@ -39,6 +41,7 @@ from substitute.app.bootstrap.launch_splash import (
     _read_helper_stderr,
 )
 from substitute.app.bootstrap import splash_process
+from substitute.app.bootstrap import shared_splash_host
 from substitute.app.bootstrap.splash_process import (
     decode_splash_message,
     encode_splash_helper_event,
@@ -315,6 +318,16 @@ def test_splash_process_sets_app_icon_before_constructing_splash() -> None:
     assert source.index("app.setWindowIcon(application_icon())") < source.index(
         "SplashWindow"
     )
+
+
+@pytest.mark.parametrize("splash_host", (splash_process, shared_splash_host))
+def test_splash_hosts_center_before_revealing_the_window(splash_host: object) -> None:
+    """Every helper-host path should center the splash before it becomes visible."""
+
+    main = getattr(splash_host, "main")
+    source = inspect.getsource(main)
+
+    assert source.index("splash.center_on_screen()") < source.index("splash.show()")
 
 
 def test_splash_process_maps_mica_alt_backdrop_arg_to_plain_mica() -> None:

@@ -90,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     splash.cancelRequested.connect(
         lambda: _handle_cancel_requested(app=app, stream=sys.stdout)
     )
+    splash.center_on_screen()
     splash.show()
 
     bridge = SplashMessageBridge()
