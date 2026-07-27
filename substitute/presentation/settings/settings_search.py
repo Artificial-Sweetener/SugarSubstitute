@@ -73,7 +73,7 @@ def search_settings_catalog(
     pages: tuple[SettingsPageEntry, ...],
     query: str,
 ) -> tuple[SettingsSearchResult, ...]:
-    """Return catalog controls matching all query tokens in display order."""
+    """Return catalog controls matching every query-token prefix in display order."""
 
     tokens = _query_tokens(query)
     if not tokens:
@@ -83,7 +83,7 @@ def search_settings_catalog(
         for section in page.visible_sections():
             for control in section.visible_controls():
                 haystack = _searchable_tokens(page, section, control)
-                if all(token in haystack for token in tokens):
+                if all(_matches_token_prefix(haystack, token) for token in tokens):
                     results.append(
                         SettingsSearchResult(
                             page=page,
@@ -120,6 +120,14 @@ def _searchable_tokens(
         )
     )
     return frozenset(_query_tokens(text))
+
+
+def _matches_token_prefix(indexed_tokens: frozenset[str], query_token: str) -> bool:
+    """Return whether an indexed Settings term starts with the typed token."""
+
+    return any(
+        indexed_token.startswith(query_token) for indexed_token in indexed_tokens
+    )
 
 
 def _render(text: ApplicationText) -> str:
