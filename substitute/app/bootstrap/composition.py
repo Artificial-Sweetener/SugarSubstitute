@@ -1512,6 +1512,11 @@ def _build_main_window_dependencies(
         FilePromptEditorPreferenceRepository,
     )
 
+    from substitute.infrastructure.persistence.file_control_binding_preference_repository import (
+        FileControlBindingPreferenceRepository,
+    )
+    from substitute.application.controls import ControlBindingService
+
     record_dependency_phase(
         "imports.infrastructure.persistence.prompt_editor_preferences"
     )
@@ -2107,6 +2112,9 @@ def _build_main_window_dependencies(
     prompt_editor_preference_service = PromptEditorPreferenceService(
         FilePromptEditorPreferenceRepository(context.user_settings_dir)
     )
+    control_binding_service = ControlBindingService(
+        FileControlBindingPreferenceRepository(context.user_settings_dir)
+    )
     editor_panel_execution_factories = create_editor_panel_execution_factories(
         runtime_services.execution_runtime
     )
@@ -2647,6 +2655,7 @@ def _build_main_window_dependencies(
         generation_preview_preference_service=generation_preview_preference_service,
         output_preference_service=output_preference_service,
         prompt_editor_preference_service=prompt_editor_preference_service,
+        control_binding_service=control_binding_service,
         session_snapshot_repository=(runtime_services.session_snapshot_repository),
         session_autosave_service=runtime_services.session_autosave_service,
         execution_runtime=runtime_services.execution_runtime,

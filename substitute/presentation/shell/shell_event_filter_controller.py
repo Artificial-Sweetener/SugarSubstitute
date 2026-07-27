@@ -20,16 +20,32 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import QEvent
+from PySide6.QtCore import QCoreApplication, QEvent, QObject
+
+from substitute.presentation.shell.control_binding_dispatcher import (
+    ControlBindingDispatcher,
+)
 
 
 class ShellEventFilterController:
     """Own shell-level event-filter decisions before Qt fallback handling."""
 
     def __init__(self, shell: Any) -> None:
-        """Store the shell whose controllers receive global events."""
+        """Store the shell whose controllers receive global events.
+
+        Installation is explicit because Qt can dispatch events while a
+        ``MainWindow`` is still composing its remaining controllers.
+        """
 
         self._shell = shell
+        self._control_binding_dispatcher = ControlBindingDispatcher(shell)
+
+    def install_on_application(self) -> None:
+        """Install the fully composed shell as the application event filter."""
+
+        application = QCoreApplication.instance()
+        if application is not None and isinstance(self._shell, QObject):
+            application.installEventFilter(self._shell)
 
     def handle_event_filter_event(self, event: object) -> bool | None:
         """Return an event-filter result, or None when Qt should handle fallback."""
@@ -41,6 +57,13 @@ class ShellEventFilterController:
         }:
             self._shell.cube_library_update_controller.present_pending_updates()
             return False
+
+        if getattr(self._shell, "controls_keyboard_capture_active", False):
+            return None
+
+        control_result = self._control_binding_dispatcher.handle_event(event)
+        if control_result is not None:
+            return control_result
 
         search_result = self._shell.search_overlay_controller.handle_event_filter_event(
             event
