@@ -199,21 +199,16 @@ class PromptSourceCommandService(Generic[TPayload]):
         command_name: str = "replace_source_range",
         record_undo: bool = True,
         finish_pending_key_edits: bool = False,
-        exact_source: bool = False,
-        cursor_position: int | None = None,
-        anchor_position: int | None = None,
     ) -> PromptCommandResult[TPayload]:
-        """Commit one viewport-local source replacement with explicit normalization."""
+        """Commit one viewport-local source range replacement."""
 
         return self.execute_source_replacement(
             PromptCommandTextReplacement(
                 source_range=PromptCommandSourceRange(start=start, end=end),
                 replacement_text=replacement_text,
                 origin=origin,
-                exact_source=exact_source or self._exact_source_enabled(),
+                exact_source=self._exact_source_enabled(),
                 record_undo=record_undo,
-                cursor_position=cursor_position,
-                anchor_position=anchor_position,
             ),
             command_name=command_name,
             finish_pending_key_edits=finish_pending_key_edits,
