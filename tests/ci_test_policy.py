@@ -45,7 +45,6 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_app_orb_menu.py",
         "tests/test_app_orb_renderer.py",
         "tests/test_canvas_tab_manager_contract.py",
-        "tests/test_canvas_zoom_indicator.py",
         "tests/test_comfy_output_panel_contract.py",
         "tests/test_cube_staging_stack.py",
         "tests/test_danbooru_wiki_dialog.py",
@@ -131,9 +130,10 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_qfluent_menu_renderer.py",
         # QFluent's process-global font/QSS refresh can terminate an xdist worker.
         "tests/test_qfluent_font_adapter.py",
-        # Real Output QPane interaction owns native scene and popup state.
+        # Real Output CuteCanvas interaction owns native grid and popup state.
         "tests/test_real_shell_output_canvas_abuse_matrix.py",
         "tests/test_real_shell_output_canvas_scenarios.py",
+        "tests/test_real_shell_output_canvas_transfer.py",
         # Real workflow-route transitions exercise native Qt animation timing.
         "tests/test_real_shell_direct_workflow_scenarios.py",
         "tests/test_real_shell_prompt_editor_autocomplete_scenarios.py",

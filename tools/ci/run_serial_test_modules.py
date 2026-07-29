@@ -24,6 +24,7 @@ import subprocess
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from tests.ci_test_policy import SERIAL_TEST_MODULES
 
@@ -60,11 +61,15 @@ def build_serial_test_command(
     )
 
 
-def prepare_module_base_temp(*, project_root: Path, junit_path: Path) -> Path:
+def prepare_module_base_temp(
+    *,
+    base_temp_root: Path,
+    junit_path: Path,
+) -> Path:
     """Create and return the parent-owned base-temp path for one module."""
 
-    base_temp = project_root / ".pytest-tmp" / "serial" / junit_path.stem
-    base_temp.parent.mkdir(parents=True, exist_ok=True)
+    base_temp_root.mkdir(parents=True, exist_ok=True)
+    base_temp = base_temp_root / junit_path.stem
     return base_temp
 
 
@@ -73,12 +78,13 @@ def run_serial_test_module(
     project_root: Path,
     module_path: str,
     junit_directory: Path,
+    base_temp_root: Path,
 ) -> int:
     """Run one module in a fresh process and return its pytest exit code."""
 
     junit_path = junit_path_for_module(junit_directory, module_path)
     base_temp = prepare_module_base_temp(
-        project_root=project_root,
+        base_temp_root=base_temp_root,
         junit_path=junit_path,
     )
     command = build_serial_test_command(
@@ -111,23 +117,26 @@ def run_serial_test_modules(
     """Run all serial modules independently and return the failing paths."""
 
     junit_directory.mkdir(parents=True, exist_ok=True)
-    failures: list[str] = []
-    total = len(module_paths)
-    for index, module_path in enumerate(module_paths, start=1):
-        _LOGGER.info("Serial module %d/%d: %s", index, total, module_path)
-        return_code = run_serial_test_module(
-            project_root=project_root,
-            module_path=module_path,
-            junit_directory=junit_directory,
-        )
-        if return_code != 0:
-            failures.append(module_path)
-            _LOGGER.error(
-                "Serial module failed with exit code %d: %s",
-                return_code,
-                module_path,
+    with TemporaryDirectory(prefix="sugarsubstitute-serial-") as temp_directory:
+        base_temp_root = Path(temp_directory)
+        failures: list[str] = []
+        total = len(module_paths)
+        for index, module_path in enumerate(module_paths, start=1):
+            _LOGGER.info("Serial module %d/%d: %s", index, total, module_path)
+            return_code = run_serial_test_module(
+                project_root=project_root,
+                module_path=module_path,
+                junit_directory=junit_directory,
+                base_temp_root=base_temp_root,
             )
-    return tuple(failures)
+            if return_code != 0:
+                failures.append(module_path)
+                _LOGGER.error(
+                    "Serial module failed with exit code %d: %s",
+                    return_code,
+                    module_path,
+                )
+        return tuple(failures)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
