@@ -51,6 +51,7 @@ from substitute.domain.generation.output_preferences import (
     OutputOrganizationSettings,
     OutputPersistenceMode,
     OutputPreferences,
+    OutputTransferSettings,
 )
 
 
@@ -262,6 +263,9 @@ class OutputPreferenceService:
                 sizing_mode=preferences.jpeg.sizing_mode,
                 quality=max(1, min(preferences.jpeg.quality, 100)),
                 target_size_kib=max(1, preferences.jpeg.target_size_kib),
+            ),
+            transfer=OutputTransferSettings(
+                preferred_format=preferences.transfer.preferred_format,
             ),
             persistence_mode=preferences.persistence_mode,
         )

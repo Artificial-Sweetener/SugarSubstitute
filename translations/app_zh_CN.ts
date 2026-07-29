@@ -175,11 +175,6 @@ Prompt preview:
       <translation>%2 中的 %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_source_grid_composer.py" line="81"></location>
-      <source>%1 grid</source>
-      <translation>%1 网格</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1464"></location>
       <source>%1 installed packages</source>
       <translation>已安装 %1 个软件包</translation>
@@ -430,7 +425,7 @@ Prompt preview:
       <translation>API 密钥状态</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="241"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="235"></location>
       <source>About</source>
       <translation>关于</translation>
     </message>
@@ -450,7 +445,7 @@ Prompt preview:
       <translation>操作</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="66"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="86"></location>
       <source>Activate Generate</source>
       <translation>启动生成</translation>
     </message>
@@ -533,11 +528,6 @@ Prompt preview:
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1278"></location>
       <source>All ratings</source>
       <translation>所有分级</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/canvas/output/output_scene_overview_composer.py" line="97"></location>
-      <source>All scenes</source>
-      <translation>所有场景</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1472"></location>
@@ -625,7 +615,7 @@ Prompt preview:
       <translation>正在应用计划更改。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="111"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="166"></location>
       <source>Assign keyboard controls for generation actions.</source>
       <translation>为生成操作分配键盘控制。</translation>
     </message>
@@ -720,7 +710,7 @@ Prompt preview:
       <translation>批次 %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="753"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="758"></location>
       <source>Batch count</source>
       <translation>批次数量</translation>
     </message>
@@ -830,7 +820,7 @@ Prompt preview:
       <translation>取消任务</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="227"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="236"></location>
       <source>Cancel loading</source>
       <translation>取消加载</translation>
     </message>
@@ -1090,7 +1080,7 @@ Prompt preview:
       <translation>选择查找方式</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="105"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="108"></location>
       <source>Choose output folder</source>
       <translation>选择输出文件夹</translation>
     </message>
@@ -1180,7 +1170,7 @@ Prompt preview:
       <translation>选择文件的存放位置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="133"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="136"></location>
       <source>Choose where generated images are saved.</source>
       <translation>选择生成图像的保存位置。</translation>
     </message>
@@ -1203,6 +1193,11 @@ Prompt preview:
       <location filename="../substitute/application/onboarding/flow_service.py" line="1389"></location>
       <source>Choose which Python this ComfyUI setup uses</source>
       <translation>选择此 ComfyUI 安装使用的 Python</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="91"></location>
+      <source>Choose which representation drag and Copy export.</source>
+      <translation>选择拖放和复制导出的表示格式。</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="743"></location>
@@ -1710,7 +1705,7 @@ Prompt preview:
       <translation>ComfyUI 已启动，但存在问题</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="291"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="296"></location>
       <source>ComfyUI startup diagnostics</source>
       <translation>ComfyUI 启动诊断</translation>
     </message>
@@ -1750,7 +1745,7 @@ Prompt preview:
       <translation>ComfyUI 已安装，但 Substitute 无法完成必需节点包的准备工作。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="261"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="193"></location>
       <source>Compare outputs</source>
       <translation>比较输出</translation>
     </message>
@@ -1770,12 +1765,12 @@ Prompt preview:
       <translation>适用于 ComfyUI 的可组合工作流单元</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="185"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="188"></location>
       <source>Compose relative folders and filename without the .png extension.</source>
       <translation>组合相对文件夹和文件名，无需添加 .png 扩展名。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="209"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="340"></location>
       <source>Configure keyboard and future input controls.</source>
       <translation>配置键盘和未来的输入控制。</translation>
     </message>
@@ -1835,7 +1830,7 @@ Prompt preview:
       <translation>连接设置已经保存。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="257"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="252"></location>
       <source>Connection, setup, and Python environment</source>
       <translation>连接、设置和 Python 环境</translation>
     </message>
@@ -1885,12 +1880,12 @@ Prompt preview:
       <translation>控制哪些 Danbooru 分级可以显示图像预览。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="208"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="339"></location>
       <source>Controls</source>
       <translation>控件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="147"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="145"></location>
       <source>Copy</source>
       <translation>复制</translation>
     </message>
@@ -2055,7 +2050,7 @@ Prompt preview:
       <translation>验证立方体包失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="251"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="246"></location>
       <source>Cube Packs and readiness</source>
       <translation>立方体包和就绪状态</translation>
     </message>
@@ -2198,7 +2193,7 @@ Install these nodes now?</source>
       <translation>Danbooru 百科查找</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="76"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="79"></location>
       <source>Default</source>
       <translation>默认</translation>
     </message>
@@ -2366,6 +2361,16 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2143"></location>
       <source>Downloading...</source>
       <translation>正在下载...</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="35"></location>
+      <source>Drag</source>
+      <translation>拖放</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="90"></location>
+      <source>Drag and Copy format</source>
+      <translation>拖放和复制格式</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
@@ -2903,7 +2908,7 @@ Install these nodes now?</source>
       <translation>已根据内容偏好隐藏</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="252"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="257"></location>
       <source>Hide Comfy output</source>
       <translation>隐藏 Comfy 输出</translation>
     </message>
@@ -2923,7 +2928,7 @@ Install these nodes now?</source>
       <translation>隐藏完整队列面板</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="166"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="171"></location>
       <source>Hide generation controls</source>
       <translation>隐藏生成控件</translation>
     </message>
@@ -3028,7 +3033,7 @@ Install these nodes now?</source>
       <translation>信息</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/factory.py" line="130"></location>
+      <location filename="../substitute/presentation/canvas/factory.py" line="136"></location>
       <source>Input</source>
       <translation>输入</translation>
     </message>
@@ -3173,7 +3178,7 @@ Install these nodes now?</source>
       <translation>设置过程中请保持网络连接。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="110"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="165"></location>
       <source>Keyboard</source>
       <translation>键盘</translation>
     </message>
@@ -3243,7 +3248,7 @@ Install these nodes now?</source>
       <translation>让我们修复此设置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="250"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="245"></location>
       <source>Library</source>
       <translation>库</translation>
     </message>
@@ -3458,12 +3463,12 @@ Install these nodes now?</source>
       <translation>管理</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="342"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="337"></location>
       <source>Manage ComfyUI connection, setup, and Python environment.</source>
       <translation>管理 ComfyUI 连接、设置和 Python 环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="326"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="321"></location>
       <source>Manage Cube Packs tracked by the active Comfy target.</source>
       <translation>管理当前 Comfy 目标跟踪的立方体包。</translation>
     </message>
@@ -3498,12 +3503,12 @@ Install these nodes now?</source>
       <translation>手动刷新元数据需要模型类型和值。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="897"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="880"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>无法验证蒙版尺寸</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="834"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="817"></location>
       <source>Mask dimensions do not match</source>
       <translation>蒙版尺寸不匹配</translation>
     </message>
@@ -3898,12 +3903,12 @@ Install these nodes now?</source>
       <translation>未加载</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="97"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="113"></location>
       <source>Not set</source>
       <translation>未设置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="754"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="759"></location>
       <source>Number of queued generations to create</source>
       <translation>要加入队列的生成任务数</translation>
     </message>
@@ -3948,7 +3953,7 @@ Install these nodes now?</source>
       <translation>在 GitHub 上打开 %1 仓库</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="159"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="157"></location>
       <source>Open All in Photoshop</source>
       <translation>在 Photoshop 中打开全部</translation>
     </message>
@@ -3993,7 +3998,7 @@ Install these nodes now?</source>
       <translation>打开此本地 ComfyUI 来源的引导式设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="153"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="151"></location>
       <source>Open in Photoshop</source>
       <translation>在 Photoshop 中打开</translation>
     </message>
@@ -4073,7 +4078,7 @@ Install these nodes now?</source>
       <translation>内存不足</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/factory.py" line="136"></location>
+      <location filename="../substitute/presentation/canvas/factory.py" line="142"></location>
       <source>Output</source>
       <translation>输出</translation>
     </message>
@@ -4083,17 +4088,17 @@ Install these nodes now?</source>
       <translation>输出文件夹</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="184"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="187"></location>
       <source>Output pattern</source>
       <translation>输出模式</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="212"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="215"></location>
       <source>Output preview</source>
       <translation>输出预览</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/output_preference_service.py" line="129"></location>
+      <location filename="../substitute/application/generation/output_preference_service.py" line="130"></location>
       <source>Output settings saved.</source>
       <translation>输出设置已保存。</translation>
     </message>
@@ -4298,12 +4303,12 @@ Install these nodes now?</source>
       <translation>正在准备您现有的 ComfyUI 环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="268"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="401"></location>
       <source>Press a key combination...</source>
       <translation>请按下一个组合键...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="48"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="64"></location>
       <source>Press a key together with the modifier.</source>
       <translation>请同时按下修饰键和其他键。</translation>
     </message>
@@ -4877,7 +4882,7 @@ No known extension claimant.</source>
       <translation>显示隐藏的卡片</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="165"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="163"></location>
       <source>Reveal in File Manager</source>
       <translation>在文件管理器中显示</translation>
     </message>
@@ -4962,12 +4967,12 @@ No known extension claimant.</source>
       <translation>富文本提示词渲染</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="238"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="239"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>运行 Sugar Substitute 启动画面。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="194"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="195"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>运行 SugarSubstitute 启动画面宿主。</translation>
     </message>
@@ -5002,7 +5007,7 @@ No known extension claimant.</source>
       <translation>正在运行</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="67"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="87"></location>
       <source>Runs the currently selected regular or infinite generation action.</source>
       <translation>运行当前选定的常规或无限生成操作。</translation>
     </message>
@@ -5072,7 +5077,7 @@ No known extension claimant.</source>
       <translation>保存当前尺寸</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="228"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="231"></location>
       <source>Save every cube output or only the final active cube.</source>
       <translation>保存每个立方体的输出，或仅保存最后一个活动立方体的输出。</translation>
     </message>
@@ -5107,7 +5112,7 @@ No known extension claimant.</source>
       <translation>保存位置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="227"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="230"></location>
       <source>Saved cube outputs</source>
       <translation>已保存的立方体输出</translation>
     </message>
@@ -5382,7 +5387,7 @@ No known extension claimant.</source>
       <translation>请缩短 %1 中的文件或文件夹名称，然后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="252"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="257"></location>
       <source>Show Comfy output</source>
       <translation>显示 Comfy 输出</translation>
     </message>
@@ -5407,7 +5412,7 @@ No known extension claimant.</source>
       <translation>显示依赖扩展</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="167"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="172"></location>
       <source>Show generation controls</source>
       <translation>显示生成控件</translation>
     </message>
@@ -5437,7 +5442,7 @@ No known extension claimant.</source>
       <translation>使用当前模式显示示例路径。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="213"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="216"></location>
       <source>Shows an example path using the current settings.</source>
       <translation>使用当前设置显示示例路径。</translation>
     </message>
@@ -5472,12 +5477,12 @@ No known extension claimant.</source>
       <translation>清理完成前关闭操作已超时。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="88"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="114"></location>
       <source>Skip generation</source>
       <translation>跳过当前生成</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="89"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="115"></location>
       <source>Skips the active queued generation when available.</source>
       <translation>可用时跳过活动的排队生成。</translation>
     </message>
@@ -5622,7 +5627,7 @@ No known extension claimant.</source>
       <translation>当前任务完成后停止连续生成</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="99"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="122"></location>
       <source>Stop generation</source>
       <translation>停止生成</translation>
     </message>
@@ -5632,7 +5637,7 @@ No known extension claimant.</source>
       <translation>请停止占用 %1:%2 的其他进程，或选择其他托管端口。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="100"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="123"></location>
       <source>Stops continuous or queued generation when available.</source>
       <translation>可用时停止连续或排队生成。</translation>
     </message>
@@ -6047,7 +6052,7 @@ No known extension claimant.</source>
       <translation>Substitute 已保存的文件夹设置需要修复</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2849"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2853"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6237,7 +6242,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>交换宽度和高度</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="78"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="97"></location>
       <source>Switches the primary Generate control and updates its visible mode.</source>
       <translation>切换主要的生成控件并更新其可见模式。</translation>
     </message>
@@ -6337,7 +6342,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>该 Python 可执行文件无法使用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="58"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="74"></location>
       <source>That combination is reserved by Windows.</source>
       <translation>该组合键由 Windows 保留。</translation>
     </message>
@@ -6347,7 +6352,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法验证该环境</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="54"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="70"></location>
       <source>That key cannot be used as a control.</source>
       <translation>该键不能用作控件。</translation>
     </message>
@@ -6547,12 +6552,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>所选文件夹不是完整的 ComfyUI 安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="899"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="882"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>无法根据已加载的输入图像验证所选蒙版尺寸。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="836"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="819"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>所选蒙版尺寸与已加载的输入图像不匹配。</translation>
     </message>
@@ -6722,7 +6727,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>标题：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="77"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="96"></location>
       <source>Toggle Regular / Infinite mode</source>
       <translation>切换常规 / 无限模式</translation>
     </message>
@@ -6782,6 +6787,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法应用更改</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="26"></location>
+      <source>Unable to copy output image.</source>
+      <translation>无法复制输出图像。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="608"></location>
       <source>Unable to create asset</source>
       <translation>无法创建资源</translation>
@@ -6815,6 +6825,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="544"></location>
       <source>Unable to save asset</source>
       <translation>无法保存资源</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="37"></location>
+      <source>Unable to transfer output image.</source>
+      <translation>无法传输输出图像。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="702"></location>
@@ -6987,7 +7002,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>使用 Comfy 连接设置更改所选服务器。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="71"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="87"></location>
       <source>Use Ctrl or Alt, a function key, or a navigation-cluster key.</source>
       <translation>请使用 Ctrl 或 Alt、功能键或导航键区的按键。</translation>
     </message>
@@ -7010,6 +7025,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/infrastructure/security/windows_civitai_credential_store.py" line="69"></location>
       <source>Use a supported operating-system credential store, then restart Substitute.</source>
       <translation>使用受支持的操作系统凭据存储，然后重启 Substitute。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/output_transfer_settings.py" line="45"></location>
+      <source>Use companion JPEG for drag and Copy</source>
+      <translation>拖放和复制时使用 JPEG 副本</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1018"></location>
@@ -7102,12 +7122,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>版本信息</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="242"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="236"></location>
       <source>Version, project, and acknowledgements</source>
       <translation>版本、项目和致谢</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="266"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="261"></location>
       <source>Version, project, and acknowledgements.</source>
       <translation>版本、项目和致谢。</translation>
     </message>
@@ -7117,7 +7137,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>版本：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="290"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="295"></location>
       <source>View ComfyUI startup diagnostics</source>
       <translation>查看 ComfyUI 启动诊断</translation>
     </message>
@@ -7185,6 +7205,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="272"></location>
       <source>Wheel adjust after hover</source>
       <translation>悬停后滚轮调整</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/output_transfer_settings.py" line="46"></location>
+      <source>When JPEG companions are enabled, drag and Copy export the companion JPEG.</source>
+      <translation>启用 JPEG 副本后，拖放和复制将导出该 JPEG 副本。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1134"></location>

@@ -175,11 +175,6 @@ Vista previa del prompt:
       <translation>%1 de %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_source_grid_composer.py" line="81"></location>
-      <source>%1 grid</source>
-      <translation>Cuadrícula de %1</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1464"></location>
       <source>%1 installed packages</source>
       <translation>%1 paquetes instalados</translation>
@@ -430,7 +425,7 @@ Vista previa del prompt:
       <translation>Estado de la clave de API</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="241"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="235"></location>
       <source>About</source>
       <translation>Acerca de</translation>
     </message>
@@ -450,7 +445,7 @@ Vista previa del prompt:
       <translation>Acciones</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="66"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="86"></location>
       <source>Activate Generate</source>
       <translation>Activar Generar</translation>
     </message>
@@ -533,11 +528,6 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1278"></location>
       <source>All ratings</source>
       <translation>Todas las clasificaciones</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/canvas/output/output_scene_overview_composer.py" line="97"></location>
-      <source>All scenes</source>
-      <translation>Todas las escenas</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1472"></location>
@@ -625,7 +615,7 @@ Vista previa del prompt:
       <translation>Aplicando los cambios previstos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="111"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="166"></location>
       <source>Assign keyboard controls for generation actions.</source>
       <translation>Asigna controles de teclado para las acciones de generación.</translation>
     </message>
@@ -720,7 +710,7 @@ Vista previa del prompt:
       <translation>Lote %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="753"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="758"></location>
       <source>Batch count</source>
       <translation>Número de lotes</translation>
     </message>
@@ -830,7 +820,7 @@ Vista previa del prompt:
       <translation>Cancelar tarea</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="227"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="236"></location>
       <source>Cancel loading</source>
       <translation>Cancelar la carga</translation>
     </message>
@@ -1090,7 +1080,7 @@ Vista previa del prompt:
       <translation>Elige cómo encontrarlo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="105"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="108"></location>
       <source>Choose output folder</source>
       <translation>Elegir la carpeta de salida</translation>
     </message>
@@ -1180,7 +1170,7 @@ Vista previa del prompt:
       <translation>Elige dónde deben guardarse los archivos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="133"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="136"></location>
       <source>Choose where generated images are saved.</source>
       <translation>Elige dónde se guardan las imágenes generadas.</translation>
     </message>
@@ -1203,6 +1193,11 @@ Vista previa del prompt:
       <location filename="../substitute/application/onboarding/flow_service.py" line="1389"></location>
       <source>Choose which Python this ComfyUI setup uses</source>
       <translation>Elige qué instalación de Python usa esta configuración de ComfyUI</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="91"></location>
+      <source>Choose which representation drag and Copy export.</source>
+      <translation>Elige qué representación exportan arrastrar y copiar.</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="743"></location>
@@ -1710,7 +1705,7 @@ Vista previa del prompt:
       <translation>ComfyUI se inició con problemas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="291"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="296"></location>
       <source>ComfyUI startup diagnostics</source>
       <translation>Diagnóstico de inicio de ComfyUI</translation>
     </message>
@@ -1750,7 +1745,7 @@ Vista previa del prompt:
       <translation>ComfyUI se instaló, pero Substitute no pudo terminar de preparar los paquetes de nodos necesarios.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="261"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="193"></location>
       <source>Compare outputs</source>
       <translation>Comparar salidas</translation>
     </message>
@@ -1770,12 +1765,12 @@ Vista previa del prompt:
       <translation>Unidades combinables de flujos de trabajo para ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="185"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="188"></location>
       <source>Compose relative folders and filename without the .png extension.</source>
       <translation>Compón las carpetas relativas y el nombre de archivo sin la extensión .png.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="209"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="340"></location>
       <source>Configure keyboard and future input controls.</source>
       <translation>Configura controles de teclado y futuras entradas.</translation>
     </message>
@@ -1835,7 +1830,7 @@ Vista previa del prompt:
       <translation>La configuración de la conexión ya está guardada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="257"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="252"></location>
       <source>Connection, setup, and Python environment</source>
       <translation>Conexión, instalación y entorno de Python</translation>
     </message>
@@ -1885,12 +1880,12 @@ Vista previa del prompt:
       <translation>Controla qué clasificaciones de Danbooru pueden mostrarse como vistas previas de imágenes.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="208"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="339"></location>
       <source>Controls</source>
       <translation>Controles</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="147"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="145"></location>
       <source>Copy</source>
       <translation>Copiar</translation>
     </message>
@@ -2055,7 +2050,7 @@ Vista previa del prompt:
       <translation>No se pudo validar el paquete de cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="251"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="246"></location>
       <source>Cube Packs and readiness</source>
       <translation>Paquetes de cubos y disponibilidad</translation>
     </message>
@@ -2198,7 +2193,7 @@ Install these nodes now?</source>
       <translation>Búsqueda en la wiki de Danbooru</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="76"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="79"></location>
       <source>Default</source>
       <translation>Predeterminado</translation>
     </message>
@@ -2366,6 +2361,16 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2143"></location>
       <source>Downloading...</source>
       <translation>Descargando...</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="35"></location>
+      <source>Drag</source>
+      <translation>Arrastrar</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="90"></location>
+      <source>Drag and Copy format</source>
+      <translation>Formato de arrastrar y copiar</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
@@ -2903,7 +2908,7 @@ Install these nodes now?</source>
       <translation>Oculto por las preferencias de contenido</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="252"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="257"></location>
       <source>Hide Comfy output</source>
       <translation>Ocultar la salida de Comfy</translation>
     </message>
@@ -2923,7 +2928,7 @@ Install these nodes now?</source>
       <translation>Ocultar el panel completo de la cola</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="166"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="171"></location>
       <source>Hide generation controls</source>
       <translation>Ocultar los controles de generación</translation>
     </message>
@@ -3028,7 +3033,7 @@ Install these nodes now?</source>
       <translation>Información</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/factory.py" line="130"></location>
+      <location filename="../substitute/presentation/canvas/factory.py" line="136"></location>
       <source>Input</source>
       <translation>Entrada</translation>
     </message>
@@ -3173,7 +3178,7 @@ Install these nodes now?</source>
       <translation>Mantén la conexión a Internet disponible durante la instalación.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="110"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="165"></location>
       <source>Keyboard</source>
       <translation>Teclado</translation>
     </message>
@@ -3243,7 +3248,7 @@ Install these nodes now?</source>
       <translation>Vamos a reparar esta instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="250"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="245"></location>
       <source>Library</source>
       <translation>Biblioteca</translation>
     </message>
@@ -3458,12 +3463,12 @@ Install these nodes now?</source>
       <translation>Administrar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="342"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="337"></location>
       <source>Manage ComfyUI connection, setup, and Python environment.</source>
       <translation>Administra la conexión con ComfyUI, la instalación y el entorno de Python.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="326"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="321"></location>
       <source>Manage Cube Packs tracked by the active Comfy target.</source>
       <translation>Administra los paquetes de cubos registrados en el destino de Comfy activo.</translation>
     </message>
@@ -3498,12 +3503,12 @@ Install these nodes now?</source>
       <translation>La actualización manual de metadatos necesita un tipo de modelo y un valor.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="897"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="880"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>No se pudieron verificar las dimensiones de la máscara</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="834"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="817"></location>
       <source>Mask dimensions do not match</source>
       <translation>Las dimensiones de la máscara no coinciden</translation>
     </message>
@@ -3898,12 +3903,12 @@ Install these nodes now?</source>
       <translation>No cargado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="97"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="113"></location>
       <source>Not set</source>
       <translation>Sin asignar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="754"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="759"></location>
       <source>Number of queued generations to create</source>
       <translation>Número de generaciones que se añadirán a la cola</translation>
     </message>
@@ -3948,7 +3953,7 @@ Install these nodes now?</source>
       <translation>Abrir el repositorio de %1 en GitHub</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="159"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="157"></location>
       <source>Open All in Photoshop</source>
       <translation>Abrir todo en Photoshop</translation>
     </message>
@@ -3993,7 +3998,7 @@ Install these nodes now?</source>
       <translation>Abrir la instalación guiada para este origen local de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="153"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="151"></location>
       <source>Open in Photoshop</source>
       <translation>Abrir en Photoshop</translation>
     </message>
@@ -4073,7 +4078,7 @@ Install these nodes now?</source>
       <translation>Memoria insuficiente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/factory.py" line="136"></location>
+      <location filename="../substitute/presentation/canvas/factory.py" line="142"></location>
       <source>Output</source>
       <translation>Salida</translation>
     </message>
@@ -4083,17 +4088,17 @@ Install these nodes now?</source>
       <translation>Carpeta de salida</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="184"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="187"></location>
       <source>Output pattern</source>
       <translation>Patrón de salida</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="212"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="215"></location>
       <source>Output preview</source>
       <translation>Vista previa de la salida</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/output_preference_service.py" line="129"></location>
+      <location filename="../substitute/application/generation/output_preference_service.py" line="130"></location>
       <source>Output settings saved.</source>
       <translation>Se guardó la configuración de salida.</translation>
     </message>
@@ -4298,12 +4303,12 @@ Install these nodes now?</source>
       <translation>Preparando tu configuración existente de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="268"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="401"></location>
       <source>Press a key combination...</source>
       <translation>Pulsa una combinación de teclas...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="48"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="64"></location>
       <source>Press a key together with the modifier.</source>
       <translation>Pulsa una tecla junto con el modificador.</translation>
     </message>
@@ -4877,7 +4882,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar tarjetas ocultas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="165"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="163"></location>
       <source>Reveal in File Manager</source>
       <translation>Mostrar en el gestor de archivos</translation>
     </message>
@@ -4962,12 +4967,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Presentación enriquecida de prompts</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="238"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="239"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>Ejecutar la pantalla de inicio de Sugar Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="194"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="195"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>Ejecutar el host de la pantalla de inicio de SugarSubstitute.</translation>
     </message>
@@ -5002,7 +5007,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>En ejecución</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="67"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="87"></location>
       <source>Runs the currently selected regular or infinite generation action.</source>
       <translation>Ejecuta la acción de generación normal o infinita seleccionada actualmente.</translation>
     </message>
@@ -5072,7 +5077,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardar las dimensiones actuales</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="228"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="231"></location>
       <source>Save every cube output or only the final active cube.</source>
       <translation>Guarda las salidas de todos los cubos o solo la del último cubo activo.</translation>
     </message>
@@ -5107,7 +5112,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardar en</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="227"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="230"></location>
       <source>Saved cube outputs</source>
       <translation>Salidas de cubos guardadas</translation>
     </message>
@@ -5382,7 +5387,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Acorta el nombre de archivo o carpeta en %1 y vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="252"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="257"></location>
       <source>Show Comfy output</source>
       <translation>Mostrar la salida de Comfy</translation>
     </message>
@@ -5407,7 +5412,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar extensiones dependientes</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="167"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="172"></location>
       <source>Show generation controls</source>
       <translation>Mostrar los controles de generación</translation>
     </message>
@@ -5437,7 +5442,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Muestra una ruta de ejemplo con el patrón actual.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="213"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="216"></location>
       <source>Shows an example path using the current settings.</source>
       <translation>Muestra una ruta de ejemplo con la configuración actual.</translation>
     </message>
@@ -5472,12 +5477,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Se agotó el tiempo de espera del cierre antes de que terminara la limpieza.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="88"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="114"></location>
       <source>Skip generation</source>
       <translation>Omitir la generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="89"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="115"></location>
       <source>Skips the active queued generation when available.</source>
       <translation>Omite la generación activa en cola cuando está disponible.</translation>
     </message>
@@ -5622,7 +5627,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Detener la generación continua tras la tarea actual</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="99"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="122"></location>
       <source>Stop generation</source>
       <translation>Detener la generación</translation>
     </message>
@@ -5632,7 +5637,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Detén el otro proceso que usa %1:%2 o elige otro puerto administrado.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="100"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="123"></location>
       <source>Stops continuous or queued generation when available.</source>
       <translation>Detiene la generación continua o en cola cuando está disponible.</translation>
     </message>
@@ -6047,7 +6052,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La configuración de carpetas guardada de Substitute necesita corrección</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2849"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2853"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6237,7 +6242,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Intercambiar anchura y altura</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="78"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="97"></location>
       <source>Switches the primary Generate control and updates its visible mode.</source>
       <translation>Cambia el control principal Generar y actualiza su modo visible.</translation>
     </message>
@@ -6337,7 +6342,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Ese ejecutable de Python no funcionó</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="58"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="74"></location>
       <source>That combination is reserved by Windows.</source>
       <translation>Esa combinación está reservada por Windows.</translation>
     </message>
@@ -6347,7 +6352,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se pudo verificar ese entorno</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="54"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="70"></location>
       <source>That key cannot be used as a control.</source>
       <translation>Esa tecla no se puede usar como control.</translation>
     </message>
@@ -6547,12 +6552,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>La carpeta seleccionada no contiene una instalación completa de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="899"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="882"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>No se pudieron comparar las dimensiones de la máscara seleccionada con la imagen de entrada cargada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="836"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="819"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>Las dimensiones de la máscara seleccionada no coinciden con las de la imagen de entrada cargada.</translation>
     </message>
@@ -6722,7 +6727,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Título: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="77"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="96"></location>
       <source>Toggle Regular / Infinite mode</source>
       <translation>Alternar modo normal/infinito</translation>
     </message>
@@ -6782,6 +6787,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se pudieron aplicar los cambios</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="26"></location>
+      <source>Unable to copy output image.</source>
+      <translation>No se puede copiar la imagen de salida.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="608"></location>
       <source>Unable to create asset</source>
       <translation>No se pudo crear el recurso</translation>
@@ -6815,6 +6825,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="544"></location>
       <source>Unable to save asset</source>
       <translation>No se pudo guardar el recurso</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="37"></location>
+      <source>Unable to transfer output image.</source>
+      <translation>No se puede transferir la imagen de salida.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="702"></location>
@@ -6987,7 +7002,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Usa la configuración de Conexión con Comfy para cambiar el servidor seleccionado.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="71"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="87"></location>
       <source>Use Ctrl or Alt, a function key, or a navigation-cluster key.</source>
       <translation>Usa Ctrl o Alt, una tecla de función o una tecla del grupo de navegación.</translation>
     </message>
@@ -7010,6 +7025,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../substitute/infrastructure/security/windows_civitai_credential_store.py" line="69"></location>
       <source>Use a supported operating-system credential store, then restart Substitute.</source>
       <translation>Usa un almacén de credenciales compatible del sistema operativo y reinicia Substitute.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/output_transfer_settings.py" line="45"></location>
+      <source>Use companion JPEG for drag and Copy</source>
+      <translation>Usar JPEG complementario al arrastrar y copiar</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1018"></location>
@@ -7102,12 +7122,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Información de versión</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="242"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="236"></location>
       <source>Version, project, and acknowledgements</source>
       <translation>Versión, proyecto y agradecimientos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="266"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="261"></location>
       <source>Version, project, and acknowledgements.</source>
       <translation>Versión, proyecto y agradecimientos.</translation>
     </message>
@@ -7117,7 +7137,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Versión: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="290"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="295"></location>
       <source>View ComfyUI startup diagnostics</source>
       <translation>Ver el diagnóstico de inicio de ComfyUI</translation>
     </message>
@@ -7185,6 +7205,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="272"></location>
       <source>Wheel adjust after hover</source>
       <translation>Ajuste con la rueda tras pasar el cursor</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/output_transfer_settings.py" line="46"></location>
+      <source>When JPEG companions are enabled, drag and Copy export the companion JPEG.</source>
+      <translation>Cuando se habilitan los archivos JPEG complementarios, arrastrar y copiar exportan el JPEG complementario.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1134"></location>

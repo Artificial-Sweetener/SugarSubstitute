@@ -60,6 +60,18 @@ def test_workspace_canvas_drag_source_matches_canvas_panes() -> None:
     assert classifier.is_workspace_canvas_drag_source(None) is False
 
 
+def test_workspace_canvas_drag_source_matches_current_canvas_widget_children() -> None:
+    """CuteCanvas child drags remain internal after the pane-wrapper removal."""
+    output_canvas = QObject()
+    target_canvas = QObject(output_canvas)
+    shell = SimpleNamespace(
+        canvas_tabs=SimpleNamespace(canvas_map={"Output": output_canvas})
+    )
+    classifier = WorkspaceCanvasDragSourceClassifier(shell)
+
+    assert classifier.is_workspace_canvas_drag_source(target_canvas) is True
+
+
 def test_workspace_canvas_drag_source_ignores_missing_canvas_map() -> None:
     """Missing or non-mapping canvas state should not classify as internal."""
 

@@ -973,6 +973,12 @@ def test_compose_output_canvas_controllers_assigns_pipeline_and_strip_registry(
         "GenerationProgressStripRegistry",
         _FakeGenerationProgressStripRegistry,
     )
+    transfer_lifecycle = object()
+    monkeypatch.setattr(
+        main_window_composition,
+        "_compose_output_transfer_lifecycle",
+        lambda _shell: transfer_lifecycle,
+    )
     preparation_dispatcher = SimpleNamespace(shutdown=lambda: None)
     monkeypatch.setattr(
         main_window_composition,
@@ -1002,6 +1008,8 @@ def test_compose_output_canvas_controllers_assigns_pipeline_and_strip_registry(
         composition.generation_progress_strip_registry
         is shell.generation_progress_strip_registry
     )
+    assert composition.output_transfer_lifecycle is shell.output_transfer_lifecycle
+    assert shell.output_transfer_lifecycle is transfer_lifecycle
     assert shell.output_image_pipeline.kwargs == {
         "workflow_session_service": shell.workflow_session_service,
         "canvas_io_service": shell.canvas_io_service,

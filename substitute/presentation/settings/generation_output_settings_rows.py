@@ -43,6 +43,9 @@ from substitute.presentation.settings.path_pattern_token_autocomplete import (
 from substitute.presentation.settings.jpeg_companion_settings import (
     JpegCompanionSettingsControl,
 )
+from substitute.presentation.settings.output_transfer_settings import (
+    create_output_transfer_settings_row,
+)
 from substitute.presentation.settings.settings_card import SettingsCard
 from substitute.presentation.settings.settings_control_group import (
     SettingsControlGroup,
@@ -245,6 +248,11 @@ class GenerationOutputSettingsRows:
         """Create the cohesive JPEG companion settings group."""
 
         return JpegCompanionSettingsControl(self._service, parent)
+
+    def transfer(self, parent: QWidget) -> QWidget:
+        """Create the drag-and-Copy output representation preference row."""
+
+        return create_output_transfer_settings_row(self._service, parent)
 
 
 __all__ = ["GenerationOutputSettingsRows"]

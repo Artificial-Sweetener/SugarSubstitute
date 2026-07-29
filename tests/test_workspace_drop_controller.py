@@ -20,6 +20,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
+
+from PySide6.QtCore import QObject
 
 from substitute.application.ports.recipe_repository import LoadedRecipeDocument
 from substitute.application.recipes.recipe_io_service import RecipeIoService
@@ -28,6 +31,9 @@ from substitute.presentation.shell.workspace_drop_controller import (
     DropIntent,
     WorkspaceDropController,
     WorkflowRecipeDropClassifier,
+)
+from substitute.presentation.shell.workspace_drag_source import (
+    WorkspaceCanvasDragSourceClassifier,
 )
 
 
@@ -386,6 +392,34 @@ def test_workspace_drop_controller_does_not_load_internal_canvas_drop() -> None:
     controller = WorkspaceDropController(
         classifier=_classifier(),
         ignored_drag_source=lambda source: source is canvas_source,
+        load_recipe_document=lambda path: _append_then(loaded_paths, path, "wf-1"),
+    )
+
+    handled = controller.handle_drop(event)
+
+    assert handled is False
+    assert event.accepted is False
+    assert event.ignored is True
+    assert loaded_paths == []
+
+
+def test_workspace_drop_controller_rejects_current_canvas_target_drop() -> None:
+    """A CuteCanvas target drag must not re-enter workspace workflow loading."""
+
+    output_canvas = QObject()
+    target_canvas = QObject(output_canvas)
+    shell = SimpleNamespace(
+        canvas_tabs=SimpleNamespace(canvas_map={"Output": output_canvas})
+    )
+    source_classifier = WorkspaceCanvasDragSourceClassifier(shell)
+    event = _Event(
+        _MimeData((_Url("E:/recipes/embedded.png"),)),
+        source=target_canvas,
+    )
+    loaded_paths: list[Path] = []
+    controller = WorkspaceDropController(
+        classifier=_classifier(),
+        ignored_drag_source=source_classifier.is_workspace_canvas_drag_source,
         load_recipe_document=lambda path: _append_then(loaded_paths, path, "wf-1"),
     )
 
