@@ -151,7 +151,23 @@ from substitute.presentation.canvas.input.input_mask_tool_controller import (
 from substitute.presentation.canvas.input.mask_color_provider import (
     input_mask_color,
 )
+from substitute.presentation.canvas.output.output_transfer_composition import (
+    OutputTransferLifecycle,
+    compose_output_transfer_lifecycle,
+)
+from substitute.presentation.canvas.output.output_context_menu_composition import (
+    compose_output_context_menu,
+)
+from substitute.presentation.canvas.output.output_transfer_failure_presenter import (
+    OutputTransferFailurePresenter,
+)
+from substitute.presentation.canvas.output.output_transfer_clipboard_publisher import (
+    publish_output_transfer_mime_data,
+)
 from substitute.shared.startup_trace import trace_mark
+from substitute.shared.logging.logger import get_logger, log_warning
+
+_LOGGER = get_logger("presentation.shell.main_window_composition")
 
 
 @dataclass(frozen=True)
@@ -240,6 +256,7 @@ class MainWindowOutputCanvasComposition:
 
     output_image_pipeline: Any
     generation_progress_strip_registry: Any
+    output_transfer_lifecycle: OutputTransferLifecycle
 
 
 @dataclass(frozen=True)
@@ -605,6 +622,7 @@ def compose_output_canvas_controllers(shell: Any) -> MainWindowOutputCanvasCompo
         "parent": shell,
     }
     output_image_pipeline = OutputImagePipeline(**pipeline_kwargs)
+    output_transfer_lifecycle = _compose_output_transfer_lifecycle(shell)
     generation_progress_strip_registry = GenerationProgressStripRegistry(shell)
     shell.output_floating_chrome_factory.set_progress_strip_registry(
         generation_progress_strip_registry
@@ -612,12 +630,82 @@ def compose_output_canvas_controllers(shell: Any) -> MainWindowOutputCanvasCompo
     composition = MainWindowOutputCanvasComposition(
         output_image_pipeline=output_image_pipeline,
         generation_progress_strip_registry=generation_progress_strip_registry,
+        output_transfer_lifecycle=output_transfer_lifecycle,
     )
     shell.output_image_pipeline = composition.output_image_pipeline
     shell.generation_progress_strip_registry = (
         composition.generation_progress_strip_registry
     )
+    shell.output_transfer_lifecycle = composition.output_transfer_lifecycle
     return composition
+
+
+def _compose_output_transfer_lifecycle(shell: Any) -> OutputTransferLifecycle:
+    """Install the Output workspace's captured-subject outbound transfer provider."""
+
+    output_canvas = shell.canvas_tabs.canvas_map.get("Output")
+    if output_canvas is None:
+        raise RuntimeError("Canvas tabs must include an Output canvas.")
+    drag_submitter = shell.execution_runtime.submitter(
+        "image_decode",
+        owner_id=f"output_transfer_drag_{id(shell):x}",
+        dispatcher=QtOwnerThreadDispatcher(shell),
+    )
+    clipboard_submitter = shell.execution_runtime.submitter(
+        "image_decode",
+        owner_id=f"output_transfer_clipboard_{id(shell):x}",
+        dispatcher=QtOwnerThreadDispatcher(shell),
+    )
+    failure_presenter = OutputTransferFailurePresenter(output_canvas)
+    lifecycle = compose_output_transfer_lifecycle(
+        document=output_canvas.document,
+        is_image_authorized=output_canvas.route_projector.is_image_allowed_for_transfer,
+        preference_service=shell.output_preference_service,
+        drag_submitter=drag_submitter,
+        close_drag_submitter=drag_submitter.close,
+        clipboard_submitter=clipboard_submitter,
+        close_clipboard_submitter=clipboard_submitter.close,
+        publish_clipboard_mime_data=publish_output_transfer_mime_data,
+        report_clipboard_failure=lambda message: _report_output_transfer_failure(
+            failure_presenter.report_copy_failure,
+            message,
+            operation="output_transfer_clipboard",
+        ),
+        staging_directory=Path(shell.path_bundle.user_dir)
+        / "cache"
+        / "output-transfer",
+    )
+    output_canvas.install_transfer_drag_provider(lifecycle.drag_provider)
+    output_canvas.workspace.outboundDragFailed.connect(
+        lambda _subject, message: _report_output_transfer_failure(
+            failure_presenter.report_drag_failure,
+            message,
+            operation="output_transfer_drag",
+        )
+    )
+    shell.output_context_menu = compose_output_context_menu(
+        output_canvas,
+        request_copy=lifecycle.clipboard_controller.copy,
+    )
+    shell.shell_resource_lifecycle.register("output_transfer", lifecycle.close)
+    return lifecycle
+
+
+def _report_output_transfer_failure(
+    present: Callable[[str], None],
+    message: str,
+    *,
+    operation: str,
+) -> None:
+    """Log technical transfer failure context before localized user feedback."""
+
+    log_warning(
+        _LOGGER,
+        "Output transfer failed",
+        operation=operation,
+        reason=message,
+    )
+    present(message)
 
 
 def _output_image_preparation_dispatcher(

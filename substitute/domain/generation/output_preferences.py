@@ -24,7 +24,7 @@ from pathlib import Path
 
 from .output_organization import DEFAULT_OUTPUT_PATH_PATTERN
 
-OUTPUT_PREFERENCES_SCHEMA_VERSION = "2"
+OUTPUT_PREFERENCES_SCHEMA_VERSION = "3"
 
 
 class OutputPersistenceMode(StrEnum):
@@ -39,6 +39,13 @@ class JpegSizingMode(StrEnum):
 
     QUALITY = "quality"
     TARGET_SIZE = "target_size"
+
+
+class OutputTransferFormat(StrEnum):
+    """Choose the representation exported through drag and Copy."""
+
+    CANONICAL_PNG = "canonical_png"
+    COMPANION_JPEG = "companion_jpeg"
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,12 +67,20 @@ class JpegOutputSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class OutputTransferSettings:
+    """Configure the preferred representation for outbound output transfers."""
+
+    preferred_format: OutputTransferFormat = OutputTransferFormat.CANONICAL_PNG
+
+
+@dataclass(frozen=True, slots=True)
 class OutputPreferences:
     """Own every user-configurable durable output policy."""
 
     schema_version: str = OUTPUT_PREFERENCES_SCHEMA_VERSION
     organization: OutputOrganizationSettings = OutputOrganizationSettings()
     jpeg: JpegOutputSettings = JpegOutputSettings()
+    transfer: OutputTransferSettings = OutputTransferSettings()
     persistence_mode: OutputPersistenceMode = OutputPersistenceMode.ALL
 
 
@@ -75,12 +90,28 @@ def default_output_preferences() -> OutputPreferences:
     return OutputPreferences()
 
 
+def effective_output_transfer_format(
+    preferences: OutputPreferences,
+) -> OutputTransferFormat:
+    """Return the transferable representation enabled by current preferences."""
+
+    if (
+        preferences.transfer.preferred_format is OutputTransferFormat.COMPANION_JPEG
+        and preferences.jpeg.enabled
+    ):
+        return OutputTransferFormat.COMPANION_JPEG
+    return OutputTransferFormat.CANONICAL_PNG
+
+
 __all__ = [
     "default_output_preferences",
+    "effective_output_transfer_format",
     "JpegOutputSettings",
     "JpegSizingMode",
     "OUTPUT_PREFERENCES_SCHEMA_VERSION",
     "OutputOrganizationSettings",
     "OutputPersistenceMode",
     "OutputPreferences",
+    "OutputTransferFormat",
+    "OutputTransferSettings",
 ]

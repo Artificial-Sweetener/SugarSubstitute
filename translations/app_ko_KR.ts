@@ -120,11 +120,6 @@ Prompt preview:
       <translation>%2의 %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_source_grid_composer.py" line="81"></location>
-      <source>%1 grid</source>
-      <translation>%1 그리드</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1464"></location>
       <source>%1 installed packages</source>
       <translation>설치된 패키지 %1개</translation>
@@ -375,7 +370,7 @@ Prompt preview:
       <translation>API 키 상태</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="241"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="235"></location>
       <source>About</source>
       <translation>정보</translation>
     </message>
@@ -395,7 +390,7 @@ Prompt preview:
       <translation>작업</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="66"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="86"></location>
       <source>Activate Generate</source>
       <translation>생성 시작</translation>
     </message>
@@ -478,11 +473,6 @@ Prompt preview:
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1278"></location>
       <source>All ratings</source>
       <translation>모든 등급</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/canvas/output/output_scene_overview_composer.py" line="97"></location>
-      <source>All scenes</source>
-      <translation>모든 장면</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1472"></location>
@@ -570,7 +560,7 @@ Prompt preview:
       <translation>예정된 변경 사항을 적용하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="111"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="166"></location>
       <source>Assign keyboard controls for generation actions.</source>
       <translation>생성 작업에 키보드 컨트롤을 할당합니다.</translation>
     </message>
@@ -665,7 +655,7 @@ Prompt preview:
       <translation>배치 %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="753"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="758"></location>
       <source>Batch count</source>
       <translation>배치 수</translation>
     </message>
@@ -775,7 +765,7 @@ Prompt preview:
       <translation>작업 취소</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="227"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="236"></location>
       <source>Cancel loading</source>
       <translation>불러오기 취소</translation>
     </message>
@@ -1035,7 +1025,7 @@ Prompt preview:
       <translation>찾을 방법 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="105"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="108"></location>
       <source>Choose output folder</source>
       <translation>출력 폴더 선택</translation>
     </message>
@@ -1125,7 +1115,7 @@ Prompt preview:
       <translation>파일을 저장할 위치 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="133"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="136"></location>
       <source>Choose where generated images are saved.</source>
       <translation>생성된 이미지를 저장할 위치를 선택하세요.</translation>
     </message>
@@ -1148,6 +1138,11 @@ Prompt preview:
       <location filename="../substitute/application/onboarding/flow_service.py" line="1389"></location>
       <source>Choose which Python this ComfyUI setup uses</source>
       <translation>이 ComfyUI 설정에서 사용할 Python 선택</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="91"></location>
+      <source>Choose which representation drag and Copy export.</source>
+      <translation>끌어오기 및 복사에서 내보낼 형식을 선택합니다.</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="743"></location>
@@ -1655,7 +1650,7 @@ Prompt preview:
       <translation>ComfyUI가 문제와 함께 시작됨</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="291"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="296"></location>
       <source>ComfyUI startup diagnostics</source>
       <translation>ComfyUI 시작 진단</translation>
     </message>
@@ -1695,7 +1690,7 @@ Prompt preview:
       <translation>ComfyUI를 설치했지만 Substitute가 필요한 노드 팩 준비를 완료하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="261"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="193"></location>
       <source>Compare outputs</source>
       <translation>출력 비교</translation>
     </message>
@@ -1715,12 +1710,12 @@ Prompt preview:
       <translation>ComfyUI용 조합 가능한 워크플로 단위</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="185"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="188"></location>
       <source>Compose relative folders and filename without the .png extension.</source>
       <translation>상대 폴더와 파일 이름을 .png 확장자 없이 구성합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="209"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="340"></location>
       <source>Configure keyboard and future input controls.</source>
       <translation>키보드와 향후 입력 컨트롤을 구성합니다.</translation>
     </message>
@@ -1780,7 +1775,7 @@ Prompt preview:
       <translation>연결 설정이 이미 저장되어 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="257"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="252"></location>
       <source>Connection, setup, and Python environment</source>
       <translation>연결, 설정 및 Python 환경</translation>
     </message>
@@ -1830,12 +1825,12 @@ Prompt preview:
       <translation>이미지 미리 보기로 표시할 수 있는 Danbooru 등급을 제어합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="208"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="339"></location>
       <source>Controls</source>
       <translation>컨트롤</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="147"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="145"></location>
       <source>Copy</source>
       <translation>복사</translation>
     </message>
@@ -2000,7 +1995,7 @@ Prompt preview:
       <translation>큐브 팩 검증 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="251"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="246"></location>
       <source>Cube Packs and readiness</source>
       <translation>큐브 팩 및 준비 상태</translation>
     </message>
@@ -2143,7 +2138,7 @@ Install these nodes now?</source>
       <translation>Danbooru 위키 검색</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="76"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="79"></location>
       <source>Default</source>
       <translation>기본값</translation>
     </message>
@@ -2311,6 +2306,16 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2143"></location>
       <source>Downloading...</source>
       <translation>다운로드 중...</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="35"></location>
+      <source>Drag</source>
+      <translation>드래그</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="90"></location>
+      <source>Drag and Copy format</source>
+      <translation>끌어오기 및 복사 형식</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
@@ -2848,7 +2853,7 @@ Install these nodes now?</source>
       <translation>콘텐츠 환경 설정에 의해 숨겨짐</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="252"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="257"></location>
       <source>Hide Comfy output</source>
       <translation>Comfy 출력 숨기기</translation>
     </message>
@@ -2868,7 +2873,7 @@ Install these nodes now?</source>
       <translation>전체 대기열 패널 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="166"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="171"></location>
       <source>Hide generation controls</source>
       <translation>생성 컨트롤 숨기기</translation>
     </message>
@@ -2973,7 +2978,7 @@ Install these nodes now?</source>
       <translation>정보</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/factory.py" line="130"></location>
+      <location filename="../substitute/presentation/canvas/factory.py" line="136"></location>
       <source>Input</source>
       <translation>입력</translation>
     </message>
@@ -3118,7 +3123,7 @@ Install these nodes now?</source>
       <translation>설정이 실행되는 동안 인터넷 연결을 유지하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="110"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="165"></location>
       <source>Keyboard</source>
       <translation>키보드</translation>
     </message>
@@ -3188,7 +3193,7 @@ Install these nodes now?</source>
       <translation>설정을 다시 정상화해 보겠습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="250"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="245"></location>
       <source>Library</source>
       <translation>라이브러리</translation>
     </message>
@@ -3403,12 +3408,12 @@ Install these nodes now?</source>
       <translation>관리</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="342"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="337"></location>
       <source>Manage ComfyUI connection, setup, and Python environment.</source>
       <translation>ComfyUI 연결, 설정 및 Python 환경을 관리합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="326"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="321"></location>
       <source>Manage Cube Packs tracked by the active Comfy target.</source>
       <translation>활성 Comfy 대상에서 추적하는 큐브 팩을 관리합니다.</translation>
     </message>
@@ -3443,12 +3448,12 @@ Install these nodes now?</source>
       <translation>메타데이터를 수동으로 새로 고치려면 모델 종류와 값이 필요합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="897"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="880"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>마스크 크기를 확인할 수 없습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="834"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="817"></location>
       <source>Mask dimensions do not match</source>
       <translation>마스크 크기가 일치하지 않습니다</translation>
     </message>
@@ -3843,12 +3848,12 @@ Install these nodes now?</source>
       <translation>불러오지 않음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="97"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="113"></location>
       <source>Not set</source>
       <translation>설정 안 됨</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="754"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="759"></location>
       <source>Number of queued generations to create</source>
       <translation>대기열에 추가할 생성 횟수</translation>
     </message>
@@ -3893,7 +3898,7 @@ Install these nodes now?</source>
       <translation>GitHub에서 %1 저장소 열기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="159"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="157"></location>
       <source>Open All in Photoshop</source>
       <translation>Photoshop에서 모두 열기</translation>
     </message>
@@ -3938,7 +3943,7 @@ Install these nodes now?</source>
       <translation>이 로컬 ComfyUI 소스에 대한 설정 마법사를 엽니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="153"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="151"></location>
       <source>Open in Photoshop</source>
       <translation>Photoshop에서 열기</translation>
     </message>
@@ -4018,7 +4023,7 @@ Install these nodes now?</source>
       <translation>메모리 부족</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/factory.py" line="136"></location>
+      <location filename="../substitute/presentation/canvas/factory.py" line="142"></location>
       <source>Output</source>
       <translation>출력</translation>
     </message>
@@ -4028,17 +4033,17 @@ Install these nodes now?</source>
       <translation>출력 폴더</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="184"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="187"></location>
       <source>Output pattern</source>
       <translation>출력 패턴</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="212"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="215"></location>
       <source>Output preview</source>
       <translation>출력 미리 보기</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/output_preference_service.py" line="129"></location>
+      <location filename="../substitute/application/generation/output_preference_service.py" line="130"></location>
       <source>Output settings saved.</source>
       <translation>출력 설정을 저장했습니다.</translation>
     </message>
@@ -4243,12 +4248,12 @@ Install these nodes now?</source>
       <translation>기존 ComfyUI 설정을 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="268"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="401"></location>
       <source>Press a key combination...</source>
       <translation>키 조합을 누르세요...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="48"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="64"></location>
       <source>Press a key together with the modifier.</source>
       <translation>수정 키와 함께 키를 누르세요.</translation>
     </message>
@@ -4822,7 +4827,7 @@ No known extension claimant.</source>
       <translation>숨겨진 카드 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu_controller.py" line="165"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="163"></location>
       <source>Reveal in File Manager</source>
       <translation>파일 관리자에서 보기</translation>
     </message>
@@ -4907,12 +4912,12 @@ No known extension claimant.</source>
       <translation>서식 있는 프롬프트 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="238"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="239"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>Sugar Substitute 실행 시작 화면을 실행합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="194"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="195"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>SugarSubstitute 시작 화면 호스트를 실행합니다.</translation>
     </message>
@@ -4947,7 +4952,7 @@ No known extension claimant.</source>
       <translation>실행 중</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="67"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="87"></location>
       <source>Runs the currently selected regular or infinite generation action.</source>
       <translation>현재 선택된 일반 또는 무한 생성 작업을 실행합니다.</translation>
     </message>
@@ -5017,7 +5022,7 @@ No known extension claimant.</source>
       <translation>현재 크기 저장</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="228"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="231"></location>
       <source>Save every cube output or only the final active cube.</source>
       <translation>모든 큐브 출력 또는 마지막 활성 큐브만 저장합니다.</translation>
     </message>
@@ -5052,7 +5057,7 @@ No known extension claimant.</source>
       <translation>저장 위치</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="227"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="230"></location>
       <source>Saved cube outputs</source>
       <translation>저장된 큐브 출력</translation>
     </message>
@@ -5327,7 +5332,7 @@ No known extension claimant.</source>
       <translation>%1의 파일 또는 폴더 이름을 줄인 다음 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="252"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="257"></location>
       <source>Show Comfy output</source>
       <translation>Comfy 출력 표시</translation>
     </message>
@@ -5352,7 +5357,7 @@ No known extension claimant.</source>
       <translation>종속 확장 프로그램 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="167"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="172"></location>
       <source>Show generation controls</source>
       <translation>생성 컨트롤 표시</translation>
     </message>
@@ -5382,7 +5387,7 @@ No known extension claimant.</source>
       <translation>현재 패턴을 사용한 예시 경로를 표시합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="213"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="216"></location>
       <source>Shows an example path using the current settings.</source>
       <translation>현재 설정을 사용한 예시 경로를 표시합니다.</translation>
     </message>
@@ -5417,12 +5422,12 @@ No known extension claimant.</source>
       <translation>정리가 끝나기 전에 종료 제한 시간이 초과되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="88"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="114"></location>
       <source>Skip generation</source>
       <translation>생성 건너뛰기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="89"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="115"></location>
       <source>Skips the active queued generation when available.</source>
       <translation>사용 가능한 경우 활성 대기열 생성 작업을 건너뜁니다.</translation>
     </message>
@@ -5567,7 +5572,7 @@ No known extension claimant.</source>
       <translation>현재 작업 후 연속 생성 중지</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="99"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="122"></location>
       <source>Stop generation</source>
       <translation>생성 중지</translation>
     </message>
@@ -5577,7 +5582,7 @@ No known extension claimant.</source>
       <translation>%1:%2을(를) 사용하는 다른 프로세스를 중지하거나 다른 관리형 포트를 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="100"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="123"></location>
       <source>Stops continuous or queued generation when available.</source>
       <translation>사용 가능한 경우 연속 또는 대기열 생성 작업을 중지합니다.</translation>
     </message>
@@ -5992,7 +5997,7 @@ No known extension claimant.</source>
       <translation>Substitute에 저장된 폴더 설정을 수정해야 합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2849"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2853"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6182,7 +6187,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>너비와 높이 바꾸기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="78"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="97"></location>
       <source>Switches the primary Generate control and updates its visible mode.</source>
       <translation>기본 생성 컨트롤을 전환하고 표시 모드를 업데이트합니다.</translation>
     </message>
@@ -6282,7 +6287,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>해당 Python 실행 파일이 작동하지 않았습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="58"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="74"></location>
       <source>That combination is reserved by Windows.</source>
       <translation>이 조합은 Windows에서 예약되어 있습니다.</translation>
     </message>
@@ -6292,7 +6297,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>해당 환경을 검증하지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="54"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="70"></location>
       <source>That key cannot be used as a control.</source>
       <translation>이 키는 컨트롤로 사용할 수 없습니다.</translation>
     </message>
@@ -6492,12 +6497,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>선택한 폴더는 완전한 ComfyUI 설치가 아닙니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="899"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="882"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>선택한 마스크 크기가 불러온 입력 이미지와 맞는지 확인하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="836"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="819"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>선택한 마스크 크기가 불러온 입력 이미지와 일치하지 않습니다.</translation>
     </message>
@@ -6667,7 +6672,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>제목: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/controls_page.py" line="77"></location>
+      <location filename="../substitute/presentation/settings/controls_page.py" line="96"></location>
       <source>Toggle Regular / Infinite mode</source>
       <translation>일반 / 무한 모드 전환</translation>
     </message>
@@ -6727,6 +6732,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>변경 사항을 적용할 수 없음</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="26"></location>
+      <source>Unable to copy output image.</source>
+      <translation>출력 이미지를 복사할 수 없습니다.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="608"></location>
       <source>Unable to create asset</source>
       <translation>자산을 만들 수 없음</translation>
@@ -6760,6 +6770,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="544"></location>
       <source>Unable to save asset</source>
       <translation>자산을 저장할 수 없음</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="37"></location>
+      <source>Unable to transfer output image.</source>
+      <translation>출력 이미지를 전송할 수 없습니다.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="702"></location>
@@ -6932,7 +6947,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>선택한 서버를 변경하려면 Comfy 연결 설정을 사용하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="71"></location>
+      <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="87"></location>
       <source>Use Ctrl or Alt, a function key, or a navigation-cluster key.</source>
       <translation>Ctrl 또는 Alt, 기능 키 또는 탐색 클러스터 키를 사용하세요.</translation>
     </message>
@@ -6955,6 +6970,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../substitute/infrastructure/security/windows_civitai_credential_store.py" line="69"></location>
       <source>Use a supported operating-system credential store, then restart Substitute.</source>
       <translation>지원되는 운영 체제 자격 증명 저장소를 사용한 다음 Substitute를 다시 시작하세요.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/output_transfer_settings.py" line="45"></location>
+      <source>Use companion JPEG for drag and Copy</source>
+      <translation>끌어오기 및 복사에 JPEG 동반 파일 사용</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1018"></location>
@@ -7047,12 +7067,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>버전 정보</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="242"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="236"></location>
       <source>Version, project, and acknowledgements</source>
       <translation>버전, 프로젝트 및 감사의 말</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="266"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="261"></location>
       <source>Version, project, and acknowledgements.</source>
       <translation>버전, 프로젝트 및 감사의 말입니다.</translation>
     </message>
@@ -7062,7 +7082,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>버전: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="290"></location>
+      <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="295"></location>
       <source>View ComfyUI startup diagnostics</source>
       <translation>ComfyUI 시작 진단 보기</translation>
     </message>
@@ -7130,6 +7150,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="272"></location>
       <source>Wheel adjust after hover</source>
       <translation>마우스를 올린 후 휠로 조정</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/output_transfer_settings.py" line="46"></location>
+      <source>When JPEG companions are enabled, drag and Copy export the companion JPEG.</source>
+      <translation>JPEG 동반 파일이 활성화되면 끌어오기 및 복사는 해당 JPEG를 내보냅니다.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1134"></location>

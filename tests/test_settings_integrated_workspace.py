@@ -97,6 +97,7 @@ from substitute.domain.generation import (
     JpegSizingMode,
     OutputPersistenceMode,
     OutputPreferences,
+    OutputTransferFormat,
     TaesdPreviewAssetStatus,
     default_generation_preview_preferences,
 )
@@ -118,6 +119,7 @@ from substitute.presentation.settings.generation_page import GenerationSettingsP
 from substitute.presentation.settings.jpeg_companion_settings import (
     JpegCompanionSettingsControl,
 )
+from substitute.presentation.localization import LocalizedSwitchButton
 from substitute.presentation.settings.generation_preview_settings import (
     GenerationPreviewSettingsControl,
 )
@@ -673,6 +675,7 @@ def test_generation_output_catalog_controls_persist_unified_output_policy(
         "generation.output.preview",
         "generation.output.persistence",
         "generation.output.jpeg",
+        "generation.output.transfer",
     )
 
     persistence_row = _appearance_control(
@@ -696,6 +699,18 @@ def test_generation_output_catalog_controls_persist_unified_output_policy(
     assert repository.preferences.jpeg.sizing_mode is JpegSizingMode.TARGET_SIZE
     assert repository.preferences.jpeg.target_size_kib == 1280
     assert jpeg_control.value_stack.currentWidget() is jpeg_control.target_size_control
+
+    transfer_row = _appearance_control(page, "generation.output.transfer").factory(
+        parent
+    )
+    transfer_switch = transfer_row.findChild(LocalizedSwitchButton)
+    assert transfer_switch is not None
+    transfer_switch.setChecked(True)
+
+    assert (
+        repository.preferences.transfer.preferred_format
+        is OutputTransferFormat.COMPANION_JPEG
+    )
 
 
 def test_generation_preview_catalog_uses_one_switch_control_and_persists_state() -> (

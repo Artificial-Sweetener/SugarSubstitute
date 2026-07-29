@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.localization import app_text
 
 from substitute.application.generation import OutputPreferenceService
 from substitute.presentation.settings.generation_output_settings_rows import (
@@ -83,6 +84,14 @@ def build_generation_output_settings_section(
                 ("jpeg", "jpg", "quality", "target", "size", "mb", "png"),
                 50,
                 rows.jpeg_companions,
+            ),
+            SettingsControlEntry(
+                "generation.output.transfer",
+                app_text("Drag and Copy format"),
+                app_text("Choose which representation drag and Copy export."),
+                ("drag", "copy", "jpeg", "jpg", "png", "clipboard"),
+                60,
+                rows.transfer,
             ),
         ),
     )

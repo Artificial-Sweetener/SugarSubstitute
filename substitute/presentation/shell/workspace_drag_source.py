@@ -42,8 +42,8 @@ class WorkspaceCanvasDragSourceClassifier:
         if not isinstance(canvas_map, Mapping):
             return False
         for canvas in canvas_map.values():
-            pane = getattr(canvas, "pane", None)
-            if self.drag_source_matches_pane(source, pane):
+            surface = getattr(canvas, "pane", canvas)
+            if self.drag_source_matches_pane(source, surface):
                 return True
         return False
 

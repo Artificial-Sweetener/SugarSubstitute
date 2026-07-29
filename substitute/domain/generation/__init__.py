@@ -52,12 +52,15 @@ from substitute.domain.generation.output_organization import (
 from substitute.domain.generation.output_position import OutputResultPosition
 from substitute.domain.generation.output_preferences import (
     default_output_preferences,
+    effective_output_transfer_format,
     JpegOutputSettings,
     JpegSizingMode,
     OUTPUT_PREFERENCES_SCHEMA_VERSION,
     OutputOrganizationSettings,
     OutputPersistenceMode,
     OutputPreferences,
+    OutputTransferFormat,
+    OutputTransferSettings,
 )
 from substitute.domain.generation.result_snapshot import (
     GENERATION_RESULT_SNAPSHOT_SCHEMA_VERSION,
@@ -91,6 +94,8 @@ __all__ = [
     "OutputOrganizationSettings",
     "OutputPersistenceMode",
     "OutputPreferences",
+    "OutputTransferFormat",
+    "OutputTransferSettings",
     "OutputPathPattern",
     "OutputPathRenderContext",
     "OutputPathRenderResult",
@@ -107,6 +112,7 @@ __all__ = [
     "TaesdPreviewAssetStatus",
     "default_generation_preview_preferences",
     "default_output_preferences",
+    "effective_output_transfer_format",
     "seed_control_state_from_json",
     "seed_control_state_to_json",
     "seed_mode_from_value",

@@ -34,6 +34,8 @@ from substitute.domain.generation.output_preferences import (
     OutputOrganizationSettings,
     OutputPersistenceMode,
     OutputPreferences,
+    OutputTransferFormat,
+    OutputTransferSettings,
 )
 from substitute.shared.logging.logger import get_logger, log_warning
 
@@ -73,6 +75,8 @@ class FileOutputPreferenceRepository(OutputPreferenceRepository):
         )
         jpeg_payload = payload.get("jpeg")
         jpeg = jpeg_payload if isinstance(jpeg_payload, dict) else {}
+        transfer_payload = payload.get("transfer")
+        transfer = transfer_payload if isinstance(transfer_payload, dict) else {}
         return OutputPreferences(
             schema_version=str(
                 payload.get("schema_version", OUTPUT_PREFERENCES_SCHEMA_VERSION)
@@ -94,6 +98,13 @@ class FileOutputPreferenceRepository(OutputPreferenceRepository):
                 quality=_int_or_default(jpeg.get("quality"), defaults.jpeg.quality),
                 target_size_kib=_int_or_default(
                     jpeg.get("target_size_kib"), defaults.jpeg.target_size_kib
+                ),
+            ),
+            transfer=OutputTransferSettings(
+                preferred_format=_enum_or_default(
+                    OutputTransferFormat,
+                    transfer.get("preferred_format"),
+                    defaults.transfer.preferred_format,
                 ),
             ),
             persistence_mode=_enum_or_default(
@@ -122,6 +133,9 @@ class FileOutputPreferenceRepository(OutputPreferenceRepository):
                 "sizing_mode": preferences.jpeg.sizing_mode.value,
                 "quality": preferences.jpeg.quality,
                 "target_size_kib": preferences.jpeg.target_size_kib,
+            },
+            "transfer": {
+                "preferred_format": preferences.transfer.preferred_format.value,
             },
             "persistence_mode": preferences.persistence_mode.value,
         }

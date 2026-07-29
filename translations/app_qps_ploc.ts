@@ -98,10 +98,6 @@ Prömpt prëvïëw:
       <translation>⟦%1 fröm %2 ···⟧</translation>
     </message>
     <message>
-      <source>%1 grid</source>
-      <translation>⟦%1 grïd ···⟧</translation>
-    </message>
-    <message>
       <source>%1 installed packages</source>
       <translation>⟦%1 ïnstàllëd pàckàgës ···⟧</translation>
     </message>
@@ -386,10 +382,6 @@ Prömpt prëvïëw:
       <translation>⟦Åll ràtïngs ···⟧</translation>
     </message>
     <message>
-      <source>All scenes</source>
-      <translation>⟦Åll scënës ···⟧</translation>
-    </message>
-    <message>
       <source>All set</source>
       <translation>⟦Åll sët ···⟧</translation>
     </message>
@@ -644,10 +636,6 @@ Prömpt prëvïëw:
     <message>
       <source>Canvas Tab Demo</source>
       <translation>⟦Cànvàs Tàb Dëmö ···⟧</translation>
-    </message>
-    <message>
-      <source>Change</source>
-      <translation>⟦Chàngë ···⟧</translation>
     </message>
     <message>
       <source>Change the colors that appear in Substitute.</source>
@@ -924,6 +912,10 @@ Prömpt prëvïëw:
     <message>
       <source>Choose which Python this ComfyUI setup uses</source>
       <translation>⟦Chöösë whïch Pythön thïs CömfyÜÏ sëtüp üsës ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose which representation drag and Copy export.</source>
+      <translation>⟦Chöösë whïch rëprësëntàtïön dràg ànd Cöpy ëxpört. ···⟧</translation>
     </message>
     <message>
       <source>Choose your existing ComfyUI folder</source>
@@ -1856,6 +1848,14 @@ Install these nodes now?</source>
     <message>
       <source>Downloading...</source>
       <translation>⟦Döwnlöàdïng... ···⟧</translation>
+    </message>
+    <message>
+      <source>Drag</source>
+      <translation>⟦Dràg ···⟧</translation>
+    </message>
+    <message>
+      <source>Drag and Copy format</source>
+      <translation>⟦Dràg ànd Cöpy förmàt ···⟧</translation>
     </message>
     <message>
       <source>Duplicate</source>
@@ -5036,10 +5036,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thàt Pythön ëxëcütàblë dïd nöt wörk ···⟧</translation>
     </message>
     <message>
-      <source>That binding is already assigned to another control.</source>
-      <translation>⟦Thàt bïndïng ïs àlrëàdy àssïgnëd tö ànöthër cöntröl. ···⟧</translation>
-    </message>
-    <message>
       <source>That combination is reserved by Windows.</source>
       <translation>⟦Thàt cömbïnàtïön ïs rësërvëd by Wïndöws. ···⟧</translation>
     </message>
@@ -5396,6 +5392,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Ünàblë tö àpply chàngës ···⟧</translation>
     </message>
     <message>
+      <source>Unable to copy output image.</source>
+      <translation>⟦Ünàblë tö cöpy öütpüt ïmàgë. ···⟧</translation>
+    </message>
+    <message>
       <source>Unable to create asset</source>
       <translation>⟦Ünàblë tö crëàtë àssët ···⟧</translation>
     </message>
@@ -5422,6 +5422,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Unable to save asset</source>
       <translation>⟦Ünàblë tö sàvë àssët ···⟧</translation>
+    </message>
+    <message>
+      <source>Unable to transfer output image.</source>
+      <translation>⟦Ünàblë tö trànsfër öütpüt ïmàgë. ···⟧</translation>
     </message>
     <message>
       <source>Unable to update asset</source>
@@ -5580,6 +5584,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Üsë à süppörtëd öpëràtïng-systëm crëdëntïàl störë, thën rëstàrt Sübstïtütë. ···⟧</translation>
     </message>
     <message>
+      <source>Use companion JPEG for drag and Copy</source>
+      <translation>⟦Üsë cömpànïön JPËG för dràg ànd Cöpy ···⟧</translation>
+    </message>
+    <message>
       <source>Use default</source>
       <translation>⟦Üsë dëfàült ···⟧</translation>
     </message>
@@ -5718,6 +5726,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Wheel adjust after hover</source>
       <translation>⟦Whëël àdjüst àftër hövër ···⟧</translation>
+    </message>
+    <message>
+      <source>When JPEG companions are enabled, drag and Copy export the companion JPEG.</source>
+      <translation>⟦Whën JPËG cömpànïöns àrë ënàblëd, dràg ànd Cöpy ëxpört thë cömpànïön JPËG. ···⟧</translation>
     </message>
     <message>
       <source>When a recipe needs a missing model, Substitute can offer verified CivitAI downloads.</source>
