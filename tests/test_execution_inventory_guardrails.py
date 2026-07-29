@@ -38,6 +38,8 @@ EXECUTION_ADAPTER_FILES = frozenset(
         "substitute/infrastructure/execution/long_lived_task.py",
         "substitute/infrastructure/execution/parallel_map.py",
         "substitute/infrastructure/execution/process_output.py",
+        "substitute/infrastructure/execution/canvas_execution_scheduler.py",
+        "substitute/infrastructure/execution/thread_pool_admission.py",
         "substitute/infrastructure/execution/thread_pool_lane.py",
         "substitute/application/execution/cancellation.py",
         "substitute/application/execution/policies.py",
@@ -130,7 +132,7 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     "substitute/presentation/cube_picker/cube_stack_cart_modal.py": frozenset(
         {"QEventLoop"}
     ),
-    "substitute/shared/qpane_sam_warmup_state.py": frozenset({"threading.Lock"}),
+    "substitute/shared/cutecanvas_sam_warmup_state.py": frozenset({"threading.Lock"}),
     "substitute/shared/startup_trace.py": frozenset({"threading.RLock"}),
 }
 
@@ -150,8 +152,14 @@ WORKER_TERMINOLOGY_FILE_REASONS = {
     "substitute/infrastructure/execution/thread_pool_lane.py": (
         "concrete thread-pool adapter owns worker-thread implementation details"
     ),
+    "substitute/infrastructure/execution/thread_pool_admission.py": (
+        "physical bounded-admission adapter owns its worker-thread implementation"
+    ),
     "substitute/infrastructure/execution/parallel_map.py": (
         "bounded parallel-map adapter owns thread-pool implementation details"
+    ),
+    "substitute/infrastructure/execution/canvas_execution_scheduler.py": (
+        "canvas scheduler owns bounded admission across host execution lanes"
     ),
     "substitute/application/node_behavior/__init__.py": (
         "exports Comfy sampler_worker domain-role inference"

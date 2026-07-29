@@ -17,9 +17,15 @@
 """Expose infrastructure execution adapters."""
 
 from .long_lived_task import LongLivedTaskHandle
+from .cutecanvas_execution_backend import CuteCanvasExecutionBackend
+from .canvas_execution_scheduler import CanvasExecutionPolicy
+from .thread_pool_admission import ThreadPoolAdmission
 from .thread_pool_lane import ThreadPoolExecutionLane
 
 __all__ = [
     "LongLivedTaskHandle",
+    "CuteCanvasExecutionBackend",
+    "CanvasExecutionPolicy",
+    "ThreadPoolAdmission",
     "ThreadPoolExecutionLane",
 ]
