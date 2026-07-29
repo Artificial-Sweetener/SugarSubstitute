@@ -60,12 +60,13 @@ def test_build_serial_test_command_uses_fresh_non_xdist_process() -> None:
 def test_prepare_module_base_temp_creates_required_parent(tmp_path: Path) -> None:
     """Create pytest's parent directory before giving it a nested base temp."""
 
+    base_temp_root = tmp_path / "serial-run"
     base_temp = serial_runner.prepare_module_base_temp(
-        project_root=tmp_path,
+        base_temp_root=base_temp_root,
         junit_path=Path("results/tests__test_widget.xml"),
     )
 
-    assert base_temp == tmp_path / ".pytest-tmp/serial/tests__test_widget"
+    assert base_temp == base_temp_root / "tests__test_widget"
     assert base_temp.parent.is_dir()
     assert not base_temp.exists()
 
@@ -77,17 +78,21 @@ def test_run_serial_test_modules_continues_after_failure(
     """Report every failing module instead of stopping at the first failure."""
 
     calls: list[str] = []
+    observed_temp_roots: list[Path] = []
 
     def run_module(
         *,
         project_root: Path,
         module_path: str,
         junit_directory: Path,
+        base_temp_root: Path,
     ) -> int:
         """Record one isolated module invocation and fail the middle module."""
 
         assert project_root == tmp_path
         assert junit_directory == tmp_path / "results"
+        assert base_temp_root.is_dir()
+        observed_temp_roots.append(base_temp_root)
         calls.append(module_path)
         return 1 if module_path == "tests/test_b.py" else 0
 
@@ -100,4 +105,6 @@ def test_run_serial_test_modules_continues_after_failure(
     )
 
     assert calls == ["tests/test_a.py", "tests/test_b.py", "tests/test_c.py"]
+    assert len(set(observed_temp_roots)) == 1
+    assert not observed_temp_roots[0].exists()
     assert failures == ("tests/test_b.py",)
