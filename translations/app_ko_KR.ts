@@ -465,7 +465,7 @@ Prompt preview:
       <translation>영향받는 큐브</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="605"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="625"></location>
       <source>All</source>
       <translation>전체</translation>
     </message>
@@ -710,7 +710,7 @@ Prompt preview:
       <translation>찾아보기...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="249"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="92"></location>
       <source>Brush</source>
       <translation>브러시</translation>
     </message>
@@ -2353,6 +2353,11 @@ Install these nodes now?</source>
       <translation>편집기 기능</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="68"></location>
+      <source>Ellipse Mask</source>
+      <translation>타원형 마스크</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/errors.py" line="639"></location>
       <source>Embedded Python: %1</source>
       <translation>내장 Python: %1</translation>
@@ -3148,6 +3153,11 @@ Install these nodes now?</source>
       <translation>언어 및 지역</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="75"></location>
+      <source>Lasso Mask</source>
+      <translation>올가미 마스크</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="419"></location>
       <source>Last output: %1</source>
       <translation>마지막 출력: %1</translation>
@@ -3588,6 +3598,11 @@ Install these nodes now?</source>
       <translation>대부분의 사용자는 첫 번째 옵션으로 시작하는 것이 좋습니다.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="54"></location>
+      <source>Move</source>
+      <translation>이동</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/planned_changes_panel.py" line="132"></location>
       <source>Move down</source>
       <translation>아래로 이동</translation>
@@ -3698,7 +3713,7 @@ Install these nodes now?</source>
       <translation>큐브를 찾을 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="131"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="132"></location>
       <source>No input canvas nodes</source>
       <translation>입력 캔버스 노드 없음</translation>
     </message>
@@ -4058,7 +4073,7 @@ Install these nodes now?</source>
       <translation>패키지를 불러오지 않음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="242"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="99"></location>
       <source>Pan &amp; Zoom</source>
       <translation>이동 및 확대/축소</translation>
     </message>
@@ -4483,6 +4498,11 @@ Install these nodes now?</source>
       <translation>녹음 중�</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="61"></location>
+      <source>Rectangle Mask</source>
+      <translation>사각형 마스크</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
       <source>Red</source>
       <translation>빨강</translation>
@@ -4493,7 +4513,7 @@ Install these nodes now?</source>
       <translation>다시 실행</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="267"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="63"></location>
       <source>Redock canvas</source>
       <translation>캔버스 도킹</translation>
     </message>
@@ -5432,7 +5452,7 @@ No known extension claimant.</source>
       <translation>사용 가능한 경우 활성 대기열 생성 작업을 건너뜁니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="257"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="82"></location>
       <source>Smart Select</source>
       <translation>스마트 선택</translation>
     </message>
@@ -6802,7 +6822,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>실행 취소</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="267"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="63"></location>
       <source>Undock canvas</source>
       <translation>캔버스 도킹 해제</translation>
     </message>

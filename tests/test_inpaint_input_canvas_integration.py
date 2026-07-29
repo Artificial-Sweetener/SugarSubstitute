@@ -5,6 +5,14 @@
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """Exercise the mounted inpaint image, mask, activation, and brush workflow."""
 
@@ -45,8 +53,12 @@ from substitute.presentation.canvas.input.input_canvas_presenter import (
     InputCanvasPresenter,
 )
 from substitute.presentation.canvas.input.input_document import InputCanvasDocument
-from substitute.presentation.canvas.input.input_mask_tool_controller import (
-    InputMaskToolController,
+from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
+    InputCanvasToolId,
+    create_input_canvas_tool_system,
+)
+from substitute.presentation.canvas.input.input_canvas_tool_controller import (
+    InputCanvasToolController,
 )
 from substitute.presentation.canvas.input.input_route_projector import (
     InputRouteProjector,
@@ -217,10 +229,12 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
     )
     panel = _EditorPanel()
     canvas_tabs = _CanvasTabs(document.canvas)
-    tool_controller = InputMaskToolController(
+    runtime = create_input_canvas_tool_system()
+    tool_controller = InputCanvasToolController(
         input_document=document,
-        control_mode_setter=document.set_mask_tool_mode,
+        control_mode_setter=document.set_canvas_tool_mode,
         current_image_id_provider=route_projector.current_image_id_for_event,
+        runtime=runtime,
     )
     presenter = InputCanvasPresenter(
         input_document=document,
@@ -240,7 +254,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
         workflow_name_provider=lambda _workflow_id: workflow_name,
         projects_dir_provider=lambda: tmp_path,
         mask_color_provider=lambda _index, _total: QColor("red"),
-        mask_tool_controller=tool_controller,
+        tool_controller=tool_controller,
     )
 
     presenter.handle_input_image_changed(
@@ -271,7 +285,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
     assert document.image_has_masks(image_id)
     assert document.canvas.activeMaskID() == mask_id
 
-    document.set_mask_tool_mode("pan_zoom")
+    document.set_canvas_tool_mode(InputCanvasToolId.PAN_ZOOM)
     presenter.handle_input_mask_clicked(
         "SDXL/Inpaint",
         "load_image_as_mask",
@@ -282,7 +296,9 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
     assert document.current_image_id() == image_id
     assert document.canvas.activeMaskID() == mask_id
     assert route_projector.current_image_id_for_event() == image_id
-    assert tool_controller.refresh_tool_menu_state().brush_enabled is True
+    tool_controller.refresh_tool_context()
+    brush = tool_controller.palette.presentation_for(InputCanvasToolId.BRUSH)
+    assert brush is not None and brush.enabled is True
     assert document.canvas.getControlMode() == document.canvas.CONTROL_MODE_DRAW_BRUSH
     assert canvas_tabs.focused == ["Input"]
     assert panel.refreshes

@@ -145,8 +145,11 @@ from substitute.presentation.canvas.input.input_mask_dirty_tracker import (
 from substitute.presentation.canvas.input.input_mask_save_controller import (
     InputMaskSaveController,
 )
-from substitute.presentation.canvas.input.input_mask_tool_controller import (
-    InputMaskToolController,
+from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
+    create_input_canvas_tool_system,
+)
+from substitute.presentation.canvas.input.input_canvas_tool_controller import (
+    InputCanvasToolController,
 )
 from substitute.presentation.canvas.input.mask_color_provider import (
     input_mask_color,
@@ -242,7 +245,7 @@ class MainWindowInputCanvasComposition:
     """Hold input-canvas collaborators composed after canvas widgets exist."""
 
     workflow_input_canvas_service: Any
-    input_mask_tool_controller: Any
+    input_canvas_tool_controller: Any
     input_canvas_shell_adapter: Any
     input_canvas_presenter: Any
     input_mask_dirty_tracker: Any
@@ -745,18 +748,25 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         workflow_asset_service=shell.workflow_asset_service,
         graph_section_service=shell.graph_section_service,
     )
-    input_mask_tool_controller = InputMaskToolController(
+    input_tool_runtime = create_input_canvas_tool_system()
+    input_canvas.bind_tool_palette(input_tool_runtime.palette)
+    input_canvas_tool_controller = InputCanvasToolController(
         input_document=input_canvas.document,
-        control_mode_setter=input_canvas.document.set_mask_tool_mode,
+        control_mode_setter=input_canvas.document.set_canvas_tool_mode,
         current_image_id_provider=input_canvas.current_image_id_for_event,
-        menu_state_sink=input_canvas.set_mask_tool_menu_state,
+        runtime=input_tool_runtime,
     )
-    input_canvas.maskToolMenuStateRequested.connect(
-        input_mask_tool_controller.refresh_tool_menu_state
+    input_canvas.document.toolContextChanged.connect(
+        input_canvas_tool_controller.refresh_tool_context
     )
-    input_canvas.maskToolModeRequested.connect(
-        input_mask_tool_controller.request_tool_mode
+    input_canvas.document.canvasToolChanged.connect(
+        input_canvas_tool_controller.synchronize_native_tool
     )
+    input_canvas.toolContextRefreshRequested.connect(
+        input_canvas_tool_controller.refresh_tool_context
+    )
+    input_canvas.toolRequested.connect(input_canvas_tool_controller.request_tool)
+    input_canvas_tool_controller.refresh_tool_context()
     input_canvas_shell_adapter = InputCanvasShellAdapter(shell)
     input_canvas_presenter = InputCanvasPresenter(
         input_document=input_canvas.document,
@@ -770,7 +780,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
         projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
         mask_color_provider=input_mask_color,
-        mask_tool_controller=input_mask_tool_controller,
+        tool_controller=input_canvas_tool_controller,
         mark_canvas_changed=input_canvas_shell_adapter.mark_input_canvas_changed,
         error_presenter=getattr(shell, "_error_presenter", None),
     )
@@ -809,7 +819,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     )
     composition = MainWindowInputCanvasComposition(
         workflow_input_canvas_service=workflow_input_canvas_service,
-        input_mask_tool_controller=input_mask_tool_controller,
+        input_canvas_tool_controller=input_canvas_tool_controller,
         input_canvas_shell_adapter=input_canvas_shell_adapter,
         input_canvas_presenter=input_canvas_presenter,
         input_mask_dirty_tracker=input_mask_dirty_tracker,
@@ -817,7 +827,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         input_canvas_capability_service=input_canvas_capability_service,
     )
     shell.workflow_input_canvas_service = composition.workflow_input_canvas_service
-    shell.input_mask_tool_controller = composition.input_mask_tool_controller
+    shell.input_canvas_tool_controller = composition.input_canvas_tool_controller
     shell.input_canvas_shell_adapter = composition.input_canvas_shell_adapter
     shell.input_canvas_presenter = composition.input_canvas_presenter
     shell.input_mask_dirty_tracker = composition.input_mask_dirty_tracker

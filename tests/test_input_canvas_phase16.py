@@ -26,11 +26,13 @@ from uuid import UUID, uuid4
 
 from substitute.presentation.canvas.input import (
     InputCanvasPresenter,
+    InputCanvasToolController,
     InputMaskDirtyTracker,
     InputMaskSaveController,
-    InputMaskToolController,
-    InputMaskToolMenuState,
-    InputMaskToolMode,
+)
+from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
+    InputCanvasToolId,
+    create_input_canvas_tool_system,
 )
 from substitute.presentation.canvas.input.input_mask_save_controller import SignalPort
 
@@ -125,38 +127,6 @@ class _Panel:
         raise AssertionError("widget-local path memory must not be read")
 
 
-def test_mask_tool_controller_applies_only_authorized_tool_modes() -> None:
-    """Mask tool mode writes should live in the controller and require masks."""
-
-    image_id = uuid4()
-    control_modes: list[object] = []
-    menu_states: list[InputMaskToolMenuState] = []
-    document = _tool_document(
-        control_modes=control_modes, masks_by_image={image_id: []}
-    )
-    controller = InputMaskToolController(
-        input_document=document,
-        control_mode_setter=document.set_mask_tool_mode,
-        current_image_id_provider=lambda: image_id,
-        menu_state_sink=menu_states.append,
-    )
-
-    assert controller.refresh_tool_menu_state() == InputMaskToolMenuState()
-    assert controller.request_tool_mode(InputMaskToolMode.BRUSH) is False
-    assert controller.request_tool_mode(InputMaskToolMode.PAN_ZOOM) is True
-
-    document.masks_by_image[image_id] = [uuid4()]
-
-    assert controller.refresh_tool_menu_state() == InputMaskToolMenuState(
-        brush_enabled=True,
-        smart_select_enabled=True,
-    )
-    assert controller.request_tool_mode(InputMaskToolMode.BRUSH) is True
-    assert controller.request_tool_mode(InputMaskToolMode.SMART_SELECT) is True
-    assert control_modes == ["pan_zoom", "brush", "smart_select"]
-    assert menu_states[-1].brush_enabled is True
-
-
 def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
     """LoadImageMask click intent should activate image, mask, then brush mode."""
 
@@ -212,7 +182,7 @@ def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
     assert active_images == [image_id]
     assert active_masks == [mask_id]
     assert focused == ["Input"]
-    assert control_modes == ["brush"]
+    assert control_modes == [InputCanvasToolId.BRUSH]
     assert workflow.canvas.active_canvas_route == "Input"
 
 
@@ -462,12 +432,26 @@ def _tool_document(
     control_modes: list[object],
     masks_by_image: dict[UUID, list[UUID]],
 ) -> SimpleNamespace:
-    """Return a document fake for mask tool controller tests."""
+    """Return a mutable document fake for Input tool-controller tests."""
+
+    state = {"tool_id": InputCanvasToolId.PAN_ZOOM}
+
+    def set_canvas_tool_mode(tool_id: str) -> bool:
+        """Record and accept one requested tool mode."""
+
+        control_modes.append(tool_id)
+        state["tool_id"] = tool_id
+        return True
 
     return SimpleNamespace(
         masks_by_image=masks_by_image,
         image_has_masks=lambda image_id: bool(masks_by_image.get(image_id, [])),
-        set_mask_tool_mode=lambda mode: control_modes.append(mode),
+        active_image_has_mask_target=lambda image_id: bool(
+            masks_by_image.get(image_id, [])
+        ),
+        smart_select_ready=lambda: True,
+        current_canvas_tool_id=lambda: state["tool_id"],
+        set_canvas_tool_mode=set_canvas_tool_mode,
     )
 
 
@@ -481,7 +465,10 @@ def _save_document(*, mask_id: UUID) -> SimpleNamespace:
         ),
         set_mask_properties=lambda *_args, **_kwargs: None,
         image_has_masks=lambda _image_id: True,
-        set_mask_tool_mode=lambda _mode: None,
+        active_image_has_mask_target=lambda _image_id: True,
+        smart_select_ready=lambda: False,
+        current_canvas_tool_id=lambda: InputCanvasToolId.PAN_ZOOM,
+        set_canvas_tool_mode=lambda _tool_id: True,
     )
 
 
@@ -502,7 +489,10 @@ def _presenter(
     document = document or SimpleNamespace(
         set_mask_properties=lambda *_args, **_kwargs: None,
         image_has_masks=lambda _image_id: False,
-        set_mask_tool_mode=lambda _mode: None,
+        active_image_has_mask_target=lambda _image_id: False,
+        smart_select_ready=lambda: False,
+        current_canvas_tool_id=lambda: InputCanvasToolId.PAN_ZOOM,
+        set_canvas_tool_mode=lambda _tool_id: True,
     )
     asset_path = asset_path or Path(__file__).resolve()
     workflow_input_canvas_service = workflow_input_canvas_service or SimpleNamespace(
@@ -521,10 +511,12 @@ def _presenter(
         set_active_workflow_mask=lambda *_args: True,
         input_image_path=lambda _image_id: None,
     )
-    tool_controller = InputMaskToolController(
+    runtime = create_input_canvas_tool_system()
+    tool_controller = InputCanvasToolController(
         input_document=document,
-        control_mode_setter=document.set_mask_tool_mode,
+        control_mode_setter=document.set_canvas_tool_mode,
         current_image_id_provider=current_image_id_provider or (lambda: None),
+        runtime=runtime,
     )
     return InputCanvasPresenter(
         input_document=document,
@@ -541,6 +533,6 @@ def _presenter(
         workflow_name_provider=lambda _workflow_id: "Recipe",
         projects_dir_provider=lambda: asset_path.parent,
         mask_color_provider=lambda index, total: f"color-{index}/{total}",
-        mask_tool_controller=tool_controller,
+        tool_controller=tool_controller,
         timer=timer,
     )

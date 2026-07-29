@@ -520,7 +520,7 @@ Vista previa del prompt:
       <translation>Cubos afectados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="605"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="625"></location>
       <source>All</source>
       <translation>Todo</translation>
     </message>
@@ -765,7 +765,7 @@ Vista previa del prompt:
       <translation>Examinar...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="249"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="92"></location>
       <source>Brush</source>
       <translation>Pincel</translation>
     </message>
@@ -2408,6 +2408,11 @@ Install these nodes now?</source>
       <translation>Funciones del editor</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="68"></location>
+      <source>Ellipse Mask</source>
+      <translation>Máscara elíptica</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/errors.py" line="639"></location>
       <source>Embedded Python: %1</source>
       <translation>Python integrado: %1</translation>
@@ -3203,6 +3208,11 @@ Install these nodes now?</source>
       <translation>Idioma y región</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="75"></location>
+      <source>Lasso Mask</source>
+      <translation>Máscara de lazo</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="419"></location>
       <source>Last output: %1</source>
       <translation>Última salida: %1</translation>
@@ -3643,6 +3653,11 @@ Install these nodes now?</source>
       <translation>La mayoría de los usuarios deberían empezar con la primera opción.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="54"></location>
+      <source>Move</source>
+      <translation>Mover</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/planned_changes_panel.py" line="132"></location>
       <source>Move down</source>
       <translation>Bajar</translation>
@@ -3753,7 +3768,7 @@ Install these nodes now?</source>
       <translation>No se encontraron cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="131"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="132"></location>
       <source>No input canvas nodes</source>
       <translation>No hay nodos de lienzo de entrada</translation>
     </message>
@@ -4113,7 +4128,7 @@ Install these nodes now?</source>
       <translation>Paquetes no cargados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="242"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="99"></location>
       <source>Pan &amp; Zoom</source>
       <translation>Desplazar y ampliar</translation>
     </message>
@@ -4538,6 +4553,11 @@ Install these nodes now?</source>
       <translation>Grabando…</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="61"></location>
+      <source>Rectangle Mask</source>
+      <translation>Máscara rectangular</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
       <source>Red</source>
       <translation>Rojo</translation>
@@ -4548,7 +4568,7 @@ Install these nodes now?</source>
       <translation>Rehacer</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="267"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="63"></location>
       <source>Redock canvas</source>
       <translation>Volver a acoplar el lienzo</translation>
     </message>
@@ -5487,7 +5507,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Omite la generación activa en cola cuando está disponible.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="257"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="82"></location>
       <source>Smart Select</source>
       <translation>Selección inteligente</translation>
     </message>
@@ -6857,7 +6877,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Deshacer</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="267"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="63"></location>
       <source>Undock canvas</source>
       <translation>Desacoplar el lienzo</translation>
     </message>

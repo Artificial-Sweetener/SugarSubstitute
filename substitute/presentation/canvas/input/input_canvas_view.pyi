@@ -18,31 +18,30 @@
 
 from __future__ import annotations
 
-from typing import Any
 from uuid import UUID
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
-from cutecanvas import ExecutionRuntime
+from cutecanvas import CuteCanvas, ExecutionRuntime
 from sugarsubstitute_shared.localization import ApplicationText
 
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
     InputRouteProjectorPort,
 )
-from substitute.presentation.canvas.input.input_mask_tool_controller import (
-    InputMaskToolMenuState,
-)
+from substitute.presentation.canvas.tools import CanvasToolPalette, CanvasToolStrip
+from substitute.presentation.canvas.input.input_document import InputCanvasDocument
 
 class InputCanvas(QWidget):
     """Expose host-facing Input canvas widget controls and intent signals."""
 
     inputMaskSaved: Signal
     inputImageLoaded: Signal
-    maskToolMenuStateRequested: Signal
-    maskToolModeRequested: Signal
+    toolContextRefreshRequested: Signal
+    toolRequested: Signal
     dockActionRequested: Signal
-    pane: Any
+    document: InputCanvasDocument
+    canvas: CuteCanvas
 
     def __init__(
         self,
@@ -72,6 +71,11 @@ class InputCanvas(QWidget):
         """Set manager-owned canvas attachment state."""
         ...
 
-    def set_mask_tool_menu_state(self, state: InputMaskToolMenuState) -> None:
-        """Store presenter-owned mask tool enablement for the context menu."""
+    @property
+    def tool_strip(self) -> CanvasToolStrip:
+        """Return the compact tool overlay."""
+        ...
+
+    def bind_tool_palette(self, palette: CanvasToolPalette) -> None:
+        """Bind the contextual Input tool palette."""
         ...
