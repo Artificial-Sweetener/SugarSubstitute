@@ -37,6 +37,7 @@ from sugarsubstitute_shared.presentation.terminal.output_stream import (
 )
 
 from substitute.application.generation import (
+    OutputPreferenceService,
     VisualAuthorizationService,
     WorkflowProgressService,
 )
@@ -89,6 +90,9 @@ from substitute.presentation.shell.workflow_surface_invalidation import (
 from substitute.presentation.ui_load_activity import (
     default_prompt_projection_ui_load_activity,
 )
+from tests.support.real_output_canvas.output_preferences import (
+    InMemoryOutputPreferences,
+)
 
 
 class _HarnessShell(QMainWindow):
@@ -115,6 +119,10 @@ class _HarnessShell(QMainWindow):
         self.shell_resource_lifecycle = ShellResourceLifecycle()
         self.canvas_io_service = canvas_io_service
         self.path_bundle = _path_bundle()
+        self.output_preference_service = OutputPreferenceService(
+            InMemoryOutputPreferences(),
+            default_output_root=self.path_bundle.user_dir / "outputs",
+        )
         self.output_preview_registry = OutputPreviewRegistry()
         self.visual_authorization_service = VisualAuthorizationService()
         self.workflow_progress_service = WorkflowProgressService()
@@ -177,6 +185,7 @@ class _HarnessShell(QMainWindow):
                 self.workspace_canvas_actions.open_images_in_external_editor
             ),
         )
+        self.setMenuWidget(self._menu_container)
         self.workflow_tab_service = workspace_parts.workflow_tab_service
         self.workflow_session_service: WorkflowSessionService[WorkflowState] = cast(
             WorkflowSessionService[WorkflowState],
@@ -223,6 +232,7 @@ class _HarnessShell(QMainWindow):
         )
         self.main_window_signal_binder = MainWindowSignalBinder(self)
         self.main_window_signal_binder.connect_generation_feedback_signals()
+        self.main_window_signal_binder.connect_workflow_tab_signals()
         self.main_window_signal_binder.connect_canvas_signals(
             input_canvas=self.canvas_tabs.canvas_map["Input"],
             output_canvas=self.output_canvas,
@@ -280,8 +290,12 @@ class _CanvasIoService:
         self._images_by_path: dict[Path, QImage] = {}
 
     def store_image(self, path: Path, image: QImage) -> None:
-        """Store one image under the fake generated path."""
+        """Store one image under a loadable generated path for real MIME checks."""
 
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # PySide accepts a str although its generated overload declares bytes only.
+        if not image.save(str(path), "PNG"):  # type: ignore[call-overload]
+            raise RuntimeError(f"Unable to write generated test output: {path}")
         self._images_by_path[path] = image
 
     def load_output_image(self, source_path: Path) -> QImage | None:

@@ -186,7 +186,7 @@ def test_pane_comparison_change_stores_and_emits_changed_state() -> None:
         comparison=current.comparison,
         split_position=0.75,
     )
-    presenter = _Presenter(qpane_state=changed)
+    presenter = _Presenter(presentation_state=changed)
     stored: list[OutputCompareState] = []
     emitted: list[OutputCompareState] = []
     controller = _controller(
@@ -197,18 +197,18 @@ def test_pane_comparison_change_stores_and_emits_changed_state() -> None:
     )
     payload = SimpleNamespace(split_position=0.75)
 
-    controller.on_pane_comparison_changed(payload)
+    controller.on_workspace_presentation_changed(payload)
 
-    assert presenter.qpane_calls == ((current, payload),)
+    assert presenter.presentation_calls == ((current, payload),)
     assert stored == [changed]
     assert emitted == [changed]
 
 
-def test_pane_comparison_change_ignores_unchanged_state() -> None:
-    """Unchanged QPane divider payloads should not emit compare updates."""
+def test_workspace_presentation_change_ignores_unchanged_state() -> None:
+    """Unchanged workspace divider payloads should not emit compare updates."""
 
     current = OutputCompareState(enabled=True)
-    presenter = _Presenter(qpane_state=current)
+    presenter = _Presenter(presentation_state=current)
     stored: list[OutputCompareState] = []
     emitted: list[OutputCompareState] = []
     controller = _controller(
@@ -218,7 +218,7 @@ def test_pane_comparison_change_ignores_unchanged_state() -> None:
         emitted=emitted,
     )
 
-    controller.on_pane_comparison_changed(object())
+    controller.on_workspace_presentation_changed(object())
 
     assert stored == []
     assert emitted == []
@@ -511,13 +511,13 @@ class _Presenter:
 
     enabled_state: OutputCompareState = OutputCompareState(enabled=True)
     disabled_state: OutputCompareState = OutputCompareState(enabled=False)
-    qpane_state: OutputCompareState = OutputCompareState(enabled=True)
+    presentation_state: OutputCompareState = OutputCompareState(enabled=True)
     enabled_calls: tuple[
         tuple[OutputCanvasProjection, OutputCompareSelection | None],
         ...,
     ] = ()
     disabled_calls: tuple[OutputCompareState, ...] = ()
-    qpane_calls: tuple[tuple[OutputCompareState, object], ...] = ()
+    presentation_calls: tuple[tuple[OutputCompareState, object], ...] = ()
 
     def state_for_enabled(
         self,
@@ -536,15 +536,15 @@ class _Presenter:
         self.disabled_calls = (*self.disabled_calls, state)
         return self.disabled_state
 
-    def state_from_qpane_change(
+    def state_from_presentation_change(
         self,
         state: OutputCompareState,
-        qpane_state: object,
+        presentation: object,
     ) -> OutputCompareState:
-        """Return configured QPane state and record the payload."""
+        """Return configured workspace state and record the payload."""
 
-        self.qpane_calls = (*self.qpane_calls, (state, qpane_state))
-        return self.qpane_state
+        self.presentation_calls = (*self.presentation_calls, (state, presentation))
+        return self.presentation_state
 
 
 @dataclass(frozen=True, slots=True)

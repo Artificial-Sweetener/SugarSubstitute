@@ -19,10 +19,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
+from uuid import UUID
 
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteIdentity,
-    OutputRouteProjectorPort,
 )
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
@@ -48,11 +49,29 @@ class OutputComparePresentation:
     state_changed: bool = False
 
 
+class OutputCompareRoutePort(Protocol):
+    """Apply only document-native comparison presentation commands."""
+
+    def apply_compare(
+        self,
+        *,
+        route: CanvasRouteIdentity,
+        base_image_id: UUID,
+        comparison_image_id: UUID,
+        split_position: float,
+        orientation: object,
+    ) -> bool:
+        """Present one authorized reveal comparison."""
+
+    def clear_compare(self, *, route: CanvasRouteIdentity) -> bool:
+        """Clear an authorized reveal comparison."""
+
+
 class OutputComparePresenter:
     """Apply Output compare rendering without owning workflow compare state."""
 
-    def __init__(self, route_projector: OutputRouteProjectorPort) -> None:
-        """Store the authorized Output route projector used for compare display."""
+    def __init__(self, route_projector: OutputCompareRoutePort) -> None:
+        """Store the authorized document route presentation boundary."""
 
         self._route_projector = route_projector
 
@@ -148,23 +167,23 @@ class OutputComparePresenter:
             state_changed=reconciled != state,
         )
 
-    def state_from_qpane_change(
+    def state_from_presentation_change(
         self,
         state: OutputCompareState,
-        qpane_state: object,
+        presentation: object,
     ) -> OutputCompareState:
-        """Return compare state updated from a QPane divider-change payload."""
+        """Return compare state updated from one workspace presentation snapshot."""
 
         if not state.enabled:
             return state
-        raw_orientation = getattr(qpane_state, "orientation", state.orientation)
+        raw_orientation = getattr(presentation, "orientation", state.orientation)
         orientation = str(getattr(raw_orientation, "value", raw_orientation))
         return OutputCompareState(
             enabled=True,
             base=state.base,
             comparison=state.comparison,
             split_position=float(
-                getattr(qpane_state, "split_position", state.split_position)
+                getattr(presentation, "split_position", state.split_position)
             ),
             orientation=(
                 orientation if orientation in {"vertical", "horizontal"} else "vertical"
@@ -193,5 +212,6 @@ def _clear_compare_route(projection: OutputCanvasProjection) -> CanvasRouteIdent
 
 __all__ = [
     "OutputComparePresentation",
+    "OutputCompareRoutePort",
     "OutputComparePresenter",
 ]

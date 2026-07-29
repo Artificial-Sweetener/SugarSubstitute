@@ -101,7 +101,7 @@ class InputMaskDirtyTracker:
 
     @staticmethod
     def resolve_mask_id(mask_id: object) -> UUID | None:
-        """Resolve a QPane or workflow mask identifier into UUID form."""
+        """Resolve a CuteCanvas or workflow mask identifier into UUID form."""
 
         if isinstance(mask_id, UUID):
             return mask_id

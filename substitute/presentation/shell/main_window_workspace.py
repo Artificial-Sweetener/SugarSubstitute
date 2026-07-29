@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from cutecanvas import ExecutionRuntime
 from qfluentwidgets import ProgressBar  # type: ignore[import-untyped]
 
 try:
@@ -49,8 +50,6 @@ except ImportError:  # pragma: no cover - lightweight test stubs
 from substitute.application.workflows import (
     InputCanvasStateService,
     OutputCanvasProjectionCoordinator,
-    OutputProjectionCatalogWarmer,
-    OutputProjectionPayloadHydrator,
     WorkflowCanvasProjectionCoordinator,
     WorkflowSessionService,
     WorkflowTabService,
@@ -74,9 +73,8 @@ from sugarsubstitute_shared.presentation.terminal.output_stream import (
 from substitute.presentation.canvas import (
     create_canvas_tabs,
     create_output_floating_chrome_factory,
-    OutputLinkedGroupPresenter,
 )
-from substitute.presentation.canvas.qpane import CanvasPaneCatalog
+from substitute.presentation.canvas.shared.types import OutputImageMeta
 from substitute.presentation.shell.comfy_output_panel import ComfyOutputPanel
 from substitute.presentation.shell.chrome_style import (
     CUBE_STACK_TOP_INSET,
@@ -100,6 +98,10 @@ from substitute.presentation.workflows.workflow_tabs_view import (
     TabCloseButtonDisplayMode,
 )
 from substitute.shared.startup_trace import trace_mark, trace_span
+
+OutputSingleExternalEditor = Callable[[object, OutputImageMeta], bool]
+OutputAllExternalEditor = Callable[[list[tuple[object, OutputImageMeta]]], bool]
+OutputAssetReveal = Callable[[OutputImageMeta], bool]
 
 
 @dataclass(frozen=True)
@@ -249,10 +251,11 @@ def _build_workflow_tabbar(
 def _build_canvas_scaffold(
     window: object,
     *,
+    canvas_execution_runtime: ExecutionRuntime | None = None,
     output_preview_registry: OutputPreviewRegistry,
-    open_single_external_editor: object,
-    open_all_external_editor: object,
-    reveal_output_asset: object = None,
+    open_single_external_editor: OutputSingleExternalEditor | None,
+    open_all_external_editor: OutputAllExternalEditor | None,
+    reveal_output_asset: OutputAssetReveal | None = None,
 ) -> tuple[
     Any,
     InputCanvasStateService,
@@ -270,6 +273,7 @@ def _build_canvas_scaffold(
     output_floating_chrome_factory = create_output_floating_chrome_factory()
     with trace_span("mainwindow.build_workspace.canvas.create_tabs"):
         canvas_tabs = create_canvas_tabs(
+            execution_runtime=canvas_execution_runtime,
             output_preview_registry=output_preview_registry,
             open_single_external_editor=open_single_external_editor,
             open_all_external_editor=open_all_external_editor,
@@ -280,19 +284,14 @@ def _build_canvas_scaffold(
             route_session_boundary=canvas_session_boundary,
         )
     with trace_span("mainwindow.build_workspace.canvas.validate_tabs"):
-        output_canvas = canvas_tabs.canvas_map.get("Output")
-        input_canvas = canvas_tabs.canvas_map.get("Input")
+        output_canvas = cast(Any, canvas_tabs.canvas_map.get("Output"))
+        input_canvas = cast(Any, canvas_tabs.canvas_map.get("Input"))
         if input_canvas is None or output_canvas is None:
             raise RuntimeError("Canvas tabs must include Input and Output canvases.")
 
     with trace_span("mainwindow.build_workspace.canvas.state_service"):
-        output_catalog = getattr(output_canvas, "qpane_catalog", None)
-        if output_catalog is None:
-            output_catalog = CanvasPaneCatalog(output_canvas.pane)
-        input_catalog = CanvasPaneCatalog(input_canvas.pane)
         input_canvas_state_service = InputCanvasStateService(
-            input_pane=input_canvas.pane,
-            input_catalog=input_catalog,
+            input_document=input_canvas.document,
             input_route_projector=input_canvas.route_projector,
             canvas_session_boundary=canvas_session_boundary,
             image_registry=canvas_image_registry,
@@ -300,23 +299,15 @@ def _build_canvas_scaffold(
         output_canvas_state_service = OutputCanvasStateService(
             image_registry=canvas_image_registry,
         )
-        output_projection_catalog_warmer = OutputProjectionCatalogWarmer(
-            image_registry=canvas_image_registry,
-            output_catalog=output_catalog,
-        )
-        output_projection_payload_hydrator = OutputProjectionPayloadHydrator(
-            image_registry=canvas_image_registry,
-            output_catalog=output_catalog,
+        output_projection_content_synchronizer = (
+            output_canvas.create_projection_content_synchronizer(canvas_image_registry)
         )
         output_canvas_projection_coordinator = OutputCanvasProjectionCoordinator(
             image_registry=canvas_image_registry,
             output_canvas_state_service=output_canvas_state_service,
-            output_route_projector=output_canvas.route_projector,
             canvas_session_boundary=canvas_session_boundary,
-            catalog_warmer=output_projection_catalog_warmer,
-            payload_hydrator=output_projection_payload_hydrator,
+            content_synchronizer=output_projection_content_synchronizer,
             projection_sink=output_canvas,
-            linked_group_sink=OutputLinkedGroupPresenter(output_canvas.pane),
         )
         workflow_canvas_projection_coordinator = WorkflowCanvasProjectionCoordinator(
             input_canvas_state_service=input_canvas_state_service,
@@ -370,13 +361,14 @@ def _build_progress_overlay(
 def build_main_window_workspace(
     window: QMainWindow,
     *,
+    canvas_execution_runtime: ExecutionRuntime | None = None,
     backdrop_mode: ShellBackdropMode | None = None,
     menu_container: QWidget,
     comfy_output_stream: TerminalOutputStream,
     output_preview_registry: OutputPreviewRegistry,
-    open_single_external_editor: object,
-    open_all_external_editor: object,
-    reveal_output_asset: object = None,
+    open_single_external_editor: OutputSingleExternalEditor | None,
+    open_all_external_editor: OutputAllExternalEditor | None,
+    reveal_output_asset: OutputAssetReveal | None = None,
     configure_output_thumbnail_context: Callable[
         [CanvasImageRegistry, Callable[[], OutputCanvasProjection | None]],
         None,
@@ -451,6 +443,7 @@ def build_main_window_workspace(
             canvas_tabs_container,
         ) = _build_canvas_scaffold(
             window,
+            canvas_execution_runtime=canvas_execution_runtime,
             output_preview_registry=output_preview_registry,
             open_single_external_editor=open_single_external_editor,
             open_all_external_editor=open_all_external_editor,
@@ -459,9 +452,7 @@ def build_main_window_workspace(
         if configure_output_thumbnail_context is not None:
             configure_output_thumbnail_context(
                 canvas_image_registry,
-                lambda canvas_tabs=canvas_tabs: _output_projection_for_canvas_tabs(
-                    canvas_tabs
-                ),
+                lambda: _output_projection_for_canvas_tabs(canvas_tabs),
             )
 
     with trace_span("mainwindow.build_workspace.central_layout"):

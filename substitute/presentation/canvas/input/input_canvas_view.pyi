@@ -23,6 +23,7 @@ from uuid import UUID
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
+from cutecanvas import ExecutionRuntime
 from sugarsubstitute_shared.localization import ApplicationText
 
 from substitute.application.workflows.canvas_route_projector_port import (
@@ -47,6 +48,7 @@ class InputCanvas(QWidget):
         self,
         parent: QWidget | None = None,
         *,
+        execution_runtime: ExecutionRuntime | None = None,
         route_session_boundary: CanvasRouteSessionBoundaryPort | None = None,
     ) -> None: ...
     @property

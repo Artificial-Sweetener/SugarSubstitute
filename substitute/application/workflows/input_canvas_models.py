@@ -110,7 +110,7 @@ class UserSelectedInputMaskResult:
 
 @dataclass(frozen=True)
 class LoadedInputCanvasImageIdentityResolution:
-    """Describe how an existing QPane image maps to a workflow input node."""
+    """Describe how an admitted canvas image maps to a workflow input node."""
 
     cube_alias: str | None
     image_node_name: str | None

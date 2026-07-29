@@ -60,7 +60,7 @@ class InputCanvasPresenterProtocol(Protocol):
         image_id: object,
         image_path: str,
     ) -> None:
-        """Handle QPane-confirmed Input image load intent."""
+        """Handle CuteCanvas-confirmed Input image load intent."""
 
     def refresh_active_mask_pickers(self) -> None:
         """Refresh active editor-panel mask pickers from workflow asset state."""
@@ -82,7 +82,7 @@ class InputCanvasPresenterProtocol(Protocol):
         """Handle editor-panel LoadImageMask focus intent."""
 
     def handle_mask_save_completed(self, mask_id: str, path: str) -> None:
-        """Handle QPane mask-save completion intent."""
+        """Handle CuteCanvas mask-save completion intent."""
 
     def materialize_loaded_cube_input_canvas(
         self,
@@ -92,7 +92,7 @@ class InputCanvasPresenterProtocol(Protocol):
         """Materialize loaded-cube Input canvas state."""
 
     def reconcile_active_input_canvas_image(self) -> None:
-        """Reconcile the active QPane Input image before generation."""
+        """Reconcile the active CuteCanvas Input image before generation."""
 
 
 class WorkflowSessionState(Protocol):

@@ -29,17 +29,11 @@ if TYPE_CHECKING:
     from substitute.presentation.canvas.host import CanvasTabManager
     from substitute.presentation.canvas.input.input_canvas_view import InputCanvas
     from substitute.presentation.canvas.output.output_canvas_view import OutputCanvas
-    from substitute.presentation.canvas.output.output_linked_group_presenter import (
-        OutputLinkedGroupPresenter,
-    )
 
 _EXPORT_MODULES = {
     "CanvasTabManager": "substitute.presentation.canvas.host",
     "InputCanvas": "substitute.presentation.canvas.input.input_canvas_view",
     "OutputCanvas": "substitute.presentation.canvas.output.output_canvas_view",
-    "OutputLinkedGroupPresenter": (
-        "substitute.presentation.canvas.output.output_linked_group_presenter"
-    ),
     "create_canvas_tabs": "substitute.presentation.canvas.factory",
     "create_output_floating_chrome_factory": "substitute.presentation.canvas.factory",
 }
@@ -48,7 +42,6 @@ __all__ = [
     "CanvasTabManager",
     "InputCanvas",
     "OutputCanvas",
-    "OutputLinkedGroupPresenter",
     "create_canvas_tabs",
     "create_output_floating_chrome_factory",
 ]

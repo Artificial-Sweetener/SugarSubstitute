@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Protocol, cast
+from typing import Callable, Protocol
 from uuid import UUID
 
 from substitute.shared.logging.logger import get_logger, log_debug, log_warning
@@ -43,29 +43,28 @@ class InputMaskToolMenuState:
     smart_select_enabled: bool = False
 
 
-class _InputPaneToolPort(Protocol):
-    """Describe QPane tool and mask catalog APIs used by the controller."""
+class InputMaskToolDocumentPort(Protocol):
+    """Describe source-neutral Input document mask availability queries."""
 
-    def setControlMode(self, mode: object) -> None:  # noqa: N802
-        """Set the active QPane control mode."""
-
-    def catalog(self) -> object:
-        """Return QPane's catalog facade."""
+    def image_has_masks(self, image_id: UUID | None) -> bool:
+        """Return whether one application image contains at least one mask."""
 
 
 class InputMaskToolController:
-    """Coordinate Input mask tool modes from authorized pane state."""
+    """Coordinate Input mask tool modes from authorized document state."""
 
     def __init__(
         self,
         *,
-        input_pane: _InputPaneToolPort,
+        input_document: InputMaskToolDocumentPort,
+        control_mode_setter: Callable[[str], None],
         current_image_id_provider: Callable[[], UUID | None],
         menu_state_sink: Callable[[InputMaskToolMenuState], None] | None = None,
     ) -> None:
-        """Store QPane and view-state collaborators for mask tool decisions."""
+        """Store document and view-state collaborators for mask tool decisions."""
 
-        self._input_pane = input_pane
+        self._input_document = input_document
+        self._control_mode_setter = control_mode_setter
         self._current_image_id_provider = current_image_id_provider
         self._menu_state_sink = menu_state_sink
 
@@ -89,8 +88,11 @@ class InputMaskToolController:
     def request_tool_mode(self, mode: str) -> bool:
         """Apply one user-requested tool mode when current state permits it."""
 
-        qpane_mode = self._qpane_mode_for_intent(mode)
-        if qpane_mode is None:
+        if mode not in {
+            InputMaskToolMode.PAN_ZOOM,
+            InputMaskToolMode.BRUSH,
+            InputMaskToolMode.SMART_SELECT,
+        }:
             log_warning(
                 _LOGGER,
                 "Rejected unknown input mask tool mode",
@@ -105,7 +107,7 @@ class InputMaskToolController:
                     requested_mode=mode,
                 )
                 return False
-        self._input_pane.setControlMode(qpane_mode)
+        self._control_mode_setter(mode)
         log_debug(_LOGGER, "Applied input mask tool mode", requested_mode=mode)
         return True
 
@@ -117,32 +119,7 @@ class InputMaskToolController:
     def _active_image_has_masks(self) -> bool:
         """Return whether the authorized active Input image has mask layers."""
 
-        image_id = self._current_image_id_provider()
-        if image_id is None:
-            return False
-        catalog = self._input_pane.catalog()
-        mask_manager_factory = getattr(catalog, "maskManager", None)
-        mask_manager = (
-            mask_manager_factory() if callable(mask_manager_factory) else None
-        )
-        get_masks_for_image = getattr(mask_manager, "get_masks_for_image", None)
-        if not callable(get_masks_for_image):
-            return False
-        return bool(get_masks_for_image(image_id))
-
-    @staticmethod
-    def _qpane_mode_for_intent(mode: str) -> object | None:
-        """Return the QPane control mode constant for one Input tool intent."""
-
-        from qpane import QPane
-
-        if mode == InputMaskToolMode.PAN_ZOOM:
-            return cast(object, QPane.CONTROL_MODE_PANZOOM)
-        if mode == InputMaskToolMode.BRUSH:
-            return cast(object, QPane.CONTROL_MODE_DRAW_BRUSH)
-        if mode == InputMaskToolMode.SMART_SELECT:
-            return cast(object, QPane.CONTROL_MODE_SMART_SELECT)
-        return None
+        return self._input_document.image_has_masks(self._current_image_id_provider())
 
 
 __all__ = [

@@ -873,11 +873,15 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         "InputCanvasCapabilityService",
         _FakeInputCanvasCapabilityService,
     )
-    pane = object()
+    document = SimpleNamespace(
+        set_mask_tool_mode=object(),
+        export_mask_image=object(),
+    )
     current_image_id_for_event = object()
     menu_state_sink = object()
     input_canvas = SimpleNamespace(
-        pane=pane,
+        document=document,
+        canvas=SimpleNamespace(maskUndoStackChanged=object()),
         current_image_id_for_event=current_image_id_for_event,
         set_mask_tool_menu_state=menu_state_sink,
         maskToolMenuStateRequested=_FakeSignal(),
@@ -912,7 +916,8 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         "graph_section_service": shell.graph_section_service,
     }
     assert shell.input_mask_tool_controller.kwargs == {
-        "input_pane": pane,
+        "input_document": document,
+        "control_mode_setter": document.set_mask_tool_mode,
         "current_image_id_provider": current_image_id_for_event,
         "menu_state_sink": menu_state_sink,
     }
@@ -923,7 +928,7 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         shell.input_mask_tool_controller.request_tool_mode
     ]
     assert shell.input_canvas_shell_adapter.shell is shell
-    assert shell.input_canvas_presenter.kwargs["input_pane"] is pane
+    assert shell.input_canvas_presenter.kwargs["input_document"] is document
     assert (
         shell.input_canvas_presenter.kwargs["workflow_input_canvas_service"]
         is shell.workflow_input_canvas_service

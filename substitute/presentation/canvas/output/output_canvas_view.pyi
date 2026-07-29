@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Typing surface for the public Output canvas widget API."""
+"""Typing surface for the public CuteCanvas Output workspace widget."""
 
 from __future__ import annotations
 
@@ -24,30 +24,43 @@ from uuid import UUID
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
+from cutecanvas import ExecutionRuntime, OutboundMimeProvider
 
+from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
-    OutputRouteProjectorPort,
 )
 from substitute.application.workflows.output_canvas_session import OutputCanvasSession
+from substitute.application.workflows.output_compare_state import OutputCompareState
+from substitute.application.workflows.output_canvas_projection import (
+    OutputCanvasProjection,
+)
 from substitute.application.workflows.output_preview_registry import (
+    OutputPreviewAcceptance,
     OutputPreviewRegistry,
 )
-from substitute.presentation.canvas.qpane.canvas_pane_catalog import CanvasPaneCatalog
-from substitute.presentation.canvas.shared.types import OutputImageMeta
-from substitute.presentation.canvas.output.composition.runtime_types import (
-    OutputCanvasRuntime,
+from substitute.application.workflows.output_canvas_state_service import (
+    OutputPreviewCloseIdentity,
 )
+from substitute.presentation.canvas.output.output_document import OutputCanvasDocument
+from substitute.presentation.canvas.output.output_document_route_projector import (
+    OutputDocumentRouteProjector,
+)
+from substitute.presentation.canvas.output.output_projection_content_synchronizer import (
+    OutputProjectionContentSynchronizer,
+)
+from substitute.presentation.canvas.shared.types import OutputImageMeta
 
 class OutputCanvas(QWidget):
-    """Expose host-facing Output canvas widget controls and projection binding."""
+    """Expose the document-backed Output workspace and projection binding API."""
 
     activeOutputChanged: Signal
     activeOutputGridChanged: Signal
     activeOutputSceneChanged: Signal
     activeOutputCompareChanged: Signal
     dockActionRequested: Signal
-    pane: Any
+    document: OutputCanvasDocument
+    workspace: Any
     tabbar: Any
     scene_selector_button: Any
     set_selector_button: Any
@@ -59,21 +72,19 @@ class OutputCanvas(QWidget):
     active_scene_key: str | None
     active_source_key: str | None
     active_set_index: int
-    _runtime: OutputCanvasRuntime
-    _projection_workflow_id: str
-    _source_tabs_collapsed: bool
-    _source_tabbar_preferred_width: int
-    _source_tab_cache_signature: tuple[tuple[str, str], ...] | None
-    _source_tab_tooltip_filters: dict[str, object]
-    _canvas_detached: bool
-    _open_single_external_editor: Callable[[object, OutputImageMeta], bool]
-    _open_all_external_editor: Callable[[list[tuple[object, OutputImageMeta]]], bool]
-    _reveal_output_asset: Callable[[OutputImageMeta], bool]
+    scene_count: int
+    set_count: int
+    _output_projection: OutputCanvasProjection | None
+    _set_picker: Any
+    _scene_picker: Any
+    _source_picker: Any
+    _zoom_indicators: Any
 
     def __init__(
         self,
         parent: QWidget | None = None,
         *,
+        execution_runtime: ExecutionRuntime | None = None,
         preview_registry: OutputPreviewRegistry,
         open_single_external_editor: (
             Callable[[object, OutputImageMeta], bool] | None
@@ -89,32 +100,82 @@ class OutputCanvas(QWidget):
         route_session_boundary: CanvasRouteSessionBoundaryPort | None = None,
     ) -> None: ...
     @property
-    def route_projector(self) -> OutputRouteProjectorPort:
-        """Return the authorized Output route projector for this widget."""
+    def route_projector(self) -> OutputDocumentRouteProjector:
+        """Return the authorized document route projector for this widget."""
         ...
-
     @property
-    def qpane_catalog(self) -> CanvasPaneCatalog:
-        """Return the QPane catalog adapter owned by this widget."""
+    def visible_compare_state(self) -> OutputCompareState:
+        """Return the compare state currently rendered by the Output workspace."""
         ...
-
+    @property
+    def canvas_detached(self) -> bool:
+        """Return whether the Output canvas is currently detached from its dock."""
+        ...
+    def set_compare_mode_enabled(self, enabled: bool) -> None:
+        """Request the Output navigation owner update visible compare mode."""
+        ...
+    def final_output_metadata(self, image_id: UUID) -> OutputImageMeta | None:
+        """Resolve one final Output image's metadata for a host action."""
+        ...
+    @property
+    def single_external_editor(
+        self,
+    ) -> Callable[[object, OutputImageMeta], bool] | None:
+        """Return the optional host integration for opening one Output image."""
+        ...
+    @property
+    def all_external_editor(
+        self,
+    ) -> Callable[[list[tuple[object, OutputImageMeta]]], bool] | None:
+        """Return the optional host integration for opening Output collections."""
+        ...
+    @property
+    def output_asset_revealer(self) -> Callable[[OutputImageMeta], bool] | None:
+        """Return the optional host integration for revealing one Output asset."""
+        ...
+    def create_projection_content_synchronizer(
+        self,
+        image_registry: CanvasImageRegistry,
+    ) -> OutputProjectionContentSynchronizer:
+        """Create the document admission adapter for authoritative payloads."""
+        ...
     def set_final_output_lookup(
         self,
         *,
         payload_lookup: Callable[[UUID], object | None],
         metadata_lookup: Callable[[UUID], OutputImageMeta | None],
     ) -> None:
-        """Set registry-backed lookup functions for external-editor actions."""
+        """Accept application-owned final lookup callbacks for later actions."""
         ...
-
     def set_preview_registry(self, registry: OutputPreviewRegistry) -> None:
         """Bind the transient preview registry for the active projection surface."""
         ...
+    def install_transfer_drag_provider(self, provider: OutboundMimeProvider) -> None:
+        """Install one composed outbound MIME provider on every workspace target."""
+        ...
+    def install_transfer_context_handler(
+        self, handler: Callable[[object, object], None]
+    ) -> None:
+        """Forward workspace content-context requests to one UI presenter."""
+        ...
 
+    def _activate_workspace_target(self, composition_id: UUID) -> None:
+        """Translate one workspace activation into Output navigation intent."""
+        ...
+    def apply_preview_acceptance(self, acceptance: OutputPreviewAcceptance) -> None:
+        """Admit and display one accepted preview payload."""
+        ...
+    def close_final_output_preview_lane(
+        self, identity: OutputPreviewCloseIdentity
+    ) -> None:
+        """Retire previews superseded by one final Output image."""
+        ...
+    def clear_previews(self, source_key: str | None = None) -> None:
+        """Retire transient previews for one source or all sources."""
+        ...
     def set_canvas_detached(self, detached: bool) -> None:
         """Set manager-owned canvas attachment state."""
         ...
-
     def bind_projection_session(self, session: OutputCanvasSession) -> None:
-        """Bind the active Output projection session into the widget surface."""
+        """Bind the active Output projection session into the workspace."""
         ...

@@ -14,17 +14,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Calculate cursor-relative zoom-indicator geometry without owning widgets."""
+"""Calculate cursor-relative normal and reveal zoom-badge geometry."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QRect, QRectF
-
-if TYPE_CHECKING:
-    from qpane import ComparisonDividerState
+from PySide6.QtGui import QFontMetricsF
 
 _CURSOR_OFFSET = QPointF(12.0, 12.0)
 _CANVAS_MARGIN = 4.0
@@ -33,56 +30,75 @@ _DIVIDER_GAP = 6.0
 
 @dataclass(frozen=True, slots=True)
 class CanvasZoomBadge:
-    """Describe one zoom label and its canvas-space bounds."""
+    """Describe one percentage label and its canvas-local bounds."""
 
     text: str
     bounds: QRectF
 
 
+def zoom_badge_for_text(text: str, metrics: QFontMetricsF) -> CanvasZoomBadge:
+    """Build one origin-relative badge that comfortably contains ``text``."""
+
+    text_bounds = metrics.tightBoundingRect(text)
+    return CanvasZoomBadge(
+        text,
+        QRectF(0.0, 0.0, text_bounds.width() + 20.0, 28.0),
+    )
+
+
 def position_zoom_badges(
-    qpane_rect: QRect,
+    viewport: QRect,
     cursor_position: QPointF,
-    divider: ComparisonDividerState | None,
+    divider: object | None,
     base_badge: CanvasZoomBadge,
     comparison_badge: CanvasZoomBadge | None = None,
 ) -> tuple[CanvasZoomBadge, ...]:
-    """Position zoom badges by gesture location and optional comparison boundary."""
+    """Place normal feedback or one badge in each visible comparison region."""
 
-    canvas = QRectF(qpane_rect).adjusted(
+    canvas = QRectF(viewport).adjusted(
         _CANVAS_MARGIN,
         _CANVAS_MARGIN,
         -_CANVAS_MARGIN,
         -_CANVAS_MARGIN,
     )
     desired = cursor_position + _CURSOR_OFFSET
-    if divider is None or not divider.enabled or comparison_badge is None:
+    if (
+        divider is None
+        or not bool(getattr(divider, "enabled", False))
+        or comparison_badge is None
+    ):
         bounds = _clamped_badge_bounds(base_badge.bounds, desired, canvas)
         return (CanvasZoomBadge(base_badge.text, bounds),) if bounds is not None else ()
-
-    segment = divider.visible_segment or divider.full_segment
+    segment = getattr(divider, "visible_segment", None) or getattr(
+        divider, "full_segment", None
+    )
     if segment is None:
         return ()
-    orientation = getattr(divider.orientation, "value", divider.orientation)
+    orientation = getattr(
+        getattr(divider, "orientation", None),
+        "value",
+        getattr(divider, "orientation", None),
+    )
     if orientation == "horizontal":
-        return _position_horizontal_compare_badges(
+        return _position_horizontal(
             canvas,
             desired,
-            segment.y1(),
+            float(segment.y1()),
             cursor_position.y() <= segment.y1(),
             base_badge,
             comparison_badge,
         )
-    return _position_vertical_compare_badges(
+    return _position_vertical(
         canvas,
         desired,
-        segment.x1(),
+        float(segment.x1()),
         cursor_position.x() <= segment.x1(),
         base_badge,
         comparison_badge,
     )
 
 
-def _position_vertical_compare_badges(
+def _position_vertical(
     canvas: QRectF,
     desired: QPointF,
     split: float,
@@ -90,50 +106,41 @@ def _position_vertical_compare_badges(
     base_badge: CanvasZoomBadge,
     comparison_badge: CanvasZoomBadge,
 ) -> tuple[CanvasZoomBadge, ...]:
-    """Position vertical-compare badges at the cursor and opposite divider edge."""
+    """Place vertical-reveal labels beside the cursor and divider."""
 
-    base_right = min(canvas.right(), split - _DIVIDER_GAP)
-    base_region = QRectF(
+    base = QRectF(
         canvas.left(),
         canvas.top(),
-        max(0.0, base_right - canvas.left()),
+        max(0.0, min(canvas.right(), split - _DIVIDER_GAP) - canvas.left()),
         canvas.height(),
     )
-    comparison_left = max(canvas.left(), split + _DIVIDER_GAP)
-    comparison_region = QRectF(
-        comparison_left,
+    comparison = QRectF(
+        max(canvas.left(), split + _DIVIDER_GAP),
         canvas.top(),
-        max(0.0, canvas.right() - comparison_left),
+        max(0.0, canvas.right() - max(canvas.left(), split + _DIVIDER_GAP)),
         canvas.height(),
     )
-    shared_y = _clamped_axis_position(
+    y = _clamped_axis_position(
         desired.y(),
         max(base_badge.bounds.height(), comparison_badge.bounds.height()),
         canvas.top(),
         canvas.bottom(),
     )
-    if shared_y is None:
+    if y is None:
         return ()
-    if cursor_over_base:
-        base_position = QPointF(desired.x(), shared_y)
-        comparison_position = QPointF(comparison_region.left(), shared_y)
-    else:
-        base_position = QPointF(
-            base_region.right() - base_badge.bounds.width(),
-            shared_y,
-        )
-        comparison_position = QPointF(desired.x(), shared_y)
-    return _positioned_badges(
+    return _position_pair(
         base_badge,
-        base_position,
-        base_region,
+        QPointF(desired.x(), y)
+        if cursor_over_base
+        else QPointF(base.right() - base_badge.bounds.width(), y),
+        base,
         comparison_badge,
-        comparison_position,
-        comparison_region,
+        QPointF(comparison.left(), y) if cursor_over_base else QPointF(desired.x(), y),
+        comparison,
     )
 
 
-def _position_horizontal_compare_badges(
+def _position_horizontal(
     canvas: QRectF,
     desired: QPointF,
     split: float,
@@ -141,50 +148,41 @@ def _position_horizontal_compare_badges(
     base_badge: CanvasZoomBadge,
     comparison_badge: CanvasZoomBadge,
 ) -> tuple[CanvasZoomBadge, ...]:
-    """Position horizontal-compare badges at the cursor and opposite divider edge."""
+    """Place horizontal-reveal labels beside the cursor and divider."""
 
-    base_bottom = min(canvas.bottom(), split - _DIVIDER_GAP)
-    base_region = QRectF(
+    base = QRectF(
         canvas.left(),
         canvas.top(),
         canvas.width(),
-        max(0.0, base_bottom - canvas.top()),
+        max(0.0, min(canvas.bottom(), split - _DIVIDER_GAP) - canvas.top()),
     )
-    comparison_top = max(canvas.top(), split + _DIVIDER_GAP)
-    comparison_region = QRectF(
+    comparison = QRectF(
         canvas.left(),
-        comparison_top,
+        max(canvas.top(), split + _DIVIDER_GAP),
         canvas.width(),
-        max(0.0, canvas.bottom() - comparison_top),
+        max(0.0, canvas.bottom() - max(canvas.top(), split + _DIVIDER_GAP)),
     )
-    shared_x = _clamped_axis_position(
+    x = _clamped_axis_position(
         desired.x(),
         max(base_badge.bounds.width(), comparison_badge.bounds.width()),
         canvas.left(),
         canvas.right(),
     )
-    if shared_x is None:
+    if x is None:
         return ()
-    if cursor_over_base:
-        base_position = QPointF(shared_x, desired.y())
-        comparison_position = QPointF(shared_x, comparison_region.top())
-    else:
-        base_position = QPointF(
-            shared_x,
-            base_region.bottom() - base_badge.bounds.height(),
-        )
-        comparison_position = QPointF(shared_x, desired.y())
-    return _positioned_badges(
+    return _position_pair(
         base_badge,
-        base_position,
-        base_region,
+        QPointF(x, desired.y())
+        if cursor_over_base
+        else QPointF(x, base.bottom() - base_badge.bounds.height()),
+        base,
         comparison_badge,
-        comparison_position,
-        comparison_region,
+        QPointF(x, comparison.top()) if cursor_over_base else QPointF(x, desired.y()),
+        comparison,
     )
 
 
-def _positioned_badges(
+def _position_pair(
     base_badge: CanvasZoomBadge,
     base_position: QPointF,
     base_region: QRectF,
@@ -192,60 +190,44 @@ def _positioned_badges(
     comparison_position: QPointF,
     comparison_region: QRectF,
 ) -> tuple[CanvasZoomBadge, ...]:
-    """Clamp both comparison badges to their authoritative visible regions."""
+    """Clamp both source labels independently to their visible regions."""
 
-    base_bounds = _clamped_badge_bounds(base_badge.bounds, base_position, base_region)
-    comparison_bounds = _clamped_badge_bounds(
-        comparison_badge.bounds,
-        comparison_position,
-        comparison_region,
-    )
-    badges: list[CanvasZoomBadge] = []
-    if base_bounds is not None:
-        badges.append(CanvasZoomBadge(base_badge.text, base_bounds))
-    if comparison_bounds is not None:
-        badges.append(CanvasZoomBadge(comparison_badge.text, comparison_bounds))
-    return tuple(badges)
+    result: list[CanvasZoomBadge] = []
+    for badge, position, region in (
+        (base_badge, base_position, base_region),
+        (comparison_badge, comparison_position, comparison_region),
+    ):
+        bounds = _clamped_badge_bounds(badge.bounds, position, region)
+        if bounds is not None:
+            result.append(CanvasZoomBadge(badge.text, bounds))
+    return tuple(result)
 
 
 def _clamped_badge_bounds(
-    source_bounds: QRectF,
-    desired_position: QPointF,
-    region: QRectF,
+    source: QRectF, desired: QPointF, region: QRectF
 ) -> QRectF | None:
-    """Return badge bounds contained by a region, or none when they cannot fit."""
+    """Return fully contained bounds or no badge when the region is too small."""
 
     x = _clamped_axis_position(
-        desired_position.x(),
-        source_bounds.width(),
-        region.left(),
-        region.right(),
+        desired.x(), source.width(), region.left(), region.right()
     )
     y = _clamped_axis_position(
-        desired_position.y(),
-        source_bounds.height(),
-        region.top(),
-        region.bottom(),
+        desired.y(), source.height(), region.top(), region.bottom()
     )
     if x is None or y is None:
         return None
-    bounds = QRectF(source_bounds)
+    bounds = QRectF(source)
     bounds.moveTopLeft(QPointF(x, y))
     return bounds
 
 
 def _clamped_axis_position(
-    desired: float,
-    extent: float,
-    minimum: float,
-    maximum: float,
+    desired: float, extent: float, minimum: float, maximum: float
 ) -> float | None:
-    """Clamp one leading edge while requiring the full extent to fit."""
+    """Clamp one leading edge while preserving the complete badge extent."""
 
     latest = maximum - extent
-    if latest < minimum:
-        return None
-    return max(minimum, min(desired, latest))
+    return None if latest < minimum else max(minimum, min(desired, latest))
 
 
-__all__ = ["CanvasZoomBadge", "position_zoom_badges"]
+__all__ = ["CanvasZoomBadge", "position_zoom_badges", "zoom_badge_for_text"]

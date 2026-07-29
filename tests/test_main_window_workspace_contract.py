@@ -505,14 +505,6 @@ def _install_stubs() -> None:
         def __init__(self, **kwargs) -> None:
             self.kwargs = kwargs
 
-    class _OutputProjectionCatalogWarmer:
-        def __init__(self, **kwargs) -> None:
-            self.kwargs = kwargs
-
-    class _OutputProjectionPayloadHydrator:
-        def __init__(self, **kwargs) -> None:
-            self.kwargs = kwargs
-
     class _WorkflowCanvasProjectionCoordinator:
         def __init__(self, **kwargs) -> None:
             self.kwargs = kwargs
@@ -521,12 +513,58 @@ def _install_stubs() -> None:
     workflows_module.OutputCanvasProjectionCoordinator = (
         _OutputCanvasProjectionCoordinator
     )
-    workflows_module.OutputProjectionCatalogWarmer = _OutputProjectionCatalogWarmer
-    workflows_module.OutputProjectionPayloadHydrator = _OutputProjectionPayloadHydrator
     workflows_module.WorkflowCanvasProjectionCoordinator = (
         _WorkflowCanvasProjectionCoordinator
     )
     sys.modules["substitute.application.workflows"] = workflows_module
+
+    canvas_image_registry = types.ModuleType(
+        "substitute.application.workflows.canvas_image_registry"
+    )
+    canvas_image_registry.CanvasImageRegistry = type(
+        "CanvasImageRegistry",
+        (),
+        {
+            "payload_for": lambda _self, _image_id: None,
+            "metadata_for": lambda _self, _image_id: None,
+        },
+    )
+    sys.modules["substitute.application.workflows.canvas_image_registry"] = (
+        canvas_image_registry
+    )
+    output_canvas_state_service = types.ModuleType(
+        "substitute.application.workflows.output_canvas_state_service"
+    )
+    output_canvas_state_service.OutputCanvasStateService = type(
+        "OutputCanvasStateService",
+        (),
+        {"__init__": lambda self, **kwargs: setattr(self, "kwargs", kwargs)},
+    )
+    sys.modules["substitute.application.workflows.output_canvas_state_service"] = (
+        output_canvas_state_service
+    )
+    output_canvas_projection = types.ModuleType(
+        "substitute.application.workflows.output_canvas_projection"
+    )
+    output_canvas_projection.OutputCanvasProjection = type(
+        "OutputCanvasProjection",
+        (),
+        {},
+    )
+    sys.modules["substitute.application.workflows.output_canvas_projection"] = (
+        output_canvas_projection
+    )
+    output_preview_registry_module = types.ModuleType(
+        "substitute.application.workflows.output_preview_registry"
+    )
+    output_preview_registry_module.OutputPreviewRegistry = type(
+        "OutputPreviewRegistry",
+        (),
+        {},
+    )
+    sys.modules["substitute.application.workflows.output_preview_registry"] = (
+        output_preview_registry_module
+    )
 
     canvas_route_projector_port = types.ModuleType(
         "substitute.application.workflows.canvas_route_projector_port"
@@ -586,7 +624,6 @@ def _install_stubs() -> None:
     canvas_module.create_output_floating_chrome_factory = (
         create_output_floating_chrome_factory
     )
-    output_catalog = ("shared-catalog", "output-pane")
 
     def create_canvas_tabs(**kwargs: object) -> object:
         """Return canvas tabs and capture the injected Output chrome factory."""
@@ -595,41 +632,22 @@ def _install_stubs() -> None:
             create_kwargs=kwargs,
             canvas_map={
                 "Input": SimpleNamespace(
-                    pane="input-pane",
+                    document="input-document",
                     route_projector="input-projector",
                 ),
                 "Output": SimpleNamespace(
-                    pane="output-pane",
-                    qpane_catalog=output_catalog,
                     route_projector="output-projector",
+                    create_projection_content_synchronizer=lambda registry: (
+                        "output-content-synchronizer",
+                        registry,
+                    ),
                 ),
             },
             output_floating_chrome_factory=kwargs.get("output_floating_chrome_factory"),
         )
 
-    class _OutputLinkedGroupPresenter:
-        def __init__(self, pane: object) -> None:
-            self.pane = pane
-
     canvas_module.create_canvas_tabs = create_canvas_tabs
-    canvas_module.OutputLinkedGroupPresenter = _OutputLinkedGroupPresenter
     sys.modules["substitute.presentation.canvas"] = canvas_module
-    canvas_qpane_module = types.ModuleType("substitute.presentation.canvas.qpane")
-    canvas_qpane_module.CanvasPaneCatalog = lambda pane: ("catalog", pane)
-    canvas_qpane_module.InputQPaneRouteAdapter = lambda pane: ("input-adapter", pane)
-    canvas_qpane_module.OutputQPaneRouteAdapter = lambda pane: ("output-adapter", pane)
-    canvas_qpane_module.InputRouteProjector = lambda adapter, session_boundary: (
-        "input-projector",
-        adapter,
-        session_boundary,
-    )
-    canvas_qpane_module.OutputRouteProjector = lambda adapter, session_boundary: (
-        "output-projector",
-        adapter,
-        session_boundary,
-    )
-    sys.modules["substitute.presentation.canvas.qpane"] = canvas_qpane_module
-
     workflow_tabs_module = types.ModuleType(
         "substitute.presentation.workflows.workflow_tabs_view"
     )
@@ -808,10 +826,8 @@ def test_build_main_window_workspace_defers_workflow_tabs_and_wires_central_layo
     assert "max-height: 10px" not in widgets.workflow_tabbar.style
     assert window.central_widget is not None
     assert window.dock_options is not None
-    assert widgets.input_canvas_state_service.kwargs["input_pane"] == "input-pane"
-    assert widgets.input_canvas_state_service.kwargs["input_catalog"] == (
-        "catalog",
-        "input-pane",
+    assert (
+        widgets.input_canvas_state_service.kwargs["input_document"] == "input-document"
     )
     assert (
         widgets.workflow_canvas_projection_coordinator.kwargs[
@@ -826,22 +842,14 @@ def test_build_main_window_workspace_defers_workflow_tabs_and_wires_central_layo
         is widgets.output_canvas_projection_coordinator
     )
     assert (
-        widgets.output_canvas_projection_coordinator.kwargs["output_route_projector"]
-        == "output-projector"
-    )
-    assert (
         widgets.output_canvas_projection_coordinator.kwargs["projection_sink"]
         is widgets.canvas_tabs.canvas_map["Output"]
     )
-    assert (
-        widgets.output_canvas_projection_coordinator.kwargs["linked_group_sink"].pane
-        == "output-pane"
-    )
-    assert widgets.output_canvas_projection_coordinator.kwargs["catalog_warmer"].kwargs[
-        "output_catalog"
+    assert widgets.output_canvas_projection_coordinator.kwargs[
+        "content_synchronizer"
     ] == (
-        "shared-catalog",
-        "output-pane",
+        "output-content-synchronizer",
+        widgets.canvas_image_registry,
     )
     assert (
         widgets.canvas_tabs.output_floating_chrome_factory

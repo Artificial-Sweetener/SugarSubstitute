@@ -300,7 +300,7 @@ class OutputPreviewRegistry:
         return self._remove_keys(keys)
 
     def retire_old_sessions(self, session: OutputCanvasSession) -> tuple[UUID, ...]:
-        """Remove lanes from stale session revisions without changing QPane route."""
+        """Remove stale-session lanes without changing the active canvas route."""
 
         keys = tuple(
             key

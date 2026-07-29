@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Resolve output-canvas route state without touching widgets or QPane."""
+"""Resolve output-canvas route state without touching presentation widgets."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ OutputCanvasRouteKind = Literal["empty", "image", "source_grid", "scene_overview
 
 @dataclass(frozen=True, slots=True)
 class OutputCanvasRouteCommand:
-    """Describe the display route that QPane should show."""
+    """Describe one product-level Output display route."""
 
     kind: OutputCanvasRouteKind
     image_id: UUID | None = None
@@ -279,7 +279,7 @@ class OutputCanvasRouteModel:
         active_scene_key: str | None,
         active_image_id: UUID | None,
     ) -> OutputCanvasRouteCommand:
-        """Return a declarative QPane route command for the active selection."""
+        """Return a declarative document route command for the active selection."""
 
         if active_scene_overview and scene_count > 1:
             return OutputCanvasRouteCommand(

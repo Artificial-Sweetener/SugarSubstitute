@@ -34,8 +34,6 @@ from substitute.application.workflows.input_canvas_state_service import (
 )
 from substitute.application.workflows.output_canvas_projection_coordinator import (
     OutputCanvasProjectionCoordinator,
-    OutputProjectionCatalogWarmer,
-    OutputProjectionPayloadHydrator,
 )
 from substitute.application.workflows.output_canvas_session import OutputCanvasSession
 from substitute.application.workflows.output_canvas_state_service import (
@@ -59,12 +57,8 @@ from substitute.domain.workflow import (
     WorkflowState,
 )
 from substitute.domain.generation import OutputResultPosition
-from substitute.presentation.canvas.qpane import (
-    CanvasPaneCatalog,
-    InputQPaneRouteAdapter,
+from substitute.presentation.canvas.input.input_route_projector import (
     InputRouteProjector,
-    OutputQPaneRouteAdapter,
-    OutputRouteProjector,
 )
 from substitute.presentation.shell.canvas_projection_scheduler import (
     CanvasProjectionScheduler,
@@ -78,68 +72,189 @@ from substitute.presentation.shell.output_image_commit_queue import (
 )
 
 
-class _FakePane:
-    def __init__(self):
-        self.images = {}
-        self.add_calls = []
-        self.current_id = None
-        self.selection_calls = []
-        self.active_mask = None
-        self.linked_groups = ()
-        self.next_loaded_mask_id = None
+class _FakeInputDocument:
+    """Exercise application-owned Input identity routes without a renderer."""
+
+    def __init__(self) -> None:
+        """Initialize mutable document-facing test state."""
+
+        self.images: dict[uuid.UUID, tuple[object, Path | None]] = {}
+        self.add_calls: list[tuple[uuid.UUID, object, Path | None]] = []
+        self.selection_calls: list[uuid.UUID | None] = []
+        self.current_id: uuid.UUID | None = None
+        self.active_mask: uuid.UUID | None = None
+        self.next_loaded_mask_id: uuid.UUID | None = None
         self.next_blank_mask_id = uuid.uuid4()
-        self.removed_masks = []
-        self.updated_masks = []
-        self.mask_controller = self
+        self.removed_masks: list[tuple[uuid.UUID, uuid.UUID]] = []
+        self.updated_masks: list[tuple[uuid.UUID, Path]] = []
 
-    def setLinkedGroups(self, groups):
-        self.linked_groups = tuple(groups)
+    def ensure_image_cached(self, image_id, image, path):
+        """Cache one image under its application UUID."""
 
-    def setCurrentImageID(self, image_id):
-        self.selection_calls.append(image_id)
-        self.current_id = image_id
-
-    def currentImageID(self):
-        return self.current_id
-
-    def addImage(self, image_id, image, path):
-        self.add_calls.append((image_id, image, path))
-        self.images[image_id] = (image, path)
-
-    def removeImageByID(self, image_id):
-        self.images.pop(image_id, None)
-
-    def imageIDs(self):
-        return list(self.images)
-
-    def getCatalogSnapshot(self):
-        return SimpleNamespace(
-            catalog={
-                image_id: SimpleNamespace(image=image, path=path)
-                for image_id, (image, path) in self.images.items()
-            },
+        from substitute.application.workflows.input_canvas_document_port import (  # noqa: PLC0415
+            CanvasDocumentMutation,
         )
 
-    def createBlankMask(self, _size):
-        return self.next_blank_mask_id
+        existing = self.images.get(image_id)
+        if existing == (image, path):
+            return CanvasDocumentMutation.UNCHANGED
+        mutation = (
+            CanvasDocumentMutation.REPLACED
+            if existing is not None
+            else CanvasDocumentMutation.ADDED
+        )
+        self.images[image_id] = (image, path)
+        self.add_calls.append((image_id, image, path))
+        return mutation
 
-    def setActiveMaskID(self, mask_id):
-        self.active_mask = mask_id
+    def image_path(self, image_id):
+        """Return cached source path."""
 
-    def loadMaskFromFile(self, _path):
-        return self.next_loaded_mask_id
+        payload = self.images.get(image_id)
+        return None if payload is None else payload[1]
 
-    def removeMaskFromImage(self, image_id, mask_id):
-        self.removed_masks.append((image_id, mask_id))
+    def remove_unreferenced_image(self, image_id):
+        """Remove a cached test image."""
+
+        return self.images.pop(image_id, None) is not None
+
+    def set_current_image_id(self, image_id):
+        """Record route projection."""
+
+        self.selection_calls.append(image_id)
+        self.current_id = image_id
         return True
 
-    def update_mask_from_file(self, mask_id, path):
+    def current_image_id(self):
+        """Return the visible test identity."""
+
+        return self.current_id
+
+    def set_active_mask_id(self, mask_id):
+        """Record mask activation."""
+
+        self.active_mask = mask_id
+        return True
+
+    def create_blank_mask(self, _image_id, _size):
+        """Return the configured new mask identity."""
+
+        return self.next_blank_mask_id
+
+    def load_mask_from_file(self, _image_id, _path):
+        """Return the configured restored mask identity."""
+
+        return self.next_loaded_mask_id
+
+    def replace_mask_from_file(self, mask_id, path):
+        """Record an identity-preserving mask replacement."""
+
         self.updated_masks.append((mask_id, path))
         return True
 
+    def remove_mask_from_image(self, image_id, mask_id):
+        """Record mask retirement."""
+
+        self.removed_masks.append((image_id, mask_id))
+        return True
+
+
+class _FakeOutputDocument:
+    """Record document content and presentation without a QPane adapter."""
+
+    def __init__(self) -> None:
+        """Initialize output content and presentation observations."""
+
+        self.content: dict[uuid.UUID, tuple[object, Path | None]] = {}
+        self.admission_calls: list[tuple[uuid.UUID, object, Path | None]] = []
+        self.active_image_id: uuid.UUID | None = None
+        self.presentation_calls: list[uuid.UUID | None] = []
+        self.inspection_groups: tuple[tuple[uuid.UUID, ...], ...] = ()
+
+    @property
+    def images(self) -> dict[uuid.UUID, tuple[object, Path | None]]:
+        """Expose test content membership for pre-existing assertions."""
+
+        return self.content
+
+    @property
+    def add_calls(self) -> list[tuple[uuid.UUID, object, Path | None]]:
+        """Expose document admissions for pre-existing assertions."""
+
+        return self.admission_calls
+
+    @property
+    def current_id(self) -> uuid.UUID | None:
+        """Expose the document's active application image identity."""
+
+        return self.active_image_id
+
+    @current_id.setter
+    def current_id(self, image_id: uuid.UUID | None) -> None:
+        """Set the active image for characterization preconditions."""
+
+        self.active_image_id = image_id
+
+    @property
+    def selection_calls(self) -> list[uuid.UUID | None]:
+        """Expose presentation changes for pre-existing assertions."""
+
+        return self.presentation_calls
+
+    @property
+    def linked_groups(self) -> tuple[SimpleNamespace, ...]:
+        """Expose linked inspection membership for pre-existing assertions."""
+
+        return tuple(
+            SimpleNamespace(group_id=uuid.uuid4(), members=members)
+            for members in self.inspection_groups
+        )
+
+    def admit_image(
+        self,
+        image_id: uuid.UUID,
+        image: object,
+        path: Path | None,
+    ) -> None:
+        """Record authoritative content admission."""
+
+        if self.content.get(image_id) == (image, path):
+            return
+        self.content[image_id] = (image, path)
+        self.admission_calls.append((image_id, image, path))
+
+    def retire_image(self, image_id: uuid.UUID) -> None:
+        """Record application-authorized document retirement."""
+
+        self.content.pop(image_id, None)
+
+    def present_projection(self, session: OutputCanvasSession) -> None:
+        """Derive document presentation and linked inspection from a session."""
+
+        projection = session.projection
+        active_image_id = self.active_image_id
+        if projection.active_set_index > 0 and not projection.active_scene_overview:
+            active_image_id = projection.active_uuid
+        elif active_image_id not in session.allowed_image_ids:
+            active_image_id = None
+        if active_image_id != self.active_image_id:
+            self.active_image_id = active_image_id
+            self.presentation_calls.append(active_image_id)
+        members = tuple(
+            dict.fromkeys(
+                item.image_id
+                for source in projection.sources
+                for item in source.images_by_set.values()
+            )
+        )
+        self.inspection_groups = (members,) if len(members) > 1 else ()
+
 
 class _FakeOutputCanvas:
-    def __init__(self):
+    def __init__(self, output_document: _FakeOutputDocument) -> None:
+        """Initialize the session-facing host around the fake document."""
+
+        self._output_document = output_document
         self.events = []
         self.sync_calls = []
         self.sync_session_calls = []
@@ -147,7 +262,9 @@ class _FakeOutputCanvas:
         self.clear_preview_calls = []
         self.prepare_calls = []
 
-    def bind_projection_session(self, session):
+    def bind_projection_session(self, session: OutputCanvasSession) -> None:
+        """Record the visible session and project it through the fake document."""
+
         projection = session.projection
         image_ids = tuple(
             item.image_id
@@ -159,24 +276,56 @@ class _FakeOutputCanvas:
         self.prepare_calls.append((workflow_id, image_ids))
         self.sync_session_calls.append(session)
         self.sync_calls.append(projection)
+        self._output_document.present_projection(session)
 
-    def clear_previews(self, source_key=None):
+    def clear_previews(self, source_key: str | None = None) -> None:
+        """Record preview retirement requested by projection lifecycle."""
+
         self.events.append(("clear_previews", source_key))
         self.clear_preview_calls.append(source_key)
 
 
-class _FakeLinkedGroupSink:
-    def __init__(self, pane: _FakePane) -> None:
-        self._pane = pane
+class _FakeOutputContentSynchronizer:
+    """Mirror authoritative test payloads into the fake Output document."""
 
-    def present_linked_outputs(self, output_image_ids: tuple[uuid.UUID, ...]) -> None:
-        members = tuple(dict.fromkeys(output_image_ids))
-        if len(members) < 2:
-            self._pane.setLinkedGroups(())
-            return
-        self._pane.setLinkedGroups(
-            (SimpleNamespace(group_id=uuid.uuid4(), members=members),)
-        )
+    def __init__(
+        self,
+        registry: CanvasImageRegistry,
+        output_document: _FakeOutputDocument,
+    ) -> None:
+        """Store the application registry and document-facing test boundary."""
+
+        self._registry = registry
+        self._output_document = output_document
+
+    def synchronize_projection(self, projection) -> None:
+        """Make every projected test payload available to the fake route adapter."""
+
+        image_ids = {
+            item.image_id
+            for source in projection.sources
+            for item in source.images_by_set.values()
+        }
+        for scene in projection.scene_groups:
+            if scene.primary_image_id is not None:
+                image_ids.add(scene.primary_image_id)
+            for source in scene.sources:
+                image_ids.update(
+                    item.image_id for item in source.images_by_set.values()
+                )
+        for image_id in image_ids:
+            image = self._registry.payload_for(image_id)
+            metadata = self._registry.metadata_for(image_id)
+            if image is None or metadata is None:
+                continue
+            path = Path(metadata.path) if metadata.path else None
+            self._output_document.admit_image(image_id, image, path)
+
+    def retire_unreferenced(self, image_ids) -> None:
+        """Remove test content after application workflow ownership releases it."""
+
+        for image_id in image_ids:
+            self._output_document.retire_image(image_id)
 
 
 class _CanvasProjectionHarness:
@@ -250,47 +399,36 @@ class _CanvasProjectionHarness:
 def _build_services() -> tuple[
     _CanvasProjectionHarness,
     InputCanvasStateService,
-    _FakePane,
-    _FakePane,
+    _FakeInputDocument,
+    _FakeOutputDocument,
     _FakeOutputCanvas,
 ]:
-    input_pane = _FakePane()
-    output_pane = _FakePane()
-    output_canvas = _FakeOutputCanvas()
+    input_pane = _FakeInputDocument()
+    output_document = _FakeOutputDocument()
+    output_canvas = _FakeOutputCanvas(output_document)
     canvas_session_boundary = CanvasSessionBoundary()
     image_registry = CanvasImageRegistry()
     input_canvas_state_service = InputCanvasStateService(
-        input_pane=input_pane,
-        input_catalog=CanvasPaneCatalog(input_pane),
+        input_document=input_pane,
         input_route_projector=InputRouteProjector(
-            InputQPaneRouteAdapter(input_pane),
+            input_pane,
             session_boundary=canvas_session_boundary,
         ),
         canvas_session_boundary=canvas_session_boundary,
         image_registry=image_registry,
     )
-    output_catalog = CanvasPaneCatalog(output_pane)
     output_canvas_state_service = OutputCanvasStateService(
         image_registry=image_registry,
     )
     output_canvas_projection_coordinator = OutputCanvasProjectionCoordinator(
         image_registry=image_registry,
         output_canvas_state_service=output_canvas_state_service,
-        output_route_projector=OutputRouteProjector(
-            OutputQPaneRouteAdapter(output_pane),
-            session_boundary=canvas_session_boundary,
-        ),
         canvas_session_boundary=canvas_session_boundary,
-        catalog_warmer=OutputProjectionCatalogWarmer(
-            image_registry=image_registry,
-            output_catalog=output_catalog,
-        ),
-        payload_hydrator=OutputProjectionPayloadHydrator(
-            image_registry=image_registry,
-            output_catalog=output_catalog,
+        content_synchronizer=_FakeOutputContentSynchronizer(
+            image_registry,
+            output_document,
         ),
         projection_sink=output_canvas,
-        linked_group_sink=_FakeLinkedGroupSink(output_pane),
     )
     service = _CanvasProjectionHarness(
         image_registry=image_registry,
@@ -299,12 +437,20 @@ def _build_services() -> tuple[
         input_canvas_state_service=input_canvas_state_service,
         output_canvas_projection_coordinator=output_canvas_projection_coordinator,
     )
-    return service, input_canvas_state_service, input_pane, output_pane, output_canvas
+    return (
+        service,
+        input_canvas_state_service,
+        input_pane,
+        output_document,
+        output_canvas,
+    )
 
 
 def _build_service():
-    service, _input_service, input_pane, output_pane, output_canvas = _build_services()
-    return service, input_pane, output_pane, output_canvas
+    service, _input_service, input_pane, output_document, output_canvas = (
+        _build_services()
+    )
+    return service, input_pane, output_document, output_canvas
 
 
 def _app() -> QApplication:
@@ -1937,7 +2083,7 @@ def test_update_mask_from_file_updates_authorized_associated_mask() -> None:
 
     assert updated is True
     assert input_pane.selection_calls == [image_id]
-    assert input_pane.updated_masks == [(mask_id, "mask.png")]
+    assert input_pane.updated_masks == [(mask_id, Path("mask.png"))]
 
 
 def test_update_mask_from_file_rejects_unverified_dimensions() -> None:

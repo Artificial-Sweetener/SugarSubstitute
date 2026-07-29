@@ -20,12 +20,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Protocol
 from uuid import UUID, uuid4
 
 from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
-from substitute.application.workflows.canvas_pane_catalog_port import (
-    InputCanvasPaneCatalogPort,
+from substitute.application.workflows.input_canvas_document_port import (
+    InputCanvasDocumentPort,
 )
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
@@ -44,35 +43,20 @@ from substitute.shared.logging.logger import (
 _LOGGER = get_logger("application.workflows.input_canvas_state_service")
 
 
-class InputMaskPanePort(Protocol):
-    """Describe Input QPane mask-layer APIs owned by Input canvas state."""
-
-    def createBlankMask(self, size: object) -> UUID | None:  # noqa: N802
-        """Create a blank mask for the current pane image."""
-
-    def loadMaskFromFile(self, path: str) -> UUID | None:  # noqa: N802
-        """Load one mask layer from a filesystem path."""
-
-    def removeMaskFromImage(self, image_id: UUID, mask_id: UUID) -> bool:  # noqa: N802
-        """Remove one mask layer from its owning image."""
-
-
 class InputCanvasStateService:
-    """Mutate Input workflow state and apply authorized Input QPane routes."""
+    """Mutate Input workflow state and apply authorized Input document routes."""
 
     def __init__(
         self,
         *,
-        input_pane: InputMaskPanePort,
-        input_catalog: InputCanvasPaneCatalogPort,
+        input_document: InputCanvasDocumentPort,
         input_route_projector: InputRouteProjectorPort,
         canvas_session_boundary: CanvasRouteSessionBoundaryPort | None = None,
         image_registry: CanvasImageRegistry | None = None,
     ) -> None:
-        """Store Input-only catalog, route, mask, and registry collaborators."""
+        """Store Input document, route, mask, and registry collaborators."""
 
-        self._input_pane = input_pane
-        self._input_catalog = input_catalog
+        self._input_document = input_document
         self._input_route_projector = input_route_projector
         self._canvas_session_boundary = (
             canvas_session_boundary or create_canvas_session_boundary()
@@ -82,7 +66,7 @@ class InputCanvasStateService:
     def input_image_path(self, image_id: UUID) -> Path | None:
         """Return the exact persisted path owned by one loaded Input image."""
 
-        return self._input_catalog.image_path(image_id)
+        return self._input_document.image_path(image_id)
 
     def project_workflow(
         self,
@@ -185,7 +169,7 @@ class InputCanvasStateService:
         active_workflow = workflows[active_workflow_id]
         new_id = uuid4()
         old_uuid = active_workflow.canvas.input_key_map.get(input_key)
-        self._input_catalog.ensure_image_cached(new_id, image, path)
+        self._input_document.ensure_image_cached(new_id, image, path)
         active_workflow.canvas.input_key_map[input_key] = new_id
         active_workflow.canvas.input_image_uuid = new_id
         self._bind_input_route_scope(active_workflow_id, active_workflow)
@@ -201,7 +185,7 @@ class InputCanvasStateService:
         input_key: str,
         image_id: UUID,
     ) -> bool:
-        """Claim a QPane-loaded Input image UUID without allocating a replacement."""
+        """Claim a CuteCanvas-admitted Input image UUID without replacement."""
 
         workflow.canvas.input_key_map[input_key] = image_id
         workflow.canvas.input_image_uuid = image_id
@@ -224,7 +208,7 @@ class InputCanvasStateService:
     ) -> None:
         """Restore one Input image payload with a snapshot-owned UUID."""
 
-        self._input_catalog.ensure_image_cached(image_id, image, path)
+        self._input_document.ensure_image_cached(image_id, image, path)
 
     def restore_input_mask(
         self,
@@ -249,7 +233,7 @@ class InputCanvasStateService:
         self._bind_input_route_scope_for_image(workflow_id, active_workflow, image_id)
         if not self._input_route_projector.show_image(image_id):
             return None
-        live_mask_id = self._input_pane.loadMaskFromFile(str(path))
+        live_mask_id = self._input_document.load_mask_from_file(image_id, path)
         if live_mask_id is None:
             log_error(
                 _LOGGER,
@@ -311,7 +295,7 @@ class InputCanvasStateService:
         self._bind_input_route_scope_for_image(workflow_id, active_workflow, image_id)
         if not self._input_route_projector.show_image(image_id):
             return None
-        mask_id = self._input_pane.createBlankMask(size)
+        mask_id = self._input_document.create_blank_mask(image_id, size)
         if mask_id is None:
             log_error(
                 _LOGGER,
@@ -356,7 +340,7 @@ class InputCanvasStateService:
         self._bind_input_route_scope_for_image(workflow_id, active_workflow, image_id)
         if not self._input_route_projector.show_image(image_id):
             return None
-        mask_id = self._input_pane.loadMaskFromFile(str(path))
+        mask_id = self._input_document.load_mask_from_file(image_id, path)
         if mask_id is None:
             log_error(
                 _LOGGER,
@@ -484,7 +468,7 @@ class InputCanvasStateService:
             )
             return
 
-        removed = self._input_pane.removeMaskFromImage(image_id, mask_id)
+        removed = self._input_document.remove_mask_from_image(image_id, mask_id)
         log_debug(
             _LOGGER,
             "Dropped input canvas mask association",
@@ -609,7 +593,7 @@ class InputCanvasStateService:
         image_id: UUID | None,
         mask_id: UUID | None,
     ) -> CanvasRouteIdentity:
-        """Return the active Input route identity without QPane policy."""
+        """Return the active Input route identity without renderer policy."""
 
         if image_id is None:
             return CanvasRouteIdentity.empty()
@@ -717,47 +701,13 @@ class InputCanvasStateService:
         if is_referenced:
             return
 
-        self._input_catalog.remove_unreferenced_image(uuid_to_check)
+        self._input_document.remove_unreferenced_image(uuid_to_check)
         self._image_registry.remove(uuid_to_check)
 
     def _update_mask_layer_from_file(self, mask_id: UUID, path: Path) -> bool:
-        """Update mask pixels through public QPane mask-layer collaborators."""
+        """Update mask pixels through the document's supported replacement API."""
 
-        controller = getattr(self._input_pane, "mask_controller", None)
-        update_mask = getattr(controller, "update_mask_from_file", None)
-        if callable(update_mask):
-            return bool(update_mask(mask_id, str(path)))
-
-        catalog = getattr(self._input_pane, "catalog", None)
-        if not callable(catalog):
-            log_warning(
-                _LOGGER,
-                "Input canvas mask update skipped because catalog API is unavailable",
-                mask_id=str(mask_id),
-                path=str(path),
-            )
-            return False
-        mask_catalog = catalog()
-        mask_manager = (
-            getattr(mask_catalog, "maskManager", lambda: None)()
-            if mask_catalog is not None
-            else None
-        )
-        fallback_update = (
-            getattr(mask_manager, "update_mask_from_file", None)
-            if mask_manager is not None
-            else None
-        )
-        if callable(fallback_update):
-            return bool(fallback_update(mask_id, str(path)))
-
-        log_warning(
-            _LOGGER,
-            "Input canvas mask update skipped because mask update API is unavailable",
-            mask_id=str(mask_id),
-            path=str(path),
-        )
-        return False
+        return self._input_document.replace_mask_from_file(mask_id, path)
 
     @staticmethod
     def _log_input_rejection(
@@ -780,4 +730,4 @@ class InputCanvasStateService:
         )
 
 
-__all__ = ["InputCanvasStateService", "InputMaskPanePort"]
+__all__ = ["InputCanvasStateService"]

@@ -233,34 +233,32 @@ def test_output_canvas_has_no_loose_scalar_preview_ingress() -> None:
     assert "def set_preview_image" not in source
 
 
-def test_output_canvas_projection_session_binding_is_public_adapter_only() -> None:
-    """Projection binding policy should live in the projection controller."""
+def test_output_canvas_projection_session_binding_targets_the_document_boundary() -> (
+    None
+):
+    """Projection binding should route only through the CuteCanvas document owner."""
 
     source = OUTPUT_CANVAS_SOURCE.read_text(encoding="utf-8")
     start = source.index("    def bind_projection_session")
-    end = source.index("    def eventFilter", start)
-    method_source = source[start:end]
-
-    assert (
-        "self._runtime.projection.controller.bind_projection_session" in method_source
-    )
-    assert "reconcile_output_compare_state" not in method_source
-    assert "consume_final_output_preview_retirement" not in method_source
-    assert "active_scene_overview" not in method_source
-
-
-def test_output_canvas_event_filter_is_public_adapter_only() -> None:
-    """Grid event policy should live in the composed grid event controller."""
-
-    source = OUTPUT_CANVAS_SOURCE.read_text(encoding="utf-8")
-    start = source.index("    def eventFilter")
     end = source.index("    def resizeEvent", start)
     method_source = source[start:end]
 
-    assert "_runtime.grid.event_controller.handle_event_filter" in method_source
-    assert "grid_mouse_release_activation" not in method_source
-    assert "activate_output_scene" not in method_source
-    assert "activate_output_item" not in method_source
+    assert "self._route_projector.bind" in method_source
+    assert "self._present_projection" in method_source
+    assert "self._runtime" not in method_source
+    assert "QPane" not in method_source
+
+
+def test_output_canvas_uses_workspace_target_activation_not_a_qpane_event_filter() -> (
+    None
+):
+    """Grid activation should arrive through the workspace's public signal."""
+
+    source = OUTPUT_CANVAS_SOURCE.read_text(encoding="utf-8")
+
+    assert "self.workspace.targetActivated.connect" in source
+    assert "def eventFilter" not in source
+    assert "QPane" not in source
 
 
 def test_output_canvas_resize_event_contains_no_content_layout_policy() -> None:

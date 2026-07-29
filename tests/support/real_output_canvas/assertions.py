@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Collect public QPane fingerprints for real-shell Output canvas scenarios."""
+"""Collect public CuteCanvas fingerprints for real-shell Output scenarios."""
 
 from __future__ import annotations
 
@@ -23,24 +23,39 @@ from typing import Any, cast
 from uuid import UUID
 
 from PySide6.QtGui import QImage
+from cutecanvas import CanvasPresentationKind
 
 from tests.support.real_output_canvas.models import CanvasFingerprint
 
 
 def collect_canvas_fingerprint(shell: Any) -> CanvasFingerprint:
-    """Capture workflow, preview, route, and public QPane scene diagnostics."""
+    """Capture workflow, preview, route, and public document diagnostics."""
 
     output_canvas = shell.output_canvas
-    pane = output_canvas.pane
-    session = getattr(output_canvas, "_output_session", None)
-    current_image = getattr(pane, "currentImage", None)
+    document = output_canvas.document
+    document_session = document.session
+    presentation = document_session.presentation
+    output_session = getattr(output_canvas, "_output_session", None)
+    active_composition_id = document.session.active_composition_id
+    active_image_id = (
+        document.image_id_for_composition(active_composition_id)
+        if active_composition_id is not None
+        and presentation.kind is CanvasPresentationKind.SINGLE
+        else None
+    )
+    active_image = (
+        None if active_image_id is None else document.image_payload(active_image_id)
+    )
     pending_counts = shell.generation_feedback_dispatcher._coalescer.pending_counts()
-    scene_bounds, scene_layer_placements = _current_scene_geometry(pane)
+    grid_viewport, grid_target_frames = _current_grid_geometry(
+        document=document,
+        workspace=output_canvas.workspace,
+    )
     return CanvasFingerprint(
         active_workflow_id=shell.workflow_session_service.active_workflow_id,
         active_canvas_visible=shell.canvas_tabs.is_canvas_visible("Output"),
         output_session_workflow_id=getattr(
-            getattr(session, "workflow_id", None), "value", None
+            getattr(output_session, "workflow_id", None), "value", None
         ),
         workflow_output_image_ids={
             workflow_id: tuple(workflow.output_image_uuids)
@@ -83,14 +98,16 @@ def collect_canvas_fingerprint(shell: Any) -> CanvasFingerprint:
         pending_projection_workflows=_pending_projection_workflows(
             shell.output_image_pipeline
         ),
-        pane_image_ids=_pane_image_ids(pane),
-        pane_current_image_id=_pane_current_image_id(pane),
-        pane_current_composition_id=_pane_current_composition_id(pane),
-        composition_image_ids=_composition_image_ids(pane),
-        scene_bounds=scene_bounds,
-        scene_layer_placements=scene_layer_placements,
-        current_image_is_null=_image_is_null(current_image),
-        current_image_rgb=_sample_rgb(current_image),
+        document_image_ids=document.image_ids(),
+        active_image_id=active_image_id,
+        active_composition_id=active_composition_id,
+        presented_image_ids=document.image_ids_for_compositions(
+            presentation.target_ids
+        ),
+        grid_viewport=grid_viewport,
+        grid_target_frames=grid_target_frames,
+        active_image_is_null=_image_is_null(active_image),
+        active_image_rgb=_sample_rgb(active_image),
     )
 
 
@@ -104,81 +121,39 @@ def _active_source_tab_key(tabbar: object) -> str | None:
     return route_key if isinstance(route_key, str) and route_key else None
 
 
-def _pane_image_ids(pane: object) -> tuple[UUID, ...]:
-    """Return image IDs currently known to QPane."""
-
-    getter = getattr(pane, "imageIDs", None)
-    if not callable(getter):
-        return ()
-    return tuple(image_id for image_id in getter() if isinstance(image_id, UUID))
-
-
-def _pane_current_image_id(pane: object) -> UUID | None:
-    """Return QPane's current image id."""
-
-    getter = getattr(pane, "currentImageID", None)
-    if not callable(getter):
-        return None
-    value = getter()
-    return value if isinstance(value, UUID) else None
-
-
-def _pane_current_composition_id(pane: object) -> UUID | None:
-    """Return QPane's current composition id."""
-
-    getter = getattr(pane, "currentCompositionID", None)
-    if not callable(getter):
-        return None
-    value = getter()
-    return value if isinstance(value, UUID) else None
-
-
-def _composition_image_ids(pane: object) -> tuple[UUID, ...]:
-    """Return image IDs in the active QPane composition."""
-
-    snapshot_getter = getattr(pane, "getCompositionSnapshot", None)
-    if not callable(snapshot_getter):
-        return ()
-    snapshot = snapshot_getter()
-    composition_id = _pane_current_composition_id(pane)
-    compositions = getattr(snapshot, "compositions", None)
-    if composition_id is None or not isinstance(compositions, Mapping):
-        return ()
-    entry = compositions.get(composition_id)
-    source_image_ids = getattr(entry, "source_image_ids", ())
-    if not isinstance(source_image_ids, Iterable):
-        return ()
-    return tuple(
-        image_id for image_id in source_image_ids if isinstance(image_id, UUID)
-    )
-
-
-def _current_scene_geometry(
-    pane: object,
+def _current_grid_geometry(
+    *,
+    document: object,
+    workspace: object,
 ) -> tuple[
     tuple[float, float, float, float] | None,
     tuple[tuple[UUID, UUID, float, float, float, float], ...],
 ]:
-    """Return active scene bounds and ordered public layer placements."""
+    """Return current responsive grid viewport and composition target frames."""
 
-    current_scene = getattr(pane, "currentScene", None)
-    scene = current_scene() if callable(current_scene) else None
-    if scene is None:
+    snapshot_getter = getattr(workspace, "gridSnapshot", None)
+    snapshot = snapshot_getter() if callable(snapshot_getter) else None
+    if snapshot is None:
         return None, ()
-    bounds = _rect_geometry(getattr(scene, "bounds", None))
-    placements: list[tuple[UUID, UUID, float, float, float, float]] = []
-    for layer in getattr(scene, "layers", ()):
-        layer_id = getattr(layer, "layer_id", None)
-        image_id = getattr(layer, "image_id", None)
-        placement = _rect_geometry(getattr(layer, "placement", None))
+    viewport = _rect_geometry(getattr(snapshot, "viewport", None))
+    frames: list[tuple[UUID, UUID, float, float, float, float]] = []
+    for frame in getattr(snapshot, "frames", ()):
+        composition_id = getattr(frame, "target_id", None)
+        image_id_for_composition = getattr(document, "image_id_for_composition", None)
+        image_id = (
+            image_id_for_composition(composition_id)
+            if callable(image_id_for_composition) and isinstance(composition_id, UUID)
+            else None
+        )
+        content = _rect_geometry(getattr(frame, "content", None))
         if (
-            not isinstance(layer_id, UUID)
+            not isinstance(composition_id, UUID)
             or not isinstance(image_id, UUID)
-            or placement is None
+            or content is None
         ):
             continue
-        placements.append((layer_id, image_id, *placement))
-    return bounds, tuple(placements)
+        frames.append((composition_id, image_id, *content))
+    return viewport, tuple(frames)
 
 
 def _rect_geometry(rect: object) -> tuple[float, float, float, float] | None:

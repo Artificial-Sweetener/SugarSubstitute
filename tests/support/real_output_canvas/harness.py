@@ -18,12 +18,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from uuid import UUID
 
-from PySide6.QtCore import QEvent, QEventLoop, QPoint, QPointF, QRectF, Qt, QTimer
-from PySide6.QtGui import QMouseEvent
+from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.generation import (
@@ -47,6 +46,7 @@ from tests.support.real_output_canvas.models import (
     WorkflowHandle,
     solid_image,
 )
+from tests.support.real_output_canvas.mounted_widget_input import MountedWidgetInput
 from tests.support.real_output_canvas.shell import (
     _CanvasIoService,
     _HarnessShell,
@@ -64,7 +64,16 @@ class RealShellOutputCanvasHarness:
         self.output_root = output_root
         self.canvas_io_service = _CanvasIoService()
         self.shell = _HarnessShell(self.canvas_io_service)
+        self._input = MountedWidgetInput(self.app)
         self.workflows: dict[str, WorkflowHandle] = {}
+        available = self.app.primaryScreen().availableGeometry()
+        self.shell.resize(
+            min(1200, max(640, available.width() - 40)),
+            min(800, max(560, available.height() - 40)),
+        )
+        self.shell.move(available.topLeft())
+        self.shell.show()
+        self.process_events(cycles=12)
 
     def close(self) -> None:
         """Close real Qt widgets owned by the harness."""
@@ -88,7 +97,7 @@ class RealShellOutputCanvasHarness:
             self.shell.workflow_session_service.add_existing_workflow(
                 workflow_id,
                 workflow,
-                activate=activate,
+                activate=False,
             )
         self.shell.workflow_tabbar.addTab(workflow_id, alias)
         self.shell.install_workflow_surface(workflow_id)
@@ -106,6 +115,45 @@ class RealShellOutputCanvasHarness:
             workflow_id,
             source="workflow_tab",
         )
+        self.process_events()
+
+    def click_workflow_tab(self, alias: str) -> None:
+        """Click one workflow tab through the topmost mounted widget."""
+
+        workflow_id = self.workflows[alias].workflow_id
+        tab_item = self.shell.workflow_tabbar.itemMap.get(workflow_id)
+        if not isinstance(tab_item, QWidget):
+            raise AssertionError(
+                f"workflow tab is unavailable: {workflow_id}; "
+                f"available={tuple(self.shell.workflow_tabbar.itemMap)}"
+            )
+        self._input.click(tab_item, subject=f"workflow tab {workflow_id}")
+        self.process_events()
+
+    def select_output_source(self, source_key: str) -> None:
+        """Select an Output source through the currently rendered navigation."""
+
+        if self.shell.output_canvas.tabbar.isVisible():
+            self.click_output_source_tab(source_key)
+            return
+        selector = self.shell.output_canvas.source_selector_button
+        if not selector.isVisible():
+            raise AssertionError(
+                f"output source navigation is unavailable: {source_key}"
+            )
+        self._input.click(
+            selector,
+            subject=f"output source selector for {source_key}",
+        )
+        self.process_events()
+        picker = self._visible_output_source_picker()
+        row = picker.row_for_key(source_key)
+        if row is None:
+            raise AssertionError(
+                f"output source picker does not contain {source_key}: "
+                f"{picker.item_keys()}"
+            )
+        self._input.click(row, subject=f"output source picker row {source_key}")
         self.process_events()
 
     def project_workflow_directly(self, alias: str) -> None:
@@ -368,62 +416,39 @@ class RealShellOutputCanvasHarness:
         self.process_events()
 
     def click_canvas_image(self, image_id: UUID) -> None:
-        """Click one visible QPane scene image through the production event filter."""
+        """Click one visible document target through mounted CuteCanvas widgets."""
 
-        pane = self.shell.output_canvas.pane
-        point = self._canvas_point_for_image(image_id)
-        for event_type, buttons in (
-            (QEvent.Type.MouseButtonPress, Qt.MouseButton.LeftButton),
-            (QEvent.Type.MouseButtonRelease, Qt.MouseButton.NoButton),
-        ):
-            local_position = QPointF(point)
-            global_position = QPointF(pane.mapToGlobal(point))
-            event = QMouseEvent(
-                event_type,
-                local_position,
-                local_position,
-                global_position,
-                Qt.MouseButton.LeftButton,
-                buttons,
-                Qt.KeyboardModifier.NoModifier,
+        composition_id = self.shell.output_canvas.document.composition_id_for(image_id)
+        if composition_id is None:
+            raise AssertionError(f"output image is not admitted: {image_id}")
+        target = self.shell.output_canvas.workspace.canvasFor(composition_id)
+        if not isinstance(target, QWidget) or not target.isVisible():
+            raise AssertionError(
+                f"output image target is not visibly mounted: {image_id}"
             )
-            self.app.sendEvent(pane, event)
+        self._input.click(target, subject=f"output image target {image_id}")
         self.process_events()
 
     def click_output_source_tab(self, source_key: str) -> None:
-        """Click one rendered Output source tab through its production signal path."""
+        """Click one Output source tab through the topmost mounted widget."""
 
         tabbar = self.shell.output_canvas.tabbar
         tab_item = tabbar.items.get(source_key)
-        if tab_item is None:
+        if not isinstance(tab_item, QWidget):
             raise AssertionError(
                 f"output source tab is unavailable: {source_key}; "
                 f"available={tuple(tabbar.items)}"
             )
-        tab_item.click()
+        self._input.click(tab_item, subject=f"output source tab {source_key}")
         self.process_events()
-
-    def _canvas_point_for_image(self, image_id: UUID) -> QPoint:
-        """Return a physical QPane point whose public hit identifies an image."""
-
-        pane = self.shell.output_canvas.pane
-        hit_test = getattr(pane, "sceneHitTest", None)
-        if not callable(hit_test):
-            raise AssertionError("output pane does not expose scene hit testing")
-        for y in range(2, max(3, pane.height()), 4):
-            for x in range(2, max(3, pane.width()), 4):
-                point = QPoint(x, y)
-                hit = hit_test(point)
-                if getattr(hit, "image_id", None) == image_id:
-                    return point
-        raise AssertionError(
-            f"output canvas image is not physically clickable: {image_id}"
-        )
 
     def output_set_picker_keys(self) -> tuple[str, ...]:
         """Open the production set picker and return its visible row keys."""
 
-        self.shell.output_canvas.set_selector_button.click()
+        self._input.click(
+            self.shell.output_canvas.set_selector_button,
+            subject="output set selector",
+        )
         self.process_events()
         return self._visible_output_set_picker().item_keys()
 
@@ -431,7 +456,10 @@ class RealShellOutputCanvasHarness:
         """Select one batch or grid row through the production popup widget."""
 
         if not self.shell.output_canvas._set_picker.is_visible():
-            self.shell.output_canvas.set_selector_button.click()
+            self._input.click(
+                self.shell.output_canvas.set_selector_button,
+                subject="output set selector",
+            )
             self.process_events()
         picker = self._visible_output_set_picker()
         row = picker.row_for_key(str(set_index))
@@ -440,7 +468,7 @@ class RealShellOutputCanvasHarness:
                 f"output set picker does not contain row {set_index}: "
                 f"{picker.item_keys()}"
             )
-        row.click()
+        self._input.click(row, subject=f"output set picker row {set_index}")
         self.process_events()
 
     def _visible_output_set_picker(self) -> AnchoredRowPickerView:
@@ -453,6 +481,18 @@ class RealShellOutputCanvasHarness:
         picker = flyout.findChild(AnchoredRowPickerView)
         if picker is None:
             raise AssertionError("output set picker view was not mounted")
+        return picker
+
+    def _visible_output_source_picker(self) -> AnchoredRowPickerView:
+        """Return the visible production output-source picker view."""
+
+        picker_adapter = self.shell.output_canvas._source_picker
+        flyout = picker_adapter._picker._flyout
+        if not isinstance(flyout, QWidget):
+            raise AssertionError("output source picker flyout is not visible")
+        picker = flyout.findChild(AnchoredRowPickerView)
+        if picker is None:
+            raise AssertionError("output source picker view was not mounted")
         return picker
 
     def clear_output_for(self, alias: str) -> None:
@@ -540,15 +580,15 @@ class RealShellOutputCanvasHarness:
         *,
         settle_ms: int = 30,
     ) -> None:
-        """Deliver one physical QPane viewport extent and process its reflow frame."""
+        """Resize the public workspace and process synchronous grid reflow."""
 
-        self.shell.output_canvas.pane.viewportRectChanged.emit(
-            QRectF(0.0, 0.0, width, height)
-        )
+        canvas = self.shell.output_canvas
+        canvas.resize(round(width), round(height))
+        canvas.workspace.resize(round(width), round(height))
         self.drain_events_for(settle_ms)
 
     def fingerprint(self) -> CanvasFingerprint:
-        """Capture the real Output QPane and workflow state."""
+        """Capture the real Output document and workflow state."""
 
         return collect_canvas_fingerprint(self.shell)
 
@@ -563,17 +603,77 @@ class RealShellOutputCanvasHarness:
         workflow_id = self.workflows[alias].workflow_id
         workflow = self.shell.workflow_session_service.workflows[workflow_id]
         self.wait_until(
-            lambda: (
-                self.fingerprint().pane_current_image_id == workflow.active_output_uuid
-            )
+            lambda: self.fingerprint().active_image_id == workflow.active_output_uuid
         )
         state = self.fingerprint()
         assert workflow.active_output_uuid is not None, state
-        assert state.pane_current_image_id == workflow.active_output_uuid, state
-        assert workflow.active_output_uuid in state.pane_image_ids, state
-        assert not state.current_image_is_null, state
+        assert state.active_image_id == workflow.active_output_uuid, state
+        assert workflow.active_output_uuid in state.document_image_ids, state
+        assert not state.active_image_is_null, state
+        self._assert_active_target_can_render(state.active_composition_id)
         if color is not None:
-            assert state.current_image_rgb == color, state
+            assert state.active_image_rgb == color, state
+            self._wait_for_active_target_color(state.active_composition_id, color)
+
+    def assert_active_target_rendered(
+        self,
+        expected_color: tuple[int, int, int],
+    ) -> None:
+        """Require the mounted active CuteCanvas target to paint expected pixels."""
+
+        self._wait_for_active_target_color(
+            self.fingerprint().active_composition_id,
+            expected_color,
+        )
+
+    def assert_document_targets_rendered(
+        self,
+        expected_colors: Mapping[UUID, tuple[int, int, int]],
+    ) -> None:
+        """Require mounted document targets to paint their expected payloads."""
+
+        for image_id, expected_color in expected_colors.items():
+            composition_id = self.shell.output_canvas.document.composition_id_for(
+                image_id
+            )
+            if composition_id is None:
+                raise AssertionError(f"output image is not admitted: {image_id}")
+            self._wait_for_active_target_color(composition_id, expected_color)
+
+    def _assert_active_target_can_render(
+        self,
+        composition_id: UUID | None,
+    ) -> None:
+        """Require the received image's live CuteCanvas target to remain visible."""
+
+        assert composition_id is not None
+        target = self.shell.output_canvas.workspace.canvasFor(composition_id)
+        assert target is not None
+        assert target.parent() is not None
+        assert target.isVisible()
+
+    def _wait_for_active_target_color(
+        self,
+        composition_id: UUID | None,
+        expected: tuple[int, int, int],
+    ) -> None:
+        """Require the production final-output path to paint expected target pixels."""
+
+        assert composition_id is not None
+
+        def target_has_expected_pixels() -> bool:
+            """Return whether the mounted target visibly contains the final image."""
+
+            target = self.shell.output_canvas.workspace.canvasFor(composition_id)
+            if target is None:
+                return False
+            image = target.grab().toImage()
+            if image.isNull():
+                return False
+            color = image.pixelColor(image.width() // 2, image.height() // 2)
+            return (color.red(), color.green(), color.blue()) == expected
+
+        self.wait_until(target_has_expected_pixels)
 
     def assert_not_showing_workflow(self, alias: str) -> None:
         """Assert the real Output pane is not routed to a workflow's outputs."""
@@ -585,8 +685,8 @@ class RealShellOutputCanvasHarness:
             ].output_image_uuids
         )
         state = self.fingerprint()
-        assert state.pane_current_image_id not in workflow_image_ids, state
-        assert not workflow_image_ids.intersection(state.composition_image_ids), state
+        assert state.active_image_id not in workflow_image_ids, state
+        assert not workflow_image_ids.intersection(state.presented_image_ids), state
 
     def assert_scene_composition_for_workflow(self, alias: str) -> None:
         """Assert the active Output route is a scene composition for a workflow."""
@@ -599,16 +699,14 @@ class RealShellOutputCanvasHarness:
         )
         self.wait_until(
             lambda: (
-                self.fingerprint().pane_current_composition_id is not None
-                and bool(
-                    expected.intersection(self.fingerprint().composition_image_ids)
-                )
+                self.fingerprint().active_composition_id is not None
+                and bool(expected.intersection(self.fingerprint().presented_image_ids))
             )
         )
         state = self.fingerprint()
-        assert state.pane_current_composition_id is not None, state
-        assert expected.intersection(state.composition_image_ids), state
-        assert set(state.composition_image_ids) <= expected, state
+        assert state.active_composition_id is not None, state
+        assert expected.intersection(state.presented_image_ids), state
+        assert set(state.presented_image_ids) <= expected, state
 
     def assert_preview_displayed(
         self,
@@ -619,15 +717,16 @@ class RealShellOutputCanvasHarness:
 
         self.wait_until(
             lambda: (
-                self.fingerprint().pane_current_image_id
+                self.fingerprint().active_image_id
                 in self.fingerprint().preview_image_ids
-                and self.fingerprint().current_image_rgb == color
+                and self.fingerprint().active_image_rgb == color
             )
         )
         state = self.fingerprint()
-        assert state.pane_current_image_id in state.preview_image_ids, state
-        assert not state.current_image_is_null, state
-        assert state.current_image_rgb == color, state
+        assert state.active_image_id in state.preview_image_ids, state
+        assert not state.active_image_is_null, state
+        assert state.active_image_rgb == color, state
+        self._wait_for_active_target_color(state.active_composition_id, color)
 
     def assert_no_previews(self) -> None:
         """Assert no transient preview lanes remain registered or displayed."""
@@ -635,7 +734,7 @@ class RealShellOutputCanvasHarness:
         state = self.fingerprint()
         assert not state.preview_image_ids, state
         assert not state.preview_lane_keys, state
-        assert state.pane_current_image_id not in state.preview_image_ids, state
+        assert state.active_image_id not in state.preview_image_ids, state
 
 
 def _portable_source_key(source_key: str) -> str:

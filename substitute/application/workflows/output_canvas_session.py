@@ -26,6 +26,10 @@ from uuid import UUID, uuid5
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
 )
+from substitute.application.workflows.output_detail_inspection import (
+    OutputDetailInspectionGroup,
+    output_detail_inspection_groups,
+)
 from substitute.domain.workflow import (
     CanvasGenerationIdentity,
     CanvasKind,
@@ -63,6 +67,7 @@ class OutputCanvasSession:
     allowed_source_keys: frozenset[str]
     allowed_scene_keys: frozenset[str]
     allowed_composition_ids: frozenset[UUID]
+    detail_inspection_groups: tuple[OutputDetailInspectionGroup, ...]
 
     def __post_init__(self) -> None:
         """Reject non-Output shared sessions and mismatched route authority."""
@@ -141,6 +146,10 @@ def bind_output_canvas_session(
         allowed_source_keys=allowed_output_source_keys(projection),
         allowed_scene_keys=allowed_output_scene_keys(projection),
         allowed_composition_ids=allowed_output_composition_ids(
+            workflow_id=workflow_id,
+            projection=projection,
+        ),
+        detail_inspection_groups=output_detail_inspection_groups(
             workflow_id=workflow_id,
             projection=projection,
         ),

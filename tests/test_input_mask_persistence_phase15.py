@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from uuid import uuid4
 
 from substitute.presentation.canvas.input import (
@@ -85,7 +86,7 @@ class _Timer:
 
 
 class _MaskImage:
-    """Represent a non-null QPane mask image payload."""
+    """Represent a non-null exported mask image payload."""
 
     def isNull(self) -> bool:  # noqa: N802
         """Return whether the image is null."""
@@ -118,7 +119,7 @@ def test_save_controller_debounces_mask_updates_and_persists_current_pixels(
     asset_calls: list[tuple[str, str, str]] = []
     refresh_calls: list[tuple[str, str, str]] = []
     workflow = _workflow_with_mask(mask_id, mask_filename="mask.png")
-    pane = _pane(mask_id=mask_id, mask_image=mask_image, debounce_ms=123)
+    document = _document(mask_id=mask_id, mask_image=mask_image)
     tracker = InputMaskDirtyTracker()
 
     def save_mask_image(*, destination: Path, image: object) -> bool:
@@ -140,7 +141,7 @@ def test_save_controller_debounces_mask_updates_and_persists_current_pixels(
         return True
 
     controller = InputMaskSaveController(
-        input_pane=pane,
+        **_controller_document_arguments(document, debounce_ms=123),
         dirty_tracker=tracker,
         workflow_session_service=SimpleNamespace(
             active_workflow_id="wf-a", workflows={"wf-a": workflow}
@@ -160,8 +161,8 @@ def test_save_controller_debounces_mask_updates_and_persists_current_pixels(
         timer_factory=lambda _parent: timer,
     )
 
-    pane.mask_controller.mask_updated.emit(mask_id, object())
-    pane.mask_controller.mask_updated.emit(mask_id, object())
+    document.mask_edit_signal.emit(mask_id)
+    document.mask_edit_signal.emit(mask_id)
     assert timer.single_shot is True
     assert timer.started == [123, 123]
     assert tracker.is_dirty(mask_id) is True
@@ -206,7 +207,9 @@ def test_preflight_persists_dirty_workflow_associated_masks(tmp_path: Path) -> N
         return True
 
     controller = InputMaskSaveController(
-        input_pane=_pane(mask_id=mask_id, mask_image=mask_image),
+        **_controller_document_arguments(
+            _document(mask_id=mask_id, mask_image=mask_image)
+        ),
         dirty_tracker=tracker,
         workflow_session_service=SimpleNamespace(
             active_workflow_id="wf-a", workflows={"wf-a": workflow}
@@ -229,7 +232,7 @@ def test_preflight_persists_dirty_workflow_associated_masks(tmp_path: Path) -> N
 
 
 def test_preflight_fails_closed_when_pixels_are_unavailable(tmp_path: Path) -> None:
-    """Dirty associated masks without readable QPane pixels should block generation."""
+    """Dirty associated masks without readable exported pixels should block generation."""
 
     mask_id = uuid4()
     tracker = InputMaskDirtyTracker()
@@ -237,7 +240,7 @@ def test_preflight_fails_closed_when_pixels_are_unavailable(tmp_path: Path) -> N
     workflow = _workflow_with_mask(mask_id, mask_filename="mask.png")
     save_calls: list[object] = []
     controller = InputMaskSaveController(
-        input_pane=_pane(mask_id=mask_id, mask_image=None),
+        **_controller_document_arguments(_document(mask_id=mask_id, mask_image=None)),
         dirty_tracker=tracker,
         workflow_session_service=SimpleNamespace(
             active_workflow_id="wf-a", workflows={"wf-a": workflow}
@@ -267,7 +270,9 @@ def test_preflight_fails_closed_when_save_io_fails(tmp_path: Path) -> None:
     workflow = _workflow_with_mask(mask_id, mask_filename="mask.png")
     asset_calls: list[object] = []
     controller = InputMaskSaveController(
-        input_pane=_pane(mask_id=mask_id, mask_image=_MaskImage()),
+        **_controller_document_arguments(
+            _document(mask_id=mask_id, mask_image=_MaskImage())
+        ),
         dirty_tracker=tracker,
         workflow_session_service=SimpleNamespace(
             active_workflow_id="wf-a", workflows={"wf-a": workflow}
@@ -290,10 +295,10 @@ def test_preflight_fails_closed_when_save_io_fails(tmp_path: Path) -> None:
     assert tracker.is_dirty(mask_id) is True
 
 
-def test_preflight_fails_closed_when_dirty_signal_is_unavailable(
+def test_preflight_uses_explicit_document_edit_contract(
     tmp_path: Path,
 ) -> None:
-    """Associated masks should block generation when dirty state cannot be trusted."""
+    """An injected document edit signal should make dirty preflight authoritative."""
 
     mask_id = uuid4()
     tracker = InputMaskDirtyTracker()
@@ -301,14 +306,16 @@ def test_preflight_fails_closed_when_dirty_signal_is_unavailable(
     workflow = _workflow_with_mask(mask_id, mask_filename="mask.png")
     save_calls: list[object] = []
     controller = InputMaskSaveController(
-        input_pane=_pane_without_mask_update_signal(mask_id=mask_id),
+        **_controller_document_arguments(
+            _document(mask_id=mask_id, mask_image=_MaskImage())
+        ),
         dirty_tracker=tracker,
         workflow_session_service=SimpleNamespace(
             active_workflow_id="wf-a", workflows={"wf-a": workflow}
         ),
         canvas_io_service=SimpleNamespace(
             resolve_mask_save_path=lambda **_kwargs: tmp_path / "mask.png",
-            save_mask_image=lambda **kwargs: save_calls.append(kwargs),
+            save_mask_image=lambda **kwargs: _record_success(save_calls, kwargs),
         ),
         workflow_input_canvas_service=SimpleNamespace(
             associate_project_input_mask=lambda *_args, **_kwargs: True
@@ -317,9 +324,9 @@ def test_preflight_fails_closed_when_dirty_signal_is_unavailable(
         projects_dir_provider=lambda: tmp_path,
     )
 
-    assert controller.flush_dirty_associated_masks_before_generation() is False
-    assert save_calls == []
-    assert tracker.is_dirty(mask_id) is True
+    assert controller.flush_dirty_associated_masks_before_generation() is True
+    assert len(save_calls) == 1
+    assert tracker.is_dirty(mask_id) is False
 
 
 def test_preflight_fails_closed_when_mask_ownership_is_unproven(
@@ -334,7 +341,9 @@ def test_preflight_fails_closed_when_mask_ownership_is_unproven(
     workflow.canvas.mask_to_image_map.clear()
     save_calls: list[object] = []
     controller = InputMaskSaveController(
-        input_pane=_pane(mask_id=mask_id, mask_image=_MaskImage()),
+        **_controller_document_arguments(
+            _document(mask_id=mask_id, mask_image=_MaskImage())
+        ),
         dirty_tracker=tracker,
         workflow_session_service=SimpleNamespace(
             active_workflow_id="wf-a", workflows={"wf-a": workflow}
@@ -362,7 +371,9 @@ def test_preflight_fails_closed_when_save_api_is_missing(tmp_path: Path) -> None
     tracker = InputMaskDirtyTracker()
     tracker.mark_dirty(mask_id)
     controller = InputMaskSaveController(
-        input_pane=_pane(mask_id=mask_id, mask_image=_MaskImage()),
+        **_controller_document_arguments(
+            _document(mask_id=mask_id, mask_image=_MaskImage())
+        ),
         dirty_tracker=tracker,
         workflow_session_service=SimpleNamespace(
             active_workflow_id="wf-a",
@@ -392,7 +403,9 @@ def test_preflight_fails_closed_when_path_resolution_api_is_missing(
     tracker.mark_dirty(mask_id)
     save_calls: list[object] = []
     controller = InputMaskSaveController(
-        input_pane=_pane(mask_id=mask_id, mask_image=_MaskImage()),
+        **_controller_document_arguments(
+            _document(mask_id=mask_id, mask_image=_MaskImage())
+        ),
         dirty_tracker=tracker,
         workflow_session_service=SimpleNamespace(
             active_workflow_id="wf-a",
@@ -429,7 +442,9 @@ def test_preflight_fails_closed_when_asset_api_is_missing(tmp_path: Path) -> Non
         return True
 
     controller = InputMaskSaveController(
-        input_pane=_pane(mask_id=mask_id, mask_image=_MaskImage()),
+        **_controller_document_arguments(
+            _document(mask_id=mask_id, mask_image=_MaskImage())
+        ),
         dirty_tracker=tracker,
         workflow_session_service=SimpleNamespace(
             active_workflow_id="wf-a",
@@ -458,7 +473,9 @@ def test_preflight_fails_closed_when_asset_association_fails(
     tracker = InputMaskDirtyTracker()
     tracker.mark_dirty(mask_id)
     controller = InputMaskSaveController(
-        input_pane=_pane(mask_id=mask_id, mask_image=_MaskImage()),
+        **_controller_document_arguments(
+            _document(mask_id=mask_id, mask_image=_MaskImage())
+        ),
         dirty_tracker=tracker,
         workflow_session_service=SimpleNamespace(
             active_workflow_id="wf-a",
@@ -522,31 +539,35 @@ def _workflow_with_mask(mask_id: object, *, mask_filename: str) -> SimpleNamespa
     )
 
 
-def _pane(
+def _document(
     *,
     mask_id: object,
     mask_image: object | None,
-    debounce_ms: int = 0,
 ) -> SimpleNamespace:
-    """Return a QPane-like mask surface for save controller tests."""
+    """Return a document fake for explicit edit and export contracts."""
 
-    layer = SimpleNamespace(mask_image=mask_image) if mask_image is not None else None
-    mask_manager = SimpleNamespace(get_layer=lambda _mask_id: layer)
     return SimpleNamespace(
-        mask_controller=SimpleNamespace(mask_updated=_Signal()),
-        maskSaved=_Signal(),
-        settings=SimpleNamespace(mask_autosave_debounce_ms=debounce_ms),
-        catalog=lambda: SimpleNamespace(maskManager=lambda: mask_manager),
+        mask_edit_signal=_Signal(),
+        export_mask_image=lambda requested_mask_id: (
+            mask_image if requested_mask_id == mask_id else None
+        ),
     )
 
 
-def _pane_without_mask_update_signal(*, mask_id: object) -> SimpleNamespace:
-    """Return a QPane-like mask surface without dirty update signals."""
+def _controller_document_arguments(
+    document: SimpleNamespace, *, debounce_ms: int = 0
+) -> dict[str, Any]:
+    """Return public document dependencies for one save-controller test."""
 
-    mask_manager = SimpleNamespace(get_layer=lambda _mask_id: None)
-    return SimpleNamespace(
-        mask_controller=SimpleNamespace(),
-        maskSaved=_Signal(),
-        settings=SimpleNamespace(mask_autosave_debounce_ms=0),
-        catalog=lambda: SimpleNamespace(maskManager=lambda: mask_manager),
-    )
+    return {
+        "mask_edit_signal": document.mask_edit_signal,
+        "mask_image_exporter": document.export_mask_image,
+        "debounce_ms": debounce_ms,
+    }
+
+
+def _record_success(values: list[object], value: object) -> bool:
+    """Record one fake persistence invocation and report its success."""
+
+    values.append(value)
+    return True

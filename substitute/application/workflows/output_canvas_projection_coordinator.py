@@ -20,18 +20,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Protocol
 from uuid import UUID
 
 from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
-from substitute.application.workflows.canvas_pane_catalog_port import (
-    CanvasPaneCatalogPort,
-)
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
-    OutputRouteProjectorPort,
-    OutputRouteScope,
 )
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
@@ -47,7 +41,6 @@ from substitute.application.workflows.output_canvas_state_service import (
     OutputCanvasStateService,
 )
 from substitute.domain.workflow import (
-    CanvasRouteIdentity,
     ImageMeta,
     OutputCompareState,
     WorkflowState,
@@ -67,11 +60,14 @@ class OutputProjectionSessionSink(Protocol):
         """Retire transient preview rendering for the visible Output canvas."""
 
 
-class OutputLinkedGroupSink(Protocol):
-    """Apply Output linked-group presentation for workflow-owned images."""
+class OutputProjectionContentSynchronizer(Protocol):
+    """Synchronize projected Output image payloads with the presentation document."""
 
-    def present_linked_outputs(self, output_image_ids: tuple[UUID, ...]) -> None:
-        """Present linked groups for the current workflow output image IDs."""
+    def synchronize_projection(self, projection: OutputCanvasProjection) -> None:
+        """Admit every present payload required by one Output projection."""
+
+    def retire_unreferenced(self, image_ids: tuple[UUID, ...]) -> None:
+        """Retire document content after workflow ownership proves it unused."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,95 +79,25 @@ class _OutputProjectionSyncSignature:
     payload_identities: tuple[tuple[UUID, int | None], ...]
 
 
-class OutputProjectionCatalogWarmer:
-    """Warm Output QPane catalog payloads required by one projection."""
-
-    def __init__(
-        self,
-        *,
-        image_registry: CanvasImageRegistry,
-        output_catalog: CanvasPaneCatalogPort,
-    ) -> None:
-        """Store the registry and catalog boundaries used for cache warming."""
-
-        self._image_registry = image_registry
-        self._output_catalog = output_catalog
-
-    def warm_projection(self, projection: OutputCanvasProjection) -> None:
-        """Ensure projected final Output payloads are present in QPane catalog."""
-
-        for image_id in _projected_image_ids(projection):
-            image = self._image_registry.payload_for(image_id)
-            image_meta = self._image_registry.metadata_for(image_id)
-            if image is None or image_meta is None:
-                continue
-            path = Path(image_meta.path) if image_meta.path else None
-            mutation = self._output_catalog.ensure_image_cached(image_id, image, path)
-            log_debug(
-                _LOGGER,
-                "output pane catalog warmed for projection",
-                image_id=image_id,
-                path=path,
-                mutation=mutation.value,
-            )
-
-    def remove_unreferenced(self, image_ids: tuple[UUID, ...]) -> None:
-        """Remove catalog entries after Output state proves they are unreferenced."""
-
-        for image_id in image_ids:
-            self._output_catalog.remove_unreferenced_image(image_id)
-
-
-class OutputProjectionPayloadHydrator:
-    """Hydrate missing Output payloads from the QPane catalog route cache."""
-
-    def __init__(
-        self,
-        *,
-        image_registry: CanvasImageRegistry,
-        output_catalog: CanvasPaneCatalogPort,
-    ) -> None:
-        """Store payload registry and catalog cache boundaries."""
-
-        self._image_registry = image_registry
-        self._output_catalog = output_catalog
-
-    def hydrate_projection(self, projection: OutputCanvasProjection) -> None:
-        """Attach catalog payloads to registry records needed by projection."""
-
-        for image_id in _projected_image_ids(projection):
-            if self._image_registry.payload_for(image_id) is not None:
-                continue
-            image_payload = self._output_catalog.payload_for_route_preparation(image_id)
-            if image_payload is not None:
-                self._image_registry.remember_payload(image_id, image_payload)
-
-
 class OutputCanvasProjectionCoordinator:
-    """Project workflow Output state through catalog, session, and route owners."""
+    """Project workflow Output state through content, session, and route owners."""
 
     def __init__(
         self,
         *,
         image_registry: CanvasImageRegistry,
         output_canvas_state_service: OutputCanvasStateService,
-        output_route_projector: OutputRouteProjectorPort,
         canvas_session_boundary: CanvasRouteSessionBoundaryPort,
-        catalog_warmer: OutputProjectionCatalogWarmer,
-        payload_hydrator: OutputProjectionPayloadHydrator,
+        content_synchronizer: OutputProjectionContentSynchronizer,
         projection_sink: OutputProjectionSessionSink | None = None,
-        linked_group_sink: OutputLinkedGroupSink | None = None,
     ) -> None:
         """Store named Output owners used during projection."""
 
         self._image_registry = image_registry
         self._output_canvas_state_service = output_canvas_state_service
-        self._output_route_projector = output_route_projector
         self._canvas_session_boundary = canvas_session_boundary
-        self._catalog_warmer = catalog_warmer
-        self._payload_hydrator = payload_hydrator
+        self._content_synchronizer = content_synchronizer
         self._projection_sink = projection_sink
-        self._linked_group_sink = linked_group_sink
         self._projected_workflow_id: str | None = None
         self._last_sync_signature: _OutputProjectionSyncSignature | None = None
         self._last_output_session: OutputCanvasSession | None = None
@@ -182,7 +108,7 @@ class OutputCanvasProjectionCoordinator:
         active_workflow_id: str,
         registered_image_id: UUID | None = None,
     ) -> None:
-        """Project the active workflow's Output state into authorized QPane routes."""
+        """Project the active workflow's Output state into an authorized session."""
 
         _ = registered_image_id
         active_workflow = workflows.get(active_workflow_id)
@@ -199,8 +125,6 @@ class OutputCanvasProjectionCoordinator:
                 active_workflow_id,
                 _empty_projection(),
             )
-            self._clear_route()
-            self._present_linked_groups(())
             self._sync_projection(output_session)
             return
 
@@ -211,7 +135,7 @@ class OutputCanvasProjectionCoordinator:
             active_workflow,
             output_metadata,
         )
-        self._catalog_warmer.warm_projection(output_projection)
+        self._content_synchronizer.synchronize_projection(output_projection)
         sync_signature = self._projection_sync_signature_for_projection(
             active_workflow_id,
             output_projection,
@@ -234,27 +158,11 @@ class OutputCanvasProjectionCoordinator:
             image_metadata_lookup=output_metadata,
         )
         if active_workflow.output_image_uuids:
-            selected_output_uuid = output_projection.active_uuid
             self._output_canvas_state_service.remember_projected_focus(
                 active_workflow,
                 output_projection,
             )
-            if selected_output_uuid is not None:
-                self._show_image(
-                    selected_output_uuid,
-                    route=output_session.active_route,
-                )
-            elif (
-                output_projection.active_scene_overview
-                or output_projection.active_set_index == 0
-            ):
-                pass
-            else:
-                self._clear_route()
-            self._present_linked_groups(_projected_image_ids(output_projection))
         else:
-            self._clear_route()
-            self._present_linked_groups(())
             if active_workflow_id == self._projected_workflow_id:
                 self._clear_previews()
 
@@ -280,7 +188,7 @@ class OutputCanvasProjectionCoordinator:
             workflows,
             workflow_id,
         )
-        self._catalog_warmer.remove_unreferenced(prune_result.removed_image_ids)
+        self._content_synchronizer.retire_unreferenced(prune_result.removed_image_ids)
         if workflow_id != self._projected_workflow_id:
             log_debug(
                 _LOGGER,
@@ -294,10 +202,9 @@ class OutputCanvasProjectionCoordinator:
             self._image_registry.metadata_for_ids(active_workflow.output_image_uuids),
         )
         output_session = self._bind_canvas_session(workflow_id, cleared_projection)
-        self._clear_route()
-        self._present_linked_groups(())
         self._clear_previews()
         self._projected_workflow_id = workflow_id
+        self._last_sync_signature = None
         self._sync_projection(output_session)
 
     def prune_closed_workflow_images(
@@ -315,7 +222,9 @@ class OutputCanvasProjectionCoordinator:
                 remaining_workflows,
             )
         )
-        self._catalog_warmer.remove_unreferenced(output_prune_result.removed_image_ids)
+        self._content_synchronizer.retire_unreferenced(
+            output_prune_result.removed_image_ids
+        )
 
     def _bind_canvas_session(
         self,
@@ -332,43 +241,12 @@ class OutputCanvasProjectionCoordinator:
             projection=projection,
             image_metadata_lookup=image_metadata_lookup or {},
         )
-        self._output_route_projector.bind(
-            OutputRouteScope(
-                session=output_session,
-                allowed_image_ids=output_session.allowed_image_ids,
-                allowed_source_keys=output_session.allowed_source_keys,
-                allowed_scene_keys=output_session.allowed_scene_keys,
-                allowed_composition_ids=output_session.allowed_composition_ids,
-            )
-        )
         return output_session
-
-    def _show_image(
-        self,
-        image_id: UUID,
-        *,
-        route: CanvasRouteIdentity,
-    ) -> None:
-        """Apply one active Output image route through the route projector."""
-
-        self._output_route_projector.apply_final_image_route(route, image_id)
-
-    def _clear_route(self) -> None:
-        """Clear the active Output route through the route projector."""
-
-        self._output_route_projector.clear_route(CanvasRouteIdentity.empty())
-
-    def _present_linked_groups(self, output_image_ids: tuple[UUID, ...]) -> None:
-        """Publish Output linked-group state through its presentation owner."""
-
-        if self._linked_group_sink is not None:
-            self._linked_group_sink.present_linked_outputs(output_image_ids)
 
     def _sync_projection(self, session: OutputCanvasSession) -> None:
         """Update output selector labels/state when a sink is present."""
 
         workflow_id = session.workflow_id.value
-        projection = session.projection
         if self._projection_sink is None:
             self._projected_workflow_id = workflow_id
             self._last_sync_signature = None
@@ -379,7 +257,6 @@ class OutputCanvasProjectionCoordinator:
             self._last_output_session = session
             return
         self._clear_previews_for_workflow_projection(workflow_id)
-        self._payload_hydrator.hydrate_projection(projection)
         self._projection_sink.bind_projection_session(session)
         self._last_sync_signature = sync_signature
         self._last_output_session = session
@@ -563,8 +440,6 @@ def _empty_projection() -> OutputCanvasProjection:
 
 __all__ = [
     "OutputCanvasProjectionCoordinator",
-    "OutputLinkedGroupSink",
-    "OutputProjectionCatalogWarmer",
-    "OutputProjectionPayloadHydrator",
+    "OutputProjectionContentSynchronizer",
     "OutputProjectionSessionSink",
 ]

@@ -24,7 +24,6 @@ from uuid import UUID, uuid4
 
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteIdentity,
-    OutputRouteProjectorPort,
 )
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasImageItem,
@@ -38,6 +37,7 @@ from substitute.domain.workflow import (
 )
 from substitute.presentation.canvas.output.output_compare_presenter import (
     OutputComparePresenter,
+    OutputCompareRoutePort,
 )
 
 
@@ -97,7 +97,7 @@ def test_compare_presenter_applies_compare_through_route_projector() -> None:
     )
 
     presentation = OutputComparePresenter(
-        cast(OutputRouteProjectorPort, projector)
+        cast(OutputCompareRoutePort, projector)
     ).present(
         projection=projection,
         state=state,
@@ -137,7 +137,7 @@ def test_compare_presenter_clears_compare_when_route_is_blocked() -> None:
     )
 
     presentation = OutputComparePresenter(
-        cast(OutputRouteProjectorPort, projector)
+        cast(OutputCompareRoutePort, projector)
     ).present(
         projection=projection,
         state=state,
@@ -155,7 +155,7 @@ def test_compare_presenter_enabled_state_uses_current_batch_first_and_last() -> 
     projection = _batch_projection()
 
     state = OutputComparePresenter(
-        cast(OutputRouteProjectorPort, _RouteProjector())
+        cast(OutputCompareRoutePort, _RouteProjector())
     ).state_for_enabled(
         projection,
         current_selection=OutputCompareSelection(None, 2, "source-c"),
@@ -166,8 +166,8 @@ def test_compare_presenter_enabled_state_uses_current_batch_first_and_last() -> 
     assert state.comparison == OutputCompareSelection(None, 2, "source-c")
 
 
-def test_compare_presenter_normalizes_qpane_change_state() -> None:
-    """QPane divider changes should update only transient compare display settings."""
+def test_compare_presenter_normalizes_workspace_presentation_state() -> None:
+    """Workspace divider changes should update only transient compare settings."""
 
     state = OutputCompareState(
         enabled=True,
@@ -176,8 +176,8 @@ def test_compare_presenter_normalizes_qpane_change_state() -> None:
     )
 
     changed = OutputComparePresenter(
-        cast(OutputRouteProjectorPort, _RouteProjector())
-    ).state_from_qpane_change(
+        cast(OutputCompareRoutePort, _RouteProjector())
+    ).state_from_presentation_change(
         state,
         SimpleNamespace(split_position=0.8, orientation="diagonal"),
     )

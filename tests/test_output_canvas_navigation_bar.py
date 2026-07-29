@@ -875,18 +875,22 @@ def test_sync_comparison_navigation_buttons_hides_container_when_not_visible() -
     refreshed = sync_comparison_navigation_buttons(
         comparison_nav_container=container,
         enabled=True,
+        base_selection=object(),
         comparison_selection=None,
-        scene_button=object(),
-        set_button=object(),
-        source_button=object(),
-        sync_scene_button=lambda button, selection: calls.append(
-            ("scene", button, selection)
+        base_scene_button=object(),
+        base_set_button=object(),
+        base_source_button=object(),
+        comparison_scene_button=object(),
+        comparison_set_button=object(),
+        comparison_source_button=object(),
+        sync_scene_button=lambda _side, button, selection: calls.append(
+            ("scene", button, selection),
         ),
-        sync_set_button=lambda button, selection: calls.append(
-            ("set", button, selection)
+        sync_set_button=lambda _side, button, selection: calls.append(
+            ("set", button, selection),
         ),
-        sync_source_button=lambda button, selection: calls.append(
-            ("source", button, selection)
+        sync_source_button=lambda _side, button, selection: calls.append(
+            ("source", button, selection),
         ),
     )
 
@@ -899,36 +903,57 @@ def test_sync_comparison_navigation_buttons_refreshes_each_selector() -> None:
     """Comparison navigation sync should refresh scene, set, and source selectors."""
 
     container = _Container()
-    selection = object()
-    scene_button = object()
-    set_button = object()
-    source_button = object()
-    calls: list[tuple[str, object, object]] = []
+    base_selection = object()
+    comparison_selection = object()
+    base_scene_button = object()
+    base_set_button = object()
+    base_source_button = object()
+    comparison_scene_button = object()
+    comparison_set_button = object()
+    comparison_source_button = object()
+    calls: list[tuple[str, str, object, object]] = []
 
     refreshed = sync_comparison_navigation_buttons(
         comparison_nav_container=container,
         enabled=True,
-        comparison_selection=selection,
-        scene_button=scene_button,
-        set_button=set_button,
-        source_button=source_button,
-        sync_scene_button=lambda button, selected: calls.append(
-            ("scene", button, selected)
+        base_selection=base_selection,
+        comparison_selection=comparison_selection,
+        base_scene_button=base_scene_button,
+        base_set_button=base_set_button,
+        base_source_button=base_source_button,
+        comparison_scene_button=comparison_scene_button,
+        comparison_set_button=comparison_set_button,
+        comparison_source_button=comparison_source_button,
+        sync_scene_button=lambda side, button, selected: calls.append(
+            ("scene", side, button, selected),
         ),
-        sync_set_button=lambda button, selected: calls.append(
-            ("set", button, selected)
+        sync_set_button=lambda side, button, selected: calls.append(
+            ("set", side, button, selected),
         ),
-        sync_source_button=lambda button, selected: calls.append(
-            ("source", button, selected)
+        sync_source_button=lambda side, button, selected: calls.append(
+            ("source", side, button, selected),
         ),
     )
 
     assert refreshed is True
     assert container.hidden is False
     assert calls == [
-        ("scene", scene_button, selection),
-        ("set", set_button, selection),
-        ("source", source_button, selection),
+        ("scene", "base", base_scene_button, base_selection),
+        ("set", "base", base_set_button, base_selection),
+        ("source", "base", base_source_button, base_selection),
+        (
+            "scene",
+            "comparison",
+            comparison_scene_button,
+            comparison_selection,
+        ),
+        ("set", "comparison", comparison_set_button, comparison_selection),
+        (
+            "source",
+            "comparison",
+            comparison_source_button,
+            comparison_selection,
+        ),
     ]
 
 

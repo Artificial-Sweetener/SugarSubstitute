@@ -74,7 +74,7 @@ class InputCanvasStateServicePort(Protocol):
         input_key: str,
         image_id: UUID,
     ) -> bool:
-        """Claim an existing QPane-loaded image for a workflow input key."""
+        """Claim an existing CuteCanvas-admitted image for a workflow input key."""
 
     def drop_mask_association(
         self,

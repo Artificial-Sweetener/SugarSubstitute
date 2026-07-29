@@ -41,7 +41,6 @@ def import_canvas_modules(monkeypatch: Any) -> tuple[Any, Any]:
     ]
     monkeypatch.setitem(sys.modules, "substitute.presentation.canvas", canvas_package)
     for module_name in (
-        "substitute.presentation.canvas.shared.canvas_grid_layout",
         "substitute.presentation.canvas.input.input_canvas_view",
         "substitute.presentation.canvas.output.output_canvas_view",
     ):
