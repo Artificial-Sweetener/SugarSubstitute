@@ -2036,8 +2036,11 @@ def test_real_shell_repeated_backspace_undoes_as_one_delete_group(
     field = harness.add_prompt_workflow(initial_text="abcdef")
     harness.move_cursor_to_end(field)
     before = harness.capture_state_snapshot(field, label="before-delete-group")
-    for _ in range(3):
-        harness.press_key(field, Qt.Key.Key_Backspace)
+    harness.press_key_burst(
+        field,
+        Qt.Key.Key_Backspace,
+        repetitions=3,
+    )
     deleted = harness.capture_state_snapshot(field, label="after-delete-group")
     harness.focus_editor(field)
     QTest.keySequence(field.editor.viewport(), QKeySequence.StandardKey.Undo)

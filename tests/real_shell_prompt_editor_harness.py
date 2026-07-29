@@ -1600,6 +1600,31 @@ class RealShellPromptEditorHarness:
             inserted_text=_inserted_text(before.source_text, after.source_text),
         )
 
+    def press_key_burst(
+        self,
+        field: PromptFieldHandle,
+        key: Qt.Key,
+        *,
+        repetitions: int,
+        modifiers: Qt.KeyboardModifier = Qt.KeyboardModifier.NoModifier,
+    ) -> None:
+        """Send contiguous key events before settling the event loop once."""
+
+        if repetitions < 1:
+            raise ValueError("repetitions must be positive")
+        target = self.focus_editor(field)
+        for _iteration in range(repetitions):
+            QTest.keyClick(target, key, modifiers)
+        self._trace_actions.append(
+            PromptEditorTraceAction(
+                "press_key_burst",
+                str(repetitions),
+                key=_enum_value(key),
+                modifiers=_enum_value(modifiers),
+            )
+        )
+        self.process_events(cycles=8)
+
     def press_key_and_capture_immediate_state(
         self,
         field: PromptFieldHandle,
