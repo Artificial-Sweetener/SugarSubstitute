@@ -359,10 +359,10 @@ def test_managed_ready_launch_runtime_creates_managed_startup_prelude(
     assert isinstance(prelude, ReadyShellManagedStartupPrelude)
 
 
-def test_managed_ready_launch_runtime_binds_qpane_warmup_state(
+def test_managed_ready_launch_runtime_binds_cutecanvas_warmup_state(
     tmp_path: Path,
 ) -> None:
-    """Managed-ready launch assembly should bind QPane warmup state separately."""
+    """Managed-ready launch assembly should bind CuteCanvas warmup state separately."""
 
     launch_runtime = create_startup_managed_ready_launch_runtime(
         context=_context(tmp_path),
@@ -375,7 +375,7 @@ def test_managed_ready_launch_runtime_binds_qpane_warmup_state(
     )
     registry = StartupResourceRegistry()
 
-    callback = launch_runtime.create_qpane_sam_warmup_callback(
+    callback = launch_runtime.create_cutecanvas_sam_warmup_callback(
         startup_cancelled=lambda: False,
         registry=registry,
         trace_fields=lambda: {},

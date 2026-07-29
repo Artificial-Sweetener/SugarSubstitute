@@ -595,7 +595,7 @@ def test_run_application_prebuilds_shell_and_reveals_after_http_ready(
         def shutdown(self) -> None:
             calls.append("icon_warmup_shutdown")
 
-    class _FakeQPaneSamWarmupHandle:
+    class _FakeCuteCanvasSamWarmupHandle:
         def __init__(self, **_kwargs: object) -> None:
             """Accept warmup dependencies without importing optional packages."""
 
@@ -817,8 +817,8 @@ def test_run_application_prebuilds_shell_and_reveals_after_http_ready(
     )
     monkeypatch.setattr(
         startup_warmup_controller,
-        "QPaneSamStartupWarmupHandle",
-        _FakeQPaneSamWarmupHandle,
+        "CuteCanvasSamStartupWarmupHandle",
+        _FakeCuteCanvasSamWarmupHandle,
     )
     monkeypatch.setattr(
         startup_managed_ready_ports,

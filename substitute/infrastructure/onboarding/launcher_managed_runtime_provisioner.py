@@ -42,7 +42,7 @@ class LauncherManagedRuntimeProvisioner(RuntimeProvisioner):
     import_names: tuple[str, ...] = (
         "PySide6",
         "qfluentwidgets",
-        "qpane",
+        "cutecanvas",
         "substitute",
     )
 

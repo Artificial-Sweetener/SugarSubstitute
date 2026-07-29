@@ -21,63 +21,63 @@ from __future__ import annotations
 import pytest
 
 from tests.execution_testing import ImmediateTaskSubmitter
-from substitute.app.bootstrap.qpane_sam_startup_warmup import (
-    QPaneSamStartupWarmupHandle,
-    qpane_sam_warmup_snapshot,
-    reset_qpane_sam_warmup_snapshot_for_tests,
+from substitute.app.bootstrap.cutecanvas_sam_startup_warmup import (
+    CuteCanvasSamStartupWarmupHandle,
+    cutecanvas_sam_warmup_snapshot,
+    reset_cutecanvas_sam_warmup_snapshot_for_tests,
 )
 
 
-def test_qpane_sam_warmup_records_completed_state() -> None:
+def test_cutecanvas_sam_warmup_records_completed_state() -> None:
     """Successful warmup should publish completed state without blocking callers."""
 
-    reset_qpane_sam_warmup_snapshot_for_tests()
+    reset_cutecanvas_sam_warmup_snapshot_for_tests()
     calls: list[str] = []
-    handle = QPaneSamStartupWarmupHandle(
+    handle = CuteCanvasSamStartupWarmupHandle(
         submitter=ImmediateTaskSubmitter(),
         ensure_dependencies=lambda: calls.append("ensure"),
     )
 
     handle.start()
 
-    snapshot = qpane_sam_warmup_snapshot()
+    snapshot = cutecanvas_sam_warmup_snapshot()
     assert calls == ["ensure"]
     assert snapshot.state == "completed"
     assert snapshot.elapsed_ms is not None
 
 
-def test_qpane_sam_warmup_failure_is_best_effort() -> None:
+def test_cutecanvas_sam_warmup_failure_is_best_effort() -> None:
     """Warmup dependency failures should be recorded without escaping startup."""
 
-    reset_qpane_sam_warmup_snapshot_for_tests()
+    reset_cutecanvas_sam_warmup_snapshot_for_tests()
 
     def fail() -> None:
         """Raise one deterministic dependency failure."""
 
         raise RuntimeError("missing dependency")
 
-    handle = QPaneSamStartupWarmupHandle(
+    handle = CuteCanvasSamStartupWarmupHandle(
         submitter=ImmediateTaskSubmitter(),
         ensure_dependencies=fail,
     )
 
     handle.start()
 
-    snapshot = qpane_sam_warmup_snapshot()
+    snapshot = cutecanvas_sam_warmup_snapshot()
     assert snapshot.state == "failed"
     assert "missing dependency" in snapshot.error
 
 
-def test_default_qpane_sam_warmup_can_be_disabled_by_environment(
+def test_default_cutecanvas_sam_warmup_can_be_disabled_by_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Tests should disable default Torch/SAM imports without disabling fakes."""
 
-    reset_qpane_sam_warmup_snapshot_for_tests()
-    monkeypatch.setenv("SUBSTITUTE_DISABLE_QPANE_SAM_WARMUP", "1")
-    handle = QPaneSamStartupWarmupHandle(submitter=ImmediateTaskSubmitter())
+    reset_cutecanvas_sam_warmup_snapshot_for_tests()
+    monkeypatch.setenv("SUBSTITUTE_DISABLE_CUTECANVAS_SAM_WARMUP", "1")
+    handle = CuteCanvasSamStartupWarmupHandle(submitter=ImmediateTaskSubmitter())
 
     handle.start()
 
-    snapshot = qpane_sam_warmup_snapshot()
+    snapshot = cutecanvas_sam_warmup_snapshot()
     assert snapshot.state == "disabled"

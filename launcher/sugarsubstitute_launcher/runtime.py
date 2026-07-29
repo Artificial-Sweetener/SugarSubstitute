@@ -59,7 +59,7 @@ DEFAULT_PYTHON_VERSION = "3.13.12"
 CRITICAL_IMPORTS: tuple[str, ...] = (
     "PySide6",
     "qfluentwidgets",
-    "qpane",
+    "cutecanvas",
     "substitute",
 )
 

@@ -44,7 +44,7 @@ from substitute.app.bootstrap.startup_warmup_controller import (
     start_cube_icon_startup_warmup,
     start_local_editor_startup_warmup,
     start_nonessential_startup_warmups,
-    start_qpane_sam_startup_warmup,
+    start_cutecanvas_sam_startup_warmup,
 )
 from substitute.app.bootstrap.startup_resources import ShutdownResource
 
@@ -106,21 +106,21 @@ def test_start_cube_icon_startup_warmup_registers_and_starts_handle() -> None:
     assert factory.handle.started is True
 
 
-def test_start_qpane_sam_startup_warmup_registers_and_starts_handle() -> None:
+def test_start_cutecanvas_sam_startup_warmup_registers_and_starts_handle() -> None:
     """QPane SAM warmup should register its handle and start once."""
 
     state = StartupWarmupState()
     registry = _Registry()
     factory = _NoArgWarmupFactory()
 
-    start_qpane_sam_startup_warmup(
+    start_cutecanvas_sam_startup_warmup(
         state=state,
         startup_cancelled=False,
         registry=registry,
         trace_fields=lambda: {"workflow_id": "wf-a"},
         warmup_factory=factory,
     )
-    start_qpane_sam_startup_warmup(
+    start_cutecanvas_sam_startup_warmup(
         state=state,
         startup_cancelled=False,
         registry=registry,
@@ -128,20 +128,20 @@ def test_start_qpane_sam_startup_warmup_registers_and_starts_handle() -> None:
         warmup_factory=factory,
     )
 
-    assert state.qpane_sam_started is True
-    assert registry.qpane_sam_warmups == [factory.handle]
+    assert state.cutecanvas_sam_started is True
+    assert registry.cutecanvas_sam_warmups == [factory.handle]
     assert factory.calls == 1
     assert factory.handle.started is True
 
 
-def test_start_qpane_sam_startup_warmup_skips_cancelled_startup() -> None:
+def test_start_cutecanvas_sam_startup_warmup_skips_cancelled_startup() -> None:
     """QPane SAM warmup should not start after startup cancellation."""
 
     state = StartupWarmupState()
     registry = _Registry()
     factory = _NoArgWarmupFactory()
 
-    start_qpane_sam_startup_warmup(
+    start_cutecanvas_sam_startup_warmup(
         state=state,
         startup_cancelled=True,
         registry=registry,
@@ -149,8 +149,8 @@ def test_start_qpane_sam_startup_warmup_skips_cancelled_startup() -> None:
         warmup_factory=factory,
     )
 
-    assert state.qpane_sam_started is False
-    assert registry.qpane_sam_warmups == []
+    assert state.cutecanvas_sam_started is False
+    assert registry.cutecanvas_sam_warmups == []
     assert factory.calls == 0
 
 
@@ -602,7 +602,7 @@ def test_startup_facade_delegates_direct_warmup_starts() -> None:
     assert "NonessentialStartupWarmupScheduler(" not in source
     assert "managed_ready_launch.create_managed_startup_prelude(" in launch_source
     assert "managed_ready_runtime.create_managed_startup_prelude(" not in source
-    assert "managed_ready_runtime.start_qpane_sam_startup_warmup" not in source
+    assert "managed_ready_runtime.start_cutecanvas_sam_startup_warmup" not in source
     assert "create_ready_shell_managed_startup_prelude(" not in source
     assert "managed_ready_launch.create_local_editor_warmup_adapter(" in launch_source
     assert "managed_ready_runtime.create_local_editor_warmup_adapter(" not in source
@@ -615,7 +615,7 @@ def test_startup_facade_delegates_direct_warmup_starts() -> None:
     assert "schedule_nonessential_startup_warmups(" not in source
     assert "start_local_editor_startup_warmup(" not in source
     assert "StartupCubeIconWarmupHandle(" not in source
-    assert "QPaneSamStartupWarmupHandle(" not in source
+    assert "CuteCanvasSamStartupWarmupHandle(" not in source
     assert "LocalEditorStartupWarmupHandle(" not in source
     assert "BackendEditorStartupWarmupHandle(" not in source
 
@@ -725,7 +725,7 @@ class _Registry:
         """Create empty registration records."""
 
         self.cube_icon_warmups: list[object] = []
-        self.qpane_sam_warmups: list[object] = []
+        self.cutecanvas_sam_warmups: list[object] = []
         self.editor_warmups: list[object] = []
 
     def register_cube_icon_warmup(
@@ -737,13 +737,13 @@ class _Registry:
         self.cube_icon_warmups.append(warmup)
         return warmup
 
-    def register_qpane_sam_warmup(
+    def register_cutecanvas_sam_warmup(
         self,
         warmup: ShutdownResource,
     ) -> ShutdownResource:
         """Record QPane SAM warmup registration."""
 
-        self.qpane_sam_warmups.append(warmup)
+        self.cutecanvas_sam_warmups.append(warmup)
         return warmup
 
     def register_editor_startup_warmup(

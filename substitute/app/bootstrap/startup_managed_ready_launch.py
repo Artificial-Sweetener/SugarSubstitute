@@ -243,17 +243,17 @@ class StartupManagedReadyLaunchRuntime:
             start_or_adopt_launch_splash=start_or_adopt_launch_splash,
         )
 
-    def create_qpane_sam_warmup_callback(
+    def create_cutecanvas_sam_warmup_callback(
         self,
         *,
         startup_cancelled: Callable[[], bool],
         registry: StartupWarmupRegistryProtocol,
         trace_fields: Callable[[], dict[str, object]],
     ) -> Callable[[], None]:
-        """Bind managed-ready launch state into delayed QPane SAM warmup."""
+        """Bind managed-ready launch state into delayed CuteCanvas SAM warmup."""
 
         warmup_callback: Callable[[], None] = (
-            self.runtime.create_qpane_sam_warmup_callback(
+            self.runtime.create_cutecanvas_sam_warmup_callback(
                 state=self.state.startup_warmup_state,
                 startup_cancelled=startup_cancelled,
                 registry=registry,

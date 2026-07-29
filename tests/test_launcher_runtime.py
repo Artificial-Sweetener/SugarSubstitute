@@ -118,7 +118,7 @@ def test_uv_runtime_provisioner_builds_managed_runtime_commands(tmp_path: Path) 
         [
             subprocess_path(layout.runtime_python),
             "-c",
-            "import PySide6; import qfluentwidgets; import qpane; import substitute",
+            "import PySide6; import qfluentwidgets; import cutecanvas; import substitute",
         ],
     ]
     assert all(

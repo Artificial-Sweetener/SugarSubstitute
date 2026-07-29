@@ -40,7 +40,7 @@ _EXPECTED_RUNTIME_DEPENDENCIES = frozenset(
         "pyside6",
         "pyside6-fluent-widgets",
         "pysidesix-frameless-window",
-        "qpane",
+        "cutecanvas",
         "requests",
         "truststore",
         "websocket-client",

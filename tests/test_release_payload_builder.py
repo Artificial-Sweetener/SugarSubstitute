@@ -392,12 +392,15 @@ def test_project_requirements_do_not_install_sugar_dsl() -> None:
     assert "sugar-dsl" not in requirements
 
 
-def test_project_requirements_pin_current_qpane_baseline() -> None:
-    """Frontend installer builds should require the supported QPane release."""
+def test_project_requirements_pin_cutecanvas_as_the_canvas_boundary() -> None:
+    """Frontend installs CuteCanvas and receives QPane through that package."""
 
     requirements = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8")
 
-    assert "qpane[mask,sam]==2.1.1" in requirements
+    assert "cutecanvas[sam]==0.1.1" in requirements
+    assert not any(
+        line.strip().lower().startswith("qpane") for line in requirements.splitlines()
+    )
 
 
 def _write_fixture_repo(tmp_path: Path) -> Path:
