@@ -43,7 +43,7 @@ from substitute.presentation.canvas.output.output_canvas_route_model import (
 
 
 class OutputCompareStatePresenter(Protocol):
-    """Build compare states from UI intent and QPane divider payloads."""
+    """Build compare states from UI intent and workspace presentation snapshots."""
 
     def state_for_enabled(
         self,
@@ -56,12 +56,12 @@ class OutputCompareStatePresenter(Protocol):
     def state_for_disabled(self, state: OutputCompareState) -> OutputCompareState:
         """Return the compare state for disabling compare mode."""
 
-    def state_from_qpane_change(
+    def state_from_presentation_change(
         self,
         state: OutputCompareState,
-        qpane_state: object,
+        presentation: object,
     ) -> OutputCompareState:
-        """Return compare state updated from a QPane comparison payload."""
+        """Return compare state updated from a workspace presentation snapshot."""
 
 
 class OutputComparePickerItem(Protocol):
@@ -172,13 +172,13 @@ class OutputCompareController:
             active_scene_key=self.active_scene_key(),
         )
 
-    def on_pane_comparison_changed(self, qpane_state: object) -> None:
-        """Store QPane divider changes in visible compare state."""
+    def on_workspace_presentation_changed(self, presentation: object) -> None:
+        """Store workspace divider changes in visible compare state."""
 
         state = self.visible_compare_state()
-        next_state = self.output_compare_presenter().state_from_qpane_change(
+        next_state = self.output_compare_presenter().state_from_presentation_change(
             state,
-            qpane_state,
+            presentation,
         )
         if next_state == state:
             return

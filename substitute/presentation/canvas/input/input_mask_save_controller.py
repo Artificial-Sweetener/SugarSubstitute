@@ -41,7 +41,7 @@ _LOGGER = get_logger("presentation.canvas.input.input_mask_save_controller")
 
 
 class SignalPort(Protocol):
-    """Describe a Qt-like signal used by QPane collaborators."""
+    """Describe a Qt-like signal used by Input document collaborators."""
 
     def connect(self, callback: Callable[..., object]) -> object:
         """Connect one callback to this signal."""
@@ -62,15 +62,11 @@ class TimerPort(Protocol):
         """Stop this timer."""
 
 
-class InputPanePort(Protocol):
-    """Describe QPane mask APIs consumed by the save controller."""
+class MaskImageExporterPort(Protocol):
+    """Describe public arbitrary-mask pixel export for host persistence."""
 
-    maskSaved: SignalPort
-    mask_controller: object
-    settings: object
-
-    def catalog(self) -> object:
-        """Return QPane catalog object."""
+    def __call__(self, mask_id: UUID) -> object | None:
+        """Return detached pixels for one mask without activating it."""
 
 
 class WorkflowSessionServicePort(Protocol):
@@ -111,12 +107,14 @@ class WorkflowInputCanvasServicePort(Protocol):
 
 
 class InputMaskSaveController:
-    """Persist dirty Input masks from QPane signals and generation preflight."""
+    """Persist dirty Input masks from CuteCanvas signals and generation preflight."""
 
     def __init__(
         self,
         *,
-        input_pane: InputPanePort,
+        mask_edit_signal: SignalPort,
+        mask_image_exporter: MaskImageExporterPort,
+        debounce_ms: int,
         dirty_tracker: InputMaskDirtyTracker,
         workflow_session_service: WorkflowSessionServicePort,
         canvas_io_service: CanvasIoServicePort,
@@ -124,11 +122,14 @@ class InputMaskSaveController:
         workflow_name_provider: Callable[[str], str],
         projects_dir_provider: Callable[[], Path],
         refresh_saved_mask: Callable[[str, str, str], None] | None = None,
+        mask_persisted: Callable[[UUID, str], None] | None = None,
         timer_factory: Callable[[object | None], TimerPort] | None = None,
     ) -> None:
-        """Store Input mask persistence collaborators and bind QPane signals."""
+        """Store Input mask persistence collaborators and bind edit observation."""
 
-        self._input_pane = input_pane
+        self._mask_edit_signal = mask_edit_signal
+        self._mask_image_exporter = mask_image_exporter
+        self._debounce_ms = max(0, debounce_ms)
         self._dirty_tracker = dirty_tracker
         self._workflow_session_service = workflow_session_service
         self._canvas_io_service = canvas_io_service
@@ -136,10 +137,10 @@ class InputMaskSaveController:
         self._workflow_name_provider = workflow_name_provider
         self._projects_dir_provider = projects_dir_provider
         self._refresh_saved_mask = refresh_saved_mask
+        self._mask_persisted = mask_persisted
         self._timer_factory = timer_factory or self._create_qtimer
         self._save_timers: dict[UUID, TimerPort] = {}
-        self._mask_update_signal_bound = False
-        self._bind_qpane_signals()
+        self._mask_edit_signal.connect(self.handle_mask_updated)
 
     @staticmethod
     def _create_qtimer(_parent: object | None) -> TimerPort:
@@ -173,16 +174,6 @@ class InputMaskSaveController:
 
         workflow_name = self._workflow_name_provider(workflow_id)
         projects_dir = self._projects_dir_provider()
-        if not self._mask_update_signal_bound:
-            log_error(
-                _LOGGER,
-                "Cannot flush dirty input masks because dirty-state source is unavailable",
-                workflow_id=workflow_id,
-                workflow_name=workflow_name,
-                associated_mask_count=len(mask_associations),
-                failure_reason="missing_dirty_state_source",
-            )
-            return False
         log_info(
             _LOGGER,
             "Pre-generation dirty mask flush starting",
@@ -250,21 +241,21 @@ class InputMaskSaveController:
         return all_flushed
 
     def handle_mask_save_completed(self, mask_id: object, path: str) -> None:
-        """Clear dirty state when QPane reports a completed mask save."""
+        """Clear dirty state when an explicit host save has completed."""
 
         resolved_mask_id = self._dirty_tracker.resolve_mask_id(mask_id)
         if resolved_mask_id is None:
             log_warning(
                 _LOGGER,
-                "Ignoring QPane mask save completion with invalid mask id",
+                "Ignoring Input mask save completion with invalid mask id",
                 mask_id=str(mask_id),
                 path=path,
             )
             return
-        self._mark_persisted(resolved_mask_id, path=path, reason="pane_mask_saved")
+        self._mark_persisted(resolved_mask_id, path=path, reason="host_mask_saved")
         log_debug(
             _LOGGER,
-            "Input mask save controller observed QPane maskSaved signal",
+            "Input mask save controller observed host mask save completion",
             mask_id=str(resolved_mask_id),
             path=path,
         )
@@ -291,7 +282,7 @@ class InputMaskSaveController:
             )
             self._save_timers[resolved_mask_id] = timer
             created_timer = True
-        debounce_ms = self._mask_autosave_debounce_ms()
+        debounce_ms = self._debounce_ms
         log_info(
             _LOGGER,
             "Input mask update scheduled debounced save",
@@ -351,34 +342,6 @@ class InputMaskSaveController:
             reason="debounced_save_request",
             refresh_picker=True,
         )
-
-    def _bind_qpane_signals(self) -> None:
-        """Connect QPane mask update and save signals to controller handlers."""
-
-        controller = getattr(self._input_pane, "mask_controller", None)
-        mask_updated = getattr(controller, "mask_updated", None)
-        connect_mask_updated = getattr(mask_updated, "connect", None)
-        if callable(connect_mask_updated):
-            connect_mask_updated(self.handle_mask_updated)
-            self._mask_update_signal_bound = True
-            log_info(_LOGGER, "Input mask save controller bound mask_updated signal")
-        else:
-            log_warning(
-                _LOGGER,
-                "Input mask save controller could not bind mask_updated signal",
-                has_controller=controller is not None,
-            )
-
-        mask_saved = getattr(self._input_pane, "maskSaved", None)
-        connect_mask_saved = getattr(mask_saved, "connect", None)
-        if callable(connect_mask_saved):
-            connect_mask_saved(self.handle_mask_save_completed)
-            log_info(_LOGGER, "Input mask save controller bound maskSaved signal")
-        else:
-            log_warning(
-                _LOGGER,
-                "Input mask save controller could not bind maskSaved signal",
-            )
 
     def _persist_associated_mask(
         self,
@@ -536,6 +499,8 @@ class InputMaskSaveController:
             return False
 
         self._mark_persisted(mask_id, path=str(path), reason=reason)
+        if self._mask_persisted is not None:
+            self._mask_persisted(mask_id, str(path))
         if refresh_picker and self._refresh_saved_mask is not None:
             self._refresh_saved_mask(cube_alias, node_name, str(path))
         log_debug(
@@ -615,40 +580,14 @@ class InputMaskSaveController:
                 stop()
 
     def _mask_image(self, mask_id: UUID) -> object | None:
-        """Return non-null QPane mask image for one mask identifier."""
+        """Return exported pixels for one mask without changing visible state."""
 
-        catalog = getattr(self._input_pane, "catalog", None)
-        if not callable(catalog):
-            return None
-        mask_catalog = catalog()
-        mask_manager = (
-            getattr(mask_catalog, "maskManager", lambda: None)()
-            if mask_catalog is not None
-            else None
-        )
-        get_layer = getattr(mask_manager, "get_layer", None)
-        if not callable(get_layer):
-            return None
-        layer = get_layer(mask_id)
-        if layer is None:
-            return None
-        mask_image = getattr(layer, "mask_image", None)
+        mask_image = self._mask_image_exporter(mask_id)
         is_null = getattr(mask_image, "isNull", None)
         if mask_image is None or (callable(is_null) and bool(is_null())):
             return None
         image: object = mask_image
         return image
-
-    def _mask_autosave_debounce_ms(self) -> int:
-        """Resolve QPane mask autosave debounce delay with a safe fallback."""
-
-        settings = getattr(self._input_pane, "settings", None)
-        delay = getattr(settings, "mask_autosave_debounce_ms", 2000)
-        try:
-            resolved = int(delay)
-        except (TypeError, ValueError):
-            resolved = 2000
-        return max(0, resolved)
 
     @staticmethod
     def _mask_associations(workflow: object) -> Mapping[object, object]:

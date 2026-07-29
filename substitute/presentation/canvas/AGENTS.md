@@ -4,12 +4,13 @@
 
 This file governs work under `substitute/presentation/canvas/`.
 
-It adds canvas-specific engineering rules for Input canvas, Output canvas, QPane
-hosting, canvas tabs, projection, routing, visual event handling, mask handling,
-and canvas lifecycle code. Repository-level `AGENTS.md` still applies.
+It adds canvas-specific engineering rules for Input canvas, Output canvas,
+CuteCanvas documents and hosting, canvas tabs, projection, routing, visual event
+handling, mask handling, and canvas lifecycle code. Repository-level `AGENTS.md`
+still applies.
 
 Canvas-related edits outside this folder must honor this file when the edit
-changes canvas behavior, canvas state ownership, QPane usage, backend visual
+changes canvas behavior, canvas state ownership, CuteCanvas usage, backend visual
 event handling, input image loading, mask loading, workflow switching, or
 canvas-host lifecycle behavior.
 
@@ -34,7 +35,7 @@ Document the canvas product and code as they exist now.
   are current behavior.
 - Do not describe removed features, imagined alternatives, or non-existent
   choices as current product behavior.
-- Do not use documentation to weaken backend identity requirements, QPane
+- Do not use documentation to weaken backend identity requirements, CuteCanvas
   ownership rules, or input mask correctness rules.
 
 ## Canvas Mission
@@ -42,10 +43,11 @@ Document the canvas product and code as they exist now.
 The canvas system must make wrong-workflow, wrong-canvas, and wrong-image
 placement bugs structurally impossible.
 
-The application uses one Input QPane and one Output QPane. QPane retains images
-for speed and rendering continuity. Workflow switching changes the active
-session, projection, and route binding; it must not depend on unloading and
-reloading QPane catalog entries.
+The application uses CuteCanvas as its sole canvas abstraction. Input and Output
+are separate CuteCanvas documents/presentations within the shared canvas system;
+CuteCanvas owns retained rendering and cache continuity. Workflow switching
+changes the active session, projection, and route binding; it must not depend on
+discarding CuteCanvas document content or native renderer cache entries.
 
 The canvas system must feel stable and immediate under normal and large
 workflows. Generated output routing, preview updates, scene composition, input
@@ -71,13 +73,13 @@ Output canvas behavior includes:
 Input canvas behavior includes:
 
 - Editor-panel `LoadImage` and `LoadImageMask` materialization.
-- Direct QPane image loads and reconciliation while preserving QPane image
-  UUIDs.
+- Direct CuteCanvas image loads and reconciliation while preserving CuteCanvas
+  image identities.
 - Loaded-cube materialization for the active workflow only.
 - Graph-backed image and mask binding through the workflow canvas state and
   cube mask binding services.
 - Mask activation through the owning input image.
-- Wrong-size mask rejection or replacement before asset state or QPane pixels
+- Wrong-size mask rejection or replacement before asset state or CuteCanvas pixels
   are updated.
 - Dirty associated mask flushing before generation, with fail-closed generation
   behavior when persistence fails.
@@ -95,9 +97,10 @@ Host behavior includes:
 
 Keep one authoritative owner per concern.
 
-- Canvas widgets own PySide6/QPane integration, layout, focus, sizing,
+- Canvas widgets own PySide6/CuteCanvas integration, layout, focus, sizing,
   visibility, signals, controls, and user-intent forwarding.
-- Shared canvas presentation infrastructure owns QPane host lifecycle, common
+- Shared canvas presentation infrastructure owns CuteCanvas document/presentation
+  lifecycle, common
   geometry, tab activation, projection scheduling, route application, and visual
   focus behavior shared by Input and Output canvas.
 - Application services own workflow coordination, editor-panel materialization,
@@ -105,12 +108,12 @@ Keep one authoritative owner per concern.
 - Domain code owns pure identity, membership, activation, visibility, graph
   binding, and placement policy.
 - Infrastructure/adapters own backend websocket payloads, Comfy integration,
-  filesystem IO, media loading, QPane catalog operations, and QPane route
-  operations.
+  filesystem IO, and media loading. CuteCanvas owns native catalog/cache and
+  route operations behind its public API.
 
 Do not create parallel owners for active workflow, canvas membership, output
-image identity, input image identity, mask ownership, QPane catalog state,
-projection state, route state, or focus state. If a change appears to require
+image identity, input image identity, mask ownership, CuteCanvas document/cache
+state, projection state, route state, or focus state. If a change appears to require
 duplicated ownership, correct the ownership boundary as part of the change.
 
 ## Shared Canvas Infrastructure
@@ -119,9 +122,9 @@ Input and Output canvas must share infrastructure where the concern is the same.
 
 Shared concerns include:
 
-- QPane host lifecycle.
-- QPane catalog adaptation.
-- QPane route and composition projection.
+- CuteCanvas document/presentation lifecycle.
+- CuteCanvas content and cache adaptation through its public API.
+- CuteCanvas route and composition projection.
 - Workflow session activation.
 - Tab activation and visibility.
 - Focus and selection presentation.
@@ -136,27 +139,30 @@ Distinct concerns must stay distinct:
 - Input mask correctness must not be modeled as generated output routing.
 - Output preview/final correctness must not be modeled as graph image loading.
 
-## QPane Usage Rules
+## CuteCanvas Usage Rules
 
-Use QPane as a retained visual catalog and renderer.
+Use CuteCanvas as the retained document, rendering, interaction, and cache
+boundary. QPane is a private CuteCanvas implementation dependency and must not
+appear in SugarSubstitute production canvas code.
 
-- Do not create one QPane instance per workflow.
-- Do not unload QPane catalog entries as the mechanism for workflow switching
-  correctness.
-- Do not treat QPane catalog membership as workflow membership.
-- Do not use current QPane image or composition state as the authoritative
-  source of domain membership.
-- Keep catalog operations in a catalog adapter or equivalent infrastructure
-  owner.
-- Keep display, route, scene, comparison, and composition operations in a route
-  projector or equivalent presentation/application owner.
-- Use deterministic composition and route identities for host-owned scenes.
-- Validate layered scene state through QPane composition APIs rather than
-  guessing from the current image ID alone.
-- Use QPane public APIs. Do not reach through private implementation details.
+- Do not create one CuteCanvas canvas system per workflow.
+- Do not discard CuteCanvas document content or cache entries as the mechanism
+  for workflow-switch correctness.
+- Do not treat CuteCanvas content membership as workflow membership.
+- Do not use current CuteCanvas image, composition, or inspection state as the
+  authoritative source of domain membership.
+- Keep SugarSubstitute's content submission and presentation selection in their
+  narrow application/presentation owners; let CuteCanvas own native cache,
+  composition, route, viewport, and renderer operations.
+- Use deterministic document, content, presentation, and route identities for
+  host-owned scenes.
+- Validate layered scene state through CuteCanvas public document/presentation
+  APIs rather than guessing from the current image ID alone.
+- Use only CuteCanvas public APIs. Do not reach through native or private
+  implementation details.
 
-QPane should stay warm across workflow switches. Correctness comes from the
-active canvas session and route projection, not from clearing retained images.
+CuteCanvas stays warm across workflow switches. Correctness comes from the
+active canvas session and route projection, not from clearing retained content.
 
 ## Backend Visual Event Rules
 
@@ -188,8 +194,8 @@ Input canvas correctness is graph-driven and workflow-asset-driven.
 - Editor-panel `LoadImage` and `LoadImageMask` interactions must flow through
   the workflow input canvas application service after presentation intent is
   captured.
-- Direct QPane image loads must reconcile into workflow canvas state without
-  replacing the QPane-provided image UUID.
+- Direct CuteCanvas image loads must reconcile into workflow canvas state without
+  replacing the CuteCanvas-provided image identity.
 - Input image identity must use the workflow canvas state's authoritative input
   keys.
 - Mask ownership must use the workflow canvas state's mask-to-image mapping.
@@ -198,14 +204,14 @@ Input canvas correctness is graph-driven and workflow-asset-driven.
 - Ambiguous mask bindings must be rejected rather than guessed.
 - Loaded-cube materialization must apply to the active workflow only.
 - User-selected wrong-size masks must be rejected or replaced before asset
-  state, QPane pixels, or editor-panel picker state are updated.
+  state, CuteCanvas pixels, or editor-panel picker state are updated.
 - Dirty masks associated with generation inputs must be persisted before
   generation starts; failed persistence blocks generation.
 - Editor-panel mask picker state must refresh from authoritative asset state,
   not widget-local path memory.
 
 Input canvas code must not infer graph bindings from visible labels, widget
-focus, current tab, or QPane catalog contents.
+focus, current tab, or CuteCanvas content/cache state.
 
 ## Large File And Class Rules
 
@@ -215,13 +221,13 @@ to add more behavior.
 When touching a large canvas file, first identify the responsibility being
 changed and move new or changed behavior to the narrow owner for that concern.
 Do not add new policy, routing, ingress, graph binding, mask persistence, or
-QPane orchestration code to monolithic widgets as a shortcut.
+CuteCanvas orchestration code to monolithic widgets as a shortcut.
 
 Split by responsibility and reason to change:
 
 - Host lifecycle.
-- QPane catalog adaptation.
-- QPane route projection.
+- CuteCanvas document/cache adaptation.
+- CuteCanvas route projection.
 - Workflow session state.
 - Output visual ingress.
 - Output preview registry.
@@ -238,11 +244,11 @@ call sites, remove obsolete code paths, and make the new structure look native.
 
 Responsiveness is an architectural requirement.
 
-- Workflow switching must remain cheap because QPane stays warm.
+- Workflow switching must remain cheap because CuteCanvas stays warm.
 - Paint, resize, focus, tab-switch, selection, and hover paths must consume
   prepared state.
 - Do not perform filesystem IO, network IO, backend calls, image decoding,
-  expensive QPane work, full output projection rebuilds, or graph materialization
+  expensive CuteCanvas work, full output projection rebuilds, or graph materialization
   directly inside hot GUI paths unless the work is proven trivial and covered by
   tests.
 - Coalesce expensive generated-output projection work while preserving immediate
@@ -253,9 +259,9 @@ Responsiveness is an architectural requirement.
 Performance work must not reduce canvas correctness or remove existing canvas
 capabilities.
 
-## PySide6 And QPane Rules
+## PySide6 And CuteCanvas Rules
 
-- Keep Qt and QPane objects in presentation or adapter layers unless there is a
+- Keep Qt and CuteCanvas objects in presentation or adapter layers unless there is a
   deliberate boundary.
 - Keep domain logic free of Qt objects where feasible.
 - Keep event filters, signal connections, and deferred callbacks owned,
@@ -283,10 +289,10 @@ Coverage must include the relevant behavior when touched:
 - Backend final image routing.
 - Source, set, scene, grid, overview, and compare projection.
 - Preview retirement and final replacement.
-- QPane route and composition application.
-- Workflow switching without QPane catalog unloading.
+- CuteCanvas route and composition application.
+- Workflow switching without CuteCanvas cache/content disposal.
 - Editor-panel `LoadImage` materialization.
-- Direct QPane image reconciliation with UUID preservation.
+- Direct CuteCanvas image reconciliation with identity preservation.
 - Editor-panel `LoadImageMask` activation through the owning image.
 - Ambiguous mask binding rejection.
 - Loaded-cube materialization for the active workflow only.
@@ -321,9 +327,9 @@ logs for unexpected user-visible failures.
 
 Avoid these in canvas code:
 
-- Creating one QPane per workflow.
-- Unloading QPane catalog entries for workflow-switch correctness.
-- Treating QPane catalog membership as workflow membership.
+- Creating one CuteCanvas canvas system per workflow.
+- Disposing CuteCanvas content or cache entries for workflow-switch correctness.
+- Treating CuteCanvas content/cache membership as workflow membership.
 - Routing backend images by active tab, focused widget, selected workflow,
   arrival order, display label, or node title.
 - Letting widgets own durable canvas state, output membership, or graph binding
@@ -336,7 +342,7 @@ Avoid these in canvas code:
   dumping grounds for new behavior.
 - Adding internal compatibility shims instead of updating call sites and
   removing obsolete code.
-- Performing filesystem, backend, image decode, or expensive QPane work in hot
+- Performing filesystem, backend, image decode, or expensive CuteCanvas work in hot
   GUI paths.
 - Swallowing exceptions broadly or silently dropping rejected visual events
   without actionable logging.

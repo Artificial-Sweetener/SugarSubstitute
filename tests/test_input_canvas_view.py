@@ -36,13 +36,13 @@ from substitute.presentation.widgets.menu_model import (
     MenuSeparator,
 )
 
-_input_canvas_qpane_features = cast(
+_input_canvas_cutecanvas_features = cast(
     Callable[[], tuple[str, ...]],
-    getattr(input_mod, "_input_canvas_qpane_features"),
+    getattr(input_mod, "_input_canvas_cutecanvas_features"),
 )
 
 
-def test_input_canvas_qpane_features_keep_sam_by_default(
+def test_input_canvas_features_keep_sam_by_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Input canvas should keep SAM enabled outside diagnostic harness runs."""
@@ -50,10 +50,10 @@ def test_input_canvas_qpane_features_keep_sam_by_default(
     monkeypatch.delenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", raising=False)
     monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
 
-    assert _input_canvas_qpane_features() == ("mask", "sam")
+    assert _input_canvas_cutecanvas_features() == ("mask", "sam")
 
 
-def test_input_canvas_qpane_features_can_defer_sam_for_harness(
+def test_input_canvas_features_can_defer_sam_for_harness(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Startup harness diagnostics may measure Input canvas without eager SAM."""
@@ -61,16 +61,16 @@ def test_input_canvas_qpane_features_can_defer_sam_for_harness(
     monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
     monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
 
-    assert _input_canvas_qpane_features() == ("mask",)
+    assert _input_canvas_cutecanvas_features() == ("mask",)
 
 
 def test_set_available_false_disables_pane_and_shows_overlay() -> None:
-    """Unavailable input canvas should disable QPane without clearing mask state."""
+    """Unavailable input canvas should disable CuteCanvas without clearing mask state."""
 
     enabled_calls: list[bool] = []
     overlay_calls: list[tuple[str, object]] = []
     fake = SimpleNamespace(
-        pane=SimpleNamespace(setEnabled=lambda value: enabled_calls.append(value)),
+        canvas=SimpleNamespace(setEnabled=lambda value: enabled_calls.append(value)),
         _availability_overlay=SimpleNamespace(
             setText=lambda text: overlay_calls.append(("text", text)),
             setGeometry=lambda rect: overlay_calls.append(("geometry", rect)),
@@ -93,12 +93,12 @@ def test_set_available_false_disables_pane_and_shows_overlay() -> None:
 
 
 def test_set_available_true_enables_pane_and_hides_overlay() -> None:
-    """Available input canvas should re-enable QPane and hide the empty state."""
+    """Available input canvas should re-enable CuteCanvas and hide the empty state."""
 
     enabled_calls: list[bool] = []
     overlay_calls: list[str] = []
     fake = SimpleNamespace(
-        pane=SimpleNamespace(setEnabled=lambda value: enabled_calls.append(value)),
+        canvas=SimpleNamespace(setEnabled=lambda value: enabled_calls.append(value)),
         _availability_overlay=SimpleNamespace(
             hide=lambda: overlay_calls.append("hide")
         ),
@@ -110,31 +110,18 @@ def test_set_available_true_enables_pane_and_hides_overlay() -> None:
     assert overlay_calls == ["hide"]
 
 
-def test_on_pane_mask_saved_relays_save_completion() -> None:
-    """Pane maskSaved should relay as the app-facing save-completed signal."""
-
-    signal = _Signal()
-    fake = SimpleNamespace(inputMaskSaved=signal)
-
-    cast(Any, input_mod.InputCanvas)._on_pane_mask_saved(
-        fake, "mask-1", "E:/masks/mask.png"
-    )
-
-    assert signal.calls == [("mask-1", "E:/masks/mask.png")]
-
-
-def test_on_pane_image_loaded_relays_active_image_id() -> None:
-    """Pane imageLoaded should include the current image UUID for graph lookup."""
+def test_on_image_materialized_relays_host_owned_image_identity() -> None:
+    """Document materialization should relay its explicit application identity."""
 
     image_id = uuid4()
     signal = _Signal()
     fake = SimpleNamespace(
-        pane=SimpleNamespace(currentImageID=lambda: image_id),
-        _route_projector=SimpleNamespace(loaded_image_id_for_event=lambda: image_id),
         inputImageLoaded=signal,
     )
 
-    cast(Any, input_mod.InputCanvas)._on_pane_image_loaded(fake, "E:/images/input.png")
+    cast(Any, input_mod.InputCanvas)._on_image_materialized(
+        fake, image_id, "E:/images/input.png"
+    )
 
     assert signal.calls == [(image_id, "E:/images/input.png")]
 
@@ -147,13 +134,13 @@ def test_context_menu_adds_separator_and_dock_action(
     _install_fake_canvas_menu(monkeypatch)
 
     dock_signal = _Signal()
-    pane = SimpleNamespace(
+    canvas = SimpleNamespace(
         mapToGlobal=lambda pos: ("global", pos),
     )
     state_requested = _Signal()
     mode_requested = _Signal()
     fake = SimpleNamespace(
-        pane=pane,
+        canvas=canvas,
         maskToolMenuStateRequested=state_requested,
         maskToolModeRequested=mode_requested,
         _mask_tool_menu_state=InputMaskToolMenuState(

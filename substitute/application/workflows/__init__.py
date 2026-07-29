@@ -91,8 +91,7 @@ if TYPE_CHECKING:
     )
     from substitute.application.workflows.output_canvas_projection_coordinator import (
         OutputCanvasProjectionCoordinator,
-        OutputProjectionCatalogWarmer,
-        OutputProjectionPayloadHydrator,
+        OutputProjectionContentSynchronizer,
     )
     from substitute.application.workflows.output_canvas_session import (
         OutputCanvasSession,
@@ -381,10 +380,7 @@ _EXPORT_MODULES = {
     "OutputProjectionSchedulingIntent": (
         "substitute.application.workflows.output_canvas_state_service"
     ),
-    "OutputProjectionCatalogWarmer": (
-        "substitute.application.workflows.output_canvas_projection_coordinator"
-    ),
-    "OutputProjectionPayloadHydrator": (
+    "OutputProjectionContentSynchronizer": (
         "substitute.application.workflows.output_canvas_projection_coordinator"
     ),
     "OutputPruneResult": (
@@ -586,8 +582,7 @@ __all__ = [
     "OutputPreviewRegistry",
     "OutputPreviewRejectionReason",
     "OutputProjectionSchedulingIntent",
-    "OutputProjectionCatalogWarmer",
-    "OutputProjectionPayloadHydrator",
+    "OutputProjectionContentSynchronizer",
     "OutputPruneResult",
     "OutputSceneIdentity",
     "OutputSceneRunService",

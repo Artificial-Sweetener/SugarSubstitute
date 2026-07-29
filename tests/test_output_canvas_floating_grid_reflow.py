@@ -21,7 +21,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import QRectF
 import pytest
 
 from substitute.presentation.canvas.host.floating_canvas_window import (
@@ -45,6 +44,9 @@ def test_floating_and_docked_hosts_choose_same_physical_grid_topology(
     harness = RealShellOutputCanvasHarness(output_root=tmp_path)
     window: FloatingCanvasWindow | None = None
     try:
+        harness.shell.resize(1200, 800)
+        harness.shell.show()
+        harness.process_events(cycles=8)
         harness.add_workflow("alpha", activate=True)
         run = harness.start_run("alpha")
         for index in range(5):
@@ -61,11 +63,11 @@ def test_floating_and_docked_hosts_choose_same_physical_grid_topology(
             )
         harness.wait_for_output_count("alpha", 5)
         harness.wait_until(
-            lambda: harness.fingerprint().pane_current_composition_id is not None
+            lambda: harness.fingerprint().active_composition_id is not None
         )
         canvas = harness.shell.output_canvas
-        extent = QRectF(0.0, 0.0, 1000.0, 500.0)
-        canvas.pane.viewportRectChanged.emit(extent)
+        canvas.resize(1000, 500)
+        canvas.workspace.resize(1000, 500)
         harness.drain_events_for(30)
         docked = harness.fingerprint()
 
@@ -78,16 +80,14 @@ def test_floating_and_docked_hosts_choose_same_physical_grid_topology(
         window.resize(1000, 500)
         window.show()
         harness.process_events(cycles=8)
-        canvas.pane.viewportRectChanged.emit(extent)
+        canvas.workspace.resize(1000, 500)
         harness.drain_events_for(30)
         floating = harness.fingerprint()
 
         assert _topology(floating) == _topology(docked)
-        assert floating.pane_current_composition_id == (
-            docked.pane_current_composition_id
-        )
-        assert [placement[0] for placement in floating.scene_layer_placements] == [
-            placement[0] for placement in docked.scene_layer_placements
+        assert floating.active_composition_id == (docked.active_composition_id)
+        assert [placement[0] for placement in floating.grid_target_frames] == [
+            placement[0] for placement in docked.grid_target_frames
         ]
     finally:
         if window is not None:
@@ -98,7 +98,7 @@ def test_floating_and_docked_hosts_choose_same_physical_grid_topology(
 def _topology(fingerprint: object) -> tuple[int, int]:
     """Infer row and column counts from public scene layer placements."""
 
-    placements = getattr(fingerprint, "scene_layer_placements", ())
+    placements = getattr(fingerprint, "grid_target_frames", ())
     x_values = {round(float(placement[2]), 6) for placement in placements}
     y_values = {round(float(placement[3]), 6) for placement in placements}
     return len(x_values), len(y_values)

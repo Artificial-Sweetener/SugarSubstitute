@@ -27,7 +27,7 @@ from substitute.presentation.canvas.output.output_canvas_navigation_controller i
     sync_output_scene_selector_button,
     sync_output_source_selector_button,
 )
-from substitute.presentation.canvas.output.output_compare_projection_presenter import (
+from substitute.presentation.canvas.output.output_compare_navigation_chrome import (
     sync_output_comparison_navigation_buttons,
 )
 

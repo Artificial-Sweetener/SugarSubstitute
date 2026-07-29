@@ -25,6 +25,7 @@ from typing import cast
 from uuid import UUID
 
 from PySide6.QtWidgets import QWidget
+from cutecanvas import ExecutionRuntime
 
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
@@ -68,6 +69,7 @@ def create_output_floating_chrome_factory(
 
 def create_canvas_tabs(
     *,
+    execution_runtime: ExecutionRuntime | None = None,
     output_preview_registry: OutputPreviewRegistry,
     open_single_external_editor: (
         Callable[[object, OutputImageMeta], bool] | None
@@ -107,12 +109,16 @@ def create_canvas_tabs(
     with trace_span("canvas_tabs.create.input_canvas"):
         input_canvas = cast(
             QWidget,
-            InputCanvas(route_session_boundary=route_session_boundary),
+            InputCanvas(
+                execution_runtime=execution_runtime,
+                route_session_boundary=route_session_boundary,
+            ),
         )
     with trace_span("canvas_tabs.create.output_canvas"):
         output_canvas = cast(
             QWidget,
             OutputCanvas(
+                execution_runtime=execution_runtime,
                 preview_registry=output_preview_registry,
                 open_single_external_editor=open_single_external_editor,
                 open_all_external_editor=open_all_external_editor,

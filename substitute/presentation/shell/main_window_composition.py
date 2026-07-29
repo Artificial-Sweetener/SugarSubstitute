@@ -658,7 +658,8 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         graph_section_service=shell.graph_section_service,
     )
     input_mask_tool_controller = InputMaskToolController(
-        input_pane=input_canvas.pane,
+        input_document=input_canvas.document,
+        control_mode_setter=input_canvas.document.set_mask_tool_mode,
         current_image_id_provider=input_canvas.current_image_id_for_event,
         menu_state_sink=input_canvas.set_mask_tool_menu_state,
     )
@@ -670,7 +671,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     )
     input_canvas_shell_adapter = InputCanvasShellAdapter(shell)
     input_canvas_presenter = InputCanvasPresenter(
-        input_pane=input_canvas.pane,
+        input_document=input_canvas.document,
         current_image_id_provider=input_canvas.current_image_id_for_event,
         active_workflow_provider=shell.get_active_workflow,
         active_editor_panel_provider=lambda: shell.active_editor_panel,
@@ -700,7 +701,9 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         )
 
     input_mask_save_controller = InputMaskSaveController(
-        input_pane=input_canvas.pane,
+        mask_edit_signal=input_canvas.canvas.maskUndoStackChanged,
+        mask_image_exporter=input_canvas.document.export_mask_image,
+        debounce_ms=2000,
         dirty_tracker=input_mask_dirty_tracker,
         workflow_session_service=shell.workflow_session_service,
         canvas_io_service=shell.canvas_io_service,
@@ -708,6 +711,9 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
         projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
         refresh_saved_mask=refresh_saved_input_mask,
+        mask_persisted=lambda mask_id, path: input_canvas.inputMaskSaved.emit(
+            str(mask_id), path
+        ),
     )
     input_canvas_capability_service = InputCanvasCapabilityService(
         shell.input_canvas_plan_service,

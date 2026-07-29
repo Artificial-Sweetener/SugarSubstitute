@@ -19,15 +19,19 @@
 from __future__ import annotations
 
 from pathlib import Path
-
-from PySide6.QtCore import QPoint, QRectF
+from uuid import UUID
 
 import os
 from collections.abc import Iterator
-from typing import Any, cast
 
 import pytest
+from cutecanvas import CanvasPresentationKind, ResponsiveGridSnapshot
+from pytest import approx
 
+from substitute.application.workflows.output_compare_state import (
+    OutputCompareSelection,
+    OutputCompareState,
+)
 from tests.support.real_output_canvas.harness import RealShellOutputCanvasHarness
 from tests.support.real_output_canvas.models import (
     OutputSpec,
@@ -36,7 +40,7 @@ from tests.support.real_output_canvas.models import (
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
-        "real Output QPane shell harness requires non-xdist execution on Windows",
+        "real Output CuteCanvas shell harness requires non-xdist execution on Windows",
         allow_module_level=True,
     )
 
@@ -55,7 +59,7 @@ def harness(tmp_path: Path) -> Iterator[RealShellOutputCanvasHarness]:
 def test_active_workflow_final_output_displays_on_output_canvas(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
-    """Display a generated image for the selected workflow on the real QPane."""
+    """Display a generated image for the selected workflow on the real workspace."""
 
     harness.add_workflow("alpha", activate=True)
     run = harness.start_run("alpha")
@@ -166,7 +170,7 @@ def test_active_output_generated_while_output_canvas_hidden_projects_when_resele
     assert not state_while_hidden.active_canvas_visible
 
     harness.show_canvas("Output")
-    harness.wait_until(lambda: not harness.fingerprint().current_image_is_null)
+    harness.wait_until(lambda: not harness.fingerprint().active_image_is_null)
 
     harness.assert_showing_workflow("alpha", color=(150, 90, 25))
 
@@ -203,9 +207,7 @@ def test_scene_batch_outputs_project_as_scene_composition(
         ),
     )
     harness.wait_for_output_count("alpha", 2)
-    harness.wait_until(
-        lambda: harness.fingerprint().pane_current_composition_id is not None
-    )
+    harness.wait_until(lambda: harness.fingerprint().active_composition_id is not None)
 
     harness.assert_scene_composition_for_workflow("alpha")
 
@@ -227,8 +229,8 @@ def test_stale_final_after_newer_run_does_not_register_or_display(
 
     assert harness.output_count("alpha") == 0
     state = harness.fingerprint()
-    assert state.pane_current_image_id is None
-    assert state.pane_current_composition_id is None
+    assert state.active_image_id is None
+    assert state.active_composition_id is None
 
 
 def test_preview_final_interleaving_retires_preview_and_displays_final(
@@ -642,9 +644,9 @@ def test_clear_active_output_with_visible_preview_removes_preview_and_route(
     harness.wait_until(lambda: harness.preview_count() == 0)
 
     state = harness.fingerprint()
-    assert state.pane_current_image_id is None, state
-    assert state.pane_current_composition_id is None, state
-    assert state.current_image_is_null, state
+    assert state.active_image_id is None, state
+    assert state.active_composition_id is None, state
+    assert state.active_image_is_null, state
 
 
 def test_clearing_inactive_workflow_does_not_clear_active_output_or_preview(
@@ -758,16 +760,16 @@ def test_unequal_scene_sources_navigate_exact_batches_and_grid(
         scene_key="scene3",
         source_key="alpha:upscale",
     )[0]
-    harness.wait_until(lambda: len(harness.fingerprint().scene_layer_placements) == 3)
+    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 3)
     scene_overview = harness.fingerprint()
     assert scene3_upscale_id in {
-        placement[1] for placement in scene_overview.scene_layer_placements
+        placement[1] for placement in scene_overview.grid_target_frames
     }
 
     harness.click_canvas_image(scene3_upscale_id)
     harness.wait_until(
         lambda: (
-            {placement[1] for placement in harness.fingerprint().scene_layer_placements}
+            {placement[1] for placement in harness.fingerprint().grid_target_frames}
             == set(scene3_text_ids)
         )
     )
@@ -778,11 +780,11 @@ def test_unequal_scene_sources_navigate_exact_batches_and_grid(
     assert workflow.active_output_source_key == "alpha:text"
     assert workflow.active_output_set_index == 0
     assert workflow.active_output_uuid is None
-    assert batch_grid.pane_current_composition_id is not None
+    assert batch_grid.active_composition_id is not None
 
     harness.click_canvas_image(scene3_text_ids[1])
     harness.wait_until(
-        lambda: harness.fingerprint().pane_current_image_id == scene3_text_ids[1]
+        lambda: harness.fingerprint().active_image_id == scene3_text_ids[1]
     )
     assert workflow.active_output_source_key == "alpha:text"
     assert workflow.active_output_set_index == 2
@@ -791,20 +793,20 @@ def test_unequal_scene_sources_navigate_exact_batches_and_grid(
     assert harness.output_set_picker_keys() == ("0", "1", "2", "3")
     harness.select_output_set(3)
     harness.wait_until(
-        lambda: harness.fingerprint().pane_current_image_id == scene3_text_ids[2]
+        lambda: harness.fingerprint().active_image_id == scene3_text_ids[2]
     )
     assert workflow.active_output_set_index == 3
     assert workflow.active_output_uuid == scene3_text_ids[2]
 
     assert harness.output_set_picker_keys() == ("0", "1", "2", "3")
     harness.select_output_set(0)
-    harness.wait_until(lambda: len(harness.fingerprint().scene_layer_placements) == 3)
+    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 3)
     grid_state = harness.fingerprint()
     assert workflow.active_output_source_key == "alpha:text"
     assert workflow.active_output_set_index == 0
     assert workflow.active_output_uuid is None
-    assert grid_state.pane_current_composition_id is not None
-    assert {placement[1] for placement in grid_state.scene_layer_placements} == set(
+    assert grid_state.active_composition_id is not None
+    assert {placement[1] for placement in grid_state.grid_target_frames} == set(
         scene3_text_ids
     )
 
@@ -861,32 +863,70 @@ def test_source_grid_reflows_between_tall_and_wide_qpane_viewports(
     harness.shell.output_canvas.activeOutputGridChanged.emit("shared")
     harness.process_events(cycles=8)
 
-    pane = harness.shell.output_canvas.pane
     harness.set_output_viewport_extent(420.0, 1000.0)
     harness.wait_until(lambda: _grid_dimensions(harness.fingerprint()) == (1, 2))
     tall = harness.fingerprint()
-    target_image_id = tall.scene_layer_placements[0][1]
-    tall_hit = _scene_hit_for_image(pane, target_image_id)
-
     harness.set_output_viewport_extent(1200.0, 420.0)
     harness.wait_until(lambda: _grid_dimensions(harness.fingerprint()) == (2, 1))
     wide = harness.fingerprint()
-    wide_hit = _scene_hit_for_image(pane, target_image_id)
 
-    assert tall.pane_current_composition_id == wide.pane_current_composition_id
-    assert [layer[0] for layer in tall.scene_layer_placements] == [
-        layer[0] for layer in wide.scene_layer_placements
+    assert tall.active_composition_id == wide.active_composition_id
+    assert [layer[0] for layer in tall.grid_target_frames] == [
+        layer[0] for layer in wide.grid_target_frames
     ]
-    assert tall_hit is not None
-    assert wide_hit is not None
-    assert tall_hit.layer_id == wide_hit.layer_id
-    assert dict(tall_hit.metadata) == dict(wide_hit.metadata)
+
+
+def test_source_grid_preserves_baseline_packed_gutters_across_stable_reflow(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Keep Output's baseline native gutter when size changes retain topology."""
+
+    harness.add_workflow("alpha", activate=True)
+    run = harness.start_run("alpha")
+    for index in range(3):
+        harness.emit_output(
+            run,
+            OutputSpec(
+                "source",
+                "Source",
+                (80 + index * 30, 40, 160),
+                list_index=index,
+                width=1144,
+                height=1608,
+            ),
+        )
+    harness.wait_for_output_count("alpha", 3)
+    harness.shell.output_canvas.activeOutputGridChanged.emit("source")
+    harness.process_events(cycles=8)
+
+    expected_scene_gutter = max(2.0, 3216.0 / 511.0)
+    harness.set_output_viewport_extent(848.0, 946.0)
+    first_snapshot = harness.shell.output_canvas.workspace.gridSnapshot()
+    assert first_snapshot is not None
+    assert (first_snapshot.columns, first_snapshot.rows) == (2, 2)
+    first_gap = _horizontal_gap_in_native_scene_units(
+        first_snapshot,
+        native_width=1144.0,
+    )
+
+    harness.set_output_viewport_extent(856.0, 954.0)
+    second_snapshot = harness.shell.output_canvas.workspace.gridSnapshot()
+    assert second_snapshot is not None
+    assert (second_snapshot.columns, second_snapshot.rows) == (2, 2)
+    second_gap = _horizontal_gap_in_native_scene_units(
+        second_snapshot,
+        native_width=1144.0,
+    )
+
+    assert first_gap == approx(expected_scene_gutter, abs=0.1)
+    assert second_gap == approx(expected_scene_gutter, abs=0.1)
+    assert second_gap == approx(first_gap, abs=0.01)
 
 
 def _grid_dimensions(fingerprint: object) -> tuple[int, int] | None:
     """Infer grid columns and rows from fingerprinted layer placements."""
 
-    placements = getattr(fingerprint, "scene_layer_placements", ())
+    placements = getattr(fingerprint, "grid_target_frames", ())
     if not placements:
         return None
     columns = len({round(layer[2], 6) for layer in placements})
@@ -894,20 +934,21 @@ def _grid_dimensions(fingerprint: object) -> tuple[int, int] | None:
     return columns, rows
 
 
-def _scene_hit_for_image(pane: object, image_id: object) -> Any | None:
-    """Find one public scene hit for an image by scanning the physical panel."""
+def _horizontal_gap_in_native_scene_units(
+    snapshot: ResponsiveGridSnapshot,
+    *,
+    native_width: float,
+) -> float:
+    """Normalize the visible first-row gap to the baseline scene coordinate space."""
 
-    hit_test = getattr(pane, "sceneHitTest", None)
-    if not callable(hit_test):
-        return None
-    width = int(getattr(pane, "width")())
-    height = int(getattr(pane, "height")())
-    for y in range(4, height, 8):
-        for x in range(4, width, 8):
-            hit = hit_test(QPoint(x, y))
-            if getattr(hit, "image_id", None) == image_id:
-                return cast(Any, hit)
-    return None
+    frames = snapshot.frames
+    assert len(frames) >= 2
+    first, second = frames[:2]
+    first_content = first.content
+    second_content = second.content
+    scale = first_content.width() / native_width
+    assert scale > 0.0
+    return (second_content.x() - first_content.right()) / scale
 
 
 def test_five_landscape_tiles_reflow_across_wide_square_and_tall_extents(
@@ -965,8 +1006,7 @@ def test_pending_grid_resize_cannot_replace_new_workflow_route(
     harness.emit_output(beta_run, OutputSpec("beta", "Beta", (30, 30, 210)))
     harness.wait_for_output_count("beta", 1)
     harness.activate_workflow("alpha")
-    pane = harness.shell.output_canvas.pane
-    pane.viewportRectChanged.emit(QRectF(0.0, 0.0, 1400.0, 420.0))
+    harness.set_output_viewport_extent(1400.0, 420.0)
 
     harness.activate_workflow("beta")
     harness.drain_events_for(40)
@@ -978,7 +1018,7 @@ def test_pending_grid_resize_cannot_replace_new_workflow_route(
 def test_compare_route_ignores_grid_resize_delivery(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
-    """Viewport changes must not replace an active QPane comparison route."""
+    """Workspace resize must not replace an active comparison presentation."""
 
     harness.add_workflow("alpha", activate=True)
     run = harness.start_run("alpha")
@@ -996,18 +1036,178 @@ def test_compare_route_ignores_grid_resize_delivery(
     canvas = harness.shell.output_canvas
     first_image_id = harness.output_ids("alpha")[0]
     harness.select_output_id(first_image_id)
-    harness.wait_until(
-        lambda: harness.fingerprint().pane_current_image_id == first_image_id
+    harness.wait_until(lambda: harness.fingerprint().active_image_id == first_image_id)
+    second_image_id = harness.output_ids("alpha")[1]
+    assert canvas.document.present_comparison(
+        first_image_id,
+        second_image_id,
+        split_position=0.5,
+        orientation="vertical",
     )
-    canvas._runtime.compare.controller.set_compare_mode_enabled(True)
     harness.process_events(cycles=8)
-    before = harness.fingerprint().pane_current_composition_id
+    before = harness.fingerprint().active_composition_id
 
-    canvas.pane.viewportRectChanged.emit(QRectF(0.0, 0.0, 400.0, 1200.0))
+    harness.set_output_viewport_extent(400.0, 1200.0)
     harness.drain_events_for(40)
 
-    assert canvas._runtime.compare.controller.visible_compare_state().enabled is True
-    assert harness.fingerprint().pane_current_composition_id == before
+    assert canvas.document.session.presentation.kind.value == "comparison"
+    assert harness.fingerprint().active_composition_id == before
+
+
+def test_restored_comparison_chrome_identifies_each_rendered_side(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Derive both comparison bars from the compositions rendered on their sides."""
+
+    harness.add_workflow("alpha", activate=True)
+    harness.show_canvas("Output")
+    expected_output_count = 0
+    for scene_index in range(2):
+        run = harness.start_run("alpha", run_index=scene_index + 1)
+        scene = SceneSpec(
+            run_id="scene-run-alpha",
+            key=f"scene{scene_index + 1}",
+            title=f"scene {scene_index + 1}",
+            order=scene_index,
+            count=2,
+        )
+        harness.emit_output(
+            run,
+            OutputSpec(
+                "alpha:text",
+                "Text to Image",
+                (210, 40 + scene_index * 20, 40),
+                scene=scene,
+            ),
+        )
+        harness.emit_output(
+            run,
+            OutputSpec(
+                "alpha:upscale",
+                "Diffusion Upscale",
+                (40, 40 + scene_index * 20, 210),
+                scene=scene,
+            ),
+        )
+        expected_output_count += 2
+        if scene_index == 0:
+            harness.emit_output(
+                run,
+                OutputSpec(
+                    "alpha:text",
+                    "Text to Image",
+                    (180, 180, 40),
+                    batch_index=1,
+                    scene=scene,
+                ),
+            )
+            expected_output_count += 1
+        harness.wait_for_output_count("alpha", expected_output_count)
+        harness.complete_run(run)
+    harness.project_workflow_directly("alpha")
+    scene1_text_ids = harness.output_ids_for_scene_source(
+        scene_key="scene1",
+        source_key="alpha:text",
+    )
+    scene1_upscale_id = harness.output_ids_for_scene_source(
+        scene_key="scene1",
+        source_key="alpha:upscale",
+    )[0]
+    scene2_upscale_id = harness.output_ids_for_scene_source(
+        scene_key="scene2",
+        source_key="alpha:upscale",
+    )[0]
+    harness.select_output_id(scene1_upscale_id)
+    harness.wait_until(
+        lambda: harness.fingerprint().active_image_id == scene1_upscale_id
+    )
+    workflow = harness.shell.workflow_session_service.workflows["workflow-alpha"]
+    workflow.output_compare_state = OutputCompareState(
+        enabled=True,
+        base=OutputCompareSelection("scene1", 1, "alpha:text"),
+        comparison=OutputCompareSelection("scene1", 1, "alpha:upscale"),
+    )
+
+    harness.project_workflow_directly("alpha")
+    _assert_comparison_side_identity(
+        harness,
+        base_image_id=scene1_text_ids[0],
+        comparison_image_id=scene1_upscale_id,
+        base_rgb=(210, 40, 40),
+        comparison_rgb=(40, 40, 210),
+        base_labels=("scene 1", "1", "Text to Image"),
+        comparison_labels=("scene 1", "1", "Diffusion Upscale"),
+    )
+
+    workflow.output_compare_state = OutputCompareState(
+        enabled=True,
+        base=OutputCompareSelection("scene1", 2, "alpha:text"),
+        comparison=OutputCompareSelection("scene2", 1, "alpha:upscale"),
+    )
+    harness.project_workflow_directly("alpha")
+    _assert_comparison_side_identity(
+        harness,
+        base_image_id=scene1_text_ids[1],
+        comparison_image_id=scene2_upscale_id,
+        base_rgb=(180, 180, 40),
+        comparison_rgb=(40, 60, 210),
+        base_labels=("scene 1", "2", "Text to Image"),
+        comparison_labels=("scene 2", "1", "Diffusion Upscale"),
+    )
+
+
+def _assert_comparison_side_identity(
+    harness: RealShellOutputCanvasHarness,
+    *,
+    base_image_id: UUID,
+    comparison_image_id: UUID,
+    base_rgb: tuple[int, int, int],
+    comparison_rgb: tuple[int, int, int],
+    base_labels: tuple[str, str, str],
+    comparison_labels: tuple[str, str, str],
+) -> None:
+    """Assert that pixels, targets, and chrome identify the same two sides."""
+
+    canvas = harness.shell.output_canvas
+    harness.wait_until(
+        lambda: (
+            canvas.document.session.presentation.kind
+            is CanvasPresentationKind.COMPARISON
+        )
+    )
+    presentation = canvas.document.session.presentation
+    assert canvas.document.image_ids_for_compositions(presentation.target_ids) == (
+        base_image_id,
+        comparison_image_id,
+    )
+
+    def rendered_side_colors() -> tuple[
+        tuple[int, int, int],
+        tuple[int, int, int],
+    ]:
+        """Sample one stable interior pixel from each comparison side."""
+
+        comparison = canvas.workspace.currentCanvas()
+        assert comparison is not None
+        frame = comparison.grab().toImage()
+        left = frame.pixelColor(frame.width() // 4, frame.height() // 2)
+        right = frame.pixelColor(frame.width() * 3 // 4, frame.height() // 2)
+        return (
+            (left.red(), left.green(), left.blue()),
+            (right.red(), right.green(), right.blue()),
+        )
+
+    harness.wait_until(lambda: rendered_side_colors() == (base_rgb, comparison_rgb))
+    assert (
+        canvas.scene_selector_button.text(),
+        canvas.set_selector_button.text(),
+        canvas.source_selector_button.text(),
+    ) == base_labels
+    assert (
+        canvas.comparison_scene_selector_button.text(),
+        canvas.comparison_set_selector_button.text(),
+        canvas.comparison_source_selector_button.text(),
+    ) == comparison_labels
 
 
 def test_scene_preview_to_final_during_resize_keeps_final_grid_content(
@@ -1046,15 +1246,14 @@ def test_scene_preview_to_final_during_resize_keeps_final_grid_content(
         ),
     )
     harness.wait_for_preview_count(1)
-    pane = harness.shell.output_canvas.pane
-    pane.viewportRectChanged.emit(QRectF(0.0, 0.0, 420.0, 1000.0))
-    harness.wait_until(lambda: len(harness.fingerprint().scene_layer_placements) == 2)
+    harness.set_output_viewport_extent(420.0, 1000.0)
+    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 2)
     preview_grid = harness.fingerprint()
     assert set(preview_grid.preview_image_ids).intersection(
-        placement[1] for placement in preview_grid.scene_layer_placements
+        placement[1] for placement in preview_grid.grid_target_frames
     )
 
-    pane.viewportRectChanged.emit(QRectF(0.0, 0.0, 1200.0, 420.0))
+    harness.set_output_viewport_extent(1200.0, 420.0)
     harness.emit_output(
         preview_run,
         OutputSpec(
@@ -1067,11 +1266,11 @@ def test_scene_preview_to_final_during_resize_keeps_final_grid_content(
     )
     harness.wait_for_output_count("alpha", 3)
     harness.wait_for_preview_count(0)
-    pane.viewportRectChanged.emit(QRectF(0.0, 0.0, 1200.0, 420.0))
-    harness.wait_until(lambda: len(harness.fingerprint().scene_layer_placements) == 2)
+    harness.set_output_viewport_extent(1200.0, 420.0)
+    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 2)
     final_grid = harness.fingerprint()
 
-    final_image_ids = {placement[1] for placement in final_grid.scene_layer_placements}
+    final_image_ids = {placement[1] for placement in final_grid.grid_target_frames}
     assert final_image_ids <= set(harness.output_ids("alpha"))
     assert not set(preview_grid.preview_image_ids).intersection(final_image_ids)
 

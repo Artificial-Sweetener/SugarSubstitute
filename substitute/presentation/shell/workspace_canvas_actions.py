@@ -570,7 +570,7 @@ class WorkspaceCanvasActions:
         image: object,
         image_meta: object,
     ) -> None:
-        """Register a non-live output image without direct QPane mutation."""
+        """Register a non-live output image without direct renderer mutation."""
 
         view = self._view
         result = view.output_canvas_state_service.register_output_image(

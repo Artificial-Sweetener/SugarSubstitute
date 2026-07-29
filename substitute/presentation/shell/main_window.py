@@ -152,6 +152,7 @@ class MainWindow(QMainWindow):
         with _startup_phase(startup_timer, "mainwindow.build_workspace"):
             workspace_parts = build_main_window_workspace(
                 self,
+                canvas_execution_runtime=self.execution_runtime.canvas_execution_runtime,
                 backdrop_mode=backdrop_mode,
                 menu_container=menu_container,
                 comfy_output_stream=dependencies.comfy_output_stream,

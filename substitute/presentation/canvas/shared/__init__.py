@@ -18,10 +18,6 @@
 
 from __future__ import annotations
 
-from substitute.presentation.canvas.shared.canvas_grid_layout import (
-    CanvasGridLayout,
-    grid_layout_for_dimensions,
-)
 from substitute.presentation.canvas.shared.canvas_nav_picker import (
     CanvasNavPicker,
     CanvasNavPickerItem,
@@ -37,7 +33,6 @@ from substitute.presentation.canvas.shared.output_set_picker import OutputSetPic
 from substitute.presentation.canvas.shared.types import OutputImageMeta
 
 __all__ = [
-    "CanvasGridLayout",
     "CanvasNavPicker",
     "CanvasNavPickerItem",
     "OutputCompareNavGeometry",
@@ -46,6 +41,5 @@ __all__ = [
     "OutputNavControlWidths",
     "OutputSetPicker",
     "compare_navigation_geometry",
-    "grid_layout_for_dimensions",
     "navigation_bar_width",
 ]

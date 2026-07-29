@@ -71,7 +71,7 @@ class OutputSpec:
 
 @dataclass(frozen=True, slots=True)
 class CanvasFingerprint:
-    """Capture durable workflow state and the real Output QPane route."""
+    """Capture durable workflow state and the real Output document presentation."""
 
     active_workflow_id: str
     active_canvas_visible: bool
@@ -93,14 +93,14 @@ class CanvasFingerprint:
     pending_feedback_counts: Mapping[str, int]
     pending_commit_count: int
     pending_projection_workflows: tuple[str, ...]
-    pane_image_ids: tuple[UUID, ...]
-    pane_current_image_id: UUID | None
-    pane_current_composition_id: UUID | None
-    composition_image_ids: tuple[UUID, ...]
-    scene_bounds: tuple[float, float, float, float] | None
-    scene_layer_placements: tuple[tuple[UUID, UUID, float, float, float, float], ...]
-    current_image_is_null: bool
-    current_image_rgb: tuple[int, int, int] | None
+    document_image_ids: tuple[UUID, ...]
+    active_image_id: UUID | None
+    active_composition_id: UUID | None
+    presented_image_ids: tuple[UUID, ...]
+    grid_viewport: tuple[float, float, float, float] | None
+    grid_target_frames: tuple[tuple[UUID, UUID, float, float, float, float], ...]
+    active_image_is_null: bool
+    active_image_rgb: tuple[int, int, int] | None
 
 
 def solid_image(

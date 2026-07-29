@@ -30,9 +30,13 @@ from substitute.application.generation import (
     OutputPathTemplateRenderer,
 )
 from substitute.domain.generation import (
+    effective_output_transfer_format,
+    JpegOutputSettings,
     OutputOrganizationSettings,
     OutputPreferences,
     OutputPathRenderContext,
+    OutputTransferFormat,
+    OutputTransferSettings,
 )
 from substitute.infrastructure.persistence import (
     FileOutputPreferenceRepository,
@@ -366,6 +370,62 @@ def test_jpeg_quality_defaults_to_100_without_overwriting_persisted_values(
     )
 
     assert FileOutputPreferenceRepository(tmp_path).load().jpeg.quality == 90
+
+
+def test_file_repository_defaults_legacy_preferences_to_png_transfer(
+    tmp_path: Path,
+) -> None:
+    """Preferences written before transfer support should preserve PNG transfer."""
+
+    (tmp_path / "output_organization.json").write_text(
+        json.dumps({"schema_version": "2", "jpeg": {"enabled": True}}),
+        encoding="utf-8",
+    )
+
+    loaded = FileOutputPreferenceRepository(tmp_path).load()
+
+    assert loaded.transfer.preferred_format is OutputTransferFormat.CANONICAL_PNG
+
+
+def test_file_repository_round_trips_preferred_transfer_format(tmp_path: Path) -> None:
+    """The separate transfer choice should persist independently of JPEG settings."""
+
+    repository = FileOutputPreferenceRepository(tmp_path)
+    repository.save(
+        OutputPreferences(
+            transfer=OutputTransferSettings(
+                preferred_format=OutputTransferFormat.COMPANION_JPEG
+            )
+        )
+    )
+
+    loaded = repository.load()
+
+    assert loaded.transfer.preferred_format is OutputTransferFormat.COMPANION_JPEG
+
+
+def test_jpeg_transfer_preference_falls_back_without_companion_generation() -> None:
+    """JPEG transfer selection should remain stored but inactive until JPEG exists."""
+
+    preferences = OutputPreferences(
+        transfer=OutputTransferSettings(
+            preferred_format=OutputTransferFormat.COMPANION_JPEG
+        )
+    )
+
+    assert (
+        effective_output_transfer_format(preferences)
+        is OutputTransferFormat.CANONICAL_PNG
+    )
+    assert (
+        effective_output_transfer_format(
+            OutputPreferences(
+                jpeg=JpegOutputSettings(enabled=True),
+                transfer=preferences.transfer,
+            )
+        )
+        is OutputTransferFormat.COMPANION_JPEG
+    )
 
 
 def test_file_repository_preserves_null_output_root(tmp_path: Path) -> None:

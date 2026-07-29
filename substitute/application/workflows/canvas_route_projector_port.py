@@ -40,7 +40,7 @@ from substitute.domain.workflow import (
 
 
 class OutputCanvasHitKind(StrEnum):
-    """Describe accepted QPane scene-hit intent kinds."""
+    """Describe accepted CuteCanvas scene-hit intent kinds."""
 
     FINAL_OUTPUT = "final_output"
     SCENE = "scene"
@@ -48,7 +48,7 @@ class OutputCanvasHitKind(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class InputRouteScope:
-    """Describe the active Input projection that may mutate QPane display."""
+    """Describe the active Input projection that may mutate CuteCanvas display."""
 
     session: InputCanvasSession
     allowed_image_ids: frozenset[UUID]
@@ -57,7 +57,7 @@ class InputRouteScope:
 
 @dataclass(frozen=True, slots=True)
 class OutputRouteScope:
-    """Describe the active Output projection that may mutate QPane display."""
+    """Describe the active Output projection that may mutate CuteCanvas display."""
 
     session: OutputCanvasSession
     allowed_image_ids: frozenset[UUID]
@@ -122,7 +122,7 @@ class OutputCanvasHitValidation:
 
 
 class InputRouteProjectorPort(Protocol):
-    """Apply authorized Input image routes to QPane display state."""
+    """Apply authorized Input image routes to CuteCanvas display state."""
 
     def bind(self, scope: InputRouteScope) -> None:
         """Bind the current Input route scope."""
@@ -136,73 +136,9 @@ class InputRouteProjectorPort(Protocol):
     def current_image_id_for_event(self) -> UUID | None:
         """Return the current Input image only when it is scope-authorized."""
 
-    def loaded_image_id_for_event(self) -> UUID | None:
-        """Return a QPane-loaded image id after session authorization only."""
-
-
-class OutputRouteProjectorPort(Protocol):
-    """Apply authorized Output routes to QPane display state."""
-
-    def bind(self, scope: OutputRouteScope) -> None:
-        """Bind the current Output route scope."""
-
-    def apply_final_image_route(
-        self,
-        route: CanvasRouteIdentity,
-        image_id: UUID,
-    ) -> bool:
-        """Show one concrete Output image when authorized by the active scope."""
-
-    def apply_source_grid_route(
-        self,
-        route: CanvasRouteIdentity,
-        request: object,
-        *,
-        activate: bool,
-    ) -> bool:
-        """Compose or replace one source-grid route when authorized."""
-
-    def apply_scene_overview_route(
-        self,
-        route: CanvasRouteIdentity,
-        request: object,
-        *,
-        activate: bool,
-    ) -> bool:
-        """Compose or replace one scene-overview route when authorized."""
-
-    def clear_route(self, route: CanvasRouteIdentity) -> bool:
-        """Clear the active Output route when authorized."""
-
-    def current_image_id_for_event(self) -> UUID | None:
-        """Return the current Output image only when it is scope-authorized."""
-
-    def route_composition_id(self, route: CanvasRouteIdentity) -> UUID:
-        """Return the deterministic composition ID for one host-owned route."""
-
-    def apply_compare(
-        self,
-        *,
-        route: CanvasRouteIdentity,
-        base_image_id: UUID,
-        comparison_image_id: UUID,
-        split_position: float,
-        orientation: object,
-    ) -> bool:
-        """Apply comparison state after validating both image identities."""
-
-    def clear_compare(self, *, route: CanvasRouteIdentity) -> bool:
-        """Clear comparison state for an authorized route."""
-
-    def validate_scene_hit(self, hit: object) -> OutputCanvasHitValidation:
-        """Validate one public QPane scene hit against the active scope."""
-
-    def hit_test_scene(self, point: object) -> OutputCanvasHitValidation:
-        """Hit-test QPane scene content and validate the result."""
-
 
 class CanvasRouteSessionBoundaryPort(Protocol):
-    """Own shared route-session identity for QPane display projectors."""
+    """Own shared route-session identity for CuteCanvas display projectors."""
 
     def bind_input_session(
         self,
@@ -253,6 +189,5 @@ __all__ = [
     "InputRouteScope",
     "OutputCanvasHitKind",
     "OutputCanvasHitValidation",
-    "OutputRouteProjectorPort",
     "OutputRouteScope",
 ]

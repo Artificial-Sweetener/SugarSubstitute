@@ -30,7 +30,7 @@ from tests.support.real_output_canvas.models import OutputSpec, SceneSpec
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
-        "real Output QPane abuse matrix requires non-xdist execution on Windows",
+        "real Output CuteCanvas abuse matrix requires non-xdist execution on Windows",
         allow_module_level=True,
     )
 
@@ -91,6 +91,102 @@ def test_unscened_set_picker_projects_all_batches_grid(
     )
 
 
+def test_unscened_single_image_cube_output_tabs_change_visible_document(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Each mouse-selected single-image Cube-output tab changes the document."""
+
+    source_ids = _seed_unscened_sources(
+        harness,
+        "alpha",
+        {"text": 1, "upscale": 1, "detail": 1},
+    )
+    expected_colors = {
+        "alpha:text": (40, 40, 180),
+        "alpha:upscale": (130, 40, 140),
+        "alpha:detail": (220, 40, 100),
+    }
+
+    for source_key, expected_ids in source_ids.items():
+        harness.select_output_source(source_key)
+        _assert_route(
+            harness,
+            alias="alpha",
+            scene_key="",
+            source_key=source_key,
+            set_index=1,
+            image_id=expected_ids[0],
+            visible_ids=expected_ids,
+        )
+        harness.assert_active_target_rendered(expected_colors[source_key])
+
+
+def test_cube_output_tab_replaces_live_preview_with_selected_final(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """A mouse-selected Cube-output tab must replace an active live preview."""
+
+    source_ids = _seed_unscened_sources(
+        harness,
+        "alpha",
+        {"text": 1, "upscale": 1},
+    )
+    harness.click_output_source_tab("alpha:text")
+    run = harness.start_run("alpha", run_index=10)
+    harness.emit_preview(
+        run,
+        OutputSpec("alpha:text", "Text", (15, 215, 90)),
+    )
+    harness.wait_for_preview_count(1)
+    harness.assert_preview_displayed(color=(15, 215, 90))
+
+    harness.click_output_source_tab("alpha:upscale")
+
+    _assert_route(
+        harness,
+        alias="alpha",
+        scene_key="",
+        source_key="alpha:upscale",
+        set_index=1,
+        image_id=source_ids["alpha:upscale"][0],
+        visible_ids=source_ids["alpha:upscale"],
+    )
+    harness.assert_active_target_rendered((130, 40, 140))
+
+
+def test_detail_inspection_groups_are_scoped_to_scene_and_batch(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Link Cube outputs only when both their scene and batch coordinates match."""
+
+    _seed_sources(harness, "alpha", {"text": 2, "upscale": 2})
+    expected_groups: set[frozenset[UUID]] = set()
+    for scene_index in range(1, 4):
+        scene_key = f"scene{scene_index}"
+        text_ids = harness.output_ids_for_scene_source(
+            scene_key=scene_key,
+            source_key="alpha:text",
+        )
+        upscale_ids = harness.output_ids_for_scene_source(
+            scene_key=scene_key,
+            source_key="alpha:upscale",
+        )
+        for text_id, upscale_id in zip(text_ids, upscale_ids, strict=True):
+            composition_ids = (
+                harness.shell.output_canvas.document.composition_id_for(text_id),
+                harness.shell.output_canvas.document.composition_id_for(upscale_id),
+            )
+            assert all(composition_id is not None for composition_id in composition_ids)
+            expected_groups.add(frozenset(composition_ids))
+
+    actual_groups = {
+        frozenset(group.members)
+        for group in harness.shell.output_canvas.workspace.session.inspection.groups()
+    }
+
+    assert actual_groups == expected_groups
+
+
 def test_unscened_source_tabs_display_selected_output_at_every_batch_level(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
@@ -109,12 +205,12 @@ def test_unscened_source_tabs_display_selected_output_at_every_batch_level(
     )
     source_keys = tuple(source_ids)
 
-    harness.click_output_source_tab(source_keys[0])
+    harness.select_output_source(source_keys[0])
     assert harness.output_set_picker_keys() == ("0", "1", "2", "3")
     for set_index in range(4):
         harness.select_output_set(set_index)
         for source_key in source_keys:
-            harness.click_output_source_tab(source_key)
+            harness.select_output_source(source_key)
             expected_ids = source_ids[source_key]
             if set_index == 0:
                 image_id = None
@@ -238,7 +334,7 @@ def test_batchless_scenes_hide_scene_and_batch_navigation(
     assert scene.scene_selector_hidden, scene
     assert scene.set_selector_hidden, scene
     assert scene.navigation_container_hidden, scene
-    assert set(scene.composition_image_ids) == set(source_ids["alpha:text"]), scene
+    assert set(scene.presented_image_ids) == set(source_ids["alpha:text"]), scene
 
 
 def test_batched_scenes_show_only_available_hierarchy_controls(
@@ -267,17 +363,18 @@ def test_batched_scenes_show_only_available_hierarchy_controls(
     assert not scene.scene_selector_hidden, scene
     assert not scene.set_selector_hidden, scene
     assert not scene.navigation_container_hidden, scene
-    assert set(scene.composition_image_ids) == set(source_ids["alpha:text"]), scene
+    assert set(scene.presented_image_ids) == set(source_ids["alpha:text"]), scene
 
 
-def test_multi_image_source_tab_restores_grid_after_single_source_switch(
+def test_multi_image_source_tab_restores_grid_after_deferred_disjoint_switch(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
-    """Returning to a batched source must restore its All Batches grid."""
+    """Returning after the old grid is destroyed must remount retained targets."""
 
-    source_ids = _seed_sources(harness, "alpha", {"text": 2, "upscale": 1})
+    source_ids = _seed_sources(harness, "alpha", {"text": 3, "upscale": 3})
     _enter_source_grid(harness, "alpha:text", source_ids["alpha:text"])
     harness.click_output_source_tab("alpha:upscale")
+    harness.drain_events_for(30)
 
     harness.click_output_source_tab("alpha:text")
 
@@ -288,6 +385,13 @@ def test_multi_image_source_tab_restores_grid_after_single_source_switch(
         set_index=0,
         image_id=None,
         visible_ids=source_ids["alpha:text"],
+    )
+    harness.assert_document_targets_rendered(
+        {
+            source_ids["alpha:text"][0]: (40, 40, 120),
+            source_ids["alpha:text"][1]: (40, 110, 120),
+            source_ids["alpha:text"][2]: (40, 180, 120),
+        }
     )
 
 
@@ -308,6 +412,12 @@ def test_multi_image_source_switch_preserves_all_batches_grid(
         set_index=0,
         image_id=None,
         visible_ids=source_ids["alpha:upscale"],
+    )
+    harness.assert_document_targets_rendered(
+        {
+            source_ids["alpha:upscale"][0]: (130, 40, 120),
+            source_ids["alpha:upscale"][1]: (130, 110, 120),
+        }
     )
 
 
@@ -356,14 +466,14 @@ def test_missing_batch_source_switch_keeps_tab_and_route_consistent(
 def test_source_grid_workflow_association_survives_switching(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
-    """Each workflow should restore only its own grid, tab, and durable route."""
+    """Mouse-selected workflow tabs restore their own Output source routes."""
 
     alpha_ids = _seed_sources(harness, "alpha", {"text": 2, "upscale": 2})
     _enter_source_grid(harness, "alpha:upscale", alpha_ids["alpha:upscale"])
     beta_ids = _seed_sources(harness, "beta", {"text": 2, "upscale": 2})
     _enter_source_grid(harness, "beta:text", beta_ids["beta:text"])
 
-    harness.activate_workflow("alpha")
+    harness.click_workflow_tab("alpha")
     _assert_route(
         harness,
         alias="alpha",
@@ -372,7 +482,7 @@ def test_source_grid_workflow_association_survives_switching(
         image_id=None,
         visible_ids=alpha_ids["alpha:upscale"],
     )
-    harness.activate_workflow("beta")
+    harness.click_workflow_tab("beta")
     _assert_route(
         harness,
         alias="beta",
@@ -462,7 +572,7 @@ def test_scene_overview_route_survives_workflow_switching(
     alpha_ids = _seed_sources(harness, "alpha", {"text": 2, "upscale": 1})
     alpha_workflow_id = harness.workflows["alpha"].workflow_id
     alpha_overview_ids = {
-        placement[1] for placement in harness.fingerprint().scene_layer_placements
+        placement[1] for placement in harness.fingerprint().grid_target_frames
     }
     assert len(alpha_overview_ids) == 3
     beta_ids = _seed_sources(harness, "beta", {"text": 2, "upscale": 1})
@@ -473,9 +583,9 @@ def test_scene_overview_route_survives_workflow_switching(
     fingerprint = harness.fingerprint()
     alpha_workflow_ids = set(fingerprint.workflow_output_image_ids[alpha_workflow_id])
     assert alpha_overview_ids <= alpha_workflow_ids
-    assert set(fingerprint.composition_image_ids) == alpha_overview_ids, fingerprint
+    assert set(fingerprint.presented_image_ids) == alpha_overview_ids, fingerprint
     assert fingerprint.workflow_output_routes[alpha_workflow_id][1] is True, fingerprint
-    assert fingerprint.pane_current_image_id is None, fingerprint
+    assert fingerprint.active_image_id is None, fingerprint
     assert set(alpha_ids["alpha:text"]) <= alpha_workflow_ids
 
 
@@ -684,7 +794,7 @@ def _enter_source_grid(
         harness.click_output_source_tab(source_key)
     harness.wait_until(
         lambda: (
-            {placement[1] for placement in harness.fingerprint().scene_layer_placements}
+            {placement[1] for placement in harness.fingerprint().grid_target_frames}
             == set(expected_ids)
         )
     )
@@ -710,16 +820,14 @@ def _assert_route(
     assert fingerprint.output_session_workflow_id == workflow_id, fingerprint
     assert route == (scene_key, False, source_key, set_index, image_id), fingerprint
     assert fingerprint.active_source_tab_key == source_key, fingerprint
-    assert set(fingerprint.composition_image_ids) <= workflow_ids, fingerprint
-    assert fingerprint.pane_current_image_id is None or (
-        fingerprint.pane_current_image_id in workflow_ids
+    assert set(fingerprint.presented_image_ids) <= workflow_ids, fingerprint
+    assert fingerprint.active_image_id is None or (
+        fingerprint.active_image_id in workflow_ids
     ), fingerprint
     if set_index == 0:
-        assert fingerprint.pane_current_composition_id is not None, fingerprint
-        assert set(fingerprint.composition_image_ids) == set(visible_ids), fingerprint
+        assert fingerprint.active_composition_id is not None, fingerprint
+        assert set(fingerprint.presented_image_ids) == set(visible_ids), fingerprint
     else:
-        assert fingerprint.pane_current_image_id == image_id, fingerprint
-        if fingerprint.pane_current_composition_id is not None:
-            assert set(fingerprint.composition_image_ids) == set(visible_ids), (
-                fingerprint
-            )
+        assert fingerprint.active_image_id == image_id, fingerprint
+        if fingerprint.active_composition_id is not None:
+            assert set(fingerprint.presented_image_ids) == set(visible_ids), fingerprint

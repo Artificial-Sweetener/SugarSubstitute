@@ -565,25 +565,45 @@ def sync_comparison_navigation_buttons(
     *,
     comparison_nav_container: object,
     enabled: bool,
+    base_selection: object | None,
     comparison_selection: object | None,
-    scene_button: object,
-    set_button: object,
-    source_button: object,
-    sync_scene_button: Callable[[object, object], None],
-    sync_set_button: Callable[[object, object], None],
-    sync_source_button: Callable[[object, object], None],
+    base_scene_button: object,
+    base_set_button: object,
+    base_source_button: object,
+    comparison_scene_button: object,
+    comparison_set_button: object,
+    comparison_source_button: object,
+    sync_scene_button: Callable[[str, object, object], None],
+    sync_set_button: Callable[[str, object, object], None],
+    sync_source_button: Callable[[str, object, object], None],
 ) -> bool:
-    """Refresh comparison navigation buttons when compare selection is visible."""
+    """Refresh each comparison bar from the selection rendered on that side."""
 
-    if not enabled or comparison_selection is None:
+    if not enabled or base_selection is None or comparison_selection is None:
         hide_container = getattr(comparison_nav_container, "hide", None)
         if callable(hide_container):
             hide_container()
         return False
 
-    sync_scene_button(scene_button, comparison_selection)
-    sync_set_button(set_button, comparison_selection)
-    sync_source_button(source_button, comparison_selection)
+    for side, selection, scene_button, set_button, source_button in (
+        (
+            "base",
+            base_selection,
+            base_scene_button,
+            base_set_button,
+            base_source_button,
+        ),
+        (
+            "comparison",
+            comparison_selection,
+            comparison_scene_button,
+            comparison_set_button,
+            comparison_source_button,
+        ),
+    ):
+        sync_scene_button(side, scene_button, selection)
+        sync_set_button(side, set_button, selection)
+        sync_source_button(side, source_button, selection)
     return True
 
 

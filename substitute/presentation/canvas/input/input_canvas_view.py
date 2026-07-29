@@ -29,9 +29,9 @@ from substitute.presentation.localization import LocalizedLabel
 from os import environ
 from uuid import UUID
 
-from qpane import QPane
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QVBoxLayout, QWidget
+from cutecanvas import ExecutionRuntime
 from qfluentwidgets import MenuAnimationType
 
 from substitute.application.workflows.canvas_route_projector_port import (
@@ -39,14 +39,11 @@ from substitute.application.workflows.canvas_route_projector_port import (
     InputRouteProjectorPort,
     create_canvas_session_boundary,
 )
-from substitute.presentation.canvas.qpane.canvas_route_projector import (
+from substitute.presentation.canvas.input.input_document import (
+    InputCanvasDocument,
+)
+from substitute.presentation.canvas.input.input_route_projector import (
     InputRouteProjector,
-)
-from substitute.presentation.canvas.qpane.input_pane_adapter import (
-    InputQPaneRouteAdapter,
-)
-from substitute.presentation.canvas.shared.canvas_zoom_indicator import (
-    CanvasZoomIndicator,
 )
 from substitute.presentation.canvas.input.input_mask_tool_controller import (
     InputMaskToolMenuState,
@@ -73,14 +70,14 @@ except ImportError:  # pragma: no cover - lightweight test stubs
 
 
 _LOGGER = get_logger("presentation.canvas.input.input_canvas_view")
-_DEFAULT_QPANE_FEATURES = ("mask", "sam")
-_HARNESS_QPANE_FEATURES = ("mask",)
+_DEFAULT_CUTECANVAS_FEATURES = ("mask", "sam")
+_HARNESS_CUTECANVAS_FEATURES = ("mask",)
 _STARTUP_HARNESS_ENV_VAR = "SUGAR_SUBSTITUTE_STARTUP_HARNESS"
 _DEFER_INPUT_SAM_ENV_VAR = "SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM"
 
 
 class InputCanvas(QWidget):
-    """Host QPane input image/mask editing interactions for the active workflow."""
+    """Host CuteCanvas Input image/mask editing interactions for the active workflow."""
 
     inputMaskSaved = Signal(str, str)  # mask_id, path
     inputImageLoaded = Signal(object, str)  # image_id, path
@@ -92,41 +89,44 @@ class InputCanvas(QWidget):
         self,
         parent: QWidget | None = None,
         *,
+        execution_runtime: ExecutionRuntime | None = None,
         route_session_boundary: CanvasRouteSessionBoundaryPort | None = None,
     ) -> None:
-        """Initialize input pane and attach mask autosave/context-menu wiring."""
+        """Initialize the Input document host and context-menu wiring."""
 
         super().__init__(parent)
         self.setStyleSheet("border: none; background-color: transparent;")
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
-        features = _input_canvas_qpane_features()
-        if features != _DEFAULT_QPANE_FEATURES:
+        features = _input_canvas_cutecanvas_features()
+        if features != _DEFAULT_CUTECANVAS_FEATURES:
             trace_mark(
-                "input_canvas.qpane_features",
+                "input_canvas.cutecanvas_features",
                 features=",".join(features),
                 reason="startup_harness_defer_sam",
             )
-        self.pane = QPane(features=features)
-        self._zoom_indicator = CanvasZoomIndicator(self.pane)
+        self.document = InputCanvasDocument(
+            features=features,
+            execution_runtime=execution_runtime,
+        )
+        self.canvas = self.document.canvas
         self._route_session_boundary = (
             route_session_boundary or create_canvas_session_boundary()
         )
         self._route_projector = InputRouteProjector(
-            InputQPaneRouteAdapter(self.pane),
+            self.document,
             session_boundary=self._route_session_boundary,
         )
         self._canvas_detached = False
         self._mask_tool_menu_state = InputMaskToolMenuState()
 
-        self.pane.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.pane.customContextMenuRequested.connect(self._show_context_menu)
-        self.pane.maskSaved.connect(self._on_pane_mask_saved)
-        self.pane.imageLoaded.connect(self._on_pane_image_loaded)
+        self.canvas.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.canvas.customContextMenuRequested.connect(self._show_context_menu)
+        self.document.imageMaterialized.connect(self._on_image_materialized)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(self.pane)
+        layout.addWidget(self.canvas)
         self._availability_overlay = LocalizedLabel(
             app_text("No input canvas nodes"), self
         )
@@ -137,7 +137,7 @@ class InputCanvas(QWidget):
         self._availability_overlay.hide()
 
     def _current_image_id_for_event(self) -> UUID | None:
-        """Return the current QPane image ID through the Input route owner."""
+        """Return the current CuteCanvas image ID through the Input route owner."""
 
         return self._route_projector.current_image_id_for_event()
 
@@ -148,7 +148,7 @@ class InputCanvas(QWidget):
 
     @property
     def route_projector(self) -> InputRouteProjectorPort:
-        """Return the single Input display route projector for this QPane."""
+        """Return the single Input display route projector for this document."""
 
         return self._route_projector
 
@@ -165,7 +165,7 @@ class InputCanvas(QWidget):
     ) -> None:
         """Enable or disable input-canvas interaction and empty-state presentation."""
 
-        self.pane.setEnabled(available)
+        self.canvas.setEnabled(available)
         overlay = self._availability_overlay
         if available:
             overlay.hide()
@@ -184,14 +184,14 @@ class InputCanvas(QWidget):
         self._canvas_detached = detached
 
     def keyPressEvent(self, event: object) -> None:
-        """Forward key presses to the underlying pane control."""
+        """Forward key presses to the underlying canvas control."""
 
-        self.pane.keyPressEvent(event)
+        self.canvas.keyPressEvent(event)
 
     def keyReleaseEvent(self, event: object) -> None:
-        """Forward key releases to the underlying pane control."""
+        """Forward key releases to the underlying canvas control."""
 
-        self.pane.keyReleaseEvent(event)
+        self.canvas.keyReleaseEvent(event)
 
     def enterEvent(self, event: object) -> None:
         """Grab keyboard focus when pointer enters the canvas area."""
@@ -230,11 +230,11 @@ class InputCanvas(QWidget):
         )
 
     def _show_context_menu(self, pos: object) -> None:
-        """Show context menu for pane tool selection intents."""
+        """Show context menu for canvas tool selection intents."""
 
         self.maskToolMenuStateRequested.emit()
         tool_state = self._mask_tool_menu_state
-        menu = QFluentMenuRenderer(parent=self.pane).render(
+        menu = QFluentMenuRenderer(parent=self.canvas).render(
             MenuModel(
                 entries=(
                     MenuItem(
@@ -275,43 +275,30 @@ class InputCanvas(QWidget):
                 )
             )
         )
-        menu.exec(self.pane.mapToGlobal(pos), aniType=MenuAnimationType.DROP_DOWN)
+        menu.exec(self.canvas.mapToGlobal(pos), aniType=MenuAnimationType.DROP_DOWN)
 
-    def _on_pane_mask_saved(self, mask_id: str, path: str) -> None:
-        """Relay pane maskSaved signal for controller-level buffer synchronization."""
+    def _on_image_materialized(self, image_id: object, path: str) -> None:
+        """Relay host-owned document materialization for graph association."""
 
         log_debug(
             _LOGGER,
-            "Input canvas received QPane maskSaved signal",
-            mask_id=mask_id,
-            path=path,
-        )
-        self.inputMaskSaved.emit(mask_id, path)
-
-    def _on_pane_image_loaded(self, path: object) -> None:
-        """Relay pane imageLoaded with the active image id for graph association."""
-
-        image_path = str(path) if path is not None else ""
-        image_id = self._route_projector.loaded_image_id_for_event()
-        log_debug(
-            _LOGGER,
-            "Input canvas received QPane imageLoaded signal",
+            "Input canvas materialized document image",
             image_id=str(image_id),
-            image_path=image_path,
+            image_path=path,
         )
-        self.inputImageLoaded.emit(image_id, image_path)
+        self.inputImageLoaded.emit(image_id, path)
 
 
-def _input_canvas_qpane_features() -> tuple[str, ...]:
-    """Return QPane features for InputCanvas construction.
+def _input_canvas_cutecanvas_features() -> tuple[str, ...]:
+    """Return CuteCanvas features for InputCanvas construction.
 
     Normal app startup keeps SAM enabled. The startup harness can explicitly defer
     SAM to measure first-shell cost without changing user-facing behavior.
     """
 
     if _truthy_env(_STARTUP_HARNESS_ENV_VAR) and _truthy_env(_DEFER_INPUT_SAM_ENV_VAR):
-        return _HARNESS_QPANE_FEATURES
-    return _DEFAULT_QPANE_FEATURES
+        return _HARNESS_CUTECANVAS_FEATURES
+    return _DEFAULT_CUTECANVAS_FEATURES
 
 
 def _truthy_env(name: str) -> bool:

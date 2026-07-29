@@ -184,6 +184,83 @@ def test_output_canvas_session_computes_deterministic_grid_composition_ids() -> 
     assert scope.allowed_composition_ids == frozenset({expected_id})
 
 
+def test_output_canvas_session_scopes_detail_groups_by_scene_and_batch() -> None:
+    """Link corresponding sources without crossing scene or batch boundaries."""
+
+    image_ids = tuple(uuid4() for _index in range(8))
+    metas = tuple(
+        _meta(source_key=f"source-{index % 2}") for index in range(len(image_ids))
+    )
+    scenes = tuple(
+        OutputCanvasSceneGroup(
+            scene_run_id=f"run-{scene_index}",
+            scene_key=f"scene-{scene_index}",
+            title=f"Scene {scene_index}",
+            order=scene_index,
+            sources=tuple(
+                OutputCanvasSourceGroup(
+                    source_key=f"source-{source_index}",
+                    label=f"Source {source_index}",
+                    images_by_set={
+                        batch_index: OutputCanvasImageItem(
+                            image_ids[
+                                scene_index * 4 + source_index * 2 + batch_index - 1
+                            ],
+                            metas[scene_index * 4 + source_index * 2 + batch_index - 1],
+                            batch_index,
+                        )
+                        for batch_index in (1, 2)
+                    },
+                )
+                for source_index in (0, 1)
+            ),
+        )
+        for scene_index in (0, 1)
+    )
+    projection = OutputCanvasProjection(
+        sources=(),
+        active_source_key=None,
+        active_set_index=1,
+        active_uuid=None,
+        set_count=2,
+        scene_groups=scenes,
+        active_scene_key="scene-0",
+        scene_count=2,
+    )
+
+    session = bind_output_canvas_session(
+        CanvasSessionBoundary(),
+        workflow_id="wf",
+        projection=projection,
+        image_metadata_lookup=dict(zip(image_ids, metas, strict=True)),
+    )
+
+    assert tuple(group.image_ids for group in session.detail_inspection_groups) == (
+        (image_ids[0], image_ids[2]),
+        (image_ids[1], image_ids[3]),
+        (image_ids[4], image_ids[6]),
+        (image_ids[5], image_ids[7]),
+    )
+    rebound = bind_output_canvas_session(
+        CanvasSessionBoundary(),
+        workflow_id="wf",
+        projection=projection,
+        image_metadata_lookup=dict(zip(image_ids, metas, strict=True)),
+    )
+    other_workflow = bind_output_canvas_session(
+        CanvasSessionBoundary(),
+        workflow_id="other-wf",
+        projection=projection,
+        image_metadata_lookup=dict(zip(image_ids, metas, strict=True)),
+    )
+    assert tuple(group.group_id for group in rebound.detail_inspection_groups) == tuple(
+        group.group_id for group in session.detail_inspection_groups
+    )
+    assert set(
+        group.group_id for group in other_workflow.detail_inspection_groups
+    ).isdisjoint(group.group_id for group in session.detail_inspection_groups)
+
+
 def test_output_canvas_session_rebind_rejects_stale_projection_token() -> None:
     """A previous Output projection session should not authorize after rebind."""
 

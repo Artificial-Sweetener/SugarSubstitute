@@ -24,8 +24,6 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from qpane import QPane
-
 from substitute.presentation.canvas.input import (
     InputCanvasPresenter,
     InputMaskDirtyTracker,
@@ -133,9 +131,12 @@ def test_mask_tool_controller_applies_only_authorized_tool_modes() -> None:
     image_id = uuid4()
     control_modes: list[object] = []
     menu_states: list[InputMaskToolMenuState] = []
-    pane = _tool_pane(control_modes=control_modes, masks_by_image={image_id: []})
+    document = _tool_document(
+        control_modes=control_modes, masks_by_image={image_id: []}
+    )
     controller = InputMaskToolController(
-        input_pane=pane,
+        input_document=document,
+        control_mode_setter=document.set_mask_tool_mode,
         current_image_id_provider=lambda: image_id,
         menu_state_sink=menu_states.append,
     )
@@ -144,7 +145,7 @@ def test_mask_tool_controller_applies_only_authorized_tool_modes() -> None:
     assert controller.request_tool_mode(InputMaskToolMode.BRUSH) is False
     assert controller.request_tool_mode(InputMaskToolMode.PAN_ZOOM) is True
 
-    pane.masks_by_image[image_id] = [uuid4()]
+    document.masks_by_image[image_id] = [uuid4()]
 
     assert controller.refresh_tool_menu_state() == InputMaskToolMenuState(
         brush_enabled=True,
@@ -152,11 +153,7 @@ def test_mask_tool_controller_applies_only_authorized_tool_modes() -> None:
     )
     assert controller.request_tool_mode(InputMaskToolMode.BRUSH) is True
     assert controller.request_tool_mode(InputMaskToolMode.SMART_SELECT) is True
-    assert control_modes == [
-        QPane.CONTROL_MODE_PANZOOM,
-        QPane.CONTROL_MODE_DRAW_BRUSH,
-        QPane.CONTROL_MODE_SMART_SELECT,
-    ]
+    assert control_modes == ["pan_zoom", "brush", "smart_select"]
     assert menu_states[-1].brush_enabled is True
 
 
@@ -171,7 +168,9 @@ def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
     focused: list[str] = []
     control_modes: list[object] = []
     workflow = _workflow(image_id=image_id, mask_id=mask_id)
-    pane = _tool_pane(control_modes=control_modes, masks_by_image={image_id: [mask_id]})
+    document = _tool_document(
+        control_modes=control_modes, masks_by_image={image_id: [mask_id]}
+    )
 
     def set_active_input_image(
         _workflow_id: str,
@@ -196,7 +195,7 @@ def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
     presenter = _presenter(
         workflow=workflow,
         panel=panel,
-        pane=pane,
+        document=document,
         current_image_id_provider=lambda: image_id,
         input_canvas_state_service=SimpleNamespace(
             set_active_input_image=set_active_input_image,
@@ -213,7 +212,7 @@ def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
     assert active_images == [image_id]
     assert active_masks == [mask_id]
     assert focused == ["Input"]
-    assert control_modes == [QPane.CONTROL_MODE_DRAW_BRUSH]
+    assert control_modes == ["brush"]
     assert workflow.canvas.active_canvas_route == "Input"
 
 
@@ -300,11 +299,11 @@ def test_explicit_and_debounced_saves_refresh_from_asset_state(
     asset_path.write_bytes(b"asset")
     panel = _Panel()
     workflow = _workflow(image_id=image_id, mask_id=mask_id)
-    pane = _save_pane(mask_id=mask_id)
+    document = _save_document(mask_id=mask_id)
     presenter = _presenter(
         workflow=workflow,
         panel=panel,
-        pane=pane,
+        document=document,
         asset_path=asset_path,
         timer=_Timer,
     )
@@ -327,7 +326,9 @@ def test_explicit_and_debounced_saves_refresh_from_asset_state(
     debounce_timer = _Timer()
     tracker = InputMaskDirtyTracker()
     controller = InputMaskSaveController(
-        input_pane=pane,
+        mask_edit_signal=document.mask_edit_signal,
+        mask_image_exporter=document.export_mask_image,
+        debounce_ms=0,
         dirty_tracker=tracker,
         workflow_session_service=SimpleNamespace(
             active_workflow_id="wf-a",
@@ -346,7 +347,7 @@ def test_explicit_and_debounced_saves_refresh_from_asset_state(
         timer_factory=lambda _parent: debounce_timer,
     )
 
-    pane.mask_controller.mask_updated.emit(mask_id, object())
+    document.mask_edit_signal.emit(mask_id)
     debounce_timer.trigger()
 
     assert controller is not None
@@ -456,35 +457,31 @@ def _workflow(*, image_id: UUID, mask_id: UUID) -> SimpleNamespace:
     )
 
 
-def _tool_pane(
+def _tool_document(
     *,
     control_modes: list[object],
     masks_by_image: dict[UUID, list[UUID]],
 ) -> SimpleNamespace:
-    """Return a pane fake for mask tool controller tests."""
+    """Return a document fake for mask tool controller tests."""
 
-    mask_manager = SimpleNamespace(
-        get_masks_for_image=lambda image_id: masks_by_image.get(image_id, [])
-    )
     return SimpleNamespace(
         masks_by_image=masks_by_image,
-        setControlMode=lambda mode: control_modes.append(mode),
-        catalog=lambda: SimpleNamespace(maskManager=lambda: mask_manager),
+        image_has_masks=lambda image_id: bool(masks_by_image.get(image_id, [])),
+        set_mask_tool_mode=lambda mode: control_modes.append(mode),
     )
 
 
-def _save_pane(*, mask_id: UUID) -> SimpleNamespace:
-    """Return a pane fake with mask update/save signals and current pixels."""
+def _save_document(*, mask_id: UUID) -> SimpleNamespace:
+    """Return a document fake with edit signals and exported pixels."""
 
-    layer = SimpleNamespace(mask_image=_MaskImage())
-    mask_manager = SimpleNamespace(get_layer=lambda _mask_id: layer)
     return SimpleNamespace(
-        mask_controller=SimpleNamespace(mask_updated=_Signal()),
-        maskSaved=_Signal(),
-        settings=SimpleNamespace(mask_autosave_debounce_ms=0),
-        catalog=lambda: SimpleNamespace(maskManager=lambda: mask_manager),
-        setMaskProperties=lambda *_args, **_kwargs: None,
-        loadMaskFromFile=lambda _path: mask_id,
+        mask_edit_signal=_Signal(),
+        export_mask_image=lambda requested_mask_id: (
+            _MaskImage() if requested_mask_id == mask_id else None
+        ),
+        set_mask_properties=lambda *_args, **_kwargs: None,
+        image_has_masks=lambda _image_id: True,
+        set_mask_tool_mode=lambda _mode: None,
     )
 
 
@@ -492,7 +489,7 @@ def _presenter(
     *,
     workflow: SimpleNamespace,
     panel: _Panel,
-    pane: Any | None = None,
+    document: Any | None = None,
     asset_path: Path | None = None,
     current_image_id_provider: Callable[[], UUID | None] | None = None,
     input_canvas_state_service: Any | None = None,
@@ -502,15 +499,16 @@ def _presenter(
 ) -> InputCanvasPresenter:
     """Build an InputCanvasPresenter with focused test collaborators."""
 
-    pane = pane or SimpleNamespace(
-        setMaskProperties=lambda *_args, **_kwargs: None,
-        catalog=lambda: SimpleNamespace(maskManager=lambda: None),
+    document = document or SimpleNamespace(
+        set_mask_properties=lambda *_args, **_kwargs: None,
+        image_has_masks=lambda _image_id: False,
+        set_mask_tool_mode=lambda _mode: None,
     )
     asset_path = asset_path or Path(__file__).resolve()
     workflow_input_canvas_service = workflow_input_canvas_service or SimpleNamespace(
         binding_for_mask=lambda *_args: SimpleNamespace(
-            cube_alias="CubeA",
-            image_node_name="ImageNode",
+            section_key="CubeA",
+            surface_key="ImageNode",
             association_key=("CubeA", "MaskNode"),
         ),
         bindings_for_image=lambda *_args: (
@@ -521,13 +519,15 @@ def _presenter(
     input_canvas_state_service = input_canvas_state_service or SimpleNamespace(
         set_active_input_image=lambda *_args: True,
         set_active_workflow_mask=lambda *_args: True,
+        input_image_path=lambda _image_id: None,
     )
     tool_controller = InputMaskToolController(
-        input_pane=pane,
+        input_document=document,
+        control_mode_setter=document.set_mask_tool_mode,
         current_image_id_provider=current_image_id_provider or (lambda: None),
     )
     return InputCanvasPresenter(
-        input_pane=pane,
+        input_document=document,
         current_image_id_provider=current_image_id_provider or (lambda: None),
         active_workflow_provider=lambda: cast(Any, workflow),
         active_editor_panel_provider=lambda: panel,

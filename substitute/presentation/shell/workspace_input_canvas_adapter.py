@@ -141,7 +141,7 @@ def handle_mask_save_completed_for_view(
     mask_id: str,
     path: str,
 ) -> None:
-    """Route QPane mask-save completion to presenter-owned refresh logic."""
+    """Route CuteCanvas mask-save completion to presenter-owned refresh logic."""
 
     input_canvas_presenter_for_view(canvas_view).handle_mask_save_completed(
         mask_id,

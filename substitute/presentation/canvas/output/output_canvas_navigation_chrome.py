@@ -208,9 +208,11 @@ def update_output_compare_nav_containers(host: object) -> None:
     show_scene_selector = _scenes_have_batch_navigation(
         _scene_groups_by_key(host).values()
     )
+    compare_controller = _compare_controller(host)
+    base_set_count = compare_controller.compare_set_count("base")
     visibility = OutputCanvasNavigationController.compare_navigation_visibility(
         scene_count=2 if show_scene_selector else 0,
-        set_count=int(getattr(host, "set_count", 0)),
+        set_count=base_set_count,
     )
     setattr(host, "_source_tabs_collapsed", visibility.source_tabs_collapsed)
     OutputCanvasNavigationController.apply_compare_navigation_visibility(
@@ -222,29 +224,20 @@ def update_output_compare_nav_containers(host: object) -> None:
     )
     _sync_output_comparison_navigation_buttons(host)
     base_scene_w = (
-        scene_selector_current_width(
-            _scene_groups_by_key(host).values(),
-            active_scene_key=getattr(host, "active_scene_key", None),
-            active_scene_overview=bool(
-                getattr(host, "active_scene_overview", False),
-            ),
-            widget=getattr(host, "scene_selector_button", None),
-            minimum_width=_SCENE_SELECTOR_MIN_WIDTH,
-            maximum_width=_SCENE_SELECTOR_MAX_WIDTH,
-            horizontal_padding=_SCENE_SELECTOR_HORIZONTAL_PADDING,
+        OutputCanvasNavigationController.button_width(
+            getattr(host, "scene_selector_button"),
         )
         if show_scene_selector
         else 0
     )
     set_selector = getattr(host, "set_selector_button")
-    base_set_w = set_selector.width() if int(getattr(host, "set_count", 0)) > 1 else 0
-    base_source_w = source_selector_current_width(
-        _visible_source_groups_by_key(host).values(),
-        active_source_key=getattr(host, "active_source_key", None),
-        widget=getattr(host, "source_selector_button", None),
-        minimum_width=_SOURCE_SELECTOR_MIN_WIDTH,
-        maximum_width=_SOURCE_SELECTOR_MAX_WIDTH,
-        horizontal_padding=_SOURCE_SELECTOR_HORIZONTAL_PADDING,
+    base_set_w = (
+        OutputCanvasNavigationController.button_width(set_selector)
+        if base_set_count > 1
+        else 0
+    )
+    base_source_w = OutputCanvasNavigationController.button_width(
+        getattr(host, "source_selector_button"),
     )
     comparison_scene_w = (
         OutputCanvasNavigationController.button_width(
@@ -253,7 +246,6 @@ def update_output_compare_nav_containers(host: object) -> None:
         if show_scene_selector
         else 0
     )
-    compare_controller = _compare_controller(host)
     comparison_set_w = (
         OutputCanvasNavigationController.button_width(
             getattr(host, "comparison_set_selector_button"),
@@ -514,7 +506,7 @@ def _visible_source_groups_by_key(
 def _sync_output_comparison_navigation_buttons(host: object) -> None:
     """Refresh compare navigation labels without importing projection wiring eagerly."""
 
-    from substitute.presentation.canvas.output.output_compare_projection_presenter import (  # noqa: PLC0415
+    from substitute.presentation.canvas.output.output_compare_navigation_chrome import (  # noqa: PLC0415
         sync_output_comparison_navigation_buttons,
     )
 

@@ -113,7 +113,7 @@ class _WorkflowInputCanvasServicePort(Protocol):
         workflow: WorkflowState,
         image_id: UUID,
     ) -> object:
-        """Resolve a QPane image id to a workflow graph input identity."""
+        """Resolve a CuteCanvas image id to a workflow graph input identity."""
 
     def materialize_input_image(
         self,
@@ -140,7 +140,7 @@ class _WorkflowInputCanvasServicePort(Protocol):
         workflow_name: str,
         projects_dir: Path,
     ) -> object:
-        """Associate one QPane-loaded image with workflow Input state."""
+        """Associate one CuteCanvas-loaded image with workflow Input state."""
 
     def materialize_loaded_section(
         self,
@@ -197,6 +197,9 @@ class _InputCanvasStateServicePort(Protocol):
     ) -> bool:
         """Activate one workflow-owned Input image."""
 
+    def input_image_path(self, image_id: UUID) -> Path | None:
+        """Return the persisted path associated with one Input image."""
+
 
 class InputCanvasPresenter:
     """Own Input canvas view intent and editor-panel picker refresh policy."""
@@ -204,7 +207,7 @@ class InputCanvasPresenter:
     def __init__(
         self,
         *,
-        input_pane: object,
+        input_document: object,
         current_image_id_provider: Callable[[], UUID | None],
         active_workflow_provider: Callable[[], WorkflowState | None],
         active_editor_panel_provider: Callable[[], _EditorPanelPort | None],
@@ -220,9 +223,9 @@ class InputCanvasPresenter:
         error_presenter: ErrorReportPresenterProtocol | None = None,
         timer: type[_TimerPort] | None = None,
     ) -> None:
-        """Store presenter collaborators and connect QPane Input signals."""
+        """Store presenter collaborators for Input document presentation."""
 
-        self._input_pane = input_pane
+        self._input_document = input_document
         self._current_image_id_provider = current_image_id_provider
         self._active_workflow_provider = active_workflow_provider
         self._active_editor_panel_provider = active_editor_panel_provider
@@ -237,7 +240,6 @@ class InputCanvasPresenter:
         self._mark_canvas_changed = mark_canvas_changed
         self._error_presenter = error_presenter
         self._timer = timer or cast(type[_TimerPort], QTimer)
-        self._bind_qpane_signals()
 
     def handle_input_image_changed(
         self,
@@ -269,7 +271,7 @@ class InputCanvasPresenter:
         image_id: object,
         image_path: str,
     ) -> None:
-        """Associate one QPane-loaded Input image with workflow graph state."""
+        """Associate one CuteCanvas-admitted Input image with workflow graph state."""
 
         active_workflow = self._active_workflow_provider()
         workflow_id = self._workflow_session_service.active_workflow_id
@@ -458,8 +460,8 @@ class InputCanvasPresenter:
                 rejection_reason="missing_mask_binding",
             )
             return
-        binding_cube_alias = getattr(binding, "cube_alias", None)
-        image_node_name = getattr(binding, "image_node_name", None)
+        binding_cube_alias = getattr(binding, "section_key", None)
+        image_node_name = getattr(binding, "surface_key", None)
         association_key = getattr(binding, "association_key", None)
         if not isinstance(binding_cube_alias, str) or not isinstance(
             image_node_name, str
@@ -590,13 +592,14 @@ class InputCanvasPresenter:
         )
 
     def reconcile_active_input_canvas_image(self) -> None:
-        """Associate the active QPane image with workflow Input graph state."""
+        """Associate the active document image with workflow Input graph state."""
 
-        current_image_path = getattr(self._input_pane, "currentImagePath", None)
-        image_path = (
-            current_image_path() if callable(current_image_path) else current_image_path
-        )
         image_id = self._current_image_id_provider()
+        image_path = (
+            self._input_canvas_state_service.input_image_path(image_id)
+            if image_id is not None
+            else None
+        )
         log_debug(
             _LOGGER,
             "Reconciling active input canvas image through presenter",
@@ -617,14 +620,15 @@ class InputCanvasPresenter:
     ) -> None:
         """Apply Input materialization presentation effects without path authority."""
 
-        input_pane = self._input_pane
         raw_mask_results = getattr(result, "mask_results", ())
         mask_results = (
             tuple(raw_mask_results) if isinstance(raw_mask_results, Iterable) else ()
         )
         total_masks_in_set = len(mask_results)
         for index, mask_result in enumerate(mask_results):
-            set_mask_properties = getattr(input_pane, "setMaskProperties", None)
+            set_mask_properties = getattr(
+                self._input_document, "set_mask_properties", None
+            )
             mask_id = getattr(mask_result, "mask_id", None)
             if callable(set_mask_properties) and isinstance(mask_id, UUID):
                 color = self._mask_color_provider(index, total_masks_in_set)
@@ -705,27 +709,6 @@ class InputCanvasPresenter:
         )
         return True
 
-    def _bind_qpane_signals(self) -> None:
-        """Connect QPane image and mask events to presenter-owned handlers."""
-
-        mask_saved = getattr(self._input_pane, "maskSaved", None)
-        connect_mask_saved = getattr(mask_saved, "connect", None)
-        if callable(connect_mask_saved):
-            connect_mask_saved(self.handle_mask_save_completed)
-        image_loaded = getattr(self._input_pane, "imageLoaded", None)
-        connect_image_loaded = getattr(image_loaded, "connect", None)
-        if callable(connect_image_loaded):
-            connect_image_loaded(self._handle_qpane_image_loaded)
-
-    def _handle_qpane_image_loaded(self, path: object) -> None:
-        """Handle QPane imageLoaded using the route-authorized image id."""
-
-        image_path = str(path) if path is not None else ""
-        self.handle_input_canvas_image_loaded(
-            self._current_image_id_provider(),
-            image_path,
-        )
-
     def _set_active_workflow_mask(
         self,
         active_workflow: WorkflowState,
@@ -791,7 +774,7 @@ class InputCanvasPresenter:
 
     @staticmethod
     def _resolve_uuid(value: object) -> UUID | None:
-        """Resolve UUIDs from QPane or workflow payloads."""
+        """Resolve UUIDs from CuteCanvas or workflow payloads."""
 
         if isinstance(value, UUID):
             return value

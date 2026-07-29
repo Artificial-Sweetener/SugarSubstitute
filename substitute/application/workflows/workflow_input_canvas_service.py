@@ -418,7 +418,7 @@ class WorkflowInputCanvasService:
         workflow: WorkflowState,
         image_id: UUID,
     ) -> LoadedInputCanvasImageIdentityResolution:
-        """Resolve a QPane-loaded image UUID to a workflow input image node."""
+        """Resolve an admitted canvas image UUID to a workflow input node."""
 
         mapped_input_key = self._input_key_for_image_id(workflow, image_id)
         if mapped_input_key is not None:
