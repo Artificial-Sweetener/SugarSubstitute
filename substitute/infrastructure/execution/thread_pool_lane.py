@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future
 import logging
 from threading import Lock
 import time
@@ -34,6 +34,10 @@ from substitute.application.execution import (
     TaskOutcome,
     TaskRequest,
     TaskTimings,
+)
+from substitute.infrastructure.execution.thread_pool_admission import (
+    ThreadPoolAdmission,
+    ThreadPoolAdmissionSaturatedError,
 )
 
 TResult = TypeVar("TResult")
@@ -75,13 +79,13 @@ class ThreadPoolExecutionLane(ExecutionLane):
         self._dispatcher = dispatcher
         self._dispatcher_factory = dispatcher_factory
         self._max_workers = max_workers
-        self._queue_capacity = queue_capacity
-        self._executor = ThreadPoolExecutor(
+        self._admission = ThreadPoolAdmission(
+            name=name,
             max_workers=max_workers,
+            queue_capacity=queue_capacity,
             thread_name_prefix=thread_name_prefix,
         )
         self._logger = logger or logging.getLogger(__name__)
-        self._pending_count = 0
         self._is_shutdown = False
         self._lock = Lock()
 
@@ -95,14 +99,19 @@ class ThreadPoolExecutionLane(ExecutionLane):
     def queue_capacity(self) -> int | None:
         """Return the configured maximum pending count."""
 
-        return self._queue_capacity
+        return self._admission.queue_capacity
 
     @property
     def pending_count(self) -> int:
         """Return queued plus running work currently owned by this lane."""
 
-        with self._lock:
-            return self._pending_count
+        return self._admission.pending_count
+
+    @property
+    def admission(self) -> ThreadPoolAdmission:
+        """Return the lane's physical admission boundary for host integrations."""
+
+        return self._admission
 
     def submit(
         self,
@@ -115,37 +124,26 @@ class ThreadPoolExecutionLane(ExecutionLane):
         queued_at = time.monotonic()
         execution_state = _ThreadPoolTaskState()
         dispatcher = self._dispatcher_for_request(request)
-        with self._lock:
-            if self._is_shutdown:
-                raise RuntimeError(f"Execution lane {self._name} is shut down.")
-            if (
-                self._queue_capacity is not None
-                and self._pending_count >= self._queue_capacity
-            ):
-                raise ExecutionLaneSaturatedError(
-                    lane_name=self._name,
-                    queue_capacity=self._queue_capacity,
-                )
-            self._pending_count += 1
-
         try:
-            future = self._executor.submit(
-                self._run_request,
-                request,
-                cancellation,
-                execution_state,
-                queued_at,
+            future = self._admission.submit(
+                lambda: self._run_request(
+                    request,
+                    cancellation,
+                    execution_state,
+                    queued_at,
+                )
             )
-        except BaseException:
-            self._decrement_pending()
-            raise
+        except ThreadPoolAdmissionSaturatedError as error:
+            raise ExecutionLaneSaturatedError(
+                lane_name=error.lane_name,
+                queue_capacity=error.queue_capacity,
+            ) from error
 
         return _ThreadPoolTaskHandle(
             request=request,
             future=future,
             dispatcher=dispatcher,
             execution_state=execution_state,
-            on_finished=self._decrement_pending,
             logger=self._logger,
         )
 
@@ -161,7 +159,7 @@ class ThreadPoolExecutionLane(ExecutionLane):
             if self._is_shutdown:
                 return
             self._is_shutdown = True
-        self._executor.shutdown(wait=wait, cancel_futures=cancel_futures)
+        self._admission.shutdown(wait=wait, cancel_futures=cancel_futures)
 
     def _run_request(
         self,
@@ -232,13 +230,6 @@ class ThreadPoolExecutionLane(ExecutionLane):
             ),
         )
 
-    def _decrement_pending(self) -> None:
-        """Record that one submitted task no longer occupies the lane."""
-
-        with self._lock:
-            if self._pending_count > 0:
-                self._pending_count -= 1
-
     def _dispatcher_for_request(
         self,
         request: TaskRequest[TResult],
@@ -262,7 +253,6 @@ class _ThreadPoolTaskHandle(Generic[TResult]):
         future: Future[TaskOutcome[TResult]],
         dispatcher: CompletionDispatcher,
         execution_state: "_ThreadPoolTaskState",
-        on_finished: Callable[[], None],
         logger: logging.Logger,
     ) -> None:
         """Attach completion handling to the supplied future."""
@@ -271,7 +261,6 @@ class _ThreadPoolTaskHandle(Generic[TResult]):
         self._future = future
         self._dispatcher = dispatcher
         self._execution_state = execution_state
-        self._on_finished = on_finished
         self._logger = logger
         self._outcome: TaskOutcome[TResult] | None = None
         self._callbacks: list[tuple[Callable[[TaskOutcome[TResult]], None], str]] = []
@@ -338,19 +327,16 @@ class _ThreadPoolTaskHandle(Generic[TResult]):
     def _finish(self, future: Future[TaskOutcome[TResult]]) -> None:
         """Build and publish one terminal outcome."""
 
-        try:
-            outcome = self._future_outcome(future)
-            with self._lock:
-                if self._outcome is not None:
-                    return
-                self._outcome = outcome
-                callbacks = tuple(self._callbacks)
-                self._callbacks.clear()
-            self._log_outcome(outcome)
-            for callback, reason in callbacks:
-                self._publish_callback(callback, reason=reason, outcome=outcome)
-        finally:
-            self._on_finished()
+        outcome = self._future_outcome(future)
+        with self._lock:
+            if self._outcome is not None:
+                return
+            self._outcome = outcome
+            callbacks = tuple(self._callbacks)
+            self._callbacks.clear()
+        self._log_outcome(outcome)
+        for callback, reason in callbacks:
+            self._publish_callback(callback, reason=reason, outcome=outcome)
 
     def _future_outcome(
         self,
