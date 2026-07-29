@@ -276,15 +276,27 @@ class _FakeSignal(_Signal):
     """Alias signal fake for readability in input-canvas composition tests."""
 
 
-class _FakeInputMaskToolController:
-    """Capture mask-tool controller wiring inputs."""
+class _FakeInputCanvasToolController:
+    """Capture contextual canvas-tool controller wiring inputs."""
 
     def __init__(self, **kwargs: object) -> None:
         """Store constructor keyword arguments for assertions."""
 
         self.kwargs = kwargs
-        self.refresh_tool_menu_state = object()
-        self.request_tool_mode = object()
+        self.refresh_calls = 0
+
+    def refresh_tool_context(self) -> None:
+        """Record one context refresh."""
+
+        self.refresh_calls += 1
+
+    def synchronize_native_tool(self, _tool_id: str) -> None:
+        """Accept native mode synchronization wiring."""
+
+    def request_tool(self, _tool_id: str) -> bool:
+        """Accept requested tool wiring."""
+
+        return True
 
 
 class _FakeInputCanvasShellAdapter:
@@ -845,8 +857,8 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     )
     monkeypatch.setattr(
         main_window_composition,
-        "InputMaskToolController",
-        _FakeInputMaskToolController,
+        "InputCanvasToolController",
+        _FakeInputCanvasToolController,
     )
     monkeypatch.setattr(
         main_window_composition,
@@ -873,19 +885,28 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         "InputCanvasCapabilityService",
         _FakeInputCanvasCapabilityService,
     )
+    palette = object()
+    runtime = SimpleNamespace(palette=palette)
+    monkeypatch.setattr(
+        main_window_composition,
+        "create_input_canvas_tool_system",
+        lambda: runtime,
+    )
     document = SimpleNamespace(
-        set_mask_tool_mode=object(),
+        set_canvas_tool_mode=object(),
         export_mask_image=object(),
+        toolContextChanged=_FakeSignal(),
+        canvasToolChanged=_FakeSignal(),
     )
     current_image_id_for_event = object()
-    menu_state_sink = object()
+    bound_palettes: list[object] = []
     input_canvas = SimpleNamespace(
         document=document,
         canvas=SimpleNamespace(maskUndoStackChanged=object()),
         current_image_id_for_event=current_image_id_for_event,
-        set_mask_tool_menu_state=menu_state_sink,
-        maskToolMenuStateRequested=_FakeSignal(),
-        maskToolModeRequested=_FakeSignal(),
+        bind_tool_palette=bound_palettes.append,
+        toolContextRefreshRequested=_FakeSignal(),
+        toolRequested=_FakeSignal(),
     )
     shell = SimpleNamespace(
         canvas_tabs=SimpleNamespace(canvas_map={"Input": input_canvas}),
@@ -915,18 +936,26 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         "workflow_asset_service": shell.workflow_asset_service,
         "graph_section_service": shell.graph_section_service,
     }
-    assert shell.input_mask_tool_controller.kwargs == {
+    assert shell.input_canvas_tool_controller.kwargs == {
         "input_document": document,
-        "control_mode_setter": document.set_mask_tool_mode,
+        "control_mode_setter": document.set_canvas_tool_mode,
         "current_image_id_provider": current_image_id_for_event,
-        "menu_state_sink": menu_state_sink,
+        "runtime": runtime,
     }
-    assert input_canvas.maskToolMenuStateRequested.connected == [
-        shell.input_mask_tool_controller.refresh_tool_menu_state
+    assert bound_palettes == [palette]
+    assert document.toolContextChanged.connected == [
+        shell.input_canvas_tool_controller.refresh_tool_context
     ]
-    assert input_canvas.maskToolModeRequested.connected == [
-        shell.input_mask_tool_controller.request_tool_mode
+    assert document.canvasToolChanged.connected == [
+        shell.input_canvas_tool_controller.synchronize_native_tool
     ]
+    assert input_canvas.toolContextRefreshRequested.connected == [
+        shell.input_canvas_tool_controller.refresh_tool_context
+    ]
+    assert input_canvas.toolRequested.connected == [
+        shell.input_canvas_tool_controller.request_tool
+    ]
+    assert shell.input_canvas_tool_controller.refresh_calls == 1
     assert shell.input_canvas_shell_adapter.shell is shell
     assert shell.input_canvas_presenter.kwargs["input_document"] is document
     assert (

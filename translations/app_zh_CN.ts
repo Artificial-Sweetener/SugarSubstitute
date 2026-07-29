@@ -520,7 +520,7 @@ Prompt preview:
       <translation>受影响的 Cube</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="605"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="625"></location>
       <source>All</source>
       <translation>全部</translation>
     </message>
@@ -765,7 +765,7 @@ Prompt preview:
       <translation>浏览...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="249"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="92"></location>
       <source>Brush</source>
       <translation>画笔</translation>
     </message>
@@ -2408,6 +2408,11 @@ Install these nodes now?</source>
       <translation>编辑器功能</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="68"></location>
+      <source>Ellipse Mask</source>
+      <translation>椭圆蒙版</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/errors.py" line="639"></location>
       <source>Embedded Python: %1</source>
       <translation>内置 Python：%1</translation>
@@ -3203,6 +3208,11 @@ Install these nodes now?</source>
       <translation>语言和区域</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="75"></location>
+      <source>Lasso Mask</source>
+      <translation>套索蒙版</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="419"></location>
       <source>Last output: %1</source>
       <translation>上次输出：%1</translation>
@@ -3643,6 +3653,11 @@ Install these nodes now?</source>
       <translation>大多数用户应从第一个选项开始。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="54"></location>
+      <source>Move</source>
+      <translation>移动</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/planned_changes_panel.py" line="132"></location>
       <source>Move down</source>
       <translation>下移</translation>
@@ -3753,7 +3768,7 @@ Install these nodes now?</source>
       <translation>未找到立方体</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="131"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="132"></location>
       <source>No input canvas nodes</source>
       <translation>没有输入画布节点</translation>
     </message>
@@ -4113,7 +4128,7 @@ Install these nodes now?</source>
       <translation>软件包未加载</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="242"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="99"></location>
       <source>Pan &amp; Zoom</source>
       <translation>平移和缩放</translation>
     </message>
@@ -4538,6 +4553,11 @@ Install these nodes now?</source>
       <translation>正在录音…</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="61"></location>
+      <source>Rectangle Mask</source>
+      <translation>矩形蒙版</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
       <source>Red</source>
       <translation>红色</translation>
@@ -4548,7 +4568,7 @@ Install these nodes now?</source>
       <translation>重做</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="267"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="63"></location>
       <source>Redock canvas</source>
       <translation>重新停靠画布</translation>
     </message>
@@ -5487,7 +5507,7 @@ No known extension claimant.</source>
       <translation>可用时跳过活动的排队生成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="257"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="82"></location>
       <source>Smart Select</source>
       <translation>智能选择</translation>
     </message>
@@ -6857,7 +6877,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>撤销</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="267"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="63"></location>
       <source>Undock canvas</source>
       <translation>取消停靠画布</translation>
     </message>

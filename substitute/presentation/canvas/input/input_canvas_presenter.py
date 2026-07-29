@@ -35,8 +35,8 @@ from substitute.application.errors import (
     SubstituteOperationContext,
 )
 from substitute.domain.workflow import WorkflowState
-from substitute.presentation.canvas.input.input_mask_tool_controller import (
-    InputMaskToolController,
+from substitute.presentation.canvas.input.input_canvas_tool_controller import (
+    InputCanvasToolController,
 )
 from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.shared.logging.logger import (
@@ -218,7 +218,7 @@ class InputCanvasPresenter:
         workflow_name_provider: Callable[[str], str],
         projects_dir_provider: Callable[[], Path],
         mask_color_provider: Callable[[int, int], object],
-        mask_tool_controller: InputMaskToolController,
+        tool_controller: InputCanvasToolController,
         mark_canvas_changed: Callable[[str], None] | None = None,
         error_presenter: ErrorReportPresenterProtocol | None = None,
         timer: type[_TimerPort] | None = None,
@@ -236,7 +236,7 @@ class InputCanvasPresenter:
         self._workflow_name_provider = workflow_name_provider
         self._projects_dir_provider = projects_dir_provider
         self._mask_color_provider = mask_color_provider
-        self._mask_tool_controller = mask_tool_controller
+        self._tool_controller = tool_controller
         self._mark_canvas_changed = mark_canvas_changed
         self._error_presenter = error_presenter
         self._timer = timer or cast(type[_TimerPort], QTimer)
@@ -510,7 +510,7 @@ class InputCanvasPresenter:
         if not self._set_active_workflow_mask(active_workflow, mask_id):
             return
         self._focus_attached_canvas("Input")
-        self._mask_tool_controller.request_brush_mode_after_authorized_mask_activation()
+        self._tool_controller.request_brush_after_mask_activation()
 
     def handle_mask_save_completed(self, mask_id: object, path: str = "") -> None:
         """Refresh a saved mask picker from current asset state, not emitted path."""

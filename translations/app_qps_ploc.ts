@@ -1886,6 +1886,10 @@ Install these nodes now?</source>
       <translation>⟦Ëdïtör fëàtürës ···⟧</translation>
     </message>
     <message>
+      <source>Ellipse Mask</source>
+      <translation>⟦Ëllïpsë Màsk ···⟧</translation>
+    </message>
+    <message>
       <source>Embedded Python: %1</source>
       <translation>⟦Ëmbëddëd Pythön: %1 ···⟧</translation>
     </message>
@@ -2522,6 +2526,10 @@ Install these nodes now?</source>
       <translation>⟦Làngüàgë ànd rëgïön ···⟧</translation>
     </message>
     <message>
+      <source>Lasso Mask</source>
+      <translation>⟦Làssö Màsk ···⟧</translation>
+    </message>
+    <message>
       <source>Last output: %1</source>
       <translation>⟦Làst öütpüt: %1 ···⟧</translation>
     </message>
@@ -2872,6 +2880,10 @@ Install these nodes now?</source>
     <message>
       <source>Most people should start with the first option.</source>
       <translation>⟦Möst pëöplë shöüld stàrt wïth thë fïrst öptïön. ···⟧</translation>
+    </message>
+    <message>
+      <source>Move</source>
+      <translation>⟦Mövë ···⟧</translation>
     </message>
     <message>
       <source>Move down</source>
@@ -3588,6 +3600,10 @@ Install these nodes now?</source>
     <message>
       <source>Recording…</source>
       <translation>⟦Rëcördïng… ···⟧</translation>
+    </message>
+    <message>
+      <source>Rectangle Mask</source>
+      <translation>⟦Rëctànglë Màsk ···⟧</translation>
     </message>
     <message>
       <source>Red</source>

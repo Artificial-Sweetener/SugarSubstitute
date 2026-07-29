@@ -32,10 +32,8 @@ if TYPE_CHECKING:
     from substitute.presentation.canvas.input.input_mask_save_controller import (
         InputMaskSaveController,
     )
-    from substitute.presentation.canvas.input.input_mask_tool_controller import (
-        InputMaskToolController,
-        InputMaskToolMenuState,
-        InputMaskToolMode,
+    from substitute.presentation.canvas.input.input_canvas_tool_controller import (
+        InputCanvasToolController,
     )
     from substitute.presentation.canvas.input.mask_color_provider import (
         input_mask_color,
@@ -52,14 +50,8 @@ _EXPORT_MODULES = {
     "InputMaskSaveController": (
         "substitute.presentation.canvas.input.input_mask_save_controller"
     ),
-    "InputMaskToolController": (
-        "substitute.presentation.canvas.input.input_mask_tool_controller"
-    ),
-    "InputMaskToolMenuState": (
-        "substitute.presentation.canvas.input.input_mask_tool_controller"
-    ),
-    "InputMaskToolMode": (
-        "substitute.presentation.canvas.input.input_mask_tool_controller"
+    "InputCanvasToolController": (
+        "substitute.presentation.canvas.input.input_canvas_tool_controller"
     ),
     "input_mask_color": "substitute.presentation.canvas.input.mask_color_provider",
 }
@@ -69,9 +61,7 @@ __all__ = [
     "InputCanvasPresenter",
     "InputMaskDirtyTracker",
     "InputMaskSaveController",
-    "InputMaskToolController",
-    "InputMaskToolMenuState",
-    "InputMaskToolMode",
+    "InputCanvasToolController",
     "input_mask_color",
 ]
 

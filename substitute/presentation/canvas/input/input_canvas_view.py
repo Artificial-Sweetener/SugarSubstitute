@@ -22,7 +22,6 @@ from sugarsubstitute_shared.localization import ApplicationText
 from sugarsubstitute_shared.presentation.localization import (
     app_text,
     apply_application_text,
-    render_application_text,
 )
 from substitute.presentation.localization import LocalizedLabel
 
@@ -30,9 +29,9 @@ from os import environ
 from uuid import UUID
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QEnterEvent, QKeyEvent, QResizeEvent
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 from cutecanvas import ExecutionRuntime
-from qfluentwidgets import MenuAnimationType
 
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
@@ -42,20 +41,14 @@ from substitute.application.workflows.canvas_route_projector_port import (
 from substitute.presentation.canvas.input.input_document import (
     InputCanvasDocument,
 )
+from substitute.presentation.canvas.input.input_canvas_tool_chrome import (
+    InputCanvasToolChrome,
+)
 from substitute.presentation.canvas.input.input_route_projector import (
     InputRouteProjector,
 )
-from substitute.presentation.canvas.input.input_mask_tool_controller import (
-    InputMaskToolMenuState,
-    InputMaskToolMode,
-)
+from substitute.presentation.canvas.tools import CanvasToolPalette, CanvasToolStrip
 from substitute.presentation.shell.chrome_style import connect_theme_refresh
-from substitute.presentation.widgets.menu_model import (
-    MenuItem,
-    MenuModel,
-    MenuSeparator,
-)
-from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
 from substitute.shared.logging.logger import log_debug, get_logger
 from substitute.shared.startup_trace import trace_mark
 
@@ -81,8 +74,8 @@ class InputCanvas(QWidget):
 
     inputMaskSaved = Signal(str, str)  # mask_id, path
     inputImageLoaded = Signal(object, str)  # image_id, path
-    maskToolMenuStateRequested = Signal()
-    maskToolModeRequested = Signal(str)
+    toolContextRefreshRequested = Signal()
+    toolRequested = Signal(str)
     dockActionRequested = Signal()
 
     def __init__(
@@ -117,10 +110,18 @@ class InputCanvas(QWidget):
             session_boundary=self._route_session_boundary,
         )
         self._canvas_detached = False
-        self._mask_tool_menu_state = InputMaskToolMenuState()
+        self._tool_chrome = InputCanvasToolChrome(
+            canvas=self.canvas,
+            tool_requested=self.toolRequested.emit,
+            context_refresh_requested=self.toolContextRefreshRequested.emit,
+            dock_requested=self.dockActionRequested.emit,
+            detached_provider=lambda: self._canvas_detached,
+        )
 
-        self.canvas.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.canvas.customContextMenuRequested.connect(self._show_context_menu)
+        self.canvas.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.canvas.customContextMenuRequested.connect(
+            self._tool_chrome.show_context_menu
+        )
         self.document.imageMaterialized.connect(self._on_image_materialized)
 
         layout = QVBoxLayout(self)
@@ -152,7 +153,7 @@ class InputCanvas(QWidget):
 
         return self._route_projector
 
-    def resizeEvent(self, event: object) -> None:
+    def resizeEvent(self, event: QResizeEvent) -> None:
         """Keep the availability overlay aligned with the canvas bounds."""
 
         self._resize_availability_overlay()
@@ -166,6 +167,7 @@ class InputCanvas(QWidget):
         """Enable or disable input-canvas interaction and empty-state presentation."""
 
         self.canvas.setEnabled(available)
+        self._tool_chrome.set_enabled(available)
         overlay = self._availability_overlay
         if available:
             overlay.hide()
@@ -183,26 +185,32 @@ class InputCanvas(QWidget):
 
         self._canvas_detached = detached
 
-    def keyPressEvent(self, event: object) -> None:
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         """Forward key presses to the underlying canvas control."""
 
         self.canvas.keyPressEvent(event)
 
-    def keyReleaseEvent(self, event: object) -> None:
+    def keyReleaseEvent(self, event: QKeyEvent) -> None:
         """Forward key releases to the underlying canvas control."""
 
         self.canvas.keyReleaseEvent(event)
 
-    def enterEvent(self, event: object) -> None:
+    def enterEvent(self, event: QEnterEvent) -> None:
         """Grab keyboard focus when pointer enters the canvas area."""
 
         self.setFocus()
         super().enterEvent(event)
 
-    def set_mask_tool_menu_state(self, state: InputMaskToolMenuState) -> None:
-        """Store the latest presenter-owned mask tool menu state."""
+    @property
+    def tool_strip(self) -> CanvasToolStrip:
+        """Return the content-sized tool strip for lifecycle and rendering tests."""
 
-        self._mask_tool_menu_state = state
+        return self._tool_chrome.tool_strip
+
+    def bind_tool_palette(self, palette: CanvasToolPalette) -> None:
+        """Project one authoritative contextual palette into Input tool chrome."""
+
+        self._tool_chrome.bind_palette(palette)
 
     def _resize_availability_overlay(self) -> None:
         """Resize the unavailable overlay to cover the full input canvas."""
@@ -228,54 +236,6 @@ class InputCanvas(QWidget):
             }}
             """
         )
-
-    def _show_context_menu(self, pos: object) -> None:
-        """Show context menu for canvas tool selection intents."""
-
-        self.maskToolMenuStateRequested.emit()
-        tool_state = self._mask_tool_menu_state
-        menu = QFluentMenuRenderer(parent=self.canvas).render(
-            MenuModel(
-                entries=(
-                    MenuItem(
-                        "input_canvas.tool.pan_zoom",
-                        app_text("Pan & Zoom"),
-                        callback=lambda: self.maskToolModeRequested.emit(
-                            InputMaskToolMode.PAN_ZOOM
-                        ),
-                    ),
-                    MenuItem(
-                        "input_canvas.tool.brush",
-                        app_text("Brush"),
-                        callback=lambda: self.maskToolModeRequested.emit(
-                            InputMaskToolMode.BRUSH
-                        ),
-                        enabled=tool_state.brush_enabled,
-                    ),
-                    MenuItem(
-                        "input_canvas.tool.smart_select",
-                        app_text("Smart Select"),
-                        callback=lambda: self.maskToolModeRequested.emit(
-                            InputMaskToolMode.SMART_SELECT
-                        ),
-                        enabled=tool_state.smart_select_enabled,
-                    ),
-                    MenuSeparator(),
-                    MenuItem(
-                        "input_canvas.dock_action",
-                        render_application_text(
-                            app_text(
-                                "Redock canvas"
-                                if self._canvas_detached
-                                else "Undock canvas"
-                            )
-                        ),
-                        callback=self.dockActionRequested.emit,
-                    ),
-                )
-            )
-        )
-        menu.exec(self.canvas.mapToGlobal(pos), aniType=MenuAnimationType.DROP_DOWN)
 
     def _on_image_materialized(self, image_id: object, path: str) -> None:
         """Relay host-owned document materialization for graph association."""

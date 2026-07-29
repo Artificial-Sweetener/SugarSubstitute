@@ -5,6 +5,14 @@
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """Characterize the SugarSubstitute Input CuteCanvas document boundary."""
 
@@ -12,14 +20,19 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from PySide6.QtCore import QCoreApplication, QSize
+from PySide6.QtCore import QCoreApplication, QSize, Qt
 from PySide6.QtGui import QColor, QImage
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from substitute.application.workflows.input_canvas_document_port import (
     CanvasDocumentMutation,
 )
 from substitute.presentation.canvas.input.input_document import InputCanvasDocument
+from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
+    InputCanvasToolId,
+)
+from cutecanvas import EditorCapability
 
 
 def _image(color: QColor) -> QImage:
@@ -162,3 +175,78 @@ def test_input_document_retires_only_the_requested_unreferenced_composition() ->
     assert document.contains(second_image_id) is True
     assert document.set_current_image_id(first_image_id) is False
     assert document.set_current_image_id(second_image_id) is True
+
+
+def test_input_document_allows_mask_movement_without_unlocking_source_image() -> None:
+    """Move should target the selected mask while the source image remains fixed."""
+
+    _app()
+    document = InputCanvasDocument(features=("mask",))
+    image_id = uuid4()
+    document.ensure_image_cached(image_id, _image(QColor("red")), None)
+    assert document.set_current_image_id(image_id)
+    mask_id = document.create_blank_mask(image_id, QSize(24, 16))
+    assert mask_id is not None
+
+    masks = document.canvas.listMasksForComposition()
+    assert len(masks) == 1
+    mask = masks[0]
+    assert mask.mask_id == mask_id
+    assert mask.interaction.movable is True
+    assert EditorCapability.MOVE_LAYERS in document.canvas.editorPolicy().capabilities
+
+    snapshot = document.canvas.currentScene()
+    assert snapshot is not None
+    source_layers = [layer for layer in snapshot.layers if layer.source_id != mask_id]
+    assert source_layers
+    assert all(layer.interaction.movable is False for layer in source_layers)
+    assert document.set_canvas_tool_mode(InputCanvasToolId.MOVE) is True
+    assert document.current_canvas_tool_id() == InputCanvasToolId.MOVE
+
+
+def test_input_document_maps_every_product_tool_through_cutecanvas() -> None:
+    """Every displayed mode should resolve through CuteCanvas without a parallel path."""
+
+    _app()
+    document = InputCanvasDocument(features=("mask",))
+    image_id = uuid4()
+    document.ensure_image_cached(image_id, _image(QColor("red")), None)
+    assert document.set_current_image_id(image_id)
+    assert document.create_blank_mask(image_id, QSize(24, 16)) is not None
+
+    for tool_id in (
+        InputCanvasToolId.MOVE,
+        InputCanvasToolId.MASK_RECTANGLE,
+        InputCanvasToolId.MASK_ELLIPSE,
+        InputCanvasToolId.MASK_LASSO,
+        InputCanvasToolId.BRUSH,
+        InputCanvasToolId.PAN_ZOOM,
+    ):
+        assert document.set_canvas_tool_mode(tool_id) is True
+        assert document.current_canvas_tool_id() == tool_id
+
+    assert document.set_canvas_tool_mode("foreign-tool") is False
+
+
+def test_input_document_accepts_new_selection_during_temporary_navigation() -> None:
+    """Toolbar selection remains truthful while Space keeps Pan/Zoom effective."""
+
+    app = _app()
+    document = InputCanvasDocument(features=("mask",))
+    image_id = uuid4()
+    document.ensure_image_cached(image_id, _image(QColor("red")), None)
+    assert document.set_current_image_id(image_id)
+    assert document.create_blank_mask(image_id, QSize(24, 16)) is not None
+    canvas = document.canvas
+    canvas.show()
+    canvas.setFocus()
+    app.processEvents()
+    assert document.set_canvas_tool_mode(InputCanvasToolId.BRUSH)
+
+    QTest.keyPress(canvas, Qt.Key.Key_Space)
+    assert document.current_canvas_tool_id() == InputCanvasToolId.PAN_ZOOM
+    assert document.set_canvas_tool_mode(InputCanvasToolId.MASK_RECTANGLE)
+    assert document.current_canvas_tool_id() == InputCanvasToolId.PAN_ZOOM
+
+    QTest.keyRelease(canvas, Qt.Key.Key_Space)
+    assert document.current_canvas_tool_id() == InputCanvasToolId.MASK_RECTANGLE

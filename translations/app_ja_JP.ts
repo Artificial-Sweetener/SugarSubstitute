@@ -520,7 +520,7 @@ Prompt preview:
       <translation>影響を受けるキューブ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="605"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="625"></location>
       <source>All</source>
       <translation>すべて</translation>
     </message>
@@ -765,7 +765,7 @@ Prompt preview:
       <translation>参照...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="249"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="92"></location>
       <source>Brush</source>
       <translation>ブラシ</translation>
     </message>
@@ -2408,6 +2408,11 @@ Install these nodes now?</source>
       <translation>エディター機能</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="68"></location>
+      <source>Ellipse Mask</source>
+      <translation>楕円形マスク</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/errors.py" line="639"></location>
       <source>Embedded Python: %1</source>
       <translation>組み込み Python：%1</translation>
@@ -3203,6 +3208,11 @@ Install these nodes now?</source>
       <translation>言語と地域</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="75"></location>
+      <source>Lasso Mask</source>
+      <translation>なげなわマスク</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="419"></location>
       <source>Last output: %1</source>
       <translation>前回の出力：%1</translation>
@@ -3643,6 +3653,11 @@ Install these nodes now?</source>
       <translation>ほとんどの場合は、最初のオプションから始めてください。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="54"></location>
+      <source>Move</source>
+      <translation>移動</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/planned_changes_panel.py" line="132"></location>
       <source>Move down</source>
       <translation>下へ移動</translation>
@@ -3753,7 +3768,7 @@ Install these nodes now?</source>
       <translation>キューブが見つかりません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="131"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="132"></location>
       <source>No input canvas nodes</source>
       <translation>入力キャンバスノードがありません</translation>
     </message>
@@ -4113,7 +4128,7 @@ Install these nodes now?</source>
       <translation>パッケージが読み込まれていません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="242"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="99"></location>
       <source>Pan &amp; Zoom</source>
       <translation>パンとズーム</translation>
     </message>
@@ -4538,6 +4553,11 @@ Install these nodes now?</source>
       <translation>録音中…</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="61"></location>
+      <source>Rectangle Mask</source>
+      <translation>長方形マスク</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
       <source>Red</source>
       <translation>赤</translation>
@@ -4548,7 +4568,7 @@ Install these nodes now?</source>
       <translation>やり直す</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="267"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="63"></location>
       <source>Redock canvas</source>
       <translation>キャンバスを再度ドッキング</translation>
     </message>
@@ -5487,7 +5507,7 @@ No known extension claimant.</source>
       <translation>利用可能な場合、アクティブなキュー済み生成をスキップします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="257"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="82"></location>
       <source>Smart Select</source>
       <translation>スマート選択</translation>
     </message>
@@ -6857,7 +6877,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>元に戻す</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="267"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="63"></location>
       <source>Undock canvas</source>
       <translation>キャンバスのドッキングを解除</translation>
     </message>

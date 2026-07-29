@@ -27,10 +27,11 @@ from PySide6.QtGui import (
     QPainter,
 )
 from PySide6.QtWidgets import QWidget
-from qfluentwidgets.common.color import themeColor  # type: ignore[import-untyped]
-
 from substitute.presentation.workflows.reorderable_tabs_base import (
     ReorderableCloseButtonDisplayMode,
+)
+from substitute.presentation.widgets.fluent_vertical_indicator import (
+    paint_fluent_vertical_indicator,
 )
 
 CubeCloseButtonDisplayMode = ReorderableCloseButtonDisplayMode
@@ -70,17 +71,11 @@ class CubeStackIndicatorOverlay(QWidget):
             return
 
         painter = QPainter(self)
-        painter.setRenderHints(QPainter.RenderHint.Antialiasing)
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(themeColor())
         indicator_x = item.x() + 1
-        painter.drawRoundedRect(
-            indicator_x,
-            self._stack._getIndicatorY(),
-            3,
-            16,
-            1.5,
-            1.5,
+        paint_fluent_vertical_indicator(
+            painter,
+            x=indicator_x,
+            y=self._stack._getIndicatorY(),
         )
 
 

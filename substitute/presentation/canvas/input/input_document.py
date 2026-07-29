@@ -39,9 +39,25 @@ from cutecanvas import (
 from substitute.application.workflows.input_canvas_document_port import (
     CanvasDocumentMutation,
 )
+from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
+    InputCanvasToolId,
+)
 from substitute.shared.logging.logger import get_logger, log_debug, log_warning
 
 _LOGGER = get_logger("presentation.canvas.input.input_document")
+_PRODUCT_TOOL_TO_CONTROL_MODE = {
+    InputCanvasToolId.MOVE: CuteCanvas.CONTROL_MODE_MOVE,
+    InputCanvasToolId.MASK_RECTANGLE: CuteCanvas.CONTROL_MODE_MASK_RECTANGLE,
+    InputCanvasToolId.MASK_ELLIPSE: CuteCanvas.CONTROL_MODE_MASK_ELLIPSE,
+    InputCanvasToolId.MASK_LASSO: CuteCanvas.CONTROL_MODE_MASK_LASSO,
+    InputCanvasToolId.SMART_SELECT: CuteCanvas.CONTROL_MODE_SMART_SELECT,
+    InputCanvasToolId.BRUSH: CuteCanvas.CONTROL_MODE_DRAW_BRUSH,
+    InputCanvasToolId.PAN_ZOOM: CuteCanvas.CONTROL_MODE_PANZOOM,
+}
+_CONTROL_MODE_TO_PRODUCT_TOOL = {
+    control_mode: tool_id
+    for tool_id, control_mode in _PRODUCT_TOOL_TO_CONTROL_MODE.items()
+}
 
 _BASE_LAYER_POLICY = LayerPolicy(
     selectable=False,
@@ -52,7 +68,7 @@ _BASE_LAYER_POLICY = LayerPolicy(
 )
 _MASK_LAYER_POLICY = LayerPolicy(
     selectable=True,
-    movable=False,
+    movable=True,
     pixel_editable=True,
     reorderable=False,
     removable=False,
@@ -62,6 +78,7 @@ _EDITOR_POLICY = EditorPolicy(
         {
             EditorCapability.SELECT_PIXELS,
             EditorCapability.EDIT_PIXELS,
+            EditorCapability.MOVE_LAYERS,
             EditorCapability.PAINT,
         }
     ),
@@ -83,6 +100,8 @@ class InputCanvasDocument(QObject):
     """Provide one long-lived CuteCanvas Input document to application services."""
 
     imageMaterialized = Signal(object, str)
+    toolContextChanged = Signal()
+    canvasToolChanged = Signal(str)
 
     def __init__(
         self,
@@ -107,6 +126,16 @@ class InputCanvasDocument(QObject):
         )
         self._canvas.setEditorPolicy(_EDITOR_POLICY)
         self._images: dict[UUID, InputDocumentImage] = {}
+        self._canvas.controlModeChanged.connect(self._on_control_mode_changed)
+        self._canvas.samCheckpointStatusChanged.connect(
+            lambda _status, _path: self.toolContextChanged.emit()
+        )
+        self._canvas.compositionSelectionChanged.connect(
+            lambda _composition_id: self.toolContextChanged.emit()
+        )
+        self._canvas.selectedLayerChanged.connect(
+            lambda _selection: self.toolContextChanged.emit()
+        )
 
     @property
     def canvas(self) -> CuteCanvas:
@@ -191,6 +220,7 @@ class InputCanvasDocument(QObject):
         if record is None:
             return False
         self._canvas.removeComposition(record.composition_id)
+        self.toolContextChanged.emit()
         log_debug(
             _LOGGER,
             "Input document image retired",
@@ -215,11 +245,13 @@ class InputCanvasDocument(QObject):
 
         if image_id is None:
             self._session.clear_activation()
+            self.toolContextChanged.emit()
             return True
         record = self._images.get(image_id)
         if record is None:
             return False
         self._canvas.openComposition(record.composition_id)
+        self.toolContextChanged.emit()
         return True
 
     def current_image_id(self) -> UUID | None:
@@ -236,20 +268,49 @@ class InputCanvasDocument(QObject):
     def set_active_mask_id(self, mask_id: UUID) -> bool:
         """Activate one mask through the supported CuteCanvas facade."""
 
-        return bool(self._canvas.setActiveMaskID(mask_id))
+        accepted = bool(self._canvas.setActiveMaskID(mask_id))
+        if accepted:
+            self.toolContextChanged.emit()
+        return accepted
 
-    def set_mask_tool_mode(self, mode: str) -> None:
-        """Apply one product-approved mask tool mode to the canvas."""
+    def set_canvas_tool_mode(self, tool_id: str) -> bool:
+        """Apply one built-in or runtime-registered tool through CuteCanvas."""
 
-        control_modes = {
-            "pan_zoom": CuteCanvas.CONTROL_MODE_PANZOOM,
-            "brush": CuteCanvas.CONTROL_MODE_DRAW_BRUSH,
-            "smart_select": CuteCanvas.CONTROL_MODE_SMART_SELECT,
-        }
-        resolved = control_modes.get(mode)
-        if resolved is None:
-            raise ValueError(f"Unsupported Input mask tool mode: {mode}")
-        self._canvas.setControlMode(resolved)
+        resolved = _PRODUCT_TOOL_TO_CONTROL_MODE.get(tool_id, tool_id)
+        if resolved not in self._canvas.availableControlModes():
+            return False
+        return bool(self._canvas.setControlMode(resolved))
+
+    def current_canvas_tool_id(self) -> str | None:
+        """Return the built-in product ID or registered native mode identity."""
+
+        control_mode = self._canvas.getControlMode()
+        if control_mode in _CONTROL_MODE_TO_PRODUCT_TOOL:
+            return _CONTROL_MODE_TO_PRODUCT_TOOL[control_mode]
+        return (
+            control_mode
+            if control_mode in self._canvas.availableControlModes()
+            else None
+        )
+
+    def active_image_has_mask_target(self, image_id: UUID | None) -> bool:
+        """Return whether the routed image owns the active editable mask."""
+
+        if image_id is None or image_id != self.current_image_id():
+            return False
+        record = self._images.get(image_id)
+        active_mask_id = self._canvas.activeMaskID()
+        if record is None or active_mask_id is None:
+            return False
+        return any(
+            mask.mask_id == active_mask_id
+            for mask in self._canvas.listMasksForComposition(record.composition_id)
+        )
+
+    def smart_select_ready(self) -> bool:
+        """Return whether CuteCanvas reports its Smart Select model ready."""
+
+        return bool(self._canvas.samCheckpointReady())
 
     def set_mask_properties(self, mask_id: UUID, *, color: QColor) -> bool:
         """Apply host-selected presentation color to one mask."""
@@ -264,6 +325,7 @@ class InputCanvasDocument(QObject):
         mask_id = self._canvas.createBlankMask(size)
         if mask_id is not None:
             self._apply_mask_policy(image_id, mask_id)
+            self.toolContextChanged.emit()
         return mask_id
 
     def load_mask_from_file(self, image_id: UUID, path: Path) -> UUID | None:
@@ -274,6 +336,7 @@ class InputCanvasDocument(QObject):
         mask_id = self._canvas.loadMaskFromFile(str(path))
         if mask_id is not None:
             self._apply_mask_policy(image_id, mask_id)
+            self.toolContextChanged.emit()
         return mask_id
 
     def replace_mask_from_file(self, mask_id: UUID, path: Path) -> bool:
@@ -287,9 +350,12 @@ class InputCanvasDocument(QObject):
         record = self._images.get(image_id)
         if record is None:
             return False
-        return bool(
+        removed = bool(
             self._canvas.removeMaskFromComposition(record.composition_id, mask_id)
         )
+        if removed:
+            self.toolContextChanged.emit()
+        return removed
 
     def image_has_masks(self, image_id: UUID | None) -> bool:
         """Return whether one registered image currently contains masks."""
@@ -334,6 +400,13 @@ class InputCanvasDocument(QObject):
                     _MASK_LAYER_POLICY,
                 )
                 return
+
+    def _on_control_mode_changed(self, _control_mode: str) -> None:
+        """Publish CuteCanvas mode changes using stable product tool identities."""
+
+        tool_id = self.current_canvas_tool_id()
+        if tool_id is not None:
+            self.canvasToolChanged.emit(tool_id)
 
 
 __all__ = ["InputCanvasDocument", "InputDocumentImage"]
