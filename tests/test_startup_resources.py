@@ -67,7 +67,7 @@ def test_create_startup_resource_registry_returns_empty_registry() -> None:
     assert isinstance(registry, StartupResourceRegistry)
     assert registry.model_metadata_refreshes == []
     assert registry.cube_icon_warmups == []
-    assert registry.qpane_sam_warmups == []
+    assert registry.cutecanvas_sam_warmups == []
     assert registry.editor_startup_warmups == []
     assert registry.workspace_restore_asset_preloads == []
     assert registry.startup_diagnostics_tasks == []
@@ -84,7 +84,7 @@ def test_startup_resource_registry_shuts_down_registered_resources() -> None:
     registry = StartupResourceRegistry()
     registry.register_model_metadata_refresh(_Refresh("metadata", calls))
     registry.register_cube_icon_warmup(_ShutdownResource("cube", calls))
-    registry.register_qpane_sam_warmup(_ShutdownResource("sam", calls))
+    registry.register_cutecanvas_sam_warmup(_ShutdownResource("sam", calls))
     registry.register_editor_startup_warmup(_ShutdownResource("editor", calls))
     registry.register_startup_diagnostics_task(
         _ShutdownResource("diagnostics_task", calls)

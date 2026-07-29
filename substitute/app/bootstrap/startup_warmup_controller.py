@@ -25,8 +25,8 @@ from typing import Any, Protocol, cast
 from substitute.app.bootstrap.cube_icon_startup_warmup import (
     StartupCubeIconWarmupHandle,
 )
-from substitute.app.bootstrap.qpane_sam_startup_warmup import (
-    QPaneSamStartupWarmupHandle,
+from substitute.app.bootstrap.cutecanvas_sam_startup_warmup import (
+    CuteCanvasSamStartupWarmupHandle,
 )
 from substitute.app.bootstrap.startup_resources import ShutdownResource
 from substitute.app.bootstrap.startup_trace import trace_mark
@@ -81,11 +81,11 @@ class StartupWarmupRegistryProtocol(Protocol):
     ) -> ShutdownResource:
         """Register one cube icon warmup handle."""
 
-    def register_qpane_sam_warmup(
+    def register_cutecanvas_sam_warmup(
         self,
         warmup: ShutdownResource,
     ) -> ShutdownResource:
-        """Register one QPane SAM warmup handle."""
+        """Register one CuteCanvas SAM warmup handle."""
 
     def register_editor_startup_warmup(
         self,
@@ -386,7 +386,7 @@ class StartupWarmupState:
     """Track one-shot startup warmup launch state."""
 
     cube_icon_started: bool = False
-    qpane_sam_started: bool = False
+    cutecanvas_sam_started: bool = False
     local_editor_started: bool = False
     backend_editor_started: bool = False
     nonessential_started: bool = False
@@ -394,7 +394,7 @@ class StartupWarmupState:
     restore_finalized_warmups_callback: Callable[[], None] | None = None
 
 
-def start_qpane_sam_startup_warmup(
+def start_cutecanvas_sam_startup_warmup(
     *,
     state: StartupWarmupState,
     startup_cancelled: bool,
@@ -403,24 +403,24 @@ def start_qpane_sam_startup_warmup(
     execution_runtime: object | None = None,
     warmup_factory: Callable[..., ShutdownResource] | None = None,
 ) -> None:
-    """Start QPane SAM warmup once during ready-shell startup."""
+    """Start CuteCanvas SAM warmup once during ready-shell startup."""
 
-    trace_mark("qpane_sam_warmup.start_requested", **trace_fields())
+    trace_mark("cutecanvas_sam_warmup.start_requested", **trace_fields())
     if startup_cancelled:
-        trace_mark("qpane_sam_warmup.skip", reason="startup_cancelled")
+        trace_mark("cutecanvas_sam_warmup.skip", reason="startup_cancelled")
         return
-    if state.qpane_sam_started:
-        trace_mark("qpane_sam_warmup.skip", reason="already_started")
+    if state.cutecanvas_sam_started:
+        trace_mark("cutecanvas_sam_warmup.skip", reason="already_started")
         return
     warmup_kwargs: dict[str, object] = {}
     if warmup_factory is None:
-        warmup_factory = QPaneSamStartupWarmupHandle
+        warmup_factory = CuteCanvasSamStartupWarmupHandle
         if execution_runtime is None:
-            trace_mark("qpane_sam_warmup.skip", reason="missing_execution_runtime")
+            trace_mark("cutecanvas_sam_warmup.skip", reason="missing_execution_runtime")
             return
         submitter = cast(Any, execution_runtime).submitter(
             "startup",
-            owner_id="qpane_sam_startup_warmup",
+            owner_id="cutecanvas_sam_startup_warmup",
             dispatcher=_StartupWarmupExecutionDispatcher(),
         )
         warmup_kwargs = {
@@ -428,10 +428,10 @@ def start_qpane_sam_startup_warmup(
             "close_submitter": submitter.close,
         }
     warmup = cast(Any, warmup_factory)(**warmup_kwargs)
-    registry.register_qpane_sam_warmup(warmup)
+    registry.register_cutecanvas_sam_warmup(warmup)
     _start_warmup(warmup)
-    state.qpane_sam_started = True
-    trace_mark("qpane_sam_warmup.started")
+    state.cutecanvas_sam_started = True
+    trace_mark("cutecanvas_sam_warmup.started")
 
 
 def start_cube_icon_startup_warmup(
@@ -755,5 +755,5 @@ __all__ = [
     "start_cube_icon_startup_warmup",
     "start_local_editor_startup_warmup",
     "start_nonessential_startup_warmups",
-    "start_qpane_sam_startup_warmup",
+    "start_cutecanvas_sam_startup_warmup",
 ]

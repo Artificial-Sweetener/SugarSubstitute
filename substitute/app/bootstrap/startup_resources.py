@@ -59,7 +59,7 @@ class StartupResourceRegistry:
 
         self.model_metadata_refreshes: list[StartupModelMetadataRefreshResource] = []
         self.cube_icon_warmups: list[ShutdownResource] = []
-        self.qpane_sam_warmups: list[ShutdownResource] = []
+        self.cutecanvas_sam_warmups: list[ShutdownResource] = []
         self.editor_startup_warmups: list[ShutdownResource] = []
         self.workspace_restore_asset_preloads: list[ShutdownResource] = []
         self.startup_diagnostics_tasks: list[ShutdownResource] = []
@@ -98,13 +98,13 @@ class StartupResourceRegistry:
 
         return self._append(self.cube_icon_warmups, warmup)
 
-    def register_qpane_sam_warmup(
+    def register_cutecanvas_sam_warmup(
         self,
         warmup: ShutdownResource,
     ) -> ShutdownResource:
-        """Register one QPane SAM warmup handle."""
+        """Register one CuteCanvas SAM warmup handle."""
 
-        return self._append(self.qpane_sam_warmups, warmup)
+        return self._append(self.cutecanvas_sam_warmups, warmup)
 
     def register_editor_startup_warmup(
         self,
@@ -163,7 +163,7 @@ class StartupResourceRegistry:
             "startup_resources.shutdown.start",
             metadata_refresh_count=len(self.model_metadata_refreshes),
             cube_icon_warmup_count=len(self.cube_icon_warmups),
-            qpane_sam_warmup_count=len(self.qpane_sam_warmups),
+            cutecanvas_sam_warmup_count=len(self.cutecanvas_sam_warmups),
             editor_warmup_count=len(self.editor_startup_warmups),
             diagnostics_task_count=len(self.startup_diagnostics_tasks),
             readiness_probe_count=len(self.readiness_probes),
@@ -175,7 +175,7 @@ class StartupResourceRegistry:
             refresh.shutdown()
         for resource in self.cube_icon_warmups:
             resource.shutdown()
-        for resource in self.qpane_sam_warmups:
+        for resource in self.cutecanvas_sam_warmups:
             resource.shutdown()
         for resource in self.editor_startup_warmups:
             resource.shutdown()
@@ -194,7 +194,7 @@ class StartupResourceRegistry:
 
         return (
             self.metadata_update_bridges,
-            self.qpane_sam_warmups,
+            self.cutecanvas_sam_warmups,
             self.startup_diagnostics_bridges,
             self.startup_diagnostics_tasks,
             self.readiness_probes,

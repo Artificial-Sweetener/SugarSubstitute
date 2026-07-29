@@ -30,7 +30,7 @@ from substitute.app.bootstrap.startup_warmup_controller import (
     StartupWarmupRegistryProtocol,
     create_nonessential_startup_warmup_runtime,
     start_local_editor_startup_warmup,
-    start_qpane_sam_startup_warmup,
+    start_cutecanvas_sam_startup_warmup,
 )
 from substitute.app.bootstrap.startup_restore_workspace import (
     restored_active_workflow_id,
@@ -354,7 +354,7 @@ class ReadyShellManagedStartupPreludeFactory(Protocol):
         """Return the managed ready-shell startup prelude for one launch."""
 
 
-class QPaneSamWarmupCallbackFactory(Protocol):
+class CuteCanvasSamWarmupCallbackFactory(Protocol):
     """Create a delayed QPane SAM warmup callback from launch state."""
 
     def __call__(
@@ -519,7 +519,7 @@ class StartupManagedReadyRuntimeResources:
     create_metadata_bridge_task: ReadyShellMetadataBridgeTaskFactory
     create_local_editor_warmup_adapter: ReadyShellLocalEditorWarmupAdapterFactory
     create_managed_startup_prelude: ReadyShellManagedStartupPreludeFactory
-    create_qpane_sam_warmup_callback: QPaneSamWarmupCallbackFactory
+    create_cutecanvas_sam_warmup_callback: CuteCanvasSamWarmupCallbackFactory
     create_post_show_controller: ReadyShellPostShowControllerFactory
     create_ready_shell_trace_fields_provider: ReadyShellTraceFieldsProviderFactory
     create_nonessential_startup_warmup_runtime: Callable[
@@ -817,19 +817,19 @@ def create_startup_managed_ready_runtime_resources(
             ),
         )
 
-    def build_qpane_sam_warmup_callback(
+    def build_cutecanvas_sam_warmup_callback(
         *,
         state: StartupWarmupState,
         startup_cancelled: Callable[[], bool],
         registry: StartupWarmupRegistryProtocol,
         trace_fields: Callable[[], dict[str, object]],
     ) -> Callable[[], None]:
-        """Bind delayed QPane SAM warmup to this managed runtime."""
+        """Bind delayed CuteCanvas SAM warmup to this managed runtime."""
 
-        def start_qpane_sam_after_minimum_ready() -> None:
-            """Start QPane SAM warmup after first shell readiness."""
+        def start_cutecanvas_sam_after_minimum_ready() -> None:
+            """Start CuteCanvas SAM warmup after first shell readiness."""
 
-            start_qpane_sam_startup_warmup(
+            start_cutecanvas_sam_startup_warmup(
                 state=state,
                 startup_cancelled=startup_cancelled(),
                 registry=registry,
@@ -837,7 +837,7 @@ def create_startup_managed_ready_runtime_resources(
                 execution_runtime=execution_runtime,
             )
 
-        return start_qpane_sam_after_minimum_ready
+        return start_cutecanvas_sam_after_minimum_ready
 
     def build_post_show_controller(
         *,
@@ -1210,7 +1210,7 @@ def create_startup_managed_ready_runtime_resources(
         create_metadata_bridge_task=build_metadata_bridge_task,
         create_local_editor_warmup_adapter=build_local_editor_warmup_adapter,
         create_managed_startup_prelude=build_managed_startup_prelude,
-        create_qpane_sam_warmup_callback=build_qpane_sam_warmup_callback,
+        create_cutecanvas_sam_warmup_callback=build_cutecanvas_sam_warmup_callback,
         create_post_show_controller=build_post_show_controller,
         create_ready_shell_trace_fields_provider=(
             build_ready_shell_trace_fields_provider

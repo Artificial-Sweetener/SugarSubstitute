@@ -3290,7 +3290,7 @@ def test_startup_facade_delegates_shell_build_task() -> None:
     )
     assert "initial_splash_cancel_connector(" not in source
     assert "start_or_adopt_launch_splash(" not in source
-    assert "start_qpane_sam_startup_warmup(" not in source
+    assert "start_cutecanvas_sam_startup_warmup(" not in source
     assert "managed_ready_launch.create_target_activation_task(" in launch_source
     assert "managed_ready_runtime.create_target_activation_task(" not in launch_source
     assert "create_ready_shell_target_activation_task(" not in source

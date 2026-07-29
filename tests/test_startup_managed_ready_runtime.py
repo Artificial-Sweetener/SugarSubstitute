@@ -305,7 +305,7 @@ def test_managed_ready_runtime_resources_create_startup_collaborators(
         resolved_appearance=object(),
         start_or_adopt_launch_splash=lambda **_kwargs: object(),
     )
-    qpane_warmup_callback = resources.create_qpane_sam_warmup_callback(
+    cutecanvas_warmup_callback = resources.create_cutecanvas_sam_warmup_callback(
         state=StartupWarmupState(),
         startup_cancelled=lambda: False,
         registry=StartupResourceRegistry(),
@@ -457,7 +457,7 @@ def test_managed_ready_runtime_resources_create_startup_collaborators(
         ReadyShellLocalEditorWarmupAdapter,
     )
     assert isinstance(managed_startup_prelude, ReadyShellManagedStartupPrelude)
-    assert callable(qpane_warmup_callback)
+    assert callable(cutecanvas_warmup_callback)
     assert isinstance(post_show_controller, ReadyShellPostShowController)
     assert isinstance(minimum_ready_task, ReadyShellMinimumReadyTask)
     assert isinstance(reveal_task, ReadyShellRevealTask)
@@ -555,9 +555,12 @@ def test_startup_facade_uses_managed_ready_runtime_resources() -> None:
     assert "managed_ready_runtime.start_local_editor_startup_warmup" not in source
     assert "managed_ready_launch.create_local_editor_warmup_adapter(" in launch_source
     assert "managed_ready_runtime.create_local_editor_warmup_adapter" not in source
-    assert "managed_ready_runtime.start_qpane_sam_startup_warmup" not in source
-    assert "managed_ready_launch.create_qpane_sam_warmup_callback(" not in launch_source
-    assert "qpane_sam_warmup()" not in launch_source
+    assert "managed_ready_runtime.start_cutecanvas_sam_startup_warmup" not in source
+    assert (
+        "managed_ready_launch.create_cutecanvas_sam_warmup_callback("
+        not in launch_source
+    )
+    assert "cutecanvas_sam_warmup()" not in launch_source
     assert "managed_ready_launch.create_managed_startup_prelude(" in launch_source
     assert "managed_ready_runtime.create_managed_startup_prelude" not in source
     assert "managed_ready_launch.create_post_show_controller(" in launch_source
@@ -621,7 +624,9 @@ def test_startup_facade_uses_managed_ready_runtime_resources() -> None:
         not in source
     )
     assert "start_local_editor_warmup=start_local_editor_startup_warmup" not in source
-    assert "start_qpane_sam_warmup=start_qpane_sam_startup_warmup" not in source
+    assert (
+        "start_cutecanvas_sam_warmup=start_cutecanvas_sam_startup_warmup" not in source
+    )
     assert "fallback_workflow_id=lambda: restored_active_workflow_id" not in source
     assert "workspace_workflow_count=restored_workspace_workflow_count" not in source
     assert (

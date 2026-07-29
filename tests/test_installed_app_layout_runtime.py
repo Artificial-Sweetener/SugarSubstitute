@@ -147,7 +147,7 @@ def test_launcher_runtime_provisioner_validates_without_installing_requirements(
         [
             subprocess_path(python_executable),
             "-c",
-            "import PySide6; import qfluentwidgets; import qpane; import substitute",
+            "import PySide6; import qfluentwidgets; import cutecanvas; import substitute",
         ],
     ]
 
