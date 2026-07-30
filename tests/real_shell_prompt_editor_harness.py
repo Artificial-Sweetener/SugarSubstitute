@@ -4304,6 +4304,7 @@ def _path_bundle() -> InstallationPathBundle:
         sugar_scripts_dir=root / ".tmp-scripts",
         wildcards_dir=root / ".tmp-wildcards",
         managed_comfy_dir=root / ".tmp-comfy",
+        session_dir=root / ".tmp-session",
     )
 
 
