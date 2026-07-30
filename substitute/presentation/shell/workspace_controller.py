@@ -78,7 +78,6 @@ from substitute.presentation.shell.workspace_input_canvas_adapter import (
     handle_input_image_clicked_for_view,
     handle_input_mask_changed_for_view,
     handle_input_mask_clicked_for_view,
-    handle_mask_save_completed_for_view,
     materialize_loaded_cube_input_canvas_for_view,
     reconcile_active_input_canvas_image_for_view,
     refresh_active_mask_pickers_for_view,
@@ -142,9 +141,11 @@ class WorkspaceController:
             reconcile_active_input_canvas_image=lambda: (
                 reconcile_active_input_canvas_image_for_view(self._views.canvas)
             ),
-            dirty_mask_error=lambda: GenerationPreflightError(
+            input_snapshot_error=lambda: GenerationPreflightError(
                 workflow_id=workflow_id,
-                message=app_text("Failed to save dirty input mask before generation."),
+                message=app_text(
+                    "Failed to capture Input canvas content for generation."
+                ),
             ),
             live_node_preflight_error=lambda _error: GenerationPreflightError(
                 workflow_id=workflow_id,
@@ -624,15 +625,6 @@ class WorkspaceController:
             node_name,
             mask_path,
         )
-
-    def on_mask_save_completed(
-        self,
-        mask_id: str,
-        path: str,
-    ) -> None:
-        """Delegate mask-save completion handling to the Input canvas presenter."""
-
-        handle_mask_save_completed_for_view(self._views.canvas, mask_id, path)
 
 
 __all__ = [

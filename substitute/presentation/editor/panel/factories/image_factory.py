@@ -72,11 +72,18 @@ def build_image_picker_widget(
 ) -> ImagePicker:
     """Build an image picker widget for a behavior-selected field."""
 
-    _ = field_meta
+    cube_alias = field_meta.get("cube_alias")
     field = ImagePicker(parent)
     if value:
         field.set_thumbnail(cast(Any, value))
-    field.setProperty("input_metadata", {"node_name": node_name, "key": key})
+    field.setProperty(
+        "input_metadata",
+        {
+            "cube_alias": cube_alias,
+            "node_name": node_name,
+            "key": key,
+        },
+    )
     if not value:
         field.set_thumbnail("")
     return field

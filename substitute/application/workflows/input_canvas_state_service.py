@@ -231,6 +231,31 @@ class InputCanvasStateService:
             )
             return None
         self._bind_input_route_scope_for_image(workflow_id, active_workflow, image_id)
+        if self._input_document.contains_mask(image_id, snapshot_mask_id):
+            self._remap_restored_input_mask(
+                active_workflow,
+                snapshot_mask_id=snapshot_mask_id,
+                live_mask_id=snapshot_mask_id,
+                image_id=image_id,
+                association_key=association_key,
+            )
+            active_mask_id = self._valid_active_input_mask(active_workflow)
+            self._bind_input_route_scope(
+                workflow_id,
+                active_workflow,
+                active_mask_id=active_mask_id,
+            )
+            if active_mask_id == snapshot_mask_id:
+                self._input_route_projector.show_mask(image_id, snapshot_mask_id)
+            log_debug(
+                _LOGGER,
+                "Adopted editable Input mask restored from document archive",
+                workflow_id=workflow_id,
+                mask_id=str(snapshot_mask_id),
+                image_id=str(image_id),
+                association_key=association_key,
+            )
+            return snapshot_mask_id
         if not self._input_route_projector.show_image(image_id):
             return None
         live_mask_id = self._input_document.load_mask_from_file(image_id, path)

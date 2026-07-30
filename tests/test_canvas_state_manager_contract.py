@@ -87,6 +87,7 @@ class _FakeInputDocument:
         self.next_blank_mask_id = uuid.uuid4()
         self.removed_masks: list[tuple[uuid.UUID, uuid.UUID]] = []
         self.updated_masks: list[tuple[uuid.UUID, Path]] = []
+        self.archived_masks: set[tuple[uuid.UUID, uuid.UUID]] = set()
 
     def ensure_image_cached(self, image_id, image, path):
         """Cache one image under its application UUID."""
@@ -151,6 +152,11 @@ class _FakeInputDocument:
 
         self.updated_masks.append((mask_id, path))
         return True
+
+    def contains_mask(self, image_id, mask_id):
+        """Return whether complete document restore already installed a mask."""
+
+        return (image_id, mask_id) in self.archived_masks
 
     def remove_mask_from_image(self, image_id, mask_id):
         """Record mask retirement."""
@@ -1969,6 +1975,38 @@ def test_restore_input_mask_remaps_snapshot_id_and_records_active_mask() -> None
     assert workflow.canvas.mask_to_image_map[live_mask_id] == image_id
     assert snapshot_mask_id not in workflow.canvas.mask_to_image_map
     assert workflow.canvas.active_input_mask_uuid == live_mask_id
+
+
+def test_restore_input_mask_adopts_exact_editable_archive_identity() -> None:
+    """Complete document restore should bypass flattened mask-file import."""
+
+    _service, input_service, input_pane, _output_pane, _output_canvas = (
+        _build_services()
+    )
+    workflow = WorkflowState()
+    association_key = ("AliasA", "MaskNode")
+    image_id = uuid.uuid4()
+    mask_id = uuid.uuid4()
+    input_pane.archived_masks.add((image_id, mask_id))
+    workflow.canvas.input_key_map["AliasA:ImageNode"] = image_id
+    workflow.canvas.input_image_uuid = image_id
+    workflow.canvas.mask_associations[association_key] = mask_id
+    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.active_input_mask_uuid = mask_id
+
+    restored = input_service.restore_input_mask(
+        "wf",
+        workflow,
+        snapshot_mask_id=mask_id,
+        image_id=image_id,
+        path=Path("missing-flat-mask.png"),
+        association_key=association_key,
+    )
+
+    assert restored == mask_id
+    assert input_pane.next_loaded_mask_id is None
+    assert workflow.canvas.mask_associations[association_key] == mask_id
+    assert workflow.canvas.active_input_mask_uuid == mask_id
 
 
 def test_project_workflow_restores_active_input_mask() -> None:

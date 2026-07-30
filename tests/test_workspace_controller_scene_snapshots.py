@@ -118,11 +118,11 @@ def test_build_scene_generation_snapshot_materializes_selected_scene(
         serialized_prompts.append((cast(str, positive), cast(str, negative)))
         return f"# positive={positive!r}; negative={negative!r}"
 
-    def _flush_dirty_masks() -> bool:
-        """Record dirty-mask preflight."""
+    def _prepare_workflow(**kwargs: object) -> object:
+        """Record exact-mask capture and preserve the workflow."""
 
-        order.append("flush")
-        return True
+        order.append("capture")
+        return kwargs["workflow"]
 
     view = SimpleNamespace(
         request_reconfigure=lambda: None,
@@ -172,8 +172,8 @@ def test_build_scene_generation_snapshot_materializes_selected_scene(
     )
     controller = mod.WorkspaceController(view)
     replace_seed_randomizer(controller, SeedRandomizationRecorder(order))
-    view.input_mask_save_controller = SimpleNamespace(
-        flush_dirty_associated_masks_before_generation=_flush_dirty_masks,
+    view.input_generation_snapshot_service = SimpleNamespace(
+        prepare_workflow=_prepare_workflow,
     )
     view.input_canvas_presenter = SimpleNamespace(
         reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
@@ -181,7 +181,7 @@ def test_build_scene_generation_snapshot_materializes_selected_scene(
 
     snapshot = controller.build_scene_generation_snapshot("portrait")
 
-    assert order == ["flush", "reconcile", "randomize", "serialize"]
+    assert order == ["reconcile", "capture", "randomize", "serialize"]
     assert snapshot.workflow_name == "Recipe - portrait"
     assert snapshot.positive_prompt_preview == "quality studio portrait"
     assert snapshot.scene_run_id is not None

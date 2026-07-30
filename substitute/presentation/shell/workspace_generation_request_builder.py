@@ -48,11 +48,16 @@ class GenerationWorkflowPruneReport:
     remaining_cube_count: int
 
 
-class GenerationRequestInputMaskPreflight(Protocol):
-    """Describe dirty Input mask persistence required before generation."""
+class GenerationRequestInputSnapshotService(Protocol):
+    """Describe coherent Input document capture required before generation."""
 
-    def flush_dirty_associated_masks_before_generation(self) -> bool:
-        """Persist dirty associated Input masks before generation starts."""
+    def prepare_workflow(
+        self,
+        *,
+        workflow_id: str,
+        workflow: object,
+    ) -> object | None:
+        """Return an execution copy bound to exact image and mask revisions."""
 
 
 class GenerationRequestWorkflowNameResolver(Protocol):
@@ -65,7 +70,7 @@ class GenerationRequestWorkflowNameResolver(Protocol):
 class GenerationRequestBuildView(Protocol):
     """Describe shell collaborators required to build a generation request."""
 
-    input_mask_save_controller: GenerationRequestInputMaskPreflight
+    input_generation_snapshot_service: GenerationRequestInputSnapshotService
     input_canvas_shell_adapter: GenerationRequestWorkflowNameResolver
 
     def get_active_workflow(self) -> object:
@@ -186,7 +191,7 @@ def build_generation_request_for_view(
     view: GenerationRequestBuildView,
     workflow_id: str,
     reconcile_active_input_canvas_image: Callable[[], None],
-    dirty_mask_error: Callable[[], Exception],
+    input_snapshot_error: Callable[[], Exception],
     live_node_preflight_error: Callable[[LiveNodeDefinitionError], Exception],
     empty_workflow_error: Callable[[], Exception],
     missing_panel_logger: Callable[[str], None] | None = None,
@@ -195,11 +200,6 @@ def build_generation_request_for_view(
 ) -> GenerationRequest:
     """Build a generation request from live shell presentation state."""
 
-    dirty_masks_flushed = (
-        view.input_mask_save_controller.flush_dirty_associated_masks_before_generation()
-    )
-    if not dirty_masks_flushed:
-        raise dirty_mask_error()
     preflight_live_node_definitions(
         view=view,
         workflow_id=workflow_id,
@@ -209,6 +209,13 @@ def build_generation_request_for_view(
     reconcile_active_input_canvas_image()
     behavior_snapshot = active_behavior_snapshot(view, workflow_id)
     workflow = view.get_active_workflow()
+    captured_workflow = view.input_generation_snapshot_service.prepare_workflow(
+        workflow_id=workflow_id,
+        workflow=workflow,
+    )
+    if captured_workflow is None:
+        raise input_snapshot_error()
+    workflow = captured_workflow
     errored_aliases = errored_cube_aliases(view, workflow_id)
     workflow_name = view.input_canvas_shell_adapter.resolve_workflow_name(workflow_id)
     workflow_for_generation = workflow

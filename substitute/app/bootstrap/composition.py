@@ -2684,6 +2684,7 @@ def _build_main_window_dependencies(
             sugar_scripts_dir=context.sugar_scripts_dir,
             wildcards_dir=context.wildcards_dir,
             managed_comfy_dir=context.managed_comfy_dir,
+            session_dir=context.session_dir,
         ),
     )
     record_dependency_phase("main_window_dependencies_dataclass")

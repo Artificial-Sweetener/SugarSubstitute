@@ -17,23 +17,28 @@
 from __future__ import annotations
 
 from typing import Any
+from PySide6.QtWidgets import QWidget
 
-class MaskPicker:
+from .thumbnail_picker_base import ThumbnailPickerBase
+
+class MaskPicker(ThumbnailPickerBase):
     maskSelected: Any
     clicked: Any
 
     def __init__(
         self,
-        cube_alias: str | None = ...,
-        node_name: str | None = ...,
-        parent: Any = ...,
+        cube_alias: str,
+        node_name: str,
+        parent: QWidget | None = ...,
+        thumbnail_size: int = ...,
+        corner_radius: int = ...,
+        default_folder: str = ...,
+        placeholder_image: str | None = ...,
+        button_padding: int = ...,
     ) -> None: ...
+    def handle_thumbnail_click(self) -> None: ...
     def pick_mask(self) -> None: ...
-    def current_file_path(self) -> str | None: ...
     def set_mask_path(self, mask_path: str) -> None: ...
     def refresh_mask_path(self, mask_path: str) -> None: ...
     @staticmethod
     def _load_mask_pixmap_from_file_bytes(mask_path: str) -> Any: ...
-    def set_placeholder_image(self, image_path: str) -> None: ...
-    def set_default_folder(self, folder_path: str) -> None: ...
-    def setProperty(self, name: str, value: Any) -> None: ...

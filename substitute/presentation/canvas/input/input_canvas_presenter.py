@@ -38,6 +38,9 @@ from substitute.domain.workflow import WorkflowState
 from substitute.presentation.canvas.input.input_canvas_tool_controller import (
     InputCanvasToolController,
 )
+from substitute.presentation.canvas.input.input_node_preview_coordinator import (
+    InputNodePreviewCoordinator,
+)
 from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.shared.logging.logger import (
     get_logger,
@@ -219,6 +222,7 @@ class InputCanvasPresenter:
         projects_dir_provider: Callable[[], Path],
         mask_color_provider: Callable[[int, int], object],
         tool_controller: InputCanvasToolController,
+        preview_coordinator: InputNodePreviewCoordinator | None = None,
         mark_canvas_changed: Callable[[str], None] | None = None,
         error_presenter: ErrorReportPresenterProtocol | None = None,
         timer: type[_TimerPort] | None = None,
@@ -237,6 +241,7 @@ class InputCanvasPresenter:
         self._projects_dir_provider = projects_dir_provider
         self._mask_color_provider = mask_color_provider
         self._tool_controller = tool_controller
+        self._preview_coordinator = preview_coordinator
         self._mark_canvas_changed = mark_canvas_changed
         self._error_presenter = error_presenter
         self._timer = timer or cast(type[_TimerPort], QTimer)
@@ -512,38 +517,6 @@ class InputCanvasPresenter:
         self._focus_attached_canvas("Input")
         self._tool_controller.request_brush_after_mask_activation()
 
-    def handle_mask_save_completed(self, mask_id: object, path: str = "") -> None:
-        """Refresh a saved mask picker from current asset state, not emitted path."""
-
-        active_workflow = self._active_workflow_provider()
-        active_panel = self._active_editor_panel_provider()
-        if active_workflow is None or active_panel is None:
-            return
-        resolved_mask_id = self._resolve_uuid(mask_id)
-        if resolved_mask_id is None:
-            return
-        association_key = self._association_key_for_mask(
-            active_workflow,
-            resolved_mask_id,
-        )
-        if association_key is None:
-            log_debug(
-                _LOGGER,
-                "Ignoring mask save completion for unassociated mask id",
-                workflow_id=self._workflow_session_service.active_workflow_id,
-                mask_id=str(mask_id),
-                emitted_path=path,
-            )
-            return
-        cube_alias, node_name = association_key
-
-        def refresh_after_save() -> None:
-            """Refresh after Qt returns to the event loop."""
-
-            self.refresh_mask_picker_from_asset_state(cube_alias, node_name)
-
-        self._timer.singleShot(0, refresh_after_save)
-
     def materialize_loaded_cube_input_canvas(
         self,
         workflow_id: str,
@@ -620,6 +593,11 @@ class InputCanvasPresenter:
     ) -> None:
         """Apply Input materialization presentation effects without path authority."""
 
+        live_mask_previews = (
+            frozenset()
+            if self._preview_coordinator is None
+            else self._preview_coordinator.bind_materialization(result)
+        )
         raw_mask_results = getattr(result, "mask_results", ())
         mask_results = (
             tuple(raw_mask_results) if isinstance(raw_mask_results, Iterable) else ()
@@ -634,7 +612,10 @@ class InputCanvasPresenter:
                 color = self._mask_color_provider(index, total_masks_in_set)
                 set_mask_properties(mask_id, color=color)
             association_key = getattr(mask_result, "association_key", None)
-            if self._valid_association_key(association_key):
+            if (
+                self._valid_association_key(association_key)
+                and association_key not in live_mask_previews
+            ):
                 cube_alias, node_name = cast(tuple[str, str], association_key)
                 self.refresh_mask_picker_from_asset_state(
                     cube_alias,
@@ -687,6 +668,14 @@ class InputCanvasPresenter:
         active_panel = self._active_editor_panel_provider()
         if active_workflow is None or active_panel is None:
             return False
+        if (
+            self._preview_coordinator is not None
+            and self._preview_coordinator.mask_preview_mounted(
+                cube_alias,
+                node_name,
+            )
+        ):
+            return True
         workflow_id = self._workflow_session_service.active_workflow_id
         resolved_projects_dir = projects_dir or self._projects_dir_provider()
         resolved_path = self._workflow_input_canvas_service.resolve_input_mask_path(

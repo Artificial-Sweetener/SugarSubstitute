@@ -165,6 +165,7 @@ class ThumbnailPickerBase(QWidget):
         self._current_file_path: str | None = None
         self._placeholder_image_path: str | None = None
         self._caption_tooltip_filter: FluentToolTipFilter | None = None
+        self._live_preview: QWidget | None = None
 
         self.thumbnail = HighlightLabel(self)
         self.thumbnail.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -184,9 +185,12 @@ class ThumbnailPickerBase(QWidget):
 
         self.button = LocalizedPushButton(browse_button_text, self)
 
-        v_layout = QVBoxLayout(self)
-        v_layout.setSpacing(6)
-        v_layout.addWidget(self.thumbnail, alignment=Qt.AlignmentFlag.AlignCenter)
+        self._preview_layout = QVBoxLayout(self)
+        self._preview_layout.setSpacing(6)
+        self._preview_layout.addWidget(
+            self.thumbnail,
+            alignment=Qt.AlignmentFlag.AlignCenter,
+        )
 
         self.thumb_caption_spacer = QSpacerItem(
             0,
@@ -194,8 +198,11 @@ class ThumbnailPickerBase(QWidget):
             QSizePolicy.Policy.Minimum,
             QSizePolicy.Policy.Fixed,
         )
-        v_layout.addSpacerItem(self.thumb_caption_spacer)
-        v_layout.addWidget(self.caption, alignment=Qt.AlignmentFlag.AlignCenter)
+        self._preview_layout.addSpacerItem(self.thumb_caption_spacer)
+        self._preview_layout.addWidget(
+            self.caption,
+            alignment=Qt.AlignmentFlag.AlignCenter,
+        )
 
         h_layout = QHBoxLayout()
         h_layout.setContentsMargins(0, 0, 0, 0)
@@ -217,8 +224,8 @@ class ThumbnailPickerBase(QWidget):
             )
         )
 
-        v_layout.addLayout(h_layout)
-        self.setLayout(v_layout)
+        self._preview_layout.addLayout(h_layout)
+        self.setLayout(self._preview_layout)
 
         self.setMinimumWidth(thumbnail_size + self.shadow_space + 32)
         self.setStyleSheet("background: transparent;")
@@ -251,6 +258,7 @@ class ThumbnailPickerBase(QWidget):
     def set_placeholder_image(self, image_path: str) -> None:
         """Display the configured placeholder image and clear selected-path state."""
 
+        self._remove_live_preview()
         pixmap = QPixmap(image_path)
         if not pixmap.isNull():
             rounded = self._rounded_pixmap(pixmap, self.corner_radius)
@@ -290,6 +298,7 @@ class ThumbnailPickerBase(QWidget):
     ) -> None:
         """Render one selected file path or fall back to placeholder/empty state."""
 
+        self._remove_live_preview()
         pixmap = pixmap_loader(qt_filesystem_path(file_path))
         if pixmap.isNull():
             self._restore_placeholder_or_clear()
@@ -313,6 +322,39 @@ class ThumbnailPickerBase(QWidget):
         layout = self.layout()
         if layout is not None:
             layout.activate()
+
+    def set_live_preview(self, preview: QWidget) -> None:
+        """Replace the file thumbnail with one responsive live preview widget."""
+        if not isinstance(preview, QWidget):
+            raise TypeError("preview must be a QWidget")
+        self._remove_live_preview()
+        self._live_preview = preview
+        preview.setParent(self)
+        self.thumbnail.hide()
+        self._preview_layout.insertWidget(
+            0,
+            preview,
+            alignment=Qt.AlignmentFlag.AlignCenter,
+        )
+        preview.show()
+        self._preview_layout.activate()
+
+    def live_preview(self) -> QWidget | None:
+        """Return the currently mounted live preview widget."""
+        return self._live_preview
+
+    def _remove_live_preview(self) -> None:
+        """Retire the current viewport before restoring file-thumbnail display."""
+        preview = self._live_preview
+        if preview is None:
+            self.thumbnail.show()
+            return
+        self._live_preview = None
+        self._preview_layout.removeWidget(preview)
+        preview.close()
+        preview.setParent(None)
+        preview.deleteLater()
+        self.thumbnail.show()
 
     def _apply_display_pixmap(
         self,

@@ -173,7 +173,7 @@ def test_image_picker_card_body_relayouts_after_thumbnail_height_change() -> Non
             process_events(app)
             picker = next(
                 (
-                    cast(ImagePicker, child)
+                    child
                     for child in wrapper.findChildren(QWidget)
                     if isinstance(child, ImagePicker)
                 ),
@@ -221,7 +221,7 @@ def test_mask_picker_card_body_relayouts_after_thumbnail_height_change() -> None
             process_events(app)
             picker = next(
                 (
-                    cast(MaskPicker, child)
+                    child
                     for child in wrapper.findChildren(QWidget)
                     if isinstance(child, MaskPicker)
                 ),

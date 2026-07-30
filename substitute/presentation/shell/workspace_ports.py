@@ -81,9 +81,6 @@ class InputCanvasPresenterProtocol(Protocol):
     ) -> None:
         """Handle editor-panel LoadImageMask focus intent."""
 
-    def handle_mask_save_completed(self, mask_id: str, path: str) -> None:
-        """Handle CuteCanvas mask-save completion intent."""
-
     def materialize_loaded_cube_input_canvas(
         self,
         workflow_id: str,
@@ -162,11 +159,16 @@ class GenerationQueueProgressState(Protocol):
         """Return whether queued generation still owns active work."""
 
 
-class InputMaskGenerationPreflightProtocol(Protocol):
-    """Describe Input mask persistence required before generation."""
+class InputGenerationSnapshotProtocol(Protocol):
+    """Describe coherent Input document capture required before generation."""
 
-    def flush_dirty_associated_masks_before_generation(self) -> bool:
-        """Persist dirty associated Input masks before generation starts."""
+    def prepare_workflow(
+        self,
+        *,
+        workflow_id: str,
+        workflow: object,
+    ) -> object | None:
+        """Return an execution copy bound to exact image and mask revisions."""
 
 
 class GenerationActionRefreshProtocol(Protocol):
@@ -234,7 +236,7 @@ class WorkspaceGenerationView(Protocol):
 
     workflow_session_service: WorkflowSessionState
     output_canvas_state_service: OutputCanvasStateGenerationProtocol
-    input_mask_save_controller: InputMaskGenerationPreflightProtocol
+    input_generation_snapshot_service: InputGenerationSnapshotProtocol
     workspace_generation_controller: WorkspaceGenerationControllerProtocol
     generation_feedback_dispatcher: GenerationFeedbackDispatcherProtocol
     generation_job_queue_service: object
@@ -260,7 +262,7 @@ __all__ = [
     "GenerationInterruptFailurePresenterProtocol",
     "GenerationQueueProgressState",
     "InputCanvasPresenterProtocol",
-    "InputMaskGenerationPreflightProtocol",
+    "InputGenerationSnapshotProtocol",
     "OutputCanvasStateGenerationProtocol",
     "WorkflowNameResolverProtocol",
     "WorkflowSessionState",

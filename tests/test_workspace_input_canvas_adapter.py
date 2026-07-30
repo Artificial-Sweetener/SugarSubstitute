@@ -31,7 +31,6 @@ from substitute.presentation.shell.workspace_input_canvas_adapter import (
     handle_input_image_clicked_for_view,
     handle_input_mask_changed_for_view,
     handle_input_mask_clicked_for_view,
-    handle_mask_save_completed_for_view,
     input_canvas_presenter_for_view,
     materialize_loaded_cube_input_canvas_for_view,
     reconcile_active_input_canvas_image_for_view,
@@ -93,7 +92,6 @@ def test_input_canvas_intents_delegate_to_presenter() -> None:
         refresh_active_mask_pickers=lambda: calls.append(("mask_pickers", ())),
         handle_input_mask_changed=lambda *args: calls.append(("mask_changed", args)),
         handle_input_mask_clicked=lambda *args: calls.append(("mask_clicked", args)),
-        handle_mask_save_completed=lambda *args: calls.append(("mask_saved", args)),
         reconcile_active_input_canvas_image=lambda: calls.append(("reconcile", ())),
         materialize_loaded_cube_input_canvas=lambda *args: calls.append(
             ("materialize", args)
@@ -107,7 +105,6 @@ def test_input_canvas_intents_delegate_to_presenter() -> None:
     refresh_active_mask_pickers_for_view(view)
     handle_input_mask_changed_for_view(view, "CubeA", "MaskNode", "mask.png")
     handle_input_mask_clicked_for_view(view, "CubeA", "MaskNode", "mask.png")
-    handle_mask_save_completed_for_view(view, "mask-id", "saved.png")
     reconcile_active_input_canvas_image_for_view(view)
     materialize_loaded_cube_input_canvas_for_view(view, "wf-a", "CubeA")
 
@@ -119,7 +116,6 @@ def test_input_canvas_intents_delegate_to_presenter() -> None:
         ("mask_pickers", ()),
         ("mask_changed", ("CubeA", "MaskNode", "mask.png")),
         ("mask_clicked", ("CubeA", "MaskNode", "mask.png")),
-        ("mask_saved", ("mask-id", "saved.png")),
         ("reconcile", ()),
         ("materialize", ("wf-a", "CubeA")),
     ]

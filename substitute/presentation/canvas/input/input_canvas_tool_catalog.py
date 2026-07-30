@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from sugarsubstitute_shared.localization import ApplicationText
 from sugarsubstitute_shared.presentation.localization import app_text
+from cutecanvas import CuteCanvas
 
 from substitute.presentation.canvas.tools import (
     CanvasToolContribution,
@@ -33,6 +34,9 @@ INPUT_CANVAS_CONTEXT_TAGS = frozenset({INPUT_CANVAS_CONTEXT})
 INPUT_IMAGE_CAPABILITY = "input.image"
 ACTIVE_MASK_CAPABILITY = "input.active_mask"
 SMART_SELECT_CAPABILITY = "input.smart_select"
+BRUSH_OPTIONS_ID = "input.options.brush"
+MASK_ADJUSTMENT_OPTIONS_ID = "input.options.mask-adjustments"
+BRUSH_TIP_PREVIEW_ID = "input.preview.brush-tip"
 
 
 class InputCanvasToolId:
@@ -59,6 +63,8 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 AppIcon.ARROW_MOVE_20_REGULAR,
                 order=100,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
+                operation_id=CuteCanvas.CONTROL_MODE_MOVE,
+                options_id=MASK_ADJUSTMENT_OPTIONS_ID,
             ),
             _mode(
                 InputCanvasToolId.MASK_RECTANGLE,
@@ -66,6 +72,8 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 AppIcon.RECTANGLE_LANDSCAPE_20_REGULAR,
                 order=200,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
+                operation_id=CuteCanvas.CONTROL_MODE_MASK_RECTANGLE,
+                options_id=MASK_ADJUSTMENT_OPTIONS_ID,
             ),
             _mode(
                 InputCanvasToolId.MASK_ELLIPSE,
@@ -73,6 +81,8 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 AppIcon.CIRCLE_20_REGULAR,
                 order=300,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
+                operation_id=CuteCanvas.CONTROL_MODE_MASK_ELLIPSE,
+                options_id=MASK_ADJUSTMENT_OPTIONS_ID,
             ),
             _mode(
                 InputCanvasToolId.MASK_LASSO,
@@ -80,6 +90,8 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 AppIcon.LASSO_20_REGULAR,
                 order=400,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
+                operation_id=CuteCanvas.CONTROL_MODE_MASK_LASSO,
+                options_id=MASK_ADJUSTMENT_OPTIONS_ID,
             ),
             _mode(
                 InputCanvasToolId.SMART_SELECT,
@@ -90,6 +102,8 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                     ACTIVE_MASK_CAPABILITY,
                     SMART_SELECT_CAPABILITY,
                 },
+                operation_id=CuteCanvas.CONTROL_MODE_SMART_SELECT,
+                options_id=MASK_ADJUSTMENT_OPTIONS_ID,
             ),
             _mode(
                 InputCanvasToolId.BRUSH,
@@ -97,6 +111,9 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 AppIcon.PAINT_BRUSH_20_REGULAR,
                 order=600,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
+                operation_id=CuteCanvas.CONTROL_MODE_DRAW_BRUSH,
+                options_id=BRUSH_OPTIONS_ID,
+                preview_id=BRUSH_TIP_PREVIEW_ID,
             ),
             _mode(
                 InputCanvasToolId.PAN_ZOOM,
@@ -105,6 +122,7 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 section="navigation",
                 order=700,
                 required_capabilities={INPUT_IMAGE_CAPABILITY},
+                operation_id=CuteCanvas.CONTROL_MODE_PANZOOM,
             ),
         )
     )
@@ -119,6 +137,9 @@ def _mode(
     order: int,
     required_capabilities: set[str],
     section: str = "mask",
+    operation_id: str,
+    options_id: str | None = None,
+    preview_id: str | None = None,
 ) -> CanvasToolContribution:
     """Build one persistent Input tool contribution with common context policy."""
 
@@ -131,14 +152,20 @@ def _mode(
         order=order,
         required_context_tags=INPUT_CANVAS_CONTEXT_TAGS,
         required_capabilities=frozenset(required_capabilities),
+        document_operation_id=operation_id,
+        options_id=options_id,
+        preview_id=preview_id,
     )
 
 
 __all__ = [
     "ACTIVE_MASK_CAPABILITY",
+    "BRUSH_OPTIONS_ID",
+    "BRUSH_TIP_PREVIEW_ID",
     "INPUT_CANVAS_CONTEXT_TAGS",
     "INPUT_IMAGE_CAPABILITY",
     "SMART_SELECT_CAPABILITY",
+    "MASK_ADJUSTMENT_OPTIONS_ID",
     "InputCanvasToolId",
     "create_input_canvas_tool_system",
 ]

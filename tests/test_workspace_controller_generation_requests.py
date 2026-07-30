@@ -82,11 +82,14 @@ def _base_generation_view(
     )
 
 
-def _install_dirty_mask_preflight(view: SimpleNamespace, result: bool) -> None:
-    """Install a deterministic dirty-mask preflight result on a view."""
+def _install_generation_input_snapshot(
+    view: SimpleNamespace,
+    result: bool,
+) -> None:
+    """Install a deterministic coherent Input snapshot result on a view."""
 
-    view.input_mask_save_controller = SimpleNamespace(
-        flush_dirty_associated_masks_before_generation=lambda: result,
+    view.input_generation_snapshot_service = SimpleNamespace(
+        prepare_workflow=(lambda **kwargs: kwargs["workflow"] if result else None),
     )
 
 
@@ -101,10 +104,10 @@ def _install_input_canvas_reconciliation(
     )
 
 
-def test_build_generation_request_flushes_dirty_masks_before_reconciliation(
+def test_build_generation_request_captures_inputs_after_reconciliation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Generation request construction should preflight dirty masks first."""
+    """Generation request construction should capture reconciled canvas state."""
 
     mod = import_workspace_controller_module(monkeypatch)
     order: list[str] = []
@@ -112,20 +115,20 @@ def test_build_generation_request_flushes_dirty_masks_before_reconciliation(
     view = _base_generation_view(workflow=workflow)
     controller = mod.WorkspaceController(view)
 
-    def _flush_dirty_masks() -> bool:
-        """Record dirty-mask preflight."""
+    def _prepare_workflow(**kwargs: object) -> object:
+        """Record coherent Input capture and preserve the workflow."""
 
-        order.append("flush")
-        return True
+        order.append("capture")
+        return kwargs["workflow"]
 
-    view.input_mask_save_controller = SimpleNamespace(
-        flush_dirty_associated_masks_before_generation=_flush_dirty_masks,
+    view.input_generation_snapshot_service = SimpleNamespace(
+        prepare_workflow=_prepare_workflow,
     )
     _install_input_canvas_reconciliation(view, lambda: order.append("reconcile"))
 
     request = controller.build_generation_request()
 
-    assert order == ["flush", "reconcile"]
+    assert order == ["reconcile", "capture"]
     assert request.workflow is workflow
 
 
@@ -158,7 +161,7 @@ def test_build_generation_request_blocks_when_live_definition_preflight_fails(
         editor_panels={"wf-a": panel},
     )
     controller = mod.WorkspaceController(view)
-    _install_dirty_mask_preflight(view, True)
+    _install_generation_input_snapshot(view, True)
     _install_input_canvas_reconciliation(
         view,
         lambda: pytest.fail("generation continued after metadata preflight failure"),
@@ -224,7 +227,7 @@ def test_build_generation_request_captures_activation_overrides(
         },
     )
     controller = mod.WorkspaceController(view)
-    _install_dirty_mask_preflight(view, True)
+    _install_generation_input_snapshot(view, True)
     _install_input_canvas_reconciliation(view)
 
     request = controller.build_generation_request()
@@ -235,15 +238,15 @@ def test_build_generation_request_captures_activation_overrides(
     }
 
 
-def test_build_generation_request_blocks_when_dirty_mask_flush_fails(
+def test_build_generation_request_blocks_when_input_snapshot_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Generation request construction should fail closed on dirty-mask save failure."""
+    """Generation request construction should fail closed on capture failure."""
 
     mod = import_workspace_controller_module(monkeypatch)
     view = _base_generation_view(workflow=object())
     controller = mod.WorkspaceController(view)
-    _install_dirty_mask_preflight(view, False)
+    _install_generation_input_snapshot(view, False)
     _install_input_canvas_reconciliation(view)
 
     with pytest.raises(mod.GenerationPreflightError):

@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 from PySide6.QtGui import QIcon
+from cutecanvas import CuteCanvas
 from sugarsubstitute_shared.presentation.localization import app_text
 
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
@@ -46,7 +47,7 @@ class _ToolDocument:
 
     has_mask: bool = False
     sam_ready: bool = False
-    current_tool_id: str | None = InputCanvasToolId.PAN_ZOOM
+    current_operation_id: str | None = CuteCanvas.CONTROL_MODE_PANZOOM
 
     def active_image_has_mask_target(self, _image_id: UUID | None) -> bool:
         """Return current active-mask availability."""
@@ -58,10 +59,10 @@ class _ToolDocument:
 
         return self.sam_ready
 
-    def current_canvas_tool_id(self) -> str | None:
-        """Return the actual CuteCanvas mode projected as a tool ID."""
+    def current_canvas_operation(self) -> str | None:
+        """Return the actual CuteCanvas operation."""
 
-        return self.current_tool_id
+        return self.current_operation_id
 
 
 def _controller(
@@ -75,18 +76,18 @@ def _controller(
     runtime = create_input_canvas_tool_system()
     applied: list[str] = []
 
-    def apply(tool_id: str) -> bool:
+    def apply(operation_id: str) -> bool:
         """Record an accepted mode and update the fake native state."""
 
-        applied.append(tool_id)
+        applied.append(operation_id)
         if accepted:
-            document.current_tool_id = tool_id
+            document.current_operation_id = operation_id
         return accepted
 
     return (
         InputCanvasToolController(
             input_document=document,
-            control_mode_setter=apply,
+            operation_setter=apply,
             current_image_id_provider=lambda: image_id,
             runtime=runtime,
         ),
@@ -152,7 +153,7 @@ def test_input_controller_rejects_disabled_unknown_and_failed_native_modes() -> 
     assert controller.request_tool(InputCanvasToolId.BRUSH) is False
     assert controller.request_tool("not-registered") is False
     assert controller.request_tool(InputCanvasToolId.PAN_ZOOM) is False
-    assert applied == [InputCanvasToolId.PAN_ZOOM]
+    assert applied == [CuteCanvas.CONTROL_MODE_PANZOOM]
     assert controller.palette.active_tool_id == InputCanvasToolId.PAN_ZOOM
 
 
@@ -164,7 +165,7 @@ def test_input_controller_synchronizes_external_native_mode_changes() -> None:
     controller, _applied = _controller(document, image_id=image_id)
     controller.refresh_tool_context()
 
-    controller.synchronize_native_tool(InputCanvasToolId.BRUSH)
+    controller.synchronize_native_tool(CuteCanvas.CONTROL_MODE_DRAW_BRUSH)
     assert controller.palette.active_tool_id == InputCanvasToolId.BRUSH
 
     document.has_mask = False
@@ -181,7 +182,7 @@ def test_mask_activation_brush_request_uses_the_same_palette_policy() -> None:
     controller.refresh_tool_context()
 
     assert controller.request_brush_after_mask_activation() is True
-    assert applied == [InputCanvasToolId.BRUSH]
+    assert applied == [CuteCanvas.CONTROL_MODE_DRAW_BRUSH]
     assert controller.palette.active_tool_id == InputCanvasToolId.BRUSH
 
 
@@ -202,11 +203,12 @@ def test_runtime_native_mode_registration_uses_the_ordinary_input_route() -> Non
             order=650,
             required_context_tags=INPUT_CANVAS_CONTEXT_TAGS,
             required_capabilities=frozenset({INPUT_IMAGE_CAPABILITY}),
+            document_operation_id="native.extension",
         )
     )
 
     assert controller.request_tool("extension.workflow-tool") is True
-    assert applied == ["extension.workflow-tool"]
+    assert applied == ["native.extension"]
     assert controller.palette.active_tool_id == "extension.workflow-tool"
 
 

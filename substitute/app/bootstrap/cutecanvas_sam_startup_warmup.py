@@ -141,11 +141,11 @@ class CuteCanvasSamStartupWarmupHandle:
 
 
 def _ensure_cutecanvas_sam_dependencies() -> None:
-    """Import CuteCanvas's SAM dependency service and ensure Python dependencies."""
+    """Use CuteCanvas's public warmup boundary for optional SAM dependencies."""
 
-    from cutecanvas.sam.service import ensure_dependencies
+    from cutecanvas import warmSamDependencies
 
-    ensure_dependencies()
+    warmSamDependencies()
 
 
 def _warmup_disabled(env_var: str) -> bool:

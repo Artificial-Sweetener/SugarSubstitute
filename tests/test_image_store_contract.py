@@ -97,6 +97,19 @@ def test_image_dimensions_returns_none_for_missing_image(tmp_path: Path) -> None
     assert dimensions is None
 
 
+def test_failed_encoding_preserves_the_previous_destination(tmp_path: Path) -> None:
+    """A rejected image encoding must never expose or replace partial bytes."""
+
+    image_path = tmp_path / "snapshot.unsupported-image-format"
+    image_path.write_bytes(b"previous-complete-product")
+    image = QImage(32, 32, QImage.Format.Format_ARGB32_Premultiplied)
+    image.fill(0xFFFF00FF)
+
+    assert QtImageStore().save_image(image_path, image=image) is False
+    assert image_path.read_bytes() == b"previous-complete-product"
+    assert tuple(tmp_path.iterdir()) == (image_path,)
+
+
 @pytest.mark.platforms("windows")
 def test_qt_image_store_round_trips_an_image_beyond_max_path(tmp_path: Path) -> None:
     """Qt file APIs should consume the extended namespace without UI involvement."""

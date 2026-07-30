@@ -162,6 +162,7 @@ class InstallationPathBundle:
     sugar_scripts_dir: Path
     wildcards_dir: Path
     managed_comfy_dir: Path
+    session_dir: Path
 
 
 CubeLibraryUpdateCallback = Callable[[object], None]

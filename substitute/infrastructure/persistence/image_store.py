@@ -29,11 +29,17 @@ from sugarsubstitute_shared.windows_long_paths import (
     qt_filesystem_path,
 )
 
+from .atomic_qt_image_writer import AtomicQtImageWriter
+
 _LOGGER = get_logger("infrastructure.persistence.image_store")
 
 
 class QtImageStore:
     """Provide Qt-backed image load and transparent-mask save operations."""
+
+    def __init__(self, writer: AtomicQtImageWriter | None = None) -> None:
+        """Bind the atomic image publication owner."""
+        self._writer = writer or AtomicQtImageWriter()
 
     def load_image(self, path: Path) -> object | None:
         """Load image with auto-transform enabled and return QImage on success."""
@@ -93,8 +99,9 @@ class QtImageStore:
             return False
 
         try:
-            resolved_path.parent.mkdir(parents=True, exist_ok=True)
-            return bool(save_image(qt_filesystem_path(resolved_path)))
+            if not isinstance(image, QImage):
+                return bool(save_image(qt_filesystem_path(resolved_path)))
+            return self._writer.write(resolved_path, image)
         except Exception as error:
             log_exception(
                 _LOGGER,
@@ -128,13 +135,11 @@ class QtImageStore:
                     height=height,
                 )
                 return False
-            resolved_path = operational_path(path)
-            resolved_path.parent.mkdir(parents=True, exist_ok=True)
             blank_image = QImage(
                 width, height, QImage.Format.Format_ARGB32_Premultiplied
             )
             blank_image.fill(getattr(Qt, "transparent", 0))
-            return bool(blank_image.save(qt_filesystem_path(resolved_path)))
+            return self.save_image(path, image=blank_image)
         except Exception as error:
             log_exception(
                 _LOGGER,
@@ -158,10 +163,9 @@ class QtImageStore:
             )
             return False
         try:
-            resolved_path.parent.mkdir(parents=True, exist_ok=True)
             blank_image = QImage(width, height, QImage.Format.Format_RGB32)
             blank_image.fill(QColor(24, 24, 24))
-            return bool(blank_image.save(qt_filesystem_path(resolved_path)))
+            return self.save_image(resolved_path, image=blank_image)
         except Exception as error:
             log_exception(
                 _LOGGER,

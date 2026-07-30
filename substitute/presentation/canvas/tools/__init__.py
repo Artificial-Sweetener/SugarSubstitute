@@ -24,8 +24,15 @@ from .model import (
 )
 from .palette import CanvasToolPalette
 from .registry import CanvasToolRegistry
-from .runtime import CanvasToolAction, CanvasToolRuntime
+from .runtime import (
+    CanvasToolAction,
+    CanvasToolOptionsFactory,
+    CanvasToolProvider,
+    CanvasToolProviderSnapshot,
+    CanvasToolRuntime,
+)
 from .tool_strip import CanvasToolStrip
+from .tool_options_panel import CanvasToolOptionsPanel
 
 __all__ = [
     "CanvasToolContext",
@@ -35,6 +42,10 @@ __all__ = [
     "CanvasToolPresentation",
     "CanvasToolRegistry",
     "CanvasToolAction",
+    "CanvasToolOptionsFactory",
+    "CanvasToolProvider",
+    "CanvasToolProviderSnapshot",
     "CanvasToolRuntime",
     "CanvasToolStrip",
+    "CanvasToolOptionsPanel",
 ]

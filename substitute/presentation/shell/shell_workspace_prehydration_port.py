@@ -43,6 +43,14 @@ class ShellWorkspacePrehydrationPort:
     def begin_prehydrated_restore(self, snapshot: WorkspaceSnapshot) -> None:
         """Enter prehydration mode for one normalized workspace snapshot."""
 
+        lifecycle = getattr(
+            self._shell,
+            "input_editable_document_lifecycle",
+            None,
+        )
+        restore = getattr(lifecycle, "restore_before_workspace_assets", None)
+        if callable(restore):
+            restore()
         self._shell.shell_prehydrated_restore_controller.begin_prehydrated_restore(
             snapshot
         )

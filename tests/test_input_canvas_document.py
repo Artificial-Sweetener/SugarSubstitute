@@ -18,10 +18,12 @@
 
 from __future__ import annotations
 
+import time
+from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtCore import QCoreApplication, QSize, Qt
-from PySide6.QtGui import QColor, QImage
+from PySide6.QtCore import QCoreApplication, QPoint, QRect, QSize, Qt
+from PySide6.QtGui import QColor, QImage, QPainter
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -29,10 +31,7 @@ from substitute.application.workflows.input_canvas_document_port import (
     CanvasDocumentMutation,
 )
 from substitute.presentation.canvas.input.input_document import InputCanvasDocument
-from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
-    InputCanvasToolId,
-)
-from cutecanvas import EditorCapability
+from cutecanvas import CuteCanvas, EditorCapability
 
 
 def _image(color: QColor) -> QImage:
@@ -50,8 +49,8 @@ def _app() -> QApplication:
     return instance if isinstance(instance, QApplication) else QApplication([])
 
 
-def test_input_document_keeps_application_and_composition_identity_separate() -> None:
-    """Input routes should resolve app UUIDs through a durable composition registry."""
+def test_input_document_uses_application_identity_for_persisted_compositions() -> None:
+    """Input routes should retain host UUIDs as restorable composition identities."""
 
     _app()
     document = InputCanvasDocument(features=("mask",))
@@ -72,7 +71,7 @@ def test_input_document_keeps_application_and_composition_identity_separate() ->
     assert document.set_current_image_id(first_image_id) is True
     assert document.current_image_id() == first_image_id
     assert set(document.canvas.compositionIDs())
-    assert first_image_id not in document.canvas.compositionIDs()
+    assert first_image_id in document.canvas.compositionIDs()
 
 
 def test_input_document_exports_inactive_mask_without_route_mutation() -> None:
@@ -99,6 +98,34 @@ def test_input_document_exports_inactive_mask_without_route_mutation() -> None:
     assert exported is not None
     assert exported.size() == QSize(24, 16)
     assert document.current_image_id() == second_image_id
+
+
+def test_input_document_relays_repeated_real_mask_history_signals() -> None:
+    """Repeated mask mutations and replay should invalidate consumers exactly."""
+
+    app = _app()
+    document = InputCanvasDocument(features=("mask",))
+    image_id = uuid4()
+    document.ensure_image_cached(image_id, _image(QColor("red")), None)
+    assert document.set_current_image_id(image_id)
+    mask_id = document.create_blank_mask(image_id, QSize(24, 16))
+    assert mask_id is not None
+    changes: list[None] = []
+    document.maskContentChanged.connect(lambda: changes.append(None))
+    coverage = QImage(24, 16, QImage.Format.Format_Grayscale8)
+    coverage.fill(255)
+
+    try:
+        for cycle in range(32):
+            assert document.canvas.replaceMaskImage(mask_id, coverage)
+            app.processEvents()
+            assert len(changes) == cycle * 2 + 1
+
+            assert document.canvas.undoSceneEdit()
+            app.processEvents()
+            assert len(changes) == cycle * 2 + 2
+    finally:
+        document.close()
 
 
 def test_input_document_admission_never_steals_an_existing_route() -> None:
@@ -200,12 +227,12 @@ def test_input_document_allows_mask_movement_without_unlocking_source_image() ->
     source_layers = [layer for layer in snapshot.layers if layer.source_id != mask_id]
     assert source_layers
     assert all(layer.interaction.movable is False for layer in source_layers)
-    assert document.set_canvas_tool_mode(InputCanvasToolId.MOVE) is True
-    assert document.current_canvas_tool_id() == InputCanvasToolId.MOVE
+    assert document.set_canvas_operation(CuteCanvas.CONTROL_MODE_MOVE) is True
+    assert document.current_canvas_operation() == CuteCanvas.CONTROL_MODE_MOVE
 
 
-def test_input_document_maps_every_product_tool_through_cutecanvas() -> None:
-    """Every displayed mode should resolve through CuteCanvas without a parallel path."""
+def test_input_document_accepts_registered_cutecanvas_operations_only() -> None:
+    """The document boundary should activate native operations without product IDs."""
 
     _app()
     document = InputCanvasDocument(features=("mask",))
@@ -214,18 +241,18 @@ def test_input_document_maps_every_product_tool_through_cutecanvas() -> None:
     assert document.set_current_image_id(image_id)
     assert document.create_blank_mask(image_id, QSize(24, 16)) is not None
 
-    for tool_id in (
-        InputCanvasToolId.MOVE,
-        InputCanvasToolId.MASK_RECTANGLE,
-        InputCanvasToolId.MASK_ELLIPSE,
-        InputCanvasToolId.MASK_LASSO,
-        InputCanvasToolId.BRUSH,
-        InputCanvasToolId.PAN_ZOOM,
+    for operation_id in (
+        CuteCanvas.CONTROL_MODE_MOVE,
+        CuteCanvas.CONTROL_MODE_MASK_RECTANGLE,
+        CuteCanvas.CONTROL_MODE_MASK_ELLIPSE,
+        CuteCanvas.CONTROL_MODE_MASK_LASSO,
+        CuteCanvas.CONTROL_MODE_DRAW_BRUSH,
+        CuteCanvas.CONTROL_MODE_PANZOOM,
     ):
-        assert document.set_canvas_tool_mode(tool_id) is True
-        assert document.current_canvas_tool_id() == tool_id
+        assert document.set_canvas_operation(operation_id) is True
+        assert document.current_canvas_operation() == operation_id
 
-    assert document.set_canvas_tool_mode("foreign-tool") is False
+    assert document.set_canvas_operation("foreign-operation") is False
 
 
 def test_input_document_accepts_new_selection_during_temporary_navigation() -> None:
@@ -241,12 +268,142 @@ def test_input_document_accepts_new_selection_during_temporary_navigation() -> N
     canvas.show()
     canvas.setFocus()
     app.processEvents()
-    assert document.set_canvas_tool_mode(InputCanvasToolId.BRUSH)
+    assert document.set_canvas_operation(CuteCanvas.CONTROL_MODE_DRAW_BRUSH)
 
     QTest.keyPress(canvas, Qt.Key.Key_Space)
-    assert document.current_canvas_tool_id() == InputCanvasToolId.PAN_ZOOM
-    assert document.set_canvas_tool_mode(InputCanvasToolId.MASK_RECTANGLE)
-    assert document.current_canvas_tool_id() == InputCanvasToolId.PAN_ZOOM
+    assert document.current_canvas_operation() == CuteCanvas.CONTROL_MODE_PANZOOM
+    assert document.set_canvas_operation(CuteCanvas.CONTROL_MODE_MASK_RECTANGLE)
+    assert document.current_canvas_operation() == CuteCanvas.CONTROL_MODE_PANZOOM
 
     QTest.keyRelease(canvas, Qt.Key.Key_Space)
-    assert document.current_canvas_tool_id() == InputCanvasToolId.MASK_RECTANGLE
+    assert document.current_canvas_operation() == CuteCanvas.CONTROL_MODE_MASK_RECTANGLE
+
+
+def test_input_document_round_trips_complete_editable_authority(
+    tmp_path: Path,
+) -> None:
+    """Session persistence should retain exact image and hybrid mask identities."""
+
+    _app()
+    archive_path = tmp_path / "input-document.ccanvas"
+    image_id = uuid4()
+    source = InputCanvasDocument(features=("mask",))
+    source.ensure_image_cached(image_id, _image(QColor("red")), None)
+    mask_id = source.create_blank_mask(image_id, QSize(24, 16))
+    assert mask_id is not None
+    coverage = QImage(24, 16, QImage.Format.Format_Grayscale8)
+    coverage.fill(255)
+    assert source.canvas.replaceMaskImage(mask_id, coverage)
+
+    saved_ids = source.editable_persistence.save_editable_document(archive_path)
+    source.close()
+
+    restored = InputCanvasDocument(features=("mask",))
+    assert (
+        restored.editable_persistence.restore_editable_document(archive_path)
+        == saved_ids
+        == (image_id,)
+    )
+    assert restored.contains(image_id)
+    assert restored.contains_mask(image_id, mask_id)
+    exported = restored.export_mask_image(mask_id)
+    assert exported is not None
+    assert exported.size() == QSize(24, 16)
+    assert QColor(exported.pixel(12, 8)).red() == 255
+
+    replacement = _image(QColor("blue"))
+    assert (
+        restored.ensure_image_cached(image_id, replacement, tmp_path / "source.png")
+        is CanvasDocumentMutation.REPLACED
+    )
+    assert restored.contains_mask(image_id, mask_id)
+    restored.close()
+
+
+def test_restored_input_document_paints_existing_mask_before_render_settles(
+    tmp_path: Path,
+) -> None:
+    """Input editing must stay live while a large restored mask is still loading."""
+
+    app = _app()
+    archive = tmp_path / "loading-input-document.ccanvas"
+    image_id = uuid4()
+    source = InputCanvasDocument(features=("mask",))
+    source_closed = False
+    restored: InputCanvasDocument | None = None
+    try:
+        image = QImage(4096, 4096, QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(QColor("white"))
+        source.ensure_image_cached(image_id, image, None)
+        mask_id = source.create_blank_mask(image_id, image.size())
+        assert mask_id is not None
+        existing = QImage(4096, 4096, QImage.Format.Format_Grayscale8)
+        existing.fill(0)
+        painter = QPainter(existing)
+        try:
+            painter.fillRect(QRect(256, 256, 1024, 1024), QColor("white"))
+        finally:
+            painter.end()
+        assert source.canvas.replaceMaskImage(mask_id, existing)
+        source.canvas.resize(1024, 1024)
+        source.canvas.show()
+        app.processEvents()
+        assert source.set_canvas_operation(CuteCanvas.CONTROL_MODE_DRAW_BRUSH)
+        for index in range(16):
+            QTest.mouseClick(
+                source.canvas,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+                QPoint(160 + index % 4 * 180, 180 + index // 4 * 180),
+            )
+            app.processEvents()
+        source.editable_persistence.save_editable_document(archive)
+        source.close()
+        source_closed = True
+
+        restored = InputCanvasDocument(features=("mask",))
+        assert restored.editable_persistence.restore_editable_document(archive) == (
+            image_id,
+        )
+        assert restored.set_current_image_id(image_id)
+        assert restored.set_active_mask_id(mask_id)
+        assert restored.set_canvas_operation(CuteCanvas.CONTROL_MODE_DRAW_BRUSH)
+        restored.canvas.setBrushSize(128)
+        restored.canvas.resize(1024, 1024)
+        restored.canvas.show()
+        app.processEvents()
+        point = QPoint(512, 512)
+
+        QTest.mousePress(
+            restored.canvas,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            point,
+        )
+        deadline = time.perf_counter() + 0.25
+        visible = False
+        while time.perf_counter() < deadline:
+            app.processEvents()
+            color = restored.canvas.grab().toImage().pixelColor(point)
+            channels = color.red(), color.green(), color.blue()
+            if max(channels) - min(channels) >= 20:
+                visible = True
+                break
+            QTest.qWait(1)
+        QTest.mouseRelease(
+            restored.canvas,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            point,
+        )
+
+        assert visible
+        exported = restored.export_mask_image(mask_id)
+        assert exported is not None
+        assert exported.pixelColor(2048, 2048).red() > 0
+        assert restored.canvas.undoSceneEdit()
+    finally:
+        if restored is not None:
+            restored.close()
+        if not source_closed:
+            source.close()
