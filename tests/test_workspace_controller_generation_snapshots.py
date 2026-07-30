@@ -56,11 +56,11 @@ def test_build_generation_snapshot_randomizes_before_serialization(
         assert global_override_scopes["seed"].value == 1
         return f"# sugar {workflow.seed}"
 
-    def _flush_dirty_masks() -> bool:
-        """Record dirty-mask preflight."""
+    def _prepare_workflow(**kwargs: object) -> object:
+        """Record exact-mask capture and preserve the workflow."""
 
-        order.append("flush")
-        return True
+        order.append("capture")
+        return kwargs["workflow"]
 
     view = SimpleNamespace(
         request_reconfigure=lambda: None,
@@ -123,8 +123,8 @@ def test_build_generation_snapshot_randomizes_before_serialization(
             value="randomized",
         ),
     )
-    view.input_mask_save_controller = SimpleNamespace(
-        flush_dirty_associated_masks_before_generation=_flush_dirty_masks,
+    view.input_generation_snapshot_service = SimpleNamespace(
+        prepare_workflow=_prepare_workflow,
     )
     view.input_canvas_presenter = SimpleNamespace(
         reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
@@ -132,7 +132,7 @@ def test_build_generation_snapshot_randomizes_before_serialization(
 
     snapshot = controller.build_generation_snapshot()
 
-    assert order == ["flush", "reconcile", "randomize", "serialize"]
+    assert order == ["reconcile", "capture", "randomize", "serialize"]
     assert snapshot.workflow_id == "wf-a"
     assert snapshot.workflow_name == "Recipe"
     assert snapshot.sugar_script_text == "# sugar randomized"
@@ -235,8 +235,8 @@ def test_build_generation_snapshot_stores_positive_prompt_preview(
         active_cube_stack=None,
     )
     controller = mod.WorkspaceController(view)
-    view.input_mask_save_controller = SimpleNamespace(
-        flush_dirty_associated_masks_before_generation=lambda: True,
+    view.input_generation_snapshot_service = SimpleNamespace(
+        prepare_workflow=lambda **kwargs: kwargs["workflow"],
     )
     view.input_canvas_presenter = SimpleNamespace(
         reconcile_active_input_canvas_image=lambda: None,

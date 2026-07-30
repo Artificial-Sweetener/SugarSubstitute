@@ -113,6 +113,7 @@ def test_image_factory_builds_image_picker_with_value(
     assert widget.parent == "parent"
     assert widget.thumbnail_paths == ["E:/images/input.png"]
     assert widget.property("input_metadata") == {
+        "cube_alias": "A",
         "node_name": "LoadImage",
         "key": "image",
     }
@@ -136,6 +137,7 @@ def test_image_factory_restores_empty_image_picker_thumbnail(
     assert isinstance(widget, _FakeImagePicker)
     assert widget.thumbnail_paths == [""]
     assert widget.property("input_metadata") == {
+        "cube_alias": None,
         "node_name": "LoadImage",
         "key": "image",
     }

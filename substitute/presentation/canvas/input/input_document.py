@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
 
@@ -39,26 +38,24 @@ from cutecanvas import (
 from substitute.application.workflows.input_canvas_document_port import (
     CanvasDocumentMutation,
 )
-from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
-    InputCanvasToolId,
+from substitute.presentation.canvas.input.input_preview_binding import (
+    InputDocumentPreviewBindings,
+)
+from substitute.presentation.canvas.input.input_document_persistence import (
+    InputDocumentPersistence,
+)
+from substitute.presentation.canvas.input.input_document_catalog import (
+    InputDocumentCatalog,
+)
+from substitute.presentation.canvas.input.input_document_tool_options import (
+    InputDocumentToolOptions,
+)
+from substitute.presentation.canvas.input.input_generation_capture import (
+    InputDocumentGenerationCapture,
 )
 from substitute.shared.logging.logger import get_logger, log_debug, log_warning
 
 _LOGGER = get_logger("presentation.canvas.input.input_document")
-_PRODUCT_TOOL_TO_CONTROL_MODE = {
-    InputCanvasToolId.MOVE: CuteCanvas.CONTROL_MODE_MOVE,
-    InputCanvasToolId.MASK_RECTANGLE: CuteCanvas.CONTROL_MODE_MASK_RECTANGLE,
-    InputCanvasToolId.MASK_ELLIPSE: CuteCanvas.CONTROL_MODE_MASK_ELLIPSE,
-    InputCanvasToolId.MASK_LASSO: CuteCanvas.CONTROL_MODE_MASK_LASSO,
-    InputCanvasToolId.SMART_SELECT: CuteCanvas.CONTROL_MODE_SMART_SELECT,
-    InputCanvasToolId.BRUSH: CuteCanvas.CONTROL_MODE_DRAW_BRUSH,
-    InputCanvasToolId.PAN_ZOOM: CuteCanvas.CONTROL_MODE_PANZOOM,
-}
-_CONTROL_MODE_TO_PRODUCT_TOOL = {
-    control_mode: tool_id
-    for tool_id, control_mode in _PRODUCT_TOOL_TO_CONTROL_MODE.items()
-}
-
 _BASE_LAYER_POLICY = LayerPolicy(
     selectable=False,
     movable=False,
@@ -86,22 +83,14 @@ _EDITOR_POLICY = EditorPolicy(
 )
 
 
-@dataclass(frozen=True, slots=True)
-class InputDocumentImage:
-    """Map one SugarSubstitute Input image identity to document content."""
-
-    image_id: UUID
-    composition_id: UUID
-    path: Path | None
-    payload_identity: int
-
-
 class InputCanvasDocument(QObject):
     """Provide one long-lived CuteCanvas Input document to application services."""
 
     imageMaterialized = Signal(object, str)
     toolContextChanged = Signal()
     canvasToolChanged = Signal(str)
+    brushPresetChanged = Signal()
+    maskContentChanged = Signal()
 
     def __init__(
         self,
@@ -125,7 +114,36 @@ class InputCanvasDocument(QObject):
             session=self._session,
         )
         self._canvas.setEditorPolicy(_EDITOR_POLICY)
-        self._images: dict[UUID, InputDocumentImage] = {}
+        self._catalog = InputDocumentCatalog(
+            lambda composition_id: self._canvas.listMasksForComposition(composition_id),
+        )
+        self._preview_bindings = InputDocumentPreviewBindings(
+            document=self._document,
+            runtime=self._runtime,
+            composition_for_image=self._catalog.composition_for_image,
+            mask_layer_for_image=self._catalog.mask_layer_for_image,
+        )
+        self._generation_capture = InputDocumentGenerationCapture(
+            composition_for_image=self._catalog.composition_for_image,
+            composition_for_mask=self._catalog.composition_for_mask,
+            content_reference=self._document.content_reference,
+            capture_image=self._canvas.captureEmbeddedImageExport,
+            capture_mask=lambda mask_id, composition_id: self._canvas.captureMaskExport(
+                mask_id,
+                composition_id=composition_id,
+            ),
+        )
+        self._editable_persistence = InputDocumentPersistence(
+            document=self._document,
+            canvas=self._canvas,
+            install_restored_compositions=self._install_restored_compositions,
+        )
+        self._tool_options = InputDocumentToolOptions(
+            canvas=self._canvas,
+            brush_preset_changed=self.brushPresetChanged,
+            mask_content_changed=self.maskContentChanged,
+            tool_context_changed=self.toolContextChanged,
+        )
         self._canvas.controlModeChanged.connect(self._on_control_mode_changed)
         self._canvas.samCheckpointStatusChanged.connect(
             lambda _status, _path: self.toolContextChanged.emit()
@@ -136,6 +154,10 @@ class InputCanvasDocument(QObject):
         self._canvas.selectedLayerChanged.connect(
             lambda _selection: self.toolContextChanged.emit()
         )
+        self._canvas.brushPresetChanged.connect(
+            lambda _preset: self.brushPresetChanged.emit()
+        )
+        self._canvas.maskUndoStackChanged.connect(self._on_mask_undo_stack_changed)
 
     @property
     def canvas(self) -> CuteCanvas:
@@ -148,6 +170,26 @@ class InputCanvasDocument(QObject):
         """Return the document-scoped runtime bound to this Input document."""
 
         return self._runtime
+
+    @property
+    def preview_bindings(self) -> InputDocumentPreviewBindings:
+        """Return the source resolver used by live editor-node previews."""
+        return self._preview_bindings
+
+    @property
+    def generation_capture(self) -> InputDocumentGenerationCapture:
+        """Return coherent Input generation capture without materialization policy."""
+        return self._generation_capture
+
+    @property
+    def editable_persistence(self) -> InputDocumentPersistence:
+        """Return complete editable document persistence."""
+        return self._editable_persistence
+
+    @property
+    def tool_options(self) -> InputDocumentToolOptions:
+        """Return the contextual brush and mask-adjustment state owner."""
+        return self._tool_options
 
     def ensure_image_cached(
         self,
@@ -166,9 +208,11 @@ class InputCanvasDocument(QObject):
             )
             return CanvasDocumentMutation.UNCHANGED
         normalized_path = Path(path) if path is not None else None
-        existing = self._images.get(image_id)
-        if existing is not None and self._same_payload(
-            existing, image, normalized_path
+        existing = self._catalog.record_for(image_id)
+        if (
+            existing is not None
+            and existing.payload_revision == image.cacheKey()
+            and existing.path == normalized_path
         ):
             return CanvasDocumentMutation.UNCHANGED
         if existing is not None:
@@ -179,12 +223,13 @@ class InputCanvasDocument(QObject):
                 image,
                 title="Input image",
                 interaction=_BASE_LAYER_POLICY,
+                composition_id=image_id,
             )
-        self._images[image_id] = InputDocumentImage(
-            image_id=image_id,
-            composition_id=composition_id,
+        self._catalog.record(
+            image_id,
+            composition_id,
             path=normalized_path,
-            payload_identity=id(image),
+            payload_revision=image.cacheKey(),
         )
         mutation = (
             CanvasDocumentMutation.REPLACED
@@ -205,18 +250,17 @@ class InputCanvasDocument(QObject):
     def contains(self, image_id: UUID) -> bool:
         """Return whether an application image owns a live composition."""
 
-        return image_id in self._images
+        return self._catalog.contains(image_id)
 
     def image_path(self, image_id: UUID) -> Path | None:
         """Return the application-owned source path for one image."""
 
-        record = self._images.get(image_id)
-        return None if record is None else record.path
+        return self._catalog.image_path(image_id)
 
     def remove_unreferenced_image(self, image_id: UUID) -> bool:
         """Remove an already-authorized unreferenced image composition."""
 
-        record = self._images.pop(image_id, None)
+        record = self._catalog.remove(image_id)
         if record is None:
             return False
         self._canvas.removeComposition(record.composition_id)
@@ -247,7 +291,7 @@ class InputCanvasDocument(QObject):
             self._session.clear_activation()
             self.toolContextChanged.emit()
             return True
-        record = self._images.get(image_id)
+        record = self._catalog.record_for(image_id)
         if record is None:
             return False
         self._canvas.openComposition(record.composition_id)
@@ -260,10 +304,7 @@ class InputCanvasDocument(QObject):
         composition_id = self._canvas.currentCompositionID()
         if composition_id is None:
             return None
-        for image_id, record in self._images.items():
-            if record.composition_id == composition_id:
-                return image_id
-        return None
+        return self._catalog.image_id_for_composition(composition_id)
 
     def set_active_mask_id(self, mask_id: UUID) -> bool:
         """Activate one mask through the supported CuteCanvas facade."""
@@ -273,20 +314,17 @@ class InputCanvasDocument(QObject):
             self.toolContextChanged.emit()
         return accepted
 
-    def set_canvas_tool_mode(self, tool_id: str) -> bool:
-        """Apply one built-in or runtime-registered tool through CuteCanvas."""
+    def set_canvas_operation(self, operation_id: str) -> bool:
+        """Activate one registry-selected CuteCanvas document operation."""
 
-        resolved = _PRODUCT_TOOL_TO_CONTROL_MODE.get(tool_id, tool_id)
-        if resolved not in self._canvas.availableControlModes():
+        if operation_id not in self._canvas.availableControlModes():
             return False
-        return bool(self._canvas.setControlMode(resolved))
+        return bool(self._canvas.setControlMode(operation_id))
 
-    def current_canvas_tool_id(self) -> str | None:
-        """Return the built-in product ID or registered native mode identity."""
+    def current_canvas_operation(self) -> str | None:
+        """Return the currently effective CuteCanvas document operation."""
 
         control_mode = self._canvas.getControlMode()
-        if control_mode in _CONTROL_MODE_TO_PRODUCT_TOOL:
-            return _CONTROL_MODE_TO_PRODUCT_TOOL[control_mode]
         return (
             control_mode
             if control_mode in self._canvas.availableControlModes()
@@ -298,7 +336,7 @@ class InputCanvasDocument(QObject):
 
         if image_id is None or image_id != self.current_image_id():
             return False
-        record = self._images.get(image_id)
+        record = self._catalog.record_for(image_id)
         active_mask_id = self._canvas.activeMaskID()
         if record is None or active_mask_id is None:
             return False
@@ -306,6 +344,11 @@ class InputCanvasDocument(QObject):
             mask.mask_id == active_mask_id
             for mask in self._canvas.listMasksForComposition(record.composition_id)
         )
+
+    def active_mask_id(self) -> UUID | None:
+        """Return the authoritative active mask identity."""
+
+        return self._canvas.activeMaskID()
 
     def smart_select_ready(self) -> bool:
         """Return whether CuteCanvas reports its Smart Select model ready."""
@@ -347,7 +390,7 @@ class InputCanvasDocument(QObject):
     def remove_mask_from_image(self, image_id: UUID, mask_id: UUID) -> bool:
         """Remove a mask association from its explicitly named composition."""
 
-        record = self._images.get(image_id)
+        record = self._catalog.record_for(image_id)
         if record is None:
             return False
         removed = bool(
@@ -362,30 +405,36 @@ class InputCanvasDocument(QObject):
 
         if image_id is None:
             return False
-        record = self._images.get(image_id)
-        return record is not None and bool(
-            self._canvas.listMasksForComposition(record.composition_id)
-        )
+        return self._catalog.has_masks(image_id)
 
     def export_mask_image(self, mask_id: UUID) -> QImage | None:
         """Export a requested mask without changing active document state."""
 
         return self._canvas.exportMaskImage(mask_id)
 
-    @staticmethod
-    def _same_payload(
-        record: InputDocumentImage,
-        image: QImage,
-        path: Path | None,
-    ) -> bool:
-        """Compare host cache identity without relying on document internals."""
+    def contains_mask(self, image_id: UUID, mask_id: UUID) -> bool:
+        """Return whether an exact mask identity belongs to one Input image."""
 
-        return record.payload_identity == id(image) and record.path == path
+        return self._catalog.contains_mask(image_id, mask_id)
+
+    def _install_restored_compositions(
+        self,
+        composition_ids: tuple[UUID, ...],
+    ) -> None:
+        """Install restored composition identities before file fallback hydration."""
+        self._catalog.restore_compositions(composition_ids)
+        self.toolContextChanged.emit()
+
+    def close(self) -> None:
+        """Release the Input view, document runtime, and durable document."""
+        self._canvas.close()
+        self._runtime.close()
+        self._document.close()
 
     def _apply_mask_policy(self, image_id: UUID, mask_id: UUID) -> None:
         """Apply the fixed product mask policy to a newly created mask layer."""
 
-        record = self._images.get(image_id)
+        record = self._catalog.record_for(image_id)
         if record is None:
             return
         for mask in self._canvas.listMasksForComposition(record.composition_id):
@@ -404,9 +453,14 @@ class InputCanvasDocument(QObject):
     def _on_control_mode_changed(self, _control_mode: str) -> None:
         """Publish CuteCanvas mode changes using stable product tool identities."""
 
-        tool_id = self.current_canvas_tool_id()
-        if tool_id is not None:
-            self.canvasToolChanged.emit(tool_id)
+        operation_id = self.current_canvas_operation()
+        if operation_id is not None:
+            self.canvasToolChanged.emit(operation_id)
+
+    def _on_mask_undo_stack_changed(self, _mask_id: UUID) -> None:
+        """Publish durable mask-history changes to Input document consumers."""
+
+        self.maskContentChanged.emit()
 
 
-__all__ = ["InputCanvasDocument", "InputDocumentImage"]
+__all__ = ["InputCanvasDocument"]

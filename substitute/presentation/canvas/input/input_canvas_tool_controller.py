@@ -50,8 +50,8 @@ class InputCanvasToolDocumentPort(Protocol):
     def smart_select_ready(self) -> bool:
         """Return whether Smart Select can execute now."""
 
-    def current_canvas_tool_id(self) -> str | None:
-        """Return the current CuteCanvas mode as a product tool identity."""
+    def current_canvas_operation(self) -> str | None:
+        """Return the current CuteCanvas document operation identity."""
 
 
 class InputCanvasToolController:
@@ -61,14 +61,14 @@ class InputCanvasToolController:
         self,
         *,
         input_document: InputCanvasToolDocumentPort,
-        control_mode_setter: Callable[[str], bool],
+        operation_setter: Callable[[str], bool],
         current_image_id_provider: Callable[[], UUID | None],
         runtime: CanvasToolRuntime,
     ) -> None:
         """Store document ports and initialize a context-free palette."""
 
         self._input_document = input_document
-        self._control_mode_setter = control_mode_setter
+        self._operation_setter = operation_setter
         self._current_image_id_provider = current_image_id_provider
         self._runtime = runtime
 
@@ -117,21 +117,25 @@ class InputCanvasToolController:
             return False
         if presentation.kind is CanvasToolKind.ACTION:
             return self._runtime.dispatch_action(tool_id)
-        accepted = self._control_mode_setter(tool_id)
+        operation_id = presentation.document_operation_id
+        if operation_id is None:
+            return False
+        accepted = self._operation_setter(operation_id)
         self._synchronize_or_recover()
         if not accepted:
             log_warning(
                 _LOGGER,
                 "Input canvas tool activation rejected",
                 tool_id=tool_id,
-                native_tool_id=self._input_document.current_canvas_tool_id(),
+                document_operation_id=self._input_document.current_canvas_operation(),
             )
         return accepted and self.palette.active_tool_id == tool_id
 
-    def synchronize_native_tool(self, tool_id: str) -> None:
-        """Project an externally changed CuteCanvas mode into the palette."""
+    def synchronize_native_tool(self, operation_id: str) -> None:
+        """Project an externally changed CuteCanvas operation into the palette."""
 
-        if not self.palette.set_active_tool(tool_id):
+        tool_id = self._tool_id_for_operation(operation_id)
+        if tool_id is None or not self.palette.set_active_tool(tool_id):
             self._recover_navigation_mode()
 
     def request_brush_after_mask_activation(self) -> bool:
@@ -143,8 +147,11 @@ class InputCanvasToolController:
     def _synchronize_or_recover(self) -> None:
         """Synchronize the native mode or recover to enabled navigation."""
 
-        native_tool_id = self._input_document.current_canvas_tool_id()
-        if native_tool_id is not None and self.palette.set_active_tool(native_tool_id):
+        operation_id = self._input_document.current_canvas_operation()
+        tool_id = (
+            None if operation_id is None else self._tool_id_for_operation(operation_id)
+        )
+        if tool_id is not None and self.palette.set_active_tool(tool_id):
             return
         self._recover_navigation_mode()
 
@@ -155,13 +162,27 @@ class InputCanvasToolController:
         if navigation is None or not navigation.enabled:
             self.palette.set_active_tool(None)
             return
-        if self._input_document.current_canvas_tool_id() != InputCanvasToolId.PAN_ZOOM:
-            self._control_mode_setter(InputCanvasToolId.PAN_ZOOM)
-        native_tool_id = self._input_document.current_canvas_tool_id()
+        operation_id = navigation.document_operation_id
+        if operation_id is None:
+            self.palette.set_active_tool(None)
+            return
+        if self._input_document.current_canvas_operation() != operation_id:
+            self._operation_setter(operation_id)
+        native_operation_id = self._input_document.current_canvas_operation()
         self.palette.set_active_tool(
-            InputCanvasToolId.PAN_ZOOM
-            if native_tool_id == InputCanvasToolId.PAN_ZOOM
-            else None
+            InputCanvasToolId.PAN_ZOOM if native_operation_id == operation_id else None
+        )
+
+    def _tool_id_for_operation(self, operation_id: str) -> str | None:
+        """Resolve one document operation through current registry metadata."""
+
+        return next(
+            (
+                presentation.tool_id
+                for presentation in self.palette.snapshot()
+                if presentation.document_operation_id == operation_id
+            ),
+            None,
         )
 
 

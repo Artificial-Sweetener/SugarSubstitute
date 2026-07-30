@@ -29,13 +29,16 @@ from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
     InputRouteProjectorPort,
 )
-from substitute.presentation.canvas.tools import CanvasToolPalette, CanvasToolStrip
+from substitute.presentation.canvas.tools import (
+    CanvasToolOptionsPanel,
+    CanvasToolRuntime,
+    CanvasToolStrip,
+)
 from substitute.presentation.canvas.input.input_document import InputCanvasDocument
 
 class InputCanvas(QWidget):
     """Expose host-facing Input canvas widget controls and intent signals."""
 
-    inputMaskSaved: Signal
     inputImageLoaded: Signal
     toolContextRefreshRequested: Signal
     toolRequested: Signal
@@ -76,6 +79,11 @@ class InputCanvas(QWidget):
         """Return the compact tool overlay."""
         ...
 
-    def bind_tool_palette(self, palette: CanvasToolPalette) -> None:
-        """Bind the contextual Input tool palette."""
+    @property
+    def tool_options_panel(self) -> CanvasToolOptionsPanel:
+        """Return the contextual options overlay."""
+        ...
+
+    def bind_tool_runtime(self, runtime: CanvasToolRuntime) -> None:
+        """Bind the contextual Input tool runtime."""
         ...

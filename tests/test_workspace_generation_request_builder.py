@@ -463,21 +463,21 @@ def test_generation_request_from_workflow_state_builds_pruned_request() -> None:
     )
 
 
-def test_build_generation_request_for_view_flushes_then_reconciles() -> None:
-    """Request orchestration should flush dirty masks before canvas reconciliation."""
+def test_build_generation_request_captures_after_canvas_reconciliation() -> None:
+    """Request orchestration should bind an exact mask copy after reconciliation."""
 
     order: list[str] = []
     workflow = SimpleNamespace(cubes={}, stack_order=[])
 
-    def flush_dirty_masks() -> bool:
-        """Record mask flush ordering and report success."""
-
-        order.append("flush")
-        return True
+    def prepare_workflow(*, workflow_id: str, workflow: object) -> object:
+        """Record exact snapshot ordering and return the execution copy."""
+        assert workflow_id == "wf-a"
+        order.append("capture")
+        return workflow
 
     view = SimpleNamespace(
-        input_mask_save_controller=SimpleNamespace(
-            flush_dirty_associated_masks_before_generation=flush_dirty_masks
+        input_generation_snapshot_service=SimpleNamespace(
+            prepare_workflow=prepare_workflow
         ),
         editor_panels={},
         active_editor_panel=object(),
@@ -494,26 +494,32 @@ def test_build_generation_request_for_view_flushes_then_reconciles() -> None:
         view=view,
         workflow_id="wf-a",
         reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
-        dirty_mask_error=lambda: AssertionError("unexpected dirty mask failure"),
+        input_snapshot_error=lambda: AssertionError(
+            "unexpected Input snapshot failure"
+        ),
         live_node_preflight_error=lambda error: AssertionError(error),
         empty_workflow_error=lambda: AssertionError("unexpected empty workflow"),
     )
 
-    assert order == ["flush", "reconcile"]
+    assert order == ["reconcile", "capture"]
     assert request.workflow_id == "wf-a"
     assert request.workflow_name == "Recipe"
     assert request.workflow is workflow
 
 
-def test_build_generation_request_for_view_blocks_dirty_mask_failure() -> None:
-    """Dirty mask persistence failure should stop request construction."""
+def test_build_generation_request_for_view_blocks_input_snapshot_failure() -> None:
+    """An incoherent Input snapshot should stop request construction."""
 
-    expected_error = RuntimeError("dirty mask failed")
+    expected_error = RuntimeError("Input snapshot failed")
     reconciled: list[str] = []
+    workflow = SimpleNamespace(cubes={}, stack_order=[])
     view = SimpleNamespace(
-        input_mask_save_controller=SimpleNamespace(
-            flush_dirty_associated_masks_before_generation=lambda: False
+        input_generation_snapshot_service=SimpleNamespace(
+            prepare_workflow=lambda **_kwargs: None
         ),
+        editor_panels={},
+        active_editor_panel=None,
+        get_active_workflow=lambda: workflow,
     )
 
     try:
@@ -521,16 +527,16 @@ def test_build_generation_request_for_view_blocks_dirty_mask_failure() -> None:
             view=view,
             workflow_id="wf-a",
             reconcile_active_input_canvas_image=lambda: reconciled.append("called"),
-            dirty_mask_error=lambda: expected_error,
+            input_snapshot_error=lambda: expected_error,
             live_node_preflight_error=lambda error: AssertionError(error),
             empty_workflow_error=lambda: AssertionError("unexpected empty workflow"),
         )
     except RuntimeError as error:
         assert error is expected_error
     else:
-        raise AssertionError("expected dirty mask preflight error")
+        raise AssertionError("expected Input snapshot preflight error")
 
-    assert reconciled == []
+    assert reconciled == ["called"]
 
 
 def test_build_generation_request_for_view_blocks_live_node_preflight_failure() -> None:
@@ -554,8 +560,8 @@ def test_build_generation_request_for_view_blocks_live_node_preflight_failure() 
             )
 
     view = SimpleNamespace(
-        input_mask_save_controller=SimpleNamespace(
-            flush_dirty_associated_masks_before_generation=lambda: True
+        input_generation_snapshot_service=SimpleNamespace(
+            prepare_workflow=lambda **kwargs: kwargs["workflow"]
         ),
         editor_panels={"wf-a": _Panel()},
         active_editor_panel=None,
@@ -566,7 +572,9 @@ def test_build_generation_request_for_view_blocks_live_node_preflight_failure() 
             view=view,
             workflow_id="wf-a",
             reconcile_active_input_canvas_image=lambda: reconciled.append("called"),
-            dirty_mask_error=lambda: AssertionError("unexpected dirty mask failure"),
+            input_snapshot_error=lambda: AssertionError(
+                "unexpected Input snapshot failure"
+            ),
             live_node_preflight_error=lambda _error: expected_error,
             empty_workflow_error=lambda: AssertionError("unexpected empty workflow"),
         )
@@ -588,8 +596,8 @@ def test_build_generation_request_for_view_prunes_errored_workflow() -> None:
     )
     reports: list[GenerationWorkflowPruneReport] = []
     view = SimpleNamespace(
-        input_mask_save_controller=SimpleNamespace(
-            flush_dirty_associated_masks_before_generation=lambda: True
+        input_generation_snapshot_service=SimpleNamespace(
+            prepare_workflow=lambda **kwargs: kwargs["workflow"]
         ),
         editor_panels={},
         active_editor_panel=object(),
@@ -608,7 +616,9 @@ def test_build_generation_request_for_view_prunes_errored_workflow() -> None:
         view=view,
         workflow_id="wf-a",
         reconcile_active_input_canvas_image=lambda: None,
-        dirty_mask_error=lambda: AssertionError("unexpected dirty mask failure"),
+        input_snapshot_error=lambda: AssertionError(
+            "unexpected Input snapshot failure"
+        ),
         live_node_preflight_error=lambda error: AssertionError(error),
         empty_workflow_error=lambda: AssertionError("unexpected empty workflow"),
         omission_logger=reports.append,

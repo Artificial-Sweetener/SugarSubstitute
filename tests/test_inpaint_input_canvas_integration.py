@@ -26,6 +26,7 @@ from typing import Any, cast
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QApplication
+from cutecanvas import CuteCanvas
 
 from substitute.application.workflows import (
     CanvasIoService,
@@ -232,7 +233,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
     runtime = create_input_canvas_tool_system()
     tool_controller = InputCanvasToolController(
         input_document=document,
-        control_mode_setter=document.set_canvas_tool_mode,
+        operation_setter=document.set_canvas_operation,
         current_image_id_provider=route_projector.current_image_id_for_event,
         runtime=runtime,
     )
@@ -285,7 +286,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
     assert document.image_has_masks(image_id)
     assert document.canvas.activeMaskID() == mask_id
 
-    document.set_canvas_tool_mode(InputCanvasToolId.PAN_ZOOM)
+    document.set_canvas_operation(CuteCanvas.CONTROL_MODE_PANZOOM)
     presenter.handle_input_mask_clicked(
         "SDXL/Inpaint",
         "load_image_as_mask",

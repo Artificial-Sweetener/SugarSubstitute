@@ -215,6 +215,11 @@ Vista previa del prompt:
       <translation>%1 registros de proveedores, %2 fuentes de miniaturas, %3 variantes, %4</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="393"></location>
+      <source>%1 px</source>
+      <translation>%1 píxeles</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1287"></location>
       <source>%1 saved setup items need repair before Substitute can open.</source>
       <translation>%1 elementos guardados de la instalación necesitan reparación antes de que Substitute pueda abrirse.</translation>
@@ -580,6 +585,11 @@ Vista previa del prompt:
       <translation>Otro proceso ya está usando la dirección guardada de ComfyUI</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="114"></location>
+      <source>Antialias</source>
+      <translation>Suavizado</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="578"></location>
       <source>Appearance</source>
       <translation>Apariencia</translation>
@@ -765,7 +775,7 @@ Vista previa del prompt:
       <translation>Examinar...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="92"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="110"></location>
       <source>Brush</source>
       <translation>Pincel</translation>
     </message>
@@ -1745,7 +1755,7 @@ Vista previa del prompt:
       <translation>ComfyUI se instaló, pero Substitute no pudo terminar de preparar los paquetes de nodos necesarios.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="193"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="201"></location>
       <source>Compare outputs</source>
       <translation>Comparar salidas</translation>
     </message>
@@ -1885,7 +1895,7 @@ Vista previa del prompt:
       <translation>Controles</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="145"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="153"></location>
       <source>Copy</source>
       <translation>Copiar</translation>
     </message>
@@ -1953,6 +1963,11 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="738"></location>
       <source>Could not validate %1 on the active target.</source>
       <translation>No se pudo validar %1 en el destino activo.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="274"></location>
+      <source>Coverage</source>
+      <translation>Cobertura</translation>
     </message>
     <message>
       <location filename="../substitute/application/cube_library/service.py" line="286"></location>
@@ -2363,7 +2378,7 @@ Install these nodes now?</source>
       <translation>Descargando...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="35"></location>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="51"></location>
       <source>Drag</source>
       <translation>Arrastrar</translation>
     </message>
@@ -2408,7 +2423,7 @@ Install these nodes now?</source>
       <translation>Funciones del editor</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="68"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="80"></location>
       <source>Ellipse Mask</source>
       <translation>Máscara elíptica</translation>
     </message>
@@ -2563,6 +2578,11 @@ Install these nodes now?</source>
       <translation>No se pudo asignar el número de ejecución de salida.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="146"></location>
+      <source>Failed to capture Input canvas content for generation.</source>
+      <translation>No se pudo capturar el contenido del lienzo de entrada para la generación.</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/generation/generation_service.py" line="502"></location>
       <source>Failed to connect generation listener session</source>
       <translation>No se pudo conectar la sesión de escucha de generación</translation>
@@ -2623,11 +2643,6 @@ Install these nodes now?</source>
       <translation>No se pudo actualizar la visibilidad del editor tras insertar el cubo de forma incremental</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="147"></location>
-      <source>Failed to save dirty input mask before generation.</source>
-      <translation>No se pudo guardar la máscara de entrada modificada antes de generar.</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>No se pudo preparar el recurso del flujo de trabajo %1.%2: %3</translation>
@@ -2636,6 +2651,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/generation/generation_service.py" line="641"></location>
       <source>Failed to start generation listener</source>
       <translation>No se pudo iniciar la escucha de generación</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="267"></location>
+      <source>Feather</source>
+      <translation>Difuminado</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="667"></location>
@@ -2743,7 +2763,7 @@ Install these nodes now?</source>
       <translation>Licencia Pública General de GNU v3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="439"></location>
+      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="436"></location>
       <source>GUI restart is not available in this session.</source>
       <translation>El reinicio de la interfaz no está disponible en esta sesión.</translation>
     </message>
@@ -2778,7 +2798,7 @@ Install these nodes now?</source>
       <translation>Comportamiento de la generación y archivos generados.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="161"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="162"></location>
       <source>Generation cannot run because every cube has a runtime error.</source>
       <translation>No se puede generar porque todos los cubos tienen un error de ejecución.</translation>
     </message>
@@ -2873,9 +2893,19 @@ Install these nodes now?</source>
       <translation>Verde</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="260"></location>
+      <source>Grow / Shrink</source>
+      <translation>Expandir / Contraer</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/errors.py" line="554"></location>
       <source>HTTP status: %1</source>
       <translation>Estado HTTP: %1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="129"></location>
+      <source>Hardness</source>
+      <translation>Dureza</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="43"></location>
@@ -3208,7 +3238,7 @@ Install these nodes now?</source>
       <translation>Idioma y región</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="75"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="89"></location>
       <source>Lasso Mask</source>
       <translation>Máscara de lazo</translation>
     </message>
@@ -3513,12 +3543,12 @@ Install these nodes now?</source>
       <translation>La actualización manual de metadatos necesita un tipo de modelo y un valor.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="880"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="869"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>No se pudieron verificar las dimensiones de la máscara</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="817"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="806"></location>
       <source>Mask dimensions do not match</source>
       <translation>Las dimensiones de la máscara no coinciden</translation>
     </message>
@@ -3653,7 +3683,7 @@ Install these nodes now?</source>
       <translation>La mayoría de los usuarios deberían empezar con la primera opción.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="54"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="62"></location>
       <source>Move</source>
       <translation>Mover</translation>
     </message>
@@ -3768,7 +3798,7 @@ Install these nodes now?</source>
       <translation>No se encontraron cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="132"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="135"></location>
       <source>No input canvas nodes</source>
       <translation>No hay nodos de lienzo de entrada</translation>
     </message>
@@ -3953,7 +3983,7 @@ Install these nodes now?</source>
       <translation>En Pixiv:</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="75"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="136"></location>
       <source>Opacity</source>
       <translation>Opacidad</translation>
     </message>
@@ -3968,7 +3998,7 @@ Install these nodes now?</source>
       <translation>Abrir el repositorio de %1 en GitHub</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="157"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="165"></location>
       <source>Open All in Photoshop</source>
       <translation>Abrir todo en Photoshop</translation>
     </message>
@@ -4013,7 +4043,7 @@ Install these nodes now?</source>
       <translation>Abrir la instalación guiada para este origen local de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="151"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="159"></location>
       <source>Open in Photoshop</source>
       <translation>Abrir en Photoshop</translation>
     </message>
@@ -4128,7 +4158,7 @@ Install these nodes now?</source>
       <translation>Paquetes no cargados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="99"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="120"></location>
       <source>Pan &amp; Zoom</source>
       <translation>Desplazar y ampliar</translation>
     </message>
@@ -4553,7 +4583,7 @@ Install these nodes now?</source>
       <translation>Grabando…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="61"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="71"></location>
       <source>Rectangle Mask</source>
       <translation>Máscara rectangular</translation>
     </message>
@@ -4568,7 +4598,7 @@ Install these nodes now?</source>
       <translation>Rehacer</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="63"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="71"></location>
       <source>Redock canvas</source>
       <translation>Volver a acoplar el lienzo</translation>
     </message>
@@ -4902,7 +4932,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar tarjetas ocultas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="163"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="171"></location>
       <source>Reveal in File Manager</source>
       <translation>Mostrar en el gestor de archivos</translation>
     </message>
@@ -5497,6 +5527,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Se agotó el tiempo de espera del cierre antes de que terminara la limpieza.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="122"></location>
+      <source>Size</source>
+      <translation>Tamaño</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/controls_page.py" line="114"></location>
       <source>Skip generation</source>
       <translation>Omitir la generación</translation>
@@ -5507,7 +5542,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Omite la generación activa en cola cuando está disponible.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="82"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="98"></location>
       <source>Smart Select</source>
       <translation>Selección inteligente</translation>
     </message>
@@ -5782,7 +5817,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute no pudo identificar el entorno de Python únicamente a partir de la carpeta de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="152"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="153"></location>
       <source>Substitute could not load required live Comfy node definitions.</source>
       <translation>Substitute no pudo cargar las definiciones actuales de nodos de Comfy necesarias.</translation>
     </message>
@@ -6072,7 +6107,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La configuración de carpetas guardada de Substitute necesita corrección</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2853"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2854"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6572,12 +6607,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>La carpeta seleccionada no contiene una instalación completa de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="882"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="871"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>No se pudieron comparar las dimensiones de la máscara seleccionada con la imagen de entrada cargada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="819"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="808"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>Las dimensiones de la máscara seleccionada no coinciden con las de la imagen de entrada cargada.</translation>
     </message>
@@ -6807,7 +6842,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se pudieron aplicar los cambios</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="26"></location>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="42"></location>
       <source>Unable to copy output image.</source>
       <translation>No se puede copiar la imagen de salida.</translation>
     </message>
@@ -6847,7 +6882,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se pudo guardar el recurso</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="37"></location>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="53"></location>
       <source>Unable to transfer output image.</source>
       <translation>No se puede transferir la imagen de salida.</translation>
     </message>
@@ -6877,7 +6912,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Deshacer</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="63"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="71"></location>
       <source>Undock canvas</source>
       <translation>Desacoplar el lienzo</translation>
     </message>

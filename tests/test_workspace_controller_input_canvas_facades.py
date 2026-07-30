@@ -51,26 +51,3 @@ def test_input_canvas_intents_delegate_to_input_presenter(
         ("image_clicked", ("CubeA", "ImageNode", "C:/images/input.png")),
         ("mask_changed", ("CubeA", "MaskNode", "C:/masks/mask.png")),
     ]
-
-
-def test_on_mask_save_completed_delegates_to_input_presenter(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Mask save completion should route to presenter-owned picker refresh."""
-
-    mod = import_workspace_controller_module(monkeypatch)
-    calls: list[tuple[str, str]] = []
-    controller = object.__new__(mod.WorkspaceController)
-    controller._views = SimpleNamespace(
-        canvas=SimpleNamespace(
-            input_canvas_presenter=SimpleNamespace(
-                handle_mask_save_completed=lambda mask_id, path: calls.append(
-                    (mask_id, path)
-                )
-            )
-        )
-    )
-
-    controller.on_mask_save_completed("mask-id", "unused")
-
-    assert calls == [("mask-id", "unused")]

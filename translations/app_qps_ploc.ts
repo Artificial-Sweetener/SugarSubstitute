@@ -130,6 +130,10 @@ Prömpt prëvïëw:
       <translation>⟦%1 prövïdër rëcörds, %2 thümbnàïl söürcës, %3 vàrïànts, %4 ···⟧</translation>
     </message>
     <message>
+      <source>%1 px</source>
+      <translation>⟦%1 px ···⟧</translation>
+    </message>
+    <message>
       <source>%1 saved setup items need repair before Substitute can open.</source>
       <translation>⟦%1 sàvëd sëtüp ïtëms nëëd rëpàïr bëförë Sübstïtütë càn öpën. ···⟧</translation>
     </message>
@@ -420,6 +424,10 @@ Prömpt prëvïëw:
     <message>
       <source>Another process is already using the saved ComfyUI address</source>
       <translation>⟦Ånöthër pröcëss ïs àlrëàdy üsïng thë sàvëd CömfyÜÏ àddrëss ···⟧</translation>
+    </message>
+    <message>
+      <source>Antialias</source>
+      <translation>⟦Åntïàlïàs ···⟧</translation>
     </message>
     <message>
       <source>Appearance</source>
@@ -1522,6 +1530,10 @@ Prömpt prëvïëw:
       <translation>⟦Cöüld nöt vàlïdàtë %1 ön thë àctïvë tàrgët. ···⟧</translation>
     </message>
     <message>
+      <source>Coverage</source>
+      <translation>⟦Cövëràgë ···⟧</translation>
+    </message>
+    <message>
       <source>Cube '%1' (%2)</source>
       <translation>⟦Cübë '%1' (%2) ···⟧</translation>
     </message>
@@ -2010,6 +2022,10 @@ Install these nodes now?</source>
       <translation>⟦Fàïlëd tö àllöcàtë öütpüt rün nümbër. ···⟧</translation>
     </message>
     <message>
+      <source>Failed to capture Input canvas content for generation.</source>
+      <translation>⟦Fàïlëd tö càptürë Ïnpüt cànvàs cöntënt för gënëràtïön. ···⟧</translation>
+    </message>
+    <message>
       <source>Failed to connect generation listener session</source>
       <translation>⟦Fàïlëd tö cönnëct gënëràtïön lïstënër sëssïön ···⟧</translation>
     </message>
@@ -2058,16 +2074,16 @@ Install these nodes now?</source>
       <translation>⟦Fàïlëd tö rëfrësh ëdïtör vïsïbïlïty àftër ïncrëmëntàl cübë ïnsërt ···⟧</translation>
     </message>
     <message>
-      <source>Failed to save dirty input mask before generation.</source>
-      <translation>⟦Fàïlëd tö sàvë dïrty ïnpüt màsk bëförë gënëràtïön. ···⟧</translation>
-    </message>
-    <message>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>⟦Fàïlëd tö stàgë wörkflöw àssët %1.%2: %3 ···⟧</translation>
     </message>
     <message>
       <source>Failed to start generation listener</source>
       <translation>⟦Fàïlëd tö stàrt gënëràtïön lïstënër ···⟧</translation>
+    </message>
+    <message>
+      <source>Feather</source>
+      <translation>⟦Fëàthër ···⟧</translation>
     </message>
     <message>
       <source>Fetching Danbooru wiki content...</source>
@@ -2258,8 +2274,16 @@ Install these nodes now?</source>
       <translation>⟦Grëën ···⟧</translation>
     </message>
     <message>
+      <source>Grow / Shrink</source>
+      <translation>⟦Gröw / Shrïnk ···⟧</translation>
+    </message>
+    <message>
       <source>HTTP status: %1</source>
       <translation>⟦HTTP stàtüs: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Hardness</source>
+      <translation>⟦Hàrdnëss ···⟧</translation>
     </message>
     <message>
       <source>Height</source>
@@ -4356,6 +4380,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Shutdown timed out before cleanup could finish.</source>
       <translation>⟦Shütdöwn tïmëd öüt bëförë clëànüp cöüld fïnïsh. ···⟧</translation>
+    </message>
+    <message>
+      <source>Size</source>
+      <translation>⟦Sïzë ···⟧</translation>
     </message>
     <message>
       <source>Skip generation</source>

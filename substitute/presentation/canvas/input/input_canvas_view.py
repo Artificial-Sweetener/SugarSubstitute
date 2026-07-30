@@ -47,7 +47,11 @@ from substitute.presentation.canvas.input.input_canvas_tool_chrome import (
 from substitute.presentation.canvas.input.input_route_projector import (
     InputRouteProjector,
 )
-from substitute.presentation.canvas.tools import CanvasToolPalette, CanvasToolStrip
+from substitute.presentation.canvas.tools import (
+    CanvasToolOptionsPanel,
+    CanvasToolRuntime,
+    CanvasToolStrip,
+)
 from substitute.presentation.shell.chrome_style import connect_theme_refresh
 from substitute.shared.logging.logger import log_debug, get_logger
 from substitute.shared.startup_trace import trace_mark
@@ -72,7 +76,6 @@ _DEFER_INPUT_SAM_ENV_VAR = "SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM"
 class InputCanvas(QWidget):
     """Host CuteCanvas Input image/mask editing interactions for the active workflow."""
 
-    inputMaskSaved = Signal(str, str)  # mask_id, path
     inputImageLoaded = Signal(object, str)  # image_id, path
     toolContextRefreshRequested = Signal()
     toolRequested = Signal(str)
@@ -157,6 +160,7 @@ class InputCanvas(QWidget):
         """Keep the availability overlay aligned with the canvas bounds."""
 
         self._resize_availability_overlay()
+        self._tool_chrome.sync_geometry()
         super().resizeEvent(event)
 
     def set_available(
@@ -207,10 +211,16 @@ class InputCanvas(QWidget):
 
         return self._tool_chrome.tool_strip
 
-    def bind_tool_palette(self, palette: CanvasToolPalette) -> None:
-        """Project one authoritative contextual palette into Input tool chrome."""
+    @property
+    def tool_options_panel(self) -> CanvasToolOptionsPanel:
+        """Return the content-sized contextual options overlay."""
 
-        self._tool_chrome.bind_palette(palette)
+        return self._tool_chrome.options_panel
+
+    def bind_tool_runtime(self, runtime: CanvasToolRuntime) -> None:
+        """Project one authoritative runtime into Input tool chrome."""
+
+        self._tool_chrome.bind_runtime(runtime)
 
     def _resize_availability_overlay(self) -> None:
         """Resize the unavailable overlay to cover the full input canvas."""

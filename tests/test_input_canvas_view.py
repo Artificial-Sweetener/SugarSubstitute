@@ -148,7 +148,7 @@ def test_input_tool_strip_overlays_only_its_content_height(
             capabilities=frozenset({INPUT_IMAGE_CAPABILITY}),
         )
     )
-    canvas.bind_tool_palette(palette)
+    canvas.bind_tool_runtime(runtime)
     canvas.resize(900, 700)
     canvas.show()
     app.processEvents()
@@ -235,11 +235,11 @@ def test_brush_activation_keeps_mounted_tool_strip_alive_and_full_sized(
     runtime = create_input_canvas_tool_system()
     controller = InputCanvasToolController(
         input_document=canvas.document,
-        control_mode_setter=canvas.document.set_canvas_tool_mode,
+        operation_setter=canvas.document.set_canvas_operation,
         current_image_id_provider=canvas.document.current_image_id,
         runtime=runtime,
     )
-    canvas.bind_tool_palette(runtime.palette)
+    canvas.bind_tool_runtime(runtime)
     canvas.document.toolContextChanged.connect(controller.refresh_tool_context)
     canvas.document.canvasToolChanged.connect(controller.synchronize_native_tool)
     canvas.toolRequested.connect(controller.request_tool)

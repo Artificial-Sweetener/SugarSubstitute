@@ -17,15 +17,23 @@
 from __future__ import annotations
 
 from typing import Any
+from PySide6.QtWidgets import QWidget
 
-class ImagePicker:
+from .thumbnail_picker_base import ThumbnailPickerBase
+
+class ImagePicker(ThumbnailPickerBase):
     imageSelected: Any
     imageClicked: Any
 
-    def __init__(self, parent: Any = ...) -> None: ...
+    def __init__(
+        self,
+        parent: QWidget | None = ...,
+        thumbnail_size: int = ...,
+        corner_radius: int = ...,
+        default_folder: str = ...,
+        placeholder_image: str | None = ...,
+        button_padding: int = ...,
+    ) -> None: ...
+    def handle_thumbnail_click(self) -> None: ...
     def pick_image(self) -> None: ...
-    def current_file_path(self) -> str | None: ...
     def set_thumbnail(self, image_path: str) -> None: ...
-    def set_placeholder_image(self, image_path: str) -> None: ...
-    def set_default_folder(self, folder_path: str) -> None: ...
-    def setProperty(self, name: str, value: Any) -> None: ...

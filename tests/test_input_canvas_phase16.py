@@ -24,17 +24,14 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID, uuid4
 
+from cutecanvas import CuteCanvas
 from substitute.presentation.canvas.input import (
     InputCanvasPresenter,
     InputCanvasToolController,
-    InputMaskDirtyTracker,
-    InputMaskSaveController,
 )
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
-    InputCanvasToolId,
     create_input_canvas_tool_system,
 )
-from substitute.presentation.canvas.input.input_mask_save_controller import SignalPort
 
 
 class _Signal:
@@ -67,7 +64,7 @@ class _Timer:
         """Initialize timer state."""
 
         self._timeout_signal = _Signal()
-        self.timeout: SignalPort = self._timeout_signal
+        self.timeout = self._timeout_signal
         self.started: list[int] = []
         self.single_shot = False
 
@@ -95,15 +92,6 @@ class _Timer:
         """Fire the timeout signal."""
 
         self._timeout_signal.emit()
-
-
-class _MaskImage:
-    """Represent a non-null QPane mask image."""
-
-    def isNull(self) -> bool:  # noqa: N802
-        """Return whether this fake image is null."""
-
-        return False
 
 
 class _Panel:
@@ -182,7 +170,7 @@ def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
     assert active_images == [image_id]
     assert active_masks == [mask_id]
     assert focused == ["Input"]
-    assert control_modes == [InputCanvasToolId.BRUSH]
+    assert control_modes == [CuteCanvas.CONTROL_MODE_DRAW_BRUSH]
     assert workflow.canvas.active_canvas_route == "Input"
 
 
@@ -253,78 +241,6 @@ def test_presenter_refreshes_user_selected_mask_from_asset_state(
     presenter.handle_input_mask_changed("CubeA", "MaskNode", str(selected_path))
 
     assert panel.refreshes == [("CubeA", "MaskNode", str(asset_path))]
-
-
-def test_explicit_and_debounced_saves_refresh_from_asset_state(
-    tmp_path: Path,
-) -> None:
-    """Save completion paths should ignore emitted or saved path authority."""
-
-    _Timer.calls = []
-    image_id = uuid4()
-    mask_id = uuid4()
-    old_path = tmp_path / "old-emitted.png"
-    asset_path = tmp_path / "Recipe" / "masks" / "asset.png"
-    asset_path.parent.mkdir(parents=True)
-    asset_path.write_bytes(b"asset")
-    panel = _Panel()
-    workflow = _workflow(image_id=image_id, mask_id=mask_id)
-    document = _save_document(mask_id=mask_id)
-    presenter = _presenter(
-        workflow=workflow,
-        panel=panel,
-        document=document,
-        asset_path=asset_path,
-        timer=_Timer,
-    )
-
-    presenter.handle_mask_save_completed(str(mask_id), str(old_path))
-    assert panel.refreshes == [("CubeA", "MaskNode", str(asset_path))]
-
-    def refresh_from_save_controller(
-        cube_alias: str,
-        node_name: str,
-        _path: str,
-    ) -> None:
-        """Refresh the saved picker through presenter-owned asset-state lookup."""
-
-        presenter.refresh_mask_picker_from_asset_state(
-            cube_alias,
-            node_name,
-        )
-
-    debounce_timer = _Timer()
-    tracker = InputMaskDirtyTracker()
-    controller = InputMaskSaveController(
-        mask_edit_signal=document.mask_edit_signal,
-        mask_image_exporter=document.export_mask_image,
-        debounce_ms=0,
-        dirty_tracker=tracker,
-        workflow_session_service=SimpleNamespace(
-            active_workflow_id="wf-a",
-            workflows={"wf-a": workflow},
-        ),
-        canvas_io_service=SimpleNamespace(
-            resolve_mask_save_path=lambda **_kwargs: old_path,
-            save_mask_image=lambda **_kwargs: True,
-        ),
-        workflow_input_canvas_service=SimpleNamespace(
-            associate_project_input_mask=lambda *_args, **_kwargs: True
-        ),
-        workflow_name_provider=lambda _workflow_id: "Recipe",
-        projects_dir_provider=lambda: tmp_path,
-        refresh_saved_mask=refresh_from_save_controller,
-        timer_factory=lambda _parent: debounce_timer,
-    )
-
-    document.mask_edit_signal.emit(mask_id)
-    debounce_timer.trigger()
-
-    assert controller is not None
-    assert panel.refreshes == [
-        ("CubeA", "MaskNode", str(asset_path)),
-        ("CubeA", "MaskNode", str(asset_path)),
-    ]
 
 
 def test_presenter_rejects_widget_local_path_memory_as_refresh_authority(
@@ -434,13 +350,13 @@ def _tool_document(
 ) -> SimpleNamespace:
     """Return a mutable document fake for Input tool-controller tests."""
 
-    state = {"tool_id": InputCanvasToolId.PAN_ZOOM}
+    state = {"operation_id": CuteCanvas.CONTROL_MODE_PANZOOM}
 
-    def set_canvas_tool_mode(tool_id: str) -> bool:
+    def set_canvas_operation(operation_id: str) -> bool:
         """Record and accept one requested tool mode."""
 
-        control_modes.append(tool_id)
-        state["tool_id"] = tool_id
+        control_modes.append(operation_id)
+        state["operation_id"] = operation_id
         return True
 
     return SimpleNamespace(
@@ -450,25 +366,8 @@ def _tool_document(
             masks_by_image.get(image_id, [])
         ),
         smart_select_ready=lambda: True,
-        current_canvas_tool_id=lambda: state["tool_id"],
-        set_canvas_tool_mode=set_canvas_tool_mode,
-    )
-
-
-def _save_document(*, mask_id: UUID) -> SimpleNamespace:
-    """Return a document fake with edit signals and exported pixels."""
-
-    return SimpleNamespace(
-        mask_edit_signal=_Signal(),
-        export_mask_image=lambda requested_mask_id: (
-            _MaskImage() if requested_mask_id == mask_id else None
-        ),
-        set_mask_properties=lambda *_args, **_kwargs: None,
-        image_has_masks=lambda _image_id: True,
-        active_image_has_mask_target=lambda _image_id: True,
-        smart_select_ready=lambda: False,
-        current_canvas_tool_id=lambda: InputCanvasToolId.PAN_ZOOM,
-        set_canvas_tool_mode=lambda _tool_id: True,
+        current_canvas_operation=lambda: state["operation_id"],
+        set_canvas_operation=set_canvas_operation,
     )
 
 
@@ -491,8 +390,8 @@ def _presenter(
         image_has_masks=lambda _image_id: False,
         active_image_has_mask_target=lambda _image_id: False,
         smart_select_ready=lambda: False,
-        current_canvas_tool_id=lambda: InputCanvasToolId.PAN_ZOOM,
-        set_canvas_tool_mode=lambda _tool_id: True,
+        current_canvas_operation=lambda: CuteCanvas.CONTROL_MODE_PANZOOM,
+        set_canvas_operation=lambda _operation_id: True,
     )
     asset_path = asset_path or Path(__file__).resolve()
     workflow_input_canvas_service = workflow_input_canvas_service or SimpleNamespace(
@@ -514,7 +413,7 @@ def _presenter(
     runtime = create_input_canvas_tool_system()
     tool_controller = InputCanvasToolController(
         input_document=document,
-        control_mode_setter=document.set_canvas_tool_mode,
+        operation_setter=document.set_canvas_operation,
         current_image_id_provider=current_image_id_provider or (lambda: None),
         runtime=runtime,
     )

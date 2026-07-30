@@ -193,6 +193,28 @@ class CanvasIoService:
 
         return self._image_repository.save_image(destination, image=image)
 
+    def save_input_image(self, *, destination: Path, image: object) -> bool:
+        """Persist one exact Input image product through the image repository."""
+
+        return self._image_repository.save_image(destination, image=image)
+
+    def resolve_input_image_save_path(
+        self,
+        *,
+        workflow_name: str,
+        image_filename: str,
+        projects_dir: Path,
+    ) -> Path:
+        """Resolve one project-owned external image-product path."""
+
+        safe_workflow_name = validate_top_level_name(workflow_name, subject="Workflow")
+        candidate = projects_dir / safe_workflow_name / "input_images" / image_filename
+        return ensure_within_root(
+            candidate,
+            root_path=projects_dir,
+            subject="Input image path",
+        )
+
     def resolve_mask_save_path(
         self,
         *,

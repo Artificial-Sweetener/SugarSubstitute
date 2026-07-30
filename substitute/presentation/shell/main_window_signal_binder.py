@@ -218,9 +218,6 @@ class MainWindowSignalBinder:
             output_compare_changed.connect(
                 lambda *_args: self._request_canvas_selection_autosave()
             )
-        input_canvas.inputMaskSaved.connect(
-            lambda *_args: self._request_canvas_selection_autosave()
-        )
         input_canvas.inputImageLoaded.connect(
             lambda *_args: self._request_canvas_selection_autosave()
         )

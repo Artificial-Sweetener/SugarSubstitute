@@ -55,6 +55,9 @@ class InputCanvasDocumentPort(Protocol):
     def replace_mask_from_file(self, mask_id: UUID, path: Path) -> bool:
         """Replace pixels of one existing mask without changing its identity."""
 
+    def contains_mask(self, image_id: UUID, mask_id: UUID) -> bool:
+        """Return whether an exact mask identity belongs to one Input image."""
+
     def remove_mask_from_image(self, image_id: UUID, mask_id: UUID) -> bool:
         """Remove one mask association from an explicitly named input image."""
 

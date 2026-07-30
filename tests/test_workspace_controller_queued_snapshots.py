@@ -179,14 +179,12 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
     controller = mod.WorkspaceController(view)
     replace_seed_randomizer(controller, SeedRandomizationRecorder(order))
 
-    def _flush_dirty_associated_masks_before_generation() -> bool:
-        order.append("flush")
-        return True
+    def _prepare_workflow(**kwargs: object) -> object:
+        order.append("capture")
+        return kwargs["workflow"]
 
-    view.input_mask_save_controller = SimpleNamespace(
-        flush_dirty_associated_masks_before_generation=(
-            _flush_dirty_associated_masks_before_generation
-        ),
+    view.input_generation_snapshot_service = SimpleNamespace(
+        prepare_workflow=_prepare_workflow,
     )
     view.input_canvas_presenter = SimpleNamespace(
         reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
@@ -194,7 +192,7 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
 
     snapshots = controller.build_queued_generation_snapshots()
 
-    assert order == ["flush", "reconcile", "randomize", "serialize", "serialize"]
+    assert order == ["reconcile", "capture", "randomize", "serialize", "serialize"]
     assert [snapshot.workflow_name for snapshot in snapshots] == [
         "Recipe - portrait",
         "Recipe - cafe",
@@ -303,14 +301,12 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_without_scenes(
         ),
     )
 
-    def _flush_dirty_associated_masks_before_generation() -> bool:
-        order.append("flush")
-        return True
+    def _prepare_workflow(**kwargs: object) -> object:
+        order.append("capture")
+        return kwargs["workflow"]
 
-    view.input_mask_save_controller = SimpleNamespace(
-        flush_dirty_associated_masks_before_generation=(
-            _flush_dirty_associated_masks_before_generation
-        ),
+    view.input_generation_snapshot_service = SimpleNamespace(
+        prepare_workflow=_prepare_workflow,
     )
     view.input_canvas_presenter = SimpleNamespace(
         reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
@@ -318,7 +314,7 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_without_scenes(
 
     snapshots = controller.build_queued_generation_snapshots()
 
-    assert order == ["flush", "reconcile", "randomize", "serialize"]
+    assert order == ["reconcile", "capture", "randomize", "serialize"]
     assert len(snapshots) == 1
     assert snapshots[0].workflow_name == "Recipe"
     assert snapshots[0].sugar_script_text == "# sugar randomized"
@@ -432,14 +428,12 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_for_one_scene(
     controller = mod.WorkspaceController(view)
     replace_seed_randomizer(controller, SeedRandomizationRecorder(order))
 
-    def _flush_dirty_associated_masks_before_generation() -> bool:
-        order.append("flush")
-        return True
+    def _prepare_workflow(**kwargs: object) -> object:
+        order.append("capture")
+        return kwargs["workflow"]
 
-    view.input_mask_save_controller = SimpleNamespace(
-        flush_dirty_associated_masks_before_generation=(
-            _flush_dirty_associated_masks_before_generation
-        ),
+    view.input_generation_snapshot_service = SimpleNamespace(
+        prepare_workflow=_prepare_workflow,
     )
     view.input_canvas_presenter = SimpleNamespace(
         reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
@@ -447,7 +441,7 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_for_one_scene(
 
     snapshots = controller.build_queued_generation_snapshots()
 
-    assert order == ["flush", "reconcile", "randomize", "serialize"]
+    assert order == ["reconcile", "capture", "randomize", "serialize"]
     assert len(snapshots) == 1
     assert snapshots[0].workflow_name == "Recipe"
     assert "Recipe - portrait" not in snapshots[0].workflow_name

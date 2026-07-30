@@ -139,20 +139,38 @@ from .workspace_layout_controller import WorkspaceLayoutController
 from substitute.presentation.canvas.input.input_canvas_presenter import (
     InputCanvasPresenter,
 )
-from substitute.presentation.canvas.input.input_mask_dirty_tracker import (
-    InputMaskDirtyTracker,
+from substitute.presentation.canvas.input.input_node_preview_coordinator import (
+    InputNodePreviewCoordinator,
 )
-from substitute.presentation.canvas.input.input_mask_save_controller import (
-    InputMaskSaveController,
+from substitute.presentation.canvas.input.input_document_change_observer import (
+    InputDocumentChangeObserver,
+)
+from substitute.presentation.canvas.input.input_generation_image_materializer import (
+    InputGenerationImageMaterializer,
+)
+from substitute.presentation.canvas.input.input_generation_mask_materializer import (
+    InputGenerationMaskMaterializer,
+)
+from substitute.presentation.canvas.input.input_generation_snapshot_service import (
+    InputGenerationSnapshotService,
+)
+from substitute.presentation.canvas.input.input_editable_document_lifecycle import (
+    InputEditableDocumentLifecycle,
 )
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
     create_input_canvas_tool_system,
+)
+from substitute.presentation.canvas.input.input_tool_options import (
+    install_input_tool_options,
 )
 from substitute.presentation.canvas.input.input_canvas_tool_controller import (
     InputCanvasToolController,
 )
 from substitute.presentation.canvas.input.mask_color_provider import (
     input_mask_color,
+)
+from substitute.application.workflows.generation_input_image_association_service import (
+    GenerationInputImageAssociationService,
 )
 from substitute.presentation.canvas.output.output_transfer_composition import (
     OutputTransferLifecycle,
@@ -248,8 +266,9 @@ class MainWindowInputCanvasComposition:
     input_canvas_tool_controller: Any
     input_canvas_shell_adapter: Any
     input_canvas_presenter: Any
-    input_mask_dirty_tracker: Any
-    input_mask_save_controller: Any
+    input_document_change_observer: Any
+    input_generation_snapshot_service: Any
+    input_editable_document_lifecycle: Any
     input_canvas_capability_service: Any
 
 
@@ -749,10 +768,14 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         graph_section_service=shell.graph_section_service,
     )
     input_tool_runtime = create_input_canvas_tool_system()
-    input_canvas.bind_tool_palette(input_tool_runtime.palette)
+    install_input_tool_options(
+        input_tool_runtime,
+        input_canvas.document.tool_options,
+    )
+    input_canvas.bind_tool_runtime(input_tool_runtime)
     input_canvas_tool_controller = InputCanvasToolController(
         input_document=input_canvas.document,
-        control_mode_setter=input_canvas.document.set_canvas_tool_mode,
+        operation_setter=input_canvas.document.set_canvas_operation,
         current_image_id_provider=input_canvas.current_image_id_for_event,
         runtime=input_tool_runtime,
     )
@@ -768,6 +791,10 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     input_canvas.toolRequested.connect(input_canvas_tool_controller.request_tool)
     input_canvas_tool_controller.refresh_tool_context()
     input_canvas_shell_adapter = InputCanvasShellAdapter(shell)
+    input_node_preview_coordinator = InputNodePreviewCoordinator(
+        bindings=input_canvas.document.preview_bindings,
+        active_panel=lambda: shell.active_editor_panel,
+    )
     input_canvas_presenter = InputCanvasPresenter(
         input_document=input_canvas.document,
         current_image_id_provider=input_canvas.current_image_id_for_event,
@@ -781,36 +808,42 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
         mask_color_provider=input_mask_color,
         tool_controller=input_canvas_tool_controller,
+        preview_coordinator=input_node_preview_coordinator,
         mark_canvas_changed=input_canvas_shell_adapter.mark_input_canvas_changed,
         error_presenter=getattr(shell, "_error_presenter", None),
     )
-    input_mask_dirty_tracker = InputMaskDirtyTracker()
-
-    def refresh_saved_input_mask(
-        cube_alias: str,
-        node_name: str,
-        _path: str,
-    ) -> None:
-        """Refresh the editor mask picker after Input canvas saves a mask."""
-
-        input_canvas_presenter.refresh_mask_picker_from_asset_state(
-            cube_alias,
-            node_name,
-        )
-
-    input_mask_save_controller = InputMaskSaveController(
-        mask_edit_signal=input_canvas.canvas.maskUndoStackChanged,
-        mask_image_exporter=input_canvas.document.export_mask_image,
-        debounce_ms=2000,
-        dirty_tracker=input_mask_dirty_tracker,
-        workflow_session_service=shell.workflow_session_service,
+    input_document_change_observer = InputDocumentChangeObserver(
+        changed=input_canvas.document.maskContentChanged,
+        active_workflow_id=lambda: shell.workflow_session_service.active_workflow_id,
+        mark_workflow_changed=input_canvas_shell_adapter.mark_input_canvas_changed,
+        request_autosave=shell.request_session_autosave,
+    )
+    image_association_service = GenerationInputImageAssociationService(
+        input_canvas_plan_service=shell.input_canvas_plan_service,
+        graph_section_service=shell.graph_section_service,
+        workflow_asset_service=shell.workflow_asset_service,
+    )
+    input_generation_image_materializer = InputGenerationImageMaterializer(
+        canvas_io_service=shell.canvas_io_service,
+        association_service=image_association_service,
+        workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
+        projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
+    )
+    input_generation_mask_materializer = InputGenerationMaskMaterializer(
         canvas_io_service=shell.canvas_io_service,
         workflow_input_canvas_service=workflow_input_canvas_service,
         workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
         projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
-        refresh_saved_mask=refresh_saved_input_mask,
-        mask_persisted=lambda mask_id, path: input_canvas.inputMaskSaved.emit(
-            str(mask_id), path
+    )
+    input_generation_snapshot_service = InputGenerationSnapshotService(
+        capture_inputs=input_canvas.document.generation_capture.capture,
+        image_materializer=input_generation_image_materializer,
+        mask_materializer=input_generation_mask_materializer,
+    )
+    input_editable_document_lifecycle = InputEditableDocumentLifecycle(
+        document=input_canvas.document.editable_persistence,
+        archive_path=(
+            Path(shell.path_bundle.session_dir) / "input-editable-document.ccanvas"
         ),
     )
     input_canvas_capability_service = InputCanvasCapabilityService(
@@ -822,16 +855,22 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         input_canvas_tool_controller=input_canvas_tool_controller,
         input_canvas_shell_adapter=input_canvas_shell_adapter,
         input_canvas_presenter=input_canvas_presenter,
-        input_mask_dirty_tracker=input_mask_dirty_tracker,
-        input_mask_save_controller=input_mask_save_controller,
+        input_document_change_observer=input_document_change_observer,
+        input_generation_snapshot_service=input_generation_snapshot_service,
+        input_editable_document_lifecycle=input_editable_document_lifecycle,
         input_canvas_capability_service=input_canvas_capability_service,
     )
     shell.workflow_input_canvas_service = composition.workflow_input_canvas_service
     shell.input_canvas_tool_controller = composition.input_canvas_tool_controller
     shell.input_canvas_shell_adapter = composition.input_canvas_shell_adapter
     shell.input_canvas_presenter = composition.input_canvas_presenter
-    shell.input_mask_dirty_tracker = composition.input_mask_dirty_tracker
-    shell.input_mask_save_controller = composition.input_mask_save_controller
+    shell.input_document_change_observer = composition.input_document_change_observer
+    shell.input_generation_snapshot_service = (
+        composition.input_generation_snapshot_service
+    )
+    shell.input_editable_document_lifecycle = (
+        composition.input_editable_document_lifecycle
+    )
     shell.input_canvas_capability_service = composition.input_canvas_capability_service
     return composition
 

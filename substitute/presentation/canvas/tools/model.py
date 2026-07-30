@@ -33,7 +33,7 @@ class CanvasToolKind(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class CanvasToolContribution:
-    """Describe one runtime-addable canvas tool without owning execution."""
+    """Describe one runtime-addable canvas tool and its host extension metadata."""
 
     tool_id: str
     label: ApplicationText
@@ -43,6 +43,9 @@ class CanvasToolContribution:
     order: int
     required_context_tags: frozenset[str] = field(default_factory=frozenset)
     required_capabilities: frozenset[str] = field(default_factory=frozenset)
+    document_operation_id: str | None = None
+    options_id: str | None = None
+    preview_id: str | None = None
 
     def __post_init__(self) -> None:
         """Reject identities and placement metadata that cannot remain stable."""
@@ -60,6 +63,15 @@ class CanvasToolContribution:
             for capability in self.required_capabilities
         ):
             raise ValueError("canvas tool capabilities must be non-blank stable IDs")
+        for field_name, value in (
+            ("document_operation_id", self.document_operation_id),
+            ("options_id", self.options_id),
+            ("preview_id", self.preview_id),
+        ):
+            if value is not None and (not value or value != value.strip()):
+                raise ValueError(
+                    f"canvas tool {field_name} must be a non-blank stable ID"
+                )
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +119,24 @@ class CanvasToolPresentation:
         """Return the contribution's visual grouping identity."""
 
         return self.contribution.section
+
+    @property
+    def document_operation_id(self) -> str | None:
+        """Return the document-native operation selected by this mode."""
+
+        return self.contribution.document_operation_id
+
+    @property
+    def options_id(self) -> str | None:
+        """Return the runtime options surface identity for this tool."""
+
+        return self.contribution.options_id
+
+    @property
+    def preview_id(self) -> str | None:
+        """Return the lightweight preview identity for this tool."""
+
+        return self.contribution.preview_id
 
 
 __all__ = [

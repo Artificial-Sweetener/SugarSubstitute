@@ -136,19 +136,6 @@ def handle_input_mask_clicked_for_view(
     )
 
 
-def handle_mask_save_completed_for_view(
-    canvas_view: object,
-    mask_id: str,
-    path: str,
-) -> None:
-    """Route CuteCanvas mask-save completion to presenter-owned refresh logic."""
-
-    input_canvas_presenter_for_view(canvas_view).handle_mask_save_completed(
-        mask_id,
-        path,
-    )
-
-
 def reconcile_active_input_canvas_image_for_view(canvas_view: object) -> None:
     """Reconcile the active Input image before generation request capture."""
 
@@ -289,7 +276,6 @@ __all__ = [
     "handle_input_image_clicked_for_view",
     "handle_input_mask_changed_for_view",
     "handle_input_mask_clicked_for_view",
-    "handle_mask_save_completed_for_view",
     "input_canvas_presenter_for_view",
     "materialize_loaded_cube_input_canvas_for_view",
     "reconcile_active_input_canvas_image_for_view",

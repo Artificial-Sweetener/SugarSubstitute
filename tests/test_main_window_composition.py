@@ -329,12 +329,8 @@ class _FakeInputCanvasPresenter:
         self.refreshed_masks.append((cube_alias, node_name))
 
 
-class _FakeInputMaskDirtyTracker:
-    """Represent the input-mask dirty tracker."""
-
-
-class _FakeInputMaskSaveController:
-    """Capture save-controller wiring inputs."""
+class _FakeInputDocumentChangeObserver:
+    """Capture in-memory document change observer wiring."""
 
     def __init__(self, **kwargs: object) -> None:
         """Store constructor keyword arguments for assertions."""
@@ -872,13 +868,8 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     )
     monkeypatch.setattr(
         main_window_composition,
-        "InputMaskDirtyTracker",
-        _FakeInputMaskDirtyTracker,
-    )
-    monkeypatch.setattr(
-        main_window_composition,
-        "InputMaskSaveController",
-        _FakeInputMaskSaveController,
+        "InputDocumentChangeObserver",
+        _FakeInputDocumentChangeObserver,
     )
     monkeypatch.setattr(
         main_window_composition,
@@ -886,25 +877,37 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         _FakeInputCanvasCapabilityService,
     )
     palette = object()
-    runtime = SimpleNamespace(palette=palette)
+    registered_options: dict[str, object] = {}
+    runtime = SimpleNamespace(
+        palette=palette,
+        register_options=lambda options_id, factory: registered_options.__setitem__(
+            options_id,
+            factory,
+        ),
+    )
     monkeypatch.setattr(
         main_window_composition,
         "create_input_canvas_tool_system",
         lambda: runtime,
     )
     document = SimpleNamespace(
-        set_canvas_tool_mode=object(),
+        set_canvas_operation=object(),
         export_mask_image=object(),
+        generation_capture=SimpleNamespace(capture=object()),
+        editable_persistence=object(),
+        tool_options=object(),
+        preview_bindings=object(),
         toolContextChanged=_FakeSignal(),
         canvasToolChanged=_FakeSignal(),
+        maskContentChanged=_FakeSignal(),
     )
     current_image_id_for_event = object()
-    bound_palettes: list[object] = []
+    bound_runtimes: list[object] = []
     input_canvas = SimpleNamespace(
         document=document,
         canvas=SimpleNamespace(maskUndoStackChanged=object()),
         current_image_id_for_event=current_image_id_for_event,
-        bind_tool_palette=bound_palettes.append,
+        bind_tool_runtime=bound_runtimes.append,
         toolContextRefreshRequested=_FakeSignal(),
         toolRequested=_FakeSignal(),
     )
@@ -915,11 +918,15 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         input_canvas_state_service=object(),
         canvas_io_service=object(),
         workflow_asset_service=object(),
-        workflow_session_service=object(),
-        path_bundle=SimpleNamespace(projects_dir="E:\\projects"),
+        workflow_session_service=SimpleNamespace(active_workflow_id="workflow-a"),
+        path_bundle=SimpleNamespace(
+            projects_dir="E:\\projects",
+            session_dir="E:\\session",
+        ),
         get_active_workflow=lambda: object(),
         active_editor_panel=object(),
         _error_presenter=object(),
+        request_session_autosave=object(),
     )
 
     composition = main_window_composition.compose_input_canvas_controllers(shell)
@@ -928,7 +935,14 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         composition.workflow_input_canvas_service is shell.workflow_input_canvas_service
     )
     assert composition.input_canvas_presenter is shell.input_canvas_presenter
-    assert composition.input_mask_save_controller is shell.input_mask_save_controller
+    assert (
+        composition.input_document_change_observer
+        is shell.input_document_change_observer
+    )
+    assert (
+        composition.input_generation_snapshot_service
+        is shell.input_generation_snapshot_service
+    )
     assert shell.workflow_input_canvas_service.kwargs == {
         "input_canvas_plan_service": shell.input_canvas_plan_service,
         "input_canvas_state_service": shell.input_canvas_state_service,
@@ -938,11 +952,11 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     }
     assert shell.input_canvas_tool_controller.kwargs == {
         "input_document": document,
-        "control_mode_setter": document.set_canvas_tool_mode,
+        "operation_setter": document.set_canvas_operation,
         "current_image_id_provider": current_image_id_for_event,
         "runtime": runtime,
     }
-    assert bound_palettes == [palette]
+    assert bound_runtimes == [runtime]
     assert document.toolContextChanged.connected == [
         shell.input_canvas_tool_controller.refresh_tool_context
     ]
@@ -970,13 +984,20 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         shell.input_canvas_presenter.kwargs["mark_canvas_changed"]
         is shell.input_canvas_shell_adapter.mark_input_canvas_changed
     )
+    assert shell.input_document_change_observer.kwargs == {
+        "changed": document.maskContentChanged,
+        "active_workflow_id": (
+            shell.input_document_change_observer.kwargs["active_workflow_id"]
+        ),
+        "mark_workflow_changed": (
+            shell.input_canvas_shell_adapter.mark_input_canvas_changed
+        ),
+        "request_autosave": shell.request_session_autosave,
+    }
     assert (
-        shell.input_mask_save_controller.kwargs["dirty_tracker"]
-        is shell.input_mask_dirty_tracker
+        shell.input_document_change_observer.kwargs["active_workflow_id"]()
+        == "workflow-a"
     )
-    refresh_saved_mask = shell.input_mask_save_controller.kwargs["refresh_saved_mask"]
-    refresh_saved_mask("cube-a", "node-a", object())
-    assert shell.input_canvas_presenter.refreshed_masks == [("cube-a", "node-a")]
     assert (
         shell.input_canvas_capability_service.input_canvas_plan_service
         is shell.input_canvas_plan_service

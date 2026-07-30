@@ -414,7 +414,6 @@ def test_canvas_signals_route_output_events_and_canvas_selection_autosave() -> N
     events: list[tuple[str, object]] = []
     autosaves: list[SessionAutosaveRequestCategory] = []
     input_canvas = SimpleNamespace(
-        inputMaskSaved=_Signal(),
         inputImageLoaded=_Signal(),
     )
     output_canvas = SimpleNamespace(
@@ -458,7 +457,6 @@ def test_canvas_signals_route_output_events_and_canvas_selection_autosave() -> N
     )
     output_canvas.activeOutputSceneChanged.fire(scene_selection)
     output_canvas.activeOutputCompareChanged.fire("compare-a")
-    input_canvas.inputMaskSaved.fire("mask-1", "buffer.png")
     input_canvas.inputImageLoaded.fire("node-1", "input.png")
 
     assert events == [
@@ -468,7 +466,6 @@ def test_canvas_signals_route_output_events_and_canvas_selection_autosave() -> N
         ("compare", "compare-a"),
     ]
     assert autosaves == [
-        SessionAutosaveRequestCategory.CANVAS_SELECTION,
         SessionAutosaveRequestCategory.CANVAS_SELECTION,
         SessionAutosaveRequestCategory.CANVAS_SELECTION,
         SessionAutosaveRequestCategory.CANVAS_SELECTION,
