@@ -34,8 +34,9 @@ class ComfyAssetStager(Protocol):
         source_path: Path,
         target_subfolder: str,
         content_hash: str,
+        node_class: str,
     ) -> ComfyStagedAsset:
-        """Stage one file and return the value to write into LoadImage inputs."""
+        """Stage one file and return its execution-only node and input values."""
 
 
 __all__ = ["ComfyAssetStager"]

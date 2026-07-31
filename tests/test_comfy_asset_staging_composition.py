@@ -57,17 +57,21 @@ def _context(mode: ComfyTargetMode) -> InstallationContext:
 
 
 def test_managed_local_composition_uses_local_asset_stager() -> None:
-    """Managed local targets should use direct local path staging."""
+    """Managed local targets should use backend-authorized local staging."""
 
     service = _build_comfy_asset_staging_service(
         _context(ComfyTargetMode.MANAGED_LOCAL)
     )
 
     assert isinstance(service.stager, LocalComfyAssetStager)
+    assert (
+        service.stager.endpoint
+        == _context(ComfyTargetMode.MANAGED_LOCAL).comfy_target.endpoint
+    )
 
 
 def test_attached_local_composition_uses_local_asset_stager() -> None:
-    """Attached local targets should use direct local path staging."""
+    """Attached local targets should use backend-authorized local staging."""
 
     service = _build_comfy_asset_staging_service(
         _context(ComfyTargetMode.ATTACHED_LOCAL)

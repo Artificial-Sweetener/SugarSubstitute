@@ -198,6 +198,7 @@ class ComfyAssetStagingService:
                     source_path=source_path,
                     target_subfolder=target_subfolder,
                     content_hash=_file_sha256(source_path),
+                    node_class=str(node_class),
                 )
             except Exception as error:
                 log_exception(
@@ -220,6 +221,8 @@ class ComfyAssetStagingService:
                 )
                 continue
             inputs[target.field_key] = staged_asset.execution_value
+            if staged_asset.execution_node_class is not None:
+                node_data["class_type"] = staged_asset.execution_node_class
             if self._should_use_project_mask_color_channel(
                 image_value=image_value,
                 target=target,
@@ -250,6 +253,7 @@ class ComfyAssetStagingService:
                 node_class=str(node_class),
                 source_path=str(source_path),
                 execution_value=staged_asset.execution_value,
+                execution_node_class=staged_asset.execution_node_class,
                 operation=staged_asset.operation,
             )
 

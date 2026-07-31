@@ -141,6 +141,11 @@ def _capabilities(
     extension_version: str = "1.8.0",
     sugar_cubes_version: str = "0.11.0",
     sugarcubes_available: bool = True,
+    features: tuple[str, ...] = (
+        "cube-library",
+        "prompt-queue-facade",
+        "visual-routing",
+    ),
 ) -> BackendCapabilities:
     """Return compatible capabilities with override hooks."""
 
@@ -153,7 +158,7 @@ def _capabilities(
         local_preview_serving=True,
         sidecar_reading=True,
         extension_version=extension_version,
-        features=("cube-library", "prompt-queue-facade", "visual-routing"),
+        features=features,
         cube_library=BackendCubeLibraryCapabilities(
             schema_version=1,
             available=sugarcubes_available,
