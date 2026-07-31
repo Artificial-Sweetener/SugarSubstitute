@@ -16,7 +16,11 @@
 
 import { spawnSync } from "node:child_process";
 
-const ignoredAdvisoryIds = new Set([1124334]);
+const ignoredAdvisoryIds = new Set([
+  1124334,
+  // GHSA-mh99-v99m-4gvg is an OOM-only issue in an unused nested release plugin.
+  1130591,
+]);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const audit = spawnSync(npmCommand, ["audit", "--json"], {
   encoding: "utf8",
