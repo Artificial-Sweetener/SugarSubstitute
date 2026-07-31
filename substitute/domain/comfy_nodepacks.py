@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-SUBSTITUTE_BACKEND_REQUIRED_VERSION = "1.8.0"
+SUBSTITUTE_BACKEND_REQUIRED_VERSION = "1.9.0"
 SUGARCUBES_REQUIRED_VERSION = "0.11.0"
 
 

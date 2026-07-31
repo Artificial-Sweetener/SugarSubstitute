@@ -240,7 +240,7 @@ def test_nodepack_python_distributions_match_required_version_uses_manifest_meta
 
     monkeypatch.setattr(
         "substitute.infrastructure.comfy.nodepack_python_dependencies.installed_python_distribution_version",
-        lambda **kwargs: "1.8.0",
+        lambda **kwargs: "1.9.0",
     )
 
     assert nodepack_python_distributions_match_required_version(
@@ -254,7 +254,7 @@ def test_nodepack_python_distributions_match_required_version_uses_manifest_meta
 
 @pytest.mark.parametrize(
     ("installed_version", "expected"),
-    (("1.8.0", True), ("1.7.1", False), ("1.8.1", False)),
+    (("1.9.0", True), ("1.8.0", False), ("1.9.1", False)),
 )
 def test_python_distribution_requires_exact_version(
     monkeypatch: pytest.MonkeyPatch,
@@ -274,7 +274,7 @@ def test_python_distribution_requires_exact_version(
             python_executable=tmp_path / "python.exe",
             cwd=tmp_path,
             distribution_name="substitute-backend",
-            required_version="1.8.0",
+            required_version="1.9.0",
             on_log=None,
             env=None,
         )
