@@ -116,10 +116,10 @@ def test_checkout_pinned_git_tag_fetches_and_checks_out_tag(
             (
                 target_path,
                 "https://github.com/Artificial-Sweetener/Substitute-BackEnd.git",
-                "v1.8.0",
+                "v1.9.0",
             ),
         ),
-        ("checkout_revision", (target_path, "v1.8.0")),
+        ("checkout_revision", (target_path, "v1.9.0")),
     ]
 
 
