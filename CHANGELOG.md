@@ -1,3 +1,10 @@
+## [0.19.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.19.0...v0.19.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* **comfy:** authorize local image sources ([f142d16](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f142d16d91ebda4fab9dd49e81e8b65c839d2f3a))
+
 # [0.19.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.18.1...v0.19.0) (2026-07-27)
 
 
