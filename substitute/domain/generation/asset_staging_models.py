@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-AssetStagingOperation = Literal["direct", "uploaded"]
+AssetStagingOperation = Literal["authorized", "uploaded"]
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,7 @@ class ComfyStagedAsset:
     source_path: Path
     execution_value: str
     operation: AssetStagingOperation
+    execution_node_class: str | None = None
 
 
 @dataclass(frozen=True)

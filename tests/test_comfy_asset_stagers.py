@@ -31,21 +31,59 @@ from substitute.infrastructure.comfy import (
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
-def test_local_asset_stager_returns_direct_filesystem_path(tmp_path: Path) -> None:
-    """Local targets should not duplicate readable source files."""
+def test_local_asset_stager_authorizes_source_without_copying(tmp_path: Path) -> None:
+    """Local targets should authorize the existing source without duplicating it."""
 
     source = tmp_path / "input.png"
     source.write_bytes(b"image")
+    before = tuple(tmp_path.iterdir())
+    calls: list[tuple[str, dict[str, str], float]] = []
 
-    staged = LocalComfyAssetStager().stage_file_for_load_image(
+    def _post(
+        url: str,
+        *,
+        json: dict[str, str],
+        timeout: float,
+    ) -> SimpleNamespace:
+        calls.append((url, json, timeout))
+        return SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {
+                "token": "opaque-token",
+                "nodeClass": "LoadImage",
+                "executionNodeClass": "SubstituteBackendLoadImage",
+                "contentHash": "a" * 64,
+            },
+        )
+
+    staged = LocalComfyAssetStager(
+        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
+        timeout_seconds=7.0,
+        post=_post,
+    ).stage_file_for_load_image(
         source_path=source,
         target_subfolder="substitute/wf",
-        content_hash="abc",
+        content_hash="a" * 64,
+        node_class="LoadImage",
     )
 
     assert staged.source_path == source
-    assert staged.execution_value == subprocess_path(source)
-    assert staged.operation == "direct"
+    assert staged.execution_value == "opaque-token"
+    assert staged.operation == "authorized"
+    assert staged.execution_node_class == "SubstituteBackendLoadImage"
+    assert calls == [
+        (
+            "http://127.0.0.1:8188/substitute/v1/local-assets/authorize",
+            {
+                "sourcePath": subprocess_path(source),
+                "nodeClass": "LoadImage",
+                "contentHash": "a" * 64,
+            },
+            7.0,
+        )
+    ]
+    assert tuple(tmp_path.iterdir()) == before
+    assert source.read_bytes() == b"image"
 
 
 def test_remote_asset_stager_uploads_to_comfy_input_namespace(
@@ -78,6 +116,7 @@ def test_remote_asset_stager_uploads_to_comfy_input_namespace(
         source_path=source,
         target_subfolder="substitute/wf",
         content_hash="abc",
+        node_class="LoadImage",
     )
 
     assert calls[0][0] == "http://10.0.0.2:8189/upload/image"
@@ -87,6 +126,43 @@ def test_remote_asset_stager_uploads_to_comfy_input_namespace(
     assert calls[0][3] == 12.0
     assert staged.execution_value == "substitute/wf/input.png"
     assert staged.operation == "uploaded"
+
+
+def test_local_asset_stager_rejects_mismatched_authorization(
+    tmp_path: Path,
+) -> None:
+    """The desktop client must not accept a token for a different source request."""
+
+    source = tmp_path / "input.png"
+    source.write_bytes(b"image")
+
+    def _post(
+        _url: str,
+        *,
+        json: dict[str, str],
+        timeout: float,
+    ) -> SimpleNamespace:
+        del json, timeout
+        return SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {
+                "token": "opaque-token",
+                "nodeClass": "LoadImageMask",
+                "executionNodeClass": "SubstituteBackendLoadImageMask",
+                "contentHash": "a" * 64,
+            },
+        )
+
+    with pytest.raises(RuntimeError, match="did not match"):
+        LocalComfyAssetStager(
+            endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
+            post=_post,
+        ).stage_file_for_load_image(
+            source_path=source,
+            target_subfolder="substitute/wf",
+            content_hash="a" * 64,
+            node_class="LoadImage",
+        )
 
 
 def test_remote_asset_stager_raises_when_upload_fails(
@@ -120,4 +196,5 @@ def test_remote_asset_stager_raises_when_upload_fails(
             source_path=source,
             target_subfolder="substitute/wf",
             content_hash="abc",
+            node_class="LoadImageMask",
         )

@@ -30,7 +30,11 @@ from sugarsubstitute_shared.windows_long_paths import operational_path, subproce
 
 @dataclass(frozen=True)
 class LocalComfyAssetStager:
-    """Use local filesystem paths directly when Comfy can read this machine."""
+    """Authorize local files for no-copy execution by Substitute BackEnd."""
+
+    endpoint: ComfyEndpoint
+    timeout_seconds: float = 10.0
+    post: Callable[..., Any] = default_http_post
 
     def stage_file_for_load_image(
         self,
@@ -38,17 +42,53 @@ class LocalComfyAssetStager:
         source_path: Path,
         target_subfolder: str,
         content_hash: str,
+        node_class: str,
     ) -> ComfyStagedAsset:
-        """Return the existing path without duplicating Substitute-owned data."""
+        """Authorize the existing file without copying or uploading its bytes."""
 
-        del target_subfolder, content_hash
+        del target_subfolder
         source_path = operational_path(source_path)
         if not source_path.exists():
             raise FileNotFoundError(str(source_path))
+        response = self.post(
+            self.endpoint.substitute_local_asset_authorize_url(),
+            json={
+                "sourcePath": subprocess_path(source_path),
+                "nodeClass": node_class,
+                "contentHash": content_hash,
+            },
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        token = payload.get("token") if isinstance(payload, dict) else None
+        authorized_node_class = (
+            payload.get("nodeClass") if isinstance(payload, dict) else None
+        )
+        execution_node_class = (
+            payload.get("executionNodeClass") if isinstance(payload, dict) else None
+        )
+        authorized_content_hash = (
+            payload.get("contentHash") if isinstance(payload, dict) else None
+        )
+        if not isinstance(token, str) or not token:
+            raise RuntimeError(
+                "Substitute BackEnd authorization did not include an asset token."
+            )
+        if (
+            authorized_node_class != node_class
+            or authorized_content_hash != content_hash
+            or not isinstance(execution_node_class, str)
+            or not execution_node_class
+        ):
+            raise RuntimeError(
+                "Substitute BackEnd authorization did not match the requested asset."
+            )
         return ComfyStagedAsset(
             source_path=source_path,
-            execution_value=subprocess_path(source_path),
-            operation="direct",
+            execution_value=token,
+            operation="authorized",
+            execution_node_class=execution_node_class,
         )
 
 
@@ -66,9 +106,11 @@ class RemoteUploadComfyAssetStager:
         source_path: Path,
         target_subfolder: str,
         content_hash: str,
+        node_class: str,
     ) -> ComfyStagedAsset:
         """Upload a source file and return the Comfy input namespace value."""
 
+        del node_class
         source_path = operational_path(source_path)
         if not source_path.exists():
             raise FileNotFoundError(str(source_path))
