@@ -45,7 +45,7 @@ class _FakeStager:
     """Record staged files and return deterministic Comfy input values."""
 
     def __init__(self) -> None:
-        self.calls: list[tuple[Path, str, str]] = []
+        self.calls: list[tuple[Path, str, str, str]] = []
 
     def stage_file_for_load_image(
         self,
@@ -53,8 +53,9 @@ class _FakeStager:
         source_path: Path,
         target_subfolder: str,
         content_hash: str,
+        node_class: str,
     ) -> ComfyStagedAsset:
-        self.calls.append((source_path, target_subfolder, content_hash))
+        self.calls.append((source_path, target_subfolder, content_hash, node_class))
         return ComfyStagedAsset(
             source_path=source_path,
             execution_value=f"{target_subfolder}/{source_path.name}",
@@ -116,6 +117,56 @@ def test_stage_payload_rewrites_load_image_paths_without_mutating_authoring_payl
     assert len(result.staged_assets) == 1
     assert stager.calls[0][0] == image_path
     assert stager.calls[0][1] == "substitute/wf-1"
+    assert stager.calls[0][3] == "LoadImage"
+
+
+def test_stage_payload_rewrites_only_execution_node_class_for_authorized_assets(
+    tmp_path: Path,
+) -> None:
+    """Local authorization should leave the authored core node contract untouched."""
+
+    image_path = tmp_path / "input.png"
+    image_path.write_bytes(b"image")
+    payload: JsonObject = {
+        "1": {
+            "class_type": "LoadImage",
+            "inputs": {"image": str(image_path)},
+        }
+    }
+
+    class _AuthorizedStager(_FakeStager):
+        """Return an opaque token and execution-only backend node class."""
+
+        def stage_file_for_load_image(
+            self,
+            *,
+            source_path: Path,
+            target_subfolder: str,
+            content_hash: str,
+            node_class: str,
+        ) -> ComfyStagedAsset:
+            """Record the core class and return authorized execution data."""
+
+            self.calls.append((source_path, target_subfolder, content_hash, node_class))
+            return ComfyStagedAsset(
+                source_path=source_path,
+                execution_value="opaque-token",
+                operation="authorized",
+                execution_node_class="SubstituteBackendLoadImage",
+            )
+
+    result = ComfyAssetStagingService(stager=_AuthorizedStager()).stage_payload(
+        workflow_payload=payload,
+        workflow_id="wf-1",
+        workflow_name="Workflow 1",
+    )
+
+    original_node = cast(JsonObject, payload["1"])
+    staged_node = cast(JsonObject, result.workflow_payload["1"])
+    staged_inputs = cast(JsonObject, staged_node["inputs"])
+    assert original_node["class_type"] == "LoadImage"
+    assert staged_node["class_type"] == "SubstituteBackendLoadImage"
+    assert staged_inputs["image"] == "opaque-token"
 
 
 def test_stage_payload_reports_missing_local_load_image_file() -> None:

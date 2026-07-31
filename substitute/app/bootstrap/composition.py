@@ -1198,7 +1198,7 @@ def _build_comfy_asset_staging_service(
             endpoint=context.comfy_target.endpoint
         )
     else:
-        stager = LocalComfyAssetStager()
+        stager = LocalComfyAssetStager(endpoint=context.comfy_target.endpoint)
     return ComfyAssetStagingService.with_projects_dir(
         stager=stager,
         projects_dir=context.projects_dir,

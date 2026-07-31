@@ -96,6 +96,10 @@ def test_endpoint_builds_substitute_prompt_queue_url() -> None:
         endpoint.substitute_capabilities_url()
         == "http://10.0.0.2:8189/substitute/v1/capabilities"
     )
+    assert (
+        endpoint.substitute_local_asset_authorize_url()
+        == "http://10.0.0.2:8189/substitute/v1/local-assets/authorize"
+    )
 
 
 def test_queue_prompt_returns_prompt_id_when_payload_is_valid(monkeypatch) -> None:

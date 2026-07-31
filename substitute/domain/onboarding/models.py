@@ -67,6 +67,11 @@ class ComfyEndpoint:
 
         return self._http_url("/substitute/v1/sugar/compile")
 
+    def substitute_local_asset_authorize_url(self) -> str:
+        """Return the Substitute BackEnd local asset authorization URL."""
+
+        return self._http_url("/substitute/v1/local-assets/authorize")
+
     def substitute_capabilities_url(self) -> str:
         """Return the Substitute BackEnd capability endpoint URL."""
 

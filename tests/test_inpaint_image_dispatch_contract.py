@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 
 from substitute.application.generation import (
@@ -44,6 +45,7 @@ from substitute.application.ports import (
 )
 from substitute.application.recipes import RecipeIoService, WorkflowExportService
 from substitute.application.workflows import WorkflowAssetService
+from substitute.domain.onboarding import ComfyEndpoint
 from substitute.domain.workflow import WorkflowState
 from substitute.domain.workflow.models import CubeState
 from substitute.infrastructure.comfy import LocalComfyAssetStager
@@ -336,31 +338,60 @@ def test_real_inpaint_generation_queues_selected_load_image_instead_of_default(
         stack_order=workflow.stack_order,
     )
     gateway = _QueueRecorderGateway()
+    authorization_calls: list[dict[str, str]] = []
+
+    def authorize_local_asset(
+        _url: str,
+        *,
+        json: dict[str, str],
+        timeout: float,
+    ) -> SimpleNamespace:
+        """Authorize each exact source without copying it into Comfy input."""
+
+        assert timeout == 10.0
+        authorization_calls.append(json)
+        token = "image-token" if json["nodeClass"] == "LoadImage" else "mask-token"
+        return SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {
+                "token": token,
+                "nodeClass": json["nodeClass"],
+                "executionNodeClass": (
+                    "SubstituteBackendLoadImage"
+                    if json["nodeClass"] == "LoadImage"
+                    else "SubstituteBackendLoadImageMask"
+                ),
+                "contentHash": json["contentHash"],
+            },
+        )
+
+    compiled_payload: dict[str, object] = {
+        "1": {
+            "class_type": "LoadImage",
+            "inputs": {"image": str(selected_image)},
+            "_meta": {"title": "Inpaint.load_image"},
+        },
+        "2": {
+            "class_type": "LoadImageMask",
+            "inputs": {
+                "image": selected_mask.name,
+                "channel": "red",
+            },
+            "_meta": {"title": "Inpaint.load_image_as_mask"},
+        },
+    }
     service = GenerationService(
         recipe_io_service=RecipeIoService(recipe_repository=FileRecipeRepository()),
         workflow_export_service=WorkflowExportService(
             workflow_repository=FileWorkflowRepository(),
-            workflow_payload_compiler=_StaticWorkflowCompiler(
-                {
-                    "1": {
-                        "class_type": "LoadImage",
-                        "inputs": {"image": str(selected_image)},
-                        "_meta": {"title": "Inpaint.load_image"},
-                    },
-                    "2": {
-                        "class_type": "LoadImageMask",
-                        "inputs": {
-                            "image": selected_mask.name,
-                            "channel": "red",
-                        },
-                        "_meta": {"title": "Inpaint.load_image_as_mask"},
-                    },
-                }
-            ),
+            workflow_payload_compiler=_StaticWorkflowCompiler(compiled_payload),
         ),
         comfy_gateway=gateway,
         asset_staging_service=ComfyAssetStagingService.with_projects_dir(
-            stager=LocalComfyAssetStager(),
+            stager=LocalComfyAssetStager(
+                endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
+                post=authorize_local_asset,
+            ),
             projects_dir=tmp_path,
         ),
         output_dir=Path("user/projects"),
@@ -386,24 +417,35 @@ def test_real_inpaint_generation_queues_selected_load_image_instead_of_default(
     queued_load_image_nodes = [
         node
         for node in gateway.queue_calls[0].values()
-        if isinstance(node, dict) and node.get("class_type") == "LoadImage"
+        if isinstance(node, dict)
+        and node.get("class_type") == "SubstituteBackendLoadImage"
     ]
     queued_load_mask_nodes = [
         node
         for node in gateway.queue_calls[0].values()
-        if isinstance(node, dict) and node.get("class_type") == "LoadImageMask"
+        if isinstance(node, dict)
+        and node.get("class_type") == "SubstituteBackendLoadImageMask"
     ]
 
     assert result.started is True
     assert failures == []
     assert queued_load_image_nodes
     assert queued_load_mask_nodes
-    assert queued_load_image_nodes[0]["inputs"]["image"] == subprocess_path(
-        selected_image
-    )
-    assert queued_load_mask_nodes[0]["inputs"]["image"] == subprocess_path(
-        selected_mask
-    )
+    assert queued_load_image_nodes[0]["inputs"]["image"] == "image-token"
+    assert queued_load_mask_nodes[0]["inputs"]["image"] == "mask-token"
     assert queued_load_mask_nodes[0]["inputs"]["channel"] == "red"
     assert queued_load_image_nodes[0]["inputs"]["image"] != default_image
     assert queued_load_mask_nodes[0]["inputs"]["image"] != default_image
+    assert {call["sourcePath"] for call in authorization_calls} == {
+        subprocess_path(selected_image),
+        subprocess_path(selected_mask),
+    }
+    assert {call["nodeClass"] for call in authorization_calls} == {
+        "LoadImage",
+        "LoadImageMask",
+    }
+    assert cast(dict[str, object], compiled_payload["1"])["class_type"] == "LoadImage"
+    assert cast(dict[str, object], compiled_payload["2"])["class_type"] == (
+        "LoadImageMask"
+    )
+    assert not (tmp_path / "comfy-input").exists()
