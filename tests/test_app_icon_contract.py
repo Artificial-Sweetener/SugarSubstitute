@@ -31,6 +31,7 @@ from substitute.presentation.resources.app_icon import (
     application_icon,
     application_icon_ico_path,
 )
+from substitute.presentation.resources import fluent_app_icon
 from substitute.presentation.editor.panel.node_card_builder import NodeCardBuilder
 
 
@@ -128,6 +129,33 @@ def test_app_icons_resolve_themed_svg_assets(
     assert dark_path.name == f"{base_name}_white.svg"
     assert light_path.is_file()
     assert dark_path.is_file()
+
+
+def test_app_icon_path_validation_is_cached(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep immutable icon filesystem checks out of repeated GUI paints."""
+
+    fluent_app_icon._resolved_icon_path.cache_clear()
+    original_is_file = Path.is_file
+    validation_count = 0
+
+    def count_icon_validation(path: Path) -> bool:
+        """Count filesystem validation without changing its result."""
+
+        nonlocal validation_count
+        validation_count += 1
+        return original_is_file(path)
+
+    monkeypatch.setattr(Path, "is_file", count_icon_validation)
+    try:
+        first = AppIcon.PAINT_BRUSH_20_REGULAR.path(Theme.DARK)
+        second = AppIcon.PAINT_BRUSH_20_REGULAR.path(Theme.DARK)
+    finally:
+        fluent_app_icon._resolved_icon_path.cache_clear()
+
+    assert first == second
+    assert validation_count == 1
 
 
 @pytest.mark.parametrize(

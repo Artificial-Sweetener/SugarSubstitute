@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from functools import cache
 from pathlib import Path
 
 # qfluentwidgets does not ship typing metadata, but AppIcon must inherit its
@@ -26,6 +27,16 @@ from pathlib import Path
 from qfluentwidgets import FluentIconBase, Theme, getIconColor  # type: ignore[import-untyped]
 
 _ICON_DIR = Path(__file__).resolve().parent / "icons"
+
+
+@cache
+def _resolved_icon_path(name: str, color: str) -> str:
+    """Resolve and validate one immutable packaged icon path once."""
+
+    icon_path = _ICON_DIR / f"{name}_{color}.svg"
+    if not icon_path.is_file():
+        raise FileNotFoundError(f"Missing application icon asset: {icon_path}")
+    return str(icon_path)
 
 
 class AppIcon(FluentIconBase, Enum):  # type: ignore[misc]
@@ -94,10 +105,7 @@ class AppIcon(FluentIconBase, Enum):  # type: ignore[misc]
     def path(self, theme: Theme = Theme.AUTO) -> str:
         """Return the themed SVG path for this application-owned icon."""
 
-        icon_path = _ICON_DIR / f"{self.value}_{getIconColor(theme)}.svg"
-        if not icon_path.is_file():
-            raise FileNotFoundError(f"Missing application icon asset: {icon_path}")
-        return str(icon_path)
+        return _resolved_icon_path(self.value, getIconColor(theme))
 
 
 __all__ = ["AppIcon"]
