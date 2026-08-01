@@ -26,6 +26,9 @@ from substitute.app.bootstrap.cutecanvas_sam_startup_warmup import (
     cutecanvas_sam_warmup_snapshot,
     reset_cutecanvas_sam_warmup_snapshot_for_tests,
 )
+from substitute.shared.cutecanvas_sam_warmup_state import (
+    cutecanvas_sam_warmup_is_terminal,
+)
 
 
 def test_cutecanvas_sam_warmup_records_completed_state() -> None:
@@ -37,6 +40,7 @@ def test_cutecanvas_sam_warmup_records_completed_state() -> None:
         submitter=ImmediateTaskSubmitter(),
         ensure_dependencies=lambda: calls.append("ensure"),
     )
+    assert not cutecanvas_sam_warmup_is_terminal()
 
     handle.start()
 
@@ -44,6 +48,7 @@ def test_cutecanvas_sam_warmup_records_completed_state() -> None:
     assert calls == ["ensure"]
     assert snapshot.state == "completed"
     assert snapshot.elapsed_ms is not None
+    assert cutecanvas_sam_warmup_is_terminal()
 
 
 def test_cutecanvas_sam_warmup_failure_is_best_effort() -> None:
@@ -66,6 +71,7 @@ def test_cutecanvas_sam_warmup_failure_is_best_effort() -> None:
     snapshot = cutecanvas_sam_warmup_snapshot()
     assert snapshot.state == "failed"
     assert "missing dependency" in snapshot.error
+    assert cutecanvas_sam_warmup_is_terminal()
 
 
 def test_default_cutecanvas_sam_warmup_can_be_disabled_by_environment(
@@ -81,3 +87,4 @@ def test_default_cutecanvas_sam_warmup_can_be_disabled_by_environment(
 
     snapshot = cutecanvas_sam_warmup_snapshot()
     assert snapshot.state == "disabled"
+    assert cutecanvas_sam_warmup_is_terminal()

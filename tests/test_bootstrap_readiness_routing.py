@@ -79,6 +79,10 @@ from substitute.infrastructure.comfy import process_manager
 from substitute.infrastructure.comfy.managed_process_registry import (
     ManagedProcessRegistry,
 )
+from substitute.shared.cutecanvas_sam_warmup_state import (
+    CuteCanvasSamWarmupSnapshot,
+    set_cutecanvas_sam_warmup_snapshot,
+)
 from substitute.application.workspace_state import InitialShellPlacement
 from substitute.domain.workspace_snapshot import WindowGeometrySnapshot
 from substitute.domain.user_presets import GLOBAL_PRESET_ASSOCIATION
@@ -600,7 +604,11 @@ def test_run_application_prebuilds_shell_and_reveals_after_http_ready(
             """Accept warmup dependencies without importing optional packages."""
 
         def start(self) -> None:
-            """Keep routing test focused on startup ordering."""
+            """Complete the dependency prerequisite without importing packages."""
+
+            set_cutecanvas_sam_warmup_snapshot(
+                CuteCanvasSamWarmupSnapshot(state="completed")
+            )
 
         def shutdown(self) -> None:
             """Accept shutdown without side effects."""
@@ -1011,6 +1019,20 @@ def test_ready_startup_closes_splash_and_reports_fatal_managed_failure(
 
             self.model_updated = _FakeSignal()
 
+    class _FakeCuteCanvasSamWarmupHandle:
+        def __init__(self, **_kwargs: object) -> None:
+            """Accept warmup dependencies without importing optional packages."""
+
+        def start(self) -> None:
+            """Complete the dependency prerequisite deterministically."""
+
+            set_cutecanvas_sam_warmup_snapshot(
+                CuteCanvasSamWarmupSnapshot(state="completed")
+            )
+
+        def shutdown(self) -> None:
+            """Accept shutdown without side effects."""
+
     fatal_incident = ComfyStartupIncident(
         kind=ComfyStartupIncidentKind.PROCESS_EXITED_BEFORE_READY,
         severity=ComfyStartupIncidentSeverity.FATAL,
@@ -1062,6 +1084,11 @@ def test_ready_startup_closes_splash_and_reports_fatal_managed_failure(
         startup_managed_ready_ports,
         "create_model_metadata_update_bridge",
         lambda parent: _FakeBridge(parent),
+    )
+    monkeypatch.setattr(
+        startup_warmup_controller,
+        "CuteCanvasSamStartupWarmupHandle",
+        _FakeCuteCanvasSamWarmupHandle,
     )
     _patch_startup_restore_plan(monkeypatch)
     monkeypatch.setattr(

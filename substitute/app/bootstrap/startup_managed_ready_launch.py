@@ -330,6 +330,8 @@ class StartupManagedReadyLaunchRuntime:
         try_show_main_window: Callable[[], None],
         trace_fields: Callable[[], Mapping[str, object]],
         after_mark_ready: Callable[[], object] | None = None,
+        prerequisite_ready: Callable[[], bool] | None = None,
+        scheduler: Callable[[int, Callable[[], None]], None] | None = None,
     ) -> ReadyShellMinimumReadyTask:
         """Bind managed-ready launch state into the minimum-ready task."""
 
@@ -339,6 +341,8 @@ class StartupManagedReadyLaunchRuntime:
             try_show_main_window=try_show_main_window,
             trace_fields=trace_fields,
             after_mark_ready=after_mark_ready,
+            prerequisite_ready=prerequisite_ready,
+            scheduler=scheduler,
         )
 
     def schedule_startup_tasks(
