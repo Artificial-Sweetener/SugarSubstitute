@@ -138,7 +138,9 @@ def test_tab_selection_autosave_uses_debounce_timer_without_coordinator() -> Non
         _shell_restore_lifecycle="running",
         _startup_autosave_unmuted_marked=True,
         session_autosave_service=SimpleNamespace(
-            request_save=lambda _port: calls.append(("autosave", None))
+            request_save=lambda _port, *, participants=(): calls.append(
+                ("autosave", participants)
+            )
         ),
     )
     controller = SessionAutosaveController(shell)
@@ -156,7 +158,7 @@ def test_tab_selection_autosave_uses_debounce_timer_without_coordinator() -> Non
             "start",
             session_autosave_controller_module._TAB_SELECTION_AUTOSAVE_DEBOUNCE_MS,
         ),
-        ("autosave", None),
+        ("autosave", ()),
     ]
 
 

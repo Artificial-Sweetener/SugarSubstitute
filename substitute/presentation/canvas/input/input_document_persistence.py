@@ -5,6 +5,15 @@
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """Persist complete Input editor authority through CuteCanvas public APIs."""
 
 from __future__ import annotations
@@ -14,6 +23,10 @@ from pathlib import Path
 from uuid import UUID
 
 from cutecanvas import CanvasDocument, CuteCanvas
+
+from substitute.application.workspace_state.session_persistence import (
+    PreparedSessionPersistence,
+)
 
 
 class InputDocumentPersistence:
@@ -39,6 +52,20 @@ class InputDocumentPersistence:
         """Atomically persist every Input composition and editable resource."""
         handles = self._canvas.editor.persistence.save_document(path)
         return tuple(handle.id for handle in handles)
+
+    def prepare_editable_document_save(
+        self,
+        path: Path,
+    ) -> PreparedSessionPersistence:
+        """Capture authority now and defer only detached archive I/O."""
+        persistence = self._canvas.editor.persistence
+        snapshot = persistence.capture_document()
+
+        def persist() -> None:
+            """Write the immutable capture without consulting live Qt state."""
+            persistence.write_document(snapshot, path)
+
+        return PreparedSessionPersistence("editable_input_document", persist)
 
     def restore_editable_document(self, path: Path) -> tuple[UUID, ...]:
         """Restore one complete Input document before image payload hydration."""

@@ -373,6 +373,8 @@ def test_restored_input_document_paints_existing_mask_before_render_settles(
         restored.canvas.show()
         app.processEvents()
         point = QPoint(512, 512)
+        history_before = restored.canvas.getMaskUndoState(mask_id)
+        assert history_before is not None
 
         QTest.mousePress(
             restored.canvas,
@@ -396,6 +398,18 @@ def test_restored_input_document_paints_existing_mask_before_render_settles(
             Qt.KeyboardModifier.NoModifier,
             point,
         )
+        commit_deadline = time.perf_counter() + 0.25
+        while time.perf_counter() < commit_deadline:
+            app.processEvents()
+            history_after = restored.canvas.getMaskUndoState(mask_id)
+            if (
+                history_after is not None
+                and history_after.undo_depth > history_before.undo_depth
+            ):
+                break
+            QTest.qWait(1)
+        else:
+            raise AssertionError("restored mask stroke did not commit")
 
         assert visible
         exported = restored.export_mask_image(mask_id)

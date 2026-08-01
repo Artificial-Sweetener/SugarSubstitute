@@ -23,10 +23,7 @@ from dataclasses import dataclass, replace
 from threading import Lock
 from typing import TypeVar
 
-from cutecanvas import (
-    ExecutionResource,
-    ExecutionRuntime as CuteCanvasExecutionRuntime,
-)
+from cutecanvas import ExecutionRuntime as CuteCanvasExecutionRuntime
 
 from substitute.application.execution import (
     CancellationToken,
@@ -38,9 +35,11 @@ from substitute.application.execution import (
     TaskScope,
     TaskSubmitter,
 )
+from substitute.app.bootstrap.canvas_execution_runtime import (
+    CanvasExecutionRuntime,
+)
 from substitute.infrastructure.execution import (
     LongLivedTaskHandle,
-    CuteCanvasExecutionBackend,
 )
 from substitute.infrastructure.execution.long_lived_task import (
     LongLivedDispatcher,
@@ -135,10 +134,6 @@ DEFAULT_EXECUTION_LANE_CONFIGS = (
     _lane_config("recipe_model_resolution", max_workers=1),
     _lane_config("danbooru_refresh", max_workers=2),
     _lane_config("image_decode", max_workers=2),
-    _lane_config_with_capacity("canvas_io", max_workers=4, queue_capacity=32),
-    _lane_config_with_capacity("canvas_python_cpu", max_workers=2, queue_capacity=32),
-    _lane_config_with_capacity("canvas_native_cpu", max_workers=4, queue_capacity=64),
-    _lane_config_with_capacity("canvas_device", max_workers=1, queue_capacity=16),
     _lane_config_with_capacity(
         "thumbnail_decode",
         max_workers=4,
@@ -195,24 +190,7 @@ class ExecutionRuntime:
             )
             for config in lane_configs
         }
-        canvas_lane_names = {
-            ExecutionResource.BLOCKING_IO: "canvas_io",
-            ExecutionResource.PYTHON_CPU: "canvas_python_cpu",
-            ExecutionResource.NATIVE_CPU: "canvas_native_cpu",
-            ExecutionResource.DEVICE: "canvas_device",
-        }
-        canvas_admissions = {
-            resource: lane.admission
-            for resource, name in canvas_lane_names.items()
-            if (lane := self._lanes.get(name)) is not None
-        }
-        self._canvas_execution_runtime = (
-            None
-            if len(canvas_admissions) != len(canvas_lane_names)
-            else CuteCanvasExecutionRuntime(
-                CuteCanvasExecutionBackend(canvas_admissions)
-            )
-        )
+        self._canvas_execution = CanvasExecutionRuntime()
         for config in lane_configs:
             log_info(
                 _LOGGER,
@@ -233,10 +211,7 @@ class ExecutionRuntime:
     def canvas_execution_runtime(self) -> CuteCanvasExecutionRuntime:
         """Return the shared CuteCanvas runtime backed by resource-specific lanes."""
 
-        runtime = self._canvas_execution_runtime
-        if runtime is None:
-            raise RuntimeError("canvas execution requires every canvas resource lane")
-        return runtime
+        return self._canvas_execution.runtime
 
     @property
     def long_lived_registry_names(self) -> tuple[str, ...]:
@@ -507,9 +482,7 @@ class ExecutionRuntime:
             if self._is_shutdown:
                 return
             self._is_shutdown = True
-        canvas_runtime = self._canvas_execution_runtime
-        if canvas_runtime is not None:
-            canvas_runtime.shutdown(wait=False)
+        self._canvas_execution.shutdown(wait=True)
         for registry_name in tuple(self._long_lived):
             self._stop_long_lived_registry(registry_name, reason="runtime_shutdown")
         for lane in self._lanes.values():

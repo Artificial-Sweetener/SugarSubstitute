@@ -19,10 +19,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from time import perf_counter
+from threading import Lock
 from typing import Protocol
 
 from substitute.application.ports import SessionSnapshotRepository
+from substitute.application.workspace_state.session_persistence import (
+    PreparedSessionPersistence,
+    SessionPersistenceParticipant,
+)
 from substitute.application.workspace_state.snapshot_capture_service import (
     SnapshotCapturePort,
 )
@@ -63,62 +67,114 @@ class SessionAutosaveService:
         self._schedule_persistence = schedule_persistence or (
             lambda callback: callback()
         )
+        self._state_lock = Lock()
         self._save_pending = False
         self._save_running = False
+        self._request_generation = 0
 
-    def request_save(self, port: SnapshotCapturePort) -> None:
+    def request_save(
+        self,
+        port: SnapshotCapturePort,
+        *,
+        participants: tuple[SessionPersistenceParticipant, ...] = (),
+    ) -> None:
         """Schedule a debounced save when no save is already pending."""
 
+        with self._state_lock:
+            self._request_generation += 1
+            request_generation = self._request_generation
+            save_pending = self._save_pending
+            save_running = self._save_running
+            if not save_pending:
+                self._save_pending = True
         log_debug(
             _LOGGER,
             "session autosave requested",
-            save_pending=self._save_pending,
-            save_running=self._save_running,
+            save_pending=save_pending,
+            save_running=save_running,
             port_type=type(port).__name__,
         )
-        if self._save_pending:
+        if save_pending:
             return
-        self._save_pending = True
-        scheduled_at = perf_counter()
         self._schedule_debounced(
-            lambda: self._run_scheduled_save(port, scheduled_at=scheduled_at)
+            lambda: self._run_scheduled_save(
+                port,
+                participants=participants,
+                request_generation=request_generation,
+            )
         )
 
-    def force_save(self, port: SnapshotCapturePort) -> bool:
+    def force_save(
+        self,
+        port: SnapshotCapturePort,
+        *,
+        participants: tuple[SessionPersistenceParticipant, ...] = (),
+    ) -> bool:
         """Capture and persist immediately, returning whether save succeeded."""
 
+        with self._state_lock:
+            save_pending = self._save_pending
+            save_running = self._save_running
         log_info(
             _LOGGER,
             "session autosave force save requested",
-            save_pending=self._save_pending,
-            save_running=self._save_running,
+            save_pending=save_pending,
+            save_running=save_running,
             port_type=type(port).__name__,
         )
-        return self._save_now(port, forced=True)
+        return self._save_now(port, participants=participants, forced=True)
 
     def _run_scheduled_save(
         self,
         port: SnapshotCapturePort,
         *,
-        scheduled_at: float,
+        participants: tuple[SessionPersistenceParticipant, ...],
+        request_generation: int,
     ) -> None:
         """Run one previously scheduled autosave."""
 
-        self._save_pending = False
-        self._save_now(port, forced=False)
+        with self._state_lock:
+            save_running = self._save_running
+            latest_generation = self._request_generation
+            request_is_current = request_generation == latest_generation
+            if not save_running and request_is_current:
+                self._save_pending = False
+        if save_running or not request_is_current:
+            self._schedule_debounced(
+                lambda: self._run_scheduled_save(
+                    port,
+                    participants=participants,
+                    request_generation=latest_generation,
+                )
+            )
+            return
+        self._save_now(port, participants=participants, forced=False)
 
-    def _save_now(self, port: SnapshotCapturePort, *, forced: bool) -> bool:
+    def _save_now(
+        self,
+        port: SnapshotCapturePort,
+        *,
+        participants: tuple[SessionPersistenceParticipant, ...],
+        forced: bool,
+    ) -> bool:
         """Capture and save once while suppressing overlapping writes."""
 
-        if self._save_running:
+        with self._state_lock:
+            save_running = self._save_running
+            if not save_running:
+                self._save_running = True
+        if save_running:
             log_debug(
                 _LOGGER,
                 "session autosave skipped overlapping save",
                 forced=forced,
             )
             return False
-        self._save_running = True
         try:
+            prepared = tuple(
+                participant.prepare_session_persistence()
+                for participant in participants
+            )
             log_debug(
                 _LOGGER,
                 "session autosave capture starting",
@@ -170,17 +226,26 @@ class SessionAutosaveService:
                 forced=forced,
             )
             if forced:
-                self._persist_snapshot(snapshot, forced=forced)
+                if not self._persist_snapshot(
+                    snapshot,
+                    prepared=prepared,
+                    forced=forced,
+                ):
+                    return False
             else:
 
                 def persist_captured_snapshot() -> None:
                     """Persist the captured snapshot outside the UI-critical path."""
 
-                    self._persist_snapshot(snapshot, forced=forced)
+                    self._persist_snapshot(
+                        snapshot,
+                        prepared=prepared,
+                        forced=forced,
+                    )
 
                 self._schedule_persistence(persist_captured_snapshot)
         except Exception as error:
-            self._save_running = False
+            self._finish_save()
             log_exception(
                 _LOGGER,
                 "Failed to save session snapshot",
@@ -197,11 +262,24 @@ class SessionAutosaveService:
         )
         return True
 
-    def _persist_snapshot(self, snapshot: SessionSnapshot, *, forced: bool) -> None:
-        """Persist a captured snapshot and release the save-running guard."""
+    def _persist_snapshot(
+        self,
+        snapshot: SessionSnapshot,
+        *,
+        prepared: tuple[PreparedSessionPersistence, ...],
+        forced: bool,
+    ) -> bool:
+        """Persist a captured snapshot and report complete write success."""
 
+        persistence_name = "session_snapshot"
+        succeeded = False
         try:
+            for item in prepared:
+                persistence_name = item.name
+                item.persist()
+            persistence_name = "session_snapshot"
             self._repository.save(snapshot)
+            succeeded = True
             log_debug(
                 _LOGGER,
                 "session autosave repository save completed",
@@ -212,10 +290,13 @@ class SessionAutosaveService:
                 _LOGGER,
                 "Failed to persist session snapshot",
                 forced=forced,
+                persistence_name=persistence_name,
                 error=error,
             )
         finally:
-            self._save_running = False
+            self._finish_save()
+        if not succeeded:
+            return False
         log_debug(
             _LOGGER,
             "Saved session snapshot",
@@ -223,6 +304,12 @@ class SessionAutosaveService:
             captured_at=snapshot.captured_at.isoformat(),
             workflow_count=len(snapshot.workspace.workflows),
         )
+        return True
+
+    def _finish_save(self) -> None:
+        """Release the cross-thread persistence guard atomically."""
+        with self._state_lock:
+            self._save_running = False
 
 
 __all__ = ["SessionAutosaveService"]

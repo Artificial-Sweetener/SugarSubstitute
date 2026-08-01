@@ -18,10 +18,13 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from PySide6.QtCore import QObject, QTimer
 
+from substitute.application.workspace_state.session_persistence import (
+    SessionPersistenceParticipant,
+)
 from substitute.presentation.shell.main_window_startup_trace import (
     mark_startup_milestone,
 )
@@ -94,15 +97,12 @@ class SessionAutosaveController:
                 workflow_ids=tuple(workflow_session_service.workflows),
             )
             return False
-        if not self._save_editable_input_document():
-            trace_mark(
-                "main_window.force_save_session_snapshot.skipped",
-                reason="editable_input_document_save_failed",
-            )
-            return False
         capture_port = snapshot_capture_adapter_for(self._shell)
         with trace_span("main_window.force_save_session_snapshot.persist"):
-            result = self._shell.session_autosave_service.force_save(capture_port)
+            result = self._shell.session_autosave_service.force_save(
+                capture_port,
+                participants=self._session_persistence_participants(),
+            )
         self._log_editor_width_trace(
             "force save session snapshot completed",
             save_result=result,
@@ -174,14 +174,9 @@ class SessionAutosaveController:
                 "first_autosave_unmuted",
             )
             trace_mark("main_window.session_autosave.first_unmuted")
-        if not self._save_editable_input_document():
-            trace_mark(
-                "main_window.session_autosave.skipped",
-                reason="editable_input_document_save_failed",
-            )
-            return
         self._shell.session_autosave_service.request_save(
-            snapshot_capture_adapter_for(self._shell)
+            snapshot_capture_adapter_for(self._shell),
+            participants=self._session_persistence_participants(),
         )
         self._log_editor_width_trace("session autosave enqueued")
         trace_mark("main_window.session_autosave.enqueued")
@@ -301,16 +296,19 @@ class SessionAutosaveController:
         if callable(log_editor_width_trace):
             log_editor_width_trace(event, **context)
 
-    def _save_editable_input_document(self) -> bool:
-        """Persist complete Input authority before saving references to it."""
-
+    def _session_persistence_participants(
+        self,
+    ) -> tuple[SessionPersistenceParticipant, ...]:
+        """Return shell-owned prerequisites captured by the autosave service."""
         lifecycle = getattr(
             self._shell,
             "input_editable_document_lifecycle",
             None,
         )
-        save = getattr(lifecycle, "save_before_session_snapshot", None)
-        return bool(save()) if callable(save) else True
+        prepare = getattr(lifecycle, "prepare_session_persistence", None)
+        if not callable(prepare):
+            return ()
+        return (cast(SessionPersistenceParticipant, lifecycle),)
 
 
 __all__ = [

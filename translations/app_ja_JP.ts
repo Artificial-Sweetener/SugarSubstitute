@@ -215,7 +215,7 @@ Prompt preview:
       <translation>プロバイダーレコード %1 件、サムネイルソース %2 件、バリエーション %3 件、%4</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="393"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="143"></location>
       <source>%1 px</source>
       <translation>%1 ピクセル</translation>
     </message>
@@ -585,11 +585,6 @@ Prompt preview:
       <translation>保存された ComfyUI アドレスは別のプロセスによって使用されています</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="114"></location>
-      <source>Antialias</source>
-      <translation>アンチエイリアス</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="578"></location>
       <source>Appearance</source>
       <translation>外観</translation>
@@ -775,7 +770,7 @@ Prompt preview:
       <translation>参照...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="110"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="104"></location>
       <source>Brush</source>
       <translation>ブラシ</translation>
     </message>
@@ -1965,11 +1960,6 @@ Prompt preview:
       <translation>現在のターゲットで %1 を検証できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="274"></location>
-      <source>Coverage</source>
-      <translation>適用範囲</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/cube_library/service.py" line="286"></location>
       <source>Cube '%1' (%2)</source>
       <translation>キューブ「%1」（%2）</translation>
@@ -2423,7 +2413,7 @@ Install these nodes now?</source>
       <translation>エディター機能</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="80"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="77"></location>
       <source>Ellipse Mask</source>
       <translation>楕円形マスク</translation>
     </message>
@@ -2651,11 +2641,6 @@ Install these nodes now?</source>
       <location filename="../substitute/application/generation/generation_service.py" line="641"></location>
       <source>Failed to start generation listener</source>
       <translation>生成リスナーを開始できませんでした</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="267"></location>
-      <source>Feather</source>
-      <translation>ぼかし</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="667"></location>
@@ -2893,17 +2878,12 @@ Install these nodes now?</source>
       <translation>緑</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="260"></location>
-      <source>Grow / Shrink</source>
-      <translation>拡張 / 縮小</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/errors.py" line="554"></location>
       <source>HTTP status: %1</source>
       <translation>HTTP ステータス：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="129"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="112"></location>
       <source>Hardness</source>
       <translation>硬さ</translation>
     </message>
@@ -3238,7 +3218,7 @@ Install these nodes now?</source>
       <translation>言語と地域</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="89"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="85"></location>
       <source>Lasso Mask</source>
       <translation>なげなわマスク</translation>
     </message>
@@ -3683,7 +3663,7 @@ Install these nodes now?</source>
       <translation>ほとんどの場合は、最初のオプションから始めてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="61"></location>
       <source>Move</source>
       <translation>移動</translation>
     </message>
@@ -3983,7 +3963,7 @@ Install these nodes now?</source>
       <translation>Pixiv では：</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="136"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="119"></location>
       <source>Opacity</source>
       <translation>不透明度</translation>
     </message>
@@ -4158,7 +4138,7 @@ Install these nodes now?</source>
       <translation>パッケージが読み込まれていません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="120"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="114"></location>
       <source>Pan &amp; Zoom</source>
       <translation>パンとズーム</translation>
     </message>
@@ -4328,7 +4308,7 @@ Install these nodes now?</source>
       <translation>管理対象のアクセラレーション対応を準備しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="1023"></location>
+      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="1022"></location>
       <source>Preparing the application interface.</source>
       <translation>アプリケーション画面を準備しています。</translation>
     </message>
@@ -4583,7 +4563,7 @@ Install these nodes now?</source>
       <translation>録音中…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="69"></location>
       <source>Rectangle Mask</source>
       <translation>長方形マスク</translation>
     </message>
@@ -5527,7 +5507,7 @@ No known extension claimant.</source>
       <translation>クリーンアップが完了する前に、終了処理がタイムアウトしました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="122"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="105"></location>
       <source>Size</source>
       <translation>サイズ</translation>
     </message>
@@ -5542,7 +5522,7 @@ No known extension claimant.</source>
       <translation>利用可能な場合、アクティブなキュー済み生成をスキップします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="98"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="93"></location>
       <source>Smart Select</source>
       <translation>スマート選択</translation>
     </message>

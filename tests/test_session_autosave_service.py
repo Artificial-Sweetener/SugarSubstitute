@@ -26,6 +26,7 @@ from typing import cast
 import pytest
 
 from substitute.application.workspace_state import (
+    PreparedSessionPersistence,
     SessionAutosaveService,
     SnapshotCapturePort,
 )
@@ -72,6 +73,38 @@ class _Repository:
         self.saved.append(snapshot)
 
 
+class _PersistenceParticipant:
+    """Prepare detached prerequisite work and record background execution."""
+
+    def __init__(self, events: list[str]) -> None:
+        """Store shared ordering events."""
+        self.events = events
+        self.prepared = 0
+
+    def prepare_session_persistence(self) -> PreparedSessionPersistence:
+        """Capture one background-safe persistence callback."""
+        self.prepared += 1
+        revision = self.prepared
+        return PreparedSessionPersistence(
+            "fixture",
+            lambda: self.events.append(f"participant-{revision}"),
+        )
+
+
+class _FailingPersistenceParticipant:
+    """Raise from detached persistence after successful owner-thread capture."""
+
+    def prepare_session_persistence(self) -> PreparedSessionPersistence:
+        """Return detached work that deterministically fails."""
+
+        def fail() -> None:
+            """Raise the fixture persistence failure."""
+
+            raise OSError("fixture persistence failed")
+
+        return PreparedSessionPersistence("failing_fixture", fail)
+
+
 def test_session_autosave_force_save_captures_and_persists() -> None:
     """Forced save should synchronously persist the captured snapshot."""
 
@@ -109,6 +142,11 @@ def test_session_autosave_debounces_pending_saves_until_scheduler_runs() -> None
     callback = scheduled.pop()
     assert callable(callback)
     callback()
+    assert capture.calls == 0
+    assert len(scheduled) == 1
+    settled_callback = scheduled.pop()
+    assert callable(settled_callback)
+    settled_callback()
     assert capture.calls == 1
     assert repository.saved == [_snapshot()]
 
@@ -139,6 +177,146 @@ def test_requested_session_autosave_success_is_quiet_at_info(
     assert capture.calls == 1
     assert repository.saved == [_snapshot()]
     assert caplog.records == []
+
+
+def test_session_prerequisite_is_prepared_after_debounce_and_persisted_first() -> None:
+    """Coalesce owner-thread capture and preserve background write ordering."""
+
+    scheduled: list[object] = []
+    persistence: list[object] = []
+    events: list[str] = []
+    capture = _CaptureService()
+    participant = _PersistenceParticipant(events)
+
+    class OrderedRepository(_Repository):
+        """Record repository ordering beside the prerequisite."""
+
+        def save(self, snapshot: SessionSnapshot) -> None:
+            """Record session persistence after prerequisite work."""
+            events.append("session")
+            super().save(snapshot)
+
+    repository = OrderedRepository()
+    service = SessionAutosaveService(
+        capture_service=capture,
+        repository=repository,
+        schedule_debounced=scheduled.append,
+        schedule_persistence=persistence.append,
+    )
+    port = cast(SnapshotCapturePort, object())
+
+    for _ in range(100):
+        service.request_save(port, participants=(participant,))
+
+    assert participant.prepared == 0
+    assert len(scheduled) == 1
+    stale_debounce = scheduled.pop()
+    assert callable(stale_debounce)
+    stale_debounce()
+    assert participant.prepared == 0
+    assert len(scheduled) == 1
+    settled_debounce = scheduled.pop()
+    assert callable(settled_debounce)
+    settled_debounce()
+    assert participant.prepared == 1
+    assert events == []
+    assert len(persistence) == 1
+    persist = persistence.pop()
+    assert callable(persist)
+    persist()
+
+    assert events == ["participant-1", "session"]
+    assert repository.saved == [_snapshot()]
+
+
+def test_edit_arriving_during_persistence_schedules_a_fresh_capture() -> None:
+    """Never lose document changes made while an earlier archive is writing."""
+
+    scheduled: list[object] = []
+    persistence: list[object] = []
+    participant = _PersistenceParticipant([])
+    service = SessionAutosaveService(
+        capture_service=_CaptureService(),
+        repository=_Repository(),
+        schedule_debounced=scheduled.append,
+        schedule_persistence=persistence.append,
+    )
+    port = cast(SnapshotCapturePort, object())
+    service.request_save(port, participants=(participant,))
+    first_debounce = scheduled.pop()
+    assert callable(first_debounce)
+    first_debounce()
+
+    service.request_save(port, participants=(participant,))
+    blocked_debounce = scheduled.pop()
+    assert callable(blocked_debounce)
+    blocked_debounce()
+    assert len(scheduled) == 1
+    assert participant.prepared == 1
+
+    first_persist = persistence.pop()
+    assert callable(first_persist)
+    first_persist()
+    retry = scheduled.pop()
+    assert callable(retry)
+    retry()
+
+    assert participant.prepared == 2
+    assert len(persistence) == 1
+
+
+def test_failed_participant_blocks_snapshot_and_releases_save_guard() -> None:
+    """A prerequisite failure must not publish a mismatched session snapshot."""
+
+    scheduled: list[object] = []
+    persistence: list[object] = []
+    capture = _CaptureService()
+    repository = _Repository()
+    service = SessionAutosaveService(
+        capture_service=capture,
+        repository=repository,
+        schedule_debounced=scheduled.append,
+        schedule_persistence=persistence.append,
+    )
+    port = cast(SnapshotCapturePort, object())
+    service.request_save(port, participants=(_FailingPersistenceParticipant(),))
+    debounce = scheduled.pop()
+    assert callable(debounce)
+    debounce()
+    failed_persistence = persistence.pop()
+    assert callable(failed_persistence)
+    failed_persistence()
+
+    assert repository.saved == []
+    service.request_save(port)
+    retry_debounce = scheduled.pop()
+    assert callable(retry_debounce)
+    retry_debounce()
+    retry_persistence = persistence.pop()
+    assert callable(retry_persistence)
+    retry_persistence()
+
+    assert capture.calls == 2
+    assert repository.saved == [_snapshot()]
+
+
+def test_forced_save_reports_participant_persistence_failure() -> None:
+    """A forced save must report failure when its document prerequisite fails."""
+
+    repository = _Repository()
+    service = SessionAutosaveService(
+        capture_service=_CaptureService(),
+        repository=repository,
+    )
+
+    assert (
+        service.force_save(
+            cast(SnapshotCapturePort, object()),
+            participants=(_FailingPersistenceParticipant(),),
+        )
+        is False
+    )
+    assert repository.saved == []
 
 
 def _snapshot() -> SessionSnapshot:

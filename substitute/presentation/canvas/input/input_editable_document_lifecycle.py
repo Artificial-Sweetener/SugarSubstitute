@@ -5,6 +5,14 @@
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """Persist and restore the authoritative editable Input document."""
 
@@ -14,11 +22,15 @@ from pathlib import Path
 from typing import Protocol
 from uuid import UUID
 
+from substitute.application.workspace_state.session_persistence import (
+    PreparedSessionPersistence,
+)
 from substitute.shared.logging.logger import (
     get_logger,
     log_debug,
     log_exception,
     log_info,
+    log_warning,
 )
 
 _LOGGER = get_logger("presentation.canvas.input.input_editable_document_lifecycle")
@@ -35,6 +47,12 @@ class EditableInputDocumentPort(Protocol):
 
     def restore_editable_document(self, path: Path) -> tuple[UUID, ...]:
         """Restore every editable composition from one archive path."""
+
+    def prepare_editable_document_save(
+        self,
+        path: Path,
+    ) -> PreparedSessionPersistence:
+        """Capture editable authority for later background persistence."""
 
 
 class InputEditableDocumentLifecycle:
@@ -88,6 +106,22 @@ class InputEditableDocumentLifecycle:
         )
         return True
 
+    def prepare_session_persistence(self) -> PreparedSessionPersistence:
+        """Capture current authority and return background-safe persistence."""
+
+        if self._document.has_editable_content():
+            return self._document.prepare_editable_document_save(self._archive_path)
+
+        def remove_stale_archive() -> None:
+            """Remove obsolete persisted authority in the background phase."""
+            if not self._remove_stale_archive():
+                raise OSError("failed to remove stale editable Input document")
+
+        return PreparedSessionPersistence(
+            "editable_input_document",
+            remove_stale_archive,
+        )
+
     def restore_before_workspace_assets(self) -> bool:
         """Restore editable authority once before file-backed fallback hydration."""
 
@@ -105,7 +139,10 @@ class InputEditableDocumentLifecycle:
             composition_ids = self._document.restore_editable_document(
                 self._archive_path
             )
-        except (OSError, RuntimeError, TypeError, ValueError) as error:
+        except (TypeError, ValueError) as error:
+            self._invalidate_rejected_archive(error)
+            return False
+        except (OSError, RuntimeError) as error:
             log_exception(
                 _LOGGER,
                 "Failed to restore editable Input document; file assets remain available",
@@ -121,6 +158,28 @@ class InputEditableDocumentLifecycle:
             composition_ids=tuple(str(value) for value in composition_ids),
         )
         return True
+
+    def _invalidate_rejected_archive(self, error: Exception) -> None:
+        """Discard structurally rejected cache state before file-backed rebuild."""
+
+        try:
+            self._archive_path.unlink(missing_ok=True)
+        except OSError as removal_error:
+            log_exception(
+                _LOGGER,
+                "Failed to invalidate rejected editable Input document cache",
+                archive_path=str(self._archive_path),
+                error=removal_error,
+                rejection_reason=str(error),
+            )
+            return
+        log_warning(
+            _LOGGER,
+            "Invalidated rejected editable Input document cache; file assets remain available",
+            archive_path=str(self._archive_path),
+            error_type=type(error).__name__,
+            rejection_reason=str(error),
+        )
 
     def _remove_stale_archive(self) -> bool:
         """Remove prior document state when the current session has no Input content."""

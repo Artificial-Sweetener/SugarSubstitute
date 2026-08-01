@@ -215,7 +215,7 @@ Prompt preview:
       <translation>%1 条提供方记录、%2 个缩略图来源、%3 个变体，%4</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="393"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="143"></location>
       <source>%1 px</source>
       <translation>%1 像素</translation>
     </message>
@@ -585,11 +585,6 @@ Prompt preview:
       <translation>另一个进程正在使用已保存的 ComfyUI 地址</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="114"></location>
-      <source>Antialias</source>
-      <translation>抗锯齿</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="578"></location>
       <source>Appearance</source>
       <translation>外观</translation>
@@ -775,7 +770,7 @@ Prompt preview:
       <translation>浏览...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="110"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="104"></location>
       <source>Brush</source>
       <translation>画笔</translation>
     </message>
@@ -1965,11 +1960,6 @@ Prompt preview:
       <translation>无法在当前目标上验证 %1。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="274"></location>
-      <source>Coverage</source>
-      <translation>覆盖度</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/cube_library/service.py" line="286"></location>
       <source>Cube '%1' (%2)</source>
       <translation>立方体“%1”（%2）</translation>
@@ -2423,7 +2413,7 @@ Install these nodes now?</source>
       <translation>编辑器功能</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="80"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="77"></location>
       <source>Ellipse Mask</source>
       <translation>椭圆蒙版</translation>
     </message>
@@ -2651,11 +2641,6 @@ Install these nodes now?</source>
       <location filename="../substitute/application/generation/generation_service.py" line="641"></location>
       <source>Failed to start generation listener</source>
       <translation>无法启动生成监听</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="267"></location>
-      <source>Feather</source>
-      <translation>羽化</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="667"></location>
@@ -2893,17 +2878,12 @@ Install these nodes now?</source>
       <translation>绿色</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="260"></location>
-      <source>Grow / Shrink</source>
-      <translation>扩展 / 收缩</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/errors.py" line="554"></location>
       <source>HTTP status: %1</source>
       <translation>HTTP 状态：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="129"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="112"></location>
       <source>Hardness</source>
       <translation>硬度</translation>
     </message>
@@ -3238,7 +3218,7 @@ Install these nodes now?</source>
       <translation>语言和区域</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="89"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="85"></location>
       <source>Lasso Mask</source>
       <translation>套索蒙版</translation>
     </message>
@@ -3683,7 +3663,7 @@ Install these nodes now?</source>
       <translation>大多数用户应从第一个选项开始。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="61"></location>
       <source>Move</source>
       <translation>移动</translation>
     </message>
@@ -3983,7 +3963,7 @@ Install these nodes now?</source>
       <translation>在 Pixiv 上：</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="136"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="119"></location>
       <source>Opacity</source>
       <translation>不透明度</translation>
     </message>
@@ -4158,7 +4138,7 @@ Install these nodes now?</source>
       <translation>软件包未加载</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="120"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="114"></location>
       <source>Pan &amp; Zoom</source>
       <translation>平移和缩放</translation>
     </message>
@@ -4328,7 +4308,7 @@ Install these nodes now?</source>
       <translation>正在准备托管的加速支持。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="1023"></location>
+      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="1022"></location>
       <source>Preparing the application interface.</source>
       <translation>正在准备应用界面。</translation>
     </message>
@@ -4583,7 +4563,7 @@ Install these nodes now?</source>
       <translation>正在录音…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="69"></location>
       <source>Rectangle Mask</source>
       <translation>矩形蒙版</translation>
     </message>
@@ -5527,7 +5507,7 @@ No known extension claimant.</source>
       <translation>清理完成前关闭操作已超时。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="122"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="105"></location>
       <source>Size</source>
       <translation>大小</translation>
     </message>
@@ -5542,7 +5522,7 @@ No known extension claimant.</source>
       <translation>可用时跳过活动的排队生成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="98"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="93"></location>
       <source>Smart Select</source>
       <translation>智能选择</translation>
     </message>

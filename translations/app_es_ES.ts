@@ -215,7 +215,7 @@ Vista previa del prompt:
       <translation>%1 registros de proveedores, %2 fuentes de miniaturas, %3 variantes, %4</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="393"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="143"></location>
       <source>%1 px</source>
       <translation>%1 píxeles</translation>
     </message>
@@ -585,11 +585,6 @@ Vista previa del prompt:
       <translation>Otro proceso ya está usando la dirección guardada de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="114"></location>
-      <source>Antialias</source>
-      <translation>Suavizado</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="578"></location>
       <source>Appearance</source>
       <translation>Apariencia</translation>
@@ -775,7 +770,7 @@ Vista previa del prompt:
       <translation>Examinar...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="110"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="104"></location>
       <source>Brush</source>
       <translation>Pincel</translation>
     </message>
@@ -1965,11 +1960,6 @@ Vista previa del prompt:
       <translation>No se pudo validar %1 en el destino activo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="274"></location>
-      <source>Coverage</source>
-      <translation>Cobertura</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/cube_library/service.py" line="286"></location>
       <source>Cube '%1' (%2)</source>
       <translation>Cubo «%1» (%2)</translation>
@@ -2423,7 +2413,7 @@ Install these nodes now?</source>
       <translation>Funciones del editor</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="80"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="77"></location>
       <source>Ellipse Mask</source>
       <translation>Máscara elíptica</translation>
     </message>
@@ -2651,11 +2641,6 @@ Install these nodes now?</source>
       <location filename="../substitute/application/generation/generation_service.py" line="641"></location>
       <source>Failed to start generation listener</source>
       <translation>No se pudo iniciar la escucha de generación</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="267"></location>
-      <source>Feather</source>
-      <translation>Difuminado</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="667"></location>
@@ -2893,17 +2878,12 @@ Install these nodes now?</source>
       <translation>Verde</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="260"></location>
-      <source>Grow / Shrink</source>
-      <translation>Expandir / Contraer</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/errors.py" line="554"></location>
       <source>HTTP status: %1</source>
       <translation>Estado HTTP: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="129"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="112"></location>
       <source>Hardness</source>
       <translation>Dureza</translation>
     </message>
@@ -3238,7 +3218,7 @@ Install these nodes now?</source>
       <translation>Idioma y región</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="89"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="85"></location>
       <source>Lasso Mask</source>
       <translation>Máscara de lazo</translation>
     </message>
@@ -3683,7 +3663,7 @@ Install these nodes now?</source>
       <translation>La mayoría de los usuarios deberían empezar con la primera opción.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="61"></location>
       <source>Move</source>
       <translation>Mover</translation>
     </message>
@@ -3983,7 +3963,7 @@ Install these nodes now?</source>
       <translation>En Pixiv:</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="136"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="119"></location>
       <source>Opacity</source>
       <translation>Opacidad</translation>
     </message>
@@ -4158,7 +4138,7 @@ Install these nodes now?</source>
       <translation>Paquetes no cargados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="120"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="114"></location>
       <source>Pan &amp; Zoom</source>
       <translation>Desplazar y ampliar</translation>
     </message>
@@ -4328,7 +4308,7 @@ Install these nodes now?</source>
       <translation>Preparando la compatibilidad con aceleración administrada.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="1023"></location>
+      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="1022"></location>
       <source>Preparing the application interface.</source>
       <translation>Preparando la interfaz de la aplicación.</translation>
     </message>
@@ -4583,7 +4563,7 @@ Install these nodes now?</source>
       <translation>Grabando…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="69"></location>
       <source>Rectangle Mask</source>
       <translation>Máscara rectangular</translation>
     </message>
@@ -5527,7 +5507,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Se agotó el tiempo de espera del cierre antes de que terminara la limpieza.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="122"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="105"></location>
       <source>Size</source>
       <translation>Tamaño</translation>
     </message>
@@ -5542,7 +5522,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Omite la generación activa en cola cuando está disponible.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="98"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="93"></location>
       <source>Smart Select</source>
       <translation>Selección inteligente</translation>
     </message>

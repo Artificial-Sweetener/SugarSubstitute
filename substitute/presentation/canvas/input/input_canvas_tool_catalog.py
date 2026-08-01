@@ -35,7 +35,6 @@ INPUT_IMAGE_CAPABILITY = "input.image"
 ACTIVE_MASK_CAPABILITY = "input.active_mask"
 SMART_SELECT_CAPABILITY = "input.smart_select"
 BRUSH_OPTIONS_ID = "input.options.brush"
-MASK_ADJUSTMENT_OPTIONS_ID = "input.options.mask-adjustments"
 BRUSH_TIP_PREVIEW_ID = "input.preview.brush-tip"
 
 
@@ -64,7 +63,6 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 order=100,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
                 operation_id=CuteCanvas.CONTROL_MODE_MOVE,
-                options_id=MASK_ADJUSTMENT_OPTIONS_ID,
             ),
             _mode(
                 InputCanvasToolId.MASK_RECTANGLE,
@@ -73,7 +71,6 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 order=200,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
                 operation_id=CuteCanvas.CONTROL_MODE_MASK_RECTANGLE,
-                options_id=MASK_ADJUSTMENT_OPTIONS_ID,
             ),
             _mode(
                 InputCanvasToolId.MASK_ELLIPSE,
@@ -82,7 +79,6 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 order=300,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
                 operation_id=CuteCanvas.CONTROL_MODE_MASK_ELLIPSE,
-                options_id=MASK_ADJUSTMENT_OPTIONS_ID,
             ),
             _mode(
                 InputCanvasToolId.MASK_LASSO,
@@ -91,7 +87,6 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 order=400,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
                 operation_id=CuteCanvas.CONTROL_MODE_MASK_LASSO,
-                options_id=MASK_ADJUSTMENT_OPTIONS_ID,
             ),
             _mode(
                 InputCanvasToolId.SMART_SELECT,
@@ -103,7 +98,6 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                     SMART_SELECT_CAPABILITY,
                 },
                 operation_id=CuteCanvas.CONTROL_MODE_SMART_SELECT,
-                options_id=MASK_ADJUSTMENT_OPTIONS_ID,
             ),
             _mode(
                 InputCanvasToolId.BRUSH,
@@ -165,7 +159,6 @@ __all__ = [
     "INPUT_CANVAS_CONTEXT_TAGS",
     "INPUT_IMAGE_CAPABILITY",
     "SMART_SELECT_CAPABILITY",
-    "MASK_ADJUSTMENT_OPTIONS_ID",
     "InputCanvasToolId",
     "create_input_canvas_tool_system",
 ]
