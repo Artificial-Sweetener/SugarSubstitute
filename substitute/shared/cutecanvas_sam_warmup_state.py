@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Share temporary CuteCanvas SAM warmup state without crossing app/UI layers."""
+"""Share CuteCanvas SAM dependency readiness without crossing app/UI layers."""
 
 from __future__ import annotations
 
@@ -33,6 +33,7 @@ class CuteCanvasSamWarmupSnapshot:
 
 _STATE_LOCK = Lock()
 _STATE = CuteCanvasSamWarmupSnapshot(state="not_started")
+_TERMINAL_STATES = frozenset({"completed", "disabled", "failed"})
 
 
 def set_cutecanvas_sam_warmup_snapshot(snapshot: CuteCanvasSamWarmupSnapshot) -> None:
@@ -44,10 +45,16 @@ def set_cutecanvas_sam_warmup_snapshot(snapshot: CuteCanvasSamWarmupSnapshot) ->
 
 
 def cutecanvas_sam_warmup_snapshot() -> CuteCanvasSamWarmupSnapshot:
-    """Return the latest dependency warmup state for temporary diagnostics."""
+    """Return the latest dependency warmup state."""
 
     with _STATE_LOCK:
         return _STATE
+
+
+def cutecanvas_sam_warmup_is_terminal() -> bool:
+    """Return whether dependency import work can no longer compete with the GUI."""
+
+    return cutecanvas_sam_warmup_snapshot().state in _TERMINAL_STATES
 
 
 def reset_cutecanvas_sam_warmup_snapshot_for_tests() -> None:
@@ -58,6 +65,7 @@ def reset_cutecanvas_sam_warmup_snapshot_for_tests() -> None:
 
 __all__ = [
     "CuteCanvasSamWarmupSnapshot",
+    "cutecanvas_sam_warmup_is_terminal",
     "cutecanvas_sam_warmup_snapshot",
     "reset_cutecanvas_sam_warmup_snapshot_for_tests",
     "set_cutecanvas_sam_warmup_snapshot",

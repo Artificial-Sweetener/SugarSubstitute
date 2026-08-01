@@ -45,13 +45,18 @@ from substitute.app.bootstrap.ready_shell_launch_gate import (
     ReadyShellLaunchGateState,
     try_begin_ready_shell_launch,
 )
+from substitute.app.bootstrap.ready_shell_minimum_ready import (
+    ReadyShellMinimumReadyStateProtocol,
+    ReadyShellMinimumReadyTask,
+    create_ready_shell_minimum_ready_task,
+    mark_ready_shell_minimum_ready_task,
+)
 from substitute.app.bootstrap.ready_shell_restore_controller import (
     HydrationStartupTimerProtocol,
     ReadyShellPrehydrationResult,
     attach_restore_asset_preload_to_shell,
     hydrate_initial_workspace_after_show,
     log_visible_startup_summary,
-    mark_minimum_shell_ready,
     prepare_hidden_restore_runtime_before_show,
     prehydrate_initial_workspace_before_show,
     schedule_post_show_hydration_after_reveal,
@@ -118,12 +123,6 @@ class ReadyShellPrehydrationStateProtocol(Protocol):
 
     prehydration_attempted: bool
     prehydration_succeeded: bool
-
-
-class ReadyShellMinimumReadyStateProtocol(Protocol):
-    """Record the ready-shell minimum-ready gate state."""
-
-    minimum_shell_ready: bool
 
 
 class ReadyShellActivationStateProtocol(Protocol):
@@ -1329,83 +1328,6 @@ def create_ready_shell_metadata_bridge_task(
         register_bridge=register_bridge,
         main_window_for_shell=main_window_for_shell,
         set_metadata_update_bridge=set_metadata_update_bridge,
-        trace_fields=trace_fields,
-    )
-
-
-def mark_ready_shell_minimum_ready_task(
-    *,
-    startup_cancelled: bool,
-    state: ReadyShellMinimumReadyStateProtocol,
-    try_show_main_window: Callable[[], None],
-    trace_fields: Callable[[], Mapping[str, object]],
-    after_mark_ready: Callable[[], object] | None = None,
-) -> bool:
-    """Run the ready-shell minimum-readiness queue task and update state."""
-
-    return bool(
-        mark_minimum_shell_ready(
-            startup_cancelled=startup_cancelled,
-            mark_ready=lambda: setattr(state, "minimum_shell_ready", True),
-            try_show_main_window=try_show_main_window,
-            trace_fields=trace_fields,
-            after_mark_ready=after_mark_ready,
-        )
-    )
-
-
-class ReadyShellMinimumReadyTask:
-    """Adapt live startup state into the minimum-shell-ready queue task."""
-
-    def __init__(
-        self,
-        *,
-        startup_cancelled: Callable[[], bool],
-        state: ReadyShellMinimumReadyStateProtocol,
-        try_show_main_window: Callable[[], None],
-        trace_fields: Callable[[], Mapping[str, object]],
-        after_mark_ready: Callable[[], object] | None = None,
-    ) -> None:
-        """Store ports required to mark and reveal the minimum ready shell."""
-
-        self._startup_cancelled = startup_cancelled
-        self._state = state
-        self._try_show_main_window = try_show_main_window
-        self._after_mark_ready = after_mark_ready
-        self._trace_fields = trace_fields
-
-    def run(self) -> None:
-        """Run the queue-task callback and discard the mark result."""
-
-        self.mark_ready()
-
-    def mark_ready(self) -> bool:
-        """Mark the shell ready using current startup cancellation state."""
-
-        return mark_ready_shell_minimum_ready_task(
-            startup_cancelled=self._startup_cancelled(),
-            state=self._state,
-            try_show_main_window=self._try_show_main_window,
-            after_mark_ready=self._after_mark_ready,
-            trace_fields=self._trace_fields,
-        )
-
-
-def create_ready_shell_minimum_ready_task(
-    *,
-    startup_cancelled: Callable[[], bool],
-    state: ReadyShellMinimumReadyStateProtocol,
-    try_show_main_window: Callable[[], None],
-    trace_fields: Callable[[], Mapping[str, object]],
-    after_mark_ready: Callable[[], object] | None = None,
-) -> ReadyShellMinimumReadyTask:
-    """Create the live ready-shell minimum-readiness task."""
-
-    return ReadyShellMinimumReadyTask(
-        startup_cancelled=startup_cancelled,
-        state=state,
-        try_show_main_window=try_show_main_window,
-        after_mark_ready=after_mark_ready,
         trace_fields=trace_fields,
     )
 

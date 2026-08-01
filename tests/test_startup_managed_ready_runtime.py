@@ -557,10 +557,10 @@ def test_startup_facade_uses_managed_ready_runtime_resources() -> None:
     assert "managed_ready_runtime.create_local_editor_warmup_adapter" not in source
     assert "managed_ready_runtime.start_cutecanvas_sam_startup_warmup" not in source
     assert (
-        "managed_ready_launch.create_cutecanvas_sam_warmup_callback("
-        not in launch_source
+        "managed_ready_launch.create_cutecanvas_sam_warmup_callback(" in launch_source
     )
-    assert "cutecanvas_sam_warmup()" not in launch_source
+    assert "start_cutecanvas_sam_warmup()" in launch_source
+    assert "prerequisite_ready=cutecanvas_sam_warmup_is_terminal" in launch_source
     assert "managed_ready_launch.create_managed_startup_prelude(" in launch_source
     assert "managed_ready_runtime.create_managed_startup_prelude" not in source
     assert "managed_ready_launch.create_post_show_controller(" in launch_source

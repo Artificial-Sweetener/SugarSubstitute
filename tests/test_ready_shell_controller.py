@@ -30,6 +30,7 @@ import pytest
 from substitute.app.bootstrap import (
     pre_show_restore_projection,
     ready_shell_controller,
+    ready_shell_minimum_ready,
     ready_shell_restore_controller,
     startup_model_metadata,
     startup_warmup_controller,
@@ -1425,6 +1426,70 @@ def test_minimum_ready_task_uses_live_cancellation_state(
         ("mark_minimum_shell_ready_task.start", {"route": "ready"}),
         ("mark_minimum_shell_ready_task.end", {"route": "ready"}),
     ]
+
+
+def test_minimum_ready_task_defers_reveal_until_prerequisite_settles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pre-interactive work must settle before the shell becomes usable."""
+
+    events: list[tuple[str, dict[str, object]]] = []
+    _patch_trace(monkeypatch, events)
+    calls: list[str] = []
+    scheduled: list[tuple[int, Callable[[], None]]] = []
+    prerequisite_ready = [False]
+    state = _MinimumReadyState()
+    task = ready_shell_controller.ReadyShellMinimumReadyTask(
+        startup_cancelled=lambda: False,
+        state=state,
+        try_show_main_window=lambda: calls.append("try_show"),
+        trace_fields=lambda: {"route": "ready"},
+        prerequisite_ready=lambda: prerequisite_ready[0],
+        scheduler=lambda delay, callback: scheduled.append((delay, callback)),
+    )
+
+    task.run()
+
+    assert state.minimum_shell_ready is False
+    assert calls == []
+    assert len(scheduled) == 1
+    assert scheduled[0][0] == 10
+    assert events == [
+        (
+            "mark_minimum_shell_ready_task.deferred",
+            {"reason": "prerequisite_pending", "route": "ready"},
+        )
+    ]
+
+    prerequisite_ready[0] = True
+    scheduled.pop()[1]()
+
+    assert state.minimum_shell_ready is True
+    assert calls == ["try_show"]
+    assert events[-2:] == [
+        ("mark_minimum_shell_ready_task.start", {"route": "ready"}),
+        ("mark_minimum_shell_ready_task.end", {"route": "ready"}),
+    ]
+
+
+def test_minimum_ready_task_cancellation_does_not_poll_prerequisite() -> None:
+    """Cancelled startup must terminate without scheduling another gate turn."""
+
+    scheduled: list[tuple[int, Callable[[], None]]] = []
+    state = _MinimumReadyState()
+    task = ready_shell_controller.ReadyShellMinimumReadyTask(
+        startup_cancelled=lambda: True,
+        state=state,
+        try_show_main_window=lambda: None,
+        trace_fields=lambda: {},
+        prerequisite_ready=lambda: False,
+        scheduler=lambda delay, callback: scheduled.append((delay, callback)),
+    )
+
+    task.run()
+
+    assert state.minimum_shell_ready is False
+    assert scheduled == []
 
 
 def test_create_ready_shell_minimum_ready_task_returns_task() -> None:
@@ -3445,6 +3510,11 @@ def _patch_trace(
     )
     monkeypatch.setattr(
         ready_shell_restore_controller,
+        "trace_mark",
+        lambda event_name, **fields: events.append((event_name, fields)),
+    )
+    monkeypatch.setattr(
+        ready_shell_minimum_ready,
         "trace_mark",
         lambda event_name, **fields: events.append((event_name, fields)),
     )

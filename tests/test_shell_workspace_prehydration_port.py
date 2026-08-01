@@ -79,6 +79,12 @@ def test_shell_workspace_prehydration_port_delegates_to_restore_owners() -> None
     input_payload = object()
     output_payload = object()
 
+    def restore_editable() -> bool:
+        """Record rejected editable-state restore without blocking fallback."""
+
+        calls.append(("restore_editable", ""))
+        return False
+
     def load_input(path: Path) -> object:
         """Record input image loading and return the fake payload."""
 
@@ -113,6 +119,9 @@ def test_shell_workspace_prehydration_port_delegates_to_restore_owners() -> None
         calls.append(("restore_output", (workflow_id, reference, image, image_meta)))
 
     shell = SimpleNamespace(
+        input_editable_document_lifecycle=SimpleNamespace(
+            restore_before_workspace_assets=restore_editable,
+        ),
         shell_prehydrated_restore_controller=SimpleNamespace(
             begin_prehydrated_restore=lambda snapshot: calls.append(
                 ("begin", snapshot)
@@ -153,6 +162,7 @@ def test_shell_workspace_prehydration_port_delegates_to_restore_owners() -> None
     port.finish_prehydrated_restore(workspace)
 
     assert calls == [
+        ("restore_editable", ""),
         ("begin", workspace),
         ("reset", ""),
         ("workflow", (workflow, True)),

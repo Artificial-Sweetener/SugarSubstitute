@@ -55,6 +55,9 @@ from substitute.app.bootstrap.startup_timing import StartupTimer
 from substitute.application.execution import DirectExecutionDispatcher
 from substitute.domain.onboarding import InstallationContext
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
+from substitute.shared.cutecanvas_sam_warmup_state import (
+    cutecanvas_sam_warmup_is_terminal,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,6 +145,14 @@ class StartupManagedReadyShellLauncher:
             resolved_appearance=resolved_appearance,
             start_or_adopt_launch_splash=self.startup_splash_start_or_adopt,
         ).run()
+        start_cutecanvas_sam_warmup = (
+            managed_ready_launch.create_cutecanvas_sam_warmup_callback(
+                startup_cancelled=lambda: self.startup_cancellation_state.cancelled,
+                registry=self.startup_resources,
+                trace_fields=ready_trace_fields,
+            )
+        )
+        start_cutecanvas_sam_warmup()
         local_editor_warmup = managed_ready_launch.create_local_editor_warmup_adapter(
             startup_cancelled=lambda: self.startup_cancellation_state.cancelled,
             main_window_for_shell=self.shell_ports.main_window_for_shell,
@@ -330,6 +341,8 @@ class StartupManagedReadyShellLauncher:
             try_show_main_window=shell_show_gate_task.run,
             trace_fields=ready_trace_fields,
             after_mark_ready=start_post_minimum_ready_warmups,
+            prerequisite_ready=cutecanvas_sam_warmup_is_terminal,
+            scheduler=self.startup_qt_schedulers.single_shot,
         )
         managed_ready_launch.schedule_startup_tasks(
             queue=failure_queue.queue,

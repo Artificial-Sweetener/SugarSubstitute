@@ -403,6 +403,8 @@ class ReadyShellMinimumReadyTaskFactory(Protocol):
         try_show_main_window: Callable[[], None],
         trace_fields: Callable[[], Mapping[str, object]],
         after_mark_ready: Callable[[], object] | None = None,
+        prerequisite_ready: Callable[[], bool] | None = None,
+        scheduler: Callable[[int, Callable[[], None]], None] | None = None,
     ) -> ReadyShellMinimumReadyTask:
         """Return the minimum-ready task for one managed launch."""
 
@@ -922,6 +924,8 @@ def create_startup_managed_ready_runtime_resources(
         try_show_main_window: Callable[[], None],
         trace_fields: Callable[[], Mapping[str, object]],
         after_mark_ready: Callable[[], object] | None = None,
+        prerequisite_ready: Callable[[], bool] | None = None,
+        scheduler: Callable[[int, Callable[[], None]], None] | None = None,
     ) -> ReadyShellMinimumReadyTask:
         """Bind minimum-ready task construction to this managed runtime."""
 
@@ -931,6 +935,8 @@ def create_startup_managed_ready_runtime_resources(
             try_show_main_window=try_show_main_window,
             trace_fields=trace_fields,
             after_mark_ready=after_mark_ready,
+            prerequisite_ready=prerequisite_ready,
+            scheduler=scheduler,
         )
 
     def build_reveal_task(
