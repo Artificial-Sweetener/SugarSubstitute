@@ -18,14 +18,32 @@
 
 from .long_lived_task import LongLivedTaskHandle
 from .cutecanvas_execution_backend import CuteCanvasExecutionBackend
-from .canvas_execution_scheduler import CanvasExecutionPolicy
+from .host_execution_model import (
+    HostExecutionJob,
+    HostExecutionLeaseRelease,
+    HostExecutionRequirements,
+    HostExecutionResource,
+    HostExecutionSnapshot,
+)
+from .host_execution_scheduler import (
+    HostExecutionPolicy,
+    HostExecutionRejected,
+    HostExecutionScheduler,
+)
 from .thread_pool_admission import ThreadPoolAdmission
 from .thread_pool_lane import ThreadPoolExecutionLane
 
 __all__ = [
     "LongLivedTaskHandle",
     "CuteCanvasExecutionBackend",
-    "CanvasExecutionPolicy",
+    "HostExecutionJob",
+    "HostExecutionLeaseRelease",
+    "HostExecutionPolicy",
+    "HostExecutionRejected",
+    "HostExecutionRequirements",
+    "HostExecutionResource",
+    "HostExecutionScheduler",
+    "HostExecutionSnapshot",
     "ThreadPoolAdmission",
     "ThreadPoolExecutionLane",
 ]

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import threading
 from threading import Event
 import time
 
@@ -28,23 +29,25 @@ from cutecanvas import (
     ExecutionRejectionReason,
     ExecutionHandle,
     ExecutionRequest,
+    ExecutionRequirements,
     ExecutionResource,
     ExecutionRuntime,
     InlineDispatcher,
 )
 
 from substitute.infrastructure.execution import (
-    CanvasExecutionPolicy,
     CuteCanvasExecutionBackend,
-    ThreadPoolAdmission,
+    HostExecutionPolicy,
+    HostExecutionResource,
+    HostExecutionScheduler,
 )
 
 
 def test_cutecanvas_backend_runs_one_job_without_sugar_task_lifecycle() -> None:
     """CuteCanvas owns outcomes while SugarSubstitute owns physical admission."""
 
-    admission = _admission(queue_capacity=2)
-    runtime = ExecutionRuntime(_backend(admission))
+    scheduler = _scheduler(max_accepted=2)
+    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(scheduler))
     adopted: list[str] = []
     try:
         scope = runtime.open_scope(owner_id="document", dispatcher=InlineDispatcher())
@@ -59,14 +62,50 @@ def test_cutecanvas_backend_runs_one_job_without_sugar_task_lifecycle() -> None:
         assert adopted == ["ready"]
     finally:
         runtime.shutdown()
-        admission.shutdown(wait=True, cancel_futures=True)
+        scheduler.shutdown(wait=True)
+
+
+@pytest.mark.parametrize("resource", tuple(ExecutionResource))
+def test_every_cutecanvas_resource_runs_on_host_owned_workers(
+    resource: ExecutionResource,
+) -> None:
+    """Keep every current and future canvas resource inside the host."""
+
+    scheduler = _scheduler(max_accepted=2)
+    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(scheduler))
+    try:
+        scope = runtime.open_scope(owner_id="document", dispatcher=InlineDispatcher())
+        affinity_key = "test-resource-affinity"
+        handle: ExecutionHandle[str, object] = scope.submit(
+            ExecutionRequest(
+                operation=f"resource_{resource.value}",
+                requirements=ExecutionRequirements(
+                    resource=resource,
+                    affinity_key=(
+                        affinity_key
+                        if resource is ExecutionResource.THREAD_AFFINE_NATIVE
+                        else None
+                    ),
+                ),
+                work=lambda _context: threading.current_thread().name,
+            )
+        )
+
+        assert _wait_until(lambda: handle.outcome is not None)
+        assert handle.outcome is not None
+        assert handle.outcome.result is not None
+        assert handle.outcome.result.startswith("test-canvas-host-")
+        assert not handle.outcome.result.startswith("qpane-")
+    finally:
+        runtime.shutdown()
+        scheduler.shutdown(wait=True)
 
 
 def test_cutecanvas_backend_rejects_saturation_before_acceptance() -> None:
     """Host lane saturation should remain a synchronous CuteCanvas rejection."""
 
-    admission = _admission(queue_capacity=1)
-    runtime = ExecutionRuntime(_backend(admission))
+    scheduler = _scheduler(max_accepted=1)
+    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(scheduler))
     started = Event()
     release = Event()
     try:
@@ -90,14 +129,14 @@ def test_cutecanvas_backend_rejects_saturation_before_acceptance() -> None:
     finally:
         release.set()
         runtime.shutdown(wait=True)
-        admission.shutdown(wait=True, cancel_futures=True)
+        scheduler.shutdown(wait=True)
 
 
 def test_cutecanvas_backend_cancels_pending_host_work_before_activation() -> None:
     """Cancelling a CuteCanvas scope should remove queued host work safely."""
 
-    admission = _admission(queue_capacity=2)
-    runtime = ExecutionRuntime(_backend(admission))
+    scheduler = _scheduler(max_accepted=2)
+    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(scheduler))
     started = Event()
     release = Event()
     second_started = Event()
@@ -125,28 +164,89 @@ def test_cutecanvas_backend_cancels_pending_host_work_before_activation() -> Non
     finally:
         release.set()
         runtime.shutdown(wait=True)
-        admission.shutdown(wait=True, cancel_futures=True)
+        scheduler.shutdown(wait=True)
 
 
-def _admission(*, queue_capacity: int) -> ThreadPoolAdmission:
-    """Create one minimal host physical lane for QPane adapter coverage."""
+def test_cutecanvas_runtime_reports_the_host_scheduler_snapshot() -> None:
+    """Expose the one physical owner's diagnostics through CuteCanvas."""
 
-    return ThreadPoolAdmission(
-        name="image_decode",
-        max_workers=1,
-        queue_capacity=queue_capacity,
-        thread_name_prefix="test-qpane-host",
-    )
+    scheduler = _scheduler(max_accepted=2)
+    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(scheduler))
+    try:
+        scope = runtime.open_scope(owner_id="document", dispatcher=InlineDispatcher())
+        handle: ExecutionHandle[int, object] = scope.submit(
+            ExecutionRequest(operation="canvas_diagnostics", work=lambda _context: 7)
+        )
+        assert _wait_until(lambda: handle.outcome is not None)
+
+        snapshots = runtime.execution_snapshots()
+
+        assert len(snapshots) == 1
+        assert snapshots[0].accepted == 0
+        assert snapshots[0].pending == 0
+        assert snapshots[0].running == 0
+        assert snapshots[0].completed == 1
+    finally:
+        runtime.shutdown()
+        scheduler.shutdown(wait=True)
 
 
-def _backend(admission: ThreadPoolAdmission) -> CuteCanvasExecutionBackend:
-    """Bind one test admission to native CPU requests."""
+def test_saturated_finalization_runs_after_host_capacity_settles() -> None:
+    """Retain native cleanup until the one host scheduler has capacity."""
 
-    return CuteCanvasExecutionBackend(
-        {
-            ExecutionResource.NATIVE_CPU: admission,
-        },
-        policy=CanvasExecutionPolicy(max_accepted=admission.queue_capacity or 256),
+    scheduler = _scheduler(max_accepted=1)
+    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(scheduler))
+    blocker_started = Event()
+    blocker_release = Event()
+    finalized = Event()
+    try:
+        owner = runtime.open_scope(
+            owner_id="document",
+            dispatcher=InlineDispatcher(),
+        )
+        owner.submit(
+            ExecutionRequest(
+                operation="blocking_owner_work",
+                work=lambda _context: _wait_for_release(
+                    blocker_started,
+                    blocker_release,
+                ),
+            )
+        )
+        assert blocker_started.wait(timeout=1.0)
+        finalization = owner.open_finalization_scope(owner_id="document:finalization")
+        handle: ExecutionHandle[None, object] = finalization.submit(
+            ExecutionRequest(
+                operation="native_cleanup",
+                work=lambda _context: finalized.set(),
+            )
+        )
+
+        blocker_release.set()
+
+        assert finalized.wait(timeout=1.0)
+        assert _wait_until(lambda: handle.outcome is not None)
+    finally:
+        blocker_release.set()
+        runtime.shutdown()
+        scheduler.shutdown(wait=True)
+
+
+def _scheduler(*, max_accepted: int) -> HostExecutionScheduler:
+    """Create one deterministic host scheduler for adapter coverage."""
+
+    return HostExecutionScheduler(
+        HostExecutionPolicy(
+            resource_workers={
+                HostExecutionResource.BLOCKING_IO: 1,
+                HostExecutionResource.PYTHON_CPU: 1,
+                HostExecutionResource.NATIVE_CPU: 1,
+                HostExecutionResource.DEVICE: 1,
+            },
+            affinity_shards=1,
+            max_accepted=max_accepted,
+            thread_name_prefix="test-canvas-host",
+        )
     )
 
 

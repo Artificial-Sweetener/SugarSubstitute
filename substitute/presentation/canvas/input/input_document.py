@@ -365,7 +365,7 @@ class InputCanvasDocument(QObject):
 
         if not self.set_current_image_id(image_id) or not isinstance(size, QSize):
             return None
-        mask_id = self._canvas.createBlankMask(size)
+        mask_id = self._canvas.createBlankMask(size, undoable=False)
         if mask_id is not None:
             self._apply_mask_policy(image_id, mask_id)
             self.toolContextChanged.emit()
@@ -376,7 +376,7 @@ class InputCanvasDocument(QObject):
 
         if not self.set_current_image_id(image_id):
             return None
-        mask_id = self._canvas.loadMaskFromFile(str(path))
+        mask_id = self._canvas.loadMaskFromFile(str(path), undoable=False)
         if mask_id is not None:
             self._apply_mask_policy(image_id, mask_id)
             self.toolContextChanged.emit()

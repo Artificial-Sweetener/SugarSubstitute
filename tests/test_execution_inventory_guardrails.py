@@ -38,7 +38,8 @@ EXECUTION_ADAPTER_FILES = frozenset(
         "substitute/infrastructure/execution/long_lived_task.py",
         "substitute/infrastructure/execution/parallel_map.py",
         "substitute/infrastructure/execution/process_output.py",
-        "substitute/infrastructure/execution/canvas_execution_scheduler.py",
+        "substitute/infrastructure/execution/host_execution_scheduler.py",
+        "substitute/infrastructure/execution/host_execution_diagnostics.py",
         "substitute/infrastructure/execution/thread_pool_admission.py",
         "substitute/infrastructure/execution/thread_pool_lane.py",
         "substitute/application/execution/cancellation.py",
@@ -92,6 +93,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     ),
     "substitute/application/prompt_editor/projection/syntax_service.py": frozenset(
         {"threading.RLock"}
+    ),
+    "substitute/application/workspace_state/session_autosave_service.py": frozenset(
+        {"threading.Lock"}
     ),
     "substitute/devtools/prompt_editor_performance/instrumentation.py": frozenset(
         {"threading.Lock"}
@@ -158,8 +162,14 @@ WORKER_TERMINOLOGY_FILE_REASONS = {
     "substitute/infrastructure/execution/parallel_map.py": (
         "bounded parallel-map adapter owns thread-pool implementation details"
     ),
-    "substitute/infrastructure/execution/canvas_execution_scheduler.py": (
-        "canvas scheduler owns bounded admission across host execution lanes"
+    "substitute/infrastructure/execution/host_execution_scheduler.py": (
+        "host scheduler owns bounded physical canvas execution"
+    ),
+    "substitute/infrastructure/execution/host_execution_model.py": (
+        "host execution values describe physical worker state"
+    ),
+    "substitute/app/bootstrap/canvas_execution_runtime.py": (
+        "canvas execution composition configures host worker capacity"
     ),
     "substitute/application/node_behavior/__init__.py": (
         "exports Comfy sampler_worker domain-role inference"

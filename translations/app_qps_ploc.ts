@@ -426,10 +426,6 @@ Prömpt prëvïëw:
       <translation>⟦Ånöthër pröcëss ïs àlrëàdy üsïng thë sàvëd CömfyÜÏ àddrëss ···⟧</translation>
     </message>
     <message>
-      <source>Antialias</source>
-      <translation>⟦Åntïàlïàs ···⟧</translation>
-    </message>
-    <message>
       <source>Appearance</source>
       <translation>⟦Åppëàràncë ···⟧</translation>
     </message>
@@ -1530,10 +1526,6 @@ Prömpt prëvïëw:
       <translation>⟦Cöüld nöt vàlïdàtë %1 ön thë àctïvë tàrgët. ···⟧</translation>
     </message>
     <message>
-      <source>Coverage</source>
-      <translation>⟦Cövëràgë ···⟧</translation>
-    </message>
-    <message>
       <source>Cube '%1' (%2)</source>
       <translation>⟦Cübë '%1' (%2) ···⟧</translation>
     </message>
@@ -2082,10 +2074,6 @@ Install these nodes now?</source>
       <translation>⟦Fàïlëd tö stàrt gënëràtïön lïstënër ···⟧</translation>
     </message>
     <message>
-      <source>Feather</source>
-      <translation>⟦Fëàthër ···⟧</translation>
-    </message>
-    <message>
       <source>Fetching Danbooru wiki content...</source>
       <translation>⟦Fëtchïng Dànböörü wïkï cöntënt... ···⟧</translation>
     </message>
@@ -2272,10 +2260,6 @@ Install these nodes now?</source>
     <message>
       <source>Green</source>
       <translation>⟦Grëën ···⟧</translation>
-    </message>
-    <message>
-      <source>Grow / Shrink</source>
-      <translation>⟦Gröw / Shrïnk ···⟧</translation>
     </message>
     <message>
       <source>HTTP status: %1</source>

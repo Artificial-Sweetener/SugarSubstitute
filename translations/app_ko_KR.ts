@@ -160,7 +160,7 @@ Prompt preview:
       <translation>제공자 레코드 %1개, 썸네일 소스 %2개, 변형 %3개, %4</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="393"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="143"></location>
       <source>%1 px</source>
       <translation>%1 픽셀</translation>
     </message>
@@ -530,11 +530,6 @@ Prompt preview:
       <translation>다른 프로세스가 이미 저장된 ComfyUI 주소를 사용하고 있습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="114"></location>
-      <source>Antialias</source>
-      <translation>앤티앨리어싱</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="578"></location>
       <source>Appearance</source>
       <translation>모양</translation>
@@ -720,7 +715,7 @@ Prompt preview:
       <translation>찾아보기...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="110"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="104"></location>
       <source>Brush</source>
       <translation>브러시</translation>
     </message>
@@ -1910,11 +1905,6 @@ Prompt preview:
       <translation>활성 대상에서 %1을(를) 검증하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="274"></location>
-      <source>Coverage</source>
-      <translation>적용 범위</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/cube_library/service.py" line="286"></location>
       <source>Cube '%1' (%2)</source>
       <translation>큐브 '%1'(%2)</translation>
@@ -2368,7 +2358,7 @@ Install these nodes now?</source>
       <translation>편집기 기능</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="80"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="77"></location>
       <source>Ellipse Mask</source>
       <translation>타원형 마스크</translation>
     </message>
@@ -2596,11 +2586,6 @@ Install these nodes now?</source>
       <location filename="../substitute/application/generation/generation_service.py" line="641"></location>
       <source>Failed to start generation listener</source>
       <translation>생성 리스너를 시작하지 못했습니다</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="267"></location>
-      <source>Feather</source>
-      <translation>페더</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="667"></location>
@@ -2838,17 +2823,12 @@ Install these nodes now?</source>
       <translation>초록</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="260"></location>
-      <source>Grow / Shrink</source>
-      <translation>확장 / 축소</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/errors.py" line="554"></location>
       <source>HTTP status: %1</source>
       <translation>HTTP 상태: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="129"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="112"></location>
       <source>Hardness</source>
       <translation>경도</translation>
     </message>
@@ -3183,7 +3163,7 @@ Install these nodes now?</source>
       <translation>언어 및 지역</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="89"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="85"></location>
       <source>Lasso Mask</source>
       <translation>올가미 마스크</translation>
     </message>
@@ -3628,7 +3608,7 @@ Install these nodes now?</source>
       <translation>대부분의 사용자는 첫 번째 옵션으로 시작하는 것이 좋습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="61"></location>
       <source>Move</source>
       <translation>이동</translation>
     </message>
@@ -3928,7 +3908,7 @@ Install these nodes now?</source>
       <translation>Pixiv에서:</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="136"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="119"></location>
       <source>Opacity</source>
       <translation>불투명도</translation>
     </message>
@@ -4103,7 +4083,7 @@ Install these nodes now?</source>
       <translation>패키지를 불러오지 않음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="120"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="114"></location>
       <source>Pan &amp; Zoom</source>
       <translation>이동 및 확대/축소</translation>
     </message>
@@ -4273,7 +4253,7 @@ Install these nodes now?</source>
       <translation>관리형 가속 지원을 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="1023"></location>
+      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="1022"></location>
       <source>Preparing the application interface.</source>
       <translation>애플리케이션 인터페이스를 준비하는 중입니다.</translation>
     </message>
@@ -4528,7 +4508,7 @@ Install these nodes now?</source>
       <translation>녹음 중�</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="69"></location>
       <source>Rectangle Mask</source>
       <translation>사각형 마스크</translation>
     </message>
@@ -5472,7 +5452,7 @@ No known extension claimant.</source>
       <translation>정리가 끝나기 전에 종료 제한 시간이 초과되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="122"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="105"></location>
       <source>Size</source>
       <translation>크기</translation>
     </message>
@@ -5487,7 +5467,7 @@ No known extension claimant.</source>
       <translation>사용 가능한 경우 활성 대기열 생성 작업을 건너뜁니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="98"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="93"></location>
       <source>Smart Select</source>
       <translation>스마트 선택</translation>
     </message>

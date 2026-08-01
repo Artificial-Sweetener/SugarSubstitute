@@ -13,6 +13,7 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """Abuse live Input node previews through the real shared CuteCanvas document."""
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from cutecanvas import (
 )
 from PySide6.QtCore import QCoreApplication, QRectF, QSize
 from PySide6.QtGui import QColor, QImage
+from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
 from substitute.application.workflows.input_canvas_models import (
@@ -171,6 +173,8 @@ def test_live_node_previews_share_authority_and_survive_erratic_rebinding() -> N
         image_color = _center_color(image_preview)
         assert image_color.blue() > image_color.red()
         empty_mask_color = _center_color(mask_preview)
+        app.processEvents()
+        preview_changes = QSignalSpy(mask_preview.canvas.sceneChanged)
 
         document.set_active_mask_id(first_mask_id)
         assert (
@@ -181,6 +185,7 @@ def test_live_node_previews_share_authority_and_survive_erratic_rebinding() -> N
             )
             is not None
         )
+        _wait_until(lambda: preview_changes.count() > 0)
         _wait_until(
             lambda: _center_color(mask_preview).value() > empty_mask_color.value()
         )

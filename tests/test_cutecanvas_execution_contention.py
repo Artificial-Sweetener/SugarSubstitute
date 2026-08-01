@@ -35,8 +35,11 @@ from cutecanvas import (
 )
 
 from substitute.infrastructure.execution import (
-    CanvasExecutionPolicy,
     CuteCanvasExecutionBackend,
+    HostExecutionPolicy,
+    HostExecutionRequirements,
+    HostExecutionResource,
+    HostExecutionScheduler,
     ThreadPoolAdmission,
 )
 
@@ -45,8 +48,8 @@ def test_canvas_work_isolated_from_saturated_image_decode() -> None:
     """Let interactive rendering progress while application image decode is blocked."""
 
     image_decode = _admission("image-decode", workers=1, capacity=2)
-    admissions = _canvas_admissions(native_workers=1)
-    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(admissions))
+    scheduler = _canvas_scheduler(native_workers=1)
+    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(scheduler))
     decode_started = Event()
     decode_release = Event()
     canvas_completed = Event()
@@ -73,15 +76,15 @@ def test_canvas_work_isolated_from_saturated_image_decode() -> None:
     finally:
         decode_release.set()
         runtime.shutdown(wait=True)
-        _shutdown(admissions)
+        scheduler.shutdown(wait=True)
         image_decode.shutdown(wait=True, cancel_futures=True)
 
 
 def test_interactive_canvas_work_overtakes_queued_background_work() -> None:
     """Schedule urgency ahead of FIFO order once a physical worker becomes free."""
 
-    admissions = _canvas_admissions(native_workers=1)
-    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(admissions))
+    scheduler = _canvas_scheduler(native_workers=1)
+    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(scheduler))
     blocker_started = Event()
     blocker_release = Event()
     settled = Event()
@@ -127,14 +130,52 @@ def test_interactive_canvas_work_overtakes_queued_background_work() -> None:
     finally:
         blocker_release.set()
         runtime.shutdown(wait=True)
-        _shutdown(admissions)
+        scheduler.shutdown(wait=True)
+
+
+def test_canvas_work_wakes_after_shared_host_capacity_is_released() -> None:
+    """Do not strand accepted canvas work behind another host producer."""
+
+    scheduler = _canvas_scheduler(native_workers=1)
+    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(scheduler))
+    blocker_started = Event()
+    blocker_release = Event()
+    canvas_completed = Event()
+    try:
+        scheduler.submit_detached(
+            lambda: _block_until_released(blocker_started, blocker_release),
+            operation="host_native_blocker",
+            requirements=HostExecutionRequirements(
+                resource=HostExecutionResource.NATIVE_CPU,
+                urgency_rank=10,
+            ),
+        )
+        assert blocker_started.wait(timeout=1.0)
+        scope = runtime.open_scope(
+            owner_id="shared-capacity",
+            dispatcher=InlineDispatcher(),
+        )
+        scope.submit(
+            ExecutionRequest(
+                operation="canvas_after_host_work",
+                work=lambda _context: canvas_completed.set(),
+            )
+        )
+
+        blocker_release.set()
+
+        assert canvas_completed.wait(timeout=1.0)
+    finally:
+        blocker_release.set()
+        runtime.shutdown(wait=True)
+        scheduler.shutdown(wait=True)
 
 
 def test_canvas_maximum_concurrency_is_enforced_per_resource_identity() -> None:
     """Never exceed a request's declared concurrency under a hostile burst."""
 
-    admissions = _canvas_admissions(native_workers=4)
-    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(admissions))
+    scheduler = _canvas_scheduler(native_workers=4)
+    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(scheduler))
     release = Event()
     reached_limit = Event()
     counter_lock = Lock()
@@ -177,26 +218,22 @@ def test_canvas_maximum_concurrency_is_enforced_per_resource_identity() -> None:
         with counter_lock:
             assert active == 2
             assert maximum_active == 2
-        assert admissions[ExecutionResource.NATIVE_CPU].pending_count == 2
+        assert scheduler.snapshot().running == 2
     finally:
         release.set()
         runtime.shutdown(wait=True)
-        _shutdown(admissions)
+        scheduler.shutdown(wait=True)
 
 
 def test_canvas_retained_payload_budget_rejects_before_acceptance() -> None:
     """Reject a payload estimate that exceeds the host's bounded memory policy."""
 
-    admissions = _canvas_admissions(native_workers=1)
-    runtime = ExecutionRuntime(
-        CuteCanvasExecutionBackend(
-            admissions,
-            policy=CanvasExecutionPolicy(
-                max_accepted=4,
-                max_retained_bytes=32,
-            ),
-        )
+    scheduler = _canvas_scheduler(
+        native_workers=1,
+        max_accepted=4,
+        max_retained_bytes=32,
     )
+    runtime = ExecutionRuntime(CuteCanvasExecutionBackend(scheduler))
     try:
         scope = runtime.open_scope(owner_id="retained", dispatcher=InlineDispatcher())
         with pytest.raises(ExecutionRejected) as caught:
@@ -214,33 +251,31 @@ def test_canvas_retained_payload_budget_rejects_before_acceptance() -> None:
         assert ("limit", "retained_bytes") in caught.value.details
     finally:
         runtime.shutdown(wait=True)
-        _shutdown(admissions)
+        scheduler.shutdown(wait=True)
 
 
-def _canvas_admissions(
+def _canvas_scheduler(
     *,
     native_workers: int,
-) -> dict[ExecutionResource, ThreadPoolAdmission]:
-    """Create isolated deterministic admissions for every canvas resource."""
+    max_accepted: int = 256,
+    max_retained_bytes: int = 512 * 1024 * 1024,
+) -> HostExecutionScheduler:
+    """Create one isolated deterministic host scheduler."""
 
-    return {
-        ExecutionResource.BLOCKING_IO: _admission("canvas-io", workers=1, capacity=8),
-        ExecutionResource.PYTHON_CPU: _admission(
-            "canvas-python",
-            workers=1,
-            capacity=8,
-        ),
-        ExecutionResource.NATIVE_CPU: _admission(
-            "canvas-native",
-            workers=native_workers,
-            capacity=16,
-        ),
-        ExecutionResource.DEVICE: _admission(
-            "canvas-device",
-            workers=1,
-            capacity=4,
-        ),
-    }
+    return HostExecutionScheduler(
+        HostExecutionPolicy(
+            resource_workers={
+                HostExecutionResource.BLOCKING_IO: 1,
+                HostExecutionResource.PYTHON_CPU: 1,
+                HostExecutionResource.NATIVE_CPU: native_workers,
+                HostExecutionResource.DEVICE: 1,
+            },
+            affinity_shards=1,
+            max_accepted=max_accepted,
+            max_retained_bytes=max_retained_bytes,
+            thread_name_prefix="test-canvas-host",
+        )
+    )
 
 
 def _admission(
@@ -257,13 +292,6 @@ def _admission(
         queue_capacity=capacity,
         thread_name_prefix=f"test-{name}",
     )
-
-
-def _shutdown(admissions: dict[ExecutionResource, ThreadPoolAdmission]) -> None:
-    """Close every physical test lane after its runtime settles."""
-
-    for admission in admissions.values():
-        admission.shutdown(wait=True, cancel_futures=True)
 
 
 def _block_until_released(started: Event, release: Event) -> None:

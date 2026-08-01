@@ -102,7 +102,7 @@ def test_request_autosave_marks_first_unmuted_once_and_enqueues() -> None:
         _shell_restore_lifecycle="running",
         _startup_autosave_unmuted_marked=False,
         session_autosave_service=SimpleNamespace(
-            request_save=lambda _port: calls.append("request")
+            request_save=lambda _port, **_kwargs: calls.append("request")
         ),
     )
     controller = SessionAutosaveController(shell)
@@ -112,6 +112,37 @@ def test_request_autosave_marks_first_unmuted_once_and_enqueues() -> None:
 
     assert shell._startup_autosave_unmuted_marked is True
     assert calls == ["request", "request"]
+
+
+def test_request_autosave_never_serializes_input_document_synchronously() -> None:
+    """Keep editable-document capture and persistence out of edit dispatch."""
+
+    synchronous_saves: list[str] = []
+    requests: list[object] = []
+
+    def save_synchronously() -> bool:
+        """Record the obsolete synchronous persistence path if invoked."""
+        synchronous_saves.append("save")
+        return True
+
+    shell = SimpleNamespace(
+        _initial_workspace_hydrated=True,
+        _shell_restore_lifecycle="running",
+        _startup_autosave_unmuted_marked=True,
+        input_editable_document_lifecycle=SimpleNamespace(
+            save_before_session_snapshot=save_synchronously,
+        ),
+        session_autosave_service=SimpleNamespace(
+            request_save=lambda port, **_kwargs: requests.append(port),
+        ),
+    )
+    controller = SessionAutosaveController(shell)
+
+    for _ in range(100):
+        controller.request_session_autosave()
+
+    assert synchronous_saves == []
+    assert len(requests) == 100
 
 
 def test_categorized_autosave_routes_through_existing_coordinator() -> None:

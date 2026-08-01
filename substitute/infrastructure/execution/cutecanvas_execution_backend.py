@@ -14,46 +14,69 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Adapt SugarSubstitute physical admission to CuteCanvas execution contracts."""
+"""Translate public CuteCanvas jobs into host-owned physical scheduling."""
 
 from __future__ import annotations
 
-import uuid
-from collections.abc import Mapping
+from collections.abc import Callable
 
 from cutecanvas import (
     BackendSubmission,
+    DiagnosticsSubscription,
     ExecutionBackendCapabilities,
     ExecutionJob,
+    ExecutionLeaseRelease,
     ExecutionRejected,
     ExecutionRejectionReason,
     ExecutionRequirements,
     ExecutionResource,
+    ExecutionSnapshot,
+    ExecutionUrgency,
 )
 
-from substitute.infrastructure.execution.canvas_execution_scheduler import (
-    CanvasExecutionPolicy,
-    CanvasExecutionScheduler,
+from substitute.infrastructure.execution.host_execution_model import (
+    HostExecutionJob,
+    HostExecutionLeaseRelease,
+    HostExecutionRequirements,
+    HostExecutionResource,
+    HostExecutionSnapshot,
 )
-from substitute.infrastructure.execution.thread_pool_admission import (
-    ThreadPoolAdmission,
+from substitute.infrastructure.execution.host_execution_scheduler import (
+    HostExecutionRejected,
+    HostExecutionScheduler,
 )
+
+_RESOURCE_MAP = {
+    ExecutionResource.BLOCKING_IO: HostExecutionResource.BLOCKING_IO,
+    ExecutionResource.PYTHON_CPU: HostExecutionResource.PYTHON_CPU,
+    ExecutionResource.NATIVE_CPU: HostExecutionResource.NATIVE_CPU,
+    ExecutionResource.DEVICE: HostExecutionResource.DEVICE,
+    ExecutionResource.THREAD_AFFINE_NATIVE: (
+        HostExecutionResource.THREAD_AFFINE_NATIVE
+    ),
+}
+_URGENCY_RANK = {
+    ExecutionUrgency.INTERACTIVE: 0,
+    ExecutionUrgency.FOREGROUND: 10,
+    ExecutionUrgency.BACKGROUND: 20,
+    ExecutionUrgency.OPPORTUNISTIC: 30,
+    ExecutionUrgency.MAINTENANCE: 40,
+}
 
 
 class CuteCanvasExecutionBackend:
-    """Schedule CuteCanvas jobs once on the host's selected physical lane."""
+    """Adapt CuteCanvas lifecycle jobs without duplicating their ownership."""
 
     def __init__(
         self,
-        admissions: Mapping[ExecutionResource, ThreadPoolAdmission],
-        *,
-        policy: CanvasExecutionPolicy | None = None,
+        scheduler: HostExecutionScheduler,
     ) -> None:
-        """Bind CuteCanvas scheduling to host-owned resource-specific lanes."""
+        """Bind public execution requirements to one host scheduler."""
 
-        self._scheduler = CanvasExecutionScheduler(admissions, policy=policy)
+        self._scheduler = scheduler
         self._capabilities = ExecutionBackendCapabilities(
-            resources=self._scheduler.resources,
+            resources=frozenset(_RESOURCE_MAP),
+            stable_affinity=True,
             exclusive_resources=True,
             adoption_held_leases=True,
         )
@@ -70,46 +93,89 @@ class CuteCanvasExecutionBackend:
         return self._capabilities.supports(requirements)
 
     def submit(self, job: ExecutionJob) -> BackendSubmission:
-        """Admit ``job.run`` without imposing Sugar task outcome semantics."""
+        """Admit one job without adding host task lifecycle semantics."""
 
         if not self.supports(job.requirements):
             raise ExecutionRejected(
                 ExecutionRejectionReason.UNSUPPORTED_REQUIREMENTS,
                 "CuteCanvas execution requirements exceed host lane capabilities",
             )
-        self._scheduler.submit(job)
-        return _CuteCanvasBackendSubmission(
-            scheduler=self._scheduler,
-            task_id=job.task_id,
+        requirements = job.requirements
+        try:
+            return self._scheduler.submit(
+                HostExecutionJob(
+                    task_id=job.task_id,
+                    operation=job.operation,
+                    requirements=HostExecutionRequirements(
+                        resource=_RESOURCE_MAP[requirements.resource],
+                        urgency_rank=_URGENCY_RANK[requirements.urgency],
+                        resource_id=requirements.resource_id,
+                        exclusive_key=requirements.exclusive_key,
+                        affinity_key=requirements.affinity_key,
+                        maximum_concurrency=requirements.maximum_concurrency,
+                        lease_release=(
+                            HostExecutionLeaseRelease.SETTLEMENT_FINISHED
+                            if requirements.lease_release
+                            is ExecutionLeaseRelease.ADOPTION_FINISHED
+                            else HostExecutionLeaseRelease.WORK_FINISHED
+                        ),
+                        estimated_retained_bytes=(
+                            requirements.estimated_retained_bytes or 0
+                        ),
+                    ),
+                    run=job.run,
+                    cancel_before_start=lambda reason: job.cancel_before_start(
+                        reason=reason
+                    ),
+                    observe_settlement=job.add_settled_callback,
+                )
+            )
+        except HostExecutionRejected as rejection:
+            reason = (
+                ExecutionRejectionReason.BACKEND_UNAVAILABLE
+                if rejection.limit == "scheduler_closed"
+                else ExecutionRejectionReason.SATURATED
+            )
+            raise ExecutionRejected(
+                reason,
+                "SugarSubstitute host execution rejected CuteCanvas work",
+                details=(("limit", rejection.limit),),
+            ) from rejection
+
+    def execution_snapshot(self) -> ExecutionSnapshot:
+        """Translate current host scheduler state for CuteCanvas diagnostics."""
+
+        return _execution_snapshot(self._scheduler.snapshot())
+
+    def subscribe_diagnostics(
+        self,
+        callback: Callable[[ExecutionSnapshot], None],
+    ) -> DiagnosticsSubscription:
+        """Publish coalesced host scheduler snapshots through CuteCanvas."""
+
+        subscription = self._scheduler.subscribe_diagnostics(
+            lambda snapshot: callback(_execution_snapshot(snapshot))
         )
+        return DiagnosticsSubscription(subscription.close)
 
     def shutdown(self, *, wait: bool = False) -> None:
-        """Cancel scheduler-pending work without closing host-owned lanes."""
+        """Release the adapter's host scheduler at process teardown."""
 
-        del wait
-        self._scheduler.close()
+        self._scheduler.shutdown(wait=wait)
 
 
-class _CuteCanvasBackendSubmission:
-    """Cancel a not-yet-started host-future and settle its CuteCanvas job."""
+def _execution_snapshot(snapshot: HostExecutionSnapshot) -> ExecutionSnapshot:
+    """Convert host-only diagnostics to the public CuteCanvas value."""
 
-    def __init__(
-        self,
-        *,
-        scheduler: CanvasExecutionScheduler,
-        task_id: uuid.UUID,
-    ) -> None:
-        """Retain the scheduler identity for one accepted CuteCanvas job."""
-
-        self._scheduler = scheduler
-        self._task_id = task_id
-
-    def cancel(self, *, reason: str) -> bool:
-        """Cancel pending physical work and terminalize CuteCanvas before activation."""
-
-        if not reason.strip():
-            raise ValueError("cancellation reason must not be blank")
-        return self._scheduler.cancel(self._task_id, reason=reason)
+    return ExecutionSnapshot(
+        accepted=snapshot.accepted,
+        pending=snapshot.pending,
+        running=snapshot.running,
+        retained_bytes=snapshot.retained_bytes,
+        rejected=snapshot.rejected,
+        completed=snapshot.completed,
+        cancelled_before_start=snapshot.cancelled_before_start,
+    )
 
 
 __all__ = ["CuteCanvasExecutionBackend"]
