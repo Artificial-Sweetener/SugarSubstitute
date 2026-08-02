@@ -100,7 +100,7 @@ Vista previa del prompt:
       <translation>%1 (omitido)</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/host/canvas_tabs_view.py" line="417"></location>
+      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="189"></location>
       <source>%1 Canvas</source>
       <translation>Lienzo de %1</translation>
     </message>
@@ -215,7 +215,7 @@ Vista previa del prompt:
       <translation>%1 registros de proveedores, %2 fuentes de miniaturas, %3 variantes, %4</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="143"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="207"></location>
       <source>%1 px</source>
       <translation>%1 píxeles</translation>
     </message>
@@ -770,9 +770,14 @@ Vista previa del prompt:
       <translation>Examinar...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="104"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="103"></location>
       <source>Brush</source>
       <translation>Pincel</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="123"></location>
+      <source>Brush settings</source>
+      <translation>Ajustes del pincel</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="111"></location>
@@ -848,11 +853,6 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2097"></location>
       <source>Cancelling the model download.</source>
       <translation>Cancelando la descarga del modelo.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/canvas/host/canvas_tabs_view.py" line="109"></location>
-      <source>Canvas Tab Demo</source>
-      <translation>Demostración de pestaña de lienzo</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1356"></location>
@@ -1375,7 +1375,7 @@ Vista previa del prompt:
       <translation>Haz clic para añadir un punto, arrástralo para moverlo y haz clic derecho para eliminarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="532"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="132"></location>
       <source>Close</source>
       <translation>Cerrar</translation>
     </message>
@@ -1930,7 +1930,7 @@ Vista previa del prompt:
       <translation>No se pudieron instalar los nodos necesarios de la biblioteca de cubos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="964"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="965"></location>
       <source>Could not load image: %1</source>
       <translation>No se pudo cargar la imagen: %1</translation>
     </message>
@@ -2413,7 +2413,7 @@ Install these nodes now?</source>
       <translation>Funciones del editor</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="77"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="76"></location>
       <source>Ellipse Mask</source>
       <translation>Máscara elíptica</translation>
     </message>
@@ -2763,7 +2763,7 @@ Install these nodes now?</source>
       <translation>La generación de escena no encontró ninguna escena ejecutable: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="976"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="977"></location>
       <source>Generated image load failed</source>
       <translation>No se pudo cargar la imagen generada</translation>
     </message>
@@ -2883,7 +2883,7 @@ Install these nodes now?</source>
       <translation>Estado HTTP: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="112"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="165"></location>
       <source>Hardness</source>
       <translation>Dureza</translation>
     </message>
@@ -3218,7 +3218,7 @@ Install these nodes now?</source>
       <translation>Idioma y región</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="85"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="84"></location>
       <source>Lasso Mask</source>
       <translation>Máscara de lazo</translation>
     </message>
@@ -3343,7 +3343,7 @@ Install these nodes now?</source>
       <translation>Palabras de activación de LoRA</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="968"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="969"></location>
       <source>Load Error</source>
       <translation>Error de carga</translation>
     </message>
@@ -3523,12 +3523,12 @@ Install these nodes now?</source>
       <translation>La actualización manual de metadatos necesita un tipo de modelo y un valor.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="869"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="867"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>No se pudieron verificar las dimensiones de la máscara</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="806"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="804"></location>
       <source>Mask dimensions do not match</source>
       <translation>Las dimensiones de la máscara no coinciden</translation>
     </message>
@@ -3663,7 +3663,7 @@ Install these nodes now?</source>
       <translation>La mayoría de los usuarios deberían empezar con la primera opción.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="61"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="60"></location>
       <source>Move</source>
       <translation>Mover</translation>
     </message>
@@ -3778,7 +3778,7 @@ Install these nodes now?</source>
       <translation>No se encontraron cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="135"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="136"></location>
       <source>No input canvas nodes</source>
       <translation>No hay nodos de lienzo de entrada</translation>
     </message>
@@ -3963,7 +3963,7 @@ Install these nodes now?</source>
       <translation>En Pixiv:</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="119"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="172"></location>
       <source>Opacity</source>
       <translation>Opacidad</translation>
     </message>
@@ -4138,7 +4138,7 @@ Install these nodes now?</source>
       <translation>Paquetes no cargados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="114"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="112"></location>
       <source>Pan &amp; Zoom</source>
       <translation>Desplazar y ampliar</translation>
     </message>
@@ -4563,7 +4563,7 @@ Install these nodes now?</source>
       <translation>Grabando…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="69"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="68"></location>
       <source>Rectangle Mask</source>
       <translation>Máscara rectangular</translation>
     </message>
@@ -5507,7 +5507,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Se agotó el tiempo de espera del cierre antes de que terminara la limpieza.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="105"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="158"></location>
       <source>Size</source>
       <translation>Tamaño</translation>
     </message>
@@ -5522,7 +5522,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Omite la generación activa en cola cuando está disponible.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="93"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="92"></location>
       <source>Smart Select</source>
       <translation>Selección inteligente</translation>
     </message>
@@ -6587,12 +6587,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>La carpeta seleccionada no contiene una instalación completa de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="871"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="869"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>No se pudieron comparar las dimensiones de la máscara seleccionada con la imagen de entrada cargada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="808"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="806"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>Las dimensiones de la máscara seleccionada no coinciden con las de la imagen de entrada cargada.</translation>
     </message>

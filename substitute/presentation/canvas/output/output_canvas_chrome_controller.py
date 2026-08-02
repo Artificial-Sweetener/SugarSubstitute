@@ -21,6 +21,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from substitute.presentation.canvas.shared.floating_canvas_surface import (
+    floating_canvas_surface_stylesheet,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class OutputCanvasChromeController:
@@ -44,13 +48,9 @@ class OutputCanvasChromeController:
     def navigation_background_stylesheet(self) -> str:
         """Return the current floating navigation background stylesheet."""
 
-        return (
-            "\n"
-            f"            background-color: {self.surface_rgba()};\n"
-            f"            border: 1px solid {self.border_rgba()};\n"
-            "            border-radius: 8px;\n"
-            "            padding: 0px;\n"
-            "        "
+        return floating_canvas_surface_stylesheet(
+            surface_rgba=self.surface_rgba(),
+            border_rgba=self.border_rgba(),
         )
 
     @staticmethod

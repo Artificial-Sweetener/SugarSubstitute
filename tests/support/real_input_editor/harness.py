@@ -93,7 +93,7 @@ class RealShellInputEditorHarness:
     @property
     def input_canvas(self) -> InputCanvas:
         """Return the production Input canvas mounted by the shell."""
-        return cast(InputCanvas, self.shell.canvas_tabs.canvas_map["Input"])
+        return cast(InputCanvas, self.shell.canvas_host.canvas_for("Input"))
 
     @property
     def image_picker(self) -> ImagePicker:

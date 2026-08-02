@@ -280,9 +280,9 @@ class ShellLayoutRestoreController:
             snapshot.generation_queue_panel_visible or plan.side_panel_visible
         )
         if finalize:
-            canvas_tabs = getattr(self._shell, "canvas_tabs", None)
+            canvas_host = getattr(self._shell, "canvas_host", None)
             apply_canvas_layout = getattr(
-                canvas_tabs,
+                canvas_host,
                 "apply_restored_canvas_layout",
                 None,
             )
@@ -384,7 +384,7 @@ class ShellLayoutRestoreController:
         window_display_state = self.window_display_state(window)
         canvas_layout_snapshot = None
         canvas_snapshot = getattr(
-            getattr(self._shell, "canvas_tabs", None),
+            getattr(self._shell, "canvas_host", None),
             "canvas_layout_snapshot",
             None,
         )
@@ -506,7 +506,7 @@ class ShellLayoutRestoreController:
         if len(main_splitter_sizes) >= 2:
             return max(0, int(main_splitter_sizes[1]))
         return self.safe_trace_width(
-            getattr(self._shell, "canvas_tabs_container", None)
+            getattr(self._shell, "canvas_host_container", None)
         )
 
     def log_editor_width_trace(self, event: str, **context: object) -> None:

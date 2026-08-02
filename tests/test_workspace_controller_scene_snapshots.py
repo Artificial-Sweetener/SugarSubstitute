@@ -144,7 +144,7 @@ def test_build_scene_generation_snapshot_materializes_selected_scene(
         _on_generation_output_image=lambda _output: None,
         _on_generation_failure=lambda _failure: None,
         _log_interrupt_failure=lambda _result: None,
-        canvas_tabs=SimpleNamespace(canvas_map={}),
+        canvas_host=SimpleNamespace(canvas_for={}.get),
         canvas_io_service=SimpleNamespace(),
         workflow_input_canvas_service=SimpleNamespace(),
         workflow_asset_service=SimpleNamespace(),

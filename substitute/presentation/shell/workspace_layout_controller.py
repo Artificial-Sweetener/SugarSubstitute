@@ -320,14 +320,14 @@ class WorkspaceLayoutController:
             "requested autosave after editor output splitter move",
         )
 
-    def toggle_canvas_tabs(self, show: bool) -> None:
-        """Show or hide canvas tabs and request the resulting shell width."""
+    def toggle_canvas_host(self, show: bool) -> None:
+        """Show or hide the canvas host and request the resulting shell width."""
 
         self.log_editor_width_trace(
-            "toggle canvas tabs requested",
-            show_canvas_tabs=show,
+            "toggle canvas host requested",
+            show_canvas_host=show,
         )
-        canvas_width = self._shell.canvas_tabs.sizeHint().width()
+        canvas_width = self._shell.canvas_host.sizeHint().width()
         active_panel = getattr(self._shell, "active_editor_panel", None)
         if callable(active_panel):
             active_panel = active_panel()
@@ -336,15 +336,15 @@ class WorkspaceLayoutController:
 
         if active_panel is None:
             self.log_editor_width_trace(
-                "toggle canvas tabs skipped missing active editor",
-                show_canvas_tabs=show,
+                "toggle canvas host skipped missing active editor",
+                show_canvas_host=show,
             )
             return
         stack_width = int(self._shell.cube_stack_container.width())
         base_width = int(active_panel.width()) + stack_width
 
         if show:
-            if self._shell.splitter.indexOf(self._shell.canvas_tabs_container) == -1:
+            if self._shell.splitter.indexOf(self._shell.canvas_host_container) == -1:
                 details_widget = getattr(
                     self._shell,
                     "editor_output_container",
@@ -353,23 +353,23 @@ class WorkspaceLayoutController:
                 details_index = self._shell.splitter.indexOf(details_widget)
                 self._shell.splitter.insertWidget(
                     details_index + 1,
-                    self._shell.canvas_tabs_container,
+                    self._shell.canvas_host_container,
                 )
             target_width = base_width + canvas_width
             self._shell.resize_requested.emit(target_width)
             self.log_editor_width_trace(
-                "toggle canvas tabs emitted show resize",
+                "toggle canvas host emitted show resize",
                 target_width=target_width,
                 base_width=base_width,
                 canvas_width=canvas_width,
             )
         else:
-            index = self._shell.splitter.indexOf(self._shell.canvas_tabs_container)
+            index = self._shell.splitter.indexOf(self._shell.canvas_host_container)
             if index != -1:
-                self._shell.canvas_tabs_container.setParent(None)
+                self._shell.canvas_host_container.setParent(None)
             self._shell.resize_requested.emit(base_width)
             self.log_editor_width_trace(
-                "toggle canvas tabs emitted hide resize",
+                "toggle canvas host emitted hide resize",
                 target_width=base_width,
                 base_width=base_width,
                 canvas_width=canvas_width,

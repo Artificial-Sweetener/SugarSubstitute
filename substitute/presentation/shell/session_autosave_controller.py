@@ -223,7 +223,7 @@ class SessionAutosaveController:
         """Connect durable floating-canvas layout changes to resize autosave."""
 
         layout_state_changed = getattr(
-            getattr(self._shell, "canvas_tabs", None),
+            getattr(self._shell, "canvas_host", None),
             "layout_state_changed",
             None,
         )

@@ -53,7 +53,7 @@ def collect_canvas_fingerprint(shell: Any) -> CanvasFingerprint:
     )
     return CanvasFingerprint(
         active_workflow_id=shell.workflow_session_service.active_workflow_id,
-        active_canvas_visible=shell.canvas_tabs.is_canvas_visible("Output"),
+        active_canvas_visible=shell.canvas_host.is_canvas_visible("Output"),
         output_session_workflow_id=getattr(
             getattr(output_session, "workflow_id", None), "value", None
         ),

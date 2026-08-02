@@ -35,7 +35,6 @@ INPUT_IMAGE_CAPABILITY = "input.image"
 ACTIVE_MASK_CAPABILITY = "input.active_mask"
 SMART_SELECT_CAPABILITY = "input.smart_select"
 BRUSH_OPTIONS_ID = "input.options.brush"
-BRUSH_TIP_PREVIEW_ID = "input.preview.brush-tip"
 
 
 class InputCanvasToolId:
@@ -107,7 +106,6 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
                 operation_id=CuteCanvas.CONTROL_MODE_DRAW_BRUSH,
                 options_id=BRUSH_OPTIONS_ID,
-                preview_id=BRUSH_TIP_PREVIEW_ID,
             ),
             _mode(
                 InputCanvasToolId.PAN_ZOOM,
@@ -133,7 +131,6 @@ def _mode(
     section: str = "mask",
     operation_id: str,
     options_id: str | None = None,
-    preview_id: str | None = None,
 ) -> CanvasToolContribution:
     """Build one persistent Input tool contribution with common context policy."""
 
@@ -148,14 +145,12 @@ def _mode(
         required_capabilities=frozenset(required_capabilities),
         document_operation_id=operation_id,
         options_id=options_id,
-        preview_id=preview_id,
     )
 
 
 __all__ = [
     "ACTIVE_MASK_CAPABILITY",
     "BRUSH_OPTIONS_ID",
-    "BRUSH_TIP_PREVIEW_ID",
     "INPUT_CANVAS_CONTEXT_TAGS",
     "INPUT_IMAGE_CAPABILITY",
     "SMART_SELECT_CAPABILITY",

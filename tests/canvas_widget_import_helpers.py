@@ -410,19 +410,19 @@ def install_canvas_view_stubs(monkeypatch: Any) -> None:
     qframe.AcrylicWindow = type("AcrylicWindow", (), {})
     monkeypatch.setitem(sys.modules, "qframelesswindow", qframe)
 
-    canvas_tabs: Any = types.ModuleType("substitute.presentation.canvas.factory")
-    canvas_tabs.CanvasTabManager = type("CanvasTabManager", (), {})
-    canvas_tabs.create_canvas_tabs = lambda **_kwargs: SimpleNamespace(
-        canvas_map={},
+    canvas_host: Any = types.ModuleType("substitute.presentation.canvas.factory")
+    canvas_host.CanvasHost = type("CanvasHost", (), {})
+    canvas_host.create_canvas_host = lambda **_kwargs: SimpleNamespace(
+        canvas_for=lambda _route_key: None,
         visibility_changed=SignalStub(),
     )
-    canvas_tabs.create_output_floating_chrome_factory = lambda **_kwargs: (
+    canvas_host.create_output_floating_chrome_factory = lambda **_kwargs: (
         SimpleNamespace()
     )
     monkeypatch.setitem(
         sys.modules,
         "substitute.presentation.canvas.factory",
-        canvas_tabs,
+        canvas_host,
     )
 
 

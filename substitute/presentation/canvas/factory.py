@@ -34,8 +34,8 @@ from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
 from substitute.presentation.canvas.host import (
+    CanvasHost,
     CanvasHostPage,
-    CanvasTabManager,
 )
 from substitute.presentation.canvas.input.input_canvas_view import InputCanvas
 from substitute.presentation.canvas.output.output_floating_chrome import (
@@ -67,7 +67,7 @@ def create_output_floating_chrome_factory(
     )
 
 
-def create_canvas_tabs(
+def create_canvas_host(
     *,
     execution_runtime: ExecutionRuntime | None = None,
     output_preview_registry: OutputPreviewRegistry,
@@ -87,7 +87,7 @@ def create_canvas_tabs(
     generation_progress_strip_registry: (GenerationProgressStripRegistry | None) = None,
     output_floating_chrome_factory: OutputFloatingChromeFactory | None = None,
     route_session_boundary: CanvasRouteSessionBoundaryPort | None = None,
-) -> CanvasTabManager:
+) -> CanvasHost:
     """Build the app canvas host from explicit Input and Output pages."""
 
     output_chrome_factory = output_floating_chrome_factory
@@ -106,7 +106,7 @@ def create_canvas_tabs(
                 generation_progress_strip_registry
             )
 
-    with trace_span("canvas_tabs.create.input_canvas"):
+    with trace_span("canvas_host.create.input_canvas"):
         input_canvas = cast(
             QWidget,
             InputCanvas(
@@ -114,7 +114,7 @@ def create_canvas_tabs(
                 route_session_boundary=route_session_boundary,
             ),
         )
-    with trace_span("canvas_tabs.create.output_canvas"):
+    with trace_span("canvas_host.create.output_canvas"):
         output_canvas = cast(
             QWidget,
             OutputCanvas(
@@ -128,8 +128,8 @@ def create_canvas_tabs(
                 route_session_boundary=route_session_boundary,
             ),
         )
-    with trace_span("canvas_tabs.create.manager"):
-        manager = CanvasTabManager(
+    with trace_span("canvas_host.create.host"):
+        host = CanvasHost(
             pages=(
                 CanvasHostPage(
                     route_key="Input",
@@ -145,7 +145,7 @@ def create_canvas_tabs(
                 ),
             ),
         )
-    return manager
+    return host
 
 
-__all__ = ["create_canvas_tabs", "create_output_floating_chrome_factory"]
+__all__ = ["create_canvas_host", "create_output_floating_chrome_factory"]

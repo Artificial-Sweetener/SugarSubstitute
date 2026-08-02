@@ -170,7 +170,7 @@ class RealShellOutputCanvasHarness:
     def show_canvas(self, label: str) -> None:
         """Select a real canvas tab route."""
 
-        self.shell.canvas_tabs.focus_attached_canvas(label)
+        self.shell.canvas_host.focus_attached_canvas(label)
         self.process_events()
 
     def start_run(self, alias: str, run_index: int = 1) -> GenerationRunHandle:
@@ -580,11 +580,10 @@ class RealShellOutputCanvasHarness:
         *,
         settle_ms: int = 30,
     ) -> None:
-        """Resize the public workspace and process synchronous grid reflow."""
+        """Pin the public canvas extent and process synchronous grid reflow."""
 
         canvas = self.shell.output_canvas
-        canvas.resize(round(width), round(height))
-        canvas.workspace.resize(round(width), round(height))
+        canvas.setFixedSize(round(width), round(height))
         self.drain_events_for(settle_ms)
 
     def fingerprint(self) -> CanvasFingerprint:

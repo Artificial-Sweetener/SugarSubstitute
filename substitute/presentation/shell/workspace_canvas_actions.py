@@ -129,13 +129,14 @@ class OutputCanvasProtocol(Protocol):
         """Close the transient preview lane replaced by a final output."""
 
 
-class CanvasTabsProtocol(Protocol):
-    """Describe canvas-tab registry behavior used by canvas actions."""
+class CanvasHostProtocol(Protocol):
+    """Describe canvas-host behavior used by canvas actions."""
 
-    canvas_map: Mapping[str, object]
+    def canvas_for(self, route_key: str) -> object | None:
+        """Return the configured canvas for a route key."""
 
     def focus_attached_canvas(self, label: str) -> None:
-        """Select one attached canvas tab when it is docked."""
+        """Select one attached canvas when it is docked."""
 
 
 class OutputImagePipelineProtocol(Protocol):
@@ -348,7 +349,7 @@ class WorkspaceCanvasActionView(Protocol):
 
     workflow_session_service: WorkflowSessionServiceProtocol
     workflow_tabbar: WorkflowTabBarProtocol
-    canvas_tabs: CanvasTabsProtocol
+    canvas_host: CanvasHostProtocol
     canvas_io_service: CanvasIoServiceProtocol
     output_canvas_state_service: OutputCanvasStateServiceProtocol
     output_image_pipeline: OutputImagePipelineProtocol
@@ -459,7 +460,7 @@ class WorkspaceCanvasActions:
             return
         view = self._view
         workflow_id = preview.identity.workflow_id
-        output_canvas = view.canvas_tabs.canvas_map.get("Output")
+        output_canvas = view.canvas_host.canvas_for("Output")
         if output_canvas is None:
             self._log_missing_output_canvas(workflow_id)
             return
@@ -502,8 +503,8 @@ class WorkspaceCanvasActions:
         )
         if workflow_id != active_workflow_id:
             return None
-        canvas_tabs = getattr(view, "canvas_tabs", None)
-        is_canvas_visible = getattr(canvas_tabs, "is_canvas_visible", None)
+        canvas_host = getattr(view, "canvas_host", None)
+        is_canvas_visible = getattr(canvas_host, "is_canvas_visible", None)
         if callable(is_canvas_visible) and not bool(is_canvas_visible("Output")):
             return None
         workflows = getattr(session_service, "workflows", None)
@@ -523,7 +524,7 @@ class WorkspaceCanvasActions:
         view = self._view
         if workflow_id != view.workflow_session_service.active_workflow_id:
             return
-        output_canvas = view.canvas_tabs.canvas_map.get("Output")
+        output_canvas = view.canvas_host.canvas_for("Output")
         clear_previews = getattr(output_canvas, "clear_previews", None)
         if callable(clear_previews):
             clear_previews()
@@ -713,7 +714,7 @@ class WorkspaceCanvasActions:
             return
         if not close_result.closed:
             return
-        output_canvas = view.canvas_tabs.canvas_map.get("Output")
+        output_canvas = view.canvas_host.canvas_for("Output")
         apply_preview = getattr(output_canvas, "apply_preview_acceptance", None)
         if callable(apply_preview):
             apply_preview(

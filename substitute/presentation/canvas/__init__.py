@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Canvas presentation widgets and dockable host composition."""
+"""Canvas presentation widgets and selector-based host composition."""
 
 from __future__ import annotations
 
@@ -23,26 +23,26 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from substitute.presentation.canvas.factory import (
-        create_canvas_tabs,
+        create_canvas_host,
         create_output_floating_chrome_factory,
     )
-    from substitute.presentation.canvas.host import CanvasTabManager
+    from substitute.presentation.canvas.host import CanvasHost
     from substitute.presentation.canvas.input.input_canvas_view import InputCanvas
     from substitute.presentation.canvas.output.output_canvas_view import OutputCanvas
 
 _EXPORT_MODULES = {
-    "CanvasTabManager": "substitute.presentation.canvas.host",
+    "CanvasHost": "substitute.presentation.canvas.host",
     "InputCanvas": "substitute.presentation.canvas.input.input_canvas_view",
     "OutputCanvas": "substitute.presentation.canvas.output.output_canvas_view",
-    "create_canvas_tabs": "substitute.presentation.canvas.factory",
+    "create_canvas_host": "substitute.presentation.canvas.factory",
     "create_output_floating_chrome_factory": "substitute.presentation.canvas.factory",
 }
 
 __all__ = [
-    "CanvasTabManager",
+    "CanvasHost",
     "InputCanvas",
     "OutputCanvas",
-    "create_canvas_tabs",
+    "create_canvas_host",
     "create_output_floating_chrome_factory",
 ]
 

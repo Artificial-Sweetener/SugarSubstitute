@@ -83,13 +83,11 @@ class _EditorPanelPort(Protocol):
         """Refresh one editor-panel mask picker preview."""
 
 
-class _CanvasTabsPort(Protocol):
+class _CanvasHostPort(Protocol):
     """Describe attached canvas focus behavior."""
 
-    canvas_map: Mapping[str, object]
-
     def focus_attached_canvas(self, label: str) -> None:
-        """Focus one attached canvas tab."""
+        """Focus one attached canvas."""
 
 
 class _WorkflowInputCanvasServicePort(Protocol):
@@ -217,7 +215,7 @@ class InputCanvasPresenter:
         workflow_session_service: _WorkflowSessionServicePort,
         workflow_input_canvas_service: _WorkflowInputCanvasServicePort,
         input_canvas_state_service: _InputCanvasStateServicePort,
-        canvas_tabs_provider: Callable[[], _CanvasTabsPort | None],
+        canvas_host_provider: Callable[[], _CanvasHostPort | None],
         workflow_name_provider: Callable[[str], str],
         projects_dir_provider: Callable[[], Path],
         mask_color_provider: Callable[[int, int], object],
@@ -236,7 +234,7 @@ class InputCanvasPresenter:
         self._workflow_session_service = workflow_session_service
         self._workflow_input_canvas_service = workflow_input_canvas_service
         self._input_canvas_state_service = input_canvas_state_service
-        self._canvas_tabs_provider = canvas_tabs_provider
+        self._canvas_host_provider = canvas_host_provider
         self._workflow_name_provider = workflow_name_provider
         self._projects_dir_provider = projects_dir_provider
         self._mask_color_provider = mask_color_provider
@@ -718,8 +716,8 @@ class InputCanvasPresenter:
         canvas = getattr(active_workflow, "canvas", None)
         if canvas is not None and label in {"Input", "Output"}:
             canvas.active_canvas_route = label
-        canvas_tabs = self._canvas_tabs_provider()
-        focus_attached_canvas = getattr(canvas_tabs, "focus_attached_canvas", None)
+        canvas_host = self._canvas_host_provider()
+        focus_attached_canvas = getattr(canvas_host, "focus_attached_canvas", None)
         if callable(focus_attached_canvas):
             focus_attached_canvas(label)
 

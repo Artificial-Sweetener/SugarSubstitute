@@ -100,7 +100,7 @@ Prompt preview:
       <translation>%1（已绕过）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/host/canvas_tabs_view.py" line="417"></location>
+      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="189"></location>
       <source>%1 Canvas</source>
       <translation>%1 画布</translation>
     </message>
@@ -215,7 +215,7 @@ Prompt preview:
       <translation>%1 条提供方记录、%2 个缩略图来源、%3 个变体，%4</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="143"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="207"></location>
       <source>%1 px</source>
       <translation>%1 像素</translation>
     </message>
@@ -770,9 +770,14 @@ Prompt preview:
       <translation>浏览...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="104"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="103"></location>
       <source>Brush</source>
       <translation>画笔</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="123"></location>
+      <source>Brush settings</source>
+      <translation>画笔设置</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="111"></location>
@@ -848,11 +853,6 @@ Prompt preview:
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2097"></location>
       <source>Cancelling the model download.</source>
       <translation>正在取消模型下载。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/canvas/host/canvas_tabs_view.py" line="109"></location>
-      <source>Canvas Tab Demo</source>
-      <translation>画布标签页演示</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1356"></location>
@@ -1375,7 +1375,7 @@ Prompt preview:
       <translation>单击添加点，拖动移动，右键单击删除点。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="532"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="132"></location>
       <source>Close</source>
       <translation>关闭</translation>
     </message>
@@ -1930,7 +1930,7 @@ Prompt preview:
       <translation>无法安装立方体库所需的节点。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="964"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="965"></location>
       <source>Could not load image: %1</source>
       <translation>无法加载图片：%1</translation>
     </message>
@@ -2413,7 +2413,7 @@ Install these nodes now?</source>
       <translation>编辑器功能</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="77"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="76"></location>
       <source>Ellipse Mask</source>
       <translation>椭圆蒙版</translation>
     </message>
@@ -2763,7 +2763,7 @@ Install these nodes now?</source>
       <translation>生成场景时找不到可运行的场景：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="976"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="977"></location>
       <source>Generated image load failed</source>
       <translation>加载生成的图像失败</translation>
     </message>
@@ -2883,7 +2883,7 @@ Install these nodes now?</source>
       <translation>HTTP 状态：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="112"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="165"></location>
       <source>Hardness</source>
       <translation>硬度</translation>
     </message>
@@ -3218,7 +3218,7 @@ Install these nodes now?</source>
       <translation>语言和区域</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="85"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="84"></location>
       <source>Lasso Mask</source>
       <translation>套索蒙版</translation>
     </message>
@@ -3343,7 +3343,7 @@ Install these nodes now?</source>
       <translation>LoRA 触发词</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="968"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="969"></location>
       <source>Load Error</source>
       <translation>加载错误</translation>
     </message>
@@ -3523,12 +3523,12 @@ Install these nodes now?</source>
       <translation>手动刷新元数据需要模型类型和值。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="869"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="867"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>无法验证蒙版尺寸</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="806"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="804"></location>
       <source>Mask dimensions do not match</source>
       <translation>蒙版尺寸不匹配</translation>
     </message>
@@ -3663,7 +3663,7 @@ Install these nodes now?</source>
       <translation>大多数用户应从第一个选项开始。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="61"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="60"></location>
       <source>Move</source>
       <translation>移动</translation>
     </message>
@@ -3778,7 +3778,7 @@ Install these nodes now?</source>
       <translation>未找到立方体</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="135"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="136"></location>
       <source>No input canvas nodes</source>
       <translation>没有输入画布节点</translation>
     </message>
@@ -3963,7 +3963,7 @@ Install these nodes now?</source>
       <translation>在 Pixiv 上：</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="119"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="172"></location>
       <source>Opacity</source>
       <translation>不透明度</translation>
     </message>
@@ -4138,7 +4138,7 @@ Install these nodes now?</source>
       <translation>软件包未加载</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="114"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="112"></location>
       <source>Pan &amp; Zoom</source>
       <translation>平移和缩放</translation>
     </message>
@@ -4563,7 +4563,7 @@ Install these nodes now?</source>
       <translation>正在录音…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="69"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="68"></location>
       <source>Rectangle Mask</source>
       <translation>矩形蒙版</translation>
     </message>
@@ -5507,7 +5507,7 @@ No known extension claimant.</source>
       <translation>清理完成前关闭操作已超时。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="105"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="158"></location>
       <source>Size</source>
       <translation>大小</translation>
     </message>
@@ -5522,7 +5522,7 @@ No known extension claimant.</source>
       <translation>可用时跳过活动的排队生成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="93"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="92"></location>
       <source>Smart Select</source>
       <translation>智能选择</translation>
     </message>
@@ -6587,12 +6587,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>所选文件夹不是完整的 ComfyUI 安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="871"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="869"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>无法根据已加载的输入图像验证所选蒙版尺寸。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="808"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="806"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>所选蒙版尺寸与已加载的输入图像不匹配。</translation>
     </message>

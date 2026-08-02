@@ -190,7 +190,7 @@ class FloatingCanvasWindow(AcrylicWindow):  # type: ignore[misc]
         )
 
     def closeEvent(self, event: Any) -> None:
-        """Redock widget back into tab host unless parent manager is closing."""
+        """Redock the canvas into its host unless the parent is closing."""
 
         floating_chrome = getattr(self, "_floating_chrome", None)
         if floating_chrome is not None:

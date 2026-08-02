@@ -45,11 +45,11 @@ def test_workspace_canvas_drag_source_matches_canvas_panes() -> None:
     output_pane = object()
     external_source = object()
     shell = SimpleNamespace(
-        canvas_tabs=SimpleNamespace(
-            canvas_map={
-                "Input": SimpleNamespace(pane=input_pane),
-                "Output": SimpleNamespace(pane=output_pane),
-            }
+        canvas_host=SimpleNamespace(
+            canvases=lambda: (
+                SimpleNamespace(pane=input_pane),
+                SimpleNamespace(pane=output_pane),
+            )
         )
     )
     classifier = WorkspaceCanvasDragSourceClassifier(shell)
@@ -65,17 +65,17 @@ def test_workspace_canvas_drag_source_matches_current_canvas_widget_children() -
     output_canvas = QObject()
     target_canvas = QObject(output_canvas)
     shell = SimpleNamespace(
-        canvas_tabs=SimpleNamespace(canvas_map={"Output": output_canvas})
+        canvas_host=SimpleNamespace(canvases=lambda: (output_canvas,))
     )
     classifier = WorkspaceCanvasDragSourceClassifier(shell)
 
     assert classifier.is_workspace_canvas_drag_source(target_canvas) is True
 
 
-def test_workspace_canvas_drag_source_ignores_missing_canvas_map() -> None:
-    """Missing or non-mapping canvas state should not classify as internal."""
+def test_workspace_canvas_drag_source_ignores_missing_canvas_provider() -> None:
+    """Missing or non-callable canvas providers should not classify sources."""
 
-    shell = SimpleNamespace(canvas_tabs=SimpleNamespace(canvas_map=object()))
+    shell = SimpleNamespace(canvas_host=SimpleNamespace(canvases=object()))
     classifier = WorkspaceCanvasDragSourceClassifier(shell)
 
     assert classifier.is_workspace_canvas_drag_source(object()) is False

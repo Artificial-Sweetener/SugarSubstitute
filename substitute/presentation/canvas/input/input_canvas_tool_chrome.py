@@ -20,21 +20,24 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QPoint
+from PySide6.QtCore import QPoint, QRect
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import MenuAnimationType  # type: ignore[import-untyped]
 
 from substitute.presentation.canvas.input.input_canvas_tool_menu import (
     create_input_canvas_tool_menu,
 )
+from substitute.presentation.canvas.shared.canvas_chrome_metrics import (
+    CANVAS_CHROME_GAP,
+    CANVAS_CHROME_OVERLAY_INSET,
+)
+from substitute.presentation.canvas.shared.canvas_top_bar import CanvasTopBar
 from substitute.presentation.canvas.tools import (
-    CanvasToolOptionsPanel,
+    CanvasToolOptionsHost,
     CanvasToolRuntime,
     CanvasToolStrip,
 )
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
-
-_TOOL_STRIP_INSET = 8
 
 
 class InputCanvasToolChrome:
@@ -56,39 +59,87 @@ class InputCanvasToolChrome:
         self._context_refresh_requested = context_refresh_requested
         self._dock_requested = dock_requested
         self._detached_provider = detached_provider
+        self._host_obstacles: tuple[QRect, ...] = ()
         self._runtime: CanvasToolRuntime | None = None
         self.tool_strip = CanvasToolStrip(canvas)
-        self.tool_strip.move(_TOOL_STRIP_INSET, _TOOL_STRIP_INSET)
+        self.tool_strip.move(
+            CANVAS_CHROME_OVERLAY_INSET,
+            CANVAS_CHROME_OVERLAY_INSET,
+        )
         self.tool_strip.toolRequested.connect(self._tool_requested)
-        self.options_panel = CanvasToolOptionsPanel(canvas)
-        self.options_panel.surfaceChanged.connect(self.sync_geometry)
+        self.top_bar = CanvasTopBar(canvas)
+        self.options_host = CanvasToolOptionsHost(self.top_bar)
+        self.top_bar.append_control(self.options_host)
+        self.options_host.surfaceChanged.connect(self._synchronize_chrome)
+        self.top_bar.geometryChanged.connect(self.sync_geometry)
 
     def bind_runtime(self, runtime: CanvasToolRuntime) -> None:
         """Bind one live runtime to tool buttons and contextual options."""
 
         self._runtime = runtime
         self.tool_strip.bind_palette(runtime.palette)
-        self.options_panel.bind_runtime(runtime)
-        self.sync_geometry()
+        self.options_host.bind_runtime(runtime)
+        self._synchronize_chrome()
         self.tool_strip.raise_()
 
     def set_enabled(self, enabled: bool) -> None:
         """Apply canvas availability to the overlay controls."""
 
         self.tool_strip.setEnabled(enabled)
-        self.options_panel.setEnabled(enabled)
+        self.options_host.setEnabled(enabled)
+
+    def set_host_obstacles(self, obstacles: tuple[QRect, ...]) -> None:
+        """Arrange Input-owned chrome around host-owned overlay rectangles."""
+
+        self._host_obstacles = tuple(QRect(obstacle) for obstacle in obstacles)
+        self.sync_geometry()
 
     def sync_geometry(self) -> None:
-        """Keep content-sized options adjacent without reserving canvas space."""
+        """Position ordered top chrome and the vertical rail without collisions."""
 
-        self.tool_strip.move(_TOOL_STRIP_INSET, _TOOL_STRIP_INSET)
-        self.options_panel.move(
-            self.tool_strip.geometry().right() + _TOOL_STRIP_INSET,
-            _TOOL_STRIP_INSET,
-        )
+        if self.top_bar.isVisible():
+            self.top_bar.move(self._top_bar_origin())
+            self.top_bar.raise_()
+        obstacles = self._host_obstacles
+        if self.top_bar.isVisible():
+            obstacles += (self.top_bar.geometry(),)
+        origin = self._unobstructed_tool_origin(obstacles)
+        self.tool_strip.move(origin)
         self.tool_strip.raise_()
-        if self.options_panel.isVisible():
-            self.options_panel.raise_()
+
+    def _synchronize_chrome(self) -> None:
+        """Project child visibility and intrinsic size before positioning chrome."""
+
+        self.top_bar.synchronize_geometry()
+        self.sync_geometry()
+
+    def _top_bar_origin(self) -> QPoint:
+        """Place Input top-bar controls after intersecting host-owned chrome."""
+
+        candidate = QRect(
+            CANVAS_CHROME_OVERLAY_INSET,
+            CANVAS_CHROME_OVERLAY_INSET,
+            self.top_bar.width(),
+            self.top_bar.height(),
+        )
+        for obstacle in sorted(self._host_obstacles, key=lambda bounds: bounds.left()):
+            if candidate.intersects(obstacle):
+                candidate.moveLeft(obstacle.right() + 1 + CANVAS_CHROME_GAP)
+        return candidate.topLeft()
+
+    def _unobstructed_tool_origin(self, obstacles: tuple[QRect, ...]) -> QPoint:
+        """Place the Input tool rail below every intersecting top surface."""
+
+        candidate = QRect(
+            CANVAS_CHROME_OVERLAY_INSET,
+            CANVAS_CHROME_OVERLAY_INSET,
+            self.tool_strip.width(),
+            self.tool_strip.height(),
+        )
+        for obstacle in sorted(obstacles, key=lambda bounds: bounds.top()):
+            if candidate.intersects(obstacle):
+                candidate.moveTop(obstacle.bottom() + 1 + CANVAS_CHROME_GAP)
+        return candidate.topLeft()
 
     def show_context_menu(self, position: QPoint) -> None:
         """Refresh context and show a menu from the strip's palette snapshot."""

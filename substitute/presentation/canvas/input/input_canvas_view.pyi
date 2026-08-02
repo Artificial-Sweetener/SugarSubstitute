@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QRect, Signal
 from PySide6.QtWidgets import QWidget
 from cutecanvas import CuteCanvas, ExecutionRuntime
 from sugarsubstitute_shared.localization import ApplicationText
@@ -29,8 +29,9 @@ from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
     InputRouteProjectorPort,
 )
+from substitute.presentation.canvas.shared.canvas_top_bar import CanvasTopBar
 from substitute.presentation.canvas.tools import (
-    CanvasToolOptionsPanel,
+    CanvasToolOptionsHost,
     CanvasToolRuntime,
     CanvasToolStrip,
 )
@@ -71,7 +72,11 @@ class InputCanvas(QWidget):
         ...
 
     def set_canvas_detached(self, detached: bool) -> None:
-        """Set manager-owned canvas attachment state."""
+        """Set host-owned canvas attachment state."""
+        ...
+
+    def set_host_chrome_obstacles(self, obstacles: tuple[QRect, ...]) -> None:
+        """Arrange Input tool chrome around host-owned overlay surfaces."""
         ...
 
     @property
@@ -80,8 +85,13 @@ class InputCanvas(QWidget):
         ...
 
     @property
-    def tool_options_panel(self) -> CanvasToolOptionsPanel:
-        """Return the contextual options overlay."""
+    def tool_options_host(self) -> CanvasToolOptionsHost:
+        """Return the contextual top-bar options host."""
+        ...
+
+    @property
+    def canvas_top_bar(self) -> CanvasTopBar:
+        """Return the ordered Input-owned top-bar flow."""
         ...
 
     def bind_tool_runtime(self, runtime: CanvasToolRuntime) -> None:

@@ -104,13 +104,13 @@ class _EditorPanel:
         self.refreshes.append((cube_alias, node_name, new_path))
 
 
-class _CanvasTabs:
-    """Record the canvas tab selected by presentation intent."""
+class _CanvasHost:
+    """Record the canvas selected by presentation intent."""
 
     def __init__(self, input_canvas: object) -> None:
-        """Expose the Input canvas under its production route name."""
+        """Store the Input canvas used by the integration fixture."""
 
-        self.canvas_map = {"Input": input_canvas}
+        self.input_canvas = input_canvas
         self.focused: list[str] = []
 
     def focus_attached_canvas(self, label: str) -> None:
@@ -229,7 +229,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
         graph_section_service=graph_section_service,
     )
     panel = _EditorPanel()
-    canvas_tabs = _CanvasTabs(document.canvas)
+    canvas_host = _CanvasHost(document.canvas)
     runtime = create_input_canvas_tool_system()
     tool_controller = InputCanvasToolController(
         input_document=document,
@@ -251,7 +251,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
         ),
         workflow_input_canvas_service=workflow_service,
         input_canvas_state_service=state_service,
-        canvas_tabs_provider=cast(Callable[[], Any], lambda: canvas_tabs),
+        canvas_host_provider=cast(Callable[[], Any], lambda: canvas_host),
         workflow_name_provider=lambda _workflow_id: workflow_name,
         projects_dir_provider=lambda: tmp_path,
         mask_color_provider=lambda _index, _total: QColor("red"),
@@ -301,5 +301,5 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
     brush = tool_controller.palette.presentation_for(InputCanvasToolId.BRUSH)
     assert brush is not None and brush.enabled is True
     assert document.canvas.getControlMode() == document.canvas.CONTROL_MODE_DRAW_BRUSH
-    assert canvas_tabs.focused == ["Input"]
+    assert canvas_host.focused == ["Input"]
     assert panel.refreshes

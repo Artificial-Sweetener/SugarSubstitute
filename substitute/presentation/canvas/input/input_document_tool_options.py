@@ -62,6 +62,26 @@ class InputDocumentToolOptions:
         """Replace the complete active CuteCanvas brush definition."""
         return bool(self._canvas.setBrushPreset(preset))
 
+    def brush_preview_color(self) -> QColor:
+        """Return the active editable mask color for brush presentation."""
+
+        active_mask_id = self._canvas.activeMaskID()
+        composition_id = self._canvas.currentCompositionID()
+        if active_mask_id is not None and composition_id is not None:
+            active_mask = next(
+                (
+                    mask
+                    for mask in self._canvas.listMasksForComposition(composition_id)
+                    if mask.mask_id == active_mask_id
+                ),
+                None,
+            )
+            if active_mask is not None and active_mask.color is not None:
+                color = QColor(active_mask.color)
+                if color.isValid():
+                    return color
+        return QColor(255, 255, 255)
+
     def render_brush_tip_preview(
         self,
         logical_size: QSize,

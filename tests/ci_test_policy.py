@@ -44,7 +44,7 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_app_orb_action_cluster.py",
         "tests/test_app_orb_menu.py",
         "tests/test_app_orb_renderer.py",
-        "tests/test_canvas_tab_manager_contract.py",
+        "tests/test_canvas_host_contract.py",
         "tests/test_comfy_output_panel_contract.py",
         "tests/test_cube_staging_stack.py",
         "tests/test_danbooru_wiki_dialog.py",

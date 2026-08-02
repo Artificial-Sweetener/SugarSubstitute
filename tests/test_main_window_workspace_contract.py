@@ -625,28 +625,29 @@ def _install_stubs() -> None:
         create_output_floating_chrome_factory
     )
 
-    def create_canvas_tabs(**kwargs: object) -> object:
-        """Return canvas tabs and capture the injected Output chrome factory."""
+    def create_canvas_host(**kwargs: object) -> object:
+        """Return a canvas host and capture the injected Output chrome factory."""
 
+        canvases = {
+            "Input": SimpleNamespace(
+                document="input-document",
+                route_projector="input-projector",
+            ),
+            "Output": SimpleNamespace(
+                route_projector="output-projector",
+                create_projection_content_synchronizer=lambda registry: (
+                    "output-content-synchronizer",
+                    registry,
+                ),
+            ),
+        }
         return SimpleNamespace(
             create_kwargs=kwargs,
-            canvas_map={
-                "Input": SimpleNamespace(
-                    document="input-document",
-                    route_projector="input-projector",
-                ),
-                "Output": SimpleNamespace(
-                    route_projector="output-projector",
-                    create_projection_content_synchronizer=lambda registry: (
-                        "output-content-synchronizer",
-                        registry,
-                    ),
-                ),
-            },
+            canvas_for=canvases.get,
             output_floating_chrome_factory=kwargs.get("output_floating_chrome_factory"),
         )
 
-    canvas_module.create_canvas_tabs = create_canvas_tabs
+    canvas_module.create_canvas_host = create_canvas_host
     sys.modules["substitute.presentation.canvas"] = canvas_module
     workflow_tabs_module = types.ModuleType(
         "substitute.presentation.workflows.workflow_tabs_view"
@@ -727,22 +728,20 @@ def _install_stubs() -> None:
     )
 
 
-def _preserve_stubbed_modules() -> dict[str, types.ModuleType]:
-    """Capture real modules that the workspace stubs temporarily replace."""
+def _is_workspace_stub_module(module_name: str) -> bool:
+    """Identify every module replaced or imported under workspace test stubs."""
 
-    return {
-        module_name: module
-        for module_name, module in sys.modules.items()
-        if module_name == "qfluentwidgets"
+    return (
+        module_name == "qfluentwidgets"
         or module_name.startswith("qfluentwidgets.")
         or module_name == "PySide6"
         or module_name.startswith("PySide6.")
+        or module_name == "substitute.application.workflows"
+        or module_name.startswith("substitute.application.workflows.")
         or module_name
         in {
             "substitute.presentation.shell.main_window_workspace",
             "substitute.presentation.shell.editor_busy_overlay",
-            "substitute.application.workflows",
-            "substitute.application.workflows.canvas_route_projector_port",
             "substitute.presentation.canvas",
             "substitute.presentation.workflows.cube_stack_view",
             "substitute.presentation.workflows.workflow_tabs_view",
@@ -753,6 +752,16 @@ def _preserve_stubbed_modules() -> dict[str, types.ModuleType]:
             "substitute.presentation.shell.workspace_body_material_surface",
             "sugarsubstitute_shared.presentation.terminal.output_stream",
         }
+    )
+
+
+def _preserve_stubbed_modules() -> dict[str, types.ModuleType]:
+    """Capture real modules that the workspace stubs temporarily replace."""
+
+    return {
+        module_name: module
+        for module_name, module in sys.modules.items()
+        if _is_workspace_stub_module(module_name)
     }
 
 
@@ -760,25 +769,7 @@ def _restore_stubbed_modules(preserved_modules: dict[str, types.ModuleType]) -> 
     """Remove temporary stubs and restore previously loaded real modules."""
 
     for module_name in list(sys.modules):
-        if module_name == "qfluentwidgets" or module_name.startswith("qfluentwidgets."):
-            sys.modules.pop(module_name, None)
-        if module_name == "PySide6" or module_name.startswith("PySide6."):
-            sys.modules.pop(module_name, None)
-        if module_name in {
-            "substitute.presentation.shell.main_window_workspace",
-            "substitute.presentation.shell.editor_busy_overlay",
-            "substitute.application.workflows",
-            "substitute.application.workflows.canvas_route_projector_port",
-            "substitute.presentation.canvas",
-            "substitute.presentation.workflows.cube_stack_view",
-            "substitute.presentation.workflows.workflow_tabs_view",
-            "substitute.presentation.shell.chrome_style",
-            "substitute.presentation.shell.comfy_output_panel",
-            "substitute.presentation.shell.generation_progress_strip",
-            "substitute.presentation.shell.window_frame",
-            "substitute.presentation.shell.workspace_body_material_surface",
-            "sugarsubstitute_shared.presentation.terminal.output_stream",
-        }:
+        if _is_workspace_stub_module(module_name):
             sys.modules.pop(module_name, None)
     sys.modules.update(preserved_modules)
 
@@ -841,10 +832,9 @@ def test_build_main_window_workspace_defers_workflow_tabs_and_wires_central_layo
         ]
         is widgets.output_canvas_projection_coordinator
     )
-    assert (
-        widgets.output_canvas_projection_coordinator.kwargs["projection_sink"]
-        is widgets.canvas_tabs.canvas_map["Output"]
-    )
+    assert widgets.output_canvas_projection_coordinator.kwargs[
+        "projection_sink"
+    ] is widgets.canvas_host.canvas_for("Output")
     assert widgets.output_canvas_projection_coordinator.kwargs[
         "content_synchronizer"
     ] == (
@@ -852,15 +842,15 @@ def test_build_main_window_workspace_defers_workflow_tabs_and_wires_central_layo
         widgets.canvas_image_registry,
     )
     assert (
-        widgets.canvas_tabs.output_floating_chrome_factory
+        widgets.canvas_host.output_floating_chrome_factory
         is widgets.output_floating_chrome_factory
     )
     assert (
-        widgets.canvas_tabs.create_kwargs["output_preview_registry"]
+        widgets.canvas_host.create_kwargs["output_preview_registry"]
         is output_preview_registry
     )
-    assert not hasattr(widgets.canvas_tabs, "set_generation_titlebar_control_registry")
-    assert not hasattr(widgets.canvas_tabs, "set_generation_progress_strip_registry")
+    assert not hasattr(widgets.canvas_host, "set_generation_titlebar_control_registry")
+    assert not hasattr(widgets.canvas_host, "set_generation_progress_strip_registry")
     assert widgets.progress_overlay.hidden is True
     assert widgets.editor_busy_overlay.hidden is True
     assert widgets.cube_stack_container.fixed_width == mod.CUBE_STACK_EXPANDED_WIDTH

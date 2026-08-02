@@ -358,7 +358,10 @@ class InputCanvasDocument(QObject):
     def set_mask_properties(self, mask_id: UUID, *, color: QColor) -> bool:
         """Apply host-selected presentation color to one mask."""
 
-        return bool(self._canvas.setMaskProperties(mask_id, color=color))
+        changed = bool(self._canvas.setMaskProperties(mask_id, color=color))
+        if changed:
+            self.toolContextChanged.emit()
+        return changed
 
     def create_blank_mask(self, image_id: UUID, size: object) -> UUID | None:
         """Create one restricted editable mask in an explicitly named image."""

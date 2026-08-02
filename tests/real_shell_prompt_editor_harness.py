@@ -1713,7 +1713,7 @@ class RealShellPromptEditorHarness:
     def click_away_from_editor(self) -> None:
         """Click a real focusable shell widget outside the prompt editor."""
 
-        focus_target = self.shell.canvas_tabs.canvas_map["Input"]
+        focus_target = self.shell.canvas_host.canvas_for("Input")
         if not isinstance(focus_target, QWidget):
             raise AssertionError("Input canvas must be a focusable QWidget")
         focus_target.setFocus(Qt.FocusReason.MouseFocusReason)
@@ -1949,8 +1949,8 @@ class RealShellPromptEditorHarness:
     def switch_canvas(self, label: str) -> None:
         """Switch a real canvas tab through the shell canvas tab manager."""
 
-        self.shell.canvas_tabs.focus_attached_canvas(label)
-        canvas = self.shell.canvas_tabs.canvas_map[label]
+        self.shell.canvas_host.focus_attached_canvas(label)
+        canvas = self.shell.canvas_host.canvas_for(label)
         if isinstance(canvas, QWidget):
             canvas.setFocus(Qt.FocusReason.OtherFocusReason)
         self._trace_actions.append(PromptEditorTraceAction("switch_canvas", label))
@@ -3842,7 +3842,7 @@ class _HarnessShell(QMainWindow):
         self.workspace_body_material_surface = (
             workspace_parts.workspace_body_material_surface
         )
-        self.canvas_tabs = workspace_parts.canvas_tabs
+        self.canvas_host = workspace_parts.canvas_host
         self.cube_stack_container: QStackedWidget = workspace_parts.cube_stack_container
         self.editor_output_container = workspace_parts.editor_output_container
         self.editor_panel_container: QStackedWidget = (
@@ -3857,14 +3857,14 @@ class _HarnessShell(QMainWindow):
             workspace_parts.workflow_canvas_projection_coordinator
         )
         self.canvas_image_registry = workspace_parts.canvas_image_registry
-        self.output_canvas = self.canvas_tabs.canvas_map["Output"]
-        self.canvas_tabs_container = workspace_parts.canvas_tabs_container
+        self.output_canvas = self.canvas_host.canvas_for("Output")
+        self.canvas_host_container = workspace_parts.canvas_host_container
         self.splitter = workspace_parts.splitter
         self.cubeStackModeButton = AppOrbCubeStackButton(self)
         self.workspace_splitter_controller = WorkspaceSplitterController(
             splitter=self.splitter,
             details_widget=self.editor_output_container,
-            canvas_widget=self.canvas_tabs_container,
+            canvas_widget=self.canvas_host_container,
         )
         self.cube_stack_presentation_controller = CubeStackPresentationController(
             container=self.cube_stack_container,
@@ -3883,10 +3883,10 @@ class _HarnessShell(QMainWindow):
         )
         self.main_window_signal_binder = MainWindowSignalBinder(self)
         self.main_window_signal_binder.connect_canvas_signals(
-            input_canvas=self.canvas_tabs.canvas_map["Input"],
+            input_canvas=self.canvas_host.canvas_for("Input"),
             output_canvas=self.output_canvas,
         )
-        self.canvas_tabs.focus_attached_canvas("Input")
+        self.canvas_host.focus_attached_canvas("Input")
         self.show()
 
     def install_workflow_surface(self, workflow_id: str) -> None:

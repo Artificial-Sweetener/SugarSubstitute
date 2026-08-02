@@ -286,7 +286,7 @@ def test_output_canvas_state_service_has_no_widget_or_display_dependencies() -> 
             "QWidget",
             "QImage",
             "QPane",
-            "canvas_tabs",
+            "canvas_host",
             "currentRouteKey",
             "setCurrentImageID",
             "addImage",
