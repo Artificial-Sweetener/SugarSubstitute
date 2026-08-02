@@ -20,7 +20,17 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from PySide6.QtCore import QCoreApplication, QPoint, QRect, QSize, Qt
+from PySide6.QtCore import (
+    QCoreApplication,
+    QEvent,
+    QObject,
+    QPoint,
+    QPointF,
+    QRect,
+    QSize,
+    Qt,
+    qInstallMessageHandler,
+)
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QPushButton, QWidget
@@ -41,6 +51,7 @@ from substitute.presentation.canvas.input.input_tool_options import (
 from substitute.presentation.canvas.shared.canvas_chrome_metrics import (
     CANVAS_CHROME_SURFACE_HEIGHT,
 )
+from substitute.presentation.canvas.shared.canvas_top_bar import CanvasTopBar
 from substitute.presentation.canvas.shared.floating_canvas_surface import (
     floating_canvas_surface_stylesheet,
 )
@@ -51,6 +62,31 @@ def _app() -> QApplication:
 
     instance = QCoreApplication.instance()
     return instance if isinstance(instance, QApplication) else QApplication([])
+
+
+class _LayoutRequestCounter(QObject):
+    """Count layout requests delivered to one observed canvas surface."""
+
+    def __init__(self) -> None:
+        """Create an empty request counter."""
+
+        super().__init__()
+        self.count = 0
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        """Record layout requests without affecting delivery."""
+
+        del watched
+        if event.type() is QEvent.Type.LayoutRequest:
+            self.count += 1
+        return False
+
+
+def _drain_events(application: QApplication, *, iterations: int = 24) -> None:
+    """Drain enough event-loop turns to expose self-scheduling zero timers."""
+
+    for _iteration in range(iterations):
+        application.processEvents()
 
 
 def _mounted_input() -> tuple[InputCanvas, InputCanvasToolController]:
@@ -82,6 +118,117 @@ def _mounted_input() -> tuple[InputCanvas, InputCanvasToolController]:
     canvas.show()
     _app().processEvents()
     return canvas, controller
+
+
+def test_top_bar_cannot_observe_its_own_layout_lifecycle() -> None:
+    """Keep self-generated layout requests outside the top-bar input surface."""
+
+    assert "event" not in CanvasTopBar.__dict__
+
+
+def test_top_bar_reaches_idle_quiescence_after_brush_activation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Canvas chrome must stop scheduling geometry work after one transition."""
+
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, controller = _mounted_input()
+    requests = _LayoutRequestCounter()
+    canvas.canvas_top_bar.installEventFilter(requests)
+    geometry_changes: list[None] = []
+    canvas.canvas_top_bar.geometryChanged.connect(lambda: geometry_changes.append(None))
+    try:
+        assert controller.request_tool(InputCanvasToolId.BRUSH)
+        _drain_events(app)
+        requests.count = 0
+        geometry_changes.clear()
+
+        _drain_events(app, iterations=64)
+
+        assert requests.count == 0
+        assert geometry_changes == []
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_mask_stroke_never_reflows_stable_canvas_chrome(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Brush input must remain isolated from Sugar-owned chrome geometry."""
+
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, controller = _mounted_input()
+    requests = _LayoutRequestCounter()
+    canvas.canvas_top_bar.installEventFilter(requests)
+    geometry_changes: list[None] = []
+    canvas.canvas_top_bar.geometryChanged.connect(lambda: geometry_changes.append(None))
+    try:
+        assert controller.request_tool(InputCanvasToolId.BRUSH)
+        _drain_events(app)
+        start = QPointF(120.0, 240.0)
+        finish = QPointF(720.0, 240.0)
+        requests.count = 0
+        geometry_changes.clear()
+
+        QTest.mousePress(
+            canvas.canvas,
+            Qt.MouseButton.LeftButton,
+            pos=start.toPoint(),
+        )
+        for step in range(1, 13):
+            point = start + (finish - start) * (step / 12.0)
+            QTest.mouseMove(canvas.canvas, point.toPoint(), delay=0)
+            app.processEvents()
+        QTest.mouseRelease(
+            canvas.canvas,
+            Qt.MouseButton.LeftButton,
+            pos=finish.toPoint(),
+        )
+        _drain_events(app)
+
+        assert requests.count == 0
+        assert geometry_changes == []
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_canvas_tool_transitions_settle_without_size_warnings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Repeated options replacement must quiesce without invalid Qt geometry."""
+
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, controller = _mounted_input()
+    messages: list[str] = []
+    previous_handler = qInstallMessageHandler(
+        lambda _mode, _context, message: messages.append(message)
+    )
+    try:
+        for _iteration in range(20):
+            assert controller.request_tool(InputCanvasToolId.BRUSH)
+            app.processEvents()
+            assert controller.request_tool(InputCanvasToolId.MASK_RECTANGLE)
+            app.processEvents()
+        _drain_events(app)
+
+        assert not any("Negative sizes" in message for message in messages)
+        assert canvas.canvas_top_bar.isHidden()
+        assert canvas.canvas_top_bar.size() == QSize(0, 0)
+    finally:
+        qInstallMessageHandler(previous_handler)
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
 
 
 def test_brush_settings_reflow_and_state_follow_one_top_bar(
