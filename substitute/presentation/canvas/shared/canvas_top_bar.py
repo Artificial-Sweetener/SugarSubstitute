@@ -18,8 +18,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QObject, QSize, QTimer, Qt, Signal
-from PySide6.QtWidgets import QHBoxLayout, QWidget
+from PySide6.QtCore import QEvent, QObject, QSize, Qt, Signal
+from PySide6.QtWidgets import QHBoxLayout, QLayout, QWidget
 
 from substitute.presentation.canvas.shared.canvas_chrome_metrics import (
     CANVAS_CHROME_GAP,
@@ -38,10 +38,11 @@ class CanvasTopBar(QWidget):
         self.setObjectName("CanvasTopBar")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setStyleSheet("background: transparent; border: none;")
-        self._geometry_sync_pending = False
+        self._synchronizing_geometry = False
         self._layout = QHBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(CANVAS_CHROME_GAP)
+        self._layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
         self._layout.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
         )
@@ -61,25 +62,34 @@ class CanvasTopBar(QWidget):
         if (
             isinstance(watched, QWidget)
             and watched.parentWidget() is self
-            and event.type() in {QEvent.Type.Show, QEvent.Type.Hide}
+            and (
+                event.type()
+                in {
+                    QEvent.Type.Show,
+                    QEvent.Type.Hide,
+                    QEvent.Type.Resize,
+                    QEvent.Type.LayoutRequest,
+                }
+            )
         ):
             self.synchronize_geometry()
         return handled
 
     def synchronize_geometry(self) -> None:
-        """Resize the overlay to visible layout content and publish changes."""
+        """Publish one idempotent projection of explicit child geometry changes."""
 
-        self._geometry_sync_pending = False
-        self._layout.invalidate()
-        self._layout.activate()
-        visible = self._has_visible_control()
-        self.setVisible(visible)
-        target_size = self._layout.sizeHint() if visible else QSize()
-        if self.size() != target_size:
-            self.setFixedSize(target_size)
-            self._layout.invalidate()
+        if self._synchronizing_geometry:
+            return
+        self._synchronizing_geometry = True
+        previous_size = QSize(self.size())
+        previously_hidden = self.isHidden()
+        try:
+            self.setVisible(self._has_visible_control())
             self._layout.activate()
-        self.geometryChanged.emit()
+        finally:
+            self._synchronizing_geometry = False
+        if previous_size != self.size() or previously_hidden != self.isHidden():
+            self.geometryChanged.emit()
 
     def _has_visible_control(self) -> bool:
         """Derive surface visibility from the authoritative ordered layout."""
@@ -90,18 +100,6 @@ class CanvasTopBar(QWidget):
             if widget is not None and not widget.isHidden():
                 return True
         return False
-
-    def event(self, event: QEvent) -> bool:
-        """Coalesce child layout requests into one intrinsic-size projection."""
-
-        handled = super().event(event)
-        if (
-            event.type() == QEvent.Type.LayoutRequest
-            and not self._geometry_sync_pending
-        ):
-            self._geometry_sync_pending = True
-            QTimer.singleShot(0, self.synchronize_geometry)
-        return handled
 
 
 __all__ = ["CanvasTopBar"]
