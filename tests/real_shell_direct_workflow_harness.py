@@ -646,7 +646,7 @@ class RealShellDirectWorkflowHarness:
             editor_global_left=editor_left,
             editor_left_gutter=left_gutter,
             editor_right_gutter=right_gutter,
-            canvas_width=self.shell.canvas_tabs_container.width(),
+            canvas_width=self.shell.canvas_host_container.width(),
             splitter_sizes=tuple(self.shell.splitter.sizes()),
             button_enabled=self.shell.cubeStackModeButton.isEnabled(),
             button_checked=self.shell.cubeStackModeButton.isChecked(),

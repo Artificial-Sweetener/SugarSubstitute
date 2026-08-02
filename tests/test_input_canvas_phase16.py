@@ -159,8 +159,7 @@ def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
             set_active_input_image=set_active_input_image,
             set_active_workflow_mask=set_active_workflow_mask,
         ),
-        canvas_tabs=SimpleNamespace(
-            canvas_map={"Input": object()},
+        canvas_host=SimpleNamespace(
             focus_attached_canvas=lambda label: focused.append(label),
         ),
     )
@@ -380,7 +379,7 @@ def _presenter(
     current_image_id_provider: Callable[[], UUID | None] | None = None,
     input_canvas_state_service: Any | None = None,
     workflow_input_canvas_service: Any | None = None,
-    canvas_tabs: Any | None = None,
+    canvas_host: Any | None = None,
     timer: type[_Timer] = _Timer,
 ) -> InputCanvasPresenter:
     """Build an InputCanvasPresenter with focused test collaborators."""
@@ -428,7 +427,7 @@ def _presenter(
         ),
         workflow_input_canvas_service=cast(Any, workflow_input_canvas_service),
         input_canvas_state_service=cast(Any, input_canvas_state_service),
-        canvas_tabs_provider=lambda: cast(Any, canvas_tabs),
+        canvas_host_provider=lambda: cast(Any, canvas_host),
         workflow_name_provider=lambda _workflow_id: "Recipe",
         projects_dir_provider=lambda: asset_path.parent,
         mask_color_provider=lambda index, total: f"color-{index}/{total}",

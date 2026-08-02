@@ -35,9 +35,11 @@ def test_refresh_input_canvas_availability_projects_active_capability() -> None:
                 active_workflow is workflow
             )
         ),
-        canvas_tabs=SimpleNamespace(
-            set_canvas_available=lambda label, available, *, reason, fallback_label: (
-                availability_calls.append((label, available, reason, fallback_label))
+        canvas_host=SimpleNamespace(
+            set_canvas_available=lambda label, available, *, reason, fallback_route_key: (
+                availability_calls.append(
+                    (label, available, reason, fallback_route_key)
+                )
             )
         ),
     )
@@ -57,7 +59,7 @@ def test_refresh_input_canvas_availability_restores_remembered_input_route() -> 
         input_canvas_capability_service=SimpleNamespace(
             workflow_needs_input_canvas=lambda _workflow: True
         ),
-        canvas_tabs=SimpleNamespace(
+        canvas_host=SimpleNamespace(
             set_canvas_available=lambda *_args, **_kwargs: None,
             focus_attached_canvas=lambda route: focus_calls.append(route),
         ),
@@ -87,7 +89,7 @@ def test_refresh_input_canvas_availability_defaults_loaded_input_workflow_to_inp
         input_canvas_capability_service=SimpleNamespace(
             workflow_needs_input_canvas=lambda _workflow: True
         ),
-        canvas_tabs=SimpleNamespace(
+        canvas_host=SimpleNamespace(
             set_canvas_available=lambda *_args, **_kwargs: None,
             focus_attached_canvas=lambda route: focus_calls.append(route),
         ),
@@ -109,7 +111,7 @@ def test_refresh_input_canvas_availability_coerces_unavailable_input_route() -> 
         input_canvas_capability_service=SimpleNamespace(
             workflow_needs_input_canvas=lambda _workflow: False
         ),
-        canvas_tabs=SimpleNamespace(
+        canvas_host=SimpleNamespace(
             set_canvas_available=lambda *_args, **_kwargs: None,
             focus_attached_canvas=lambda route: focus_calls.append(route),
         ),
@@ -122,7 +124,7 @@ def test_refresh_input_canvas_availability_coerces_unavailable_input_route() -> 
 
 
 def test_record_active_canvas_route_persists_known_route_on_active_workflow() -> None:
-    """Canvas pivot changes should update active workflow route memory."""
+    """Canvas selector changes should update active workflow route memory."""
 
     workflow = SimpleNamespace(canvas=SimpleNamespace(active_canvas_route=None))
     shell = _canvas_route_shell(workflow=workflow)
@@ -141,7 +143,7 @@ def test_connect_canvas_route_signals_records_route_changes() -> None:
     signal = _Signal()
     shell = _canvas_route_shell(
         workflow=workflow,
-        canvas_tabs=SimpleNamespace(canvas_activated=signal),
+        canvas_host=SimpleNamespace(canvas_activated=signal),
     )
 
     CanvasRouteController(shell).connect_canvas_route_signals()
@@ -189,7 +191,7 @@ def _canvas_route_shell(
     *,
     workflow: object | None = None,
     input_canvas_capability_service: object | None = None,
-    canvas_tabs: object | None = None,
+    canvas_host: object | None = None,
 ) -> SimpleNamespace:
     """Build a shell fake with canvas route dependencies."""
 
@@ -200,7 +202,7 @@ def _canvas_route_shell(
         get_active_workflow=lambda: active_workflow,
         input_canvas_capability_service=input_canvas_capability_service
         or SimpleNamespace(workflow_needs_input_canvas=lambda _workflow: False),
-        canvas_tabs=canvas_tabs
+        canvas_host=canvas_host
         or SimpleNamespace(
             set_canvas_available=lambda *_args, **_kwargs: None,
             focus_attached_canvas=lambda _route: None,

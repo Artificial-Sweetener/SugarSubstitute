@@ -21,15 +21,40 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Protocol
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QColor, QImage, QPixmap, QShowEvent
-from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QWidget
+from PySide6.QtGui import QColor, QIcon, QImage, QPixmap, QShowEvent
+from PySide6.QtWidgets import (
+    QGridLayout,
+    QHBoxLayout,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 from cutecanvas import BrushPreset
-from qfluentwidgets import CaptionLabel, Slider  # type: ignore[import-untyped]
-from sugarsubstitute_shared.presentation.localization import app_text
+from qfluentwidgets import (  # type: ignore[import-untyped]
+    CaptionLabel,
+    FluentIcon,
+    SegmentedItem,
+    Slider,
+    TransparentToolButton,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    apply_application_text,
+    set_localized_accessible_name,
+    set_localized_tooltip,
+)
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
     BRUSH_OPTIONS_ID,
 )
-from substitute.presentation.canvas.tools import CanvasToolRuntime
+from substitute.presentation.canvas.shared.canvas_chrome_metrics import (
+    CANVAS_CHROME_CONTROL_HEIGHT,
+    CANVAS_CHROME_GAP,
+)
+from substitute.presentation.canvas.tools import (
+    CanvasToolOptionsControl,
+    CanvasToolRuntime,
+)
+from substitute.presentation.localization import LocalizedCaptionLabel
 
 
 class OptionsSignalPort(Protocol):
@@ -52,6 +77,9 @@ class InputToolOptionsDocumentPort(Protocol):
     def set_brush_preset(self, preset: BrushPreset) -> bool:
         """Replace the active immutable brush definition."""
 
+    def brush_preview_color(self) -> QColor:
+        """Return the detached color of the active editable layer."""
+
     def render_brush_tip_preview(
         self,
         logical_size: QSize,
@@ -62,27 +90,52 @@ class InputToolOptionsDocumentPort(Protocol):
         """Render a DPR-aware brush-tip image."""
 
 
-_BRUSH_PREVIEW_SIZE = QSize(48, 48)
+_BRUSH_PREVIEW_SIZE = QSize(20, 20)
+_HEADER_MINIMUM_WIDTH = 132
 
 
-class InputBrushOptions(QWidget):
-    """Edit brush size, hardness, and opacity with a live authoritative preview."""
+class InputBrushSettingsControl(CanvasToolOptionsControl):
+    """Present compact and expanded brush settings from authoritative state."""
 
     def __init__(
         self,
         document: InputToolOptionsDocumentPort,
         parent: QWidget,
     ) -> None:
-        """Build compact Fluent controls and bind brush state changes."""
+        """Build one persistent header and collapsible detailed controls."""
 
         super().__init__(parent)
-        self.setObjectName("InputBrushOptions")
+        self.setObjectName("InputBrushSettingsControl")
         self._document = document
         self._synchronizing = False
-        self.preview = QLabel(self)
-        self.preview.setObjectName("InputBrushTipPreview")
-        self.preview.setFixedSize(_BRUSH_PREVIEW_SIZE)
-        self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._preview_image = QImage()
+
+        self.header_button = SegmentedItem("", self)
+        self.header_button.setObjectName("InputBrushSettingsHeader")
+        self.header_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.header_button.setFixedHeight(CANVAS_CHROME_CONTROL_HEIGHT)
+        self.header_button.setMinimumWidth(_HEADER_MINIMUM_WIDTH)
+        self.header_button.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
+        self.header_button.setIconSize(_BRUSH_PREVIEW_SIZE)
+        apply_application_text(self.header_button, app_text("Brush settings"))
+        self.header_button.clicked.connect(self.expand)
+
+        self.close_button = TransparentToolButton(FluentIcon.CLOSE, self)
+        self.close_button.setObjectName("InputBrushSettingsCloseButton")
+        self.close_button.setFixedSize(
+            CANVAS_CHROME_CONTROL_HEIGHT,
+            CANVAS_CHROME_CONTROL_HEIGHT,
+        )
+        set_localized_tooltip(self.close_button, "Close")
+        set_localized_accessible_name(self.close_button, "Close")
+        self.close_button.clicked.connect(self.collapse)
+        self.close_button.hide()
+
+        self._details = QWidget(self)
+        self._details.setObjectName("InputBrushSettingsDetails")
         self.size_slider, self.size_value = self._slider_row(
             minimum=1,
             maximum=1000,
@@ -95,8 +148,13 @@ class InputBrushOptions(QWidget):
             minimum=0,
             maximum=100,
         )
-        controls = QGridLayout()
-        controls.setContentsMargins(0, 0, 0, 0)
+        controls = QGridLayout(self._details)
+        controls.setContentsMargins(
+            CANVAS_CHROME_GAP,
+            CANVAS_CHROME_GAP,
+            CANVAS_CHROME_GAP,
+            CANVAS_CHROME_GAP,
+        )
         controls.setHorizontalSpacing(8)
         controls.setVerticalSpacing(4)
         self._add_row(
@@ -120,15 +178,24 @@ class InputBrushOptions(QWidget):
             self.opacity_slider,
             self.opacity_value,
         )
-        layout = QHBoxLayout(self)
+        header_layout = QHBoxLayout()
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(0)
+        header_layout.addWidget(self.header_button)
+        header_layout.addWidget(self.close_button)
+
+        layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
-        layout.addWidget(self.preview)
-        layout.addLayout(controls)
+        layout.setSpacing(CANVAS_CHROME_GAP // 2)
+        layout.addLayout(header_layout)
+        layout.addWidget(self._details)
+        self._details.hide()
+
         self.size_slider.valueChanged.connect(self._apply_values)
         self.hardness_slider.valueChanged.connect(self._apply_values)
         self.opacity_slider.valueChanged.connect(self._apply_values)
         document.brushPresetChanged.connect(self.synchronize)
+        document.toolContextChanged.connect(self.synchronize)
         self.synchronize()
 
     def synchronize(self, *_args: object) -> None:
@@ -140,7 +207,10 @@ class InputBrushOptions(QWidget):
             self.size_slider.setValue(round(preset.size))
             self.hardness_slider.setValue(round(preset.hardness * 100.0))
             self.opacity_slider.setValue(round(preset.opacity * 100.0))
-            self.size_value.setText(app_text("%1 px", f"{preset.size:.0f}"))
+            apply_application_text(
+                self.size_value,
+                app_text("%1 px", f"{preset.size:.0f}"),
+            )
             self.hardness_value.setText(f"{preset.hardness * 100.0:.0f}%")
             self.opacity_value.setText(f"{preset.opacity * 100.0:.0f}%")
         finally:
@@ -152,6 +222,18 @@ class InputBrushOptions(QWidget):
 
         super().showEvent(event)
         self._refresh_preview()
+
+    def apply_expanded_state(self, expanded: bool) -> None:
+        """Keep the header stable while exposing or hiding detailed controls."""
+
+        self.close_button.setVisible(expanded)
+        self._details.setVisible(expanded)
+        self.adjustSize()
+
+    def preview_image(self) -> QImage:
+        """Return the detached rendered preview used by the compact header."""
+
+        return QImage(self._preview_image)
 
     def _apply_values(self, _value: int) -> None:
         """Replace the complete brush preset from current control values."""
@@ -174,9 +256,10 @@ class InputBrushOptions(QWidget):
         image = self._document.render_brush_tip_preview(
             _BRUSH_PREVIEW_SIZE,
             device_pixel_ratio=max(1.0, self.devicePixelRatioF()),
-            color=QColor(255, 255, 255),
+            color=self._document.brush_preview_color(),
         )
-        self.preview.setPixmap(QPixmap.fromImage(image))
+        self._preview_image = QImage(image)
+        self.header_button.setIcon(QIcon(QPixmap.fromImage(image)))
 
     def _slider_row(
         self,
@@ -189,7 +272,7 @@ class InputBrushOptions(QWidget):
         slider = Slider(Qt.Orientation.Horizontal, self)
         slider.setRange(minimum, maximum)
         slider.setFixedWidth(128)
-        value = CaptionLabel("", self)
+        value = CaptionLabel("", self._details)
         value.setMinimumWidth(48)
         return slider, value
 
@@ -203,7 +286,7 @@ class InputBrushOptions(QWidget):
     ) -> None:
         """Add one localized control row."""
 
-        layout.addWidget(CaptionLabel(text), row, 0)
+        layout.addWidget(LocalizedCaptionLabel(text), row, 0)
         layout.addWidget(slider, row, 1)
         layout.addWidget(value, row, 2)
 
@@ -216,11 +299,11 @@ def install_input_tool_options(
 
     runtime.register_options(
         BRUSH_OPTIONS_ID,
-        lambda parent: InputBrushOptions(document, parent),
+        lambda parent: InputBrushSettingsControl(document, parent),
     )
 
 
 __all__ = [
-    "InputBrushOptions",
+    "InputBrushSettingsControl",
     "install_input_tool_options",
 ]

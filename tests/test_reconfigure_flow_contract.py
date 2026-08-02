@@ -52,7 +52,7 @@ def test_workspace_controller_routes_reconfigure_request_to_view() -> None:
         cube_stack_service=SimpleNamespace(),
         refresh_active_workflow_surface=lambda: None,
         prepare_node_behavior_runtime=lambda *_args: None,
-        canvas_tabs=SimpleNamespace(canvas_map={}),
+        canvas_host=SimpleNamespace(canvas_for={}.get),
         canvas_io_service=SimpleNamespace(),
         workflow_input_canvas_service=SimpleNamespace(),
         add_output_image_signal=SimpleNamespace(emit=lambda *_args: None),

@@ -461,7 +461,7 @@ def test_project_settings_workspace_uses_settings_widgets_without_workflow_mutat
     )
     splitter = _Splitter([640, 360])
     cube_stack_container = _StackContainer(CUBE_STACK_COMPACT_WIDTH, calls)
-    canvas_tabs_container = _WidgetVisibility(calls)
+    canvas_host_container = _WidgetVisibility(calls)
     cube_mode_button = _Button()
     orb_action_cluster = _OrbActionCluster()
     settings_toolbar_search = _SettingsToolbarSearchBox()
@@ -482,7 +482,7 @@ def test_project_settings_workspace_uses_settings_widgets_without_workflow_mutat
             )
         ),
         splitter=splitter,
-        canvas_tabs_container=canvas_tabs_container,
+        canvas_host_container=canvas_host_container,
         cubeStackModeButton=cube_mode_button,
         orbActionCluster=orb_action_cluster,
         settingsToolbarSearchBox=settings_toolbar_search,
@@ -518,7 +518,7 @@ def test_project_settings_workspace_uses_settings_widgets_without_workflow_mutat
     assert view._active_workspace_route == SETTINGS_WORKSPACE_ROUTE
     assert view.workflow_session_service.active_workflow_id == active_workflow_id
     assert route_stack.current_widget is settings_page
-    assert canvas_tabs_container.hidden is False
+    assert canvas_host_container.hidden is False
     assert splitter.set_sizes_calls == []
     assert cube_stack_container.fixed_widths == []
     assert cube_mode_button.enabled == [False]
@@ -585,7 +585,7 @@ def test_workspace_route_helpers_switch_pages_without_geometry_mutation() -> Non
     view = SimpleNamespace(
         splitter=_Splitter([600, 400]),
         cube_stack_container=cube_stack_container,
-        canvas_tabs_container=_WidgetVisibility(calls),
+        canvas_host_container=_WidgetVisibility(calls),
         cubeStackModeButton=cube_mode_button,
         orbActionCluster=orb_action_cluster,
         settingsToolbarSearchBox=settings_toolbar_search,
@@ -608,7 +608,7 @@ def test_workspace_route_helpers_switch_pages_without_geometry_mutation() -> Non
     assert route_stack.current_widget is workflow_page
     assert view.splitter.set_sizes_calls == []
     assert view.cube_stack_container.fixed_widths == []
-    assert view.canvas_tabs_container.hidden is False
+    assert view.canvas_host_container.hidden is False
     assert cube_mode_button.enabled == [False, True]
     assert orb_action_cluster.visible is True
     assert orb_action_cluster.visible_calls == [False, True]
@@ -657,7 +657,7 @@ def test_settings_route_projection_does_not_restore_workflow_geometry() -> None:
     view = SimpleNamespace(
         splitter=_Splitter([610, 390]),
         cube_stack_container=cube_stack_container,
-        canvas_tabs_container=_WidgetVisibility(calls),
+        canvas_host_container=_WidgetVisibility(calls),
         cubeStackModeButton=_Button(),
         workspace_body_material_surface=SimpleNamespace(
             set_cube_stack_region_widget=lambda widget: material_regions.append(widget)
@@ -668,7 +668,7 @@ def test_settings_route_projection_does_not_restore_workflow_geometry() -> None:
 
     _settings_controller(view).show_workflow_workspace()
 
-    assert view.canvas_tabs_container.hidden is False
+    assert view.canvas_host_container.hidden is False
     assert view.splitter.set_sizes_calls == []
     assert view.cube_stack_container.fixed_widths == []
     assert material_regions == [cube_stack_container]

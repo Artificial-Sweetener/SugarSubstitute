@@ -184,11 +184,11 @@ def test_pipeline_uses_host_activation_signal_for_output_projection() -> None:
 
     scheduler = _Scheduler()
     signal = _Signal()
-    canvas_tabs = SimpleNamespace(canvas_activated=signal)
+    canvas_host = SimpleNamespace(canvas_activated=signal)
 
     OutputImagePipeline(
         **_pipeline_shell_dependencies(),
-        canvas_tabs=canvas_tabs,
+        canvas_host=canvas_host,
         projection_scheduler=scheduler,  # type: ignore[arg-type]
     )
     signal.callbacks[0]("Input")
@@ -211,7 +211,7 @@ def test_pipeline_visibility_uses_generic_host_visibility_api() -> None:
 
     pipeline = OutputImagePipeline(
         **_pipeline_shell_dependencies(),
-        canvas_tabs=SimpleNamespace(
+        canvas_host=SimpleNamespace(
             is_canvas_visible=is_canvas_visible,
         ),
         projection_scheduler=_Scheduler(),  # type: ignore[arg-type]
@@ -241,7 +241,7 @@ def test_pipeline_projects_through_output_projection_coordinator() -> None:
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=coordinator,
-        canvas_tabs=SimpleNamespace(is_canvas_visible=lambda _label: True),
+        canvas_host=SimpleNamespace(is_canvas_visible=lambda _label: True),
         preparation_dispatcher=_Dispatcher(),  # type: ignore[arg-type]
         commit_queue=_CommitQueue(),  # type: ignore[arg-type]
     )
@@ -270,7 +270,7 @@ def test_pipeline_discards_pending_projection_work_for_removed_workflow() -> Non
     scheduler = _Scheduler()
     pipeline = OutputImagePipeline(
         **_pipeline_shell_dependencies(),
-        canvas_tabs=SimpleNamespace(),
+        canvas_host=SimpleNamespace(),
         projection_scheduler=scheduler,  # type: ignore[arg-type]
     )
 
@@ -285,7 +285,7 @@ def test_pipeline_rekeys_pending_projection_work_for_renamed_workflow() -> None:
     scheduler = _Scheduler()
     pipeline = OutputImagePipeline(
         **_pipeline_shell_dependencies(),
-        canvas_tabs=SimpleNamespace(),
+        canvas_host=SimpleNamespace(),
         projection_scheduler=scheduler,  # type: ignore[arg-type]
     )
 
@@ -320,7 +320,7 @@ def test_pipeline_builds_strict_live_request_without_retaining_payload() -> None
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=_ProjectionCoordinator(),
-        canvas_tabs=SimpleNamespace(),
+        canvas_host=SimpleNamespace(),
         generation_timing_lookup=timing_lookup,
         preparation_dispatcher=dispatcher,  # type: ignore[arg-type]
         commit_queue=_CommitQueue(),  # type: ignore[arg-type]
@@ -402,7 +402,7 @@ def test_pipeline_preserves_backend_list_index_for_prepared_output_metadata() ->
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=_ProjectionCoordinator(),
-        canvas_tabs=SimpleNamespace(),
+        canvas_host=SimpleNamespace(),
         generation_timing_lookup=_TimingLookup(),
         preparation_dispatcher=dispatcher,  # type: ignore[arg-type]
         commit_queue=_CommitQueue(),  # type: ignore[arg-type]
@@ -472,7 +472,7 @@ def test_pipeline_rejects_live_update_missing_required_identity() -> None:
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=_ProjectionCoordinator(),
-        canvas_tabs=SimpleNamespace(),
+        canvas_host=SimpleNamespace(),
         preparation_dispatcher=dispatcher,  # type: ignore[arg-type]
         commit_queue=_CommitQueue(),  # type: ignore[arg-type]
         projection_scheduler=CanvasProjectionScheduler(
@@ -536,7 +536,7 @@ def test_pipeline_rejects_live_update_with_any_missing_visual_identity(
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=_ProjectionCoordinator(),
-        canvas_tabs=SimpleNamespace(),
+        canvas_host=SimpleNamespace(),
         preparation_dispatcher=dispatcher,  # type: ignore[arg-type]
         commit_queue=_CommitQueue(),  # type: ignore[arg-type]
         projection_scheduler=CanvasProjectionScheduler(
@@ -585,7 +585,7 @@ def test_pipeline_rejects_live_update_with_negative_list_index() -> None:
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=_ProjectionCoordinator(),
-        canvas_tabs=SimpleNamespace(),
+        canvas_host=SimpleNamespace(),
         preparation_dispatcher=dispatcher,  # type: ignore[arg-type]
         commit_queue=_CommitQueue(),  # type: ignore[arg-type]
         projection_scheduler=CanvasProjectionScheduler(
@@ -635,7 +635,7 @@ def test_pipeline_legacy_submit_preserves_explicit_fallback_metadata() -> None:
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=_ProjectionCoordinator(),
-        canvas_tabs=SimpleNamespace(),
+        canvas_host=SimpleNamespace(),
         preparation_dispatcher=dispatcher,  # type: ignore[arg-type]
         commit_queue=_CommitQueue(),  # type: ignore[arg-type]
         projection_scheduler=CanvasProjectionScheduler(
@@ -683,7 +683,7 @@ def test_pipeline_schedules_registered_output_projection_from_intent() -> None:
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=_ProjectionCoordinator(),
-        canvas_tabs=SimpleNamespace(),
+        canvas_host=SimpleNamespace(),
         preparation_dispatcher=_Dispatcher(),  # type: ignore[arg-type]
         commit_queue=_CommitQueue(),  # type: ignore[arg-type]
         projection_scheduler=CanvasProjectionScheduler(

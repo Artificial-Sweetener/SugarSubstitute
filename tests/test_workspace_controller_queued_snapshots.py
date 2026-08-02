@@ -141,7 +141,7 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
         _on_generation_output_image=lambda _output: None,
         _on_generation_failure=lambda _failure: None,
         _log_interrupt_failure=lambda _result: None,
-        canvas_tabs=SimpleNamespace(canvas_map={}),
+        canvas_host=SimpleNamespace(canvas_for={}.get),
         canvas_io_service=SimpleNamespace(),
         output_canvas_state_service=SimpleNamespace(
             begin_output_generation=(
@@ -269,7 +269,7 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_without_scenes(
         _on_generation_output_image=lambda _output: None,
         _on_generation_failure=lambda _failure: None,
         _log_interrupt_failure=lambda _result: None,
-        canvas_tabs=SimpleNamespace(canvas_map={}),
+        canvas_host=SimpleNamespace(canvas_for={}.get),
         canvas_io_service=SimpleNamespace(),
         workflow_input_canvas_service=SimpleNamespace(),
         workflow_asset_service=SimpleNamespace(),
@@ -399,7 +399,7 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_for_one_scene(
         _on_generation_output_image=lambda _output: None,
         _on_generation_failure=lambda _failure: None,
         _log_interrupt_failure=lambda _result: None,
-        canvas_tabs=SimpleNamespace(canvas_map={}),
+        canvas_host=SimpleNamespace(canvas_for={}.get),
         canvas_io_service=SimpleNamespace(),
         workflow_input_canvas_service=SimpleNamespace(),
         workflow_asset_service=SimpleNamespace(),

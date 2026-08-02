@@ -578,6 +578,10 @@ Prömpt prëvïëw:
       <translation>⟦Brüsh ···⟧</translation>
     </message>
     <message>
+      <source>Brush settings</source>
+      <translation>⟦Brüsh sëttïngs ···⟧</translation>
+    </message>
+    <message>
       <source>By default, the managed ComfyUI folder is created as `comfyui` inside your Substitute folder.</source>
       <translation>⟦By dëfàült, thë mànàgëd CömfyÜÏ földër ïs crëàtëd às `cömfyüï` ïnsïdë yöür Sübstïtütë földër. ···⟧</translation>
     </message>
@@ -636,10 +640,6 @@ Prömpt prëvïëw:
     <message>
       <source>Cancelling the model download.</source>
       <translation>⟦Càncëllïng thë mödël döwnlöàd. ···⟧</translation>
-    </message>
-    <message>
-      <source>Canvas Tab Demo</source>
-      <translation>⟦Cànvàs Tàb Dëmö ···⟧</translation>
     </message>
     <message>
       <source>Change the colors that appear in Substitute.</source>

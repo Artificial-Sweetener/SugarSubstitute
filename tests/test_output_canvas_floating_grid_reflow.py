@@ -74,7 +74,7 @@ def test_floating_and_docked_hosts_choose_same_physical_grid_topology(
         window = FloatingCanvasWindow(
             canvas,
             "Output",
-            lambda widget, _label: widget.setParent(harness.shell.canvas_tabs),
+            lambda widget, _label: widget.setParent(harness.shell.canvas_host),
             backdrop_mode=None,
         )
         window.resize(1000, 500)

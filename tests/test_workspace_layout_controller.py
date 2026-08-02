@@ -85,13 +85,13 @@ def _shell(*, stack_width: int, canvas_attached: bool) -> SimpleNamespace:
     canvas = _CanvasContainer()
     emitted: list[int] = []
     shell = SimpleNamespace(
-        canvas_tabs=SimpleNamespace(
+        canvas_host=SimpleNamespace(
             sizeHint=lambda: SimpleNamespace(width=lambda: 400)
         ),
         active_editor_panel=lambda: details,
         cube_stack_container=SimpleNamespace(width=lambda: stack_width),
         editor_output_container=details,
-        canvas_tabs_container=canvas,
+        canvas_host_container=canvas,
         resize_requested=SimpleNamespace(emit=emitted.append),
         search_overlay_controller=SimpleNamespace(position_search_box=lambda: None),
         editor_output_splitter=SimpleNamespace(sizes=lambda: []),
@@ -108,10 +108,10 @@ def test_hidden_canvas_in_direct_workflow_uses_zero_stack_width() -> None:
 
     shell = _shell(stack_width=0, canvas_attached=True)
 
-    WorkspaceLayoutController(shell).toggle_canvas_tabs(False)
+    WorkspaceLayoutController(shell).toggle_canvas_host(False)
 
     assert shell.emitted == [536]
-    assert shell.canvas_tabs_container.parents == [None]
+    assert shell.canvas_host_container.parents == [None]
 
 
 def test_show_canvas_in_direct_workflow_reattaches_after_editor() -> None:
@@ -119,7 +119,7 @@ def test_show_canvas_in_direct_workflow_reattaches_after_editor() -> None:
 
     shell = _shell(stack_width=0, canvas_attached=False)
 
-    WorkspaceLayoutController(shell).toggle_canvas_tabs(True)
+    WorkspaceLayoutController(shell).toggle_canvas_host(True)
 
-    assert shell.splitter.insertions == [(1, shell.canvas_tabs_container)]
+    assert shell.splitter.insertions == [(1, shell.canvas_host_container)]
     assert shell.emitted == [936]

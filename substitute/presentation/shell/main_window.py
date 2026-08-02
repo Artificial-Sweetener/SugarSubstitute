@@ -186,7 +186,7 @@ class MainWindow(QMainWindow):
         compose_editor_busy_controller(self)
         self.comfy_output_panel = workspace_parts.comfy_output_panel
         self.editor_output_splitter = workspace_parts.editor_output_splitter
-        self.canvas_tabs = workspace_parts.canvas_tabs
+        self.canvas_host = workspace_parts.canvas_host
         self.input_canvas_state_service = workspace_parts.input_canvas_state_service
         self.output_canvas_state_service = workspace_parts.output_canvas_state_service
         self.output_canvas_projection_coordinator = (
@@ -201,7 +201,7 @@ class MainWindow(QMainWindow):
         )
         compose_output_canvas_controllers(self)
         compose_input_canvas_controllers(self)
-        self.canvas_tabs_container = workspace_parts.canvas_tabs_container
+        self.canvas_host_container = workspace_parts.canvas_host_container
         self.sidePanelHost = workspace_parts.side_panel_host
         self.splitter = workspace_parts.splitter
         self.progressOverlay = workspace_parts.progress_overlay

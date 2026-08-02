@@ -112,7 +112,7 @@ def _apply_requested_editor_panel_width(
     splitter = harness.shell.splitter
     sizes = list(splitter.sizes())
     details_index = splitter.indexOf(harness.shell.editor_output_container)
-    canvas_index = splitter.indexOf(harness.shell.canvas_tabs_container)
+    canvas_index = splitter.indexOf(harness.shell.canvas_host_container)
     if details_index < 0 or canvas_index < 0:
         return
     fixed_total = sum(

@@ -409,7 +409,7 @@ def test_workspace_drop_controller_rejects_current_canvas_target_drop() -> None:
     output_canvas = QObject()
     target_canvas = QObject(output_canvas)
     shell = SimpleNamespace(
-        canvas_tabs=SimpleNamespace(canvas_map={"Output": output_canvas})
+        canvas_host=SimpleNamespace(canvases=lambda: (output_canvas,))
     )
     source_classifier = WorkspaceCanvasDragSourceClassifier(shell)
     event = _Event(

@@ -32,7 +32,8 @@ from .runtime import (
     CanvasToolRuntime,
 )
 from .tool_strip import CanvasToolStrip
-from .tool_options_panel import CanvasToolOptionsPanel
+from .tool_options_control import CanvasToolOptionsControl
+from .tool_options_host import CanvasToolOptionsHost
 
 __all__ = [
     "CanvasToolContext",
@@ -47,5 +48,6 @@ __all__ = [
     "CanvasToolProviderSnapshot",
     "CanvasToolRuntime",
     "CanvasToolStrip",
-    "CanvasToolOptionsPanel",
+    "CanvasToolOptionsControl",
+    "CanvasToolOptionsHost",
 ]

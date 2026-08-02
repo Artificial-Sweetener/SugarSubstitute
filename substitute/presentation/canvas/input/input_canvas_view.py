@@ -28,7 +28,7 @@ from substitute.presentation.localization import LocalizedLabel
 from os import environ
 from uuid import UUID
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QRect, Qt, Signal
 from PySide6.QtGui import QEnterEvent, QKeyEvent, QResizeEvent
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 from cutecanvas import ExecutionRuntime
@@ -47,8 +47,9 @@ from substitute.presentation.canvas.input.input_canvas_tool_chrome import (
 from substitute.presentation.canvas.input.input_route_projector import (
     InputRouteProjector,
 )
+from substitute.presentation.canvas.shared.canvas_top_bar import CanvasTopBar
 from substitute.presentation.canvas.tools import (
-    CanvasToolOptionsPanel,
+    CanvasToolOptionsHost,
     CanvasToolRuntime,
     CanvasToolStrip,
 )
@@ -185,9 +186,14 @@ class InputCanvas(QWidget):
         overlay.show()
 
     def set_canvas_detached(self, detached: bool) -> None:
-        """Store the manager-owned attachment state for context-menu rendering."""
+        """Store the host-owned attachment state for context-menu rendering."""
 
         self._canvas_detached = detached
+
+    def set_host_chrome_obstacles(self, obstacles: tuple[QRect, ...]) -> None:
+        """Arrange Input tool chrome around host-owned overlay surfaces."""
+
+        self._tool_chrome.set_host_obstacles(obstacles)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Forward key presses to the underlying canvas control."""
@@ -212,10 +218,16 @@ class InputCanvas(QWidget):
         return self._tool_chrome.tool_strip
 
     @property
-    def tool_options_panel(self) -> CanvasToolOptionsPanel:
-        """Return the content-sized contextual options overlay."""
+    def tool_options_host(self) -> CanvasToolOptionsHost:
+        """Return the contextual top-bar options host."""
 
-        return self._tool_chrome.options_panel
+        return self._tool_chrome.options_host
+
+    @property
+    def canvas_top_bar(self) -> CanvasTopBar:
+        """Return the ordered Input-owned top-bar flow."""
+
+        return self._tool_chrome.top_bar
 
     def bind_tool_runtime(self, runtime: CanvasToolRuntime) -> None:
         """Project one authoritative runtime into Input tool chrome."""

@@ -103,7 +103,7 @@ class _HarnessShell(QMainWindow):
     clear_output_signal = Signal(str)
     preview_image_signal = Signal(object)
     add_output_image_signal = Signal(str, QImage, object)
-    canvas_tabs: Any
+    canvas_host: Any
     generation_feedback_dispatcher: GenerationFeedbackDispatcher
     output_canvas: Any
     output_canvas_projection_coordinator: Any
@@ -192,7 +192,7 @@ class _HarnessShell(QMainWindow):
             workspace_parts.workflow_session_service,
         )
         self.workflow_tabbar = workspace_parts.workflow_tabbar
-        self.canvas_tabs = workspace_parts.canvas_tabs
+        self.canvas_host = workspace_parts.canvas_host
         self.cube_stack_container: QStackedWidget = workspace_parts.cube_stack_container
         self.editor_panel_container: QStackedWidget = (
             workspace_parts.editor_panel_container
@@ -209,7 +209,7 @@ class _HarnessShell(QMainWindow):
         self.output_floating_chrome_factory = (
             workspace_parts.output_floating_chrome_factory
         )
-        self.output_canvas = self.canvas_tabs.canvas_map["Output"]
+        self.output_canvas = self.canvas_host.canvas_for("Output")
         self.workflow_workspace = WorkflowWorkspaceCoordinator(
             cast(WorkflowWorkspaceView, self)
         )
@@ -234,10 +234,10 @@ class _HarnessShell(QMainWindow):
         self.main_window_signal_binder.connect_generation_feedback_signals()
         self.main_window_signal_binder.connect_workflow_tab_signals()
         self.main_window_signal_binder.connect_canvas_signals(
-            input_canvas=self.canvas_tabs.canvas_map["Input"],
+            input_canvas=self.canvas_host.canvas_for("Input"),
             output_canvas=self.output_canvas,
         )
-        self.canvas_tabs.focus_attached_canvas("Output")
+        self.canvas_host.focus_attached_canvas("Output")
 
     def install_workflow_surface(self, workflow_id: str) -> None:
         """Install cached workflow widgets used by coordinator route switching."""

@@ -1103,7 +1103,7 @@ def test_parse_startup_trace_measurements_summarizes_key_events() -> None:
                 '"timestamp_ns":1500000000}'
             ),
             (
-                '{"elapsed_ns":175000000,"event":"canvas_tabs.create.input_canvas",'
+                '{"elapsed_ns":175000000,"event":"canvas_host.create.input_canvas",'
                 '"fields":{},"kind":"span","sequence":8,'
                 '"timestamp_ns":1520000000}'
             ),
@@ -1171,7 +1171,7 @@ def test_parse_startup_trace_measurements_summarizes_key_events() -> None:
     assert span_elapsed_ms["startup.build_appearance_runtime"] == 46.0
     assert span_elapsed_ms["startup.configure_theme"] == 413.0
     assert span_elapsed_ms["build_shell_task.build_main_window"] == 250.0
-    assert span_elapsed_ms["canvas_tabs.create.input_canvas"] == 175.0
+    assert span_elapsed_ms["canvas_host.create.input_canvas"] == 175.0
     assert span_elapsed_ms["managed_comfy.ensure_setup"] == 120.0
     assert measurements["readinessAttempts"] == 1
     assert measurements["readinessInFlightSkips"] == 1

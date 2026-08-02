@@ -27,7 +27,7 @@ class CanvasRouteController:
     """Own active workflow canvas-route projection for the shell."""
 
     def __init__(self, shell: Any) -> None:
-        """Store the shell whose canvas tabs should be coordinated."""
+        """Store the shell whose canvas host should be coordinated."""
 
         self._shell = shell
 
@@ -41,7 +41,7 @@ class CanvasRouteController:
             )
         )
         set_canvas_available = getattr(
-            self._shell.canvas_tabs,
+            self._shell.canvas_host,
             "set_canvas_available",
             None,
         )
@@ -50,7 +50,7 @@ class CanvasRouteController:
                 "Input",
                 needs_input_canvas,
                 reason=app_text("No input canvas nodes"),
-                fallback_label="Output",
+                fallback_route_key="Output",
             )
         self.restore_active_canvas_route(
             active_workflow,
@@ -60,7 +60,7 @@ class CanvasRouteController:
     def connect_canvas_route_signals(self) -> None:
         """Record the selected attached canvas route on the active workflow."""
 
-        route_changed = getattr(self._shell.canvas_tabs, "canvas_activated", None)
+        route_changed = getattr(self._shell.canvas_host, "canvas_activated", None)
         if route_changed is not None:
             route_changed.connect(self.record_active_canvas_route)
 
@@ -99,7 +99,7 @@ class CanvasRouteController:
         if route_key not in {"Input", "Output"}:
             return
         focus_attached_canvas = getattr(
-            self._shell.canvas_tabs,
+            self._shell.canvas_host,
             "focus_attached_canvas",
             None,
         )

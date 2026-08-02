@@ -169,7 +169,7 @@ def test_canvas_layout_autosave_uses_resize_category() -> None:
     callbacks: list[Callable[[], None]] = []
     categories: list[SessionAutosaveRequestCategory] = []
     shell = SimpleNamespace(
-        canvas_tabs=SimpleNamespace(
+        canvas_host=SimpleNamespace(
             layout_state_changed=SimpleNamespace(connect=callbacks.append),
         ),
         _session_autosave_coordinator=SimpleNamespace(request=categories.append),

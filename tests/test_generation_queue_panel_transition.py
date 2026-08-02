@@ -138,7 +138,7 @@ def _view(
         sidePanelHost=host,
         splitter=splitter,
         editor_output_container=editor,
-        canvas_tabs_container=canvas,
+        canvas_host_container=canvas,
         remembered=remembered,
     )
     view.workspace_layout_controller = SimpleNamespace(

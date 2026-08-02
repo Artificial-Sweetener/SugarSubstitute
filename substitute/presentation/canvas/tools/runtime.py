@@ -31,8 +31,11 @@ from .registry import CanvasToolRegistry
 CanvasToolAction = Callable[[], bool]
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget
+    from substitute.presentation.canvas.tools.tool_options_control import (
+        CanvasToolOptionsControl,
+    )
 
-CanvasToolOptionsFactory = Callable[["QWidget"], "QWidget"]
+CanvasToolOptionsFactory = Callable[["QWidget"], "CanvasToolOptionsControl"]
 _LOGGER = get_logger("presentation.canvas.tools.runtime")
 
 
@@ -106,12 +109,12 @@ class CanvasToolRuntime:
             raise ValueError(f"canvas tool options already registered: {options_id}")
         self._options_factories[options_id] = factory
 
-    def create_options_widget(
+    def create_options_control(
         self,
         options_id: str,
         parent: QWidget,
-    ) -> QWidget | None:
-        """Create one registered contextual options surface."""
+    ) -> CanvasToolOptionsControl | None:
+        """Create one registered contextual options control."""
 
         factory = self._options_factories.get(options_id)
         return None if factory is None else factory(parent)

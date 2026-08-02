@@ -14,34 +14,24 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Host docked and floating canvas pages without canvas-domain policy."""
+"""Host selected, docked, and floating canvas pages without domain policy."""
 
 from __future__ import annotations
 
-from substitute.presentation.canvas.host.canvas_availability_presenter import (
-    CanvasAvailabilityPresenter,
+from substitute.presentation.canvas.host.canvas_host import (
+    CanvasHost,
+    build_canvas_host,
 )
-from substitute.presentation.canvas.host.canvas_focus_controller import (
-    CanvasFocusController,
-)
-from substitute.presentation.canvas.host.canvas_tabs_view import (
-    CanvasHostPage,
-    CanvasTabManager,
-    DockablePivotItem,
-    create_canvas_host,
-)
+from substitute.presentation.canvas.host.canvas_host_state import CanvasHostPage
 from substitute.presentation.canvas.host.floating_canvas_window import (
     FloatingCanvasChrome,
     FloatingCanvasWindow,
 )
 
 __all__ = [
-    "CanvasAvailabilityPresenter",
-    "CanvasFocusController",
+    "CanvasHost",
     "CanvasHostPage",
-    "CanvasTabManager",
-    "DockablePivotItem",
     "FloatingCanvasChrome",
     "FloatingCanvasWindow",
-    "create_canvas_host",
+    "build_canvas_host",
 ]

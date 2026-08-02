@@ -89,12 +89,6 @@ class OutputCanvasProjectionCoordinatorProtocol(Protocol):
         """Project the active Output workflow state."""
 
 
-class CanvasTabsVisibilityProtocol(Protocol):
-    """Describe canvas-tab state needed for projection scheduling."""
-
-    canvas_map: object
-
-
 class OutputImagePipeline(QObject):
     """Facade for final-output preparation, bounded commit, and projection."""
 
@@ -105,7 +99,7 @@ class OutputImagePipeline(QObject):
         canvas_io_service: CanvasIoMetadataProtocol,
         output_commit_handler: OutputCommitHandlerProtocol,
         output_canvas_projection_coordinator: OutputCanvasProjectionCoordinatorProtocol,
-        canvas_tabs: object,
+        canvas_host: object,
         parent: QObject | None = None,
         generation_timing_lookup: GenerationTimingLookupProtocol | None = None,
         preparation_dispatcher: OutputImagePreparationDispatcher,
@@ -123,7 +117,7 @@ class OutputImagePipeline(QObject):
         self._output_canvas_projection_coordinator = (
             output_canvas_projection_coordinator
         )
-        self._canvas_tabs = canvas_tabs
+        self._canvas_host = canvas_host
         self._commit_request_builder = OutputImageCommitRequestBuilder(
             workflow_session_service=workflow_session_service,
             canvas_io_service=canvas_io_service,
@@ -261,7 +255,7 @@ class OutputImagePipeline(QObject):
     def _connect_canvas_route_changes(self) -> None:
         """Flush generated projection when the Output canvas becomes visible."""
 
-        route_changed = getattr(self._canvas_tabs, "canvas_activated", None)
+        route_changed = getattr(self._canvas_host, "canvas_activated", None)
         connect = getattr(route_changed, "connect", None)
         if callable(connect):
             connect(self._on_canvas_route_changed)
@@ -279,7 +273,7 @@ class OutputImagePipeline(QObject):
     def _output_canvas_is_visible(self) -> bool:
         """Return whether generated output projection should run immediately."""
 
-        is_canvas_visible = getattr(self._canvas_tabs, "is_canvas_visible", None)
+        is_canvas_visible = getattr(self._canvas_host, "is_canvas_visible", None)
         if callable(is_canvas_visible):
             return bool(is_canvas_visible("Output"))
         return True

@@ -62,8 +62,8 @@ def log_editor_width_trace(
         "editor_output_container_width": safe_trace_width(
             getattr(shell, "editor_output_container", None)
         ),
-        "canvas_tabs_container_width": safe_trace_width(
-            getattr(shell, "canvas_tabs_container", None)
+        "canvas_host_container_width": safe_trace_width(
+            getattr(shell, "canvas_host_container", None)
         ),
         "active_editor_panel_width": safe_trace_width(active_editor_panel),
         "main_window_width": safe_trace_width(shell),

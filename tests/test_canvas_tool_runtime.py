@@ -27,6 +27,7 @@ from sugarsubstitute_shared.presentation.localization import app_text
 from substitute.presentation.canvas.tools import (
     CanvasToolContribution,
     CanvasToolKind,
+    CanvasToolOptionsControl,
     CanvasToolProviderSnapshot,
     CanvasToolRuntime,
 )
@@ -127,6 +128,15 @@ class _Provider:
         return self._snapshot
 
 
+class _OptionsControl(CanvasToolOptionsControl):
+    """Provide one minimal extension-owned options control."""
+
+    def apply_expanded_state(self, expanded: bool) -> None:
+        """Accept expansion without child presentation for this boundary test."""
+
+        del expanded
+
+
 def test_provider_boundary_installs_metadata_and_options_atomically() -> None:
     """Hostile provider metadata must never leave partially installed tools."""
 
@@ -143,7 +153,6 @@ def test_provider_boundary_installs_metadata_and_options_atomically() -> None:
         order=900,
         document_operation_id="native.extension",
         options_id="extension.options",
-        preview_id="extension.preview",
     )
     invalid = _Provider(
         CanvasToolProviderSnapshot(
@@ -159,14 +168,13 @@ def test_provider_boundary_installs_metadata_and_options_atomically() -> None:
         _Provider(
             CanvasToolProviderSnapshot(
                 contributions=(mode,),
-                options={"extension.options": lambda parent: QWidget(parent)},
+                options={"extension.options": lambda parent: _OptionsControl(parent)},
             )
         )
     )
     parent = QWidget()
-    options = runtime.create_options_widget("extension.options", parent)
+    options = runtime.create_options_control("extension.options", parent)
     assert options is not None and options.parentWidget() is parent
     contribution = runtime.registry.contribution("extension.mode")
     assert contribution is not None
     assert contribution.document_operation_id == "native.extension"
-    assert contribution.preview_id == "extension.preview"

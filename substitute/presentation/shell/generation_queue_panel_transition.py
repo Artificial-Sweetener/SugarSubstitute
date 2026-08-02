@@ -259,7 +259,7 @@ class GenerationQueuePanelTransition(QObject):
 
         splitter = getattr(self._view, "splitter", None)
         editor_widget = getattr(self._view, "editor_output_container", None)
-        canvas_widget = getattr(self._view, "canvas_tabs_container", None)
+        canvas_widget = getattr(self._view, "canvas_host_container", None)
         side_widget = self._host()
         if (
             splitter is None

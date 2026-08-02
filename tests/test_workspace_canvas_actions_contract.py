@@ -220,8 +220,8 @@ def test_display_preview_image_updates_only_active_workflow() -> None:
     )
     view = SimpleNamespace(
         workflow_session_service=SimpleNamespace(active_workflow_id="wf-1"),
-        canvas_tabs=SimpleNamespace(
-            canvas_map={"Output": output_canvas},
+        canvas_host=SimpleNamespace(
+            canvas_for={"Output": output_canvas}.get,
             focus_attached_canvas=lambda label: focused.append(label),
         ),
         output_preview_registry=registry,
@@ -247,12 +247,12 @@ def test_clear_output_previews_updates_only_active_workflow() -> None:
     clear_calls: list[bool] = []
     view = SimpleNamespace(
         workflow_session_service=SimpleNamespace(active_workflow_id="wf-1"),
-        canvas_tabs=SimpleNamespace(
-            canvas_map={
+        canvas_host=SimpleNamespace(
+            canvas_for={
                 "Output": SimpleNamespace(
                     clear_previews=lambda: clear_calls.append(True)
                 )
-            }
+            }.get
         ),
         _log_missing_output_canvas=lambda _workflow_id: None,
     )
@@ -578,12 +578,12 @@ def test_handle_add_output_image_registers_without_direct_output_route_mutation(
                 SimpleNamespace(closed=True, closed_preview_ids=(uuid.uuid4(),)),
             )[1]
         ),
-        canvas_tabs=SimpleNamespace(
-            canvas_map={
+        canvas_host=SimpleNamespace(
+            canvas_for={
                 "Output": SimpleNamespace(
                     apply_preview_acceptance=preview_acceptances.append
                 )
-            },
+            }.get,
             focus_attached_canvas=lambda _label: (_ for _ in ()).throw(
                 AssertionError("registration must not focus Output")
             ),
@@ -726,12 +726,12 @@ def test_handle_add_output_image_leaves_inactive_preview_lane_visible() -> None:
                 SimpleNamespace(closed=True, closed_preview_ids=(uuid.uuid4(),)),
             )[1]
         ),
-        canvas_tabs=SimpleNamespace(
-            canvas_map={
+        canvas_host=SimpleNamespace(
+            canvas_for={
                 "Output": SimpleNamespace(
                     apply_preview_acceptance=preview_acceptances.append
                 )
-            }
+            }.get
         ),
         workflow_activity_service=SimpleNamespace(
             record_output=lambda *_args: False,
@@ -785,8 +785,8 @@ def test_commit_prepared_output_image_registers_without_direct_pane_mutation() -
                 ),
             )[1],
         ),
-        canvas_tabs=SimpleNamespace(
-            canvas_map={},
+        canvas_host=SimpleNamespace(
+            canvas_for={}.get,
             focus_attached_canvas=lambda label: focused_canvases.append(label),
         ),
         workflow_activity_service=SimpleNamespace(
@@ -903,7 +903,7 @@ def test_commit_prepared_live_output_uses_generated_registration() -> None:
             )[1],
             register_output_image=lambda *args: calls.append(("legacy", args)),
         ),
-        canvas_tabs=SimpleNamespace(canvas_map={}),
+        canvas_host=SimpleNamespace(canvas_for={}.get),
         workflow_activity_service=SimpleNamespace(
             record_output=lambda *_args: False,
         ),
@@ -1008,7 +1008,7 @@ def test_commit_prepared_live_output_rejection_skips_routes_and_activity() -> No
             )[1],
             register_output_image=lambda *args: calls.append(("legacy", args)),
         ),
-        canvas_tabs=SimpleNamespace(canvas_map={}),
+        canvas_host=SimpleNamespace(canvas_for={}.get),
         workflow_activity_service=SimpleNamespace(
             record_output=lambda *_args: calls.append(("activity", ())),
         ),

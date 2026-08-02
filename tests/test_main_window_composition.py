@@ -809,7 +809,7 @@ def test_compose_shell_controllers_assigns_controllers_and_initial_state(
         workflow_session_service=SimpleNamespace(active_workflow_id="wf-a"),
         splitter=object(),
         editor_output_container=object(),
-        canvas_tabs_container=object(),
+        canvas_host_container=object(),
         cube_stack_container=object(),
         cube_stacks={},
         cubeStackModeButton=object(),
@@ -912,7 +912,9 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         toolRequested=_FakeSignal(),
     )
     shell = SimpleNamespace(
-        canvas_tabs=SimpleNamespace(canvas_map={"Input": input_canvas}),
+        canvas_host=SimpleNamespace(
+            canvas_for=lambda route_key: input_canvas if route_key == "Input" else None
+        ),
         input_canvas_plan_service=object(),
         graph_section_service=object(),
         input_canvas_state_service=object(),
@@ -1042,7 +1044,7 @@ def test_compose_output_canvas_controllers_assigns_pipeline_and_strip_registry(
         workspace_controller=object(),
         workspace_canvas_actions=object(),
         output_canvas_projection_coordinator=object(),
-        canvas_tabs=object(),
+        canvas_host=object(),
         generation_job_queue_service=object(),
         output_floating_chrome_factory=SimpleNamespace(
             set_progress_strip_registry=progress_strip_registrations.append
@@ -1067,7 +1069,7 @@ def test_compose_output_canvas_controllers_assigns_pipeline_and_strip_registry(
         "output_canvas_projection_coordinator": (
             shell.output_canvas_projection_coordinator
         ),
-        "canvas_tabs": shell.canvas_tabs,
+        "canvas_host": shell.canvas_host,
         "generation_timing_lookup": shell.generation_job_queue_service,
         "prompt_interaction_active": (
             shell.prompt_interaction_activity_tracker.is_prompt_interaction_active
@@ -1416,15 +1418,18 @@ def test_connect_shell_signals_wires_controllers_and_startup_callbacks() -> None
                 f"{kwargs['output_canvas'] is output_canvas}"
             ),
         ),
-        canvas_tabs=SimpleNamespace(
-            canvas_map={"Input": input_canvas, "Output": output_canvas},
+        canvas_host=SimpleNamespace(
+            canvas_for=lambda route_key: {
+                "Input": input_canvas,
+                "Output": output_canvas,
+            }.get(route_key),
             visibility_changed=visibility_changed,
         ),
         canvas_route_controller=SimpleNamespace(
             connect_canvas_route_signals=lambda: canvas_route_calls.append("connect")
         ),
         workspace_layout_controller=SimpleNamespace(
-            toggle_canvas_tabs=lambda: None,
+            toggle_canvas_host=lambda: None,
             handle_main_splitter_moved=lambda: None,
             handle_editor_output_splitter_moved=lambda: None,
             apply_startup_default_splitter_layout=lambda: None,
@@ -1469,7 +1474,7 @@ def test_connect_shell_signals_wires_controllers_and_startup_callbacks() -> None
     assert canvas_route_calls == ["connect"]
     assert autosave_calls == ["canvas"]
     assert visibility_changed.connected == [
-        shell.workspace_layout_controller.toggle_canvas_tabs
+        shell.workspace_layout_controller.toggle_canvas_host
     ]
     assert splitter_moved.connected == [
         shell.workspace_layout_controller.handle_main_splitter_moved

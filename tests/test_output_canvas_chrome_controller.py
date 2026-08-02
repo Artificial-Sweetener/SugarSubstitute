@@ -27,6 +27,9 @@ from substitute.presentation.canvas.output.output_canvas_chrome_controller impor
 from substitute.presentation.canvas.output.output_canvas_chrome import (
     install_output_navigation_chrome_theme_refresh,
 )
+from substitute.presentation.canvas.shared.floating_canvas_surface import (
+    floating_canvas_surface_stylesheet,
+)
 
 
 def test_navigation_background_stylesheet_uses_current_theme_colors() -> None:
@@ -40,6 +43,22 @@ def test_navigation_background_stylesheet_uses_current_theme_colors() -> None:
     assert "border: 1px solid rgba(4, 5, 6, 1);" in stylesheet
     assert "border-radius: 8px;" in stylesheet
     assert "padding: 0px;" in stylesheet
+
+
+def test_output_navigation_uses_the_canonical_canvas_surface_material() -> None:
+    """Output navigation should not maintain a parallel floating material."""
+
+    surface = "rgba(1, 2, 3, 4)"
+    border = "rgba(5, 6, 7, 8)"
+
+    assert _controller(
+        surface=surface, border=border
+    ).navigation_background_stylesheet() == (
+        floating_canvas_surface_stylesheet(
+            surface_rgba=surface,
+            border_rgba=border,
+        )
+    )
 
 
 def test_apply_navigation_background_styles_updates_both_surfaces() -> None:

@@ -71,7 +71,7 @@ from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
 from substitute.presentation.canvas import (
-    create_canvas_tabs,
+    create_canvas_host,
     create_output_floating_chrome_factory,
 )
 from substitute.presentation.canvas.shared.types import OutputImageMeta
@@ -122,14 +122,14 @@ class MainWindowWorkspaceWidgets:
     editor_panel_container: QStackedWidget
     editor_busy_overlay: EditorBusyOverlay
     comfy_output_panel: ComfyOutputPanel
-    canvas_tabs: Any
+    canvas_host: Any
     input_canvas_state_service: InputCanvasStateService
     output_canvas_state_service: OutputCanvasStateService
     output_canvas_projection_coordinator: OutputCanvasProjectionCoordinator
     workflow_canvas_projection_coordinator: WorkflowCanvasProjectionCoordinator
     canvas_image_registry: CanvasImageRegistry
     output_floating_chrome_factory: Any
-    canvas_tabs_container: QWidget
+    canvas_host_container: QWidget
     side_panel_host: "WorkspaceSidePanelHost"
     splitter: QSplitter
     progress_overlay: QWidget
@@ -266,13 +266,13 @@ def _build_canvas_scaffold(
     Any,
     QWidget,
 ]:
-    """Build canvas tabs, state owners, and the tabs container widget."""
+    """Build the canvas host, state owners, and its container widget."""
 
     canvas_session_boundary = create_canvas_session_boundary()
     canvas_image_registry = CanvasImageRegistry()
     output_floating_chrome_factory = create_output_floating_chrome_factory()
-    with trace_span("mainwindow.build_workspace.canvas.create_tabs"):
-        canvas_tabs = create_canvas_tabs(
+    with trace_span("mainwindow.build_workspace.canvas.create_host"):
+        canvas_host = create_canvas_host(
             execution_runtime=canvas_execution_runtime,
             output_preview_registry=output_preview_registry,
             open_single_external_editor=open_single_external_editor,
@@ -283,11 +283,11 @@ def _build_canvas_scaffold(
             output_floating_chrome_factory=output_floating_chrome_factory,
             route_session_boundary=canvas_session_boundary,
         )
-    with trace_span("mainwindow.build_workspace.canvas.validate_tabs"):
-        output_canvas = cast(Any, canvas_tabs.canvas_map.get("Output"))
-        input_canvas = cast(Any, canvas_tabs.canvas_map.get("Input"))
+    with trace_span("mainwindow.build_workspace.canvas.validate_host"):
+        output_canvas = cast(Any, canvas_host.canvas_for("Output"))
+        input_canvas = cast(Any, canvas_host.canvas_for("Input"))
         if input_canvas is None or output_canvas is None:
-            raise RuntimeError("Canvas tabs must include Input and Output canvases.")
+            raise RuntimeError("Canvas host must include Input and Output canvases.")
 
     with trace_span("mainwindow.build_workspace.canvas.state_service"):
         input_canvas_state_service = InputCanvasStateService(
@@ -315,20 +315,20 @@ def _build_canvas_scaffold(
         )
 
     with trace_span("mainwindow.build_workspace.canvas.container"):
-        canvas_tabs_container = QWidget()
-        container_layout = QVBoxLayout(canvas_tabs_container)
+        canvas_host_container = QWidget()
+        container_layout = QVBoxLayout(canvas_host_container)
         container_layout.setContentsMargins(0, 0, 0, 0)
         container_layout.setSpacing(0)
-        container_layout.addWidget(cast(QWidget, canvas_tabs))
+        container_layout.addWidget(cast(QWidget, canvas_host))
     return (
-        canvas_tabs,
+        canvas_host,
         input_canvas_state_service,
         output_canvas_state_service,
         output_canvas_projection_coordinator,
         workflow_canvas_projection_coordinator,
         canvas_image_registry,
         output_floating_chrome_factory,
-        canvas_tabs_container,
+        canvas_host_container,
     )
 
 
@@ -433,14 +433,14 @@ def build_main_window_workspace(
 
     with trace_span("mainwindow.build_workspace.canvas_scaffold"):
         (
-            canvas_tabs,
+            canvas_host,
             input_canvas_state_service,
             output_canvas_state_service,
             output_canvas_projection_coordinator,
             workflow_canvas_projection_coordinator,
             canvas_image_registry,
             output_floating_chrome_factory,
-            canvas_tabs_container,
+            canvas_host_container,
         ) = _build_canvas_scaffold(
             window,
             canvas_execution_runtime=canvas_execution_runtime,
@@ -452,7 +452,7 @@ def build_main_window_workspace(
         if configure_output_thumbnail_context is not None:
             configure_output_thumbnail_context(
                 canvas_image_registry,
-                lambda: _output_projection_for_canvas_tabs(canvas_tabs),
+                lambda: _output_projection_for_canvas_host(canvas_host),
             )
 
     with trace_span("mainwindow.build_workspace.central_layout"):
@@ -472,7 +472,7 @@ def build_main_window_workspace(
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)
         splitter.addWidget(editor_output_container)
-        splitter.addWidget(canvas_tabs_container)
+        splitter.addWidget(canvas_host_container)
         side_panel_host = WorkspaceSidePanelHost()
         splitter.addWidget(side_panel_host)
         splitter.setStretchFactor(0, 0)
@@ -581,14 +581,14 @@ def build_main_window_workspace(
         editor_panel_container=editor_panel_container,
         editor_busy_overlay=editor_busy_overlay,
         comfy_output_panel=comfy_output_panel,
-        canvas_tabs=canvas_tabs,
+        canvas_host=canvas_host,
         input_canvas_state_service=input_canvas_state_service,
         output_canvas_state_service=output_canvas_state_service,
         output_canvas_projection_coordinator=output_canvas_projection_coordinator,
         workflow_canvas_projection_coordinator=workflow_canvas_projection_coordinator,
         canvas_image_registry=canvas_image_registry,
         output_floating_chrome_factory=output_floating_chrome_factory,
-        canvas_tabs_container=canvas_tabs_container,
+        canvas_host_container=canvas_host_container,
         side_panel_host=side_panel_host,
         splitter=splitter,
         progress_overlay=progress_overlay,
@@ -597,15 +597,15 @@ def build_main_window_workspace(
     )
 
 
-def _output_projection_for_canvas_tabs(
-    canvas_tabs: object,
+def _output_projection_for_canvas_host(
+    canvas_host: object,
 ) -> OutputCanvasProjection | None:
-    """Return the current Output canvas projection from composed canvas tabs."""
+    """Return the current Output projection from the composed canvas host."""
 
-    canvas_map = getattr(canvas_tabs, "canvas_map", None)
-    if not isinstance(canvas_map, dict):
+    canvas_for = getattr(canvas_host, "canvas_for", None)
+    if not callable(canvas_for):
         return None
-    output_canvas = canvas_map.get("Output")
+    output_canvas = canvas_for("Output")
     projection = getattr(output_canvas, "_output_projection", None)
     return projection if isinstance(projection, OutputCanvasProjection) else None
 

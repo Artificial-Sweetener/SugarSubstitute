@@ -21,9 +21,11 @@ from __future__ import annotations
 from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QCloseEvent, QResizeEvent, QShowEvent
 from PySide6.QtWidgets import QFrame, QSizePolicy, QWidget
-from qfluentwidgets.common.config import qconfig  # type: ignore[import-untyped]
-from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
-    isDarkTheme,
+from substitute.presentation.canvas.shared.floating_canvas_surface import (
+    floating_canvas_surface_stylesheet,
+)
+from substitute.presentation.shell.chrome_style import (
+    connect_theme_refresh,
 )
 
 from .model import CanvasToolPresentation
@@ -60,8 +62,7 @@ class CanvasToolStrip(QFrame):
             request_tool=self._request_tool,
         )
         self._apply_theme_style()
-        qconfig.themeChangedFinished.connect(self._apply_theme_style)
-        qconfig.themeColorChanged.connect(self._apply_theme_style)
+        connect_theme_refresh(self, self._apply_theme_style)
         self.destroyed.connect(self._release_subscription)
         self.hide()
 
@@ -175,23 +176,9 @@ class CanvasToolStrip(QFrame):
             self._apply_presentations(presentations, animate_selection=False)
 
     def _apply_theme_style(self, *_args: object) -> None:
-        """Style only the compact surface and leave buttons to qfluent."""
+        """Apply the canonical floating canvas material to the compact strip."""
 
-        if isDarkTheme():
-            surface = "rgba(35, 35, 35, 232)"
-            border = "rgba(255, 255, 255, 40)"
-        else:
-            surface = "rgba(246, 246, 246, 232)"
-            border = "rgba(0, 0, 0, 34)"
-        self.setStyleSheet(
-            f"""
-            QFrame#CanvasToolStrip {{
-                background-color: {surface};
-                border: 1px solid {border};
-                border-radius: 3px;
-            }}
-            """
-        )
+        self.setStyleSheet(floating_canvas_surface_stylesheet("QFrame#CanvasToolStrip"))
         self.indicator.update()
 
 

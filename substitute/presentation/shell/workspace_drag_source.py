@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Any
 
 from PySide6.QtCore import QObject
@@ -37,11 +36,11 @@ class WorkspaceCanvasDragSourceClassifier:
 
         if source is None:
             return False
-        canvas_tabs = getattr(self._shell, "canvas_tabs", None)
-        canvas_map = getattr(canvas_tabs, "canvas_map", None)
-        if not isinstance(canvas_map, Mapping):
+        canvas_host = getattr(self._shell, "canvas_host", None)
+        canvases = getattr(canvas_host, "canvases", None)
+        if not callable(canvases):
             return False
-        for canvas in canvas_map.values():
+        for canvas in canvases():
             surface = getattr(canvas, "pane", canvas)
             if self.drag_source_matches_pane(source, surface):
                 return True

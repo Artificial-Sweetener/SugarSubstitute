@@ -100,7 +100,7 @@ Prompt preview:
       <translation>%1（バイパス）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/host/canvas_tabs_view.py" line="417"></location>
+      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="189"></location>
       <source>%1 Canvas</source>
       <translation>%1 キャンバス</translation>
     </message>
@@ -215,7 +215,7 @@ Prompt preview:
       <translation>プロバイダーレコード %1 件、サムネイルソース %2 件、バリエーション %3 件、%4</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="143"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="207"></location>
       <source>%1 px</source>
       <translation>%1 ピクセル</translation>
     </message>
@@ -770,9 +770,14 @@ Prompt preview:
       <translation>参照...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="104"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="103"></location>
       <source>Brush</source>
       <translation>ブラシ</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="123"></location>
+      <source>Brush settings</source>
+      <translation>ブラシ設定</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="111"></location>
@@ -848,11 +853,6 @@ Prompt preview:
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2097"></location>
       <source>Cancelling the model download.</source>
       <translation>モデルのダウンロードをキャンセルしています。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/canvas/host/canvas_tabs_view.py" line="109"></location>
-      <source>Canvas Tab Demo</source>
-      <translation>キャンバスタブのデモ</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1356"></location>
@@ -1375,7 +1375,7 @@ Prompt preview:
       <translation>クリックで点を追加、ドラッグで移動、右クリックで削除します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="532"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="132"></location>
       <source>Close</source>
       <translation>閉じる</translation>
     </message>
@@ -1930,7 +1930,7 @@ Prompt preview:
       <translation>キューブライブラリに必要なノードをインストールできませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="964"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="965"></location>
       <source>Could not load image: %1</source>
       <translation>画像を読み込めませんでした：%1</translation>
     </message>
@@ -2413,7 +2413,7 @@ Install these nodes now?</source>
       <translation>エディター機能</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="77"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="76"></location>
       <source>Ellipse Mask</source>
       <translation>楕円形マスク</translation>
     </message>
@@ -2763,7 +2763,7 @@ Install these nodes now?</source>
       <translation>生成可能なシーンが見つかりませんでした：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="976"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="977"></location>
       <source>Generated image load failed</source>
       <translation>生成画像の読み込みに失敗しました</translation>
     </message>
@@ -2883,7 +2883,7 @@ Install these nodes now?</source>
       <translation>HTTP ステータス：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="112"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="165"></location>
       <source>Hardness</source>
       <translation>硬さ</translation>
     </message>
@@ -3218,7 +3218,7 @@ Install these nodes now?</source>
       <translation>言語と地域</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="85"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="84"></location>
       <source>Lasso Mask</source>
       <translation>なげなわマスク</translation>
     </message>
@@ -3343,7 +3343,7 @@ Install these nodes now?</source>
       <translation>LoRA トリガーワード</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="968"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="969"></location>
       <source>Load Error</source>
       <translation>読み込みエラー</translation>
     </message>
@@ -3523,12 +3523,12 @@ Install these nodes now?</source>
       <translation>メタデータを手動更新するには、モデルの種類と値が必要です。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="869"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="867"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>マスクのサイズを確認できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="806"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="804"></location>
       <source>Mask dimensions do not match</source>
       <translation>マスクのサイズが一致しません</translation>
     </message>
@@ -3663,7 +3663,7 @@ Install these nodes now?</source>
       <translation>ほとんどの場合は、最初のオプションから始めてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="61"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="60"></location>
       <source>Move</source>
       <translation>移動</translation>
     </message>
@@ -3778,7 +3778,7 @@ Install these nodes now?</source>
       <translation>キューブが見つかりません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="135"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="136"></location>
       <source>No input canvas nodes</source>
       <translation>入力キャンバスノードがありません</translation>
     </message>
@@ -3963,7 +3963,7 @@ Install these nodes now?</source>
       <translation>Pixiv では：</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="119"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="172"></location>
       <source>Opacity</source>
       <translation>不透明度</translation>
     </message>
@@ -4138,7 +4138,7 @@ Install these nodes now?</source>
       <translation>パッケージが読み込まれていません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="114"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="112"></location>
       <source>Pan &amp; Zoom</source>
       <translation>パンとズーム</translation>
     </message>
@@ -4563,7 +4563,7 @@ Install these nodes now?</source>
       <translation>録音中…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="69"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="68"></location>
       <source>Rectangle Mask</source>
       <translation>長方形マスク</translation>
     </message>
@@ -5507,7 +5507,7 @@ No known extension claimant.</source>
       <translation>クリーンアップが完了する前に、終了処理がタイムアウトしました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="105"></location>
+      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="158"></location>
       <source>Size</source>
       <translation>サイズ</translation>
     </message>
@@ -5522,7 +5522,7 @@ No known extension claimant.</source>
       <translation>利用可能な場合、アクティブなキュー済み生成をスキップします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="93"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="92"></location>
       <source>Smart Select</source>
       <translation>スマート選択</translation>
     </message>
@@ -6587,12 +6587,12 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>選択したフォルダーには、完全な ComfyUI がインストールされていません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="871"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="869"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>選択したマスクの寸法を、読み込まれた入力画像と照合できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="808"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="806"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>選択したマスクの寸法が、読み込まれた入力画像と一致しません。</translation>
     </message>

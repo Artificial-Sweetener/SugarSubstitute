@@ -632,7 +632,7 @@ def compose_output_canvas_controllers(shell: Any) -> MainWindowOutputCanvasCompo
             OutputCanvasProjectionCoordinatorProtocol,
             shell.output_canvas_projection_coordinator,
         ),
-        "canvas_tabs": shell.canvas_tabs,
+        "canvas_host": shell.canvas_host,
         "generation_timing_lookup": shell.generation_job_queue_service,
         "prompt_interaction_active": (
             shell.prompt_interaction_activity_tracker.is_prompt_interaction_active
@@ -665,7 +665,7 @@ def compose_output_canvas_controllers(shell: Any) -> MainWindowOutputCanvasCompo
 def _compose_output_transfer_lifecycle(shell: Any) -> OutputTransferLifecycle:
     """Install the Output workspace's captured-subject outbound transfer provider."""
 
-    output_canvas = shell.canvas_tabs.canvas_map.get("Output")
+    output_canvas = shell.canvas_host.canvas_for("Output")
     if output_canvas is None:
         raise RuntimeError("Canvas tabs must include an Output canvas.")
     drag_submitter = shell.execution_runtime.submitter(
@@ -756,7 +756,7 @@ def _output_image_preparation_dispatcher(
 def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposition:
     """Create Input canvas services and presenter controllers for the shell."""
 
-    input_canvas = shell.canvas_tabs.canvas_map.get("Input")
+    input_canvas = shell.canvas_host.canvas_for("Input")
     if input_canvas is None:
         raise RuntimeError("Canvas tabs must include an Input canvas.")
 
@@ -803,7 +803,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         workflow_session_service=shell.workflow_session_service,
         workflow_input_canvas_service=workflow_input_canvas_service,
         input_canvas_state_service=shell.input_canvas_state_service,
-        canvas_tabs_provider=lambda: shell.canvas_tabs,
+        canvas_host_provider=lambda: shell.canvas_host,
         workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
         projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
         mask_color_provider=input_mask_color,
@@ -944,7 +944,7 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
     workspace_splitter_controller = WorkspaceSplitterController(
         splitter=shell.splitter,
         details_widget=shell.editor_output_container,
-        canvas_widget=shell.canvas_tabs_container,
+        canvas_widget=shell.canvas_host_container,
     )
     cube_stack_presentation_controller = CubeStackPresentationController(
         container=shell.cube_stack_container,
@@ -1201,8 +1201,8 @@ def connect_shell_signals(
         shell.main_window_signal_binder.connect_menu_action_signals()
         shell.main_window_signal_binder.connect_workflow_tab_signals()
 
-    output_canvas = shell.canvas_tabs.canvas_map.get("Output")
-    input_canvas = shell.canvas_tabs.canvas_map.get("Input")
+    output_canvas = shell.canvas_host.canvas_for("Output")
+    input_canvas = shell.canvas_host.canvas_for("Input")
     if input_canvas is None or output_canvas is None:
         raise RuntimeError("Canvas tabs must include Input and Output canvases.")
     shell.main_window_signal_binder.connect_canvas_signals(
@@ -1210,8 +1210,8 @@ def connect_shell_signals(
         output_canvas=output_canvas,
     )
     shell.canvas_route_controller.connect_canvas_route_signals()
-    shell.canvas_tabs.visibility_changed.connect(
-        shell.workspace_layout_controller.toggle_canvas_tabs
+    shell.canvas_host.visibility_changed.connect(
+        shell.workspace_layout_controller.toggle_canvas_host
     )
     shell.session_autosave_controller.connect_canvas_layout_autosave()
     shell.splitter.splitterMoved.connect(
