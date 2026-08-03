@@ -25,12 +25,16 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 from cutecanvas import CuteCanvas
+from substitute.domain.workflow import WorkflowCanvasState
 from substitute.presentation.canvas.input import (
     InputCanvasPresenter,
     InputCanvasToolController,
 )
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
     create_input_canvas_tool_system,
+)
+from substitute.presentation.canvas.input.input_node_interaction_controller import (
+    InputNodeInteractionController,
 )
 
 
@@ -120,7 +124,6 @@ def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
 
     image_id = uuid4()
     mask_id = uuid4()
-    panel = _Panel()
     active_images: list[UUID] = []
     active_masks: list[UUID] = []
     focused: list[str] = []
@@ -150,21 +153,48 @@ def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
         active_masks.append(value)
         return True
 
-    presenter = _presenter(
-        workflow=workflow,
-        panel=panel,
-        document=document,
+    runtime = create_input_canvas_tool_system()
+    tool_controller = InputCanvasToolController(
+        input_document=document,
+        operation_setter=document.set_canvas_operation,
         current_image_id_provider=lambda: image_id,
-        input_canvas_state_service=SimpleNamespace(
-            set_active_input_image=set_active_input_image,
-            set_active_workflow_mask=set_active_workflow_mask,
-        ),
-        canvas_host=SimpleNamespace(
-            focus_attached_canvas=lambda label: focused.append(label),
-        ),
+        runtime=runtime,
+    )
+    state_service = SimpleNamespace(
+        set_active_input_image=set_active_input_image,
+        set_active_workflow_mask=set_active_workflow_mask,
     )
 
-    presenter.handle_input_mask_clicked("CubeA", "MaskNode", "")
+    def activate_input() -> bool:
+        """Record route activation through the route-owner boundary."""
+
+        focused.append("Input")
+        workflow.canvas.active_canvas_route = "Input"
+        return True
+
+    controller = InputNodeInteractionController(
+        active_workflow=lambda: cast(Any, workflow),
+        active_workflow_id=lambda: "wf-a",
+        workflow_input_canvas_service=cast(
+            Any,
+            SimpleNamespace(
+                binding_for_mask=lambda *_args: SimpleNamespace(
+                    section_key="CubeA",
+                    surface_key="ImageNode",
+                    association_key=("CubeA", "MaskNode"),
+                ),
+                bindings_for_image=lambda *_args: (),
+            ),
+        ),
+        input_canvas_state_service=cast(Any, state_service),
+        materialize_image_selection=lambda *_args: True,
+        apply_mask_selection=lambda *_args: True,
+        activate_input_canvas=activate_input,
+        refresh_mask_pickers=lambda: None,
+        tool_controller=tool_controller,
+    )
+
+    controller.handle_mask_clicked("CubeA", "MaskNode", "")
 
     assert active_images == [image_id]
     assert active_masks == [mask_id]
@@ -237,7 +267,7 @@ def test_presenter_refreshes_user_selected_mask_from_asset_state(
         ),
     )
 
-    presenter.handle_input_mask_changed("CubeA", "MaskNode", str(selected_path))
+    presenter.apply_mask_selection("CubeA", "MaskNode", str(selected_path))
 
     assert panel.refreshes == [("CubeA", "MaskNode", str(asset_path))]
 
@@ -320,13 +350,11 @@ def test_phase16_policy_is_not_fallback_routed_through_workspace_actions() -> No
 def _workflow(*, image_id: UUID, mask_id: UUID) -> SimpleNamespace:
     """Return workflow state with one graph-bound image and mask."""
 
+    canvas = WorkflowCanvasState()
+    canvas.bind_image("CubeA:ImageNode", image_id)
+    canvas.bind_mask(("CubeA", "MaskNode"), mask_id, image_id)
     return SimpleNamespace(
-        canvas=SimpleNamespace(
-            input_key_map={"CubeA:ImageNode": image_id},
-            mask_associations={("CubeA", "MaskNode"): mask_id},
-            mask_to_image_map={mask_id: image_id},
-            active_canvas_route=None,
-        ),
+        canvas=canvas,
         cubes={
             "CubeA": SimpleNamespace(
                 buffer={
@@ -379,8 +407,6 @@ def _presenter(
     current_image_id_provider: Callable[[], UUID | None] | None = None,
     input_canvas_state_service: Any | None = None,
     workflow_input_canvas_service: Any | None = None,
-    canvas_host: Any | None = None,
-    timer: type[_Timer] = _Timer,
 ) -> InputCanvasPresenter:
     """Build an InputCanvasPresenter with focused test collaborators."""
 
@@ -409,13 +435,6 @@ def _presenter(
         set_active_workflow_mask=lambda *_args: True,
         input_image_path=lambda _image_id: None,
     )
-    runtime = create_input_canvas_tool_system()
-    tool_controller = InputCanvasToolController(
-        input_document=document,
-        operation_setter=document.set_canvas_operation,
-        current_image_id_provider=current_image_id_provider or (lambda: None),
-        runtime=runtime,
-    )
     return InputCanvasPresenter(
         input_document=document,
         current_image_id_provider=current_image_id_provider or (lambda: None),
@@ -427,10 +446,7 @@ def _presenter(
         ),
         workflow_input_canvas_service=cast(Any, workflow_input_canvas_service),
         input_canvas_state_service=cast(Any, input_canvas_state_service),
-        canvas_host_provider=lambda: cast(Any, canvas_host),
         workflow_name_provider=lambda _workflow_id: "Recipe",
         projects_dir_provider=lambda: asset_path.parent,
         mask_color_provider=lambda index, total: f"color-{index}/{total}",
-        tool_controller=tool_controller,
-        timer=timer,
     )

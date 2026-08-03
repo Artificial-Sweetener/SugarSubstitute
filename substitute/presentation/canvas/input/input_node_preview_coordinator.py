@@ -24,6 +24,7 @@ from uuid import UUID
 
 from PySide6.QtWidgets import QWidget
 
+from substitute.domain.workflow import WorkflowState
 from substitute.presentation.editor.panel.widgets.fields.load_image import ImagePicker
 from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
 
@@ -84,6 +85,42 @@ class InputNodePreviewCoordinator:
         cube_alias, node_name = association_key
         return self._bind_mask(cube_alias, node_name, binding)
 
+    def bind_workflow(
+        self,
+        workflow: WorkflowState,
+    ) -> frozenset[tuple[str, str]]:
+        """Project restored active-workflow associations into the current panel."""
+        panel = self._active_panel()
+        if panel is None:
+            return frozenset()
+        canvas = workflow.canvas
+        for image_picker in panel.findChildren(ImagePicker):
+            identity = _metadata_identity(image_picker.property("input_metadata"))
+            if identity is None:
+                continue
+            cube_alias, node_name = identity
+            image_entry = canvas.image_entry(f"{cube_alias}:{node_name}")
+            if image_entry is None:
+                continue
+            binding = self._bindings.image(image_entry.image_id)
+            if binding is not None:
+                self._bind_image(cube_alias, node_name, binding)
+        bound_masks: set[tuple[str, str]] = set()
+        for mask_picker in panel.findChildren(MaskPicker):
+            identity = _metadata_identity(mask_picker.property("input_metadata"))
+            if identity is None:
+                continue
+            mask_entry = canvas.mask_entry(identity)
+            if mask_entry is None:
+                continue
+            binding = self._bindings.mask(
+                mask_entry.image_id,
+                mask_entry.mask_id,
+            )
+            if binding is not None and self._bind_mask(*identity, binding):
+                bound_masks.add(identity)
+        return frozenset(bound_masks)
+
     def _bind_image(
         self,
         cube_alias: str,
@@ -97,8 +134,17 @@ class InputNodePreviewCoordinator:
         for picker in panel.findChildren(ImagePicker):
             metadata = picker.property("input_metadata")
             if _matches(metadata, cube_alias, node_name):
-                preview = InputNodePreviewWidget(binding, picker)
-                preview.clicked.connect(picker.handle_thumbnail_click)
+                current = picker.live_preview()
+                if (
+                    isinstance(current, InputNodePreviewWidget)
+                    and current.binding.identity == binding.identity
+                ):
+                    return True
+                preview = InputNodePreviewWidget(
+                    binding,
+                    picker,
+                    preferred_width=picker.thumbnail_size,
+                )
                 picker.set_live_preview(preview)
                 return True
         return False
@@ -116,8 +162,17 @@ class InputNodePreviewCoordinator:
         for picker in panel.findChildren(MaskPicker):
             metadata = picker.property("input_metadata")
             if _matches(metadata, cube_alias, node_name):
-                preview = InputNodePreviewWidget(binding, picker)
-                preview.clicked.connect(picker.handle_thumbnail_click)
+                current = picker.live_preview()
+                if (
+                    isinstance(current, InputNodePreviewWidget)
+                    and current.binding.identity == binding.identity
+                ):
+                    return True
+                preview = InputNodePreviewWidget(
+                    binding,
+                    picker,
+                    preferred_width=picker.thumbnail_size,
+                )
                 picker.set_live_preview(preview)
                 return True
         return False
@@ -140,6 +195,17 @@ def _matches(metadata: object, cube_alias: str, node_name: str) -> bool:
         and metadata.get("cube_alias") == cube_alias
         and metadata.get("node_name") == node_name
     )
+
+
+def _metadata_identity(metadata: object) -> tuple[str, str] | None:
+    """Return one concrete cube/node identity from picker metadata."""
+    if not isinstance(metadata, dict):
+        return None
+    cube_alias = metadata.get("cube_alias")
+    node_name = metadata.get("node_name")
+    if not isinstance(cube_alias, str) or not isinstance(node_name, str):
+        return None
+    return cube_alias, node_name
 
 
 def _association_key(value: object) -> TypeGuard[tuple[str, str]]:

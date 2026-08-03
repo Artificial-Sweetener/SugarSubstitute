@@ -212,12 +212,13 @@ class WorkspaceRestoreImageAdapter:
                 continue
             canvas = workflow.canvas
             if association_key is not None:
-                mapped_mask_id = canvas.mask_associations.get(association_key)
-                if mapped_mask_id == snapshot_mask_id:
+                mask_entry = canvas.mask_entry(association_key)
+                if mask_entry is not None and mask_entry.mask_id == snapshot_mask_id:
                     return str(workflow_id), workflow
-            if canvas.mask_to_image_map.get(snapshot_mask_id) == image_id:
+            mask_entry = canvas.mask_entry_for_id(snapshot_mask_id)
+            if mask_entry is not None and mask_entry.image_id == image_id:
                 return str(workflow_id), workflow
-            if image_id in canvas.input_key_map.values():
+            if canvas.image_entry_for_id(image_id) is not None:
                 return str(workflow_id), workflow
         return None
 

@@ -95,7 +95,7 @@ def test_generation_materializes_one_coherent_bundle_without_mutating_authoring(
     assert original_nodes["MaskNode"]["inputs"]["image"] == "authoring-mask.png"
     prepared_image_value = prepared_nodes["ImageNode"]["inputs"]["image"]
     assert isinstance(prepared_image_value, str)
-    assert prepared_image_value.startswith(".generation/")
+    assert prepared_image_value.startswith("input_images/.generation/")
     assert prepared_nodes["MaskNode"]["inputs"]["image"] == (
         f".generation/{mask_id}/13.png"
     )
@@ -256,9 +256,8 @@ def _workflow(image_id: UUID, mask_id: UUID) -> WorkflowState:
         },
     )
     workflow = WorkflowState(cubes={"CubeA": cube}, stack_order=["CubeA"])
-    workflow.canvas.input_key_map["CubeA:ImageNode"] = image_id
-    workflow.canvas.mask_associations[("CubeA", "MaskNode")] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_image("CubeA:ImageNode", image_id)
+    workflow.canvas.bind_mask(("CubeA", "MaskNode"), mask_id, image_id)
     return workflow
 
 

@@ -22,49 +22,64 @@ import importlib
 import sys
 from types import SimpleNamespace
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QPoint, QRectF, QSize, Qt
+from PySide6.QtGui import QColor, QImage, QPainter, QPainterPath, QPixmap, QRegion
+from PySide6.QtWidgets import QApplication, QWidget
+
+from substitute.presentation.editor.panel.widgets.fields.thumbnail_preview_surface import (
+    ThumbnailPreviewSurface,
+)
 
 
-class _Thumbnail:
-    """Minimal thumbnail double used by shared picker helper tests."""
-
-    def __init__(self) -> None:
-        self.cleared = False
-
-    def clear(self) -> None:
-        """Record thumbnail clearing."""
-
-        self.cleared = True
-
-
-class _Caption:
-    """Minimal caption double used by shared picker helper tests."""
+class _SolidLivePreview(QWidget):
+    """Paint deterministic pixels through the live thumbnail path."""
 
     def __init__(self) -> None:
-        self.text = "existing"
-        self.width: int | None = None
-        self.tooltip = "existing"
-        self.visible = True
+        """Create an unclipped preview awaiting surface presentation policy."""
 
-    def setText(self, text: str) -> None:
-        """Record caption text."""
+        super().__init__()
+        self.corner_radius = 0
 
-        self.text = text
+    def set_thumbnail_corner_radius(self, radius: int) -> None:
+        """Accept the corner geometry owned by the thumbnail surface."""
 
-    def setFixedWidth(self, width: int) -> None:
-        """Record width updates."""
+        self.corner_radius = radius
 
-        self.width = width
+    def sizeHint(self) -> QSize:
+        """Return the historical test thumbnail content size."""
 
-    def setToolTip(self, tooltip: str) -> None:
-        """Record tooltip updates."""
+        return QSize(100, 50)
 
-        self.tooltip = tooltip
+    def paintEvent(self, event: object) -> None:
+        """Fill the preview with the same pixels as the static fixture."""
 
-    def hide(self) -> None:
-        """Record hide calls."""
+        del event
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        path = QPainterPath()
+        path.addRoundedRect(
+            QRectF(self.rect()),
+            self.corner_radius,
+            self.corner_radius,
+        )
+        painter.setClipPath(path)
+        painter.fillRect(self.rect(), QColor("magenta"))
 
-        self.visible = False
+
+def _render_transparent(widget: QWidget) -> QImage:
+    """Render one widget tree into a transparent deterministic image."""
+
+    image = QImage(widget.size(), QImage.Format.Format_ARGB32_Premultiplied)
+    image.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(image)
+    widget.render(
+        painter,
+        QPoint(),
+        QRegion(),
+        QWidget.RenderFlag.DrawChildren,
+    )
+    painter.end()
+    return image
 
 
 def _qapp() -> QApplication:
@@ -126,21 +141,77 @@ def test_restore_placeholder_or_clear_resets_thumbnail_state_without_placeholder
     mod = importlib.import_module(
         "substitute.presentation.editor.panel.widgets.fields.thumbnail_picker_base"
     )
-    thumbnail = _Thumbnail()
-    caption = _Caption()
-    fake = SimpleNamespace(
-        _placeholder_image_path=None,
-        thumbnail=thumbnail,
-        caption=caption,
-        thumbnail_size=352,
-        _current_file_path="C:/images/chosen.png",
+    _qapp()
+    picker = mod.ThumbnailPickerBase()
+    picker._current_file_path = "C:/images/chosen.png"
+    picker.caption.setText("existing")
+    picker.caption.setToolTip("existing")
+    picker.caption.show()
+
+    picker._restore_placeholder_or_clear()
+
+    pixmap = picker.thumbnail.pixmap()
+    assert pixmap is None or pixmap.isNull()
+    assert picker.caption.text() == ""
+    assert picker.caption.width() == 344
+    assert picker.caption.toolTip() == ""
+    assert picker.caption.isHidden()
+    assert picker.current_file_path() is None
+    picker.close()
+
+
+def test_static_thumbnail_keeps_historical_frame_geometry_and_caption_width() -> None:
+    """New live-preview support must not alter the original picker presentation."""
+
+    mod = importlib.import_module(
+        "substitute.presentation.editor.panel.widgets.fields.thumbnail_picker_base"
+    )
+    _qapp()
+    picker = mod.ThumbnailPickerBase(thumbnail_size=352, corner_radius=8)
+    source = QPixmap(176, 88)
+    source.fill(QColor("magenta"))
+
+    picker._apply_display_pixmap(
+        source,
+        caption_text="[source.png]",
+        tooltip_text="source.png",
     )
 
-    mod.ThumbnailPickerBase._restore_placeholder_or_clear(fake)
+    assert picker.preview_surface.size() == QSize(364, 188)
+    assert picker.thumbnail.size() == QSize(364, 188)
+    assert picker.caption.width() == 364
+    framed = picker.thumbnail.pixmap()
+    assert framed is not None and framed.size() == QSize(364, 188)
+    assert framed.toImage().pixelColor(0, 0).alpha() == 0
+    assert framed.toImage().pixelColor(182, 94).red() > 200
+    picker.close()
 
-    assert thumbnail.cleared is True
-    assert caption.text == ""
-    assert caption.width == 344
-    assert caption.tooltip == ""
-    assert caption.visible is False
-    assert fake._current_file_path is None
+
+def test_live_thumbnail_uses_the_exact_historical_antialiased_corner_mask() -> None:
+    """Live document pixels must match the original rounded frame pixel-for-pixel."""
+
+    _qapp()
+    static_surface = ThumbnailPreviewSurface(
+        thumbnail_width=100,
+        corner_radius=8,
+    )
+    live_surface = ThumbnailPreviewSurface(
+        thumbnail_width=100,
+        corner_radius=8,
+    )
+    static_surface.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+    live_surface.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+    source = QPixmap(100, 50)
+    source.fill(QColor("magenta"))
+    static_surface.set_static_pixmap(source)
+    live_preview = _SolidLivePreview()
+    live_surface.set_live_content(live_preview)
+
+    static_pixels = _render_transparent(static_surface)
+    live_pixels = _render_transparent(live_surface)
+
+    assert static_pixels == live_pixels
+    assert static_pixels.pixelColor(10, 6).alpha() not in {0, 255}
+    assert live_preview.corner_radius == 8
+    static_surface.close()
+    live_surface.close()

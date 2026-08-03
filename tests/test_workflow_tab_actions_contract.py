@@ -1161,7 +1161,7 @@ def test_duplicate_workflow_preserves_asset_metadata_and_resets_live_canvas() ->
         },
     }
     image_id = uuid4()
-    source_workflow.canvas.input_key_map["CubeA:Load"] = image_id
+    source_workflow.canvas.bind_image("CubeA:Load", image_id)
     source_workflow.canvas.input_image_uuid = image_id
 
     def _create_workflow_ui(
@@ -1209,7 +1209,7 @@ def test_duplicate_workflow_preserves_asset_metadata_and_resets_live_canvas() ->
     source_load = cast(dict[str, Any], source_nodes["Load"])
     source_inputs = cast(dict[str, Any], source_load["inputs"])
     assert source_inputs["image"] == "assets/input.png"
-    assert duplicate.canvas.input_key_map == {}
+    assert duplicate.canvas.image_entries == {}
     assert duplicate.canvas.input_image_uuid is None
 
 

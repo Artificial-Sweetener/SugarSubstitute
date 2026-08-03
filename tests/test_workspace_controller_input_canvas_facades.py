@@ -32,14 +32,14 @@ def test_input_canvas_intents_delegate_to_input_presenter(
 
     mod = import_workspace_controller_module(monkeypatch)
     calls: list[tuple[str, tuple[object, ...]]] = []
-    presenter = SimpleNamespace(
-        handle_input_image_changed=lambda *args: calls.append(("image_changed", args)),
-        handle_input_image_clicked=lambda *args: calls.append(("image_clicked", args)),
-        handle_input_mask_changed=lambda *args: calls.append(("mask_changed", args)),
+    interaction_controller = SimpleNamespace(
+        handle_image_changed=lambda *args: calls.append(("image_changed", args)),
+        handle_image_clicked=lambda *args: calls.append(("image_clicked", args)),
+        handle_mask_changed=lambda *args: calls.append(("mask_changed", args)),
     )
     controller = object.__new__(mod.WorkspaceController)
     controller._views = SimpleNamespace(
-        canvas=SimpleNamespace(input_canvas_presenter=presenter)
+        canvas=SimpleNamespace(input_node_interaction_controller=interaction_controller)
     )
 
     controller.on_input_image_changed("CubeA", "ImageNode", "C:/images/input.png")

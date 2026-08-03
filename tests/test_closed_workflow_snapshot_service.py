@@ -94,9 +94,8 @@ def test_closed_workflow_snapshot_round_trips_workflow_state() -> None:
             orientation="horizontal",
         ),
     )
-    workflow.canvas.input_key_map["Demo.LoadImage.image"] = input_id
-    workflow.canvas.mask_associations[("Demo", "mask")] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = input_id
+    workflow.canvas.bind_image("Demo.LoadImage.image", input_id)
+    workflow.canvas.bind_mask(("Demo", "mask"), mask_id, input_id)
     workflow.canvas.input_image_uuid = input_id
     workflow.canvas.active_input_mask_uuid = mask_id
     workflow.canvas.active_canvas_route = "Input"

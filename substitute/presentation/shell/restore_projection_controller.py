@@ -398,9 +398,18 @@ class RestoreProjectionController:
     ) -> None:
         """Structurally reconcile restored workflow editor widgets before display."""
 
+        def finish_projection() -> None:
+            """Bind document entries only after their production node widgets exist."""
+
+            presenter = getattr(self._shell, "input_canvas_presenter", None)
+            bind_previews = getattr(presenter, "bind_active_node_previews", None)
+            if callable(bind_previews):
+                bind_previews()
+            on_complete()
+
         self._shell.active_workflow_surface_refresher.refresh_active_workflow_surface(
             force_refresh=force_refresh,
-            on_complete=on_complete,
+            on_complete=finish_projection,
         )
 
     def queue_restore_projection_cache_capture(self, workflow_id: str) -> None:

@@ -455,11 +455,12 @@ class InputMaskMaterializationService:
     ) -> MaskMaterializationResult | None:
         """Reuse the live canvas mask for a binding when it already targets image_id."""
 
-        mask_id = workflow.canvas.mask_associations.get(binding.association_key)
-        if mask_id is None:
+        mask_entry = workflow.canvas.mask_entry(binding.association_key)
+        if mask_entry is None:
             return None
 
-        associated_image_id = workflow.canvas.mask_to_image_map.get(mask_id)
+        mask_id = mask_entry.mask_id
+        associated_image_id = mask_entry.image_id
         if associated_image_id == image_id:
             log_debug(
                 _LOGGER,

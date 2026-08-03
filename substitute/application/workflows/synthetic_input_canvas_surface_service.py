@@ -148,7 +148,7 @@ class SyntheticInputCanvasSurfaceService:
         }
         stale_keys = tuple(
             input_key
-            for input_key in workflow.canvas.input_key_map
+            for input_key in workflow.canvas.image_entries
             if input_key.startswith(prefix) and input_key not in current_keys
         )
         for input_key in stale_keys:

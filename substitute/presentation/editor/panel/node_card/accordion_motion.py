@@ -253,7 +253,8 @@ class AccordionMotionController(QObject):
         content_layout: QVBoxLayout,
         divider_below_title: QWidget | None,
         chevron: AccordionChevronWidget,
-        cube_height_updater: Callable[[], None],
+        transition_started: Callable[[], None],
+        transition_finished: Callable[[], None],
     ) -> None:
         """Bind one card header, body, and optional divider to shared motion policy."""
 
@@ -263,7 +264,8 @@ class AccordionMotionController(QObject):
         self._content_layout = content_layout
         self._divider_below_title = divider_below_title
         self._chevron = chevron
-        self._cube_height_updater = cube_height_updater
+        self._transition_started = transition_started
+        self._transition_finished = transition_finished
         self._state = ensure_card_body_layout_state(
             content_body=content_body,
             expanded_height=resolve_card_body_expanded_height(
@@ -345,7 +347,7 @@ class AccordionMotionController(QObject):
                 divider_delay = max(1, int(resolved_duration * _DIVIDER_SHOW_PROGRESS))
                 self._divider_timer.start(divider_delay)
 
-        self._cube_height_updater()
+        self._transition_started()
 
     def content_offset_y(self) -> int:
         """Return the current clipped content offset for tests and diagnostics."""
@@ -406,7 +408,7 @@ class AccordionMotionController(QObject):
         self._sync_surface_attachment()
         if not self._state.collapsed:
             self._show_divider_after_expand()
-        self._cube_height_updater()
+        self._transition_finished()
 
     def _sync_final_content_offset(self) -> None:
         """Set the content offset that matches the current authoritative state."""

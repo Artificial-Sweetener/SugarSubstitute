@@ -496,17 +496,17 @@ def test_editor_panel_signals_route_editor_events_and_layout_autosave() -> None:
                 ("prompt_scene", scene_key)
             ),
         ),
-        input_canvas_presenter=SimpleNamespace(
-            handle_input_image_changed=lambda alias, node, path: events.append(
+        input_node_interaction_controller=SimpleNamespace(
+            handle_image_changed=lambda alias, node, path: events.append(
                 ("image_changed", (alias, node, path))
             ),
-            handle_input_image_clicked=lambda alias, node, path: events.append(
+            handle_image_clicked=lambda alias, node, path: events.append(
                 ("image_clicked", (alias, node, path))
             ),
-            handle_input_mask_changed=lambda alias, node, path: events.append(
+            handle_mask_changed=lambda alias, node, path: events.append(
                 ("mask_changed", (alias, node, path))
             ),
-            handle_input_mask_clicked=lambda alias, node, path: events.append(
+            handle_mask_clicked=lambda alias, node, path: events.append(
                 ("mask_clicked", (alias, node, path))
             ),
         ),

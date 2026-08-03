@@ -1949,7 +1949,7 @@ class RealShellPromptEditorHarness:
     def switch_canvas(self, label: str) -> None:
         """Switch a real canvas tab through the shell canvas tab manager."""
 
-        self.shell.canvas_host.focus_attached_canvas(label)
+        self.shell.canvas_host.activate_canvas(label, keyboard_focus=False)
         canvas = self.shell.canvas_host.canvas_for(label)
         if isinstance(canvas, QWidget):
             canvas.setFocus(Qt.FocusReason.OtherFocusReason)
@@ -3790,11 +3790,11 @@ class _HarnessShell(QMainWindow):
         self.workspace_cube_stack_actions = SimpleNamespace(
             highlight_tab_for_cube=lambda *_args, **_kwargs: None
         )
-        self.input_canvas_presenter = SimpleNamespace(
-            handle_input_image_changed=lambda *_args, **_kwargs: None,
-            handle_input_image_clicked=lambda *_args, **_kwargs: None,
-            handle_input_mask_changed=lambda *_args, **_kwargs: None,
-            handle_input_mask_clicked=lambda *_args, **_kwargs: None,
+        self.input_node_interaction_controller = SimpleNamespace(
+            handle_image_changed=lambda *_args, **_kwargs: None,
+            handle_image_clicked=lambda *_args, **_kwargs: None,
+            handle_mask_changed=lambda *_args, **_kwargs: None,
+            handle_mask_clicked=lambda *_args, **_kwargs: None,
         )
         self.workspace_scene_generation_actions = SimpleNamespace(
             enqueue_prompt_scene=lambda *_args, **_kwargs: None
@@ -3886,7 +3886,7 @@ class _HarnessShell(QMainWindow):
             input_canvas=self.canvas_host.canvas_for("Input"),
             output_canvas=self.output_canvas,
         )
-        self.canvas_host.focus_attached_canvas("Input")
+        self.canvas_host.activate_canvas("Input", keyboard_focus=False)
         self.show()
 
     def install_workflow_surface(self, workflow_id: str) -> None:

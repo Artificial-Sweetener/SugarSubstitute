@@ -35,6 +35,10 @@ from substitute.presentation.editor.panel.content_gutter_controller import (
 from substitute.presentation.editor.panel.field_state_controller import (
     EditorFieldBinding,
 )
+from substitute.presentation.editor.panel.node_card.accordion_motion import (
+    AccordionContentClip,
+    AccordionMotionController,
+)
 from substitute.application.direct_workflows import (
     DirectWorkflowGenerationPlanService,
 )
@@ -302,6 +306,45 @@ def test_real_shell_sdxl_fixture_renders_regular_widgets() -> None:
         assert "KSamplerAdvanced" in classes
         assert "SaveImage" not in classes
         assert "MarkdownNote" not in classes
+    finally:
+        harness.close()
+
+
+def test_real_shell_accordion_collapse_releases_section_height() -> None:
+    """Settled production card collapses must shrink their editor cube section."""
+
+    harness = RealShellDirectWorkflowHarness()
+    try:
+        fixture = _deterministic_sdxl_fixture()
+        harness.load_direct_workflow(
+            fixture.path,
+            node_definitions=fixture.node_definitions,
+            expected_node_names=frozenset(
+                prompt.node_name for prompt in fixture.expected_prompts
+            )
+            | {"11"},
+        )
+        section = harness.direct_section_view()
+        controlled_bodies = [
+            (body, controller)
+            for body in section.findChildren(AccordionContentClip)
+            if isinstance(
+                controller := getattr(body, "_accordion_motion_controller", None),
+                AccordionMotionController,
+            )
+        ][:2]
+        assert len(controlled_bodies) == 2
+        expanded_height = section.minimumHeight()
+
+        for _body, controller in controlled_bodies:
+            controller.toggle()
+        harness.wait_until(
+            lambda: all(body.isHidden() for body, _controller in controlled_bodies),
+            description="production node-card accordion collapse",
+        )
+
+        assert section.minimumHeight() < expanded_height
+        assert section.sizeHint().height() == section.minimumHeight()
     finally:
         harness.close()
 

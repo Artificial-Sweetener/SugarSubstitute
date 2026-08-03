@@ -22,6 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from uuid import UUID
 
+from PySide6.QtCore import QRectF, QSize
 from cutecanvas import (
     CanvasDocument,
     CanvasDocumentRuntime,
@@ -34,11 +35,13 @@ from cutecanvas import (
 class InputPreviewBinding:
     """Carry one live document source to a responsive preview widget."""
 
+    identity: tuple[UUID, UUID]
     document: CanvasDocument
     runtime: CanvasDocumentRuntime
     source: CanvasViewportSource
     render_variant: CanvasRenderVariant
     features: tuple[str, ...]
+    source_size: QSize
 
 
 class InputDocumentPreviewBindings:
@@ -81,11 +84,13 @@ class InputDocumentPreviewBindings:
             layer_id=layer.layer_id,
         )
         return InputPreviewBinding(
+            (composition_id, layer.layer_id),
             self._document,
             self._runtime,
             CanvasViewportSource.content(reference),
             CanvasRenderVariant.COMPOSITE,
             (),
+            _composition_size(composition.scene_bounds),
         )
 
     def mask(self, image_id: UUID, mask_id: UUID) -> InputPreviewBinding | None:
@@ -94,17 +99,29 @@ class InputDocumentPreviewBindings:
         layer_id = self._mask_layer_for_image(image_id, mask_id)
         if composition_id is None or layer_id is None:
             return None
+        composition = self._document.snapshot().compositions.get(composition_id)
+        if composition is None:
+            return None
         reference = self._document.content_reference(
             composition_id,
             layer_id=layer_id,
         )
         return InputPreviewBinding(
+            (composition_id, layer_id),
             self._document,
             self._runtime,
             CanvasViewportSource.content(reference),
             CanvasRenderVariant.MASK_COVERAGE,
             ("mask",),
+            _composition_size(composition.scene_bounds),
         )
+
+
+def _composition_size(bounds: QRectF | None) -> QSize:
+    """Return a positive preview size from one composition canvas rectangle."""
+    if bounds is None or bounds.isEmpty():
+        return QSize(1, 1)
+    return QSize(max(1, round(bounds.width())), max(1, round(bounds.height())))
 
 
 __all__ = ["InputDocumentPreviewBindings", "InputPreviewBinding"]

@@ -74,6 +74,19 @@ class CanvasRouteController:
         if canvas is not None:
             canvas.active_canvas_route = route_key
 
+    def activate_route(self, route_key: str, *, keyboard_focus: bool) -> bool:
+        """Activate and persist one canvas route with explicit focus semantics."""
+
+        if route_key not in {"Input", "Output"}:
+            return False
+        activate_canvas = getattr(self._shell.canvas_host, "activate_canvas", None)
+        if not callable(activate_canvas):
+            return False
+        activated = bool(activate_canvas(route_key, keyboard_focus=keyboard_focus))
+        if activated:
+            self.record_active_canvas_route(route_key)
+        return activated
+
     def restore_active_canvas_route(
         self,
         active_workflow: object,
@@ -98,13 +111,7 @@ class CanvasRouteController:
             route_key = "Output"
         if route_key not in {"Input", "Output"}:
             return
-        focus_attached_canvas = getattr(
-            self._shell.canvas_host,
-            "focus_attached_canvas",
-            None,
-        )
-        if callable(focus_attached_canvas):
-            focus_attached_canvas(route_key)
+        self.activate_route(route_key, keyboard_focus=False)
 
     @staticmethod
     def workflow_has_active_input_canvas_state(canvas: object) -> bool:
@@ -114,8 +121,8 @@ class CanvasRouteController:
             return False
         if getattr(canvas, "input_image_uuid", None) is not None:
             return True
-        mask_associations = getattr(canvas, "mask_associations", {})
-        return isinstance(mask_associations, dict) and bool(mask_associations)
+        mask_entries = getattr(canvas, "mask_entries", {})
+        return isinstance(mask_entries, dict) and bool(mask_entries)
 
 
 def canvas_route_controller_for(shell: Any) -> CanvasRouteController:

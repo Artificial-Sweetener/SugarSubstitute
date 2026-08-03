@@ -103,9 +103,8 @@ def _workflow_state() -> WorkflowState:
     }
     workflow.cubes["CubeA"].update_policy = CubeUpdatePolicy.FOLLOW_LATEST
     workflow.cubes["CubeA"].bypassed = True
-    workflow.canvas.input_key_map["CubeA:Load"] = image_id
-    workflow.canvas.mask_associations[("CubeA", "Mask")] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_image("CubeA:Load", image_id)
+    workflow.canvas.bind_mask(("CubeA", "Mask"), mask_id, image_id)
     workflow.canvas.input_image_uuid = image_id
     workflow.output_image_uuids.append(output_id)
     workflow.output_focus_mode = OutputFocusMode.MANUAL
@@ -268,9 +267,8 @@ def test_duplicate_workflow_resets_live_canvas_and_output_state() -> None:
 
     duplicate = WorkflowDuplicateService().duplicate_workflow(source)
 
-    assert duplicate.canvas.input_key_map == {}
-    assert duplicate.canvas.mask_associations == {}
-    assert duplicate.canvas.mask_to_image_map == {}
+    assert duplicate.canvas.image_entries == {}
+    assert duplicate.canvas.mask_entries == {}
     assert duplicate.canvas.input_image_uuid is None
     assert duplicate.output_image_uuids == []
     assert duplicate.output_focus_mode is OutputFocusMode.AUTOMATIC

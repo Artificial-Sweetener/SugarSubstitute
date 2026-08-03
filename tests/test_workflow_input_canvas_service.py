@@ -126,7 +126,7 @@ class _FakeInputCanvasStateService:
         if isinstance(workflows, Mapping):
             workflow = workflows.get(active_workflow_id)
             if isinstance(workflow, WorkflowState):
-                workflow.canvas.input_key_map[input_key] = self._image_id
+                workflow.canvas.bind_image(input_key, self._image_id)
                 workflow.canvas.input_image_uuid = self._image_id
         return self._image_id
 
@@ -153,7 +153,7 @@ class _FakeInputCanvasStateService:
 
         _ = workflow_id
         self.claimed_images.append((input_key, image_id))
-        workflow.canvas.input_key_map[input_key] = image_id
+        workflow.canvas.replace_image_entry(input_key, image_id)
         workflow.canvas.input_image_uuid = image_id
         return True
 
@@ -169,8 +169,11 @@ class _FakeInputCanvasStateService:
 
         _ = workflow_id
         self.loaded_masks.append((association_key, path))
-        active_workflow.canvas.mask_associations[association_key] = self._mask_id
-        active_workflow.canvas.mask_to_image_map[self._mask_id] = image_id
+        active_workflow.canvas.replace_mask_entry(
+            association_key,
+            self._mask_id,
+            image_id,
+        )
         return self._mask_id
 
     def create_mask_for_image(
@@ -185,8 +188,11 @@ class _FakeInputCanvasStateService:
 
         _ = workflow_id
         self.created_masks.append((association_key, size))
-        active_workflow.canvas.mask_associations[association_key] = self._mask_id
-        active_workflow.canvas.mask_to_image_map[self._mask_id] = image_id
+        active_workflow.canvas.replace_mask_entry(
+            association_key,
+            self._mask_id,
+            image_id,
+        )
         return self._mask_id
 
     def drop_mask_association(
@@ -197,9 +203,7 @@ class _FakeInputCanvasStateService:
         """Record stale association removal and mirror real canvas state cleanup."""
 
         self.dropped_associations.append(association_key)
-        mask_id = active_workflow.canvas.mask_associations.pop(association_key, None)
-        if mask_id is not None:
-            active_workflow.canvas.mask_to_image_map.pop(mask_id, None)
+        active_workflow.canvas.remove_mask_entry(association_key)
 
     def drop_input_surface(
         self,
@@ -212,13 +216,11 @@ class _FakeInputCanvasStateService:
         workflow = workflows.get(workflow_id)
         if workflow is None:
             return False
-        image_id = workflow.canvas.input_key_map.pop(input_key, None)
-        if image_id is None:
+        image_entry = workflow.canvas.remove_image_entry(input_key)
+        if image_entry is None:
             return False
-        for association_key, mask_id in tuple(
-            workflow.canvas.mask_associations.items()
-        ):
-            if workflow.canvas.mask_to_image_map.get(mask_id) != image_id:
+        for association_key, mask_entry in tuple(workflow.canvas.mask_entries.items()):
+            if mask_entry.image_id != image_entry.image_id:
                 continue
             self.drop_mask_association(workflow, association_key)
         return True
@@ -510,11 +512,13 @@ def test_materialize_loaded_section_creates_synthetic_mask_only_canvas(
 
     assert len(results) == 1
     assert results[0].image_id == image_id
-    assert list(workflow.canvas.input_key_map.values()) == [image_id]
-    synthetic_key = next(iter(workflow.canvas.input_key_map))
+    assert workflow.canvas.image_ids() == (image_id,)
+    synthetic_key = next(iter(workflow.canvas.image_entries))
     assert synthetic_key.startswith("Regional:@synthetic/")
-    assert workflow.canvas.mask_associations[("Regional", "mask")] == mask_id
-    assert workflow.canvas.mask_to_image_map[mask_id] == image_id
+    mask_entry = workflow.canvas.mask_entry(("Regional", "mask"))
+    assert mask_entry is not None
+    assert mask_entry.mask_id == mask_id
+    assert mask_entry.image_id == image_id
 
 
 def test_synthetic_canvas_authority_change_invalidates_old_surface(
@@ -556,9 +560,8 @@ def test_synthetic_canvas_authority_change_invalidates_old_surface(
     old_image_id = uuid4()
     old_mask_id = uuid4()
     old_key = "Regional:@synthetic/obsolete"
-    workflow.canvas.input_key_map[old_key] = old_image_id
-    workflow.canvas.mask_associations[("Regional", "mask")] = old_mask_id
-    workflow.canvas.mask_to_image_map[old_mask_id] = old_image_id
+    workflow.canvas.bind_image(old_key, old_image_id)
+    workflow.canvas.bind_mask(("Regional", "mask"), old_mask_id, old_image_id)
     definitions: dict[str, JsonObject] = {
         "LoadImageMask": {
             "input": {"required": {"image": ["STRING", {"image_upload": True}]}},
@@ -612,10 +615,12 @@ def test_synthetic_canvas_authority_change_invalidates_old_surface(
         projects_dir=tmp_path,
     )
 
-    assert old_key not in workflow.canvas.input_key_map
-    assert old_mask_id not in workflow.canvas.mask_to_image_map
-    assert workflow.canvas.mask_associations[("Regional", "mask")] == new_mask_id
-    assert list(workflow.canvas.input_key_map.values()) == [new_image_id]
+    assert workflow.canvas.image_entry(old_key) is None
+    assert workflow.canvas.mask_entry_for_id(old_mask_id) is None
+    mask_entry = workflow.canvas.mask_entry(("Regional", "mask"))
+    assert mask_entry is not None
+    assert mask_entry.mask_id == new_mask_id
+    assert workflow.canvas.image_ids() == (new_image_id,)
 
 
 def test_materialize_input_image_updates_load_image_asset_ref(
@@ -755,9 +760,8 @@ def test_apply_user_selected_input_mask_rejects_wrong_size_before_mutation(
     image_id = uuid4()
     mask_id = uuid4()
     workflow = _build_workflow("old-mask.png")
-    workflow.canvas.input_key_map["CubeA:input_image"] = image_id
-    workflow.canvas.mask_associations[("CubeA", "input_mask")] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_image("CubeA:input_image", image_id)
+    workflow.canvas.bind_mask(("CubeA", "input_mask"), mask_id, image_id)
     selected_mask = tmp_path / "wrong-size.png"
     input_canvas_state_service = _FakeInputCanvasStateService(
         image_id=image_id,
@@ -806,9 +810,8 @@ def test_apply_user_selected_input_mask_rejects_unverified_dimensions_before_mut
     image_id = uuid4()
     mask_id = uuid4()
     workflow = _build_workflow("old-mask.png")
-    workflow.canvas.input_key_map["CubeA:input_image"] = image_id
-    workflow.canvas.mask_associations[("CubeA", "input_mask")] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_image("CubeA:input_image", image_id)
+    workflow.canvas.bind_mask(("CubeA", "input_mask"), mask_id, image_id)
     selected_mask = tmp_path / "unknown-size.png"
     input_canvas_state_service = _FakeInputCanvasStateService(
         image_id=image_id,
@@ -1342,7 +1345,9 @@ def test_reconcile_loaded_input_canvas_image_preserves_existing_image_uuid(
     )
 
     assert result.image_id == image_id
-    assert workflow.canvas.input_key_map["CubeA:input_image"] == image_id
+    image_entry = workflow.canvas.image_entry("CubeA:input_image")
+    assert image_entry is not None
+    assert image_entry.image_id == image_id
     assert workflow.canvas.input_image_uuid == image_id
     assert input_canvas_state_service.claimed_images == [
         ("CubeA:input_image", image_id)
@@ -1426,8 +1431,11 @@ def test_reconcile_loaded_input_canvas_image_drops_stale_mask_association(
     old_mask_id = uuid4()
     new_mask_id = uuid4()
     workflow = _build_workflow("")
-    workflow.canvas.mask_associations[("CubeA", "input_mask")] = old_mask_id
-    workflow.canvas.mask_to_image_map[old_mask_id] = old_image_id
+    workflow.canvas.bind_mask(
+        ("CubeA", "input_mask"),
+        old_mask_id,
+        old_image_id,
+    )
     expected_mask = tmp_path / "Recipe" / "masks" / "cat__bound.png"
     created_destinations: list[Path] = []
     input_canvas_state_service = _FakeInputCanvasStateService(
@@ -1460,9 +1468,11 @@ def test_reconcile_loaded_input_canvas_image_drops_stale_mask_association(
         "blank_created"
     ]
     assert input_canvas_state_service.dropped_associations == [("CubeA", "input_mask")]
-    assert workflow.canvas.mask_associations[("CubeA", "input_mask")] == new_mask_id
-    assert workflow.canvas.mask_to_image_map[new_mask_id] == new_image_id
-    assert old_mask_id not in workflow.canvas.mask_to_image_map
+    mask_entry = workflow.canvas.mask_entry(("CubeA", "input_mask"))
+    assert mask_entry is not None
+    assert mask_entry.mask_id == new_mask_id
+    assert mask_entry.image_id == new_image_id
+    assert workflow.canvas.mask_entry_for_id(old_mask_id) is None
 
 
 def test_unambiguous_bound_image_identity_returns_only_bound_input() -> None:
@@ -1487,7 +1497,7 @@ def test_resolve_loaded_input_canvas_image_identity_uses_mapped_input_key() -> N
 
     image_id = uuid4()
     workflow = _build_workflow("")
-    workflow.canvas.input_key_map["CubeA:input_image"] = image_id
+    workflow.canvas.bind_image("CubeA:input_image", image_id)
     service = _workflow_input_service(
         _FakeInputCanvasStateService(image_id=uuid4(), mask_id=uuid4()),
         _FakeCanvasIoService(
@@ -1529,7 +1539,7 @@ def test_resolve_loaded_input_canvas_image_identity_uses_single_bound_input() ->
 
     assert resolution.accepted is True
     assert resolution.input_key == "CubeA:input_image"
-    assert workflow.canvas.input_key_map == {}
+    assert workflow.canvas.image_entries == {}
 
 
 def test_resolve_loaded_input_canvas_image_identity_rejects_malformed_key() -> None:
@@ -1537,7 +1547,7 @@ def test_resolve_loaded_input_canvas_image_identity_rejects_malformed_key() -> N
 
     image_id = uuid4()
     workflow = _build_workflow("")
-    workflow.canvas.input_key_map["malformed"] = image_id
+    workflow.canvas.bind_image("malformed", image_id)
     service = _workflow_input_service(
         _FakeInputCanvasStateService(image_id=uuid4(), mask_id=uuid4()),
         _FakeCanvasIoService(
@@ -1808,5 +1818,5 @@ def test_reconcile_loaded_input_canvas_image_rejects_stale_workflow(
     )
 
     assert result.image_id is None
-    assert workflow.canvas.input_key_map == {}
+    assert workflow.canvas.image_entries == {}
     assert input_canvas_state_service.active_input_images == []

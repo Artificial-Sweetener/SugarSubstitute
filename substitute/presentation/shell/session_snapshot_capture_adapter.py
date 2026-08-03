@@ -174,11 +174,8 @@ class SessionSnapshotCaptureAdapter:
 
         del workflow_id
         references: list[InputImageReference] = []
-        input_key_map = getattr(workflow.canvas, "input_key_map", {})
-        if not isinstance(input_key_map, dict):
-            return ()
         for sequence, image_id in enumerate(
-            input_key_map.values(),
+            workflow.canvas.image_ids(),
             start=1,
         ):
             path = self._shell.input_canvas_state_service.input_image_path(image_id)
@@ -202,21 +199,14 @@ class SessionSnapshotCaptureAdapter:
 
         references: list[InputMaskReference] = []
         workflow_name = self.workflow_tab_label(workflow_id)
-        mask_associations = getattr(workflow.canvas, "mask_associations", {})
-        mask_to_image_map = getattr(workflow.canvas, "mask_to_image_map", {})
-        if not isinstance(mask_associations, dict) or not isinstance(
-            mask_to_image_map,
-            dict,
-        ):
-            return ()
-        for association_key, mask_id in mask_associations.items():
+        for entry in workflow.canvas.mask_entries.values():
+            association_key = entry.association_key
+            mask_id = entry.mask_id
             if not isinstance(association_key, tuple) or len(association_key) != 2:
                 continue
             cube_alias = str(association_key[0])
             node_name = str(association_key[1])
-            image_id = mask_to_image_map.get(mask_id)
-            if image_id is None:
-                continue
+            image_id = entry.image_id
             asset_ref = self._shell.workflow_input_canvas_service.input_mask_asset_ref(
                 workflow,
                 section_key=cube_alias,

@@ -83,21 +83,26 @@ def test_input_canvas_intents_delegate_to_presenter() -> None:
     """Input canvas shell intents should route through presenter ownership."""
 
     calls: list[tuple[str, tuple[object, ...]]] = []
+    interaction_controller = SimpleNamespace(
+        handle_image_changed=lambda *args: calls.append(("image_changed", args)),
+        handle_image_clicked=lambda *args: calls.append(("image_clicked", args)),
+        handle_mask_changed=lambda *args: calls.append(("mask_changed", args)),
+        handle_mask_clicked=lambda *args: calls.append(("mask_clicked", args)),
+    )
     presenter = SimpleNamespace(
-        handle_input_image_changed=lambda *args: calls.append(("image_changed", args)),
-        handle_input_image_clicked=lambda *args: calls.append(("image_clicked", args)),
         handle_input_canvas_image_loaded=lambda *args: calls.append(
             ("image_loaded", args)
         ),
         refresh_active_mask_pickers=lambda: calls.append(("mask_pickers", ())),
-        handle_input_mask_changed=lambda *args: calls.append(("mask_changed", args)),
-        handle_input_mask_clicked=lambda *args: calls.append(("mask_clicked", args)),
         reconcile_active_input_canvas_image=lambda: calls.append(("reconcile", ())),
         materialize_loaded_cube_input_canvas=lambda *args: calls.append(
             ("materialize", args)
         ),
     )
-    view = SimpleNamespace(input_canvas_presenter=presenter)
+    view = SimpleNamespace(
+        input_canvas_presenter=presenter,
+        input_node_interaction_controller=interaction_controller,
+    )
 
     handle_input_image_changed_for_view(view, "CubeA", "ImageNode", "input.png")
     handle_input_image_clicked_for_view(view, "CubeA", "ImageNode", "input.png")

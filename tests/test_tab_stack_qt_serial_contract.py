@@ -962,6 +962,42 @@ def test_cubestack_indicator_realign_timer_is_destroyed_with_stack() -> None:
     assert not shiboken6.isValid(timer)
 
 
+def test_cubestack_owned_layout_changes_realign_selected_indicator() -> None:
+    """Cube-stack geometry owners must explicitly settle the selected indicator."""
+
+    app = _ensure_qapp()
+    _clear_gui_stubs()
+    mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
+
+    stack = mod.CubeStack(None)
+    try:
+        for index in range(3):
+            stack.addTab(str(index), f"Cube {index}")
+        stack.show()
+        app.processEvents()
+        stack.setCurrentIndex(2)
+
+        stack.finishCompactTransition(True)
+        for _ in range(4):
+            app.processEvents()
+
+        selected = stack.currentTab()
+        assert selected is not None
+        assert stack._getIndicatorY() == selected.y() + selected.height() // 2 - 8
+
+        stack.reorder_by_route_keys(["2", "0", "1"])
+        for _ in range(4):
+            app.processEvents()
+
+        selected = stack.currentTab()
+        assert selected is not None
+        assert stack._getIndicatorY() == selected.y() + selected.height() // 2 - 8
+    finally:
+        stack.close()
+        stack.deleteLater()
+        app.processEvents()
+
+
 def test_cubestack_indicator_realign_ignores_deleted_content_view() -> None:
     """A stale layout tick must stop when its owned content view was deleted."""
 

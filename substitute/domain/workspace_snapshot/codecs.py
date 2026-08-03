@@ -523,21 +523,21 @@ def _canvas_state_to_json(canvas: WorkflowCanvasState) -> JsonObject:
     """Return a JSON-ready mapping for workflow canvas state."""
 
     return {
-        "mask_associations": [
+        "image_entries": [
             {
-                "cube_alias": cube_alias,
-                "node_name": node_name,
-                "mask_id": str(mask_id),
+                "input_key": entry.input_key,
+                "image_id": str(entry.image_id),
             }
-            for (cube_alias, node_name), mask_id in canvas.mask_associations.items()
+            for entry in canvas.image_entries.values()
         ],
-        "mask_to_image_map": [
-            {"mask_id": str(mask_id), "image_id": str(image_id)}
-            for mask_id, image_id in canvas.mask_to_image_map.items()
-        ],
-        "input_key_map": [
-            {"input_key": input_key, "image_id": str(image_id)}
-            for input_key, image_id in canvas.input_key_map.items()
+        "mask_entries": [
+            {
+                "cube_alias": entry.association_key[0],
+                "node_name": entry.association_key[1],
+                "mask_id": str(entry.mask_id),
+                "image_id": str(entry.image_id),
+            }
+            for entry in canvas.mask_entries.values()
         ],
         "input_image_uuid": _uuid_to_text(canvas.input_image_uuid),
         "active_input_mask_uuid": _uuid_to_text(canvas.active_input_mask_uuid),
@@ -548,32 +548,60 @@ def _canvas_state_to_json(canvas: WorkflowCanvasState) -> JsonObject:
 def _canvas_state_from_json(payload: Mapping[str, object]) -> WorkflowCanvasState:
     """Build workflow canvas state from a decoded JSON mapping."""
 
-    return WorkflowCanvasState(
-        mask_associations={
-            (
-                _required_str(_required_mapping(item), "cube_alias"),
-                _required_str(_required_mapping(item), "node_name"),
-            ): _uuid_from_text(_required_str(_required_mapping(item), "mask_id"))
-            for item in _optional_sequence(payload.get("mask_associations"))
-        },
-        mask_to_image_map={
-            _uuid_from_text(_required_str(_required_mapping(item), "mask_id")): (
-                _uuid_from_text(_required_str(_required_mapping(item), "image_id"))
-            )
-            for item in _optional_sequence(payload.get("mask_to_image_map"))
-        },
-        input_key_map={
-            _required_str(_required_mapping(item), "input_key"): _uuid_from_text(
-                _required_str(_required_mapping(item), "image_id")
-            )
-            for item in _optional_sequence(payload.get("input_key_map"))
-        },
+    canvas = WorkflowCanvasState(
         input_image_uuid=_optional_uuid_from_value(payload.get("input_image_uuid")),
         active_input_mask_uuid=_optional_uuid_from_value(
             payload.get("active_input_mask_uuid")
         ),
         active_canvas_route=_optional_str(payload.get("active_canvas_route")),
     )
+    image_payload = payload.get("image_entries")
+    if image_payload is None:
+        image_payload = payload.get("input_key_map")
+    for item in _optional_sequence(image_payload):
+        entry_payload = _required_mapping(item)
+        canvas.bind_image(
+            _required_str(entry_payload, "input_key"),
+            _uuid_from_text(_required_str(entry_payload, "image_id")),
+        )
+
+    mask_payload = payload.get("mask_entries")
+    if mask_payload is not None:
+        for item in _optional_sequence(mask_payload):
+            entry_payload = _required_mapping(item)
+            canvas.bind_mask(
+                (
+                    _required_str(entry_payload, "cube_alias"),
+                    _required_str(entry_payload, "node_name"),
+                ),
+                _uuid_from_text(_required_str(entry_payload, "mask_id")),
+                _uuid_from_text(_required_str(entry_payload, "image_id")),
+            )
+        return canvas
+
+    image_by_mask = {
+        _uuid_from_text(_required_str(_required_mapping(item), "mask_id")): (
+            _uuid_from_text(_required_str(_required_mapping(item), "image_id"))
+        )
+        for item in _optional_sequence(payload.get("mask_to_image_map"))
+    }
+    for item in _optional_sequence(payload.get("mask_associations")):
+        entry_payload = _required_mapping(item)
+        mask_id = _uuid_from_text(_required_str(entry_payload, "mask_id"))
+        image_id = image_by_mask.get(mask_id)
+        if image_id is None:
+            raise SnapshotCodecError(
+                f"Input mask entry {mask_id} has no persisted owning image"
+            )
+        canvas.bind_mask(
+            (
+                _required_str(entry_payload, "cube_alias"),
+                _required_str(entry_payload, "node_name"),
+            ),
+            mask_id,
+            image_id,
+        )
+    return canvas
 
 
 def _image_meta_to_json(metadata: ImageMetaSnapshot) -> JsonObject:

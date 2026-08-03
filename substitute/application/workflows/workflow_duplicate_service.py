@@ -62,8 +62,8 @@ class WorkflowDuplicateService:
             metadata_key_count=len(source.metadata),
             global_override_count=len(source.global_overrides),
             global_override_selection_count=len(source.global_override_selections),
-            source_canvas_input_count=len(source.canvas.input_key_map),
-            source_canvas_mask_count=len(source.canvas.mask_associations),
+            source_canvas_input_count=len(source.canvas.image_entries),
+            source_canvas_mask_count=len(source.canvas.mask_entries),
             source_output_count=len(source.output_image_uuids),
         )
         duplicate = WorkflowState(
@@ -92,8 +92,8 @@ class WorkflowDuplicateService:
             "global_override_selection_count": len(
                 duplicate.global_override_selections
             ),
-            "canvas_input_reset": duplicate.canvas.input_key_map == {},
-            "canvas_mask_reset": duplicate.canvas.mask_associations == {},
+            "canvas_input_reset": duplicate.canvas.image_entries == {},
+            "canvas_mask_reset": duplicate.canvas.mask_entries == {},
             "output_history_reset": duplicate.output_image_uuids == [],
         }
         if elapsed_ms >= _SLOW_DUPLICATE_CLONE_MS:

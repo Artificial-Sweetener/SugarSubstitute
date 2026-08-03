@@ -32,7 +32,6 @@ from time import perf_counter
 from typing import cast
 
 from PySide6.QtCore import (
-    QEvent,
     QRect,
     QSize,
     QTimer,
@@ -280,7 +279,7 @@ class CubeSectionView(QWidget):
         self._finalize_layout(reason=reason)
 
     def finalize_layout_after_child_relayout(self, *, reason: str) -> None:
-        """Refresh section geometry after a child field changes size."""
+        """Settle section geometry after an owned child's layout changes."""
 
         self._finalize_layout(reason=reason)
 
@@ -429,13 +428,6 @@ class CubeSectionView(QWidget):
         super().showEvent(event)
         self.defer_update_cube_height()
         self.defer_string_line_edit_width_group_sync()
-
-    def event(self, event: object) -> bool:
-        """Refresh height on layout requests from parent relayouts."""
-
-        if event.type() == QEvent.LayoutRequest:
-            self.defer_update_cube_height()
-        return super().event(event)
 
     def _finalize_layout(self, *, reason: str) -> None:
         """Apply the authoritative section-local layout pass for one boundary."""

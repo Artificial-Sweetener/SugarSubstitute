@@ -957,9 +957,8 @@ def _workspace_with_input_mask(
         cubes={"Cube": _cube()},
         stack_order=["Cube"],
     )
-    workflow.canvas.input_key_map["Cube:load_image"] = image_id
-    workflow.canvas.mask_associations[association_key] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_image("Cube:load_image", image_id)
+    workflow.canvas.bind_mask(association_key, mask_id, image_id)
     workflow.canvas.active_input_mask_uuid = mask_id
     workflow.canvas.input_image_uuid = image_id
     return WorkspaceSnapshot(

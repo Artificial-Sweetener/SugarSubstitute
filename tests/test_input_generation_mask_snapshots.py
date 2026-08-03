@@ -192,9 +192,8 @@ def _workflow(mask_id: UUID) -> WorkflowState:
         },
     )
     workflow = WorkflowState(cubes={"CubeA": cube}, stack_order=["CubeA"])
-    workflow.canvas.input_key_map["CubeA:ImageNode"] = image_id
-    workflow.canvas.mask_associations[("CubeA", "MaskNode")] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_image("CubeA:ImageNode", image_id)
+    workflow.canvas.bind_mask(("CubeA", "MaskNode"), mask_id, image_id)
     return workflow
 
 

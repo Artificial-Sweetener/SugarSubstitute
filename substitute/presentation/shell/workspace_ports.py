@@ -37,23 +37,7 @@ from substitute.application.ports import (
 
 
 class InputCanvasPresenterProtocol(Protocol):
-    """Describe Input canvas intent ownership required by the shell."""
-
-    def handle_input_image_changed(
-        self,
-        cube_alias: str,
-        node_name: str,
-        image_path: str,
-    ) -> None:
-        """Handle editor-panel LoadImage change intent."""
-
-    def handle_input_image_clicked(
-        self,
-        cube_alias: str,
-        node_name: str,
-        image_path: str,
-    ) -> None:
-        """Handle editor-panel LoadImage focus intent."""
+    """Describe Input document presentation required by the shell."""
 
     def handle_input_canvas_image_loaded(
         self,
@@ -65,22 +49,6 @@ class InputCanvasPresenterProtocol(Protocol):
     def refresh_active_mask_pickers(self) -> None:
         """Refresh active editor-panel mask pickers from workflow asset state."""
 
-    def handle_input_mask_changed(
-        self,
-        cube_alias: str,
-        node_name: str,
-        mask_path: str,
-    ) -> None:
-        """Handle editor-panel LoadImageMask change intent."""
-
-    def handle_input_mask_clicked(
-        self,
-        cube_alias: str,
-        node_name: str,
-        mask_path: str,
-    ) -> None:
-        """Handle editor-panel LoadImageMask focus intent."""
-
     def materialize_loaded_cube_input_canvas(
         self,
         workflow_id: str,
@@ -90,6 +58,42 @@ class InputCanvasPresenterProtocol(Protocol):
 
     def reconcile_active_input_canvas_image(self) -> None:
         """Reconcile the active CuteCanvas Input image before generation."""
+
+
+class InputNodeInteractionControllerProtocol(Protocol):
+    """Describe editor Input-node interaction orchestration."""
+
+    def handle_image_changed(
+        self,
+        cube_alias: str,
+        node_name: str,
+        image_path: str,
+    ) -> None:
+        """Handle editor-panel LoadImage change intent."""
+
+    def handle_image_clicked(
+        self,
+        cube_alias: str,
+        node_name: str,
+        image_path: str,
+    ) -> None:
+        """Handle editor-panel LoadImage focus intent."""
+
+    def handle_mask_changed(
+        self,
+        cube_alias: str,
+        node_name: str,
+        mask_path: str,
+    ) -> None:
+        """Handle editor-panel LoadImageMask change intent."""
+
+    def handle_mask_clicked(
+        self,
+        cube_alias: str,
+        node_name: str,
+        mask_path: str,
+    ) -> None:
+        """Handle editor-panel LoadImageMask focus intent."""
 
 
 class WorkflowSessionState(Protocol):
@@ -262,6 +266,7 @@ __all__ = [
     "GenerationInterruptFailurePresenterProtocol",
     "GenerationQueueProgressState",
     "InputCanvasPresenterProtocol",
+    "InputNodeInteractionControllerProtocol",
     "InputGenerationSnapshotProtocol",
     "OutputCanvasStateGenerationProtocol",
     "WorkflowNameResolverProtocol",

@@ -232,7 +232,7 @@ def test_workflow_state_codec_round_trips_active_canvas_route() -> None:
     image_id = uuid4()
     mask_id = uuid4()
     state.canvas.active_canvas_route = "Input"
-    state.canvas.input_key_map["direct:@synthetic/mask-authority"] = image_id
+    state.canvas.bind_image("direct:@synthetic/mask-authority", image_id)
     state.canvas.input_image_uuid = image_id
     state.canvas.active_input_mask_uuid = mask_id
 
@@ -242,7 +242,7 @@ def test_workflow_state_codec_round_trips_active_canvas_route() -> None:
     canvas_payload = payload["canvas"]
     assert isinstance(canvas_payload, dict)
     assert canvas_payload["active_canvas_route"] == "Input"
-    assert canvas_payload["input_key_map"] == [
+    assert canvas_payload["image_entries"] == [
         {
             "input_key": "direct:@synthetic/mask-authority",
             "image_id": str(image_id),
@@ -250,11 +250,48 @@ def test_workflow_state_codec_round_trips_active_canvas_route() -> None:
     ]
     assert canvas_payload["active_input_mask_uuid"] == str(mask_id)
     assert restored.canvas.active_canvas_route == "Input"
-    assert restored.canvas.input_key_map == {
-        "direct:@synthetic/mask-authority": image_id,
-    }
+    restored_entry = restored.canvas.image_entry("direct:@synthetic/mask-authority")
+    assert restored_entry is not None
+    assert restored_entry.image_id == image_id
     assert restored.canvas.input_image_uuid == image_id
     assert restored.canvas.active_input_mask_uuid == mask_id
+
+
+def test_workflow_state_codec_migrates_legacy_canvas_maps_into_complete_entries() -> (
+    None
+):
+    """Existing cache maps must restore exact image, mask, and owner identities."""
+
+    image_id = uuid4()
+    mask_id = uuid4()
+    payload = workflow_state_to_json(WorkflowState())
+    canvas_payload = payload["canvas"]
+    assert isinstance(canvas_payload, dict)
+    canvas_payload.pop("image_entries")
+    canvas_payload.pop("mask_entries")
+    canvas_payload["input_key_map"] = [
+        {"input_key": "Cube:load_image", "image_id": str(image_id)}
+    ]
+    canvas_payload["mask_associations"] = [
+        {
+            "cube_alias": "Cube",
+            "node_name": "load_mask",
+            "mask_id": str(mask_id),
+        }
+    ]
+    canvas_payload["mask_to_image_map"] = [
+        {"mask_id": str(mask_id), "image_id": str(image_id)}
+    ]
+
+    restored = workflow_state_from_json(payload)
+
+    image_entry = restored.canvas.image_entry("Cube:load_image")
+    mask_entry = restored.canvas.mask_entry(("Cube", "load_mask"))
+    assert image_entry is not None
+    assert mask_entry is not None
+    assert image_entry.image_id == image_id
+    assert mask_entry.mask_id == mask_id
+    assert mask_entry.image_id == image_id
 
 
 def test_workflow_state_codec_rejects_missing_cube_version() -> None:

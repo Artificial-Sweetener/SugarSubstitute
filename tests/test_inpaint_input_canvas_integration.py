@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -63,6 +63,9 @@ from substitute.presentation.canvas.input.input_canvas_tool_controller import (
 )
 from substitute.presentation.canvas.input.input_route_projector import (
     InputRouteProjector,
+)
+from substitute.presentation.canvas.input.input_node_interaction_controller import (
+    InputNodeInteractionController,
 )
 
 
@@ -113,10 +116,11 @@ class _CanvasHost:
         self.input_canvas = input_canvas
         self.focused: list[str] = []
 
-    def focus_attached_canvas(self, label: str) -> None:
-        """Record one requested canvas focus."""
+    def activate_canvas(self, label: str) -> bool:
+        """Record one requested canvas activation."""
 
         self.focused.append(label)
+        return True
 
 
 def _app() -> QApplication:
@@ -251,22 +255,35 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
         ),
         workflow_input_canvas_service=workflow_service,
         input_canvas_state_service=state_service,
-        canvas_host_provider=cast(Callable[[], Any], lambda: canvas_host),
         workflow_name_provider=lambda _workflow_id: workflow_name,
         projects_dir_provider=lambda: tmp_path,
         mask_color_provider=lambda _index, _total: QColor("red"),
+    )
+    interaction_controller = InputNodeInteractionController(
+        active_workflow=lambda: workflow,
+        active_workflow_id=lambda: workflow_id,
+        workflow_input_canvas_service=workflow_service,
+        input_canvas_state_service=state_service,
+        materialize_image_selection=presenter.materialize_image_selection,
+        apply_mask_selection=presenter.apply_mask_selection,
+        activate_input_canvas=lambda: canvas_host.activate_canvas("Input"),
+        refresh_mask_pickers=presenter.refresh_active_mask_pickers,
         tool_controller=tool_controller,
     )
 
-    presenter.handle_input_image_changed(
+    interaction_controller.handle_image_changed(
         "SDXL/Inpaint",
         "load_image",
         str(image_path),
     )
     app.processEvents()
 
-    image_id = workflow.canvas.input_key_map["SDXL/Inpaint:load_image"]
-    mask_id = workflow.canvas.mask_associations[("SDXL/Inpaint", "load_image_as_mask")]
+    image_entry = workflow.canvas.image_entry("SDXL/Inpaint:load_image")
+    mask_entry = workflow.canvas.mask_entry(("SDXL/Inpaint", "load_image_as_mask"))
+    assert image_entry is not None
+    assert mask_entry is not None
+    image_id = image_entry.image_id
+    mask_id = mask_entry.mask_id
     mask_path = asset_service.resolve_input_mask_path(
         workflow,
         workflow_name=workflow_name,
@@ -287,7 +304,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
     assert document.canvas.activeMaskID() == mask_id
 
     document.set_canvas_operation(CuteCanvas.CONTROL_MODE_PANZOOM)
-    presenter.handle_input_mask_clicked(
+    interaction_controller.handle_mask_clicked(
         "SDXL/Inpaint",
         "load_image_as_mask",
         str(mask_path),
@@ -301,5 +318,5 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
     brush = tool_controller.palette.presentation_for(InputCanvasToolId.BRUSH)
     assert brush is not None and brush.enabled is True
     assert document.canvas.getControlMode() == document.canvas.CONTROL_MODE_DRAW_BRUSH
-    assert canvas_host.focused == ["Input"]
+    assert canvas_host.focused == ["Input", "Input"]
     assert panel.refreshes

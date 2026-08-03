@@ -22,7 +22,10 @@ from collections.abc import Callable, Sequence
 from time import perf_counter
 from typing import Protocol, cast
 
-from substitute.presentation.shell.workspace_ports import InputCanvasPresenterProtocol
+from substitute.presentation.shell.workspace_ports import (
+    InputCanvasPresenterProtocol,
+    InputNodeInteractionControllerProtocol,
+)
 from substitute.shared.logging.logger import (
     elapsed_ms_since,
     get_logger,
@@ -57,15 +60,28 @@ def input_canvas_presenter_for_view(
     return cast(InputCanvasPresenterProtocol, presenter)
 
 
+def input_node_interaction_controller_for_view(
+    canvas_view: object,
+) -> InputNodeInteractionControllerProtocol:
+    """Return the required Input-node interaction owner from a shell view."""
+
+    controller = getattr(canvas_view, "input_node_interaction_controller", None)
+    if controller is None:
+        raise RuntimeError(
+            "InputNodeInteractionController is required for Input node intent."
+        )
+    return cast(InputNodeInteractionControllerProtocol, controller)
+
+
 def handle_input_image_changed_for_view(
     canvas_view: object,
     cube_alias: str,
     node_name: str,
     image_path: str,
 ) -> None:
-    """Route an editor-panel LoadImage change intent to the presenter."""
+    """Route an editor-panel LoadImage change to the interaction owner."""
 
-    input_canvas_presenter_for_view(canvas_view).handle_input_image_changed(
+    input_node_interaction_controller_for_view(canvas_view).handle_image_changed(
         cube_alias,
         node_name,
         image_path,
@@ -78,9 +94,9 @@ def handle_input_image_clicked_for_view(
     node_name: str,
     image_path: str,
 ) -> None:
-    """Route an editor-panel LoadImage focus intent to the presenter."""
+    """Route an editor-panel LoadImage focus intent to the interaction owner."""
 
-    input_canvas_presenter_for_view(canvas_view).handle_input_image_clicked(
+    input_node_interaction_controller_for_view(canvas_view).handle_image_clicked(
         cube_alias,
         node_name,
         image_path,
@@ -112,9 +128,9 @@ def handle_input_mask_changed_for_view(
     node_name: str,
     mask_path: str,
 ) -> None:
-    """Route an editor-panel LoadImageMask change intent to the presenter."""
+    """Route a LoadImageMask change intent to the interaction owner."""
 
-    input_canvas_presenter_for_view(canvas_view).handle_input_mask_changed(
+    input_node_interaction_controller_for_view(canvas_view).handle_mask_changed(
         cube_alias,
         node_name,
         mask_path,
@@ -127,9 +143,9 @@ def handle_input_mask_clicked_for_view(
     node_name: str,
     mask_path: str,
 ) -> None:
-    """Route an editor-panel LoadImageMask focus intent to the presenter."""
+    """Route a LoadImageMask focus intent to the interaction owner."""
 
-    input_canvas_presenter_for_view(canvas_view).handle_input_mask_clicked(
+    input_node_interaction_controller_for_view(canvas_view).handle_mask_clicked(
         cube_alias,
         node_name,
         mask_path,
@@ -277,6 +293,7 @@ __all__ = [
     "handle_input_mask_changed_for_view",
     "handle_input_mask_clicked_for_view",
     "input_canvas_presenter_for_view",
+    "input_node_interaction_controller_for_view",
     "materialize_loaded_cube_input_canvas_for_view",
     "reconcile_active_input_canvas_image_for_view",
     "refresh_active_mask_pickers_for_view",

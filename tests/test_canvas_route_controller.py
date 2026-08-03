@@ -61,7 +61,10 @@ def test_refresh_input_canvas_availability_restores_remembered_input_route() -> 
         ),
         canvas_host=SimpleNamespace(
             set_canvas_available=lambda *_args, **_kwargs: None,
-            focus_attached_canvas=lambda route: focus_calls.append(route),
+            activate_canvas=lambda route, *, keyboard_focus: _record_activation(
+                focus_calls,
+                route,
+            ),
         ),
     )
 
@@ -80,7 +83,7 @@ def test_refresh_input_canvas_availability_defaults_loaded_input_workflow_to_inp
         canvas=SimpleNamespace(
             active_canvas_route=None,
             input_image_uuid=object(),
-            mask_associations={},
+            mask_entries={},
         )
     )
     focus_calls: list[str] = []
@@ -91,7 +94,10 @@ def test_refresh_input_canvas_availability_defaults_loaded_input_workflow_to_inp
         ),
         canvas_host=SimpleNamespace(
             set_canvas_available=lambda *_args, **_kwargs: None,
-            focus_attached_canvas=lambda route: focus_calls.append(route),
+            activate_canvas=lambda route, *, keyboard_focus: _record_activation(
+                focus_calls,
+                route,
+            ),
         ),
     )
 
@@ -113,7 +119,10 @@ def test_refresh_input_canvas_availability_coerces_unavailable_input_route() -> 
         ),
         canvas_host=SimpleNamespace(
             set_canvas_available=lambda *_args, **_kwargs: None,
-            focus_attached_canvas=lambda route: focus_calls.append(route),
+            activate_canvas=lambda route, *, keyboard_focus: _record_activation(
+                focus_calls,
+                route,
+            ),
         ),
     )
 
@@ -157,13 +166,13 @@ def test_workflow_has_active_input_canvas_state_detects_images_and_masks() -> No
 
     assert not CanvasRouteController.workflow_has_active_input_canvas_state(None)
     assert CanvasRouteController.workflow_has_active_input_canvas_state(
-        SimpleNamespace(input_image_uuid=object(), mask_associations={})
+        SimpleNamespace(input_image_uuid=object(), mask_entries={})
     )
     assert CanvasRouteController.workflow_has_active_input_canvas_state(
-        SimpleNamespace(input_image_uuid=None, mask_associations={"mask": object()})
+        SimpleNamespace(input_image_uuid=None, mask_entries={"mask": object()})
     )
     assert not CanvasRouteController.workflow_has_active_input_canvas_state(
-        SimpleNamespace(input_image_uuid=None, mask_associations={})
+        SimpleNamespace(input_image_uuid=None, mask_entries={})
     )
 
 
@@ -187,6 +196,13 @@ class _Signal:
             self._slot(route_key)
 
 
+def _record_activation(calls: list[str], route_key: str) -> bool:
+    """Record one route activation and report host acceptance."""
+
+    calls.append(route_key)
+    return True
+
+
 def _canvas_route_shell(
     *,
     workflow: object | None = None,
@@ -205,6 +221,6 @@ def _canvas_route_shell(
         canvas_host=canvas_host
         or SimpleNamespace(
             set_canvas_available=lambda *_args, **_kwargs: None,
-            focus_attached_canvas=lambda _route: None,
+            activate_canvas=lambda _route, *, keyboard_focus: True,
         ),
     )

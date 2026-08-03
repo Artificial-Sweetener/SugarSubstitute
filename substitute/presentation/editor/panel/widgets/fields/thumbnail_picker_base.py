@@ -19,20 +19,13 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Callable
+from typing import Callable
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
 from substitute.presentation.localization import LocalizedPushButton
 
-from PySide6.QtCore import QRectF, QSize, Qt
-from PySide6.QtGui import (
-    QColor,
-    QMouseEvent,
-    QPaintEvent,
-    QPainter,
-    QPainterPath,
-    QPixmap,
-)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -58,6 +51,8 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
 )
 from sugarsubstitute_shared.windows_long_paths import qt_filesystem_path
 
+from .thumbnail_preview_surface import ThumbnailPreviewSurface
+
 try:
     from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import-untyped]
 except ImportError:  # pragma: no cover - lightweight test stubs
@@ -66,76 +61,6 @@ except ImportError:  # pragma: no cover - lightweight test stubs
         """Return the default theme state for lightweight test stubs."""
 
         return True
-
-
-class HighlightLabel(QLabel):
-    """Paint a rounded hover/press overlay above the current thumbnail."""
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize hover and press tracking for the thumbnail label."""
-
-        super().__init__(*args, **kwargs)
-        self._hovered = False
-        self._pressed = False
-        self._corner_radius = 8
-        self.setMouseTracking(True)
-
-    def setCornerRadius(self, corner_radius: int) -> None:
-        """Update the rounded-corner radius used by the overlay."""
-
-        self._corner_radius = corner_radius
-        self.update()
-
-    def enterEvent(self, event: Any) -> None:
-        """Track hover entry so the highlight overlay can render."""
-
-        self._hovered = True
-        self.update()
-        super().enterEvent(event)
-
-    def leaveEvent(self, event: Any) -> None:
-        """Clear hover and press state when the cursor leaves the thumbnail."""
-
-        self._hovered = False
-        self._pressed = False
-        self.update()
-        super().leaveEvent(event)
-
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        """Track press state for the thumbnail highlight overlay."""
-
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._pressed = True
-            self.update()
-        super().mousePressEvent(event)
-
-    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        """Clear press state after a mouse release."""
-
-        if self._pressed:
-            self._pressed = False
-            self.update()
-        super().mouseReleaseEvent(event)
-
-    def paintEvent(self, event: QPaintEvent) -> None:
-        """Draw the hover/press overlay after the base label paint pass."""
-
-        super().paintEvent(event)
-        if not (self._hovered or self._pressed):
-            return
-
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        if self._pressed:
-            highlight_color = QColor(80, 80, 80, int(0.32 * 255))
-        else:
-            highlight_color = QColor(100, 100, 100, int(0.20 * 255))
-        rect = self.rect()
-        path = QPainterPath()
-        path.addRoundedRect(rect, self._corner_radius, self._corner_radius)
-        painter.setBrush(highlight_color)
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawPath(path)
 
 
 class ThumbnailPickerBase(QWidget):
@@ -167,9 +92,13 @@ class ThumbnailPickerBase(QWidget):
         self._caption_tooltip_filter: FluentToolTipFilter | None = None
         self._live_preview: QWidget | None = None
 
-        self.thumbnail = HighlightLabel(self)
-        self.thumbnail.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.thumbnail.setStyleSheet("border: none; background: none;")
+        self.preview_surface = ThumbnailPreviewSurface(
+            thumbnail_width=thumbnail_size,
+            corner_radius=corner_radius,
+            parent=self,
+        )
+        self.preview_surface.clicked.connect(self.handle_thumbnail_click)
+        self.thumbnail = self.preview_surface.static_label
 
         self.caption = QLabel(self)
         self.caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -188,7 +117,7 @@ class ThumbnailPickerBase(QWidget):
         self._preview_layout = QVBoxLayout(self)
         self._preview_layout.setSpacing(6)
         self._preview_layout.addWidget(
-            self.thumbnail,
+            self.preview_surface,
             alignment=Qt.AlignmentFlag.AlignCenter,
         )
 
@@ -238,15 +167,6 @@ class ThumbnailPickerBase(QWidget):
             self.thumbnail.clear()
             self.caption.setText("")
 
-        self.thumbnail.mouseReleaseEvent = self._on_thumbnail_clicked  # type: ignore[method-assign]
-
-    def _on_thumbnail_clicked(self, event: QMouseEvent) -> None:
-        """Clear press styling and forward thumbnail clicks to the concrete picker."""
-
-        QLabel.mouseReleaseEvent(self.thumbnail, event)
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.handle_thumbnail_click()
-
     def handle_thumbnail_click(self) -> None:
         """Handle a thumbnail click in the concrete picker."""
 
@@ -261,8 +181,7 @@ class ThumbnailPickerBase(QWidget):
         self._remove_live_preview()
         pixmap = QPixmap(image_path)
         if not pixmap.isNull():
-            rounded = self._rounded_pixmap(pixmap, self.corner_radius)
-            self._apply_display_pixmap(rounded, caption_text="", tooltip_text="")
+            self._apply_display_pixmap(pixmap, caption_text="", tooltip_text="")
             self._placeholder_image_path = image_path
             self._current_file_path = None
             layout = self.layout()
@@ -270,7 +189,7 @@ class ThumbnailPickerBase(QWidget):
                 layout.activate()
             return
 
-        self.thumbnail.clear()
+        self.preview_surface.clear_static_content()
         self.caption.setText("")
         self.caption.setFixedWidth(self.thumbnail_size - 4)
         self.caption.hide()
@@ -284,7 +203,7 @@ class ThumbnailPickerBase(QWidget):
             self.set_placeholder_image(self._placeholder_image_path)
             return
 
-        self.thumbnail.clear()
+        self.preview_surface.clear_static_content()
         self.caption.setText("")
         self.caption.setFixedWidth(self.thumbnail_size - 8)
         set_fluent_tooltip_text(self.caption, "")
@@ -296,26 +215,24 @@ class ThumbnailPickerBase(QWidget):
         file_path: str,
         pixmap_loader: Callable[[str], QPixmap],
     ) -> None:
-        """Render one selected file path or fall back to placeholder/empty state."""
+        """Update file state without replacing an authoritative live presentation."""
 
+        if self._live_preview is not None:
+            self._current_file_path = file_path or None
+            self._apply_selected_file_caption(
+                file_path,
+                width=self.preview_surface.width(),
+            )
+            return
         self._remove_live_preview()
         pixmap = pixmap_loader(qt_filesystem_path(file_path))
         if pixmap.isNull():
             self._restore_placeholder_or_clear()
             return
 
-        rounded = self._rounded_pixmap(pixmap, self.corner_radius)
-        filename = os.path.basename(file_path)
-        max_width = rounded.width()
-        metrics = self.caption.fontMetrics()
-        elided = metrics.elidedText(
-            f"[{filename}]",
-            Qt.TextElideMode.ElideMiddle,
-            max_width,
-        )
         self._apply_display_pixmap(
-            rounded,
-            caption_text=elided,
+            pixmap,
+            caption_text=self._elided_file_caption(file_path),
             tooltip_text=file_path,
         )
         self._current_file_path = file_path
@@ -329,14 +246,7 @@ class ThumbnailPickerBase(QWidget):
             raise TypeError("preview must be a QWidget")
         self._remove_live_preview()
         self._live_preview = preview
-        preview.setParent(self)
-        self.thumbnail.hide()
-        self._preview_layout.insertWidget(
-            0,
-            preview,
-            alignment=Qt.AlignmentFlag.AlignCenter,
-        )
-        preview.show()
+        self.preview_surface.set_live_content(preview)
         self._preview_layout.activate()
 
     def live_preview(self) -> QWidget | None:
@@ -347,14 +257,11 @@ class ThumbnailPickerBase(QWidget):
         """Retire the current viewport before restoring file-thumbnail display."""
         preview = self._live_preview
         if preview is None:
-            self.thumbnail.show()
             return
         self._live_preview = None
-        self._preview_layout.removeWidget(preview)
+        self.preview_surface.remove_live_content()
         preview.close()
-        preview.setParent(None)
         preview.deleteLater()
-        self.thumbnail.show()
 
     def _apply_display_pixmap(
         self,
@@ -365,45 +272,29 @@ class ThumbnailPickerBase(QWidget):
     ) -> None:
         """Apply the current rounded pixmap, caption, and tooltip text."""
 
-        self.thumbnail.setPixmap(pixmap)
-        self.thumbnail.setFixedSize(pixmap.size())
-        self.thumbnail.setCornerRadius(self.corner_radius)
-        self.caption.setFixedWidth(pixmap.width())
+        content_size = self.preview_surface.set_static_pixmap(pixmap)
+        self.caption.setFixedWidth(content_size.width())
         self.caption.setText(caption_text)
         set_fluent_tooltip_text(self.caption, tooltip_text)
         self.caption.setVisible(bool(caption_text))
 
-    def _rounded_pixmap(self, pixmap: QPixmap, radius: int) -> QPixmap:
-        """Return a rounded-corner pixmap with the existing drop-shadow treatment."""
+    def _apply_selected_file_caption(self, file_path: str, *, width: int) -> None:
+        """Update file labeling while the live document remains authoritative."""
 
-        scaled = pixmap.scaledToWidth(
+        self.caption.setFixedWidth(max(1, width))
+        self.caption.setText(self._elided_file_caption(file_path))
+        set_fluent_tooltip_text(self.caption, file_path)
+        self.caption.setVisible(bool(file_path))
+
+    def _elided_file_caption(self, file_path: str) -> str:
+        """Return the historical bracketed filename within picker width."""
+
+        filename = os.path.basename(file_path)
+        return self.caption.fontMetrics().elidedText(
+            f"[{filename}]",
+            Qt.TextElideMode.ElideMiddle,
             self.thumbnail_size,
-            Qt.TransformationMode.SmoothTransformation,
         )
-        size = scaled.size()
-        shadow_offset = 6
-        shadow_alpha = 60
-
-        result_size = size + QSize(shadow_offset * 2, shadow_offset * 2)
-        result = QPixmap(result_size)
-        result.fill(Qt.GlobalColor.transparent)
-
-        painter = QPainter(result)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        shadow_rect = QRectF(shadow_offset, shadow_offset, size.width(), size.height())
-        shadow_path = QPainterPath()
-        shadow_path.addRoundedRect(shadow_rect, radius, radius)
-        painter.fillPath(shadow_path, QColor(0, 0, 0, shadow_alpha))
-
-        image_rect = QRectF(0, 0, size.width(), size.height())
-        path = QPainterPath()
-        path.addRoundedRect(image_rect, radius, radius)
-        painter.setClipPath(path.translated(shadow_offset, shadow_offset))
-        painter.drawPixmap(shadow_offset, shadow_offset, scaled)
-        painter.setClipping(False)
-        painter.end()
-        return result
 
     def current_file_path(self) -> str | None:
         """Return the current selected file path."""
