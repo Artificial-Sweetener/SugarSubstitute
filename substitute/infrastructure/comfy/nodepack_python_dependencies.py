@@ -28,9 +28,13 @@ from substitute.infrastructure.comfy.nodepack_manifest import (
 from substitute.infrastructure.filesystem import remove_app_owned_path
 from substitute.infrastructure.process.hidden_process_runner import (
     run_command,
-    stream_command,
+    stream_command_collecting_output,
+)
+from substitute.infrastructure.process.pip_failure import (
+    raise_pip_path_compatibility_error,
 )
 from substitute.shared.logging.logger import get_logger, log_info
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 LogCallback = Callable[[str], None]
 
@@ -87,8 +91,14 @@ def install_nodepack_python_project(
         on_log,
         f"[ComfyNodepacks] Updating {display_name} Python dependencies.",
     )
-    command = [str(python_executable), "-m", "pip", "install", str(nodepack_root)]
-    exit_code = stream_command(
+    command = [
+        subprocess_path(python_executable),
+        "-m",
+        "pip",
+        "install",
+        subprocess_path(nodepack_root),
+    ]
+    exit_code, output_lines = stream_command_collecting_output(
         command,
         cwd=nodepack_root,
         on_line=on_log,
@@ -96,6 +106,10 @@ def install_nodepack_python_project(
         env=env,
     )
     if exit_code != 0:
+        raise_pip_path_compatibility_error(
+            fallback_path=nodepack_root,
+            output="\n".join(output_lines),
+        )
         raise RuntimeError(f"Could not update {display_name} Python dependencies.")
 
 
@@ -113,14 +127,14 @@ def install_nodepack_requirements(
     if not requirements_path.is_file():
         return
     _emit_log(on_log, f"[ComfyNodepacks] Installing {display_name} dependencies.")
-    exit_code = stream_command(
+    exit_code, output_lines = stream_command_collecting_output(
         [
-            str(python_executable),
+            subprocess_path(python_executable),
             "-m",
             "pip",
             "install",
             "-r",
-            str(requirements_path),
+            subprocess_path(requirements_path),
         ],
         cwd=nodepack_root,
         on_line=on_log,
@@ -128,6 +142,10 @@ def install_nodepack_requirements(
         env=env,
     )
     if exit_code != 0:
+        raise_pip_path_compatibility_error(
+            fallback_path=nodepack_root,
+            output="\n".join(output_lines),
+        )
         raise RuntimeError(f"Could not install {display_name} dependencies.")
 
 

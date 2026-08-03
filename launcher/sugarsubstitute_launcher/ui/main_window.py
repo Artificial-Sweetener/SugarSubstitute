@@ -83,10 +83,10 @@ from launcher.sugarsubstitute_launcher.runtime import (
 )
 
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
-from sugarsubstitute_shared.windows_long_paths import (
+from sugarsubstitute_shared.external_path_failure import (
     ExternalLongPathCompatibilityError,
-    WindowsPathComponentTooLongError,
 )
+from sugarsubstitute_shared.windows_long_paths import WindowsPathComponentTooLongError
 
 
 _LOGGER = logging.getLogger(__name__)
