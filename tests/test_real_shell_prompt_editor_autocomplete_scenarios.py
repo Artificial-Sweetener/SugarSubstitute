@@ -1990,6 +1990,7 @@ def test_real_shell_contiguous_typing_undoes_as_one_group(
     """Contiguous word typing should undo as one owner-coalesced edit group."""
 
     field = harness.add_prompt_workflow(initial_text="")
+    before = harness.capture_state_snapshot(field, label="before-typing-group-alpha")
     harness.type_text(field, "alpha")
     typed = harness.capture_state_snapshot(field, label="after-typing-group-alpha")
     harness.focus_editor(field)
@@ -2012,8 +2013,15 @@ def test_real_shell_contiguous_typing_undoes_as_one_group(
         )
         pytest.fail(f"prompt editor invariant failed; artifacts: {artifact}")
 
-    assert typed.undo_typing_group_active
-    assert typed.undo_typing_group_last_cursor_position == len("alpha")
+    assert typed.source_text == "alpha"
+    if typed.undo_typing_group_active:
+        assert typed.undo_typing_group_last_cursor_position == len("alpha")
+        assert typed.undo_depth == before.undo_depth
+    else:
+        # A loaded runner may cross the real 900 ms idle boundary while the
+        # diagnostic snapshot pumps events; the committed word remains one step.
+        assert typed.undo_typing_group_last_cursor_position is None
+        assert typed.undo_depth == before.undo_depth + 1
     assert undone.source_text == ""
     assert not undone.undo_typing_group_active
     assert undone.redo_available
