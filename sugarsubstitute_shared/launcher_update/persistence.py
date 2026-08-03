@@ -22,10 +22,13 @@ import json
 from pathlib import Path
 from typing import Mapping
 
+from sugarsubstitute_shared.windows_long_paths import operational_path
+
 
 def write_json_atomic(path: Path, payload: Mapping[str, object]) -> None:
     """Write one JSON object through a same-directory temporary file."""
 
+    path = operational_path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = path.with_name(f"{path.name}.tmp")
     temporary_path.write_text(
@@ -38,6 +41,7 @@ def write_json_atomic(path: Path, payload: Mapping[str, object]) -> None:
 def read_json_object(path: Path) -> dict[str, object]:
     """Read one JSON object and reject other root values."""
 
+    path = operational_path(path)
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError(f"Expected a JSON object: {path}")

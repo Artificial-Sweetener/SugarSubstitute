@@ -24,6 +24,9 @@ import subprocess
 import pytest
 
 from substitute.infrastructure.comfy import manager_requirements_installer
+from sugarsubstitute_shared.external_path_failure import (
+    ExternalLongPathCompatibilityError,
+)
 from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
     subprocess_working_directory,
@@ -102,3 +105,41 @@ def test_pygit2_backend_is_an_explicit_separate_transaction(
     assert observed == [
         [subprocess_path(python), "-m", "pip", "install", "pygit2==1.19.3"]
     ]
+
+
+@pytest.mark.platforms("windows")
+def test_manager_requirements_translate_pip_long_path_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Manager dependency failures should retain pip's overlong output path."""
+
+    failing_path = (
+        "E:\\managed\\temp\\pip-ephem-wheel-cache-pmo9xg0b\\wheels\\59\\1d\\00"
+        "\\729d4b9dcecc8342dac49bcf6ab1415de9f48be12e466feb73"
+        "\\tmpzx280yzl\\.tmp-by7a27ea\\nested-path-component-that-keeps-growing"
+        "\\another-long-component\\one-more-wheel-build-layer-that-exceeds-max-path"
+        "\\sugarcubes-0.11.0-py3-none-any.whl"
+    )
+    detail = f"error: [Errno 2] No such file or directory: '{failing_path}'"
+
+    def fake_run(
+        command: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        """Return the misleading missing-file failure emitted by pip."""
+
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr=detail)
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.manager_requirements_installer.subprocess.run",
+        fake_run,
+    )
+
+    with pytest.raises(ExternalLongPathCompatibilityError) as error:
+        manager_requirements_installer.ComfyManagerRequirementsInstaller().install_requirements(
+            workspace=tmp_path,
+            python_executable=tmp_path / "python.exe",
+            requirements_path=tmp_path / "requirements.txt",
+        )
+
+    assert error.value.path == Path(failing_path)

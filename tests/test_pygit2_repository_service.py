@@ -118,9 +118,11 @@ def test_clone_process_removes_partial_checkout_after_timeout(
     def raise_timeout(*args: object, **kwargs: object) -> None:
         """Materialize partial output before simulating an expired child."""
 
-        del args, kwargs
-        target.mkdir()
-        (target / ".git").mkdir()
+        del kwargs
+        command = args[0]
+        assert isinstance(command, tuple)
+        clone_target = Path(command[-1])
+        (clone_target / ".git").mkdir()
         raise subprocess.TimeoutExpired(("python", "clone"), timeout=1)
 
     monkeypatch.setattr(
@@ -135,6 +137,17 @@ def test_clone_process_removes_partial_checkout_after_timeout(
         )
 
     assert not target.exists()
+
+
+def test_repository_access_does_not_create_a_missing_target(tmp_path: Path) -> None:
+    """Read operations should preserve the absence of a requested repository."""
+
+    repository_path = tmp_path / "missing-repository"
+
+    with pytest.raises(RepositoryOperationError, match="Could not open repository"):
+        Pygit2RepositoryService().head_commit_id(repository_path)
+
+    assert not repository_path.exists()
 
 
 def _create_origin(tmp_path: Path) -> tuple[Path, pygit2.Repository]:

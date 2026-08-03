@@ -23,10 +23,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from sugarsubstitute_shared.localization import render_source_application_text
-from sugarsubstitute_shared.windows_long_paths import (
+from sugarsubstitute_shared.external_path_failure import (
     ExternalLongPathCompatibilityError,
-    WindowsPathComponentTooLongError,
 )
+from sugarsubstitute_shared.windows_long_paths import WindowsPathComponentTooLongError
 
 import pytest
 
@@ -785,9 +785,7 @@ def test_flow_service_saves_preferences_model_root_and_credentials(
     assert provisioner_kwargs[0]["managed_model_root"] == custom_models
     assert provisioner_kwargs[0]["configure_model_root"] is True
     assert provisioner_kwargs[0]["refresh_core_nodepacks"] == frozenset(CoreNodepackId)
-    assert provisioner_kwargs[0]["installer_temp_root"] == (
-        tmp_path / "runtime" / "installer-temp" / "managed-comfy" / "transaction-id"
-    )
+    assert "installer_temp_root" not in provisioner_kwargs[0]
     assert "civitai-secret" not in "\n".join(logs)
 
 

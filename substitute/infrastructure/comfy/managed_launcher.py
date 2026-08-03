@@ -311,8 +311,6 @@ def start_managed_comfy_subprocess(
         venv_python = _ensure_launch_workspace(
             workspace=workspace,
             python_executable=python_executable,
-            runtime_state_dir=runtime_state_dir,
-            transaction_key=f"foreground-{uuid4().hex}",
             runtime_service=runtime_service,
         )
     except Exception as error:
@@ -354,8 +352,6 @@ def _ensure_launch_workspace(
     *,
     workspace: Path,
     python_executable: Path | None,
-    runtime_state_dir: Path,
-    transaction_key: str,
     runtime_service: ManagedRuntimeService,
     on_status: StatusCallback | None = None,
     on_log: LogCallback | None = None,
@@ -371,9 +367,6 @@ def _ensure_launch_workspace(
         ).executable
     return ensure_managed_comfy_setup(
         workspace=workspace,
-        installer_temp_root=(
-            runtime_state_dir / "installer-temp" / "managed-comfy" / transaction_key
-        ),
         on_status=on_status,
         on_log=on_log,
         state_recorder=ActiveSafeManagedRuntimeStateRecorder(runtime_service),
@@ -448,8 +441,6 @@ def start_managed_comfy_background(
                 venv_python = _ensure_launch_workspace(
                     workspace=workspace,
                     python_executable=python_executable,
-                    runtime_state_dir=runtime_state_dir,
-                    transaction_key=f"background-{uuid4().hex}",
                     runtime_service=runtime_service,
                     on_status=on_status,
                     on_log=on_log,

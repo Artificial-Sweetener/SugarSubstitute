@@ -33,9 +33,11 @@ from substitute.infrastructure.comfy.managed_validation import (
     workspace_python_path,
     workspace_venv_dir,
 )
+from substitute.infrastructure.process.pip_failure import (
+    raise_pip_path_compatibility_error,
+)
 from substitute.shared.logging.logger import get_logger, log_debug, log_info
 from sugarsubstitute_shared.windows_long_paths import (
-    external_long_path_error,
     subprocess_path,
     subprocess_working_directory,
 )
@@ -134,7 +136,10 @@ def pip_install(
         exit_code = stream_command(command, on_line=_record_output, env=env)
         if exit_code != 0:
             output = "\n".join(output_lines)
-            _raise_external_pip_path_error(python_executable, output)
+            raise_pip_path_compatibility_error(
+                fallback_path=python_executable.parent.parent,
+                output=output,
+            )
             if is_storage_exhaustion_message(output):
                 raise ManagedInstallStorageError(
                     "Managed ComfyUI setup ran out of temporary install space "
@@ -161,7 +166,10 @@ def pip_install(
     )
     if result.returncode != 0:
         output = result.stdout or ""
-        _raise_external_pip_path_error(python_executable, output)
+        raise_pip_path_compatibility_error(
+            fallback_path=python_executable.parent.parent,
+            output=output,
+        )
         if is_storage_exhaustion_message(output):
             raise ManagedInstallStorageError(
                 "Managed ComfyUI setup ran out of temporary install space "
@@ -204,7 +212,10 @@ def pip_uninstall(
     exit_code = stream_command(command, on_line=_record_output, env=env)
     if exit_code != 0:
         output = "\n".join(output_lines)
-        _raise_external_pip_path_error(python_executable, output)
+        raise_pip_path_compatibility_error(
+            fallback_path=python_executable.parent.parent,
+            output=output,
+        )
         if is_storage_exhaustion_message(output):
             raise ManagedInstallStorageError(
                 "Managed ComfyUI setup ran out of temporary install space while "
@@ -240,18 +251,6 @@ def ensure_workspace_virtualenv(
             "Substitute couldn't create the Python environment for this ComfyUI setup."
         )
     return venv_python
-
-
-def _raise_external_pip_path_error(python_executable: Path, detail: str) -> None:
-    """Raise a structured error when pip explicitly rejects a long path."""
-
-    compatibility_error = external_long_path_error(
-        component="pip",
-        path=python_executable.parent.parent,
-        detail=detail,
-    )
-    if compatibility_error is not None:
-        raise compatibility_error
 
 
 def upgrade_workspace_packaging_tools(

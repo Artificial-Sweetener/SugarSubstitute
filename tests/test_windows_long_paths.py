@@ -40,11 +40,13 @@ from substitute.infrastructure.comfy.managed_launcher import (
 from substitute.infrastructure.comfy.standalone_environment.extraction_process import (
     NativeSevenZipExtractionProcess,
 )
-from sugarsubstitute_shared.windows_long_paths import (
+from sugarsubstitute_shared.external_path_failure import (
     ExternalLongPathCompatibilityError,
+    external_long_path_error,
+)
+from sugarsubstitute_shared.windows_long_paths import (
     WindowsPathComponentTooLongError,
     WindowsLongPath,
-    external_long_path_error,
     extended_length_path,
     logical_path,
     operational_path,
@@ -53,6 +55,9 @@ from sugarsubstitute_shared.windows_long_paths import (
 from substitute.infrastructure.process.hidden_process_runner import run_command
 from substitute.infrastructure.filesystem import remove_app_owned_path
 from substitute.infrastructure.version_control.clone_process import Pygit2CloneProcess
+from substitute.infrastructure.version_control.pygit2_repository import (
+    Pygit2RepositoryService,
+)
 
 
 def test_extended_length_path_maps_drive_and_unc_paths() -> None:
@@ -295,6 +300,41 @@ def test_pygit2_clone_stages_and_promotes_to_long_destination(
     target = target_root
     while len(str(target)) < 285:
         target /= "segment-0123456789abcdef"
+    target.parent.mkdir(parents=True)
+
+    try:
+        Pygit2CloneProcess(timeout_seconds=30).clone(str(source), target)
+
+        assert (target / "proof.txt").read_text(encoding="utf-8") == "clone proof"
+        assert (target / ".git").is_dir()
+        service = Pygit2RepositoryService()
+        assert service.tracked_files(target) == (Path("proof.txt"),)
+        assert service.head_commit_id(target) is not None
+    finally:
+        remove_app_owned_path(target_root)
+
+
+@pytest.mark.platforms("windows")
+def test_pygit2_clone_stages_before_target_reaches_legacy_limit(
+    tmp_path: Path,
+) -> None:
+    """Libgit2 should not inherit a deep managed installation's path budget."""
+
+    source = tmp_path / "source-repository-before-limit"
+    source.mkdir()
+    repository = pygit2.init_repository(source, initial_head="main")
+    (source / "proof.txt").write_text("clone proof", encoding="utf-8")
+    repository.index.add_all()
+    repository.index.write()
+    tree = repository.index.write_tree()
+    signature = pygit2.Signature("SugarSubstitute Tests", "tests@example.invalid")
+    repository.create_commit("HEAD", signature, signature, "proof", tree, [])
+    target_root = operational_path(tmp_path / "managed-install-clone-target")
+    managed_root = target_root
+    while len(str(managed_root)) < 165:
+        managed_root /= "deep-managed-install-segment"
+    target = managed_root / "comfyui" / "custom_nodes" / "Substitute-BackEnd"
+    assert len(str(target)) < 260
     target.parent.mkdir(parents=True)
 
     try:

@@ -28,6 +28,9 @@ from substitute.infrastructure.comfy.manager_environment import (
     manager_runtime_environment,
 )
 from substitute.infrastructure.comfy.manager_runtime_probe import command_output
+from substitute.infrastructure.process.pip_failure import (
+    raise_pip_path_compatibility_error,
+)
 from substitute.shared.logging.logger import get_logger, log_info
 from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
@@ -110,6 +113,10 @@ class ComfyManagerRequirementsInstaller:
         )
         self._log_output(result, on_log)
         if result.returncode != 0:
+            raise_pip_path_compatibility_error(
+                fallback_path=workspace,
+                output=command_output(result),
+            )
             raise RuntimeError(
                 "Substitute could not install ComfyUI Manager requirements. "
                 + command_output(result)

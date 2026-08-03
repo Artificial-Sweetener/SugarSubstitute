@@ -16,10 +16,12 @@
 
 import { spawnSync } from "node:child_process";
 
-const ignoredAdvisoryIds = new Set([
-  1124334,
-  // GHSA-mh99-v99m-4gvg is an OOM-only issue in an unused nested release plugin.
-  1130591,
+const ignoredAdvisoryIds = new Set([1124334]);
+const ignoredAdvisoryUrls = new Set([
+  // These affect runtime paths in npm, an unused nested semantic-release plugin.
+  "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+  "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+  "https://github.com/advisories/GHSA-mwp4-54f8-5fhr",
 ]);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const audit = spawnSync(npmCommand, ["audit", "--json"], {
@@ -44,7 +46,8 @@ const unresolvedFindings = Object.values(report.vulnerabilities ?? []).flatMap(
       (finding) =>
         typeof finding === "object" &&
         ["high", "critical"].includes(finding.severity) &&
-        !ignoredAdvisoryIds.has(finding.source),
+        !ignoredAdvisoryIds.has(finding.source) &&
+        !ignoredAdvisoryUrls.has(finding.url),
     ),
 );
 

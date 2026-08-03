@@ -41,9 +41,11 @@ from substitute.infrastructure.comfy.managed_process_metadata import (
 )
 from substitute.infrastructure.comfy.managed_process_probe import is_process_running
 from substitute.shared.logging.logger import get_logger, log_info
-from sugarsubstitute_shared.windows_long_paths import (
+from sugarsubstitute_shared.external_path_failure import (
     ExternalLongPathCompatibilityError,
     external_long_path_error,
+)
+from sugarsubstitute_shared.windows_long_paths import (
     subprocess_working_directory,
 )
 

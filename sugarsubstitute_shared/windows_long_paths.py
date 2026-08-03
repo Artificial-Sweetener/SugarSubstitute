@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import ntpath
 import os
-import errno
 from pathlib import Path, WindowsPath
 import sys
 import tempfile
@@ -31,34 +30,6 @@ _EXTENDED_UNC_PREFIX = "\\\\?\\UNC\\"
 _UNC_PREFIX = "\\\\"
 WINDOWS_LEGACY_PATH_LIMIT = 260
 WINDOWS_PATH_COMPONENT_LIMIT = 255
-_LONG_PATH_ERROR_MARKERS = (
-    "filename too long",
-    "file name too long",
-    "path too long",
-    "winerror 206",
-    "error_filename_exced_range",
-)
-
-
-class ExternalLongPathCompatibilityError(RuntimeError):
-    """Report a known long-path failure in an external component."""
-
-    def __init__(
-        self,
-        *,
-        component: str,
-        path: os.PathLike[str] | str,
-        detail: str,
-    ) -> None:
-        """Retain structured evidence for localized presentation."""
-
-        self.component = component
-        self.path = Path(logical_path(path))
-        self.detail = detail
-        super().__init__(
-            f"{component} could not access the long Windows path "
-            f"'{self.path}'. {detail}"
-        )
 
 
 class WindowsPathComponentTooLongError(ValueError):
@@ -173,33 +144,6 @@ def exceeds_windows_legacy_path_limit(path: os.PathLike[str] | str) -> bool:
     )
 
 
-def external_long_path_error(
-    *,
-    component: str,
-    path: os.PathLike[str] | str,
-    detail: BaseException | str,
-) -> ExternalLongPathCompatibilityError | None:
-    """Classify explicit external ``MAX_PATH`` failures for actionable handling."""
-
-    if sys.platform != "win32" or not exceeds_windows_legacy_path_limit(path):
-        return None
-    detail_text = str(detail).strip() or type(detail).__name__
-    winerror = getattr(detail, "winerror", None)
-    error_number = getattr(detail, "errno", None)
-    normalized = detail_text.casefold()
-    if (
-        winerror != 206
-        and error_number != errno.ENAMETOOLONG
-        and not any(marker in normalized for marker in _LONG_PATH_ERROR_MARKERS)
-    ):
-        return None
-    return ExternalLongPathCompatibilityError(
-        component=component,
-        path=path,
-        detail=detail_text,
-    )
-
-
 def _validate_windows_components(path: str) -> None:
     """Reject components that no Windows path namespace can represent."""
 
@@ -213,12 +157,10 @@ def _validate_windows_components(path: str) -> None:
 __all__ = [
     "WINDOWS_LEGACY_PATH_LIMIT",
     "WINDOWS_PATH_COMPONENT_LIMIT",
-    "ExternalLongPathCompatibilityError",
     "WindowsPathComponentTooLongError",
     "WindowsLongPath",
     "exceeds_windows_legacy_path_limit",
     "extended_length_path",
-    "external_long_path_error",
     "logical_path",
     "operational_path",
     "qt_filesystem_path",

@@ -24,6 +24,11 @@ import subprocess
 import sys
 
 from sugarsubstitute_shared.launcher_update.models import LauncherUpdateRequest
+from sugarsubstitute_shared.windows_long_paths import (
+    operational_path,
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 
 def schedule_launcher_update(
@@ -36,14 +41,18 @@ def schedule_launcher_update(
 ) -> int:
     """Persist process behavior and start the detached replacement helper."""
 
+    request_path = operational_path(request_path)
+    runtime_python = operational_path(runtime_python)
+    app_dir = operational_path(app_dir)
     request = LauncherUpdateRequest.load(request_path).with_process_behavior(
         relaunch=relaunch,
         wait_pid=wait_pid,
     )
     request.save(request_path)
     environment = os.environ.copy()
-    environment["PYTHONPATH"] = str(app_dir)
-    log_path = request.install_root / "launcher" / "logs" / "launcher-update.log"
+    environment["PYTHONPATH"] = subprocess_path(app_dir)
+    install_root = operational_path(request.install_root)
+    log_path = install_root / "launcher" / "logs" / "launcher-update.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     creationflags = 0
     startupinfo = None
@@ -56,12 +65,12 @@ def schedule_launcher_update(
     with log_path.open("a", encoding="utf-8") as output:
         process = subprocess.Popen(  # noqa: S603
             [
-                str(runtime_python),
+                subprocess_path(runtime_python),
                 "-m",
                 "sugarsubstitute_shared.launcher_update.helper",
-                str(request_path),
+                subprocess_path(request_path),
             ],
-            cwd=request.install_root,
+            cwd=subprocess_working_directory(install_root),
             env=environment,
             stdin=subprocess.DEVNULL,
             stdout=output,

@@ -1323,6 +1323,7 @@ def _install_row_interaction_stub_dependencies(
     qtcore: types.ModuleType,
     qtgui: types.ModuleType,
     qfw: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Install Qt symbols required by the shared row interaction helper."""
 
@@ -1338,8 +1339,12 @@ def _install_row_interaction_stub_dependencies(
     qfw_common = types.ModuleType("qfluentwidgets.common")
     qfw_style_sheet = types.ModuleType("qfluentwidgets.common.style_sheet")
     qfw_style_sheet.isDarkTheme = lambda: True
-    sys.modules["qfluentwidgets.common"] = qfw_common
-    sys.modules["qfluentwidgets.common.style_sheet"] = qfw_style_sheet
+    monkeypatch.setitem(sys.modules, "qfluentwidgets.common", qfw_common)
+    monkeypatch.setitem(
+        sys.modules,
+        "qfluentwidgets.common.style_sheet",
+        qfw_style_sheet,
+    )
 
 
 class _MouseEvent:
@@ -1804,7 +1809,7 @@ def test_queue_row_x_button_emits_cancel_requested(
     qfw = types.ModuleType("qfluentwidgets")
     qfw.FluentIcon = types.SimpleNamespace(CLOSE=object())
     qfw.TransparentToolButton = _Button
-    _install_row_interaction_stub_dependencies(qtcore, qtgui, qfw)
+    _install_row_interaction_stub_dependencies(qtcore, qtgui, qfw, monkeypatch)
 
     monkeypatch.setitem(sys.modules, "PySide6", types.ModuleType("PySide6"))
     monkeypatch.setitem(sys.modules, "PySide6.QtCore", qtcore)
@@ -1865,7 +1870,7 @@ def test_queue_row_trash_button_emits_remove_requested(
     qfw = types.ModuleType("qfluentwidgets")
     qfw.FluentIcon = types.SimpleNamespace(CLOSE=object(), DELETE=object())
     qfw.TransparentToolButton = _Button
-    _install_row_interaction_stub_dependencies(qtcore, qtgui, qfw)
+    _install_row_interaction_stub_dependencies(qtcore, qtgui, qfw, monkeypatch)
 
     monkeypatch.setitem(sys.modules, "PySide6", types.ModuleType("PySide6"))
     monkeypatch.setitem(sys.modules, "PySide6.QtCore", qtcore)
@@ -1926,7 +1931,7 @@ def test_queue_row_open_snapshot_intent_emits_job_id(
     qfw = types.ModuleType("qfluentwidgets")
     qfw.FluentIcon = types.SimpleNamespace(CLOSE=object(), DELETE=object())
     qfw.TransparentToolButton = _Button
-    _install_row_interaction_stub_dependencies(qtcore, qtgui, qfw)
+    _install_row_interaction_stub_dependencies(qtcore, qtgui, qfw, monkeypatch)
 
     monkeypatch.setitem(sys.modules, "PySide6", types.ModuleType("PySide6"))
     monkeypatch.setitem(sys.modules, "PySide6.QtCore", qtcore)

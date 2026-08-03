@@ -52,9 +52,11 @@ from substitute.infrastructure.comfy.managed_acceleration_reconciler import (
 from substitute.infrastructure.comfy.managed_install_failures import (
     ManagedInstallStorageError,
 )
+from substitute.infrastructure.comfy.managed_install_environment import (
+    build_managed_install_environment,
+)
 from substitute.infrastructure.comfy.managed_install_scratch import (
-    ManagedInstallScratch,
-    default_installer_temp_root,
+    allocate_managed_install_scratch,
 )
 from substitute.infrastructure.comfy.managed_setup_state import (
     _managed_runtime_configuration_from_strategy,
@@ -571,19 +573,15 @@ def ensure_managed_comfy_setup(
     prefer_edge_torch: bool = False,
     prefer_edge_comfy_channel: bool = False,
     refresh_core_nodepacks: Collection[CoreNodepackId] = frozenset(),
-    installer_temp_root: Path | None = None,
     on_status: StatusCallback | None = None,
     on_log: LogCallback | None = None,
     state_recorder: ManagedRuntimeStateRecorder | None = None,
 ) -> Path:
     """Ensure ComfyUI and runtime dependencies are installed and ready."""
 
-    scratch = ManagedInstallScratch(
-        root=installer_temp_root or default_installer_temp_root(workspace)
-    )
+    scratch = allocate_managed_install_scratch(workspace)
     with trace_span("managed_setup.scratch.create"):
-        scratch.create()
-    managed_env = scratch.apply_to()
+        managed_env = build_managed_install_environment(scratch.root)
     try:
         return _ensure_managed_comfy_setup(
             workspace=workspace,

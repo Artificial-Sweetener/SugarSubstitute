@@ -40,8 +40,8 @@ from launcher.sugarsubstitute_launcher.platforms import (
     LauncherOperatingSystem,
     LauncherTarget,
 )
+from sugarsubstitute_shared.external_path_failure import external_long_path_error
 from sugarsubstitute_shared.windows_long_paths import (
-    external_long_path_error,
     operational_path,
     subprocess_path,
     subprocess_working_directory,

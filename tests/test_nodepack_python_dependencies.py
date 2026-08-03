@@ -35,6 +35,10 @@ from substitute.infrastructure.comfy.nodepack_python_dependencies import (
     python_distribution_matches_required_version,
     remove_noncanonical_python_distribution_metadata,
 )
+from sugarsubstitute_shared.external_path_failure import (
+    ExternalLongPathCompatibilityError,
+)
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 _DEPENDENCIES_MODULE = (
     Path(__file__).resolve().parents[1]
@@ -90,16 +94,16 @@ def test_install_nodepack_python_project_uses_noneditable_local_install(
         on_line: object | None,
         timeout_seconds: int | None = None,
         env: object | None = None,
-    ) -> int:
+    ) -> tuple[int, tuple[str, ...]]:
         observed["command"] = command
         observed["cwd"] = cwd
         observed["on_line"] = on_line
         observed["timeout_seconds"] = timeout_seconds
         observed["env"] = env
-        return 0
+        return 0, ()
 
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_python_dependencies.stream_command",
+        "substitute.infrastructure.comfy.nodepack_python_dependencies.stream_command_collecting_output",
         fake_stream,
     )
 
@@ -112,11 +116,11 @@ def test_install_nodepack_python_project_uses_noneditable_local_install(
     )
 
     assert observed["command"] == [
-        str(python_path),
+        subprocess_path(python_path),
         "-m",
         "pip",
         "install",
-        str(nodepack_root),
+        subprocess_path(nodepack_root),
     ]
     assert observed["cwd"] == nodepack_root
     assert observed["on_line"] == emitted.append
@@ -135,12 +139,12 @@ def test_install_nodepack_python_project_raises_on_failure(
     def fake_stream(
         command: list[str],
         **kwargs: object,
-    ) -> int:
+    ) -> tuple[int, tuple[str, ...]]:
         _ = command, kwargs
-        return 9
+        return 9, ()
 
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_python_dependencies.stream_command",
+        "substitute.infrastructure.comfy.nodepack_python_dependencies.stream_command_collecting_output",
         fake_stream,
     )
 
@@ -150,6 +154,36 @@ def test_install_nodepack_python_project_raises_on_failure(
             nodepack_root=tmp_path,
             display_name="SugarCubes",
         )
+
+
+@pytest.mark.platforms("windows")
+def test_install_nodepack_project_translates_pip_errno_two_long_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Nodepack installation should retain pip's overlong wheel-output evidence."""
+
+    failing_path = (
+        r"E:\Documents\Everything\Artificial Sweetener\runtime\installer-temp"
+        r"\managed-comfy\401c2092-bb13-4f3b-a377-997f1fab4ccd\temp"
+        r"\pip-ephem-wheel-cache-pmo9xg0b\wheels\59\1d\00"
+        r"\729d4b9dcecc8342dac49bcf6ab1415de9f48be12e466feb73"
+        r"\tmpzx280yzl\.tmp-by7a27ea\sugarcubes-0.11.0-py3-none-any.whl"
+    )
+    output = f"error: [Errno 2] No such file or directory: '{failing_path}'"
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.nodepack_python_dependencies.stream_command_collecting_output",
+        lambda *args, **kwargs: (1, (output,)),
+    )
+
+    with pytest.raises(ExternalLongPathCompatibilityError) as failure:
+        install_nodepack_python_project(
+            python_executable=tmp_path / "python.exe",
+            nodepack_root=tmp_path,
+            display_name="SugarCubes",
+        )
+
+    assert failure.value.path == Path(failing_path)
 
 
 def test_installed_python_distribution_version_reads_metadata(
