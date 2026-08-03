@@ -27,8 +27,8 @@ from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.external_path_failure import external_long_path_error
 from sugarsubstitute_shared.windows_long_paths import (
-    external_long_path_error,
     operational_path,
     subprocess_path,
     subprocess_working_directory,

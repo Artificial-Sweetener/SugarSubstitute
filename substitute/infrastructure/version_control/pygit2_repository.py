@@ -26,14 +26,15 @@ import pygit2
 from substitute.infrastructure.version_control.clone_process import (
     Pygit2CloneProcess,
 )
+from substitute.infrastructure.version_control.pygit2_access import (
+    initialize_pygit2_repository,
+    open_pygit2_repository,
+)
 from substitute.infrastructure.version_control.repository import (
     RepositoryOperationError,
     RepositoryProgressCallback,
 )
-from sugarsubstitute_shared.windows_long_paths import (
-    external_long_path_error,
-    operational_path,
-)
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
 _CHECKOUT_STRATEGY = pygit2.GIT_CHECKOUT_SAFE | pygit2.GIT_CHECKOUT_RECREATE_MISSING
@@ -50,21 +51,7 @@ class Pygit2RepositoryService:
     def initialize(self, repository_path: Path, *, branch: str = "main") -> None:
         """Initialize an empty repository through libgit2."""
 
-        repository_path = operational_path(repository_path)
-        try:
-            repository_path.mkdir(parents=True, exist_ok=True)
-            pygit2.init_repository(repository_path, initial_head=branch)
-        except (OSError, ValueError, pygit2.GitError) as error:
-            compatibility_error = external_long_path_error(
-                component="pygit2",
-                path=repository_path,
-                detail=error,
-            )
-            if compatibility_error is not None:
-                raise compatibility_error from error
-            raise RepositoryOperationError(
-                f"Could not initialize repository at {repository_path}."
-            ) from error
+        initialize_pygit2_repository(repository_path, branch=branch)
 
     def clone(
         self,
@@ -94,21 +81,21 @@ class Pygit2RepositoryService:
     ) -> None:
         """Fetch configured remotes and fast-forward the current branch."""
 
-        repository = self._open(repository_path)
-        try:
-            for remote in repository.remotes:
-                self._emit(on_progress, f"Fetching {remote.name or remote.url}")
-                remote.fetch(
-                    [
-                        *remote.fetch_refspecs,
-                        "+refs/tags/*:refs/tags/*",
-                    ]
-                )
-            self._fast_forward_current_branch(repository)
-        except (KeyError, ValueError, pygit2.GitError) as error:
-            raise RepositoryOperationError(
-                f"Could not fast-forward repository {repository_path}: {error}"
-            ) from error
+        with open_pygit2_repository(repository_path) as repository:
+            try:
+                for remote in repository.remotes:
+                    self._emit(on_progress, f"Fetching {remote.name or remote.url}")
+                    remote.fetch(
+                        [
+                            *remote.fetch_refspecs,
+                            "+refs/tags/*:refs/tags/*",
+                        ]
+                    )
+                self._fast_forward_current_branch(repository)
+            except (KeyError, ValueError, pygit2.GitError) as error:
+                raise RepositoryOperationError(
+                    f"Could not fast-forward repository {repository_path}: {error}"
+                ) from error
 
     def fetch_all(
         self,
@@ -118,15 +105,15 @@ class Pygit2RepositoryService:
     ) -> None:
         """Fetch every configured remote branch and tag through libgit2."""
 
-        repository = self._open(repository_path)
-        try:
-            for remote in repository.remotes:
-                self._emit(on_progress, f"Fetching {remote.name or remote.url}")
-                remote.fetch()
-        except (KeyError, ValueError, pygit2.GitError) as error:
-            raise RepositoryOperationError(
-                f"Could not fetch repository remotes for {repository_path}: {error}"
-            ) from error
+        with open_pygit2_repository(repository_path) as repository:
+            try:
+                for remote in repository.remotes:
+                    self._emit(on_progress, f"Fetching {remote.name or remote.url}")
+                    remote.fetch()
+            except (KeyError, ValueError, pygit2.GitError) as error:
+                raise RepositoryOperationError(
+                    f"Could not fetch repository remotes for {repository_path}: {error}"
+                ) from error
 
     def fetch_tag(
         self,
@@ -138,108 +125,90 @@ class Pygit2RepositoryService:
     ) -> None:
         """Fetch one tag from a trusted repository URL."""
 
-        repository = self._open(repository_path)
-        self._emit(on_progress, f"Fetching tag {tag} from {repository_url}")
-        refspec = f"+refs/tags/{tag}:refs/tags/{tag}"
-        try:
-            repository.remotes.create_anonymous(repository_url).fetch([refspec])
-        except (ValueError, pygit2.GitError) as error:
-            raise RepositoryOperationError(
-                f"Could not fetch tag {tag} into {repository_path}: {error}"
-            ) from error
+        with open_pygit2_repository(repository_path) as repository:
+            self._emit(on_progress, f"Fetching tag {tag} from {repository_url}")
+            refspec = f"+refs/tags/{tag}:refs/tags/{tag}"
+            try:
+                repository.remotes.create_anonymous(repository_url).fetch([refspec])
+            except (ValueError, pygit2.GitError) as error:
+                raise RepositoryOperationError(
+                    f"Could not fetch tag {tag} into {repository_path}: {error}"
+                ) from error
 
     def checkout_revision(self, repository_path: Path, revision: str) -> None:
         """Checkout one resolvable revision and detach HEAD at its commit."""
 
-        repository = self._open(repository_path)
-        try:
-            revision_object = repository.revparse_single(revision)
-            commit = revision_object.peel(pygit2.Commit)
-            # pygit2's checkout_tree C binding has no callable type signature.
-            repository.checkout_tree(  # type: ignore[no-untyped-call]
-                commit,
-                strategy=_CHECKOUT_STRATEGY,
-            )
-            repository.set_head(commit.id)
-        except (KeyError, ValueError, pygit2.GitError) as error:
-            raise RepositoryOperationError(
-                f"Could not checkout revision {revision} in {repository_path}: {error}"
-            ) from error
+        with open_pygit2_repository(repository_path) as repository:
+            try:
+                revision_object = repository.revparse_single(revision)
+                commit = revision_object.peel(pygit2.Commit)
+                # pygit2's checkout_tree C binding has no callable type signature.
+                repository.checkout_tree(  # type: ignore[no-untyped-call]
+                    commit,
+                    strategy=_CHECKOUT_STRATEGY,
+                )
+                repository.set_head(commit.id)
+            except (KeyError, ValueError, pygit2.GitError) as error:
+                raise RepositoryOperationError(
+                    f"Could not checkout revision {revision} in {repository_path}: {error}"
+                ) from error
 
     def tracked_files(self, repository_path: Path) -> tuple[Path, ...]:
         """Return worktree-relative tracked paths from the repository index."""
 
-        repository = self._open(repository_path)
-        try:
-            repository.index.read()
-            return tuple(Path(entry.path) for entry in repository.index)
-        except (OSError, pygit2.GitError) as error:
-            raise RepositoryOperationError(
-                f"Could not read tracked files in {repository_path}: {error}"
-            ) from error
+        with open_pygit2_repository(repository_path) as repository:
+            try:
+                repository.index.read()
+                return tuple(Path(entry.path) for entry in repository.index)
+            except (OSError, pygit2.GitError) as error:
+                raise RepositoryOperationError(
+                    f"Could not read tracked files in {repository_path}: {error}"
+                ) from error
 
     def status_excerpt(self, repository_path: Path) -> str:
         """Return concise branch and worktree status text for diagnostics."""
 
-        repository = self._open(repository_path)
-        try:
-            branch = (
-                "HEAD detached"
-                if repository.head_is_detached
-                else repository.head.shorthand
-            )
-            entries = [f"## {branch}"]
-            entries.extend(
-                f"{_status_label(flags)} {path}"
-                for path, flags in sorted(repository.status().items())
-                if flags != pygit2.GIT_STATUS_CURRENT
-            )
-            return "\n".join(entries)
-        except (KeyError, pygit2.GitError) as error:
-            raise RepositoryOperationError(
-                f"Could not read repository status in {repository_path}: {error}"
-            ) from error
+        with open_pygit2_repository(repository_path) as repository:
+            try:
+                branch = (
+                    "HEAD detached"
+                    if repository.head_is_detached
+                    else repository.head.shorthand
+                )
+                entries = [f"## {branch}"]
+                entries.extend(
+                    f"{_status_label(flags)} {path}"
+                    for path, flags in sorted(repository.status().items())
+                    if flags != pygit2.GIT_STATUS_CURRENT
+                )
+                return "\n".join(entries)
+            except (KeyError, pygit2.GitError) as error:
+                raise RepositoryOperationError(
+                    f"Could not read repository status in {repository_path}: {error}"
+                ) from error
 
     def remote_urls(self, repository_path: Path) -> Mapping[str, str]:
         """Return configured fetch URLs keyed by remote name."""
 
-        repository = self._open(repository_path)
-        return {
-            remote.name: remote.url
-            for remote in repository.remotes
-            if remote.name is not None and remote.url is not None
-        }
+        with open_pygit2_repository(repository_path) as repository:
+            return {
+                remote.name: remote.url
+                for remote in repository.remotes
+                if remote.name is not None and remote.url is not None
+            }
 
     def head_commit_id(self, repository_path: Path) -> str | None:
         """Return the current commit identifier when the repository has a head."""
 
-        repository = self._open(repository_path)
-        if repository.head_is_unborn:
-            return None
-        try:
-            return str(repository.head.target)
-        except (KeyError, pygit2.GitError) as error:
-            raise RepositoryOperationError(
-                f"Could not resolve repository head in {repository_path}: {error}"
-            ) from error
-
-    def _open(self, repository_path: Path) -> pygit2.Repository:
-        """Open one worktree repository and normalize backend failures."""
-
-        repository_path = operational_path(repository_path)
-        try:
-            return pygit2.Repository(repository_path)
-        except (OSError, ValueError, pygit2.GitError) as error:
-            compatibility_error = external_long_path_error(
-                component="pygit2",
-                path=repository_path,
-                detail=error,
-            )
-            if compatibility_error is not None:
-                raise compatibility_error from error
-            raise RepositoryOperationError(
-                f"Could not open repository {repository_path}: {error}"
-            ) from error
+        with open_pygit2_repository(repository_path) as repository:
+            if repository.head_is_unborn:
+                return None
+            try:
+                return str(repository.head.target)
+            except (KeyError, pygit2.GitError) as error:
+                raise RepositoryOperationError(
+                    f"Could not resolve repository head in {repository_path}: {error}"
+                ) from error
 
     def _fast_forward_current_branch(self, repository: pygit2.Repository) -> None:
         """Advance the current local branch only when its upstream descends from it."""

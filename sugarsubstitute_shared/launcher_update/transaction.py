@@ -38,6 +38,11 @@ from sugarsubstitute_shared.launcher_update.targets import (
     LauncherBundleTarget,
     launcher_bundle_target_for_key,
 )
+from sugarsubstitute_shared.windows_long_paths import (
+    operational_path,
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,11 +69,12 @@ class LauncherUpdateTransaction:
     def apply(self, *, request_path: Path) -> None:
         """Apply one persisted request and relaunch exactly when requested."""
 
+        request_path = operational_path(request_path)
         request = LauncherUpdateRequest.load(request_path)
         target = launcher_bundle_target_for_key(request.target_key)
-        install_root = request.install_root.expanduser().resolve()
+        install_root = operational_path(request.install_root).resolve()
         _require_descendant(request_path.resolve(), install_root / "launcher")
-        staged_dir = request.staged_bundle_dir.expanduser().resolve()
+        staged_dir = operational_path(request.staged_bundle_dir).resolve()
         _require_descendant(staged_dir, install_root / "launcher" / "updates")
         validate_staged_bundle(bundle_dir=staged_dir, target=target)
         self._wait_for_process(request.wait_pid)
@@ -318,8 +324,8 @@ def _relaunch(executable_path: Path) -> None:
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     subprocess.Popen(  # noqa: S603
-        [str(executable_path)],
-        cwd=executable_path.parent,
+        [subprocess_path(executable_path)],
+        cwd=subprocess_working_directory(executable_path.parent),
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,

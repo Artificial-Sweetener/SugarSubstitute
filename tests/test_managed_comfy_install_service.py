@@ -35,7 +35,6 @@ from substitute.infrastructure.comfy import managed_install
 from substitute.infrastructure.comfy import managed_existing_setup
 from substitute.infrastructure.comfy import managed_install_commands
 from substitute.infrastructure.comfy import managed_install_failures
-from substitute.infrastructure.comfy import managed_install_scratch
 from substitute.infrastructure.comfy import managed_setup_state
 from substitute.infrastructure.comfy import managed_workspace_operations
 from substitute.infrastructure.comfy.hardware_models import AcceleratorClass
@@ -49,14 +48,34 @@ from substitute.infrastructure.comfy.standalone_environment.models import (
     StandaloneVariantId,
 )
 from tests.repository_service_test_double import RecordingRepositoryService
+from sugarsubstitute_shared.external_scratch import ExternalScratchWorkspace
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
 @pytest.fixture(autouse=True)
-def _disable_shared_models_link(monkeypatch: pytest.MonkeyPatch) -> None:
+def _disable_shared_models_link(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     """Disable explicit shared-model configuration for isolated setup tests."""
 
     monkeypatch.delenv("SUGARSUB_SHARED_MODELS_ROOT", raising=False)
+    scratch_parent = tmp_path.parent / f"{tmp_path.name}-managed-install-scratch"
+    scratch_runs = iter(range(100))
+
+    def _allocate_scratch(_workspace: Path) -> ExternalScratchWorkspace:
+        """Reserve deterministic isolated scratch for orchestration tests."""
+
+        scratch_parent.mkdir(parents=True, exist_ok=True)
+        return ExternalScratchWorkspace.reserve(
+            scratch_parent / f"run-{next(scratch_runs)}"
+        )
+
+    monkeypatch.setattr(
+        managed_install,
+        "allocate_managed_install_scratch",
+        _allocate_scratch,
+    )
     strategy = SimpleNamespace(
         target=SimpleNamespace(value="windows_nvidia"),
         python_runtime=SimpleNamespace(
@@ -554,32 +573,6 @@ def test_pip_install_raises_when_streamed_install_fails(
         )
 
 
-def test_managed_install_scratch_routes_temp_and_cache_under_root(
-    tmp_path: Path,
-) -> None:
-    """Managed install scratch should keep temp and pip cache under its run root."""
-
-    scratch_root = tmp_path / "runtime" / "installer-temp" / "managed-comfy" / "tx-1"
-    scratch = managed_install_scratch.ManagedInstallScratch(scratch_root)
-
-    scratch.create()
-    env = scratch.apply_to({"PATH": "C:\\Tools"})
-
-    assert env["TEMP"] == str(scratch_root / "temp")
-    assert env["TMP"] == str(scratch_root / "temp")
-    assert env["PIP_CACHE_DIR"] == str(scratch_root / "pip-cache")
-    assert env["PIP_DISABLE_PIP_VERSION_CHECK"] == "1"
-    assert env["PYTHONUTF8"] == "1"
-    assert env["PYTHONIOENCODING"] == "utf-8:replace"
-    assert env["PATH"] == "C:\\Tools"
-    assert scratch.temp_dir.is_dir()
-    assert scratch.pip_cache_dir.is_dir()
-
-    scratch.cleanup()
-
-    assert not scratch_root.exists()
-
-
 def test_pip_install_classifies_storage_failure_and_keeps_managed_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -662,12 +655,15 @@ def test_ensure_managed_comfy_setup_cleans_scratch_after_clone_failure(
 
     monkeypatch.setenv("SUGARSUB_FORCE_MANAGED_FAILURE_STAGE", "clone")
     scratch_root = tmp_path / "runtime" / "installer-temp" / "managed-comfy" / "tx-2"
+    scratch_root.parent.mkdir(parents=True)
+    monkeypatch.setattr(
+        managed_install,
+        "allocate_managed_install_scratch",
+        lambda _workspace: ExternalScratchWorkspace.reserve(scratch_root),
+    )
 
     with pytest.raises(RuntimeError, match="download ComfyUI"):
-        managed_install.ensure_managed_comfy_setup(
-            workspace=tmp_path / "comfyui",
-            installer_temp_root=scratch_root,
-        )
+        managed_install.ensure_managed_comfy_setup(workspace=tmp_path / "comfyui")
 
     assert not scratch_root.exists()
 
@@ -680,27 +676,18 @@ def test_ensure_managed_comfy_setup_keeps_original_failure_when_cleanup_fails(
 
     monkeypatch.setenv("SUGARSUB_FORCE_MANAGED_FAILURE_STAGE", "clone")
 
-    def _raise_cleanup_error(
-        self: managed_install_scratch.ManagedInstallScratch,
-    ) -> None:
+    def _raise_cleanup_error(self: ExternalScratchWorkspace) -> None:
         _ = self
         raise RuntimeError("cleanup failed")
 
     monkeypatch.setattr(
-        managed_install_scratch.ManagedInstallScratch,
+        ExternalScratchWorkspace,
         "cleanup",
         _raise_cleanup_error,
     )
 
     with pytest.raises(RuntimeError, match="download ComfyUI"):
-        managed_install.ensure_managed_comfy_setup(
-            workspace=tmp_path / "comfyui",
-            installer_temp_root=tmp_path
-            / "runtime"
-            / "installer-temp"
-            / "managed-comfy"
-            / "tx-cleanup",
-        )
+        managed_install.ensure_managed_comfy_setup(workspace=tmp_path / "comfyui")
 
 
 def test_ensure_managed_comfy_setup_does_not_fallback_after_storage_error(
@@ -769,14 +756,7 @@ def test_ensure_managed_comfy_setup_does_not_fallback_after_storage_error(
     )
 
     with pytest.raises(managed_install_failures.ManagedInstallStorageError):
-        managed_install.ensure_managed_comfy_setup(
-            workspace=workspace,
-            installer_temp_root=tmp_path
-            / "runtime"
-            / "installer-temp"
-            / "managed-comfy"
-            / "tx-3",
-        )
+        managed_install.ensure_managed_comfy_setup(workspace=workspace)
 
     assert install_attempts == [("torch-nightly",)]
 
@@ -868,10 +848,13 @@ def test_ensure_managed_comfy_setup_installs_and_marks_workspace(
         / "managed-comfy"
         / "tx-success"
     )
-    result = managed_install.ensure_managed_comfy_setup(
-        workspace=tmp_path,
-        installer_temp_root=scratch_root,
+    scratch_root.parent.mkdir(parents=True)
+    monkeypatch.setattr(
+        managed_install,
+        "allocate_managed_install_scratch",
+        lambda _workspace: ExternalScratchWorkspace.reserve(scratch_root),
     )
+    result = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
     assert result == workspace_python
     assert install_steps == ["torch", "requirements"]

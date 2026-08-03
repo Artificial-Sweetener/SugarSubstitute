@@ -21,18 +21,18 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
-import tempfile
 
 from substitute.infrastructure.filesystem import remove_app_owned_path
 from substitute.infrastructure.version_control.repository import (
     RepositoryOperationError,
 )
+from substitute.infrastructure.version_control.repository_path_workspace import (
+    RepositoryPathWorkspace,
+)
+from sugarsubstitute_shared.external_path_failure import external_long_path_error
 from sugarsubstitute_shared.windows_long_paths import (
-    exceeds_windows_legacy_path_limit,
-    external_long_path_error,
     operational_path,
     subprocess_path,
     subprocess_working_directory,
@@ -66,11 +66,16 @@ class Pygit2CloneProcess:
         """Run a depth-one clone and remove partial output on every failure."""
 
         target_path = operational_path(target_path)
-        staging_root: Path | None = None
-        clone_target = target_path
-        if exceeds_windows_legacy_path_limit(target_path):
-            staging_root = Path(tempfile.mkdtemp(prefix="sugarsubstitute-git-"))
-            clone_target = staging_root / "repository"
+        try:
+            workspace = RepositoryPathWorkspace.reserve(
+                target_path,
+                create_target=True,
+            )
+        except (OSError, RuntimeError) as error:
+            raise RepositoryOperationError(
+                f"Could not prepare repository clone path {target_path}: {error}"
+            ) from error
+        clone_target = workspace.access_path
         command = (
             subprocess_path(self._python_executable),
             "-m",
@@ -104,16 +109,16 @@ class Pygit2CloneProcess:
                 creationflags=creationflags,
             )
         except subprocess.TimeoutExpired as error:
-            _discard_clone_work(clone_target, staging_root=staging_root)
+            _discard_clone_work(target_path, workspace=workspace)
             raise RepositoryOperationError(
                 f"Repository clone timed out after {self._timeout_seconds:g} seconds: "
                 f"{repository_url}"
             ) from error
         except OSError as error:
-            _discard_clone_work(clone_target, staging_root=staging_root)
+            _discard_clone_work(target_path, workspace=workspace)
             compatibility_error = external_long_path_error(
                 component="pygit2",
-                path=clone_target,
+                path=target_path,
                 detail=error,
             )
             if compatibility_error is not None:
@@ -123,24 +128,13 @@ class Pygit2CloneProcess:
             ) from error
 
         if completed.returncode == 0:
-            if staging_root is not None:
-                try:
-                    shutil.copytree(clone_target, target_path)
-                except (OSError, shutil.Error):
-                    _LOGGER.exception(
-                        "Failed to promote staged repository clone | target=%s",
-                        target_path,
-                    )
-                    _discard_partial_clone(target_path)
-                    raise
-                finally:
-                    _discard_staging_root(staging_root)
+            workspace.cleanup()
             return
-        _discard_clone_work(clone_target, staging_root=staging_root)
+        _discard_clone_work(target_path, workspace=workspace)
         detail = _tail_output(completed.stdout)
         compatibility_error = external_long_path_error(
             component="pygit2",
-            path=clone_target,
+            path=target_path,
             detail=detail,
         )
         if compatibility_error is not None:
@@ -164,26 +158,25 @@ def _hidden_process_options() -> tuple[subprocess.STARTUPINFO | None, int]:
 
 
 def _discard_clone_work(
-    clone_target: Path,
+    target_path: Path,
     *,
-    staging_root: Path | None,
+    workspace: RepositoryPathWorkspace,
 ) -> None:
-    """Remove partial clone output and its optional short-path staging root."""
+    """Remove a repository alias before discarding partial target output."""
 
-    _discard_partial_clone(clone_target)
-    if staging_root is not None:
-        _discard_staging_root(staging_root)
+    _discard_workspace(workspace)
+    _discard_partial_clone(target_path)
 
 
-def _discard_staging_root(staging_root: Path) -> None:
-    """Best-effort remove one app-owned clone staging directory with diagnostics."""
+def _discard_workspace(workspace: RepositoryPathWorkspace) -> None:
+    """Best-effort release one clone path workspace with diagnostics."""
 
     try:
-        remove_app_owned_path(staging_root)
+        workspace.cleanup()
     except OSError:
         _LOGGER.warning(
-            "Could not remove repository clone staging root | root=%s",
-            staging_root,
+            "Could not remove repository clone path workspace | target=%s",
+            workspace.target_path,
             exc_info=True,
         )
 

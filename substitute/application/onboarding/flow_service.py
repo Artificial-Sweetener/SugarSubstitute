@@ -24,10 +24,10 @@ from pathlib import Path
 from typing import Protocol
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
-from sugarsubstitute_shared.windows_long_paths import (
+from sugarsubstitute_shared.external_path_failure import (
     ExternalLongPathCompatibilityError,
-    WindowsPathComponentTooLongError,
 )
+from sugarsubstitute_shared.windows_long_paths import WindowsPathComponentTooLongError
 
 from substitute.domain.onboarding import (
     BootstrapRoute,
@@ -698,13 +698,6 @@ class OnboardingFlowService:
                         frozenset(CoreNodepackId)
                         if self.transaction_mode is SetupTransactionMode.REPAIR
                         else frozenset()
-                    ),
-                    installer_temp_root=(
-                        draft.installation_root
-                        / "runtime"
-                        / "installer-temp"
-                        / "managed-comfy"
-                        / transaction.transaction_id
                     ),
                     on_status=on_status,
                     on_log=on_log,

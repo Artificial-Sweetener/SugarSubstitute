@@ -67,7 +67,7 @@ class SubstituteRuntimeProvisioner(RuntimeProvisioner):
                 "pip",
                 "install",
                 "-r",
-                str(self.requirements_path),
+                subprocess_path(self.requirements_path),
             ],
             failure_message="Failed to install Substitute runtime requirements.",
         )
@@ -88,9 +88,9 @@ class SubstituteRuntimeProvisioner(RuntimeProvisioner):
         if configuration.python_executable is None:
             raise RuntimeError("Runtime configuration has no python executable.")
         return [
-            str(configuration.python_executable),
+            subprocess_path(configuration.python_executable),
             subprocess_path(entrypoint_path),
-            f"--install-root={configuration.runtime_root.parent}",
+            f"--install-root={subprocess_path(configuration.runtime_root.parent)}",
         ]
 
     def _ensure_virtual_environment_exists(

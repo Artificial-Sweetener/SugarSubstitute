@@ -22,6 +22,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Self
 
+from sugarsubstitute_shared.windows_long_paths import operational_path
+
 from sugarsubstitute_shared.launcher_update.persistence import (
     read_json_object,
     write_json_atomic,
@@ -147,10 +149,12 @@ class LauncherUpdateRequest:
         if wait_pid is not None and (not isinstance(wait_pid, int) or wait_pid <= 0):
             raise ValueError("Launcher update wait_pid must be a positive integer.")
         return cls(
-            install_root=Path(_required_string(payload, "install_root")),
+            install_root=operational_path(_required_string(payload, "install_root")),
             version=_required_string(payload, "version"),
             target_key=_required_string(payload, "target_key"),
-            staged_bundle_dir=Path(_required_string(payload, "staged_bundle_dir")),
+            staged_bundle_dir=operational_path(
+                _required_string(payload, "staged_bundle_dir")
+            ),
             relaunch=relaunch,
             wait_pid=wait_pid,
         )

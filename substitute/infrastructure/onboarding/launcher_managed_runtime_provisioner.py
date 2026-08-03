@@ -27,7 +27,10 @@ import sys
 from substitute.application.ports.runtime_provisioner import RuntimeProvisioner
 from substitute.domain.onboarding import RuntimeBootstrapStatus, RuntimeConfiguration
 from substitute.domain.onboarding.runtime_layout import runtime_layout_for_root
-from sugarsubstitute_shared.windows_long_paths import subprocess_path
+from sugarsubstitute_shared.windows_long_paths import (
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 
 @dataclass(frozen=True)
@@ -57,7 +60,7 @@ class LauncherManagedRuntimeProvisioner(RuntimeProvisioner):
             )
         self._run_checked(
             [
-                str(layout.python_executable),
+                subprocess_path(layout.python_executable),
                 "-c",
                 "; ".join(f"import {name}" for name in self.import_names),
             ],
@@ -102,11 +105,11 @@ class LauncherManagedRuntimeProvisioner(RuntimeProvisioner):
             startupinfo.wShowWindow = 0
             creationflags = subprocess.CREATE_NO_WINDOW
         env = dict(os.environ)
-        env["PYTHONPATH"] = str(self.requirements_path.parent)
+        env["PYTHONPATH"] = subprocess_path(self.requirements_path.parent)
         try:
             subprocess.run(
                 command,
-                cwd=self.requirements_path.parent,
+                cwd=subprocess_working_directory(self.requirements_path.parent),
                 env=env,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,

@@ -74,7 +74,18 @@ def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
     audit_source = release_audit_script.read_text(encoding="utf-8")
     assert '"audit", "--json"' in audit_source
     assert "ignoredAdvisoryIds" in audit_source
+    assert "ignoredAdvisoryUrls" in audit_source
     assert "1124334" in audit_source
+    assert {
+        "GHSA-mh99-v99m-4gvg",
+        "GHSA-rgw5-rvv9-x895",
+        "GHSA-mwp4-54f8-5fhr",
+    } <= set(re.findall(r"GHSA-[a-z0-9-]+", audit_source))
+    assert "!ignoredAdvisoryUrls.has(finding.url)" in audit_source
+    release_configuration = (PROJECT_ROOT / ".releaserc.cjs").read_text(
+        encoding="utf-8"
+    )
+    assert '"@semantic-release/npm"' not in release_configuration
     assert "-m pip_audit" in platform_script
     assert "--local --strict --progress-spinner off" in platform_script
     assert workflow["env"]["PIP_AUDIT_IGNORED_VULNERABILITY"] == "CVE-2026-24049"

@@ -32,6 +32,7 @@ from sugarsubstitute_shared.launcher_update.models import (
     LauncherUpdateRequest,
 )
 from sugarsubstitute_shared.launcher_update.targets import LauncherBundleTarget
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
 class LauncherBundleValidationError(RuntimeError):
@@ -60,7 +61,7 @@ class LauncherBundleStager:
     ) -> Path:
         """Stage one validated update and return its persisted request path."""
 
-        resolved_root = install_root.expanduser().resolve()
+        resolved_root = operational_path(install_root).resolve()
         update_root = resolved_root / "launcher" / "updates"
         version_root = update_root / "staging" / safe_launcher_version(version)
         archive_path = update_root / "downloads" / asset.filename

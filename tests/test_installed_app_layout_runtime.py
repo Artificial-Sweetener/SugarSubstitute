@@ -41,7 +41,10 @@ from substitute.presentation.onboarding.onboarding_models import (
     OnboardingPageId,
     initial_onboarding_page,
 )
-from sugarsubstitute_shared.windows_long_paths import subprocess_path
+from sugarsubstitute_shared.windows_long_paths import (
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 
 def test_app_layout_resolves_installed_source_payload(tmp_path: Path) -> None:
@@ -116,7 +119,7 @@ def test_launcher_runtime_provisioner_validates_without_installing_requirements(
     def _fake_run(
         command: list[str],
         *,
-        cwd: Path,
+        cwd: str,
         env: dict[str, str],
         stdout: object,
         stderr: object,
@@ -126,8 +129,8 @@ def test_launcher_runtime_provisioner_validates_without_installing_requirements(
         check: bool,
     ) -> SimpleNamespace:
         _ = stdout, stderr, stdin, startupinfo, creationflags, check
-        assert cwd == requirements_path.parent
-        assert env["PYTHONPATH"] == str(requirements_path.parent)
+        assert cwd == subprocess_working_directory(requirements_path.parent)
+        assert env["PYTHONPATH"] == subprocess_path(requirements_path.parent)
         commands.append(command)
         return SimpleNamespace(returncode=0)
 
@@ -142,7 +145,7 @@ def test_launcher_runtime_provisioner_validates_without_installing_requirements(
     assert result.python_executable == python_executable
     assert commands == [
         [
-            str(python_executable),
+            subprocess_path(python_executable),
             "-c",
             "import PySide6; import qfluentwidgets; import qpane; import substitute",
         ],
