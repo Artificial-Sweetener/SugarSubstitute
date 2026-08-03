@@ -1,3 +1,10 @@
+## [0.19.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.19.1...v0.19.2) (2026-08-03)
+
+
+### Bug Fixes
+
+* **windows:** centralize long-path boundaries ([68d94e3](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/68d94e3ec38e5d807e8977c3950d5b88d7aea88c))
+
 ## [0.19.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.19.0...v0.19.1) (2026-07-31)
 
 
