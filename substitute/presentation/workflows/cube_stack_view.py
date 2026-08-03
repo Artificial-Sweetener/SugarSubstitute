@@ -26,7 +26,7 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
 from collections.abc import Callable
 from typing import cast
 
-from PySide6.QtCore import Property, QEvent, QTimer, Qt, Signal
+from PySide6.QtCore import Property, QTimer, Qt, Signal
 from PySide6.QtGui import (
     QColor,
     QIcon,
@@ -732,13 +732,6 @@ class CubeStack(ReorderableTabBarBase):
         super().resizeEvent(event)
         self._sync_indicator_overlay()
         self._schedule_indicator_realign()
-
-    def event(self, event: object) -> bool:
-        """Schedule geometry realignment for relevant layout changes."""
-
-        if event.type() in {QEvent.Type.LayoutRequest, QEvent.Type.Show}:
-            self._schedule_indicator_realign()
-        return super().event(event)
 
     def _adjustIndicatorPos(self) -> None:
         """Align indicator to current tab without animation."""

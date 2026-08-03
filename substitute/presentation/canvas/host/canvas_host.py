@@ -30,6 +30,9 @@ from substitute.application.workspace_state import CanvasLayoutSnapshot
 from substitute.presentation.canvas.host.canvas_docking_controller import (
     CanvasDockingController,
 )
+from substitute.presentation.canvas.host.canvas_host_activation_controller import (
+    CanvasHostActivationController,
+)
 from substitute.presentation.canvas.host.canvas_host_chrome import CanvasHostChrome
 from substitute.presentation.canvas.host.canvas_host_selector import CanvasHostSelector
 from substitute.presentation.canvas.host.canvas_host_stack import (
@@ -78,7 +81,12 @@ class CanvasHost(QWidget):
 
         self._chrome = CanvasHostChrome(
             self.canvas_region,
-            selected_callback=self.focus_attached_canvas,
+            selected_callback=self._activate_from_selector,
+        )
+        self._activation = CanvasHostActivationController(
+            state=self._state,
+            synchronize_presentation=self._synchronize_presentation,
+            canvas_activated=self.canvas_activated.emit,
         )
         self._docking = CanvasDockingController(
             host=self,
@@ -114,15 +122,15 @@ class CanvasHost(QWidget):
 
         return tuple(entry.page.widget for entry in self._state)
 
-    def focus_attached_canvas(self, route_key: str) -> None:
-        """Select one attached available canvas without affecting windows."""
+    def activate_canvas(self, route_key: str, *, keyboard_focus: bool) -> bool:
+        """Activate one attached canvas through the host activation owner."""
 
-        entry = self._state.entry(route_key)
-        if entry is None or not entry.selectable:
-            return
-        self._state.select(route_key)
-        self._synchronize_presentation()
-        self.canvas_activated.emit(route_key)
+        return self._activation.activate(route_key, keyboard_focus=keyboard_focus)
+
+    def _activate_from_selector(self, route_key: str) -> None:
+        """Translate selector intent into editing-focused host activation."""
+
+        self.activate_canvas(route_key, keyboard_focus=True)
 
     def set_canvas_available(
         self,

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import copy
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 from uuid import UUID
@@ -65,7 +66,12 @@ class RealShellInputEditorHarness:
     IMAGE_NODE = "load_image"
     MASK_NODE = "load_image_as_mask"
 
-    def __init__(self, root: Path) -> None:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        workflow: WorkflowState | None = None,
+    ) -> None:
         """Build a deterministic shell, project boundary, and inpaint editor panel."""
         self.root = Path(root)
         self._base = RealShellPromptEditorHarness()
@@ -87,7 +93,7 @@ class RealShellInputEditorHarness:
         )
         self.shell.canvas_io_service = CanvasIoService(image_repository=QtImageStore())
         compose_input_canvas_controllers(self.shell)
-        self.workflow = self._workflow()
+        self.workflow = workflow or self._workflow()
         self._mount_workflow(self.workflow)
 
     @property
@@ -108,23 +114,63 @@ class RealShellInputEditorHarness:
     @property
     def image_id(self) -> UUID:
         """Return the workflow's authoritative Input image identity."""
-        return self.workflow.canvas.input_key_map[
-            f"{self.CUBE_ALIAS}:{self.IMAGE_NODE}"
-        ]
+        entry = self.workflow.canvas.image_entry(f"{self.CUBE_ALIAS}:{self.IMAGE_NODE}")
+        if entry is None:
+            raise RuntimeError("Production workflow has no Input image entry")
+        return entry.image_id
 
     @property
     def mask_id(self) -> UUID:
         """Return the workflow's authoritative Input mask identity."""
-        return self.workflow.canvas.mask_associations[(self.CUBE_ALIAS, self.MASK_NODE)]
+        entry = self.workflow.canvas.mask_entry((self.CUBE_ALIAS, self.MASK_NODE))
+        if entry is None:
+            raise RuntimeError("Production workflow has no Input mask entry")
+        return entry.mask_id
 
     def select_image(self, path: Path) -> None:
-        """Route one selected image through the production Input presenter."""
-        self.shell.input_canvas_presenter.handle_input_image_changed(
-            self.CUBE_ALIAS,
-            self.IMAGE_NODE,
-            str(path),
+        """Route one selected image through the production picker signals."""
+        self.select_image_for(self.CUBE_ALIAS, path)
+
+    def select_image_for(self, cube_alias: str, path: Path) -> None:
+        """Route one graph-identified image through production picker signals."""
+
+        picker = cast(
+            ImagePicker, self.picker(ImagePicker, cube_alias, self.IMAGE_NODE)
         )
+        picker.set_thumbnail(str(path))
+        picker.imageSelected.emit(str(path))
         self.process_events(8)
+
+    def picker(
+        self,
+        picker_type: type[Any],
+        cube_alias: str,
+        node_name: str,
+    ) -> Any:
+        """Return one production picker by exact graph identity."""
+
+        picker = self._find_picker(picker_type, node_name, cube_alias=cube_alias)
+        if picker is not None:
+            return picker
+        panel = self.shell.editor_panels[self.WORKFLOW_ID]
+        panel.reveal_loaded_cube(cube_alias)
+        self.process_events(10)
+        self.wait_until(
+            lambda: (
+                self._find_picker(
+                    picker_type,
+                    node_name,
+                    cube_alias=cube_alias,
+                )
+                is not None
+            )
+        )
+        picker = self._find_picker(picker_type, node_name, cube_alias=cube_alias)
+        if picker is not None:
+            return picker
+        raise RuntimeError(
+            f"Production editor panel did not mount {cube_alias}:{node_name}"
+        )
 
     def add_rectangle(self, bounds: QRectF) -> None:
         """Commit one retained mask shape through CuteCanvas's public facade."""
@@ -159,6 +205,10 @@ class RealShellInputEditorHarness:
         """Drain bounded queued shell and renderer work."""
         self._base.process_events(cycles=cycles)
 
+    def wait_until(self, predicate: Callable[[], bool]) -> None:
+        """Wait for one observable production-shell condition with a bound."""
+        self._base.wait_until(predicate)
+
     def close(self) -> None:
         """Release every real shell widget and document runtime."""
         self._base.close()
@@ -172,11 +222,13 @@ class RealShellInputEditorHarness:
         self.shell.workflow_tabbar.addTab(self.WORKFLOW_ID, "Input Editor")
         self.shell.install_workflow_surface(self.WORKFLOW_ID)
         panel = self.shell.editor_panels[self.WORKFLOW_ID]
-        cube = workflow.cubes[self.CUBE_ALIAS]
         panel.load_all_cubes(
-            [(self.CUBE_ALIAS, cube)],
-            cube_states={self.CUBE_ALIAS: cube},
-            stack_order=[self.CUBE_ALIAS],
+            [
+                (cube_alias, workflow.cubes[cube_alias])
+                for cube_alias in workflow.stack_order
+            ],
+            cube_states=workflow.cubes,
+            stack_order=list(workflow.stack_order),
         )
         self.shell.editor_panel_container.setCurrentWidget(panel)
         self.shell.editor_panel = panel
@@ -197,14 +249,20 @@ class RealShellInputEditorHarness:
             return picker
         raise RuntimeError(f"Production editor panel did not mount {node_name}")
 
-    def _find_picker(self, picker_type: type[Any], node_name: str) -> Any | None:
+    def _find_picker(
+        self,
+        picker_type: type[Any],
+        node_name: str,
+        *,
+        cube_alias: str | None = None,
+    ) -> Any | None:
         """Find one picker without introducing a timing assertion."""
         panel = cast(QWidget, self.shell.active_editor_panel)
         for picker in panel.findChildren(picker_type):
             metadata = picker.property("input_metadata")
             if (
                 isinstance(metadata, dict)
-                and metadata.get("cube_alias") == self.CUBE_ALIAS
+                and metadata.get("cube_alias") == (cube_alias or self.CUBE_ALIAS)
                 and metadata.get("node_name") == node_name
             ):
                 return picker
@@ -247,6 +305,23 @@ class RealShellInputEditorHarness:
             stack_order=[RealShellInputEditorHarness.CUBE_ALIAS],
             metadata={"name": "Input Editor"},
         )
+
+    @staticmethod
+    def two_pair_workflow() -> WorkflowState:
+        """Build two independent image/mask graph pairs for routing tests."""
+
+        workflow = RealShellInputEditorHarness._workflow()
+        second_alias = "Face/Inpaint"
+        first_cube = workflow.cubes[RealShellInputEditorHarness.CUBE_ALIAS]
+        workflow.cubes[second_alias] = CubeState(
+            cube_id="InputEditorHarness.second-cube",
+            version="1.0",
+            alias=second_alias,
+            original_cube=copy.deepcopy(first_cube.original_cube),
+            buffer=copy.deepcopy(first_cube.buffer),
+        )
+        workflow.stack_order.append(second_alias)
+        return workflow
 
     @staticmethod
     def _node_definitions() -> dict[str, dict[str, object]]:

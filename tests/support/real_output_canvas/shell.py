@@ -237,7 +237,7 @@ class _HarnessShell(QMainWindow):
             input_canvas=self.canvas_host.canvas_for("Input"),
             output_canvas=self.output_canvas,
         )
-        self.canvas_host.focus_attached_canvas("Output")
+        self.canvas_host.activate_canvas("Output", keyboard_focus=False)
 
     def install_workflow_surface(self, workflow_id: str) -> None:
         """Install cached workflow widgets used by coordinator route switching."""

@@ -157,9 +157,9 @@ def test_adapter_resolves_input_image_and_mask_references(tmp_path: Path) -> Non
     mask_id = uuid4()
     workflow = WorkflowState()
     canvas = cast(Any, workflow.canvas)
-    canvas.input_key_map = {"Cube:Image": image_id, "invalid": uuid4()}
-    canvas.mask_associations = {("Cube", "Mask"): mask_id, ("missing", "Mask"): uuid4()}
-    canvas.mask_to_image_map = {mask_id: image_id}
+    canvas.bind_image("Cube:Image", image_id)
+    canvas.bind_image("invalid", uuid4())
+    canvas.bind_mask(("Cube", "Mask"), mask_id, image_id)
     asset_calls: list[tuple[str, str]] = []
 
     def input_image_asset_ref(
@@ -231,9 +231,7 @@ def test_adapter_captures_synthetic_input_surface_from_canvas_catalog(
         / "mask-authority.png"
     )
     workflow = WorkflowState()
-    workflow.canvas.input_key_map = {
-        "direct:@synthetic/mask-authority": image_id,
-    }
+    workflow.canvas.bind_image("direct:@synthetic/mask-authority", image_id)
     shell = SimpleNamespace(
         workflow_tabbar=_TabBar(),
         input_canvas_state_service=SimpleNamespace(

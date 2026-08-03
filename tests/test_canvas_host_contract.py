@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from PySide6.QtCore import QRect, Signal
+from PySide6.QtCore import QRect, Signal, Qt
 from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import Pivot, SegmentedItem  # type: ignore[import-untyped]
 import pytest
@@ -155,7 +155,7 @@ def test_selector_switches_the_authoritative_stack_selection() -> None:
     activated: list[str] = []
     host.canvas_activated.connect(activated.append)
     try:
-        host.focus_attached_canvas("Output")
+        host.activate_canvas("Output", keyboard_focus=False)
         _app().processEvents()
 
         selector = host.selector
@@ -164,6 +164,25 @@ def test_selector_switches_the_authoritative_stack_selection() -> None:
         assert host.is_canvas_visible("Output")
         assert not host.is_canvas_visible("Input")
         assert activated == ["Output"]
+    finally:
+        host.close()
+
+
+def test_host_activation_can_transfer_keyboard_focus_to_selected_canvas() -> None:
+    """Explicit editing activation must select and focus the requested canvas."""
+
+    host, input_canvas, output_canvas = _host()
+    try:
+        input_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocus()
+        _app().processEvents()
+
+        assert host.activate_canvas("Input", keyboard_focus=True)
+        _app().processEvents()
+
+        assert host.is_canvas_visible("Input")
+        assert input_canvas.hasFocus()
     finally:
         host.close()
 

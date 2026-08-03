@@ -62,7 +62,7 @@ from substitute.infrastructure.comfy.workflow_document_repository import (
     ComfyWorkflowDocumentRepository,
 )
 
-from .canvas_route_controller import CanvasRouteController
+from .canvas_route_controller import canvas_route_controller_for
 from .comfy_runtime_actions import ComfyRuntimeActions
 from .cube_library_update_controller import CubeLibraryUpdateController
 from .cube_stack_presentation_controller import (
@@ -141,6 +141,9 @@ from substitute.presentation.canvas.input.input_canvas_presenter import (
 )
 from substitute.presentation.canvas.input.input_node_preview_coordinator import (
     InputNodePreviewCoordinator,
+)
+from substitute.presentation.canvas.input.input_node_interaction_controller import (
+    InputNodeInteractionController,
 )
 from substitute.presentation.canvas.input.input_document_change_observer import (
     InputDocumentChangeObserver,
@@ -266,6 +269,7 @@ class MainWindowInputCanvasComposition:
     input_canvas_tool_controller: Any
     input_canvas_shell_adapter: Any
     input_canvas_presenter: Any
+    input_node_interaction_controller: Any
     input_document_change_observer: Any
     input_generation_snapshot_service: Any
     input_editable_document_lifecycle: Any
@@ -759,6 +763,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     input_canvas = shell.canvas_host.canvas_for("Input")
     if input_canvas is None:
         raise RuntimeError("Canvas tabs must include an Input canvas.")
+    canvas_route_controller = canvas_route_controller_for(shell)
 
     workflow_input_canvas_service = WorkflowInputCanvasService(
         input_canvas_plan_service=shell.input_canvas_plan_service,
@@ -803,14 +808,28 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         workflow_session_service=shell.workflow_session_service,
         workflow_input_canvas_service=workflow_input_canvas_service,
         input_canvas_state_service=shell.input_canvas_state_service,
-        canvas_host_provider=lambda: shell.canvas_host,
         workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
         projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
         mask_color_provider=input_mask_color,
-        tool_controller=input_canvas_tool_controller,
         preview_coordinator=input_node_preview_coordinator,
         mark_canvas_changed=input_canvas_shell_adapter.mark_input_canvas_changed,
         error_presenter=getattr(shell, "_error_presenter", None),
+    )
+    input_node_interaction_controller = InputNodeInteractionController(
+        active_workflow=shell.get_active_workflow,
+        active_workflow_id=lambda: shell.workflow_session_service.active_workflow_id,
+        workflow_input_canvas_service=workflow_input_canvas_service,
+        input_canvas_state_service=shell.input_canvas_state_service,
+        materialize_image_selection=input_canvas_presenter.materialize_image_selection,
+        apply_mask_selection=input_canvas_presenter.apply_mask_selection,
+        activate_input_canvas=lambda: bool(
+            canvas_route_controller.activate_route(
+                "Input",
+                keyboard_focus=True,
+            )
+        ),
+        refresh_mask_pickers=input_canvas_presenter.refresh_active_mask_pickers,
+        tool_controller=input_canvas_tool_controller,
     )
     input_document_change_observer = InputDocumentChangeObserver(
         changed=input_canvas.document.maskContentChanged,
@@ -855,6 +874,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         input_canvas_tool_controller=input_canvas_tool_controller,
         input_canvas_shell_adapter=input_canvas_shell_adapter,
         input_canvas_presenter=input_canvas_presenter,
+        input_node_interaction_controller=input_node_interaction_controller,
         input_document_change_observer=input_document_change_observer,
         input_generation_snapshot_service=input_generation_snapshot_service,
         input_editable_document_lifecycle=input_editable_document_lifecycle,
@@ -864,6 +884,9 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     shell.input_canvas_tool_controller = composition.input_canvas_tool_controller
     shell.input_canvas_shell_adapter = composition.input_canvas_shell_adapter
     shell.input_canvas_presenter = composition.input_canvas_presenter
+    shell.input_node_interaction_controller = (
+        composition.input_node_interaction_controller
+    )
     shell.input_document_change_observer = composition.input_document_change_observer
     shell.input_generation_snapshot_service = (
         composition.input_generation_snapshot_service
@@ -985,7 +1008,7 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
         comfy_runtime_actions=ComfyRuntimeActions(shell),
         workflow_ui_factory=WorkflowUiFactory(shell),
         active_workflow_surface_refresher=ActiveWorkflowSurfaceRefresher(shell),
-        canvas_route_controller=CanvasRouteController(shell),
+        canvas_route_controller=canvas_route_controller_for(shell),
         main_window_signal_binder=MainWindowSignalBinder(shell),
         shell_event_filter_controller=ShellEventFilterController(shell),
         shell_frame_integration_controller=ShellFrameIntegrationController(shell),

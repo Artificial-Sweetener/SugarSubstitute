@@ -229,9 +229,11 @@ class InputGenerationMaskMaterializer:
     def _mask_associations(
         workflow: WorkflowState,
     ) -> Mapping[tuple[str, str], UUID]:
-        """Return detached access to well-formed workflow mask associations."""
-        associations = workflow.canvas.mask_associations
-        return associations if isinstance(associations, Mapping) else {}
+        """Return graph mask identities projected from complete document entries."""
+        return {
+            entry.association_key: entry.mask_id
+            for entry in workflow.canvas.mask_entries.values()
+        }
 
     @staticmethod
     def _resolve_association_key(key: object) -> tuple[str, str] | None:
@@ -251,13 +253,10 @@ class InputGenerationMaskMaterializer:
         mask_id: UUID,
     ) -> bool:
         """Require the mask to belong to one image retained by this workflow."""
-        image_id = resolve_input_mask_id(workflow.canvas.mask_to_image_map.get(mask_id))
-        if image_id is None:
+        mask_entry = workflow.canvas.mask_entry_for_id(mask_id)
+        if mask_entry is None:
             return False
-        return any(
-            resolve_input_mask_id(candidate) == image_id
-            for candidate in workflow.canvas.input_key_map.values()
-        )
+        return workflow.canvas.image_entry_for_id(mask_entry.image_id) is not None
 
     @staticmethod
     def _log_failure(

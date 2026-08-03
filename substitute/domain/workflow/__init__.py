@@ -26,6 +26,8 @@ from substitute.domain.workflow.canvas_models import (
     InputAssetEndpoint,
     InputAssetEndpointIndex,
     InputAssetRole,
+    InputCanvasImageEntry,
+    InputCanvasMaskEntry,
     WorkflowCanvasState,
 )
 from substitute.domain.workflow.input_canvas_plan import (
@@ -110,6 +112,8 @@ __all__ = [
     "InputAssetEndpoint",
     "InputAssetEndpointIndex",
     "InputAssetRole",
+    "InputCanvasImageEntry",
+    "InputCanvasMaskEntry",
     "InputCanvasMaskBinding",
     "InputCanvasPlan",
     "InputCanvasPlanRejection",

@@ -135,8 +135,8 @@ class CanvasHostProtocol(Protocol):
     def canvas_for(self, route_key: str) -> object | None:
         """Return the configured canvas for a route key."""
 
-    def focus_attached_canvas(self, label: str) -> None:
-        """Select one attached canvas when it is docked."""
+    def activate_canvas(self, label: str, *, keyboard_focus: bool) -> bool:
+        """Activate one attached canvas with explicit keyboard-focus policy."""
 
 
 class OutputImagePipelineProtocol(Protocol):
@@ -291,8 +291,8 @@ class CubeStateProtocol(Protocol):
 class WorkflowCanvasStateProtocol(Protocol):
     """Describe workflow-local canvas state consumed by canvas actions."""
 
-    input_key_map: dict[str, uuid.UUID]
-    mask_associations: dict[tuple[str, str], uuid.UUID]
+    image_entries: dict[str, object]
+    mask_entries: dict[tuple[str, str], object]
     active_input_mask_uuid: uuid.UUID | None
 
 

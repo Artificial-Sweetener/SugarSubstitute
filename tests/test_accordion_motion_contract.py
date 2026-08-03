@@ -244,7 +244,8 @@ def build_motion_fixture() -> tuple[
         content_layout=content_layout,
         divider_below_title=divider,
         chevron=chevron,
-        cube_height_updater=host.update_cube_height,
+        transition_started=host.update_cube_height,
+        transition_finished=host.update_cube_height,
     )
     setattr(content_body, "_accordion_motion_controller", controller)
     host.show()
@@ -432,7 +433,8 @@ def test_accordion_collapsed_body_does_not_reserve_parent_layout_spacing() -> No
         content_layout=content_layout,
         divider_below_title=None,
         chevron=chevron,
-        cube_height_updater=host.update_cube_height,
+        transition_started=host.update_cube_height,
+        transition_finished=host.update_cube_height,
     )
     state = ensure_card_body_layout_state(
         content_body=content_body,

@@ -99,8 +99,8 @@ class InputGenerationSnapshotService:
         """Return an execution copy pinned to one coherent Input document state."""
         if not isinstance(workflow, WorkflowState):
             return copy.deepcopy(workflow)
-        image_ids = self._identities(workflow.canvas.input_key_map.values())
-        mask_ids = self._identities(workflow.canvas.mask_associations.values())
+        image_ids = self._identities(workflow.canvas.image_ids())
+        mask_ids = self._identities(workflow.canvas.mask_ids())
         if image_ids is None or mask_ids is None:
             self._log_capture_failure(workflow_id, "invalid_workflow_identity")
             return None

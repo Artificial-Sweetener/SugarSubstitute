@@ -39,6 +39,7 @@ from substitute.shared.logging.logger import (
 
 _LOGGER = get_logger("presentation.canvas.input.input_generation_image_materializer")
 _GENERATION_DIRECTORY = ".generation"
+_INPUT_IMAGE_DIRECTORY = "input_images"
 
 
 class GenerationImageCanvasIoPort(Protocol):
@@ -101,10 +102,12 @@ class InputGenerationImageMaterializer:
         execution_workflow = copy.deepcopy(workflow)
         workflow_name = self._workflow_name_provider(workflow_id)
         projects_dir = self._projects_dir_provider()
-        for input_key, raw_image_id in sorted(
-            workflow.canvas.input_key_map.items(),
-            key=lambda item: str(item[0]),
+        for entry in sorted(
+            workflow.canvas.image_entries.values(),
+            key=lambda item: item.input_key,
         ):
+            input_key = entry.input_key
+            raw_image_id = entry.image_id
             identity = self._resolve_input_key(input_key)
             image_id = resolve_input_mask_id(raw_image_id)
             snapshot = None if image_id is None else snapshots.get(image_id)
@@ -158,12 +161,13 @@ class InputGenerationImageMaterializer:
                 )
                 return None
             section_key, node_name = identity
+            project_relative_path = Path(_INPUT_IMAGE_DIRECTORY) / relative_path
             try:
                 associated = self._association_service.associate_project_input_image(
                     execution_workflow,
                     section_key=section_key,
                     node_name=node_name,
-                    relative_path=relative_path,
+                    relative_path=project_relative_path,
                 )
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
                 log_exception(

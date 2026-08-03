@@ -27,17 +27,12 @@ from pathlib import Path
 from typing import Protocol, cast
 from uuid import UUID
 
-from PySide6.QtCore import QTimer
-
 from substitute.application.errors import (
     ErrorReport,
     ErrorReportKind,
     SubstituteOperationContext,
 )
 from substitute.domain.workflow import WorkflowState
-from substitute.presentation.canvas.input.input_canvas_tool_controller import (
-    InputCanvasToolController,
-)
 from substitute.presentation.canvas.input.input_node_preview_coordinator import (
     InputNodePreviewCoordinator,
 )
@@ -59,14 +54,6 @@ class _SignalPort(Protocol):
         """Connect one callback to this signal."""
 
 
-class _TimerPort(Protocol):
-    """Describe static single-shot scheduling used for picker refresh."""
-
-    @staticmethod
-    def singleShot(msec: int, callback: Callable[[], None]) -> None:  # noqa: N802
-        """Schedule one callback."""
-
-
 class _WorkflowSessionServicePort(Protocol):
     """Describe active workflow state consumed by Input presentation."""
 
@@ -83,31 +70,8 @@ class _EditorPanelPort(Protocol):
         """Refresh one editor-panel mask picker preview."""
 
 
-class _CanvasHostPort(Protocol):
-    """Describe attached canvas focus behavior."""
-
-    def focus_attached_canvas(self, label: str) -> None:
-        """Focus one attached canvas."""
-
-
 class _WorkflowInputCanvasServicePort(Protocol):
     """Describe application-owned Input canvas reconciliation."""
-
-    def bindings_for_image(
-        self,
-        workflow: WorkflowState,
-        cube_alias: str,
-        image_node_name: str,
-    ) -> tuple[object, ...]:
-        """Return editable mask bindings attached to one image node."""
-
-    def binding_for_mask(
-        self,
-        workflow: WorkflowState,
-        cube_alias: str,
-        mask_node_name: str,
-    ) -> object | None:
-        """Return the unambiguous binding for one mask node."""
 
     def resolve_loaded_input_canvas_image_identity(
         self,
@@ -215,15 +179,12 @@ class InputCanvasPresenter:
         workflow_session_service: _WorkflowSessionServicePort,
         workflow_input_canvas_service: _WorkflowInputCanvasServicePort,
         input_canvas_state_service: _InputCanvasStateServicePort,
-        canvas_host_provider: Callable[[], _CanvasHostPort | None],
         workflow_name_provider: Callable[[str], str],
         projects_dir_provider: Callable[[], Path],
         mask_color_provider: Callable[[int, int], object],
-        tool_controller: InputCanvasToolController,
         preview_coordinator: InputNodePreviewCoordinator | None = None,
         mark_canvas_changed: Callable[[str], None] | None = None,
         error_presenter: ErrorReportPresenterProtocol | None = None,
-        timer: type[_TimerPort] | None = None,
     ) -> None:
         """Store presenter collaborators for Input document presentation."""
 
@@ -234,27 +195,24 @@ class InputCanvasPresenter:
         self._workflow_session_service = workflow_session_service
         self._workflow_input_canvas_service = workflow_input_canvas_service
         self._input_canvas_state_service = input_canvas_state_service
-        self._canvas_host_provider = canvas_host_provider
         self._workflow_name_provider = workflow_name_provider
         self._projects_dir_provider = projects_dir_provider
         self._mask_color_provider = mask_color_provider
-        self._tool_controller = tool_controller
         self._preview_coordinator = preview_coordinator
         self._mark_canvas_changed = mark_canvas_changed
         self._error_presenter = error_presenter
-        self._timer = timer or cast(type[_TimerPort], QTimer)
 
-    def handle_input_image_changed(
+    def materialize_image_selection(
         self,
         cube_alias: str,
         node_name: str,
         image_path: str,
-    ) -> None:
-        """Materialize one editor-panel LoadImage selection."""
+    ) -> bool:
+        """Materialize one editor-panel LoadImage selection and report acceptance."""
 
         active_workflow = self._active_workflow_provider()
         if active_workflow is None or not image_path:
-            return
+            return False
         workflow_id = self._workflow_session_service.active_workflow_id
         projects_dir = self._projects_dir_provider()
         result = self._workflow_input_canvas_service.materialize_input_image(
@@ -268,6 +226,7 @@ class InputCanvasPresenter:
         )
         self.apply_materialization_result(result, projects_dir=projects_dir)
         self._mark_changed(workflow_id)
+        return isinstance(getattr(result, "image_id", None), UUID)
 
     def handle_input_canvas_image_loaded(
         self,
@@ -317,62 +276,17 @@ class InputCanvasPresenter:
         self.apply_materialization_result(result, projects_dir=projects_dir)
         self._mark_changed(workflow_id)
 
-    def handle_input_image_clicked(
-        self,
-        cube_alias: str,
-        node_name: str,
-        _image_path: str,
-    ) -> None:
-        """Focus the Input canvas image and first bound mask for a picker click."""
-
-        active_workflow = self._active_workflow_provider()
-        if active_workflow is None:
-            return
-        workflow_id = self._workflow_session_service.active_workflow_id
-        input_key = f"{cube_alias}:{node_name}"
-        canvas = getattr(active_workflow, "canvas", None)
-        input_key_map = getattr(canvas, "input_key_map", {})
-        image_uuid = (
-            input_key_map.get(input_key) if isinstance(input_key_map, Mapping) else None
-        )
-        if not isinstance(image_uuid, UUID):
-            return
-        if not self._input_canvas_state_service.set_active_input_image(
-            workflow_id,
-            active_workflow,
-            image_uuid,
-        ):
-            return
-        self._focus_attached_canvas("Input")
-        bindings = self._workflow_input_canvas_service.bindings_for_image(
-            active_workflow,
-            cube_alias,
-            node_name,
-        )
-        if bindings:
-            first_binding = bindings[0]
-            association_key = getattr(first_binding, "association_key", None)
-            mask_associations = getattr(canvas, "mask_associations", {})
-            mask_id = (
-                mask_associations.get(association_key)
-                if isinstance(mask_associations, Mapping)
-                else None
-            )
-            if isinstance(mask_id, UUID):
-                self._set_active_workflow_mask(active_workflow, mask_id)
-        self._timer.singleShot(0, self.refresh_active_mask_pickers)
-
-    def handle_input_mask_changed(
+    def apply_mask_selection(
         self,
         cube_alias: str,
         node_name: str,
         mask_path: str,
-    ) -> None:
-        """Apply one user-selected LoadImageMask file and refresh from asset state."""
+    ) -> bool:
+        """Apply one selected LoadImageMask file and report acceptance."""
 
         active_workflow = self._active_workflow_provider()
         if active_workflow is None or not mask_path:
-            return
+            return False
         workflow_id = self._workflow_session_service.active_workflow_id
         workflow_name = self._workflow_name_provider(workflow_id)
         projects_dir = self._projects_dir_provider()
@@ -396,7 +310,7 @@ class InputCanvasPresenter:
                 selected_dimensions=getattr(result, "selected_dimensions", None),
                 required_dimensions=getattr(result, "required_dimensions", None),
             )
-            return
+            return False
         if rejection_reason == "dimension_mismatch":
             selected_dimensions = getattr(result, "selected_dimensions", None)
             required_dimensions = getattr(result, "required_dimensions", None)
@@ -410,7 +324,7 @@ class InputCanvasPresenter:
                     selected_dimensions=selected_dimensions,
                     required_dimensions=required_dimensions,
                 )
-                return
+                return False
             self._report_wrong_size_input_mask(
                 workflow_id=workflow_id,
                 workflow_name=workflow_name,
@@ -420,9 +334,9 @@ class InputCanvasPresenter:
                 selected_dimensions=selected_dimensions,
                 required_dimensions=required_dimensions,
             )
-            return
+            return False
         if not bool(getattr(result, "applied", False)):
-            return
+            return False
         materialization_result = getattr(result, "materialization_result", None)
         if materialization_result is not None:
             self.apply_materialization_result(
@@ -435,85 +349,7 @@ class InputCanvasPresenter:
             projects_dir=projects_dir,
         )
         self._mark_changed(workflow_id)
-
-    def handle_input_mask_clicked(
-        self,
-        cube_alias: str,
-        node_name: str,
-        _mask_path: str,
-    ) -> None:
-        """Activate the owning image and mask, then request brush mode."""
-
-        active_workflow = self._active_workflow_provider()
-        if active_workflow is None:
-            return
-        workflow_id = self._workflow_session_service.active_workflow_id
-        binding = self._workflow_input_canvas_service.binding_for_mask(
-            active_workflow,
-            cube_alias,
-            node_name,
-        )
-        if binding is None:
-            log_warning(
-                _LOGGER,
-                "Rejected input mask click without graph binding",
-                workflow_id=workflow_id,
-                cube_alias=cube_alias,
-                node_name=node_name,
-                rejection_reason="missing_mask_binding",
-            )
-            return
-        binding_cube_alias = getattr(binding, "section_key", None)
-        image_node_name = getattr(binding, "surface_key", None)
-        association_key = getattr(binding, "association_key", None)
-        if not isinstance(binding_cube_alias, str) or not isinstance(
-            image_node_name, str
-        ):
-            return
-        input_key = f"{binding_cube_alias}:{image_node_name}"
-        canvas = getattr(active_workflow, "canvas", None)
-        input_key_map = getattr(canvas, "input_key_map", {})
-        image_uuid = (
-            input_key_map.get(input_key) if isinstance(input_key_map, Mapping) else None
-        )
-        if not isinstance(image_uuid, UUID):
-            log_warning(
-                _LOGGER,
-                "Rejected input mask click without materialized owning image",
-                workflow_id=workflow_id,
-                cube_alias=cube_alias,
-                node_name=node_name,
-                input_key=input_key,
-                rejection_reason="missing_bound_input_image",
-            )
-            return
-        if not self._input_canvas_state_service.set_active_input_image(
-            workflow_id,
-            active_workflow,
-            image_uuid,
-        ):
-            return
-        mask_associations = getattr(canvas, "mask_associations", {})
-        mask_id = (
-            mask_associations.get(association_key)
-            if isinstance(mask_associations, Mapping)
-            else None
-        )
-        if not isinstance(mask_id, UUID):
-            log_warning(
-                _LOGGER,
-                "Rejected input mask click without associated canvas mask",
-                workflow_id=workflow_id,
-                cube_alias=cube_alias,
-                node_name=node_name,
-                association_key=association_key,
-                rejection_reason="missing_canvas_mask",
-            )
-            return
-        if not self._set_active_workflow_mask(active_workflow, mask_id):
-            return
-        self._focus_attached_canvas("Input")
-        self._tool_controller.request_brush_after_mask_activation()
+        return True
 
     def materialize_loaded_cube_input_canvas(
         self,
@@ -552,6 +388,7 @@ class InputCanvasPresenter:
         )
         for result in results:
             self.apply_materialization_result(result, projects_dir=projects_dir)
+        self.bind_active_node_previews()
         if results:
             self._mark_changed(workflow_id)
         log_info(
@@ -631,6 +468,7 @@ class InputCanvasPresenter:
         active_workflow = self._active_workflow_provider()
         if active_workflow is None or self._active_editor_panel_provider() is None:
             return
+        self.bind_active_node_previews()
         cubes = getattr(active_workflow, "cubes", {})
         if not isinstance(cubes, Mapping):
             return
@@ -652,6 +490,13 @@ class InputCanvasPresenter:
                     node_name,
                     projects_dir=projects_dir,
                 )
+
+    def bind_active_node_previews(self) -> frozenset[tuple[str, str]]:
+        """Bind current panel previews from authoritative active workflow state."""
+        active_workflow = self._active_workflow_provider()
+        if active_workflow is None or self._preview_coordinator is None:
+            return frozenset()
+        return self._preview_coordinator.bind_workflow(active_workflow)
 
     def refresh_mask_picker_from_asset_state(
         self,
@@ -709,18 +554,6 @@ class InputCanvasPresenter:
             mask_id,
         )
 
-    def _focus_attached_canvas(self, label: str) -> None:
-        """Route attached canvas focus and persist the workflow route hint."""
-
-        active_workflow = self._active_workflow_provider()
-        canvas = getattr(active_workflow, "canvas", None)
-        if canvas is not None and label in {"Input", "Output"}:
-            canvas.active_canvas_route = label
-        canvas_host = self._canvas_host_provider()
-        focus_attached_canvas = getattr(canvas_host, "focus_attached_canvas", None)
-        if callable(focus_attached_canvas):
-            focus_attached_canvas(label)
-
     def _mark_changed(self, workflow_id: str) -> None:
         """Notify shell-owned surface invalidation when configured."""
 
@@ -734,13 +567,15 @@ class InputCanvasPresenter:
     ) -> tuple[str, str] | None:
         """Return the associated cube/mask node for one runtime mask id."""
 
-        associations = getattr(
-            getattr(workflow, "canvas", None), "mask_associations", {}
-        )
-        if not isinstance(associations, Mapping):
+        canvas = getattr(workflow, "canvas", None)
+        mask_entries = getattr(canvas, "mask_entries", {})
+        if not isinstance(mask_entries, Mapping):
             return None
-        for key, value in associations.items():
-            if InputCanvasPresenter._resolve_uuid(value) == mask_id:
+        for key, entry in mask_entries.items():
+            if (
+                InputCanvasPresenter._resolve_uuid(getattr(entry, "mask_id", None))
+                == mask_id
+            ):
                 return (
                     cast(tuple[str, str], key)
                     if InputCanvasPresenter._valid_association_key(key)

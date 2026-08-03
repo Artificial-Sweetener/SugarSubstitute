@@ -250,7 +250,8 @@ class WorkflowInputCanvasService:
             )
 
         input_key = binding.surface.input_key
-        image_id = workflow.canvas.input_key_map.get(input_key)
+        image_entry = workflow.canvas.image_entry(input_key)
+        image_id = image_entry.image_id if image_entry is not None else None
         image_path = self._surface_image_path(
             workflow,
             binding.surface,
@@ -299,7 +300,8 @@ class WorkflowInputCanvasService:
 
         association_key = binding.association_key
         materialization_result: InputCanvasMaterializationResult | None = None
-        mask_id = workflow.canvas.mask_associations.get(association_key)
+        mask_entry = workflow.canvas.mask_entry(association_key)
+        mask_id = mask_entry.mask_id if mask_entry is not None else None
         if mask_id is None:
             image = self._canvas_io_service.load_input_image(Path(image_path))
             if image is not None:
@@ -321,7 +323,8 @@ class WorkflowInputCanvasService:
                     projects_dir=projects_dir,
                     started_at=perf_counter(),
                 )
-            mask_id = workflow.canvas.mask_associations.get(association_key)
+            mask_entry = workflow.canvas.mask_entry(association_key)
+            mask_id = mask_entry.mask_id if mask_entry is not None else None
         if mask_id is None:
             log_warning(
                 _LOGGER,
@@ -926,9 +929,9 @@ class WorkflowInputCanvasService:
     ) -> str | None:
         """Return the workflow input key currently mapped to image_id."""
 
-        for input_key, mapped_image_id in workflow.canvas.input_key_map.items():
-            if mapped_image_id == image_id:
-                return input_key
+        for entry in workflow.canvas.image_entries.values():
+            if entry.image_id == image_id:
+                return entry.input_key
         return None
 
     def _image_path_from_buffer(

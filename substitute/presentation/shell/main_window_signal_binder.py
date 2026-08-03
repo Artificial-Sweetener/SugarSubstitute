@@ -229,16 +229,16 @@ class MainWindowSignalBinder:
             self._shell.workspace_cube_stack_actions.highlight_tab_for_cube
         )
         editor_panel.inputImageChanged.connect(
-            self._shell.input_canvas_presenter.handle_input_image_changed
+            self._shell.input_node_interaction_controller.handle_image_changed
         )
         editor_panel.inputImageClicked.connect(
-            self._shell.input_canvas_presenter.handle_input_image_clicked
+            self._shell.input_node_interaction_controller.handle_image_clicked
         )
         editor_panel.inputMaskChanged.connect(
-            self._shell.input_canvas_presenter.handle_input_mask_changed
+            self._shell.input_node_interaction_controller.handle_mask_changed
         )
         editor_panel.inputMaskClicked.connect(
-            self._shell.input_canvas_presenter.handle_input_mask_clicked
+            self._shell.input_node_interaction_controller.handle_mask_clicked
         )
         editor_panel.promptSceneQueueRequested.connect(
             self._shell.workspace_scene_generation_actions.enqueue_prompt_scene

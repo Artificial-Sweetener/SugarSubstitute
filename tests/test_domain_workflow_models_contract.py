@@ -63,12 +63,12 @@ def test_workflow_state_runtime_maps_are_instance_isolated() -> None:
     image_uuid = uuid.uuid4()
     mask_uuid = uuid.uuid4()
 
-    first.canvas.input_key_map["A:input"] = image_uuid
-    first.canvas.mask_associations[("A", "mask")] = mask_uuid
+    first.canvas.bind_image("A:input", image_uuid)
+    first.canvas.bind_mask(("A", "mask"), mask_uuid, image_uuid)
     first.output_image_uuids.append(image_uuid)
 
-    assert second.canvas.input_key_map == {}
-    assert second.canvas.mask_associations == {}
+    assert second.canvas.image_entries == {}
+    assert second.canvas.mask_entries == {}
     assert second.output_image_uuids == []
     assert second.output_focus_mode is OutputFocusMode.AUTOMATIC
     assert second.active_output_set_index == 1

@@ -57,6 +57,7 @@ from .node_card.accordion_motion import (
     AccordionMotionController,
     set_accordion_surface_attachment,
 )
+from .node_card.accordion_section_layout import AccordionSectionLayoutBinding
 from substitute.presentation.editor.panel.menus.dimension_preset_models import (
     DimensionPresetMenuSource,
 )
@@ -1601,15 +1602,7 @@ class NodeCardBuilder:
         if chevron is None:
             return None
 
-        def update_owner_cube_height() -> None:
-            """Refresh the owning cube wrapper height when accordion geometry changes."""
-
-            parent = card_title.parentWidget()
-            while parent is not None:
-                if hasattr(parent, "update_cube_height"):
-                    parent.update_cube_height()
-                    return
-                parent = parent.parentWidget()
+        section_layout = AccordionSectionLayoutBinding(card_title)
 
         controller = AccordionMotionController(
             owner=self.panel,
@@ -1618,7 +1611,8 @@ class NodeCardBuilder:
             content_layout=content_layout,
             divider_below_title=divider_below_title,
             chevron=chevron,
-            cube_height_updater=update_owner_cube_height,
+            transition_started=section_layout.preserve_transition_geometry,
+            transition_finished=section_layout.finalize_transition_geometry,
         )
         setattr(content_body, "_accordion_motion_controller", controller)
 

@@ -170,7 +170,7 @@ class RealShellOutputCanvasHarness:
     def show_canvas(self, label: str) -> None:
         """Select a real canvas tab route."""
 
-        self.shell.canvas_host.focus_attached_canvas(label)
+        self.shell.canvas_host.activate_canvas(label, keyboard_focus=False)
         self.process_events()
 
     def start_run(self, alias: str, run_index: int = 1) -> GenerationRunHandle:

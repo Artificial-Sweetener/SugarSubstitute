@@ -28,15 +28,17 @@ from cutecanvas import (
     PixelSelectionMode,
     VectorShapeKind,
 )
-from PySide6.QtCore import QCoreApplication, QRectF, QSize
-from PySide6.QtGui import QColor, QImage
-from PySide6.QtTest import QSignalSpy
+from PySide6.QtCore import QCoreApplication, QRect, QRectF, QSize, Qt
+from PySide6.QtGui import QColor, QImage, QPainter
+from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
+import pytest
 
 from substitute.application.workflows.input_canvas_models import (
     InputCanvasMaterializationResult,
     MaskMaterializationResult,
 )
+from substitute.domain.workflow import WorkflowState
 from substitute.presentation.canvas.input.input_document import InputCanvasDocument
 from substitute.presentation.canvas.input.input_node_preview_coordinator import (
     InputNodePreviewCoordinator,
@@ -127,8 +129,10 @@ def _wait_until(predicate: Callable[[], bool], *, timeout: float = 2.0) -> None:
     raise AssertionError("timed out waiting for live preview pixels")
 
 
-def test_live_node_previews_share_authority_and_survive_erratic_rebinding() -> None:
-    """Rapid resize, edits, source swaps, and teardown retain coherent live pixels."""
+def test_live_node_previews_share_authority_and_survive_erratic_rebinding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Live damage must render without full exports, rebinding, or stale pixels."""
     app = _app()
     document = InputCanvasDocument(features=("mask",))
     panel, image_picker, mask_picker = _panel()
@@ -175,6 +179,13 @@ def test_live_node_previews_share_authority_and_survive_erratic_rebinding() -> N
         empty_mask_color = _center_color(mask_preview)
         app.processEvents()
         preview_changes = QSignalSpy(mask_preview.canvas.sceneChanged)
+
+        def reject_full_export(*_args: object, **_kwargs: object) -> None:
+            """Fail if interactive preview damage enters an export pipeline."""
+
+            raise AssertionError("live Input preview attempted a full document export")
+
+        monkeypatch.setattr(document, "export_mask_image", reject_full_export)
 
         document.set_active_mask_id(first_mask_id)
         assert (
@@ -253,6 +264,160 @@ def test_live_node_previews_share_authority_and_survive_erratic_rebinding() -> N
             is not None
         )
         app.processEvents()
+    finally:
+        panel.close()
+        document.close()
+
+
+def test_large_raster_mask_preview_renders_authoritative_coverage(
+    tmp_path: Path,
+) -> None:
+    """Large file-backed masks must render through the sampled hybrid path."""
+    _app()
+    document = InputCanvasDocument(features=("mask",))
+    panel, _image_picker, mask_picker = _panel()
+    panel.resize(460, 900)
+    panel.show()
+    image_id = uuid4()
+    mask_path = tmp_path / "large-mask.png"
+    mask = QImage(1920, 2688, QImage.Format.Format_Grayscale8)
+    mask.fill(0)
+    painter = QPainter(mask)
+    painter.fillRect(QRect(240, 320, 1440, 2048), QColor("white"))
+    painter.end()
+    assert mask.save(str(mask_path))
+    try:
+        assert (
+            document.ensure_image_cached(
+                image_id,
+                _image("black", 1920, 2688),
+                None,
+            ).value
+            == "added"
+        )
+        mask_id = document.load_mask_from_file(image_id, mask_path)
+        assert mask_id is not None
+        coordinator = InputNodePreviewCoordinator(
+            bindings=document.preview_bindings,
+            active_panel=lambda: panel,
+        )
+        assert coordinator.bind_materialization(_result(image_id, mask_id)) == (
+            frozenset({("cube", "load_mask")})
+        )
+        preview = mask_picker.live_preview()
+        assert isinstance(preview, InputNodePreviewWidget)
+
+        _wait_until(lambda: _center_color(preview).value() > 240)
+        assert _center_color(preview).red() == 255
+    finally:
+        panel.close()
+        document.close()
+
+
+def test_restored_workflow_binds_once_and_path_refresh_preserves_live_previews(
+    tmp_path: Path,
+) -> None:
+    """Late panel projection and generation refresh must retain one presentation."""
+    app = _app()
+    document = InputCanvasDocument(features=("mask",))
+    active_panel: list[QWidget | None] = [None]
+    coordinator = InputNodePreviewCoordinator(
+        bindings=document.preview_bindings,
+        active_panel=lambda: active_panel[0],
+    )
+    image_id = uuid4()
+    image = _image("royalblue")
+    image_path = tmp_path / "image.png"
+    mask_path = tmp_path / "mask.png"
+    assert image.save(str(image_path))
+    mask = QImage(160, 120, QImage.Format.Format_Grayscale8)
+    mask.fill(255)
+    assert mask.save(str(mask_path))
+    workflow = WorkflowState()
+    try:
+        assert (
+            document.ensure_image_cached(image_id, image, image_path).value == "added"
+        )
+        mask_id = document.load_mask_from_file(image_id, mask_path)
+        assert mask_id is not None
+        workflow.canvas.bind_image("cube:load_image", image_id)
+        workflow.canvas.bind_mask(("cube", "load_mask"), mask_id, image_id)
+
+        assert coordinator.bind_workflow(workflow) == frozenset()
+        panel, image_picker, mask_picker = _panel()
+        active_panel[0] = panel
+        panel.resize(460, 900)
+        panel.show()
+
+        assert coordinator.bind_workflow(workflow) == frozenset({("cube", "load_mask")})
+        image_preview = image_picker.live_preview()
+        mask_preview = mask_picker.live_preview()
+        assert isinstance(image_preview, InputNodePreviewWidget)
+        assert isinstance(mask_preview, InputNodePreviewWidget)
+        assert image_preview.sizeHint() == QSize(192, 144)
+        assert mask_preview.sizeHint() == QSize(192, 144)
+        mask_clicks = QSignalSpy(mask_picker.clicked)
+
+        image_picker.set_thumbnail(str(image_path))
+        mask_picker.refresh_mask_path(str(mask_path))
+        app.processEvents()
+
+        assert image_picker.live_preview() is image_preview
+        assert mask_picker.live_preview() is mask_preview
+        assert image_preview.sizeHint() == QSize(192, 144)
+        assert mask_preview.sizeHint() == QSize(192, 144)
+        QTest.mouseClick(mask_picker.preview_surface, Qt.MouseButton.LeftButton)
+        assert mask_clicks.count() == 1
+        assert coordinator.bind_workflow(workflow) == frozenset({("cube", "load_mask")})
+        assert image_picker.live_preview() is image_preview
+        assert mask_picker.live_preview() is mask_preview
+    finally:
+        active_panel_widget = active_panel[0]
+        if active_panel_widget is not None:
+            active_panel_widget.close()
+        document.close()
+
+
+def test_live_picker_content_uses_shared_rounded_highlight_surface() -> None:
+    """Live image and mask pixels must retain picker chrome and passive input policy."""
+
+    app = _app()
+    document = InputCanvasDocument(features=("mask",))
+    panel, image_picker, mask_picker = _panel()
+    panel.resize(460, 900)
+    panel.show()
+    image_id = uuid4()
+    try:
+        assert document.ensure_image_cached(image_id, _image("cyan"), None)
+        mask_id = document.create_blank_mask(image_id, QSize(160, 120))
+        assert mask_id is not None
+        coordinator = InputNodePreviewCoordinator(
+            bindings=document.preview_bindings,
+            active_panel=lambda: panel,
+        )
+        coordinator.bind_materialization(_result(image_id, mask_id))
+        app.processEvents()
+
+        for picker in (image_picker, mask_picker):
+            preview = picker.live_preview()
+            assert isinstance(preview, InputNodePreviewWidget)
+            assert preview.testAttribute(
+                Qt.WidgetAttribute.WA_TransparentForMouseEvents
+            )
+            surface = picker.preview_surface
+            before = surface.grab().toImage()
+            QTest.mouseMove(surface, surface.rect().center())
+            app.processEvents()
+            after = surface.grab().toImage()
+            assert after != before
+            assert surface.live_content() is preview
+            assert surface.size() == preview.size() + QSize(12, 12)
+            assert preview.canvas.viewportCornerRadius() == 8.0
+            assert surface.graphicsEffect() is None
+            assert all(
+                child.graphicsEffect() is None
+                for child in surface.findChildren(QWidget)
+            )
     finally:
         panel.close()
         document.close()

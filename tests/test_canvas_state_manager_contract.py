@@ -649,38 +649,42 @@ def test_apply_output_source_timing_updates_existing_output_metadata() -> None:
     assert output_canvas.sync_calls == []
 
 
-def test_load_input_image_replaces_previous_unreferenced_uuid() -> None:
-    """Replacing an input key removes old UUID when no workflow still references it."""
+def test_load_input_image_replaces_pixels_without_replacing_entry_identity() -> None:
+    """Replacing an input file preserves its document-owned image identity."""
     service, input_service, input_pane, _output_pane, _output_canvas = _build_services()
     workflow = WorkflowState()
     old_id = uuid.uuid4()
-    workflow.canvas.input_key_map["A:node"] = old_id
+    workflow.canvas.bind_image("A:node", old_id)
     workflow.canvas.input_image_uuid = old_id
     input_pane.images[old_id] = ("old", Path("old.png"))
     _store_image_record(service, old_id, ImageMeta("wf", "Cube", 1, "", ""))
 
-    new_id = input_service.load_input_image(
+    new_image = object()
+    image_id = input_service.load_input_image(
         {"wf": workflow},
         "wf",
         "A:node",
-        image=object(),
+        image=new_image,
         path=Path("new.png"),
     )
 
-    assert old_id not in input_pane.images
-    assert service.image_registry.metadata_for(old_id) is None
-    assert workflow.canvas.input_key_map["A:node"] == new_id
-    assert workflow.canvas.input_image_uuid == new_id
-    assert input_pane.current_id == new_id
+    assert image_id == old_id
+    assert input_pane.images[old_id] == (new_image, Path("new.png"))
+    assert service.image_registry.metadata_for(old_id) is not None
+    image_entry = workflow.canvas.image_entry("A:node")
+    assert image_entry is not None
+    assert image_entry.image_id == old_id
+    assert workflow.canvas.input_image_uuid == old_id
+    assert input_pane.current_id == old_id
 
 
-def test_load_input_image_keeps_previous_uuid_when_still_referenced_elsewhere() -> None:
-    """Replacing input UUID should retain old UUID when another workflow still references it."""
+def test_load_input_image_keeps_entry_identity_when_also_referenced_as_output() -> None:
+    """Pixel replacement preserves identity regardless of other registry references."""
     service, input_service, input_pane, _output_pane, _output_canvas = _build_services()
     workflow_a = WorkflowState()
     workflow_b = WorkflowState()
     old_id = uuid.uuid4()
-    workflow_a.canvas.input_key_map["A:node"] = old_id
+    workflow_a.canvas.bind_image("A:node", old_id)
     workflow_a.canvas.input_image_uuid = old_id
     workflow_b.output_image_uuids = [old_id]
     input_pane.images[old_id] = ("old", Path("old.png"))
@@ -747,11 +751,11 @@ def test_project_workflow_preserves_input_and_output_catalog_membership() -> Non
     output_a = uuid.uuid4()
     output_b = uuid.uuid4()
     workflow_a.canvas.input_image_uuid = input_a
-    workflow_a.canvas.input_key_map["A:load"] = input_a
+    workflow_a.canvas.bind_image("A:load", input_a)
     workflow_a.output_image_uuids = [output_a]
     workflow_a.active_output_uuid = output_a
     workflow_b.canvas.input_image_uuid = input_b
-    workflow_b.canvas.input_key_map["B:load"] = input_b
+    workflow_b.canvas.bind_image("B:load", input_b)
     workflow_b.output_image_uuids = [output_b]
     workflow_b.active_output_uuid = output_b
     input_pane.images[input_a] = ("input-a", Path("input-a.png"))
@@ -785,11 +789,11 @@ def test_project_workflow_switch_rebinds_both_canvases_to_legal_routes() -> None
     output_a = uuid.uuid4()
     output_b = uuid.uuid4()
     workflow_a.canvas.input_image_uuid = input_a
-    workflow_a.canvas.input_key_map["A:load"] = input_a
+    workflow_a.canvas.bind_image("A:load", input_a)
     workflow_a.output_image_uuids = [output_a]
     workflow_a.active_output_uuid = output_a
     workflow_b.canvas.input_image_uuid = input_b
-    workflow_b.canvas.input_key_map["B:load"] = input_b
+    workflow_b.canvas.bind_image("B:load", input_b)
     workflow_b.output_image_uuids = [output_b]
     workflow_b.active_output_uuid = output_b
     input_pane.images[input_a] = ("input-a", Path("input-a.png"))
@@ -867,7 +871,7 @@ def test_project_workflow_binds_input_and_output_canvas_sessions() -> None:
     input_id = uuid.uuid4()
     output_id = uuid.uuid4()
     workflow.canvas.input_image_uuid = input_id
-    workflow.canvas.input_key_map["wf:load"] = input_id
+    workflow.canvas.bind_image("wf:load", input_id)
     workflow.output_image_uuids = [output_id]
     workflow.active_output_uuid = output_id
     _store_image_record(
@@ -1064,7 +1068,7 @@ def test_set_active_input_image_rejects_uuid_not_owned_by_active_workflow() -> N
     input_pane.current_id = owned_image
 
     workflow = WorkflowState()
-    workflow.canvas.input_key_map["Cube:Image"] = owned_image
+    workflow.canvas.bind_image("Cube:Image", owned_image)
     workflow.canvas.input_image_uuid = owned_image
 
     input_service.set_active_input_image("wf", workflow, foreign_image)
@@ -1088,8 +1092,7 @@ def test_project_workflow_rejects_stale_active_input_image_not_in_workflow_state
     workflow = WorkflowState()
     workflow.canvas.input_image_uuid = stale_image
     workflow.canvas.active_input_mask_uuid = stale_mask
-    workflow.canvas.mask_associations[("Cube", "Mask")] = stale_mask
-    workflow.canvas.mask_to_image_map[stale_mask] = stale_image
+    workflow.canvas.bind_mask(("Cube", "Mask"), stale_mask, stale_image)
 
     service.project_workflow({"wf": workflow}, "wf")
 
@@ -1111,8 +1114,7 @@ def test_set_active_workflow_mask_rejects_mask_for_different_input_image() -> No
     foreign_image = uuid.uuid4()
     foreign_mask = uuid.uuid4()
     workflow.canvas.input_image_uuid = active_image
-    workflow.canvas.mask_associations[("Cube", "Mask")] = foreign_mask
-    workflow.canvas.mask_to_image_map[foreign_mask] = foreign_image
+    workflow.canvas.bind_mask(("Cube", "Mask"), foreign_mask, foreign_image)
 
     input_service.set_active_workflow_mask("wf", workflow, foreign_mask)
 
@@ -1891,7 +1893,7 @@ def test_clear_images_for_closed_workflow_keeps_shared_references() -> None:
     shared_id = uuid.uuid4()
     closed_only_id = uuid.uuid4()
 
-    wf_closed.canvas.input_key_map["A:img"] = closed_only_id
+    wf_closed.canvas.bind_image("A:img", closed_only_id)
     wf_closed.output_image_uuids = [shared_id]
     wf_remaining.output_image_uuids = [shared_id]
 
@@ -1926,7 +1928,7 @@ def test_load_mask_from_file_links_mask_to_explicit_image() -> None:
     image_id = uuid.uuid4()
     mask_id = uuid.uuid4()
     input_pane.next_loaded_mask_id = mask_id
-    workflow.canvas.input_key_map["AliasA:ImageNode"] = image_id
+    workflow.canvas.bind_image("AliasA:ImageNode", image_id)
     workflow.canvas.input_image_uuid = image_id
 
     loaded = input_service.load_mask_from_file(
@@ -1939,8 +1941,10 @@ def test_load_mask_from_file_links_mask_to_explicit_image() -> None:
 
     assert loaded == mask_id
     assert input_pane.current_id == image_id
-    assert workflow.canvas.mask_associations[association_key] == mask_id
-    assert workflow.canvas.mask_to_image_map[mask_id] == image_id
+    mask_entry = workflow.canvas.mask_entry(association_key)
+    assert mask_entry is not None
+    assert mask_entry.mask_id == mask_id
+    assert mask_entry.image_id == image_id
 
 
 def test_restore_input_mask_remaps_snapshot_id_and_records_active_mask() -> None:
@@ -1954,10 +1958,9 @@ def test_restore_input_mask_remaps_snapshot_id_and_records_active_mask() -> None
     snapshot_mask_id = uuid.uuid4()
     live_mask_id = uuid.uuid4()
     input_pane.next_loaded_mask_id = live_mask_id
-    workflow.canvas.input_key_map["AliasA:ImageNode"] = image_id
+    workflow.canvas.bind_image("AliasA:ImageNode", image_id)
     workflow.canvas.input_image_uuid = image_id
-    workflow.canvas.mask_associations[association_key] = snapshot_mask_id
-    workflow.canvas.mask_to_image_map[snapshot_mask_id] = image_id
+    workflow.canvas.bind_mask(association_key, snapshot_mask_id, image_id)
     workflow.canvas.active_input_mask_uuid = snapshot_mask_id
 
     restored = input_service.restore_input_mask(
@@ -1971,9 +1974,11 @@ def test_restore_input_mask_remaps_snapshot_id_and_records_active_mask() -> None
 
     assert restored == live_mask_id
     assert input_pane.current_id == image_id
-    assert workflow.canvas.mask_associations[association_key] == live_mask_id
-    assert workflow.canvas.mask_to_image_map[live_mask_id] == image_id
-    assert snapshot_mask_id not in workflow.canvas.mask_to_image_map
+    mask_entry = workflow.canvas.mask_entry(association_key)
+    assert mask_entry is not None
+    assert mask_entry.mask_id == live_mask_id
+    assert mask_entry.image_id == image_id
+    assert workflow.canvas.mask_entry_for_id(snapshot_mask_id) is None
     assert workflow.canvas.active_input_mask_uuid == live_mask_id
 
 
@@ -1988,10 +1993,9 @@ def test_restore_input_mask_adopts_exact_editable_archive_identity() -> None:
     image_id = uuid.uuid4()
     mask_id = uuid.uuid4()
     input_pane.archived_masks.add((image_id, mask_id))
-    workflow.canvas.input_key_map["AliasA:ImageNode"] = image_id
+    workflow.canvas.bind_image("AliasA:ImageNode", image_id)
     workflow.canvas.input_image_uuid = image_id
-    workflow.canvas.mask_associations[association_key] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_mask(association_key, mask_id, image_id)
     workflow.canvas.active_input_mask_uuid = mask_id
 
     restored = input_service.restore_input_mask(
@@ -2005,7 +2009,9 @@ def test_restore_input_mask_adopts_exact_editable_archive_identity() -> None:
 
     assert restored == mask_id
     assert input_pane.next_loaded_mask_id is None
-    assert workflow.canvas.mask_associations[association_key] == mask_id
+    mask_entry = workflow.canvas.mask_entry(association_key)
+    assert mask_entry is not None
+    assert mask_entry.mask_id == mask_id
     assert workflow.canvas.active_input_mask_uuid == mask_id
 
 
@@ -2016,9 +2022,8 @@ def test_project_workflow_restores_active_input_mask() -> None:
     image_id = uuid.uuid4()
     mask_id = uuid.uuid4()
     workflow.canvas.input_image_uuid = image_id
-    workflow.canvas.input_key_map["AliasA:ImageNode"] = image_id
-    workflow.canvas.mask_associations[("AliasA", "MaskNode")] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_image("AliasA:ImageNode", image_id)
+    workflow.canvas.bind_mask(("AliasA", "MaskNode"), mask_id, image_id)
     workflow.canvas.active_input_mask_uuid = mask_id
 
     service.project_workflow({"wf": workflow}, "wf")
@@ -2036,13 +2041,12 @@ def test_drop_mask_association_removes_workflow_state_and_pane_layer() -> None:
     association_key = ("AliasA", "MaskNode")
     image_id = uuid.uuid4()
     mask_id = uuid.uuid4()
-    workflow.canvas.mask_associations[association_key] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_mask(association_key, mask_id, image_id)
 
     input_service.drop_mask_association(workflow, association_key)
 
-    assert association_key not in workflow.canvas.mask_associations
-    assert mask_id not in workflow.canvas.mask_to_image_map
+    assert workflow.canvas.mask_entry(association_key) is None
+    assert workflow.canvas.mask_entry_for_id(mask_id) is None
     assert input_pane.removed_masks == [(image_id, mask_id)]
 
 
@@ -2054,15 +2058,16 @@ def test_drop_mask_association_preserves_shared_pane_layer() -> None:
     workflow = WorkflowState()
     image_id = uuid.uuid4()
     mask_id = uuid.uuid4()
-    workflow.canvas.mask_associations[("AliasA", "MaskNodeA")] = mask_id
-    workflow.canvas.mask_associations[("AliasA", "MaskNodeB")] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_mask(("AliasA", "MaskNodeA"), mask_id, image_id)
+    workflow.canvas.bind_mask(("AliasA", "MaskNodeB"), mask_id, image_id)
 
     input_service.drop_mask_association(workflow, ("AliasA", "MaskNodeA"))
 
-    assert ("AliasA", "MaskNodeA") not in workflow.canvas.mask_associations
-    assert workflow.canvas.mask_associations[("AliasA", "MaskNodeB")] == mask_id
-    assert workflow.canvas.mask_to_image_map[mask_id] == image_id
+    assert workflow.canvas.mask_entry(("AliasA", "MaskNodeA")) is None
+    remaining_entry = workflow.canvas.mask_entry(("AliasA", "MaskNodeB"))
+    assert remaining_entry is not None
+    assert remaining_entry.mask_id == mask_id
+    assert remaining_entry.image_id == image_id
     assert input_pane.removed_masks == []
 
 
@@ -2076,9 +2081,8 @@ def test_update_mask_from_file_rejects_mask_for_different_input_image() -> None:
     image_id = uuid.uuid4()
     foreign_image = uuid.uuid4()
     mask_id = uuid.uuid4()
-    workflow.canvas.input_key_map["Cube:Image"] = image_id
-    workflow.canvas.mask_associations[("Cube", "Mask")] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = foreign_image
+    workflow.canvas.bind_image("Cube:Image", image_id)
+    workflow.canvas.bind_mask(("Cube", "Mask"), mask_id, foreign_image)
 
     updated = input_service.update_mask_from_file(
         "wf",
@@ -2104,9 +2108,8 @@ def test_update_mask_from_file_updates_authorized_associated_mask() -> None:
     workflow = WorkflowState()
     image_id = uuid.uuid4()
     mask_id = uuid.uuid4()
-    workflow.canvas.input_key_map["Cube:Image"] = image_id
-    workflow.canvas.mask_associations[("Cube", "Mask")] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_image("Cube:Image", image_id)
+    workflow.canvas.bind_mask(("Cube", "Mask"), mask_id, image_id)
 
     updated = input_service.update_mask_from_file(
         "wf",
@@ -2133,9 +2136,8 @@ def test_update_mask_from_file_rejects_unverified_dimensions() -> None:
     workflow = WorkflowState()
     image_id = uuid.uuid4()
     mask_id = uuid.uuid4()
-    workflow.canvas.input_key_map["Cube:Image"] = image_id
-    workflow.canvas.mask_associations[("Cube", "Mask")] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_image("Cube:Image", image_id)
+    workflow.canvas.bind_mask(("Cube", "Mask"), mask_id, image_id)
 
     updated = input_service.update_mask_from_file(
         "wf",
@@ -2162,9 +2164,8 @@ def test_update_mask_from_file_rejects_dimension_mismatch() -> None:
     workflow = WorkflowState()
     image_id = uuid.uuid4()
     mask_id = uuid.uuid4()
-    workflow.canvas.input_key_map["Cube:Image"] = image_id
-    workflow.canvas.mask_associations[("Cube", "Mask")] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_image("Cube:Image", image_id)
+    workflow.canvas.bind_mask(("Cube", "Mask"), mask_id, image_id)
 
     updated = input_service.update_mask_from_file(
         "wf",
@@ -2721,7 +2722,7 @@ def test_create_mask_for_image_tracks_explicit_image_association() -> None:
     image_id = uuid.uuid4()
     mask_id = uuid.uuid4()
     input_pane.next_blank_mask_id = mask_id
-    workflow.canvas.input_key_map["AliasB:ImageNode"] = image_id
+    workflow.canvas.bind_image("AliasB:ImageNode", image_id)
     workflow.canvas.input_image_uuid = image_id
 
     created = input_service.create_mask_for_image(
@@ -2734,8 +2735,10 @@ def test_create_mask_for_image_tracks_explicit_image_association() -> None:
 
     assert created == mask_id
     assert input_pane.current_id == image_id
-    assert workflow.canvas.mask_associations[association_key] == mask_id
-    assert workflow.canvas.mask_to_image_map[mask_id] == image_id
+    mask_entry = workflow.canvas.mask_entry(association_key)
+    assert mask_entry is not None
+    assert mask_entry.mask_id == mask_id
+    assert mask_entry.image_id == image_id
 
 
 def test_drop_input_surface_prunes_owned_image_and_mask_state() -> None:
@@ -2749,11 +2752,10 @@ def test_drop_input_surface_prunes_owned_image_and_mask_state() -> None:
     mask_id = uuid.uuid4()
     input_key = "Regional:@synthetic/obsolete"
     association_key = ("Regional", "mask")
-    workflow.canvas.input_key_map[input_key] = image_id
+    workflow.canvas.bind_image(input_key, image_id)
     workflow.canvas.input_image_uuid = image_id
     workflow.canvas.active_input_mask_uuid = mask_id
-    workflow.canvas.mask_associations[association_key] = mask_id
-    workflow.canvas.mask_to_image_map[mask_id] = image_id
+    workflow.canvas.bind_mask(association_key, mask_id, image_id)
     input_pane.images[image_id] = (object(), Path("synthetic.png"))
 
     dropped = input_service.drop_input_surface(
@@ -2763,11 +2765,10 @@ def test_drop_input_surface_prunes_owned_image_and_mask_state() -> None:
     )
 
     assert dropped is True
-    assert workflow.canvas.input_key_map == {}
+    assert workflow.canvas.image_entries == {}
     assert workflow.canvas.input_image_uuid is None
     assert workflow.canvas.active_input_mask_uuid is None
-    assert workflow.canvas.mask_associations == {}
-    assert workflow.canvas.mask_to_image_map == {}
+    assert workflow.canvas.mask_entries == {}
     assert input_pane.removed_masks == [(image_id, mask_id)]
     assert image_id not in input_pane.images
 
@@ -2780,7 +2781,7 @@ def test_prune_closed_workflow_input_images_cleans_input_catalog_and_metadata() 
     input_pane.images[orphan] = ("in", None)
     output_pane.images[orphan] = ("out", None)
     closed_workflow = WorkflowState()
-    closed_workflow.canvas.input_key_map["Cube:Image"] = orphan
+    closed_workflow.canvas.bind_image("Cube:Image", orphan)
     _store_image_record(service, orphan, ImageMeta("wf", "cube", 7, "", ""))
 
     input_service.prune_closed_workflow_images(closed_workflow, {"wf": WorkflowState()})

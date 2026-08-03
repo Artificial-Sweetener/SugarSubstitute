@@ -123,13 +123,41 @@ def test_load_restored_output_image_uses_canvas_io_without_preload() -> None:
 
 
 def test_restore_input_image_preserves_snapshot_uuid() -> None:
-    """Restored input image references should be replayed under their saved UUID."""
+    """Restore should replay identity without owning preview presentation timing."""
 
     image_id = uuid4()
     calls: list[dict[str, object]] = []
     shell = SimpleNamespace(
         input_canvas_state_service=SimpleNamespace(
             restore_input_image=lambda **kwargs: calls.append(kwargs)
+        ),
+    )
+    reference = InputImageReference(
+        image_id=str(image_id),
+        path=Path("input.png"),
+        sequence=0,
+    )
+    image = object()
+
+    WorkspaceRestoreImageAdapter(shell).restore_input_image(reference, image)
+
+    assert calls == [{"image_id": image_id, "image": image, "path": Path("input.png")}]
+
+
+def test_restore_input_image_does_not_bind_preview_during_prehydration() -> None:
+    """Prehydration must populate the document before an active workflow exists."""
+
+    image_id = uuid4()
+    calls: list[dict[str, object]] = []
+    shell = SimpleNamespace(
+        _shell_restore_lifecycle="prehydrating",
+        input_canvas_state_service=SimpleNamespace(
+            restore_input_image=lambda **kwargs: calls.append(kwargs)
+        ),
+        input_canvas_presenter=SimpleNamespace(
+            bind_active_node_previews=lambda: (_ for _ in ()).throw(
+                AssertionError("preview binding requires an installed active workflow")
+            )
         ),
     )
     reference = InputImageReference(
@@ -152,9 +180,8 @@ def test_restore_input_mask_remaps_reference_through_workflow_canvas_state() -> 
     live_mask_id = uuid4()
     association_key = ("CubeA", "MaskNode")
     workflow = WorkflowState()
-    workflow.canvas.input_key_map["CubeA:ImageNode"] = image_id
-    workflow.canvas.mask_associations[association_key] = snapshot_mask_id
-    workflow.canvas.mask_to_image_map[snapshot_mask_id] = image_id
+    workflow.canvas.bind_image("CubeA:ImageNode", image_id)
+    workflow.canvas.bind_mask(association_key, snapshot_mask_id, image_id)
     restore_calls: list[dict[str, object]] = []
 
     def restore_input_mask(*args: object, **kwargs: object) -> UUID:
@@ -216,8 +243,12 @@ def test_restore_deferred_prehydrated_input_masks_replays_and_clears() -> None:
     image_id = uuid4()
     snapshot_mask_id = uuid4()
     workflow = WorkflowState()
-    workflow.canvas.input_key_map["CubeA:ImageNode"] = image_id
-    workflow.canvas.mask_to_image_map[snapshot_mask_id] = image_id
+    workflow.canvas.bind_image("CubeA:ImageNode", image_id)
+    workflow.canvas.bind_mask(
+        ("CubeA", "MaskNode"),
+        snapshot_mask_id,
+        image_id,
+    )
     reference = InputMaskReference(
         mask_id=str(snapshot_mask_id),
         image_id=str(image_id),

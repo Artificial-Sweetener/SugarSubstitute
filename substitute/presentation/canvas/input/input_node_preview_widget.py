@@ -25,26 +25,29 @@ from cutecanvas import (
     CanvasViewportSpec,
     CuteCanvas,
 )
-from PySide6.QtCore import QEvent, QObject, QSize, Qt, Signal
-from PySide6.QtGui import QCloseEvent, QMouseEvent
-from PySide6.QtWidgets import QVBoxLayout, QWidget
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QCloseEvent
+from PySide6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
 
 from .input_preview_binding import InputPreviewBinding
 
 
 class InputNodePreviewWidget(QWidget):
-    """Present a live document source without exposing viewport navigation."""
-
-    clicked = Signal()
+    """Render one live document source as presentation-only picker content."""
 
     def __init__(
         self,
         binding: InputPreviewBinding,
         parent: QWidget | None = None,
+        *,
+        preferred_width: int = 352,
     ) -> None:
         """Mount an independently identified view over a shared document runtime."""
         super().__init__(parent)
+        if preferred_width <= 0:
+            raise ValueError("preferred_width must be positive")
         self._binding = binding
+        self._preferred_width = preferred_width
         self._canvas = CuteCanvas(
             document=binding.document,
             document_runtime=binding.runtime,
@@ -58,11 +61,11 @@ class InputNodePreviewWidget(QWidget):
                 render_variant=binding.render_variant,
             )
         )
-        self._canvas.installEventFilter(self)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._canvas)
-        self.setMinimumSize(96, 96)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.setFixedSize(self.sizeHint())
 
     @property
     def binding(self) -> InputPreviewBinding:
@@ -75,19 +78,24 @@ class InputNodePreviewWidget(QWidget):
         return self._canvas
 
     def sizeHint(self) -> QSize:
-        """Return a compact preview size that remains free to reflow."""
-        return QSize(352, 240)
+        """Return the picker width with the authoritative source aspect ratio."""
+        return QSize(
+            self._preferred_width,
+            self.heightForWidth(self._preferred_width),
+        )
 
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        """Publish left-button releases without enabling canvas navigation."""
-        if (
-            watched is self._canvas
-            and isinstance(event, QMouseEvent)
-            and event.type() is QEvent.Type.MouseButtonRelease
-            and event.button() is Qt.MouseButton.LeftButton
-        ):
-            self.clicked.emit()
-        return super().eventFilter(watched, event)
+    def hasHeightForWidth(self) -> bool:
+        """Declare aspect-preserving height negotiation to the parent layout."""
+        return True
+
+    def heightForWidth(self, width: int) -> int:
+        """Return the source-aspect height for one available preview width."""
+        source_size = self._binding.source_size
+        return max(1, round(width * source_size.height() / source_size.width()))
+
+    def set_thumbnail_corner_radius(self, radius: int) -> None:
+        """Delegate node-card chrome clipping to the authoritative viewport draw."""
+        self._canvas.setViewportCornerRadius(float(radius))
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Release only this viewport while preserving the shared runtime."""

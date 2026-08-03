@@ -72,6 +72,14 @@ class ComfyAssetStagingResult:
     failures: tuple[AssetStagingFailure, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class _TypedSourceResolution:
+    """Distinguish absent metadata from a typed asset that needs no staging."""
+
+    handled: bool
+    path: Path | None
+
+
 class ComfyAssetStagingService:
     """Own generation-time rewriting of local assets for the active Comfy target."""
 
@@ -101,7 +109,7 @@ class ComfyAssetStagingService:
         projects_dir: Path,
         input_asset_staging_plan_service: InputAssetStagingPlanService | None = None,
     ) -> "ComfyAssetStagingService":
-        """Build a staging service that can resolve project-relative mask assets."""
+        """Build a staging service that can resolve project-relative assets."""
 
         service = cls(
             stager=stager,
@@ -309,6 +317,14 @@ class ComfyAssetStagingService:
     ) -> Path | None:
         """Return a filesystem source path for local or project asset values."""
 
+        typed_source = self._typed_source_path(
+            target=target,
+            workflow_name=workflow_name,
+            workflow=workflow,
+        )
+        if typed_source.handled:
+            return typed_source.path
+
         if _looks_like_local_path(image_value):
             return Path(image_value)
         if target.role is not InputAssetRole.MASK or self._projects_dir is None:
@@ -330,6 +346,57 @@ class ComfyAssetStagingService:
         ):
             return candidate
         return None
+
+    def _typed_source_path(
+        self,
+        *,
+        target: InputAssetStagingTarget,
+        workflow_name: str,
+        workflow: object | None,
+    ) -> _TypedSourceResolution:
+        """Resolve typed workflow assets before applying legacy path heuristics."""
+        if not isinstance(workflow, WorkflowState) or self._projects_dir is None:
+            return _TypedSourceResolution(False, None)
+        assets = WorkflowAssetService()
+        if target.role is InputAssetRole.IMAGE:
+            asset_ref = assets.input_image_asset_ref(
+                workflow,
+                section_key=target.section_key,
+                node_name=target.node_name,
+                field_key=target.field_key,
+            )
+            if asset_ref is None:
+                return _TypedSourceResolution(False, None)
+            return _TypedSourceResolution(
+                True,
+                assets.resolve_input_image_path(
+                    workflow,
+                    workflow_name=workflow_name,
+                    section_key=target.section_key,
+                    node_name=target.node_name,
+                    field_key=target.field_key,
+                    projects_dir=self._projects_dir,
+                ),
+            )
+        asset_ref = assets.input_mask_asset_ref(
+            workflow,
+            section_key=target.section_key,
+            node_name=target.node_name,
+            field_key=target.field_key,
+        )
+        if asset_ref is None:
+            return _TypedSourceResolution(False, None)
+        return _TypedSourceResolution(
+            True,
+            assets.resolve_input_mask_path(
+                workflow,
+                workflow_name=workflow_name,
+                section_key=target.section_key,
+                node_name=target.node_name,
+                field_key=target.field_key,
+                projects_dir=self._projects_dir,
+            ),
+        )
 
     def _is_project_mask_asset(
         self,

@@ -319,6 +319,19 @@ class _FakeInputCanvasPresenter:
         self.kwargs = kwargs
         self.refreshed_masks: list[tuple[object, object]] = []
 
+    def materialize_image_selection(self, *_args: object) -> bool:
+        """Accept image materialization for interaction composition."""
+
+        return True
+
+    def apply_mask_selection(self, *_args: object) -> bool:
+        """Accept mask materialization for interaction composition."""
+
+        return True
+
+    def refresh_active_mask_pickers(self) -> None:
+        """Represent the presenter-owned picker refresh callback."""
+
     def refresh_mask_picker_from_asset_state(
         self,
         cube_alias: object,
@@ -334,6 +347,15 @@ class _FakeInputDocumentChangeObserver:
 
     def __init__(self, **kwargs: object) -> None:
         """Store constructor keyword arguments for assertions."""
+
+        self.kwargs = kwargs
+
+
+class _FakeInputNodeInteractionController:
+    """Capture single-owner Input-node interaction composition."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Store constructor collaborators for assertions."""
 
         self.kwargs = kwargs
 
@@ -789,7 +811,6 @@ def test_compose_shell_controllers_assigns_controllers_and_initial_state(
         "ComfyRuntimeActions",
         "WorkflowUiFactory",
         "ActiveWorkflowSurfaceRefresher",
-        "CanvasRouteController",
         "MainWindowSignalBinder",
         "ShellEventFilterController",
         "ShellFrameIntegrationController",
@@ -805,6 +826,11 @@ def test_compose_shell_controllers_assigns_controllers_and_initial_state(
     ]
     for name in controller_names:
         monkeypatch.setattr(main_window_composition, name, _FakeController)
+    monkeypatch.setattr(
+        main_window_composition,
+        "canvas_route_controller_for",
+        lambda shell: _FakeController(shell),
+    )
     shell = SimpleNamespace(
         workflow_session_service=SimpleNamespace(active_workflow_id="wf-a"),
         splitter=object(),
@@ -865,6 +891,11 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         main_window_composition,
         "InputCanvasPresenter",
         _FakeInputCanvasPresenter,
+    )
+    monkeypatch.setattr(
+        main_window_composition,
+        "InputNodeInteractionController",
+        _FakeInputNodeInteractionController,
     )
     monkeypatch.setattr(
         main_window_composition,
@@ -937,6 +968,10 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         composition.workflow_input_canvas_service is shell.workflow_input_canvas_service
     )
     assert composition.input_canvas_presenter is shell.input_canvas_presenter
+    assert (
+        composition.input_node_interaction_controller
+        is shell.input_node_interaction_controller
+    )
     assert (
         composition.input_document_change_observer
         is shell.input_document_change_observer

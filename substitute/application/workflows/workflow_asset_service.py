@@ -389,6 +389,39 @@ class WorkflowAssetService:
             log_subject="input mask",
         )
 
+    def resolve_input_image_path(
+        self,
+        workflow: WorkflowState,
+        *,
+        workflow_name: str,
+        section_key: str,
+        node_name: str,
+        field_key: str,
+        projects_dir: Path,
+    ) -> Path | None:
+        """Resolve one input image from its authoritative typed asset reference."""
+        asset_ref = self.input_image_asset_ref(
+            workflow,
+            section_key=section_key,
+            node_name=node_name,
+            field_key=field_key,
+        )
+        if isinstance(asset_ref, LocalFileAssetRef):
+            return Path(asset_ref.path)
+        if isinstance(asset_ref, ProjectAssetRef):
+            return _resolve_project_asset_path(
+                workflow_name=workflow_name,
+                relative_path=asset_ref.relative_path,
+                projects_dir=projects_dir,
+            )
+        if isinstance(asset_ref, ProjectMaskAssetRef):
+            return _resolve_mask_path(
+                workflow_name=workflow_name,
+                path_from_buffer=asset_ref.relative_path,
+                projects_dir=projects_dir,
+            )
+        return None
+
     def resolve_input_mask_path(
         self,
         workflow: WorkflowState,
