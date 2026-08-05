@@ -21,12 +21,15 @@ from __future__ import annotations
 from PySide6.QtCore import QEvent, QObject, QSize, Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLayout, QWidget
 
+from substitute.presentation.canvas.shared.canvas_control_frame import (
+    CanvasControlFrame,
+)
 from substitute.presentation.canvas.shared.canvas_chrome_metrics import (
     CANVAS_CHROME_GAP,
 )
 
 
-class CanvasTopBar(QWidget):
+class CanvasTopBar(CanvasControlFrame):
     """Lay out canvas-owned top controls in one authoritative widget order."""
 
     geometryChanged = Signal()

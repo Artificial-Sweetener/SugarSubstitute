@@ -30,12 +30,20 @@ from substitute.application.workflows.canvas_route_projector_port import (
     InputRouteProjectorPort,
 )
 from substitute.presentation.canvas.shared.canvas_top_bar import CanvasTopBar
+from substitute.presentation.canvas.shared.contextual_toolbar import (
+    CanvasContextualToolbar,
+)
 from substitute.presentation.canvas.tools import (
+    CanvasToolLayout,
     CanvasToolOptionsHost,
     CanvasToolRuntime,
     CanvasToolStrip,
 )
 from substitute.presentation.canvas.input.input_document import InputCanvasDocument
+from substitute.presentation.canvas.input.input_layer_control import InputLayerControl
+from substitute.presentation.canvas.input.input_layer_coverage_editor import (
+    InputLayerCoverageEditor,
+)
 
 class InputCanvas(QWidget):
     """Expose host-facing Input canvas widget controls and intent signals."""
@@ -46,6 +54,8 @@ class InputCanvas(QWidget):
     dockActionRequested: Signal
     document: InputCanvasDocument
     canvas: CuteCanvas
+    contextual_toolbar: CanvasContextualToolbar
+    layer_control: InputLayerControl
 
     def __init__(
         self,
@@ -94,6 +104,20 @@ class InputCanvas(QWidget):
         """Return the ordered Input-owned top-bar flow."""
         ...
 
-    def bind_tool_runtime(self, runtime: CanvasToolRuntime) -> None:
+    @property
+    def coverage_editor(self) -> InputLayerCoverageEditor:
+        """Return the exclusive bottom coverage editor."""
+        ...
+
+    @property
+    def coverage_edit_active(self) -> bool:
+        """Return whether layer coverage preview exclusively owns the canvas."""
+        ...
+
+    def bind_tool_runtime(
+        self,
+        runtime: CanvasToolRuntime,
+        layout: CanvasToolLayout | None = ...,
+    ) -> None:
         """Bind the contextual Input tool runtime."""
         ...

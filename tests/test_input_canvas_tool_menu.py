@@ -33,7 +33,7 @@ from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
 from substitute.presentation.canvas.input.input_canvas_tool_menu import (
     create_input_canvas_tool_menu,
 )
-from substitute.presentation.canvas.tools import CanvasToolContext
+from substitute.presentation.canvas.tools import CanvasToolContext, CanvasToolSurface
 from substitute.presentation.widgets.menu_model import MenuItem, MenuSeparator
 
 
@@ -58,21 +58,27 @@ def test_input_tool_menu_preserves_palette_order_state_and_sections() -> None:
     dock_requests: list[bool] = []
 
     menu = create_input_canvas_tool_menu(
-        palette.snapshot(),
+        palette.snapshot(CanvasToolSurface.TOOL_STRIP),
         tool_requested=requested.append,
         detached=True,
         dock_requested=lambda: dock_requests.append(True),
     )
     items = [entry for entry in menu.entries if isinstance(entry, MenuItem)]
+    presentations = palette.snapshot(CanvasToolSurface.TOOL_STRIP)
+    tool_items = items[:-1]
 
     assert [item.data for item in items] == [None] * len(items)
-    assert [_source_text(item.label) for item in items[:-1]] == [
-        _source_text(presentation.label) for presentation in palette.snapshot()
+    assert [_source_text(item.label) for item in tool_items] == [
+        _source_text(presentation.label) for presentation in presentations
     ]
-    assert sum(isinstance(entry, MenuSeparator) for entry in menu.entries) == 2
-    assert items[4].enabled is False
-    assert items[5].checked is True
-    assert all(item.icon is not None for item in items[:-1])
+    assert [item.enabled for item in tool_items] == [
+        presentation.enabled for presentation in presentations
+    ]
+    assert [item.checked for item in tool_items] == [
+        presentation.active for presentation in presentations
+    ]
+    assert sum(isinstance(entry, MenuSeparator) for entry in menu.entries) == 4
+    assert all(item.icon is not None for item in tool_items)
     assert _source_text(items[-1].label) == "Redock canvas"
 
     first_callback = items[0].callback

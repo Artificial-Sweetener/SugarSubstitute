@@ -20,9 +20,13 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QPoint, QSize, Qt, Signal
+from PySide6.QtGui import QContextMenuEvent, QPaintEvent, QPainter, QPolygon
 from PySide6.QtWidgets import QWidget
-from qfluentwidgets import TransparentToolButton  # type: ignore[import-untyped]
+from qfluentwidgets import (  # type: ignore[import-untyped]
+    TransparentToolButton,
+    themeColor,
+)
 
 from sugarsubstitute_shared.localization import ApplicationMessage
 from sugarsubstitute_shared.presentation.fluent_tooltips import (
@@ -36,7 +40,7 @@ from sugarsubstitute_shared.presentation.localization import (
     set_localized_tooltip,
 )
 
-from .model import CanvasToolPresentation
+from .layout_projection import CanvasToolSlotPresentation
 
 CANVAS_TOOL_BUTTON_SIZE = 34
 CANVAS_TOOL_ICON_SIZE = 20
@@ -45,36 +49,81 @@ CANVAS_TOOL_ICON_SIZE = 20
 class CanvasToolButton(TransparentToolButton):  # type: ignore[misc]
     """Present one icon-only tool through qfluent's native hover interaction."""
 
+    groupMenuRequested = Signal(str, QPoint)
+
     def __init__(
         self,
-        presentation: CanvasToolPresentation,
+        presentation: CanvasToolSlotPresentation,
         parent: QWidget,
     ) -> None:
         """Initialize stable identity, geometry, semantics, and qfluent styling."""
 
         super().__init__(parent)
+        self.slot_id = presentation.slot_id
         self.tool_id = presentation.tool_id
-        self.kind = presentation.kind
-        self.setIcon(cast(Any, presentation.icon))
+        self.kind = presentation.current.kind
+        self._grouped = presentation.grouped
+        self.setIcon(cast(Any, presentation.current.icon))
         self.setFixedSize(CANVAS_TOOL_BUTTON_SIZE, CANVAS_TOOL_BUTTON_SIZE)
         self.setIconSize(QSize(CANVAS_TOOL_ICON_SIZE, CANVAS_TOOL_ICON_SIZE))
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         self.setText("")
         self.setCheckable(False)
-        self.setCursor(Qt.CursorShape.ArrowCursor)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._bind_label(presentation)
         self.apply_presentation(presentation)
 
-    def apply_presentation(self, presentation: CanvasToolPresentation) -> None:
+    def apply_presentation(self, presentation: CanvasToolSlotPresentation) -> None:
         """Apply authoritative availability without duplicating selection state."""
 
-        self.setEnabled(presentation.enabled)
+        self.tool_id = presentation.tool_id
+        self.kind = presentation.current.kind
+        self._grouped = presentation.grouped
+        self.setIcon(cast(Any, presentation.current.icon))
+        self._bind_label(presentation)
+        self.setEnabled(presentation.current.enabled)
+        self.update()
 
-    def _bind_label(self, presentation: CanvasToolPresentation) -> None:
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+        """Request the member picker only when this slot contains a group."""
+
+        if not self._grouped:
+            event.ignore()
+            return
+        self.groupMenuRequested.emit(self.slot_id, event.globalPos())
+        event.accept()
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        """Render the qfluent button and a compact grouped-slot marker."""
+
+        super().paintEvent(event)
+        if not self._grouped:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(themeColor())
+        right = self.width() - 5
+        bottom = self.height() - 5
+        painter.drawPolygon(
+            QPolygon(
+                (
+                    QPoint(right - 4, bottom),
+                    QPoint(right, bottom),
+                    QPoint(right, bottom - 4),
+                )
+            )
+        )
+
+    def _bind_label(self, presentation: CanvasToolSlotPresentation) -> None:
         """Bind translated tooltips and accessible names to the icon button."""
 
-        label = presentation.label
+        label = (
+            presentation.current.unavailable_reason
+            if not presentation.current.enabled
+            and presentation.current.unavailable_reason is not None
+            else presentation.current.label
+        )
         if isinstance(label, ApplicationMessage):
             set_localized_tooltip(self, label.source_text, *label.arguments)
             set_localized_accessible_name(
@@ -86,7 +135,11 @@ class CanvasToolButton(TransparentToolButton):  # type: ignore[misc]
             rendered = render_application_text(label)
             set_fluent_tooltip_text(self, rendered)
             self.setAccessibleName(rendered)
-        ensure_fluent_tooltip_filter(self, position=ToolTipPosition.RIGHT)
+        ensure_fluent_tooltip_filter(
+            self,
+            position=ToolTipPosition.RIGHT,
+            show_when_disabled=True,
+        )
 
 
 __all__ = [

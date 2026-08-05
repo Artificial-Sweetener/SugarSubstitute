@@ -24,8 +24,9 @@ from pathlib import Path
 from typing import Any, cast
 from uuid import UUID
 
-from PySide6.QtCore import QRectF
+from PySide6.QtCore import QPoint, QRectF, Qt
 from PySide6.QtGui import QColor, QImage
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 from cutecanvas import PixelSelectionMode, VectorShapeKind
 
@@ -182,6 +183,24 @@ class RealShellInputEditorHarness:
         )
         if item_id is None:
             raise RuntimeError("Production Input canvas rejected retained rectangle")
+        self.process_events(12)
+
+    def add_brush_dab(self, point: QPoint, *, brush_size: int) -> None:
+        """Commit one brush dab through the mounted production canvas widget."""
+
+        input_canvas = self.input_canvas
+        input_canvas.resize(400, 300)
+        input_canvas.show()
+        assert input_canvas.document.set_active_mask_id(self.mask_id)
+        input_canvas.canvas.setBrushSize(brush_size)
+        input_canvas.canvas.setControlMode(input_canvas.canvas.CONTROL_MODE_DRAW_BRUSH)
+        self.process_events(12)
+        QTest.mouseClick(
+            input_canvas.canvas,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            point,
+        )
         self.process_events(12)
 
     def prepare_generation(self) -> WorkflowState:

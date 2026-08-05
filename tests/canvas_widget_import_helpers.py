@@ -572,6 +572,7 @@ def install_qpane_stubs(monkeypatch: Any) -> None:
         CONTROL_MODE_CURSOR = "cursor"
         CONTROL_MODE_DRAW_BRUSH = "draw"
         CONTROL_MODE_SMART_SELECT = "smart"
+        CONTROL_MODE_SMART_MASK = "smart-mask"
 
         @staticmethod
         def fitSceneRect(_source_size: object, _target_rect: object) -> None:

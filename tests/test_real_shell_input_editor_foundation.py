@@ -21,7 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
-from PySide6.QtCore import QPoint, QPointF, QRectF, Qt
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QImage, QWheelEvent
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QApplication, QWidget
@@ -240,6 +240,36 @@ def test_brand_new_inpaint_workflow_renders_live_node_previews_immediately(
         )
         assert image_clicks.count() == 1
         assert mask_clicks.count() == 1
+    finally:
+        harness.close()
+
+
+def test_brand_new_inpaint_workflow_materializes_mask_for_long_source_name(
+    tmp_path: Path,
+) -> None:
+    """Long legal source names must still produce a writable editable mask."""
+
+    source_path = tmp_path / f"{'descriptive_source_' * 9}.png"
+    make_source_image(source_path, QColor("cyan"), width=257, height=193)
+    harness = RealShellInputEditorHarness(tmp_path)
+    try:
+        harness.select_image(source_path)
+
+        mask_filename = _node_image_value(harness.workflow, harness.MASK_NODE)
+        mask_path = tmp_path / "projects" / "Input Editor" / "masks" / mask_filename
+        assert mask_path.is_file()
+        assert len(mask_path.name) <= 224
+        assert harness.input_canvas.document.contains_mask(
+            harness.image_id,
+            harness.mask_id,
+        )
+
+        harness.add_brush_dab(QPoint(200, 150), brush_size=80)
+        mask = harness.input_canvas.document.export_mask_image(harness.mask_id)
+        assert isinstance(mask, QImage)
+        content_bounds = _nonzero_red_bounds(mask)
+        assert content_bounds is not None
+        assert abs(content_bounds.width() - content_bounds.height()) <= 1
     finally:
         harness.close()
 
@@ -609,6 +639,24 @@ def _focus_belongs_to(widget: QWidget) -> bool:
 
     focus = QApplication.focusWidget()
     return focus is widget or (focus is not None and widget.isAncestorOf(focus))
+
+
+def _nonzero_red_bounds(image: QImage) -> QRect | None:
+    """Return exact occupied red-channel bounds for one exported coverage image."""
+
+    occupied = [
+        QPoint(x, y)
+        for y in range(image.height())
+        for x in range(image.width())
+        if image.pixelColor(x, y).red() > 0
+    ]
+    if not occupied:
+        return None
+    left = min(point.x() for point in occupied)
+    top = min(point.y() for point in occupied)
+    right = max(point.x() for point in occupied)
+    bottom = max(point.y() for point in occupied)
+    return QRect(left, top, right - left + 1, bottom - top + 1)
 
 
 def _node_image_value(workflow: WorkflowState, node_name: str) -> Path:

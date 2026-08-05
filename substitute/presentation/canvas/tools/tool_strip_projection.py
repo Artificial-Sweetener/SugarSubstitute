@@ -20,18 +20,17 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QPoint, QSize
 from PySide6.QtWidgets import QFrame, QVBoxLayout
 
-from .model import CanvasToolPresentation
+from .layout_projection import CanvasToolSlotPresentation
 from .tool_button import CANVAS_TOOL_BUTTON_SIZE, CanvasToolButton
 from .tool_strip_indicator import CanvasToolStripIndicator
 
 _STRIP_BORDER_WIDTH = 1
 _STRIP_INNER_MARGIN = 2
 _STRIP_SPACING = 2
-_SECTION_GAP = 5
-_StructureSignature = tuple[tuple[str, str, str], ...]
+_StructureSignature = tuple[tuple[str, tuple[str, ...]], ...]
 
 
 class CanvasToolStripProjection:
@@ -42,11 +41,13 @@ class CanvasToolStripProjection:
         *,
         strip: QFrame,
         request_tool: Callable[[str], None],
+        request_group_menu: Callable[[str, QPoint], None],
     ) -> None:
         """Create the owned layout, button catalog, and selection indicator."""
 
         self._strip = strip
         self._request_tool = request_tool
+        self._request_group_menu = request_group_menu
         self._layout = QVBoxLayout(strip)
         self._layout.setContentsMargins(
             _STRIP_INNER_MARGIN,
@@ -56,14 +57,23 @@ class CanvasToolStripProjection:
         )
         self._layout.setSpacing(_STRIP_SPACING)
         self._buttons: dict[str, CanvasToolButton] = {}
+        self._slots: dict[str, CanvasToolSlotPresentation] = {}
         self._structure_signature: _StructureSignature = ()
         self._active_tool_id: str | None = None
         self.indicator = CanvasToolStripIndicator(strip)
 
     def button_for(self, tool_id: str) -> CanvasToolButton | None:
-        """Return one current qfluent button by stable tool identity."""
+        """Return the slot button containing one stable tool identity."""
 
-        return self._buttons.get(tool_id)
+        slot = next(
+            (
+                presentation
+                for presentation in self._slots.values()
+                if any(member.tool_id == tool_id for member in presentation.members)
+            ),
+            None,
+        )
+        return None if slot is None else self._buttons.get(slot.slot_id)
 
     def tool_buttons(self) -> tuple[CanvasToolButton, ...]:
         """Return current qfluent buttons in palette order."""
@@ -72,7 +82,7 @@ class CanvasToolStripProjection:
 
     def requires_structure(
         self,
-        presentations: tuple[CanvasToolPresentation, ...],
+        presentations: tuple[CanvasToolSlotPresentation, ...],
     ) -> bool:
         """Return whether a snapshot requires button widget replacement."""
 
@@ -80,7 +90,7 @@ class CanvasToolStripProjection:
 
     def apply(
         self,
-        presentations: tuple[CanvasToolPresentation, ...],
+        presentations: tuple[CanvasToolSlotPresentation, ...],
         *,
         animate_selection: bool,
     ) -> None:
@@ -91,9 +101,10 @@ class CanvasToolStripProjection:
             animate_selection = False
         else:
             for presentation in presentations:
-                button = self._buttons.get(presentation.tool_id)
+                button = self._buttons.get(presentation.slot_id)
                 if button is not None:
                     button.apply_presentation(presentation)
+                    self._slots[presentation.slot_id] = presentation
         self._sync_indicator(presentations, animated=animate_selection)
         self._strip.raise_()
 
@@ -106,38 +117,30 @@ class CanvasToolStripProjection:
 
     def _rebuild_structure(
         self,
-        presentations: tuple[CanvasToolPresentation, ...],
+        presentations: tuple[CanvasToolSlotPresentation, ...],
     ) -> None:
         """Replace buttons for an actual runtime catalog structure change."""
 
         self._strip.setUpdatesEnabled(False)
         try:
             self._clear_layout()
-            previous_section: str | None = None
-            section_gap_count = 0
             for presentation in presentations:
-                if (
-                    previous_section is not None
-                    and presentation.section != previous_section
-                ):
-                    self._layout.addSpacing(_SECTION_GAP)
-                    section_gap_count += 1
                 button = CanvasToolButton(presentation, self._strip)
                 button.clicked.connect(
-                    lambda _checked=False, tool_id=presentation.tool_id: (
-                        self._request_tool(tool_id)
+                    lambda _checked=False, source=button: self._request_tool(
+                        source.tool_id
                     )
                 )
-                self._buttons[presentation.tool_id] = button
+                button.groupMenuRequested.connect(self._request_group_menu)
+                self._buttons[presentation.slot_id] = button
+                self._slots[presentation.slot_id] = presentation
                 self._layout.addWidget(button)
-                previous_section = presentation.section
             self._structure_signature = self._signature(presentations)
             self._layout.invalidate()
             self._layout.activate()
             self._strip.setFixedSize(
                 self._content_size(
                     button_count=len(presentations),
-                    section_gap_count=section_gap_count,
                 )
             )
             self._strip.setVisible(bool(presentations))
@@ -148,22 +151,26 @@ class CanvasToolStripProjection:
 
     def _sync_indicator(
         self,
-        presentations: tuple[CanvasToolPresentation, ...],
+        presentations: tuple[CanvasToolSlotPresentation, ...],
         *,
         animated: bool,
     ) -> None:
         """Move the marker to the authoritative active mode without rebuilding."""
 
         active = next(
-            (presentation for presentation in presentations if presentation.active),
+            (
+                presentation
+                for presentation in presentations
+                if any(member.active for member in presentation.members)
+            ),
             None,
         )
         previous_active = self._active_tool_id
-        self._active_tool_id = None if active is None else active.tool_id
+        self._active_tool_id = None if active is None else active.slot_id
         if active is None:
             self.indicator.clear()
             return
-        button = self._buttons.get(active.tool_id)
+        button = self._buttons.get(active.slot_id)
         if button is None:
             self.indicator.clear()
             return
@@ -172,7 +179,7 @@ class CanvasToolStripProjection:
             animated=(
                 animated
                 and previous_active is not None
-                and previous_active != active.tool_id
+                and previous_active != active.slot_id
             ),
         )
 
@@ -198,25 +205,25 @@ class CanvasToolStripProjection:
                 widget.setParent(None)
                 widget.deleteLater()
         self._buttons.clear()
+        self._slots.clear()
         self._active_tool_id = None
 
     @staticmethod
     def _signature(
-        presentations: tuple[CanvasToolPresentation, ...],
+        presentations: tuple[CanvasToolSlotPresentation, ...],
     ) -> _StructureSignature:
         """Return the runtime structure that requires widget replacement."""
 
         return tuple(
             (
-                presentation.tool_id,
-                presentation.kind.value,
-                presentation.section,
+                presentation.slot_id,
+                tuple(member.tool_id for member in presentation.members),
             )
             for presentation in presentations
         )
 
     @staticmethod
-    def _content_size(*, button_count: int, section_gap_count: int) -> QSize:
+    def _content_size(*, button_count: int) -> QSize:
         """Calculate stable content geometry independently of reentrant Qt layout."""
 
         if button_count == 0:
@@ -227,7 +234,6 @@ class CanvasToolStripProjection:
         height = (
             CANVAS_TOOL_BUTTON_SIZE * button_count
             + _STRIP_SPACING * (button_count - 1)
-            + _SECTION_GAP * section_gap_count
             + chrome_extent
         )
         return QSize(width, height)

@@ -24,6 +24,9 @@ from types import SimpleNamespace
 import pytest
 
 from substitute.presentation.shell import main_window_composition
+from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
+    InputCanvasToolId,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -909,11 +912,15 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     )
     palette = object()
     registered_options: dict[str, object] = {}
+    registered_actions: list[tuple[object, object]] = []
     runtime = SimpleNamespace(
         palette=palette,
         register_options=lambda options_id, factory: registered_options.__setitem__(
             options_id,
             factory,
+        ),
+        register_action=lambda contribution, handler: registered_actions.append(
+            (contribution, handler)
         ),
     )
     monkeypatch.setattr(
@@ -926,19 +933,24 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         export_mask_image=object(),
         generation_capture=SimpleNamespace(capture=object()),
         editable_persistence=object(),
-        tool_options=object(),
+        tool_options=SimpleNamespace(
+            clear_pixel_selection=lambda: True,
+            clear_selected_pixels=lambda: True,
+        ),
         preview_bindings=object(),
         toolContextChanged=_FakeSignal(),
         canvasToolChanged=_FakeSignal(),
         maskContentChanged=_FakeSignal(),
     )
     current_image_id_for_event = object()
-    bound_runtimes: list[object] = []
+    bound_runtimes: list[tuple[object, object]] = []
     input_canvas = SimpleNamespace(
         document=document,
         canvas=SimpleNamespace(maskUndoStackChanged=object()),
         current_image_id_for_event=current_image_id_for_event,
-        bind_tool_runtime=bound_runtimes.append,
+        bind_tool_runtime=lambda runtime, layout: bound_runtimes.append(
+            (runtime, layout)
+        ),
         toolContextRefreshRequested=_FakeSignal(),
         toolRequested=_FakeSignal(),
     )
@@ -992,8 +1004,16 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         "operation_setter": document.set_canvas_operation,
         "current_image_id_provider": current_image_id_for_event,
         "runtime": runtime,
+        "layout": bound_runtimes[0][1],
     }
-    assert bound_runtimes == [runtime]
+    assert bound_runtimes[0][0] is runtime
+    assert [
+        getattr(contribution, "tool_id")
+        for contribution, _handler in registered_actions
+    ] == [
+        InputCanvasToolId.DESELECT,
+        InputCanvasToolId.CLEAR_SELECTION_PIXELS,
+    ]
     assert document.toolContextChanged.connected == [
         shell.input_canvas_tool_controller.refresh_tool_context
     ]

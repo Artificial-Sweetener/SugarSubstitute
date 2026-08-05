@@ -110,6 +110,29 @@ def test_expected_bound_mask_path_encodes_slash_bearing_cube_alias(
     assert path.suffix == ".png"
 
 
+def test_expected_bound_mask_path_bounds_long_source_filename_component(
+    tmp_path: Path,
+) -> None:
+    """Generated mask names should leave room for atomic publication suffixes."""
+
+    service = CanvasIoService(image_repository=_repo())
+    source_name = f"{'long descriptive source name ' * 16}.png"
+
+    path = service.expected_bound_mask_path(
+        workflow_name="Recipe",
+        associated_image_path=Path("C:/images") / source_name,
+        cube_alias="Anima/Inpaint",
+        mask_node_name="load_image_as_mask",
+        image_size=(1024, 1024),
+        projects_dir=tmp_path,
+    )
+
+    assert len(path.name) <= 224
+    assert path.name.endswith(".png")
+    assert "1024x1024" in path.name
+    assert "Anima_Inpaint" in path.name
+
+
 def test_allocate_bound_mask_path_adds_variant_when_preferred_exists(
     tmp_path: Path,
 ) -> None:

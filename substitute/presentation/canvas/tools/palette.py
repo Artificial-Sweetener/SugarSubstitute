@@ -21,11 +21,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from weakref import ReferenceType, ref
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 from .model import (
     CanvasToolContext,
     CanvasToolContribution,
     CanvasToolKind,
     CanvasToolPresentation,
+    CanvasToolSurface,
 )
 from .registry import CanvasToolRegistry, CanvasToolRegistrySubscription
 
@@ -63,7 +66,10 @@ class CanvasToolPalette:
         self._context = CanvasToolContext()
         self._active_tool_id: str | None = None
         self._presentations: tuple[CanvasToolPresentation, ...] = ()
-        self._listeners: dict[int, CanvasToolPaletteListener] = {}
+        self._listeners: dict[
+            int,
+            tuple[CanvasToolPaletteListener, CanvasToolSurface | None],
+        ] = {}
         self._next_listener_id = 1
         self._registry_subscription: CanvasToolRegistrySubscription = (
             registry.subscribe(self._registry_changed)
@@ -112,18 +118,31 @@ class CanvasToolPalette:
         self._reproject(self._registry.snapshot())
         return True
 
-    def snapshot(self) -> tuple[CanvasToolPresentation, ...]:
-        """Return the current visible contextual palette."""
+    def snapshot(
+        self,
+        surface: CanvasToolSurface | None = None,
+    ) -> tuple[CanvasToolPresentation, ...]:
+        """Return the current palette, optionally projected onto one surface."""
 
-        return self._presentations
+        if surface is None:
+            return self._presentations
+        return tuple(
+            presentation
+            for presentation in self._presentations
+            if surface in presentation.surfaces
+        )
 
-    def presentation_for(self, tool_id: str) -> CanvasToolPresentation | None:
-        """Return one currently visible presentation by stable identity."""
+    def presentation_for(
+        self,
+        tool_id: str,
+        surface: CanvasToolSurface | None = None,
+    ) -> CanvasToolPresentation | None:
+        """Return one visible presentation by identity and optional surface."""
 
         return next(
             (
                 presentation
-                for presentation in self._presentations
+                for presentation in self.snapshot(surface)
                 if presentation.tool_id == tool_id
             ),
             None,
@@ -132,12 +151,14 @@ class CanvasToolPalette:
     def subscribe(
         self,
         listener: CanvasToolPaletteListener,
+        *,
+        surface: CanvasToolSurface | None = None,
     ) -> CanvasToolPaletteSubscription:
-        """Observe future palette changes through an owned subscription."""
+        """Observe future palette changes through one surface projection."""
 
         listener_id = self._next_listener_id
         self._next_listener_id += 1
-        self._listeners[listener_id] = listener
+        self._listeners[listener_id] = (listener, surface)
         return CanvasToolPaletteSubscription(self, listener_id)
 
     def close(self) -> None:
@@ -178,14 +199,31 @@ class CanvasToolPalette:
                 contribution=contribution,
                 enabled=enabled_by_id[contribution.tool_id],
                 active=contribution.tool_id == self._active_tool_id,
+                unavailable_reason=self._unavailable_reason(contribution),
             )
             for contribution in visible
         )
         if presentations == self._presentations:
             return
         self._presentations = presentations
-        for listener in tuple(self._listeners.values()):
-            listener(presentations)
+        for listener, surface in tuple(self._listeners.values()):
+            listener(self.snapshot(surface))
+
+    def _unavailable_reason(
+        self,
+        contribution: CanvasToolContribution,
+    ) -> ApplicationText | None:
+        """Return the first owned reason for a missing required capability."""
+
+        return next(
+            (
+                reason
+                for capability in contribution.required_capabilities
+                if capability not in self._context.capabilities
+                and (reason := self._context.denial_for(capability)) is not None
+            ),
+            None,
+        )
 
     def _unsubscribe(self, listener_id: int) -> None:
         """Remove one opaque palette listener identity."""

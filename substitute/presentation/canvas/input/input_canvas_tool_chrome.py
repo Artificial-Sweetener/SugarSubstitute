@@ -33,8 +33,10 @@ from substitute.presentation.canvas.shared.canvas_chrome_metrics import (
 )
 from substitute.presentation.canvas.shared.canvas_top_bar import CanvasTopBar
 from substitute.presentation.canvas.tools import (
+    CanvasToolLayout,
     CanvasToolOptionsHost,
     CanvasToolRuntime,
+    CanvasToolSurface,
     CanvasToolStrip,
 )
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
@@ -61,6 +63,7 @@ class InputCanvasToolChrome:
         self._detached_provider = detached_provider
         self._host_obstacles: tuple[QRect, ...] = ()
         self._runtime: CanvasToolRuntime | None = None
+        self._suppressed = False
         self.tool_strip = CanvasToolStrip(canvas)
         self.tool_strip.move(
             CANVAS_CHROME_OVERLAY_INSET,
@@ -73,11 +76,15 @@ class InputCanvasToolChrome:
         self.options_host.surfaceChanged.connect(self._synchronize_chrome)
         self.top_bar.geometryChanged.connect(self.sync_geometry)
 
-    def bind_runtime(self, runtime: CanvasToolRuntime) -> None:
+    def bind_runtime(
+        self,
+        runtime: CanvasToolRuntime,
+        layout: CanvasToolLayout | None = None,
+    ) -> None:
         """Bind one live runtime to tool buttons and contextual options."""
 
         self._runtime = runtime
-        self.tool_strip.bind_palette(runtime.palette)
+        self.tool_strip.bind_palette(runtime.palette, layout)
         self.options_host.bind_runtime(runtime)
         self._synchronize_chrome()
         self.tool_strip.raise_()
@@ -88,6 +95,20 @@ class InputCanvasToolChrome:
         self.tool_strip.setEnabled(enabled)
         self.options_host.setEnabled(enabled)
 
+    def set_suppressed(self, suppressed: bool) -> None:
+        """Hide normal editor chrome while an exclusive control owns the canvas."""
+        suppressed = bool(suppressed)
+        if suppressed == self._suppressed:
+            return
+        self._suppressed = suppressed
+        if suppressed:
+            self.tool_strip.hide()
+            self.top_bar.hide()
+            return
+        self.tool_strip.setVisible(bool(self.tool_strip.tool_buttons()))
+        self.top_bar.synchronize_geometry()
+        self.sync_geometry()
+
     def set_host_obstacles(self, obstacles: tuple[QRect, ...]) -> None:
         """Arrange Input-owned chrome around host-owned overlay rectangles."""
 
@@ -96,6 +117,11 @@ class InputCanvasToolChrome:
 
     def sync_geometry(self) -> None:
         """Position ordered top chrome and the vertical rail without collisions."""
+
+        if self._suppressed:
+            self.tool_strip.hide()
+            self.top_bar.hide()
+            return
 
         if self.top_bar.isVisible():
             self.top_bar.move(self._top_bar_origin())
@@ -110,6 +136,10 @@ class InputCanvasToolChrome:
     def _synchronize_chrome(self) -> None:
         """Project child visibility and intrinsic size before positioning chrome."""
 
+        if self._suppressed:
+            self.tool_strip.hide()
+            self.top_bar.hide()
+            return
         self.top_bar.synchronize_geometry()
         self.sync_geometry()
 
@@ -149,7 +179,7 @@ class InputCanvasToolChrome:
         if runtime is None:
             return
         model = create_input_canvas_tool_menu(
-            runtime.palette.snapshot(),
+            runtime.palette.snapshot(CanvasToolSurface.TOOL_STRIP),
             tool_requested=self._tool_requested,
             detached=self._detached_provider(),
             dock_requested=self._dock_requested,

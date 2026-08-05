@@ -21,17 +21,24 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Protocol
 from uuid import UUID
+from cutecanvas import EditorTransformTarget
+from sugarsubstitute_shared.presentation.localization import app_text
 
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
     ACTIVE_MASK_CAPABILITY,
     INPUT_CANVAS_CONTEXT_TAGS,
     INPUT_IMAGE_CAPABILITY,
-    SMART_SELECT_CAPABILITY,
+    LAYER_TRANSFORM_CAPABILITY,
+    PIXEL_SELECTION_CAPABILITY,
+    SELECTION_CLEAR_CAPABILITY,
+    SELECTION_TRANSFORM_CAPABILITY,
+    SMART_SEGMENTATION_CAPABILITY,
     InputCanvasToolId,
 )
 from substitute.presentation.canvas.tools import (
     CanvasToolContext,
     CanvasToolKind,
+    CanvasToolLayout,
     CanvasToolPalette,
     CanvasToolRegistry,
     CanvasToolRuntime,
@@ -47,11 +54,26 @@ class InputCanvasToolDocumentPort(Protocol):
     def active_image_has_mask_target(self, image_id: UUID | None) -> bool:
         """Return whether the active image owns the active editable mask."""
 
-    def smart_select_ready(self) -> bool:
-        """Return whether Smart Select can execute now."""
+    def smart_segmentation_ready(self) -> bool:
+        """Return whether Smart segmentation can execute now."""
+
+    def has_pixel_selection(self) -> bool:
+        """Return whether the active composition owns pixel selection."""
+
+    def selection_transform_available(self) -> bool:
+        """Return whether current selected pixels support affine transform."""
+
+    def selection_clear_available(self) -> bool:
+        """Return whether current selected pixels can clear their layer."""
+
+    def layer_transform_available(self) -> bool:
+        """Return whether the active layer has meaningful transform content."""
 
     def current_canvas_operation(self) -> str | None:
         """Return the current CuteCanvas document operation identity."""
+
+    def activate_transform(self, target: EditorTransformTarget) -> bool:
+        """Activate the shared affine mode against one explicit target."""
 
 
 class InputCanvasToolController:
@@ -64,6 +86,7 @@ class InputCanvasToolController:
         operation_setter: Callable[[str], bool],
         current_image_id_provider: Callable[[], UUID | None],
         runtime: CanvasToolRuntime,
+        layout: CanvasToolLayout | None = None,
     ) -> None:
         """Store document ports and initialize a context-free palette."""
 
@@ -71,6 +94,8 @@ class InputCanvasToolController:
         self._operation_setter = operation_setter
         self._current_image_id_provider = current_image_id_provider
         self._runtime = runtime
+        self._layout = layout
+        self._requested_native_tool_id: str | None = None
 
     @property
     def palette(self) -> CanvasToolPalette:
@@ -99,12 +124,26 @@ class InputCanvasToolController:
             capabilities.add(INPUT_IMAGE_CAPABILITY)
         if self._input_document.active_image_has_mask_target(image_id):
             capabilities.add(ACTIVE_MASK_CAPABILITY)
-        if self._input_document.smart_select_ready():
-            capabilities.add(SMART_SELECT_CAPABILITY)
+            if self._input_document.layer_transform_available():
+                capabilities.add(LAYER_TRANSFORM_CAPABILITY)
+        if self._input_document.smart_segmentation_ready():
+            capabilities.add(SMART_SEGMENTATION_CAPABILITY)
+        if self._input_document.has_pixel_selection():
+            capabilities.add(PIXEL_SELECTION_CAPABILITY)
+            if self._input_document.selection_transform_available():
+                capabilities.add(SELECTION_TRANSFORM_CAPABILITY)
+            if self._input_document.selection_clear_available():
+                capabilities.add(SELECTION_CLEAR_CAPABILITY)
         self.palette.set_context(
             CanvasToolContext(
                 tags=INPUT_CANVAS_CONTEXT_TAGS,
                 capabilities=frozenset(capabilities),
+                capability_denials=(
+                    (
+                        LAYER_TRANSFORM_CAPABILITY,
+                        app_text("Nothing to transform!"),
+                    ),
+                ),
             )
         )
         self._synchronize_or_recover()
@@ -117,6 +156,26 @@ class InputCanvasToolController:
             return False
         if presentation.kind is CanvasToolKind.ACTION:
             return self._runtime.dispatch_action(tool_id)
+        transform_target = {
+            InputCanvasToolId.TRANSFORM_SELECTION: (
+                EditorTransformTarget.SELECTION_CONTENT
+            ),
+            InputCanvasToolId.TRANSFORM_LAYER: EditorTransformTarget.LAYER_CONTENT,
+        }.get(tool_id)
+        if transform_target is not None:
+            self._requested_native_tool_id = tool_id
+            try:
+                accepted = self._input_document.activate_transform(transform_target)
+            finally:
+                self._requested_native_tool_id = None
+            if accepted:
+                self.palette.set_active_tool(tool_id)
+            else:
+                self._synchronize_or_recover()
+            activated = accepted and self.palette.active_tool_id == tool_id
+            if activated and self._layout is not None:
+                self._layout.remember_tool(tool_id)
+            return activated
         operation_id = presentation.document_operation_id
         if operation_id is None:
             return False
@@ -129,7 +188,10 @@ class InputCanvasToolController:
                 tool_id=tool_id,
                 document_operation_id=self._input_document.current_canvas_operation(),
             )
-        return accepted and self.palette.active_tool_id == tool_id
+        activated = accepted and self.palette.active_tool_id == tool_id
+        if activated and self._layout is not None:
+            self._layout.remember_tool(tool_id)
+        return activated
 
     def synchronize_native_tool(self, operation_id: str) -> None:
         """Project an externally changed CuteCanvas operation into the palette."""
@@ -137,6 +199,9 @@ class InputCanvasToolController:
         tool_id = self._tool_id_for_operation(operation_id)
         if tool_id is None or not self.palette.set_active_tool(tool_id):
             self._recover_navigation_mode()
+            return
+        if self._layout is not None:
+            self._layout.remember_tool(tool_id)
 
     def request_brush_after_mask_activation(self) -> bool:
         """Select Brush through the same authorization path as a toolbar click."""
@@ -176,11 +241,26 @@ class InputCanvasToolController:
     def _tool_id_for_operation(self, operation_id: str) -> str | None:
         """Resolve one document operation through current registry metadata."""
 
+        preferred_ids = (
+            self._requested_native_tool_id,
+            self.palette.active_tool_id,
+        )
+        for tool_id in preferred_ids:
+            if tool_id is None:
+                continue
+            presentation = self.palette.presentation_for(tool_id)
+            if (
+                presentation is not None
+                and presentation.enabled
+                and presentation.document_operation_id == operation_id
+            ):
+                return tool_id
         return next(
             (
                 presentation.tool_id
                 for presentation in self.palette.snapshot()
-                if presentation.document_operation_id == operation_id
+                if presentation.enabled
+                and presentation.document_operation_id == operation_id
             ),
             None,
         )

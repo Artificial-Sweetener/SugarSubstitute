@@ -392,7 +392,10 @@ def _tool_document(
         active_image_has_mask_target=lambda image_id: bool(
             masks_by_image.get(image_id, [])
         ),
-        smart_select_ready=lambda: True,
+        smart_segmentation_ready=lambda: True,
+        has_pixel_selection=lambda: False,
+        selection_transform_available=lambda: False,
+        layer_transform_available=lambda: False,
         current_canvas_operation=lambda: state["operation_id"],
         set_canvas_operation=set_canvas_operation,
     )
@@ -414,7 +417,7 @@ def _presenter(
         set_mask_properties=lambda *_args, **_kwargs: None,
         image_has_masks=lambda _image_id: False,
         active_image_has_mask_target=lambda _image_id: False,
-        smart_select_ready=lambda: False,
+        smart_segmentation_ready=lambda: False,
         current_canvas_operation=lambda: CuteCanvas.CONTROL_MODE_PANZOOM,
         set_canvas_operation=lambda _operation_id: True,
     )
