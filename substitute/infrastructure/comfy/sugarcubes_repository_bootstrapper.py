@@ -20,7 +20,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from substitute.infrastructure.comfy.nodepack_reconciliation_logger import LogCallback
+from substitute.infrastructure.comfy.nodepack_reconciliation_logger import (
+    LogCallback,
+    emit_log,
+)
+from substitute.shared.logging.logger import (
+    get_logger,
+    log_warning,
+)
 from substitute.infrastructure.version_control import (
     RepositoryOperationError,
     RepositoryService,
@@ -28,6 +35,7 @@ from substitute.infrastructure.version_control import (
 )
 
 BASE_CUBES_REPOSITORY_URL = "https://github.com/Artificial-Sweetener/Base-Cubes.git"
+_LOGGER = get_logger(__name__)
 
 
 def prepare_sugarcubes_repositories(
@@ -58,13 +66,44 @@ def prepare_sugarcubes_repositories(
                 on_progress=on_log,
             )
         elif (base_cubes_root / ".git").exists():
-            selected.sync_fast_forward(base_cubes_root, on_progress=on_log)
+            _synchronize_existing_base_cubes(
+                base_cubes_root,
+                repositories=selected,
+                on_log=on_log,
+            )
         else:
             raise RuntimeError(
                 "SugarCubes Base-Cubes storage exists without repository metadata."
             )
     except RepositoryOperationError as error:
         raise RuntimeError("Could not synchronize SugarCubes Base-Cubes.") from error
+
+
+def _synchronize_existing_base_cubes(
+    repository_path: Path,
+    *,
+    repositories: RepositoryService,
+    on_log: LogCallback | None,
+) -> None:
+    """Retain a usable local checkout when it cannot be fast-forwarded safely."""
+
+    try:
+        repositories.sync_fast_forward(repository_path, on_progress=on_log)
+    except RepositoryOperationError as error:
+        log_warning(
+            _LOGGER,
+            "Retaining existing Base-Cubes checkout after synchronization refusal",
+            error_type=type(error).__name__,
+            repository=repository_path,
+        )
+        emit_log(
+            on_log,
+            "WARNING: SugarCubes[base_cubes_sync_skipped]: "
+            "Base-Cubes synchronization skipped: The existing local checkout "
+            "was preserved and will be used.",
+            operation="sugarcubes_repository_sync",
+            outcome="local_checkout_preserved",
+        )
 
 
 __all__ = ["BASE_CUBES_REPOSITORY_URL", "prepare_sugarcubes_repositories"]

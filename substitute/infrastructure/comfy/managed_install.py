@@ -84,7 +84,9 @@ from substitute.infrastructure.comfy.workspace_dependency_reconciler import (
 )
 from substitute.infrastructure.comfy.nodepack_reconciliation import (
     ensure_core_comfy_nodepacks,
-    run_sugarcubes_baseline_maintenance,
+)
+from substitute.infrastructure.comfy.sugarcubes_startup_maintenance import (
+    attempt_sugarcubes_startup_maintenance,
 )
 from substitute.infrastructure.comfy.torch_policy import (
     TorchBackendPolicy,
@@ -216,7 +218,7 @@ class _ManagedExistingSetupOperations(ExistingManagedSetupOperations):
     def prepare_sugarcubes(self, workspace: Path, env: Mapping[str, str]) -> None:
         """Converge SugarCubes baseline dependencies."""
 
-        run_sugarcubes_baseline_maintenance(
+        attempt_sugarcubes_startup_maintenance(
             workspace,
             on_log=self._on_log,
             env=env,
@@ -762,7 +764,7 @@ def _ensure_managed_comfy_setup(
                 model_root=managed_model_root,
             )
         emit_status(on_status, "Preparing Base-Cubes dependencies.")
-        run_sugarcubes_baseline_maintenance(
+        attempt_sugarcubes_startup_maintenance(
             workspace,
             on_log=on_log,
             env=managed_env,

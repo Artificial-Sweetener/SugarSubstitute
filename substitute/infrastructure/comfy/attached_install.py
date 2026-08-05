@@ -38,8 +38,8 @@ from substitute.infrastructure.comfy.hardware_detection import detect_hardware
 from substitute.infrastructure.comfy.managed_acceleration_reconciler import (
     reconcile_managed_acceleration_stack,
 )
-from substitute.infrastructure.comfy.sugarcubes_maintenance_runner import (
-    run_sugarcubes_baseline_maintenance,
+from substitute.infrastructure.comfy.sugarcubes_startup_maintenance import (
+    attempt_sugarcubes_startup_maintenance,
 )
 from substitute.infrastructure.comfy.workspace_python_discovery import (
     resolve_attached_comfy_python,
@@ -129,7 +129,7 @@ def prepare_verified_attached_comfy_setup(
         )
     if on_status is not None:
         on_status(app_text("Preparing Base-Cubes dependencies."))
-    run_sugarcubes_baseline_maintenance(
+    attempt_sugarcubes_startup_maintenance(
         workspace,
         python_executable=binding.executable,
         on_log=on_log,

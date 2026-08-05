@@ -145,7 +145,7 @@ def _disable_shared_models_link(
     )
     monkeypatch.setattr(
         managed_install,
-        "run_sugarcubes_baseline_maintenance",
+        "attempt_sugarcubes_startup_maintenance",
         lambda workspace, on_log=None, env=None: None,
     )
     monkeypatch.setattr(
@@ -372,7 +372,7 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
     )
     monkeypatch.setattr(
         managed_install,
-        "run_sugarcubes_baseline_maintenance",
+        "attempt_sugarcubes_startup_maintenance",
         _fake_sugarcubes_baseline,
     )
     monkeypatch.setattr(
@@ -464,7 +464,7 @@ def test_ensure_managed_comfy_setup_retries_after_state_commit_failure(
     )
     monkeypatch.setattr(
         managed_install,
-        "run_sugarcubes_baseline_maintenance",
+        "attempt_sugarcubes_startup_maintenance",
         lambda workspace, on_log=None, env=None: reconciliation_calls.append(
             "sugarcubes"
         ),

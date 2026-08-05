@@ -137,11 +137,11 @@ def test_nodepack_reconciliation_facade_exports_sugarcubes_maintenance() -> None
     )
 
 
-def test_run_sugarcubes_baseline_maintenance_exit_two_raises_with_diagnostics(
+def test_run_sugarcubes_baseline_maintenance_uses_preserved_local_checkout(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Required SugarCubes dependency issues should block setup."""
+    """An existing development checkout must remain usable after sync refusal."""
 
     _write_maintenance_fixture(tmp_path)
     emitted: list[str] = []
@@ -183,11 +183,11 @@ def test_run_sugarcubes_baseline_maintenance_exit_two_raises_with_diagnostics(
         fake_stream,
     )
 
-    with pytest.raises(RuntimeError, match="required Base-Cubes dependencies"):
-        sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(
-            tmp_path, on_log=emitted.append
-        )
+    result = sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(
+        tmp_path, on_log=emitted.append
+    )
 
+    assert result.exit_code == 2
     assert any(
         line.startswith("WARNING: SugarCubes[base_cubes_sync_failed]")
         for line in emitted
