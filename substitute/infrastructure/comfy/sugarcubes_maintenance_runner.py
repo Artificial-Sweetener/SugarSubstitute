@@ -114,6 +114,8 @@ def run_sugarcubes_baseline_maintenance(
             )
         return result
     if result.exit_code == 2:
+        if _uses_preserved_local_base_cubes(result):
+            return result
         if install_sugarcubes_reported_nodepacks(
             workspace,
             result,
@@ -168,6 +170,16 @@ def run_sugarcubes_baseline_maintenance(
         operation="sugarcubes_maintenance",
     )
     raise RuntimeError(_sugarcubes_required_dependency_failure_message(result))
+
+
+def _uses_preserved_local_base_cubes(result: SugarCubesMaintenanceResult) -> bool:
+    """Accept the explicit recoverable diagnostic for an existing local checkout."""
+
+    return bool(result.diagnostics) and all(
+        diagnostic.code == "base_cubes_sync_failed"
+        and diagnostic.severity in {"info", "warning"}
+        for diagnostic in result.diagnostics
+    )
 
 
 __all__ = [

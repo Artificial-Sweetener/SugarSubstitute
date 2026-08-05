@@ -59,7 +59,9 @@ from substitute.infrastructure.comfy.manager_provisioner import (
 )
 from substitute.infrastructure.comfy.nodepack_reconciliation import (
     ensure_core_comfy_nodepacks,
-    run_sugarcubes_baseline_maintenance,
+)
+from substitute.infrastructure.comfy.sugarcubes_startup_maintenance import (
+    attempt_sugarcubes_startup_maintenance,
 )
 from substitute.shared.logging.logger import get_logger, log_warning
 
@@ -323,7 +325,7 @@ def reconcile_attached_local_owned_dependencies(
         on_log=emit_log,
     )
     emit_log("Preparing Base-Cubes dependencies.")
-    run_sugarcubes_baseline_maintenance(
+    attempt_sugarcubes_startup_maintenance(
         workspace,
         python_executable=python_executable,
         on_log=emit_log,

@@ -18,7 +18,10 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
+
+import pytest
 
 from substitute.infrastructure.comfy.sugarcubes_repository_bootstrapper import (
     BASE_CUBES_REPOSITORY_URL,
@@ -65,3 +68,41 @@ def test_sugarcubes_repository_preparation_fast_forwards_existing_base(
     prepare_sugarcubes_repositories(tmp_path, repositories=repositories)
 
     assert repositories.calls == [("sync_fast_forward", base_root)]
+
+
+def test_sugarcubes_repository_preparation_preserves_unsynchronized_local_base(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Local development history must remain usable when sync is not fast-forwardable."""
+
+    data_root = tmp_path / ".sugarcubes"
+    (data_root / "local" / ".git").mkdir(parents=True)
+    base_root = data_root / "Artificial-Sweetener" / "Base-Cubes"
+    (base_root / ".git").mkdir(parents=True)
+    repositories = RecordingRepositoryService(failing_operations={"sync_fast_forward"})
+    emitted: list[str] = []
+
+    with caplog.at_level(logging.WARNING):
+        prepare_sugarcubes_repositories(
+            tmp_path,
+            repositories=repositories,
+            on_log=emitted.append,
+        )
+
+    assert repositories.calls == [("sync_fast_forward", base_root)]
+    assert base_root.is_dir()
+    assert emitted == [
+        "WARNING: SugarCubes[base_cubes_sync_skipped]: "
+        "Base-Cubes synchronization skipped: The existing local checkout "
+        "was preserved and will be used."
+    ]
+    repository_records = [
+        record
+        for record in caplog.records
+        if record.name.endswith("sugarcubes_repository_bootstrapper")
+    ]
+    assert len(repository_records) == 1
+    assert repository_records[0].levelno == logging.WARNING
+    assert repository_records[0].exc_info is None
+    assert "Retaining existing Base-Cubes checkout" in repository_records[0].message

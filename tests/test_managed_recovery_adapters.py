@@ -225,7 +225,7 @@ def test_reconcile_owned_dependencies_for_attached_target_runs_nodepack_policy(
     )
     monkeypatch.setattr(
         managed_recovery_adapters,
-        "run_sugarcubes_baseline_maintenance",
+        "attempt_sugarcubes_startup_maintenance",
         fake_baseline_maintenance,
     )
     monkeypatch.setattr(

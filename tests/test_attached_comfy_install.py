@@ -117,7 +117,7 @@ def test_attached_preparation_passes_one_verified_python_to_every_consumer(
     )
     monkeypatch.setattr(
         attached_install,
-        "run_sugarcubes_baseline_maintenance",
+        "attempt_sugarcubes_startup_maintenance",
         record("sugarcubes"),
     )
     monkeypatch.setattr(attached_install, "detect_hardware", lambda: object())
@@ -197,7 +197,7 @@ def test_attached_preparation_applies_model_root_after_backend_install(
     )
     monkeypatch.setattr(
         attached_install,
-        "run_sugarcubes_baseline_maintenance",
+        "attempt_sugarcubes_startup_maintenance",
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(attached_install, "detect_hardware", lambda: object())
