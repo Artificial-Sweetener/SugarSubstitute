@@ -29,7 +29,7 @@ from os import environ
 from uuid import UUID
 
 from PySide6.QtCore import QRect, Qt, Signal
-from PySide6.QtGui import QEnterEvent, QKeyEvent, QResizeEvent
+from PySide6.QtGui import QCloseEvent, QEnterEvent, QKeyEvent, QResizeEvent
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 from cutecanvas import ExecutionRuntime
 
@@ -41,14 +41,34 @@ from substitute.application.workflows.canvas_route_projector_port import (
 from substitute.presentation.canvas.input.input_document import (
     InputCanvasDocument,
 )
+from substitute.presentation.canvas.input.input_contextual_toolbar_controller import (
+    InputContextualToolbarController,
+)
 from substitute.presentation.canvas.input.input_canvas_tool_chrome import (
     InputCanvasToolChrome,
+)
+from substitute.presentation.canvas.input.input_canvas_cursor_theme import (
+    InputCanvasCursorTheme,
+)
+from substitute.presentation.canvas.input.input_layer_control import InputLayerControl
+from substitute.presentation.canvas.input.input_layer_coverage_edit_mode import (
+    InputLayerCoverageEditMode,
+)
+from substitute.presentation.canvas.input.input_layer_coverage_editor import (
+    InputLayerCoverageEditor,
+)
+from substitute.presentation.canvas.input.input_selection_authoring_observer import (
+    InputSelectionAuthoringObserver,
 )
 from substitute.presentation.canvas.input.input_route_projector import (
     InputRouteProjector,
 )
 from substitute.presentation.canvas.shared.canvas_top_bar import CanvasTopBar
+from substitute.presentation.canvas.shared.contextual_toolbar import (
+    CanvasContextualToolbar,
+)
 from substitute.presentation.canvas.tools import (
+    CanvasToolLayout,
     CanvasToolOptionsHost,
     CanvasToolRuntime,
     CanvasToolStrip,
@@ -106,6 +126,7 @@ class InputCanvas(QWidget):
             execution_runtime=execution_runtime,
         )
         self.canvas = self.document.canvas
+        self.canvas.setEditorCursorTheme(InputCanvasCursorTheme())
         self._route_session_boundary = (
             route_session_boundary or create_canvas_session_boundary()
         )
@@ -121,6 +142,37 @@ class InputCanvas(QWidget):
             dock_requested=self.dockActionRequested.emit,
             detached_provider=lambda: self._canvas_detached,
         )
+        self.layer_control = InputLayerControl(
+            self.document.tool_options,
+            self.canvas,
+        )
+        self.layer_control.geometryChanged.connect(self._position_layer_control)
+        self.contextual_toolbar = CanvasContextualToolbar(self.canvas)
+        self._selection_authoring = InputSelectionAuthoringObserver(
+            canvas=self.canvas,
+            operation_provider=self.document.tool_options.current_canvas_operation,
+            parent=self,
+        )
+        self._contextual_toolbar_controller = InputContextualToolbarController(
+            document=self.document.tool_options,
+            toolbar=self.contextual_toolbar,
+            tool_chrome=self._tool_chrome,
+            layer_control=self.layer_control,
+            selection_authoring=self._selection_authoring,
+            request_tool=self.toolRequested.emit,
+            parent=self,
+        )
+        self._coverage_edit_mode = InputLayerCoverageEditMode(
+            document=self.document.tool_options,
+            input_root=self,
+            canvas=self.canvas,
+            tool_chrome=self._tool_chrome,
+            layer_control=self.layer_control,
+            contextual_toolbar=self.contextual_toolbar,
+            parent=self,
+        )
+        self.layer_control.coverageEditRequested.connect(self._coverage_edit_mode.begin)
+        self._position_layer_control()
 
         self.canvas.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.canvas.customContextMenuRequested.connect(
@@ -162,6 +214,9 @@ class InputCanvas(QWidget):
 
         self._resize_availability_overlay()
         self._tool_chrome.sync_geometry()
+        self._position_layer_control()
+        self._contextual_toolbar_controller.refresh_placement()
+        self._coverage_edit_mode.position_editor()
         super().resizeEvent(event)
 
     def set_available(
@@ -171,8 +226,14 @@ class InputCanvas(QWidget):
     ) -> None:
         """Enable or disable input-canvas interaction and empty-state presentation."""
 
+        if not available and self._coverage_edit_mode.active:
+            self._coverage_edit_mode.cancel()
+        if not available:
+            self._contextual_toolbar_controller.cancel_active_transform()
         self.canvas.setEnabled(available)
         self._tool_chrome.set_enabled(available)
+        self.layer_control.setEnabled(available)
+        self.contextual_toolbar.setEnabled(available)
         overlay = self._availability_overlay
         if available:
             overlay.hide()
@@ -205,6 +266,23 @@ class InputCanvas(QWidget):
 
         self.canvas.keyReleaseEvent(event)
 
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Cancel transient layer coverage work before canvas teardown."""
+        coverage_edit_mode = getattr(self, "_coverage_edit_mode", None)
+        if coverage_edit_mode is not None:
+            coverage_edit_mode.cancel()
+        contextual_controller = getattr(
+            self,
+            "_contextual_toolbar_controller",
+            None,
+        )
+        if contextual_controller is not None:
+            contextual_controller.close()
+        selection_authoring = getattr(self, "_selection_authoring", None)
+        if selection_authoring is not None:
+            selection_authoring.close()
+        super().closeEvent(event)
+
     def enterEvent(self, event: QEnterEvent) -> None:
         """Grab keyboard focus when pointer enters the canvas area."""
 
@@ -229,15 +307,39 @@ class InputCanvas(QWidget):
 
         return self._tool_chrome.top_bar
 
-    def bind_tool_runtime(self, runtime: CanvasToolRuntime) -> None:
+    @property
+    def coverage_editor(self) -> InputLayerCoverageEditor:
+        """Return the exclusive bottom coverage editor for interaction tests."""
+        return self._coverage_edit_mode.editor
+
+    @property
+    def coverage_edit_active(self) -> bool:
+        """Return whether layer coverage preview exclusively owns the canvas."""
+        return self._coverage_edit_mode.active
+
+    def bind_tool_runtime(
+        self,
+        runtime: CanvasToolRuntime,
+        layout: CanvasToolLayout | None = None,
+    ) -> None:
         """Project one authoritative runtime into Input tool chrome."""
 
-        self._tool_chrome.bind_runtime(runtime)
+        self._tool_chrome.bind_runtime(runtime, layout)
+        self._contextual_toolbar_controller.bind_runtime(runtime)
 
     def _resize_availability_overlay(self) -> None:
         """Resize the unavailable overlay to cover the full input canvas."""
 
         self._availability_overlay.setGeometry(self.rect())
+
+    def _position_layer_control(self) -> None:
+        """Anchor mask-layer controls inside the canvas's lower-right corner."""
+        inset = 8
+        self.layer_control.move(
+            max(inset, self.canvas.width() - self.layer_control.width() - inset),
+            max(inset, self.canvas.height() - self.layer_control.height() - inset),
+        )
+        self.layer_control.raise_()
 
     def _apply_theme_styles(self) -> None:
         """Reapply the canvas availability overlay after theme changes."""

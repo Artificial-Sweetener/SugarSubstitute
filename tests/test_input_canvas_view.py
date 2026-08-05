@@ -24,9 +24,19 @@ from typing import Any, cast
 from uuid import uuid4
 
 import pytest
-from PySide6.QtCore import QCoreApplication, QPoint, QPointF, QSize, Qt
-from PySide6.QtGui import QImage
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import (
+    QCoreApplication,
+    QPoint,
+    QPointF,
+    QRect,
+    QSize,
+    Qt,
+    qInstallMessageHandler,
+)
+from PySide6.QtGui import QColor, QImage
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication, QWidget
+from cutecanvas import EditorTransformTarget, LayerPolicy
 
 import substitute.presentation.canvas.input.input_canvas_view as input_mod
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
@@ -39,6 +49,9 @@ from substitute.presentation.canvas.input.input_canvas_tool_controller import (
     InputCanvasToolController,
 )
 from substitute.presentation.canvas.tools import CanvasToolContext
+from substitute.presentation.canvas.shared.contextual_toolbar import (
+    ContextualToolbarPage,
+)
 
 _input_canvas_cutecanvas_features = cast(
     Callable[[], tuple[str, ...]],
@@ -87,6 +100,16 @@ def test_set_available_false_disables_canvas_tool_chrome_and_shows_overlay() -> 
         _tool_chrome=SimpleNamespace(
             set_enabled=lambda value: enabled_calls.append(("chrome", value))
         ),
+        layer_control=SimpleNamespace(
+            setEnabled=lambda value: enabled_calls.append(("layers", value))
+        ),
+        contextual_toolbar=SimpleNamespace(
+            setEnabled=lambda value: enabled_calls.append(("contextual", value))
+        ),
+        _contextual_toolbar_controller=SimpleNamespace(
+            cancel_active_transform=lambda: None
+        ),
+        _coverage_edit_mode=SimpleNamespace(active=False),
         _availability_overlay=SimpleNamespace(
             setText=lambda text: overlay_calls.append(("text", text)),
             setGeometry=lambda rect: overlay_calls.append(("geometry", rect)),
@@ -99,7 +122,12 @@ def test_set_available_false_disables_canvas_tool_chrome_and_shows_overlay() -> 
 
     cast(Any, input_mod.InputCanvas).set_available(fake, False, "No input canvas nodes")
 
-    assert enabled_calls == [("canvas", False), ("chrome", False)]
+    assert enabled_calls == [
+        ("canvas", False),
+        ("chrome", False),
+        ("layers", False),
+        ("contextual", False),
+    ]
     assert overlay_calls == [
         ("text", "No input canvas nodes"),
         ("geometry", "canvas-rect"),
@@ -120,6 +148,13 @@ def test_set_available_true_enables_canvas_tool_chrome_and_hides_overlay() -> No
         _tool_chrome=SimpleNamespace(
             set_enabled=lambda value: enabled_calls.append(("chrome", value))
         ),
+        layer_control=SimpleNamespace(
+            setEnabled=lambda value: enabled_calls.append(("layers", value))
+        ),
+        contextual_toolbar=SimpleNamespace(
+            setEnabled=lambda value: enabled_calls.append(("contextual", value))
+        ),
+        _coverage_edit_mode=SimpleNamespace(active=False),
         _availability_overlay=SimpleNamespace(
             hide=lambda: overlay_calls.append("hide")
         ),
@@ -127,7 +162,12 @@ def test_set_available_true_enables_canvas_tool_chrome_and_hides_overlay() -> No
 
     cast(Any, input_mod.InputCanvas).set_available(fake, True)
 
-    assert enabled_calls == [("canvas", True), ("chrome", True)]
+    assert enabled_calls == [
+        ("canvas", True),
+        ("chrome", True),
+        ("layers", True),
+        ("contextual", True),
+    ]
     assert overlay_calls == ["hide"]
 
 
@@ -157,12 +197,112 @@ def test_input_tool_strip_overlays_only_its_content_height(
         strip = canvas.tool_strip
         assert strip.parentWidget() is canvas.canvas
         assert strip.x() > 0 and strip.y() > 0
-        assert strip.height() < canvas.canvas.height() // 2
+        assert strip.height() == strip.sizeHint().height()
+        assert strip.height() < canvas.canvas.height()
         assert canvas.canvas.rect().width() == 900
         assert canvas.canvas.rect().contains(canvas.canvas.rect().bottomRight())
     finally:
         canvas.close()
         canvas.deleteLater()
+        app.processEvents()
+
+
+def test_idle_transform_toolbar_emits_no_qt_paint_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Mounted Input transform chrome must not reenter canvas painting while idle."""
+
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    host = input_mod.InputCanvas()
+    runtime = create_input_canvas_tool_system()
+    host.bind_tool_runtime(runtime)
+    host.resize(640, 480)
+    host.show()
+    app.processEvents()
+    messages: list[str] = []
+    previous_handler = qInstallMessageHandler(
+        lambda _kind, _context, message: messages.append(message)
+    )
+    try:
+        image_id = uuid4()
+        background = QImage(96, 96, QImage.Format.Format_ARGB32_Premultiplied)
+        background.fill(QColor(40, 40, 40, 255))
+        assert host.document.ensure_image_cached(image_id, background, None)
+        assert host.document.set_current_image_id(image_id)
+        raster = QImage(96, 96, QImage.Format.Format_ARGB32_Premultiplied)
+        raster.fill(QColor(220, 40, 90, 255))
+        layer_id = host.canvas.addEditableRasterLayer(
+            raster,
+            interaction=LayerPolicy(
+                selectable=True,
+                movable=True,
+                pixel_editable=True,
+            ),
+        )
+        scene = host.canvas.currentScene()
+        assert scene is not None and layer_id is not None
+        assert host.canvas.setSelectedLayer(scene.scene_id, layer_id)
+        selection = QImage(44, 24, QImage.Format.Format_Grayscale8)
+        selection.fill(255)
+        assert host.canvas.setPixelSelection(selection, QRect(10, 14, 44, 24))
+        assert host.document.tool_options.activate_transform(
+            EditorTransformTarget.SELECTION_CONTENT
+        )
+        app.processEvents()
+        assert host.contextual_toolbar.isVisible()
+        page = host.contextual_toolbar.page
+        assert page is not None
+        assert host.contextual_toolbar.graphicsEffect() is None
+        assert page.graphicsEffect() is None
+
+        geometry_failures: list[str] = []
+        elapsed = 0
+        while elapsed < 300:
+            content_host = host.contextual_toolbar.content_host
+            if (
+                host.contextual_toolbar.graphicsEffect() is not None
+                and content_host.graphicsEffect() is not None
+            ):
+                geometry_failures.append("nested-shell-and-content-effects")
+            for candidate in content_host.findChildren(ContextualToolbarPage):
+                if candidate.graphicsEffect() is not None:
+                    geometry_failures.append("page-effect-installed")
+                if candidate.geometry() != content_host.rect():
+                    geometry_failures.append(
+                        f"page={candidate.geometry()} host={content_host.rect()}"
+                    )
+                for control in candidate.findChildren(QWidget):
+                    bounds = QRect(control.mapTo(candidate, QPoint()), control.size())
+                    if (
+                        control.isVisible()
+                        and not bounds.isEmpty()
+                        and not candidate.rect().contains(bounds)
+                    ):
+                        geometry_failures.append(
+                            f"control={bounds} page={candidate.rect()}"
+                        )
+            QTest.qWait(5)
+            elapsed += 5
+
+        QTest.qWait(900)
+        app.processEvents()
+        assert host.contextual_toolbar.graphicsEffect() is None
+        assert host.contextual_toolbar.content_host.graphicsEffect() is None
+        assert page.graphicsEffect() is None
+        assert geometry_failures == []
+
+        relevant = [
+            message
+            for message in messages
+            if message.startswith(("QPainter::", "QFont::setPointSize"))
+        ]
+        assert relevant == []
+    finally:
+        qInstallMessageHandler(previous_handler)
+        host.close()
+        host.deleteLater()
         app.processEvents()
 
 
@@ -274,7 +414,12 @@ def test_brush_activation_keeps_mounted_tool_strip_alive_and_full_sized(
         assert strip.button_for(InputCanvasToolId.BRUSH) is brush
         assert strip.indicator.target_y == brush.y() + brush.height() // 2 - 8
         assert controller.palette.active_tool_id == InputCanvasToolId.BRUSH
+        canvas.canvas.setCursor(Qt.CursorShape.CrossCursor)
         assert strip.cursor().shape() is Qt.CursorShape.ArrowCursor
+        assert canvas.canvas_top_bar.cursor().shape() is Qt.CursorShape.ArrowCursor
+        assert canvas.tool_options_host.cursor().shape() is Qt.CursorShape.ArrowCursor
+        assert canvas.contextual_toolbar.cursor().shape() is Qt.CursorShape.ArrowCursor
+        assert canvas.layer_control.cursor().shape() is Qt.CursorShape.ArrowCursor
         assert all(
             button.cursor().shape() is Qt.CursorShape.ArrowCursor
             for button in strip.tool_buttons()

@@ -1458,6 +1458,10 @@ Prömpt prëvïëw:
       <translation>⟦Cöntïnüöüs gënëràtïön rëqüïrës thë gënëràtïön qüëüë. ···⟧</translation>
     </message>
     <message>
+      <source>Contract</source>
+      <translation>⟦Cöntràct ···⟧</translation>
+    </message>
+    <message>
       <source>Control which CivitAI images may be used as thumbnails.</source>
       <translation>⟦Cöntröl whïch CïvïtÅÏ ïmàgës mày bë üsëd às thümbnàïls. ···⟧</translation>
     </message>
@@ -1766,6 +1770,10 @@ Install these nodes now?</source>
       <translation>⟦Dëpëndëncy vërsïöns ···⟧</translation>
     </message>
     <message>
+      <source>Deselect</source>
+      <translation>⟦Dësëlëct ···⟧</translation>
+    </message>
+    <message>
       <source>Detect ComfyUI's Python environment</source>
       <translation>⟦Dëtëct CömfyÜÏ's Pythön ënvïrönmënt ···⟧</translation>
     </message>
@@ -1882,6 +1890,10 @@ Install these nodes now?</source>
       <translation>⟦Ëdït cürvë (%1 pöïnts) ···⟧</translation>
     </message>
     <message>
+      <source>Edit layer coverage</source>
+      <translation>⟦Ëdït làyër cövëràgë ···⟧</translation>
+    </message>
+    <message>
       <source>Edit user wildcard files and refresh prompt metadata.</source>
       <translation>⟦Ëdït üsër wïldcàrd fïlës ànd rëfrësh prömpt mëtàdàtà. ···⟧</translation>
     </message>
@@ -1892,6 +1904,10 @@ Install these nodes now?</source>
     <message>
       <source>Ellipse Mask</source>
       <translation>⟦Ëllïpsë Màsk ···⟧</translation>
+    </message>
+    <message>
+      <source>Ellipse selection</source>
+      <translation>⟦Ëllïpsë sëlëctïön ···⟧</translation>
     </message>
     <message>
       <source>Embedded Python: %1</source>
@@ -1934,6 +1950,10 @@ Install these nodes now?</source>
       <translation>⟦Ënvïrönmënt sàfëty chëck ···⟧</translation>
     </message>
     <message>
+      <source>Eraser</source>
+      <translation>⟦Ëràsër ···⟧</translation>
+    </message>
+    <message>
       <source>Error</source>
       <translation>⟦Ërrör ···⟧</translation>
     </message>
@@ -1972,6 +1992,10 @@ Install these nodes now?</source>
     <message>
       <source>Existing local setup</source>
       <translation>⟦Ëxïstïng löcàl sëtüp ···⟧</translation>
+    </message>
+    <message>
+      <source>Expand</source>
+      <translation>⟦Ëxpànd ···⟧</translation>
     </message>
     <message>
       <source>Expand cube stack</source>
@@ -2074,6 +2098,10 @@ Install these nodes now?</source>
       <translation>⟦Fàïlëd tö stàrt gënëràtïön lïstënër ···⟧</translation>
     </message>
     <message>
+      <source>Feather</source>
+      <translation>⟦Fëàthër ···⟧</translation>
+    </message>
+    <message>
       <source>Fetching Danbooru wiki content...</source>
       <translation>⟦Fëtchïng Dànböörü wïkï cöntënt... ···⟧</translation>
     </message>
@@ -2124,6 +2152,14 @@ Install these nodes now?</source>
     <message>
       <source>Fix the saved setup so Substitute can open again.</source>
       <translation>⟦Fïx thë sàvëd sëtüp sö Sübstïtütë càn öpën àgàïn. ···⟧</translation>
+    </message>
+    <message>
+      <source>Flip horizontal</source>
+      <translation>⟦Flïp hörïzöntàl ···⟧</translation>
+    </message>
+    <message>
+      <source>Flip vertical</source>
+      <translation>⟦Flïp vërtïcàl ···⟧</translation>
     </message>
     <message>
       <source>Folder</source>
@@ -2538,6 +2574,10 @@ Install these nodes now?</source>
       <translation>⟦Làssö Màsk ···⟧</translation>
     </message>
     <message>
+      <source>Lasso selection</source>
+      <translation>⟦Làssö sëlëctïön ···⟧</translation>
+    </message>
+    <message>
       <source>Last output: %1</source>
       <translation>⟦Làst öütpüt: %1 ···⟧</translation>
     </message>
@@ -2786,6 +2826,10 @@ Install these nodes now?</source>
       <translation>⟦Màsk dïmënsïöns dö nöt màtch ···⟧</translation>
     </message>
     <message>
+      <source>Mask layer</source>
+      <translation>⟦Màsk làyër ···⟧</translation>
+    </message>
+    <message>
       <source>Message: %1</source>
       <translation>⟦Mëssàgë: %1 ···⟧</translation>
     </message>
@@ -2874,6 +2918,10 @@ Install these nodes now?</source>
       <translation>⟦Mödëls földër ···⟧</translation>
     </message>
     <message>
+      <source>Modify selection</source>
+      <translation>⟦Mödïfy sëlëctïön ···⟧</translation>
+    </message>
+    <message>
       <source>More than one ComfyUI process was found</source>
       <translation>⟦Mörë thàn önë CömfyÜÏ pröcëss wàs föünd ···⟧</translation>
     </message>
@@ -2892,6 +2940,10 @@ Install these nodes now?</source>
     <message>
       <source>Move</source>
       <translation>⟦Mövë ···⟧</translation>
+    </message>
+    <message>
+      <source>Move Contextual Toolbar</source>
+      <translation>⟦Mövë Cöntëxtüàl Töölbàr ···⟧</translation>
     </message>
     <message>
       <source>Move down</source>
@@ -3104,6 +3156,10 @@ Install these nodes now?</source>
     <message>
       <source>Not set</source>
       <translation>⟦Nöt sët ···⟧</translation>
+    </message>
+    <message>
+      <source>Nothing to transform!</source>
+      <translation>⟦Nöthïng tö trànsförm! ···⟧</translation>
     </message>
     <message>
       <source>Number of queued generations to create</source>
@@ -3328,6 +3384,10 @@ Install these nodes now?</source>
     <message>
       <source>Pick the setup that matches your current situation. You can change this later if your workflow changes.</source>
       <translation>⟦Pïck thë sëtüp thàt màtchës yöür cürrënt sïtüàtïön. Yöü càn chàngë thïs làtër ïf yöür wörkflöw chàngës. ···⟧</translation>
+    </message>
+    <message>
+      <source>Pixels</source>
+      <translation>⟦Pïxëls ···⟧</translation>
     </message>
     <message>
       <source>Plan uninstall</source>
@@ -3612,6 +3672,10 @@ Install these nodes now?</source>
     <message>
       <source>Rectangle Mask</source>
       <translation>⟦Rëctànglë Màsk ···⟧</translation>
+    </message>
+    <message>
+      <source>Rectangle selection</source>
+      <translation>⟦Rëctànglë sëlëctïön ···⟧</translation>
     </message>
     <message>
       <source>Red</source>
@@ -3956,6 +4020,14 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Rich prompt rendering</source>
       <translation>⟦Rïch prömpt rëndërïng ···⟧</translation>
+    </message>
+    <message>
+      <source>Rotate left</source>
+      <translation>⟦Rötàtë lëft ···⟧</translation>
+    </message>
+    <message>
+      <source>Rotate right</source>
+      <translation>⟦Rötàtë rïght ···⟧</translation>
     </message>
     <message>
       <source>Run Sugar Substitute launch splash.</source>
@@ -4376,6 +4448,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Skips the active queued generation when available.</source>
       <translation>⟦Skïps thë àctïvë qüëüëd gënëràtïön whën àvàïlàblë. ···⟧</translation>
+    </message>
+    <message>
+      <source>Smart Mask</source>
+      <translation>⟦Smàrt Màsk ···⟧</translation>
     </message>
     <message>
       <source>Smart Select</source>
@@ -5404,6 +5480,14 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Tràckëd Cübë Pàcks ···⟧</translation>
     </message>
     <message>
+      <source>Transform</source>
+      <translation>⟦Trànsförm ···⟧</translation>
+    </message>
+    <message>
+      <source>Transform selection</source>
+      <translation>⟦Trànsförm sëlëctïön ···⟧</translation>
+    </message>
+    <message>
       <source>Trigger words: %1</source>
       <translation>⟦Trïggër wörds: %1 ···⟧</translation>
     </message>
@@ -5708,6 +5792,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Vïsüàl cüstömïzàtïön. ···⟧</translation>
     </message>
     <message>
+      <source>Visual opacity</source>
+      <translation>⟦Vïsüàl öpàcïty ···⟧</translation>
+    </message>
+    <message>
       <source>Waiting - %1 ahead</source>
       <translation>⟦Wàïtïng - %1 àhëàd ···⟧</translation>
     </message>
@@ -5914,6 +6002,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>a model</source>
       <translation>⟦à mödël ···⟧</translation>
+    </message>
+    <message>
+      <source>by</source>
+      <translation>⟦by ···⟧</translation>
     </message>
     <message>
       <source>by %1</source>

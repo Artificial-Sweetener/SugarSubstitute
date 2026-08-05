@@ -31,6 +31,13 @@ class CanvasToolKind(str, Enum):
     ACTION = "action"
 
 
+class CanvasToolSurface(str, Enum):
+    """Identify canvas chrome surfaces that can present one contribution."""
+
+    TOOL_STRIP = "tool_strip"
+    CONTEXTUAL_TOOLBAR = "contextual_toolbar"
+
+
 @dataclass(frozen=True, slots=True)
 class CanvasToolContribution:
     """Describe one runtime-addable canvas tool and its host extension metadata."""
@@ -45,6 +52,9 @@ class CanvasToolContribution:
     required_capabilities: frozenset[str] = field(default_factory=frozenset)
     document_operation_id: str | None = None
     options_id: str | None = None
+    surfaces: frozenset[CanvasToolSurface] = field(
+        default_factory=lambda: frozenset({CanvasToolSurface.TOOL_STRIP})
+    )
 
     def __post_init__(self) -> None:
         """Reject identities and placement metadata that cannot remain stable."""
@@ -55,6 +65,10 @@ class CanvasToolContribution:
             raise ValueError("canvas tool section must be a non-blank stable ID")
         if self.icon is None:
             raise ValueError("canvas tool icon must not be None")
+        if not self.surfaces or any(
+            not isinstance(surface, CanvasToolSurface) for surface in self.surfaces
+        ):
+            raise ValueError("canvas tool surfaces must contain supported surfaces")
         if any(not tag or tag != tag.strip() for tag in self.required_context_tags):
             raise ValueError("canvas tool context tags must be non-blank stable IDs")
         if any(
@@ -78,6 +92,19 @@ class CanvasToolContext:
 
     tags: frozenset[str] = field(default_factory=frozenset)
     capabilities: frozenset[str] = field(default_factory=frozenset)
+    capability_denials: tuple[tuple[str, ApplicationText], ...] = ()
+
+    def denial_for(self, capability: str) -> ApplicationText | None:
+        """Return the contextual explanation for one unavailable capability."""
+
+        return next(
+            (
+                reason
+                for denied_capability, reason in self.capability_denials
+                if denied_capability == capability
+            ),
+            None,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +114,7 @@ class CanvasToolPresentation:
     contribution: CanvasToolContribution
     enabled: bool
     active: bool
+    unavailable_reason: ApplicationText | None = None
 
     @property
     def tool_id(self) -> str:
@@ -130,10 +158,17 @@ class CanvasToolPresentation:
 
         return self.contribution.options_id
 
+    @property
+    def surfaces(self) -> frozenset[CanvasToolSurface]:
+        """Return every canvas chrome surface that presents this contribution."""
+
+        return self.contribution.surfaces
+
 
 __all__ = [
     "CanvasToolContext",
     "CanvasToolContribution",
     "CanvasToolKind",
     "CanvasToolPresentation",
+    "CanvasToolSurface",
 ]

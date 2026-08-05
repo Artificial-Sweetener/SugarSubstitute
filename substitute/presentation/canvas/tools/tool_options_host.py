@@ -18,10 +18,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from PySide6.QtCore import QEvent, QObject, QPoint, QRect, Qt, Signal
 from PySide6.QtGui import QCloseEvent, QMouseEvent
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QWidget
 
+from substitute.presentation.canvas.shared.canvas_control_frame import (
+    CanvasControlFrame,
+)
 from substitute.presentation.canvas.shared.canvas_chrome_metrics import (
     CANVAS_CHROME_SURFACE_BORDER_WIDTH,
     CANVAS_CHROME_SURFACE_HEIGHT,
@@ -38,7 +43,7 @@ from .runtime import CanvasToolRuntime
 from .tool_options_control import CanvasToolOptionsControl
 
 
-class CanvasToolOptionsHost(QFrame):
+class CanvasToolOptionsHost(CanvasControlFrame):
     """Project active runtime options and own transient outside-click capture."""
 
     surfaceChanged = Signal()
@@ -49,7 +54,6 @@ class CanvasToolOptionsHost(QFrame):
         super().__init__(parent)
         self.setObjectName("CanvasToolOptionsHost")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setCursor(Qt.CursorShape.ArrowCursor)
         self.setMinimumHeight(CANVAS_CHROME_SURFACE_HEIGHT)
         self._runtime: CanvasToolRuntime | None = None
         self._subscription: CanvasToolPaletteSubscription | None = None
@@ -86,6 +90,16 @@ class CanvasToolOptionsHost(QFrame):
         self._runtime = runtime
         self._subscription = runtime.palette.subscribe(self._palette_changed)
         self._palette_changed(runtime.palette.snapshot())
+
+    def set_contextual_options(
+        self,
+        options_id: str | None,
+        factory: Callable[[QWidget], CanvasToolOptionsControl] | None,
+    ) -> None:
+        """Mount an options control whose visibility is not owned by a tool mode."""
+        if options_id == self._options_id:
+            return
+        self._replace_options(options_id, factory=factory)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         """Collapse on an outside press without consuming the destination click."""
@@ -125,7 +139,12 @@ class CanvasToolOptionsHost(QFrame):
             return
         self._replace_options(options_id)
 
-    def _replace_options(self, options_id: str | None) -> None:
+    def _replace_options(
+        self,
+        options_id: str | None,
+        *,
+        factory: Callable[[QWidget], CanvasToolOptionsControl] | None = None,
+    ) -> None:
         """Dispose the previous control before mounting the requested identity."""
 
         self._remove_outside_filter()
@@ -138,11 +157,15 @@ class CanvasToolOptionsHost(QFrame):
             previous.close()
             previous.deleteLater()
         runtime = self._runtime
-        if options_id is None or runtime is None:
+        if options_id is None or (factory is None and runtime is None):
             self.hide()
             self.surfaceChanged.emit()
             return
-        control = runtime.create_options_control(options_id, self)
+        control = (
+            factory(self)
+            if factory is not None
+            else runtime.create_options_control(options_id, self)  # type: ignore[union-attr]
+        )
         if control is None:
             self.hide()
             self.surfaceChanged.emit()

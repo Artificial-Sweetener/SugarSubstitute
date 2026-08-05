@@ -18,13 +18,23 @@
 
 from __future__ import annotations
 
+import pytest
 from PySide6.QtCore import QCoreApplication, QEvent, QPoint, QPointF, QRect, Qt
-from PySide6.QtGui import QEnterEvent, QIcon
+from PySide6.QtGui import QContextMenuEvent, QEnterEvent, QIcon
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QApplication, QWidget
-from qfluentwidgets import TransparentToolButton  # type: ignore[import-untyped]
+from qfluentwidgets import (  # type: ignore[import-untyped]
+    MenuAnimationType,
+    TransparentToolButton,
+)
 
 from sugarsubstitute_shared.localization import app_text
+from substitute.presentation.widgets.menu_model import MenuItem, MenuModel
+from substitute.presentation.canvas.tools.layout import (
+    CanvasToolGroupSlot,
+    CanvasToolLayout,
+    CanvasToolLayoutSnapshot,
+)
 from substitute.presentation.canvas.tools.model import (
     CanvasToolContext,
     CanvasToolContribution,
@@ -106,6 +116,38 @@ def test_tool_strip_occupies_only_its_content_over_a_full_canvas() -> None:
     )
 
 
+def test_disabled_tool_uses_contextual_denial_as_its_tooltip() -> None:
+    """Unavailable controls must explain the owning missing capability."""
+    app = _app()
+    canvas = QWidget()
+    tool = CanvasToolContribution(
+        tool_id="transform",
+        label=app_text("Transform"),
+        icon=QIcon(),
+        kind=CanvasToolKind.MODE,
+        section="main",
+        order=10,
+        required_context_tags=frozenset({"canvas"}),
+        required_capabilities=frozenset({"content"}),
+    )
+    registry = CanvasToolRegistry()
+    registry.register(tool)
+    palette = CanvasToolPalette(registry)
+    palette.set_context(
+        CanvasToolContext(
+            tags=frozenset({"canvas"}),
+            capability_denials=(("content", app_text("Nothing to transform!")),),
+        )
+    )
+    strip = CanvasToolStrip(canvas)
+    strip.bind_palette(palette)
+    app.processEvents()
+
+    button = strip.tool_buttons()[0]
+    assert not button.isEnabled()
+    assert button.toolTip() == "Nothing to transform!"
+
+
 def test_tool_strip_centers_buttons_without_reserving_indicator_width() -> None:
     """The overlay marker must not shift button or icon geometry to the right."""
 
@@ -124,6 +166,30 @@ def test_tool_strip_centers_buttons_without_reserving_indicator_width() -> None:
         assert (button.width() - button.iconSize().width()) // 2 == 7
 
     assert strip.indicator.geometry() == strip.rect()
+
+
+def test_tool_strip_uses_one_even_gap_across_contribution_sections() -> None:
+    """Semantic tool sections must not create uneven visual spacing."""
+
+    app = _app()
+    canvas = QWidget()
+    _registry, palette = _palette(
+        _tool("move", 10),
+        _tool("brush", 20, section="paint"),
+        _tool("pan", 30, section="navigation"),
+    )
+    strip = CanvasToolStrip(canvas)
+    strip.bind_palette(palette)
+    canvas.show()
+    app.processEvents()
+    buttons = strip.tool_buttons()
+
+    gaps = tuple(
+        following.y() - preceding.geometry().bottom() - 1
+        for preceding, following in zip(buttons[:-1], buttons[1:], strict=True)
+    )
+
+    assert gaps == (2, 2)
 
 
 def test_tool_strip_projects_active_mode_with_one_sliding_indicator() -> None:
@@ -494,3 +560,119 @@ def test_tool_strip_teardown_cancels_deferred_self_removal_projection() -> None:
     app.processEvents()
 
     assert tuple(item.tool_id for item in palette.snapshot()) == ("stable",)
+
+
+def test_grouped_layout_projects_one_stable_button_for_multiple_tools() -> None:
+    """Like tools should share one slot while palette state remains authoritative."""
+
+    app = _app()
+    canvas = QWidget()
+    _registry, palette = _palette(_tool("rectangle", 10), _tool("ellipse", 20))
+    layout = CanvasToolLayout(
+        CanvasToolLayoutSnapshot(
+            (
+                CanvasToolGroupSlot(
+                    "shape",
+                    ("rectangle", "ellipse"),
+                    "rectangle",
+                ),
+            )
+        )
+    )
+    strip = CanvasToolStrip(canvas)
+    strip.bind_palette(palette, layout)
+    canvas.show()
+    app.processEvents()
+
+    rectangle = strip.button_for("rectangle")
+    ellipse = strip.button_for("ellipse")
+    assert rectangle is not None and rectangle is ellipse
+    assert len(strip.tool_buttons()) == 1
+    assert rectangle.tool_id == "rectangle"
+
+    assert palette.set_active_tool("ellipse")
+    app.processEvents()
+
+    assert rectangle.tool_id == "ellipse"
+    assert strip.indicator.isVisible()
+
+
+def test_grouped_button_right_click_opens_member_picker_and_activates_choice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The grouped-slot marker should expose a right-click member switcher."""
+
+    app = _app()
+    canvas = QWidget()
+    _registry, palette = _palette(_tool("rectangle", 10), _tool("ellipse", 20))
+    layout = CanvasToolLayout(
+        CanvasToolLayoutSnapshot(
+            (
+                CanvasToolGroupSlot(
+                    "shape",
+                    ("rectangle", "ellipse"),
+                    "rectangle",
+                ),
+            )
+        )
+    )
+    rendered_models: list[MenuModel] = []
+    executions: list[tuple[QPoint, MenuAnimationType]] = []
+
+    class _Menu:
+        """Record menu execution without starting a nested event loop."""
+
+        def exec(
+            self,
+            position: QPoint,
+            *,
+            aniType: MenuAnimationType,
+        ) -> None:
+            """Capture the global placement and animation policy."""
+
+            executions.append((position, aniType))
+
+    class _Renderer:
+        """Capture the generic menu model passed by the tool strip."""
+
+        def __init__(self, *, parent: QWidget) -> None:
+            """Accept the production renderer construction contract."""
+
+            del parent
+
+        def render(self, model: MenuModel) -> _Menu:
+            """Return a non-blocking menu double for the supplied model."""
+
+            rendered_models.append(model)
+            return _Menu()
+
+    monkeypatch.setattr(
+        "substitute.presentation.canvas.tools.tool_strip.QFluentMenuRenderer",
+        _Renderer,
+    )
+    strip = CanvasToolStrip(canvas)
+    strip.bind_palette(palette, layout)
+    requested: list[str] = []
+    strip.toolRequested.connect(requested.append)
+    canvas.show()
+    app.processEvents()
+    button = strip.button_for("rectangle")
+    assert button is not None
+
+    button.contextMenuEvent(
+        QContextMenuEvent(
+            QContextMenuEvent.Reason.Mouse,
+            QPoint(3, 3),
+            QPoint(100, 100),
+        )
+    )
+
+    assert executions
+    model = rendered_models[0]
+    assert len(model.entries) == 2
+    ellipse_entry = model.entries[1]
+    assert isinstance(ellipse_entry, MenuItem)
+    assert ellipse_entry.callback is not None
+    ellipse_entry.callback()
+    assert layout.snapshot().slots[0].selected_tool_id == "ellipse"
+    assert requested == ["ellipse"]

@@ -163,8 +163,14 @@ from substitute.presentation.canvas.input.input_editable_document_lifecycle impo
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
     create_input_canvas_tool_system,
 )
+from substitute.presentation.canvas.input.input_canvas_tool_layout import (
+    create_input_canvas_tool_layout,
+)
 from substitute.presentation.canvas.input.input_tool_options import (
     install_input_tool_options,
+)
+from substitute.presentation.canvas.input.input_contextual_toolbar_installation import (
+    install_input_contextual_toolbar,
 )
 from substitute.presentation.canvas.input.input_canvas_tool_controller import (
     InputCanvasToolController,
@@ -773,16 +779,22 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         graph_section_service=shell.graph_section_service,
     )
     input_tool_runtime = create_input_canvas_tool_system()
+    input_tool_layout = create_input_canvas_tool_layout()
     install_input_tool_options(
         input_tool_runtime,
         input_canvas.document.tool_options,
     )
-    input_canvas.bind_tool_runtime(input_tool_runtime)
+    install_input_contextual_toolbar(
+        input_tool_runtime,
+        input_canvas.document.tool_options,
+    )
+    input_canvas.bind_tool_runtime(input_tool_runtime, input_tool_layout)
     input_canvas_tool_controller = InputCanvasToolController(
         input_document=input_canvas.document,
         operation_setter=input_canvas.document.set_canvas_operation,
         current_image_id_provider=input_canvas.current_image_id_for_event,
         runtime=input_tool_runtime,
+        layout=input_tool_layout,
     )
     input_canvas.document.toolContextChanged.connect(
         input_canvas_tool_controller.refresh_tool_context

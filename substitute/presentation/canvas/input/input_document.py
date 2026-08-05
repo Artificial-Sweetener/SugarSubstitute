@@ -29,7 +29,9 @@ from cutecanvas import (
     CanvasViewSession,
     CuteCanvas,
     EditorCapability,
+    EditorIntent,
     EditorPolicy,
+    EditorTransformTarget,
     ExecutionRuntime,
     LayerPolicy,
     NonEditablePaintPolicy,
@@ -76,6 +78,7 @@ _EDITOR_POLICY = EditorPolicy(
             EditorCapability.SELECT_PIXELS,
             EditorCapability.EDIT_PIXELS,
             EditorCapability.MOVE_LAYERS,
+            EditorCapability.TRANSFORM_LAYERS,
             EditorCapability.PAINT,
         }
     ),
@@ -154,10 +157,14 @@ class InputCanvasDocument(QObject):
         self._canvas.selectedLayerChanged.connect(
             lambda _selection: self.toolContextChanged.emit()
         )
+        self._canvas.pixelSelectionChanged.connect(
+            lambda _selection: self.toolContextChanged.emit()
+        )
         self._canvas.brushPresetChanged.connect(
             lambda _preset: self.brushPresetChanged.emit()
         )
         self._canvas.maskUndoStackChanged.connect(self._on_mask_undo_stack_changed)
+        self._canvas.layerPixelsChanged.connect(self._on_layer_pixels_changed)
 
     @property
     def canvas(self) -> CuteCanvas:
@@ -188,7 +195,7 @@ class InputCanvasDocument(QObject):
 
     @property
     def tool_options(self) -> InputDocumentToolOptions:
-        """Return the contextual brush and mask-adjustment state owner."""
+        """Return the contextual brush and selection-operation adapter."""
         return self._tool_options
 
     def ensure_image_cached(
@@ -350,10 +357,43 @@ class InputCanvasDocument(QObject):
 
         return self._canvas.activeMaskID()
 
-    def smart_select_ready(self) -> bool:
-        """Return whether CuteCanvas reports its Smart Select model ready."""
+    def smart_segmentation_ready(self) -> bool:
+        """Return whether CuteCanvas reports its segmentation model ready."""
 
         return bool(self._canvas.samCheckpointReady())
+
+    def has_pixel_selection(self) -> bool:
+        """Return whether the active composition owns nonempty pixel selection."""
+        state = self._canvas.pixelSelectionState()
+        return state is not None and state.has_selection
+
+    def selection_transform_available(self) -> bool:
+        """Return whether CuteCanvas authorizes affine selected-pixel editing."""
+        return bool(
+            self.has_pixel_selection()
+            and self._canvas.editorOperationState(EditorIntent.TRANSFORM).allowed
+        )
+
+    def layer_transform_available(self) -> bool:
+        """Return whether the active layer owns meaningful affine content."""
+
+        return bool(
+            self.active_mask_id() is not None
+            and self._canvas.editorTransformState(
+                EditorTransformTarget.LAYER_CONTENT
+            ).allowed
+        )
+
+    def activate_transform(self, target: EditorTransformTarget) -> bool:
+        """Activate the shared CuteCanvas affine session for one explicit target."""
+        return bool(self._canvas.activateEditorTransform(target))
+
+    def selection_clear_available(self) -> bool:
+        """Return whether CuteCanvas authorizes clearing selected layer pixels."""
+        return bool(
+            self.has_pixel_selection()
+            and self._canvas.editorOperationState(EditorIntent.DELETE_PIXELS).allowed
+        )
 
     def set_mask_properties(self, mask_id: UUID, *, color: QColor) -> bool:
         """Apply host-selected presentation color to one mask."""
@@ -464,6 +504,18 @@ class InputCanvasDocument(QObject):
         """Publish durable mask-history changes to Input document consumers."""
 
         self.maskContentChanged.emit()
+        self.toolContextChanged.emit()
+
+    def _on_layer_pixels_changed(
+        self,
+        _scene_id: UUID,
+        _layer_id: UUID,
+        resource_id: UUID,
+    ) -> None:
+        """Publish generic pixel edits only for mask resources owned by Input."""
+        if self._catalog.contains_mask_resource(resource_id):
+            self.maskContentChanged.emit()
+            self.toolContextChanged.emit()
 
 
 __all__ = ["InputCanvasDocument"]

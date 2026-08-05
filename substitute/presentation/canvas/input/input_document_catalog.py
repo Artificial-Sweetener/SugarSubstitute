@@ -141,6 +141,13 @@ class InputDocumentCatalog:
             and self._mask(composition_id, mask_id) is not None
         )
 
+    def contains_mask_resource(self, mask_id: UUID) -> bool:
+        """Return whether any Input composition references one mask resource."""
+        return any(
+            self._mask(record.composition_id, mask_id) is not None
+            for record in self._images.values()
+        )
+
     def has_masks(self, image_id: UUID) -> bool:
         """Return whether one image composition currently contains masks."""
         composition_id = self.composition_for_image(image_id)

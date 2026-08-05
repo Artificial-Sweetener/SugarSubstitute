@@ -33,6 +33,8 @@ from substitute.shared.util.path_safety import (
     validate_top_level_name,
 )
 
+from .bound_mask_filename import bound_mask_filename
+
 _LOGGER = get_logger("application.workflows.canvas_io_service")
 _OUTPUT_IMAGE_NUMBER_RE = re.compile(r"^(\d{3})")
 _UNSAFE_FILENAME_COMPONENT_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]+')
@@ -84,17 +86,14 @@ class CanvasIoService:
         )
         resolved_masks_dir.mkdir(parents=True, exist_ok=True)
 
-        filename = "__".join(
-            (
-                _safe_filename_component(associated_image_path.stem),
-                _short_path_hash(associated_image_path),
-                _image_size_component(image_size),
-                _safe_identity_component(cube_alias),
-                _safe_filename_component(mask_node_name),
-            )
+        filename = bound_mask_filename(
+            associated_image_path=associated_image_path,
+            cube_alias=cube_alias,
+            mask_node_name=mask_node_name,
+            image_size=image_size,
         )
         return ensure_within_root(
-            resolved_masks_dir / f"{filename}.png",
+            resolved_masks_dir / filename,
             root_path=projects_dir,
             subject="Bound mask path",
         )
@@ -421,17 +420,6 @@ def _safe_identity_component(value: str) -> str:
         safe_name = _safe_filename_component(normalized)
         identity_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:8]
         return f"{safe_name}__{identity_hash}"
-
-
-def _short_path_hash(path: Path) -> str:
-    """Return a stable short hash for a normalized filesystem path."""
-
-    try:
-        normalized_path = path.expanduser().resolve(strict=False)
-    except (OSError, RuntimeError):
-        normalized_path = path.absolute()
-    normalized = str(normalized_path).casefold()
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:8]
 
 
 def _image_size_component(image_size: tuple[int, int] | None) -> str:

@@ -140,7 +140,7 @@ Prompt preview:
       <translation>无法将 %1 切换到 Cube 所需的版本。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1175"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1168"></location>
       <source>%1 could not use this Windows path even though Substitute can.</source>
       <translation>%1 无法使用这个可由 Substitute 处理的 Windows 路径。</translation>
     </message>
@@ -215,7 +215,7 @@ Prompt preview:
       <translation>%1 条提供方记录、%2 个缩略图来源、%3 个变体，%4</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="207"></location>
+      <location filename="../substitute/presentation/canvas/input/input_brush_settings.py" line="119"></location>
       <source>%1 px</source>
       <translation>%1 像素</translation>
     </message>
@@ -295,7 +295,7 @@ Prompt preview:
       <translation>已完成 %1%</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="734"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="726"></location>
       <source>%1%2</source>
       <translation>%1%2</translation>
     </message>
@@ -355,7 +355,7 @@ Prompt preview:
       <translation>1 个输出</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1174"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1167"></location>
       <source>A Windows component could not use this long path</source>
       <translation>Windows 组件无法使用此长路径</translation>
     </message>
@@ -385,7 +385,7 @@ Prompt preview:
       <translation>另一个 ComfyUI 正在运行</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1160"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1153"></location>
       <source>A file or folder name is too long for Windows</source>
       <translation>文件或文件夹名称对于 Windows 来说过长</translation>
     </message>
@@ -595,7 +595,7 @@ Prompt preview:
       <translation>应用菜单</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="712"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="50"></location>
       <source>Apply</source>
       <translation>应用</translation>
     </message>
@@ -630,7 +630,7 @@ Prompt preview:
       <translation>已连接的 ComfyUI 文件夹不存在：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="774"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="767"></location>
       <source>Attached workspace: %1</source>
       <translation>附加的工作区：%1</translation>
     </message>
@@ -755,7 +755,7 @@ Prompt preview:
       <translation>浏览</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/thumbnail_picker_base.py" line="153"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/thumbnail_picker_base.py" line="78"></location>
       <source>Browse Files</source>
       <translation>浏览文件</translation>
     </message>
@@ -770,12 +770,12 @@ Prompt preview:
       <translation>浏览...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="103"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="182"></location>
       <source>Brush</source>
       <translation>画笔</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="123"></location>
+      <location filename="../substitute/presentation/canvas/input/input_brush_settings.py" line="61"></location>
       <source>Brush settings</source>
       <translation>画笔设置</translation>
     </message>
@@ -820,7 +820,7 @@ Prompt preview:
       <translation>可安装</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="708"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="58"></location>
       <source>Cancel</source>
       <translation>取消</translation>
     </message>
@@ -880,22 +880,22 @@ Prompt preview:
       <translation>检查 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1511"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1504"></location>
       <source>Check that the ComfyUI folder still exists, or clear that field.</source>
       <translation>请检查 ComfyUI 文件夹是否仍然存在，或清空该字段。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1120"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1113"></location>
       <source>Check that the folder still exists.</source>
       <translation>请检查该文件夹是否仍然存在。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1468"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1461"></location>
       <source>Check that the host and port are correct from this computer.</source>
       <translation>请确认此计算机使用的主机名和端口正确。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1454"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1447"></location>
       <source>Check that the host and port match your ComfyUI window.</source>
       <translation>请确认主机名和端口与 ComfyUI 窗口中显示的一致。</translation>
     </message>
@@ -905,17 +905,17 @@ Prompt preview:
       <translation>请检查本地 ComfyUI 文件夹是否仍然存在，然后选择包含 ComfyUI main.py 文件的文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1288"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1281"></location>
       <source>Check the live output for the custom-node problem.</source>
       <translation>请在实时输出中查看自定义节点问题。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1521"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1514"></location>
       <source>Check the managed ComfyUI folder and try again.</source>
       <translation>请检查托管的 ComfyUI 文件夹，然后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1254"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1247"></location>
       <source>Check your internet connection.</source>
       <translation>请检查网络连接。</translation>
     </message>
@@ -1020,7 +1020,7 @@ Prompt preview:
       <translation>选择文件夹并将 Substitute 连接到 ComfyUI。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1181"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1174"></location>
       <source>Choose a shorter folder for this operation.</source>
       <translation>请为此操作选择较短的文件夹。</translation>
     </message>
@@ -1030,7 +1030,7 @@ Prompt preview:
       <translation>选择特定的立方体版本</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1405"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1398"></location>
       <source>Choose a working Python for this ComfyUI setup</source>
       <translation>为此 ComfyUI 安装选择可用的 Python</translation>
     </message>
@@ -1110,7 +1110,7 @@ Prompt preview:
       <translation>选择此 ComfyUI 安装所使用的 Python 可执行文件。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1420"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1413"></location>
       <source>Choose the Python this ComfyUI setup uses</source>
       <translation>选择此 ComfyUI 安装使用的 Python</translation>
     </message>
@@ -1130,12 +1130,12 @@ Prompt preview:
       <translation>选择 Substitute 应启动的现有 ComfyUI 文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1376"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1369"></location>
       <source>Choose the folder that contains ComfyUI</source>
       <translation>选择包含 ComfyUI 的文件夹</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1121"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1114"></location>
       <source>Choose the folder that contains ComfyUI's main.py file.</source>
       <translation>请选择包含 ComfyUI main.py 文件的文件夹。</translation>
     </message>
@@ -1195,7 +1195,7 @@ Prompt preview:
       <translation>选择 Substitute 可以显示的 Danbooru Wiki 预览图片分级。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1389"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1382"></location>
       <source>Choose which Python this ComfyUI setup uses</source>
       <translation>选择此 ComfyUI 安装使用的 Python</translation>
     </message>
@@ -1205,7 +1205,7 @@ Prompt preview:
       <translation>选择拖放和复制导出的表示格式。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="743"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="736"></location>
       <source>Choose your existing ComfyUI folder</source>
       <translation>选择现有的 ComfyUI 文件夹</translation>
     </message>
@@ -1230,7 +1230,7 @@ Prompt preview:
       <translation>CivitAI API 密钥（可选）</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1060"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1053"></location>
       <source>CivitAI API key could not be saved. You can add it later in Settings.</source>
       <translation>无法保存 CivitAI API 密钥。您可以稍后在“设置”中添加。</translation>
     </message>
@@ -1315,7 +1315,7 @@ Prompt preview:
       <translation>由于选择了强制关闭，已跳过清理。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_page.py" line="120"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="264"></location>
       <source>Clear</source>
       <translation>清除</translation>
     </message>
@@ -1375,7 +1375,7 @@ Prompt preview:
       <translation>单击添加点，拖动移动，右键单击删除点。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="132"></location>
+      <location filename="../substitute/presentation/canvas/input/input_expandable_settings.py" line="55"></location>
       <source>Close</source>
       <translation>关闭</translation>
     </message>
@@ -1740,12 +1740,12 @@ Prompt preview:
       <translation>ComfyUI 版本：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1265"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1258"></location>
       <source>ComfyUI was downloaded, but some of its Python packages could not be installed.</source>
       <translation>ComfyUI 已下载，但部分 Python 软件包无法安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1283"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1276"></location>
       <source>ComfyUI was installed, but Substitute couldn't finish preparing the required node packs.</source>
       <translation>ComfyUI 已安装，但 Substitute 无法完成必需节点包的准备工作。</translation>
     </message>
@@ -1795,12 +1795,12 @@ Prompt preview:
       <translation>确认详细信息</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1349"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1342"></location>
       <source>Confirm the local host and port are free for Substitute to use.</source>
       <translation>请确认 Substitute 可以使用该本地主机名和端口。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1361"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1354"></location>
       <source>Confirm the remote host and port are correct.</source>
       <translation>请确认远程主机名和端口正确。</translation>
     </message>
@@ -1873,6 +1873,11 @@ Prompt preview:
       <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="479"></location>
       <source>Continuous generation requires the generation queue.</source>
       <translation>连续生成需要生成队列。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="46"></location>
+      <source>Contract</source>
+      <translation>收缩</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="435"></location>
@@ -2075,7 +2080,7 @@ Prompt preview:
       <translation>修复立方体依赖项更改了目标环境。请先重启 ComfyUI，再使用修复后的立方体进行生成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="981"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="973"></location>
       <source>Cube disabled</source>
       <translation>立方体已禁用</translation>
     </message>
@@ -2223,7 +2228,7 @@ Install these nodes now?</source>
       <translation>删除“%1”？</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1218"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1211"></location>
       <source>Delete the incomplete folder at %1.</source>
       <translation>请删除 %1 处未完成的文件夹。</translation>
     </message>
@@ -2256,6 +2261,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="199"></location>
       <source>Dependency versions</source>
       <translation>依赖项版本</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="249"></location>
+      <source>Deselect</source>
+      <translation>取消选择</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="211"></location>
@@ -2403,6 +2413,11 @@ Install these nodes now?</source>
       <translation>编辑曲线（%1 个点）</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="57"></location>
+      <source>Edit layer coverage</source>
+      <translation>编辑图层覆盖范围</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="328"></location>
       <source>Edit user wildcard files and refresh prompt metadata.</source>
       <translation>编辑用户通配符文件并刷新提示词元数据。</translation>
@@ -2413,9 +2428,14 @@ Install these nodes now?</source>
       <translation>编辑器功能</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="76"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="155"></location>
       <source>Ellipse Mask</source>
       <translation>椭圆蒙版</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="117"></location>
+      <source>Ellipse selection</source>
+      <translation>椭圆选区</translation>
     </message>
     <message>
       <location filename="../substitute/application/errors.py" line="639"></location>
@@ -2433,7 +2453,7 @@ Install these nodes now?</source>
       <translation>优先强调</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1238"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1231"></location>
       <source>Empty the folder at %1.</source>
       <translation>请清空 %1 处的文件夹。</translation>
     </message>
@@ -2466,6 +2486,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="70"></location>
       <source>Environment safety check</source>
       <translation>环境安全检查</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="191"></location>
+      <source>Eraser</source>
+      <translation>橡皮擦</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="788"></location>
@@ -2516,6 +2541,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="705"></location>
       <source>Existing local setup</source>
       <translation>现有本地环境设置</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="45"></location>
+      <source>Expand</source>
+      <translation>扩展</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/cube_stack_presentation_controller.py" line="60"></location>
@@ -2643,6 +2673,11 @@ Install these nodes now?</source>
       <translation>无法启动生成监听</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="47"></location>
+      <source>Feather</source>
+      <translation>羽化</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="667"></location>
       <source>Fetching Danbooru wiki content...</source>
       <translation>正在获取 Danbooru Wiki 内容...</translation>
@@ -2698,7 +2733,7 @@ Install these nodes now?</source>
       <translation>首次设置可能需要一些时间，因为可能需要安装 ComfyUI 和 Python 软件包。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1289"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1282"></location>
       <source>Fix the reported issue if you can.</source>
       <translation>请尽量修复报告的问题。</translation>
     </message>
@@ -2706,6 +2741,16 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="121"></location>
       <source>Fix the saved setup so Substitute can open again.</source>
       <translation>修复已保存的设置，使 Substitute 可以再次打开。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="54"></location>
+      <source>Flip horizontal</source>
+      <translation>水平翻转</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="59"></location>
+      <source>Flip vertical</source>
+      <translation>垂直翻转</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="524"></location>
@@ -2738,7 +2783,7 @@ Install these nodes now?</source>
       <translation>已找到 ComfyUI 使用的 Python 环境。请关闭 ComfyUI 以继续。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1194"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1187"></location>
       <source>Free space on the drive that contains %1.</source>
       <translation>请释放包含 %1 的驱动器上的空间。</translation>
     </message>
@@ -2863,7 +2908,7 @@ Install these nodes now?</source>
       <translation>全局</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1427"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1420"></location>
       <source>Go back to My Current ComfyUI.</source>
       <translation>返回“我当前的 ComfyUI”。</translation>
     </message>
@@ -2883,7 +2928,7 @@ Install these nodes now?</source>
       <translation>HTTP 状态：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="165"></location>
+      <location filename="../substitute/presentation/canvas/input/input_brush_settings.py" line="87"></location>
       <source>Hardness</source>
       <translation>硬度</translation>
     </message>
@@ -2978,7 +3023,7 @@ Install these nodes now?</source>
       <translation>主机名不能为空。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1308"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1301"></location>
       <source>If the folder already contains a partial install, delete it before retrying.</source>
       <translation>如果文件夹中已有未完成的安装，请将其删除后再重试。</translation>
     </message>
@@ -3188,7 +3233,7 @@ Install these nodes now?</source>
       <translation>保留现有设置</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1305"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1298"></location>
       <source>Keep your internet connection available while setup runs.</source>
       <translation>设置过程中请保持网络连接。</translation>
     </message>
@@ -3218,9 +3263,14 @@ Install these nodes now?</source>
       <translation>语言和区域</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="84"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="163"></location>
       <source>Lasso Mask</source>
       <translation>套索蒙版</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="126"></location>
+      <source>Lasso selection</source>
+      <translation>套索选区</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="419"></location>
@@ -3428,12 +3478,12 @@ Install these nodes now?</source>
       <translation>查找失败</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1453"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1446"></location>
       <source>Make sure ComfyUI is running at %1.</source>
       <translation>请确保 ComfyUI 正在 %1 上运行。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1515"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1508"></location>
       <source>Make sure ComfyUI is running at %1:%2.</source>
       <translation>请确保 ComfyUI 正在 %1:%2 上运行。</translation>
     </message>
@@ -3443,32 +3493,32 @@ Install these nodes now?</source>
       <translation>请确保 ComfyUI 正在已保存的地址上运行，然后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1465"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1458"></location>
       <source>Make sure a ComfyUI server is running at %1.</source>
       <translation>请确保 %1 上正在运行 ComfyUI 服务器。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1271"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1264"></location>
       <source>Make sure security software is not blocking Python package downloads.</source>
       <translation>请确保安全软件未阻止 Python 软件包下载。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1346"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1339"></location>
       <source>Make sure the folder points to the ComfyUI setup you want Substitute to launch.</source>
       <translation>请确保该文件夹指向您希望 Substitute 启动的 ComfyUI 安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1302"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1295"></location>
       <source>Make sure the selected folder is writable and has enough free space.</source>
       <translation>请确保所选文件夹可写且有足够的可用空间。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1255"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1248"></location>
       <source>Make sure the selected folder is writable.</source>
       <translation>请确保所选文件夹可写。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1362"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1355"></location>
       <source>Make sure this computer can reach the remote ComfyUI server.</source>
       <translation>请确保此计算机可以连接到远程 ComfyUI 服务器。</translation>
     </message>
@@ -3523,14 +3573,19 @@ Install these nodes now?</source>
       <translation>手动刷新元数据需要模型类型和值。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="867"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="702"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>无法验证蒙版尺寸</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="804"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="639"></location>
       <source>Mask dimensions do not match</source>
       <translation>蒙版尺寸不匹配</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_mask_layer_button.py" line="39"></location>
+      <source>Mask layer</source>
+      <translation>蒙版图层</translation>
     </message>
     <message>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="78"></location>
@@ -3643,6 +3698,11 @@ Install these nodes now?</source>
       <translation>模型文件夹</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_selection_contextual_toolbar.py" line="39"></location>
+      <source>Modify selection</source>
+      <translation>修改选区</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="266"></location>
       <source>More than one ComfyUI process was found</source>
       <translation>发现多个 ComfyUI 进程</translation>
@@ -3663,9 +3723,14 @@ Install these nodes now?</source>
       <translation>大多数用户应从第一个选项开始。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="60"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="75"></location>
       <source>Move</source>
       <translation>移动</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/shared/contextual_toolbar/drag_handle.py" line="36"></location>
+      <source>Move Contextual Toolbar</source>
+      <translation>移动上下文工具栏</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/planned_changes_panel.py" line="132"></location>
@@ -3778,7 +3843,7 @@ Install these nodes now?</source>
       <translation>未找到立方体</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="136"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="188"></location>
       <source>No input canvas nodes</source>
       <translation>没有输入画布节点</translation>
     </message>
@@ -3933,6 +3998,11 @@ Install these nodes now?</source>
       <translation>未设置</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_controller.py" line="144"></location>
+      <source>Nothing to transform!</source>
+      <translation>没有可变换的内容！</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="759"></location>
       <source>Number of queued generations to create</source>
       <translation>要加入队列的生成任务数</translation>
@@ -3963,7 +4033,7 @@ Install these nodes now?</source>
       <translation>在 Pixiv 上：</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="172"></location>
+      <location filename="../substitute/presentation/canvas/input/input_brush_settings.py" line="94"></location>
       <source>Opacity</source>
       <translation>不透明度</translation>
     </message>
@@ -4068,22 +4138,22 @@ Install these nodes now?</source>
       <translation>此 Comfy 服务器不支持操作规划。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1182"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1175"></location>
       <source>Or enable Win32 long paths in Windows, then try again.</source>
       <translation>或者在 Windows 中启用 Win32 长路径，然后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1222"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1215"></location>
       <source>Or go back and choose a different empty ComfyUI folder.</source>
       <translation>也可以返回并选择另一个空的 ComfyUI 文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1239"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1232"></location>
       <source>Or go back and choose a different empty folder.</source>
       <translation>也可以返回并选择另一个空文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1198"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1191"></location>
       <source>Or go back and choose an install location on a drive with more free space.</source>
       <translation>也可以返回并选择可用空间更多的驱动器作为安装位置。</translation>
     </message>
@@ -4138,7 +4208,7 @@ Install these nodes now?</source>
       <translation>软件包未加载</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="112"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="200"></location>
       <source>Pan &amp; Zoom</source>
       <translation>平移和缩放</translation>
     </message>
@@ -4211,6 +4281,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="555"></location>
       <source>Pick the setup that matches your current situation. You can change this later if your workflow changes.</source>
       <translation>选择符合当前情况的设置方式。如果工作流发生变化，之后可以更改。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="78"></location>
+      <source>Pixels</source>
+      <translation>像素</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="676"></location>
@@ -4318,12 +4393,12 @@ Install these nodes now?</source>
       <translation>正在准备下载。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="816"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="809"></location>
       <source>Preparing your existing ComfyUI installation.</source>
       <translation>正在准备您现有的 ComfyUI 安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="772"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="765"></location>
       <source>Preparing your existing ComfyUI setup.</source>
       <translation>正在准备您现有的 ComfyUI 环境。</translation>
     </message>
@@ -4563,9 +4638,14 @@ Install these nodes now?</source>
       <translation>正在录音…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="68"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="147"></location>
       <source>Rectangle Mask</source>
       <translation>矩形蒙版</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="108"></location>
+      <source>Rectangle selection</source>
+      <translation>矩形选区</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
@@ -4583,7 +4663,7 @@ Install these nodes now?</source>
       <translation>重新停靠画布</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="192"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="200"></location>
       <source>Referenced local image file does not exist.</source>
       <translation>引用的本地图像文件不存在。</translation>
     </message>
@@ -4643,7 +4723,7 @@ Install these nodes now?</source>
       <translation>远程连接</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="864"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="857"></location>
       <source>Remote endpoint: %1:%2</source>
       <translation>远程端点：%1:%2</translation>
     </message>
@@ -4827,7 +4907,7 @@ No known extension claimant.</source>
       <translation>所需的自定义节点均已安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="164"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="172"></location>
       <source>Required image input has no selected image.</source>
       <translation>必需的图像输入尚未选择图像。</translation>
     </message>
@@ -4907,7 +4987,7 @@ No known extension claimant.</source>
       <translation>重试</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="798"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="790"></location>
       <source>Reveal Hidden Cards</source>
       <translation>显示隐藏的卡片</translation>
     </message>
@@ -4932,7 +5012,7 @@ No known extension claimant.</source>
       <translation>请查看 SugarCubes 诊断详情，并修复列出的方块包、依赖项或本地检出。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1522"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1515"></location>
       <source>Review the connection details and try again.</source>
       <translation>请检查连接详细信息，然后重试。</translation>
     </message>
@@ -4947,12 +5027,12 @@ No known extension claimant.</source>
       <translation>请检查下面的详细信息，修复报告的问题，然后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1341"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1334"></location>
       <source>Review the existing ComfyUI folder and local address, then try again.</source>
       <translation>请检查现有的 ComfyUI 文件夹和本地地址，然后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1033"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1026"></location>
       <source>Review the folder choices and try again.</source>
       <translation>请检查文件夹选择，然后重试。</translation>
     </message>
@@ -4962,7 +5042,7 @@ No known extension claimant.</source>
       <translation>请检查主机名和端口，让 Substitute 能够找到 ComfyUI。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1358"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1351"></location>
       <source>Review the remote address details, then try again.</source>
       <translation>请检查远程地址详细信息，然后重试。</translation>
     </message>
@@ -4997,6 +5077,16 @@ No known extension claimant.</source>
       <translation>富文本提示词渲染</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="44"></location>
+      <source>Rotate left</source>
+      <translation>向左旋转</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="49"></location>
+      <source>Rotate right</source>
+      <translation>向右旋转</translation>
+    </message>
+    <message>
       <location filename="../substitute/app/bootstrap/splash_process.py" line="239"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>运行 Sugar Substitute 启动画面。</translation>
@@ -5007,27 +5097,27 @@ No known extension claimant.</source>
       <translation>运行 SugarSubstitute 启动画面宿主。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1489"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1482"></location>
       <source>Run setup again after fixing the files mentioned in the live output.</source>
       <translation>修复实时输出中提到的文件后，请重新运行设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1485"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1478"></location>
       <source>Run setup again so Substitute can finish installing ComfyUI.</source>
       <translation>请重新运行设置，让 Substitute 完成 ComfyUI 的安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1493"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1486"></location>
       <source>Run setup again so Substitute can install its required Comfy nodepacks.</source>
       <translation>请重新运行设置，让 Substitute 安装所需的 Comfy 节点包。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1507"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1500"></location>
       <source>Run setup again so Substitute can install the correct backend for the detected hardware.</source>
       <translation>请重新运行设置，让 Substitute 为检测到的硬件安装正确的后端。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1497"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1490"></location>
       <source>Run setup again so Substitute can validate the managed backend on this machine.</source>
       <translation>请重新运行设置，让 Substitute 验证此计算机上的托管后端。</translation>
     </message>
@@ -5157,7 +5247,7 @@ No known extension claimant.</source>
       <translation>正在保存生成预览设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="862"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="855"></location>
       <source>Saving your remote ComfyUI connection.</source>
       <translation>正在保存远程 ComfyUI 连接。</translation>
     </message>
@@ -5347,17 +5437,17 @@ No known extension claimant.</source>
       <translation>ComfyUI 关闭后，设置会自动继续。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1188"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1181"></location>
       <source>Setup could not finish while downloading or installing Python packages for ComfyUI.</source>
       <translation>下载或安装 ComfyUI 的 Python 软件包时，设置无法完成。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1249"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1242"></location>
       <source>Setup couldn't download the ComfyUI files it needs.</source>
       <translation>设置无法下载所需的 ComfyUI 文件。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1133"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1126"></location>
       <source>Setup details were saved, but Substitute still found a problem that needs attention before it can continue.</source>
       <translation>设置详细信息已保存，但 Substitute 仍发现了一个需要处理的问题，解决后才能继续。</translation>
     </message>
@@ -5387,7 +5477,7 @@ No known extension claimant.</source>
       <translation>无法读取设置状态</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1296"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1289"></location>
       <source>Setup stopped before ComfyUI was ready. Read the live output below, fix the problem it mentions, and then try again.</source>
       <translation>ComfyUI 准备就绪前设置已停止。请阅读下面的实时输出，修复其中提到的问题，然后重试。</translation>
     </message>
@@ -5412,7 +5502,7 @@ No known extension claimant.</source>
       <translation>严重性：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1166"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1159"></location>
       <source>Shorten the file or folder name at %1, then try again.</source>
       <translation>请缩短 %1 中的文件或文件夹名称，然后重试。</translation>
     </message>
@@ -5507,7 +5597,7 @@ No known extension claimant.</source>
       <translation>清理完成前关闭操作已超时。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_tool_options.py" line="158"></location>
+      <location filename="../substitute/presentation/canvas/input/input_brush_settings.py" line="83"></location>
       <source>Size</source>
       <translation>大小</translation>
     </message>
@@ -5522,7 +5612,12 @@ No known extension claimant.</source>
       <translation>可用时跳过活动的排队生成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="92"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="171"></location>
+      <source>Smart Mask</source>
+      <translation>智能蒙版</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="135"></location>
       <source>Smart Select</source>
       <translation>智能选择</translation>
     </message>
@@ -5667,7 +5762,7 @@ No known extension claimant.</source>
       <translation>停止生成</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1501"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1494"></location>
       <source>Stop the other process using %1:%2, or choose a different managed port.</source>
       <translation>请停止占用 %1:%2 的其他进程，或选择其他托管端口。</translation>
     </message>
@@ -5742,7 +5837,7 @@ No known extension claimant.</source>
       <translation>Substitute 可以从正在运行的 ComfyUI 检测环境，也可以手动选择 Python 可执行文件。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1232"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1225"></location>
       <source>Substitute can't install a fresh managed ComfyUI setup into a folder that already has other files in it.</source>
       <translation>Substitute 无法将新的托管 ComfyUI 安装到已包含其他文件的文件夹中。</translation>
     </message>
@@ -5782,12 +5877,12 @@ No known extension claimant.</source>
       <translation>Substitute 无法彻底完成关闭。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1355"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1348"></location>
       <source>Substitute could not finish this remote connection setup</source>
       <translation>Substitute 无法完成此远程连接设置</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1421"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1414"></location>
       <source>Substitute could not identify a working Python environment automatically.</source>
       <translation>Substitute 无法自动识别可用的 Python 环境。</translation>
     </message>
@@ -5802,7 +5897,7 @@ No known extension claimant.</source>
       <translation>Substitute 无法加载所需的实时 Comfy 节点定义。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1338"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1331"></location>
       <source>Substitute could not prepare this local ComfyUI setup</source>
       <translation>Substitute 无法准备此本地 ComfyUI 安装</translation>
     </message>
@@ -5817,47 +5912,47 @@ No known extension claimant.</source>
       <translation>Substitute 无法从立方体库更新此立方体：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1448"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1441"></location>
       <source>Substitute couldn't connect to the local ComfyUI address you entered.</source>
       <translation>Substitute 无法连接到您输入的本地 ComfyUI 地址。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1460"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1453"></location>
       <source>Substitute couldn't connect to the remote ComfyUI address you entered.</source>
       <translation>Substitute 无法连接到您输入的远程 ComfyUI 地址。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1248"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1241"></location>
       <source>Substitute couldn't download ComfyUI</source>
       <translation>Substitute 无法下载 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1115"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1108"></location>
       <source>Substitute couldn't find the local ComfyUI folder you entered.</source>
       <translation>Substitute 找不到您输入的本地 ComfyUI 文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1264"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1257"></location>
       <source>Substitute couldn't finish installing ComfyUI</source>
       <translation>Substitute 无法完成 ComfyUI 的安装</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1282"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1275"></location>
       <source>Substitute couldn't finish preparing ComfyUI</source>
       <translation>Substitute 无法完成 ComfyUI 的准备工作</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1295"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1288"></location>
       <source>Substitute couldn't finish setting up ComfyUI</source>
       <translation>Substitute 无法完成 ComfyUI 的设置</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1132"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1125"></location>
       <source>Substitute couldn't finish this setup</source>
       <translation>Substitute 无法完成此设置</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1459"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1452"></location>
       <source>Substitute couldn't reach the remote ComfyUI server</source>
       <translation>Substitute 无法连接到远程 ComfyUI 服务器</translation>
     </message>
@@ -5867,17 +5962,17 @@ No known extension claimant.</source>
       <translation>Substitute 无法连接到已保存的 ComfyUI 地址</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1447"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1440"></location>
       <source>Substitute couldn't reach your ComfyUI setup</source>
       <translation>Substitute 无法连接到您的 ComfyUI 安装</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1028"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1021"></location>
       <source>Substitute couldn't save one of the folder or helper settings.</source>
       <translation>Substitute 无法保存某项文件夹或辅助功能设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1027"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1020"></location>
       <source>Substitute couldn't save these setup choices</source>
       <translation>Substitute 无法保存这些设置选项</translation>
     </message>
@@ -5897,12 +5992,12 @@ No known extension claimant.</source>
       <translation>Substitute 发现设置问题</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1212"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1205"></location>
       <source>Substitute found leftover files in the selected ComfyUI folder, so it could not install a fresh managed setup there.</source>
       <translation>Substitute 在所选 ComfyUI 文件夹中发现了残留文件，因此无法在该位置安装新的托管环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1390"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1383"></location>
       <source>Substitute found more than one working Python environment and needs you to choose the one ComfyUI uses.</source>
       <translation>Substitute 找到了多个可用的 Python 环境，需要您选择 ComfyUI 使用的环境。</translation>
     </message>
@@ -5972,7 +6067,7 @@ No known extension claimant.</source>
       <translation>Substitute 遇到设置问题</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1187"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1180"></location>
       <source>Substitute ran out of temporary install space</source>
       <translation>Substitute 的临时安装空间不足</translation>
     </message>
@@ -6392,7 +6487,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>该键不能用作控件。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1114"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1107"></location>
       <source>The ComfyUI folder couldn't be found</source>
       <translation>找不到 ComfyUI 文件夹</translation>
     </message>
@@ -6402,12 +6497,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>必须提供 ComfyUI 文件夹，Substitute 才能启动它并检查本地自定义节点文件。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1209"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1202"></location>
       <source>The ComfyUI folder needs to be cleared before setup can continue</source>
       <translation>必须清理 ComfyUI 文件夹才能继续设置</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1231"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1224"></location>
       <source>The ComfyUI folder needs to be empty first</source>
       <translation>ComfyUI 文件夹必须先清空</translation>
     </message>
@@ -6422,7 +6517,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>此 ComfyUI 安装使用的 Python 环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1406"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1399"></location>
       <source>The Python executable you selected could not run this ComfyUI installation.</source>
       <translation>您选择的 Python 可执行文件无法运行此 ComfyUI 安装。</translation>
     </message>
@@ -6582,17 +6677,17 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法验证所选的 Python 可执行文件。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1377"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1370"></location>
       <source>The selected folder is not a complete ComfyUI installation.</source>
       <translation>所选文件夹不是完整的 ComfyUI 安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="869"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="704"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>无法根据已加载的输入图像验证所选蒙版尺寸。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="806"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="641"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>所选蒙版尺寸与已加载的输入图像不匹配。</translation>
     </message>
@@ -6652,12 +6747,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>主题模式</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1431"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1424"></location>
       <source>Then run setup again.</source>
       <translation>然后重新运行设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1471"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1464"></location>
       <source>Then try again.</source>
       <translation>然后重试。</translation>
     </message>
@@ -6800,6 +6895,16 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="294"></location>
       <source>Tracked Cube Packs</source>
       <translation>已跟踪的立方体包</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="83"></location>
+      <source>Transform</source>
+      <translation>变换</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="37"></location>
+      <source>Transform selection</source>
+      <translation>变换选区</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/features/lora_context_menu.py" line="190"></location>
@@ -6977,7 +7082,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>已加载的立方体有新版本可用。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="266"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="265"></location>
       <source>Updating</source>
       <translation>正在更新</translation>
     </message>
@@ -7007,17 +7112,17 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>正在更新配方...</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1413"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1406"></location>
       <source>Use Browse beside Python executable and choose the Python ComfyUI actually uses.</source>
       <translation>使用 Python 可执行文件旁的“浏览”，选择 ComfyUI 实际使用的 Python。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1428"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1421"></location>
       <source>Use Browse beside Python executable and choose the Python ComfyUI uses.</source>
       <translation>使用 Python 可执行文件旁的“浏览”，选择 ComfyUI 使用的 Python。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1397"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1390"></location>
       <source>Use Browse beside Python executable and choose this ComfyUI setup's Python.</source>
       <translation>使用 Python 可执行文件旁的“浏览”，选择此 ComfyUI 安装所用的 Python。</translation>
     </message>
@@ -7052,7 +7157,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>编写提示词时使用 Danbooru 标签工具。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="744"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="737"></location>
       <source>Use My Current ComfyUI needs the folder that contains your local ComfyUI installation.</source>
       <translation>“使用我当前的 ComfyUI”需要包含本地 ComfyUI 安装的文件夹。</translation>
     </message>
@@ -7182,6 +7287,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>视觉自定义。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="72"></location>
+      <source>Visual opacity</source>
+      <translation>视觉不透明度</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="341"></location>
       <source>Waiting - %1 ahead</source>
       <translation>等待中 - 前面还有 %1 个</translation>
@@ -7297,7 +7407,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>此平台无法使用 Windows DPAPI。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1161"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1154"></location>
       <source>Windows limits each individual file or folder name to 255 characters.</source>
       <translation>Windows 将每个文件或文件夹名称限制为 255 个字符。</translation>
     </message>
@@ -7357,7 +7467,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>是</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1034"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1027"></location>
       <source>You can also finish setup with the defaults and adjust Settings later.</source>
       <translation>您也可以使用默认值完成设置，稍后再到“设置”中调整。</translation>
     </message>
@@ -7440,6 +7550,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="422"></location>
       <source>a model</source>
       <translation>模型</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="71"></location>
+      <source>by</source>
+      <translation>幅度</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/about_page.py" line="558"></location>

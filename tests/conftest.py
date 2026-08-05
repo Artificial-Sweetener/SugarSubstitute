@@ -296,6 +296,7 @@ def _install_stub_modules():
             CONTROL_MODE_PANZOOM = "panzoom"
             CONTROL_MODE_DRAW_BRUSH = "draw-brush"
             CONTROL_MODE_SMART_SELECT = "smart-select"
+            CONTROL_MODE_SMART_MASK = "smart-mask"
 
             def __init__(self, *args, **kwargs):
                 pass

@@ -16,11 +16,19 @@
 
 """Expose reusable runtime canvas-tool presentation primitives."""
 
+from .layout import (
+    CanvasToolGroupSlot,
+    CanvasToolLayout,
+    CanvasToolLayoutSnapshot,
+    create_canvas_tool_layout,
+)
+from .layout_codec import CanvasToolLayoutCodec
 from .model import (
     CanvasToolContext,
     CanvasToolContribution,
     CanvasToolKind,
     CanvasToolPresentation,
+    CanvasToolSurface,
 )
 from .palette import CanvasToolPalette
 from .registry import CanvasToolRegistry
@@ -36,11 +44,16 @@ from .tool_options_control import CanvasToolOptionsControl
 from .tool_options_host import CanvasToolOptionsHost
 
 __all__ = [
+    "CanvasToolGroupSlot",
+    "CanvasToolLayout",
+    "CanvasToolLayoutCodec",
+    "CanvasToolLayoutSnapshot",
     "CanvasToolContext",
     "CanvasToolContribution",
     "CanvasToolKind",
     "CanvasToolPalette",
     "CanvasToolPresentation",
+    "CanvasToolSurface",
     "CanvasToolRegistry",
     "CanvasToolAction",
     "CanvasToolOptionsFactory",
@@ -50,4 +63,5 @@ __all__ = [
     "CanvasToolStrip",
     "CanvasToolOptionsControl",
     "CanvasToolOptionsHost",
+    "create_canvas_tool_layout",
 ]

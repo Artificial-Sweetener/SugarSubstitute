@@ -21,11 +21,13 @@ from __future__ import annotations
 from sugarsubstitute_shared.localization import ApplicationText
 from sugarsubstitute_shared.presentation.localization import app_text
 from cutecanvas import CuteCanvas
+from qfluentwidgets import FluentIcon  # type: ignore[import-untyped]
 
 from substitute.presentation.canvas.tools import (
     CanvasToolContribution,
     CanvasToolKind,
     CanvasToolRuntime,
+    CanvasToolSurface,
 )
 from substitute.presentation.resources.fluent_app_icon import AppIcon
 
@@ -33,7 +35,11 @@ INPUT_CANVAS_CONTEXT = "canvas.input"
 INPUT_CANVAS_CONTEXT_TAGS = frozenset({INPUT_CANVAS_CONTEXT})
 INPUT_IMAGE_CAPABILITY = "input.image"
 ACTIVE_MASK_CAPABILITY = "input.active_mask"
-SMART_SELECT_CAPABILITY = "input.smart_select"
+LAYER_TRANSFORM_CAPABILITY = "input.active_mask.transform"
+SMART_SEGMENTATION_CAPABILITY = "input.smart_segmentation"
+PIXEL_SELECTION_CAPABILITY = "input.pixel_selection"
+SELECTION_TRANSFORM_CAPABILITY = "input.pixel_selection.transform"
+SELECTION_CLEAR_CAPABILITY = "input.pixel_selection.clear"
 BRUSH_OPTIONS_ID = "input.options.brush"
 
 
@@ -41,11 +47,20 @@ class InputCanvasToolId:
     """Own stable product identities for built-in Input canvas tools."""
 
     MOVE = "input.move"
+    TRANSFORM_SELECTION = "input.selection.transform"
+    TRANSFORM_LAYER = "input.layer.transform"
+    CLEAR_SELECTION_PIXELS = "input.selection.clear_pixels"
+    DESELECT = "input.selection.deselect"
+    SELECT_RECTANGLE = "input.selection.rectangle"
+    SELECT_ELLIPSE = "input.selection.ellipse"
+    SELECT_LASSO = "input.selection.lasso"
     MASK_RECTANGLE = "input.mask.rectangle"
     MASK_ELLIPSE = "input.mask.ellipse"
     MASK_LASSO = "input.mask.lasso"
-    SMART_SELECT = "input.mask.smart_select"
+    SMART_SELECT = "input.selection.smart_select"
+    SMART_MASK = "input.mask.smart_mask"
     BRUSH = "input.mask.brush"
+    ERASER = "input.mask.eraser"
     PAN_ZOOM = "input.pan_zoom"
 
 
@@ -64,47 +79,120 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 operation_id=CuteCanvas.CONTROL_MODE_MOVE,
             ),
             _mode(
+                InputCanvasToolId.TRANSFORM_SELECTION,
+                app_text("Transform"),
+                AppIcon.SELECT_OBJECT_SKEW_20_REGULAR,
+                section="selection",
+                order=100,
+                required_capabilities={
+                    INPUT_IMAGE_CAPABILITY,
+                    PIXEL_SELECTION_CAPABILITY,
+                    SELECTION_TRANSFORM_CAPABILITY,
+                },
+                operation_id=CuteCanvas.CONTROL_MODE_TRANSFORM,
+                surfaces={CanvasToolSurface.CONTEXTUAL_TOOLBAR},
+            ),
+            _mode(
+                InputCanvasToolId.TRANSFORM_LAYER,
+                app_text("Transform"),
+                AppIcon.SELECT_OBJECT_SKEW_20_REGULAR,
+                order=150,
+                required_capabilities={
+                    ACTIVE_MASK_CAPABILITY,
+                    LAYER_TRANSFORM_CAPABILITY,
+                },
+                operation_id=CuteCanvas.CONTROL_MODE_TRANSFORM,
+            ),
+            _mode(
+                InputCanvasToolId.SELECT_RECTANGLE,
+                app_text("Rectangle selection"),
+                AppIcon.SELECT_OBJECT_20_REGULAR,
+                section="selection",
+                order=200,
+                required_capabilities={INPUT_IMAGE_CAPABILITY},
+                operation_id=CuteCanvas.CONTROL_MODE_SELECT_RECTANGLE,
+            ),
+            _mode(
+                InputCanvasToolId.SELECT_ELLIPSE,
+                app_text("Ellipse selection"),
+                AppIcon.SELECT_ELLIPSE_20_REGULAR,
+                section="selection",
+                order=300,
+                required_capabilities={INPUT_IMAGE_CAPABILITY},
+                operation_id=CuteCanvas.CONTROL_MODE_SELECT_ELLIPSE,
+            ),
+            _mode(
+                InputCanvasToolId.SELECT_LASSO,
+                app_text("Lasso selection"),
+                AppIcon.LASSO_20_REGULAR,
+                section="selection",
+                order=400,
+                required_capabilities={INPUT_IMAGE_CAPABILITY},
+                operation_id=CuteCanvas.CONTROL_MODE_SELECT_LASSO,
+            ),
+            _mode(
+                InputCanvasToolId.SMART_SELECT,
+                app_text("Smart Select"),
+                AppIcon.SMART_SELECT_20_REGULAR,
+                section="selection",
+                order=450,
+                required_capabilities={
+                    INPUT_IMAGE_CAPABILITY,
+                    SMART_SEGMENTATION_CAPABILITY,
+                },
+                operation_id=CuteCanvas.CONTROL_MODE_SMART_SELECT,
+            ),
+            _mode(
                 InputCanvasToolId.MASK_RECTANGLE,
                 app_text("Rectangle Mask"),
-                AppIcon.RECTANGLE_LANDSCAPE_20_REGULAR,
-                order=200,
+                AppIcon.MASK_RECTANGLE_20_REGULAR,
+                order=500,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
                 operation_id=CuteCanvas.CONTROL_MODE_MASK_RECTANGLE,
             ),
             _mode(
                 InputCanvasToolId.MASK_ELLIPSE,
                 app_text("Ellipse Mask"),
-                AppIcon.CIRCLE_20_REGULAR,
-                order=300,
+                AppIcon.MASK_ELLIPSE_20_REGULAR,
+                order=600,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
                 operation_id=CuteCanvas.CONTROL_MODE_MASK_ELLIPSE,
             ),
             _mode(
                 InputCanvasToolId.MASK_LASSO,
                 app_text("Lasso Mask"),
-                AppIcon.LASSO_20_REGULAR,
-                order=400,
+                AppIcon.MASK_LASSO_20_REGULAR,
+                order=700,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
                 operation_id=CuteCanvas.CONTROL_MODE_MASK_LASSO,
             ),
             _mode(
-                InputCanvasToolId.SMART_SELECT,
-                app_text("Smart Select"),
-                AppIcon.SELECT_OBJECT_20_REGULAR,
-                order=500,
+                InputCanvasToolId.SMART_MASK,
+                app_text("Smart Mask"),
+                AppIcon.SMART_MASK_20_REGULAR,
+                order=800,
                 required_capabilities={
                     ACTIVE_MASK_CAPABILITY,
-                    SMART_SELECT_CAPABILITY,
+                    SMART_SEGMENTATION_CAPABILITY,
                 },
-                operation_id=CuteCanvas.CONTROL_MODE_SMART_SELECT,
+                operation_id=CuteCanvas.CONTROL_MODE_SMART_MASK,
             ),
             _mode(
                 InputCanvasToolId.BRUSH,
                 app_text("Brush"),
                 AppIcon.PAINT_BRUSH_20_REGULAR,
-                order=600,
+                order=900,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
                 operation_id=CuteCanvas.CONTROL_MODE_DRAW_BRUSH,
+                options_id=BRUSH_OPTIONS_ID,
+            ),
+            _mode(
+                InputCanvasToolId.ERASER,
+                app_text("Eraser"),
+                AppIcon.ERASER_20_REGULAR,
+                order=950,
+                required_capabilities={ACTIVE_MASK_CAPABILITY},
+                operation_id=CuteCanvas.CONTROL_MODE_ERASER,
                 options_id=BRUSH_OPTIONS_ID,
             ),
             _mode(
@@ -112,7 +200,7 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 app_text("Pan & Zoom"),
                 AppIcon.HAND_LEFT_20_REGULAR,
                 section="navigation",
-                order=700,
+                order=1000,
                 required_capabilities={INPUT_IMAGE_CAPABILITY},
                 operation_id=CuteCanvas.CONTROL_MODE_PANZOOM,
             ),
@@ -131,6 +219,7 @@ def _mode(
     section: str = "mask",
     operation_id: str,
     options_id: str | None = None,
+    surfaces: set[CanvasToolSurface] | None = None,
 ) -> CanvasToolContribution:
     """Build one persistent Input tool contribution with common context policy."""
 
@@ -145,6 +234,43 @@ def _mode(
         required_capabilities=frozenset(required_capabilities),
         document_operation_id=operation_id,
         options_id=options_id,
+        surfaces=(
+            frozenset({CanvasToolSurface.TOOL_STRIP})
+            if surfaces is None
+            else frozenset(surfaces)
+        ),
+    )
+
+
+def deselect_contribution() -> CanvasToolContribution:
+    """Return the selection-owned one-shot Deselect contribution."""
+    return CanvasToolContribution(
+        tool_id=InputCanvasToolId.DESELECT,
+        label=app_text("Deselect"),
+        icon=FluentIcon.CLEAR_SELECTION,
+        kind=CanvasToolKind.ACTION,
+        section="selection",
+        order=300,
+        required_context_tags=INPUT_CANVAS_CONTEXT_TAGS,
+        required_capabilities=frozenset({PIXEL_SELECTION_CAPABILITY}),
+        surfaces=frozenset({CanvasToolSurface.CONTEXTUAL_TOOLBAR}),
+    )
+
+
+def clear_selection_pixels_contribution() -> CanvasToolContribution:
+    """Return the selection-owned one-shot pixel Clear contribution."""
+    return CanvasToolContribution(
+        tool_id=InputCanvasToolId.CLEAR_SELECTION_PIXELS,
+        label=app_text("Clear"),
+        icon=AppIcon.ERASER_20_REGULAR,
+        kind=CanvasToolKind.ACTION,
+        section="selection",
+        order=200,
+        required_context_tags=INPUT_CANVAS_CONTEXT_TAGS,
+        required_capabilities=frozenset(
+            {PIXEL_SELECTION_CAPABILITY, SELECTION_CLEAR_CAPABILITY}
+        ),
+        surfaces=frozenset({CanvasToolSurface.CONTEXTUAL_TOOLBAR}),
     )
 
 
@@ -153,7 +279,13 @@ __all__ = [
     "BRUSH_OPTIONS_ID",
     "INPUT_CANVAS_CONTEXT_TAGS",
     "INPUT_IMAGE_CAPABILITY",
-    "SMART_SELECT_CAPABILITY",
+    "LAYER_TRANSFORM_CAPABILITY",
+    "PIXEL_SELECTION_CAPABILITY",
+    "SELECTION_CLEAR_CAPABILITY",
+    "SELECTION_TRANSFORM_CAPABILITY",
+    "SMART_SEGMENTATION_CAPABILITY",
     "InputCanvasToolId",
     "create_input_canvas_tool_system",
+    "clear_selection_pixels_contribution",
+    "deselect_contribution",
 ]

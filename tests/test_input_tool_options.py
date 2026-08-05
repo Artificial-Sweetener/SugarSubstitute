@@ -18,8 +18,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import cast
 from uuid import uuid4
 
+from cutecanvas import (
+    BrushPreset,
+    CuteCanvas,
+    EditorIntent,
+    EditorTransformTarget,
+    RasterExtentPolicy,
+)
 from PySide6.QtCore import (
     QCoreApplication,
     QEvent,
@@ -27,14 +36,20 @@ from PySide6.QtCore import (
     QPoint,
     QPointF,
     QRect,
+    QRectF,
     QSize,
     Qt,
     qInstallMessageHandler,
 )
-from PySide6.QtGui import QColor, QImage
-from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QPushButton, QWidget
+from PySide6.QtGui import QColor, QImage, QMouseEvent, QPainter, QRegion, QWheelEvent
+from PySide6.QtTest import QSignalSpy, QTest
+from PySide6.QtWidgets import (
+    QApplication,
+    QPushButton,
+    QWidget,
+)
 import pytest
+from qfluentwidgets import themeColor  # type: ignore[import-untyped]
 
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
     InputCanvasToolId,
@@ -44,17 +59,36 @@ from substitute.presentation.canvas.input.input_canvas_tool_controller import (
     InputCanvasToolController,
 )
 from substitute.presentation.canvas.input.input_canvas_view import InputCanvas
+from substitute.presentation.canvas.input.input_contextual_toolbar_installation import (
+    install_input_contextual_toolbar,
+)
+from substitute.presentation.canvas.input.input_selection_contextual_toolbar import (
+    InputSelectionContextualToolbarPage,
+)
+from substitute.presentation.canvas.input.input_selection_modification_contextual_toolbar import (
+    InputSelectionModificationContextualToolbarPage,
+)
+from substitute.presentation.canvas.input.input_transform_contextual_toolbar import (
+    InputTransformContextualToolbarPage,
+)
 from substitute.presentation.canvas.input.input_tool_options import (
     InputBrushSettingsControl,
     install_input_tool_options,
 )
+from substitute.presentation.canvas.input.input_mask_layer_button import (
+    InputMaskLayerButton,
+)
 from substitute.presentation.canvas.shared.canvas_chrome_metrics import (
+    CANVAS_CHROME_CONTROL_HEIGHT,
+    CANVAS_CHROME_GAP,
     CANVAS_CHROME_SURFACE_HEIGHT,
 )
 from substitute.presentation.canvas.shared.canvas_top_bar import CanvasTopBar
 from substitute.presentation.canvas.shared.floating_canvas_surface import (
     floating_canvas_surface_stylesheet,
 )
+from substitute.presentation.widgets import SpinBox
+from substitute.presentation.resources.fluent_app_icon import AppIcon
 
 
 def _app() -> QApplication:
@@ -82,11 +116,64 @@ class _LayoutRequestCounter(QObject):
         return False
 
 
+class _MousePressCounter(QObject):
+    """Count mouse presses that reach one canvas receiver's local filters."""
+
+    def __init__(self) -> None:
+        """Create an empty press counter."""
+        super().__init__()
+        self.count = 0
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        """Record local delivery without consuming the pointer event."""
+        del watched
+        if event.type() is QEvent.Type.MouseButtonPress:
+            self.count += 1
+        return False
+
+
 def _drain_events(application: QApplication, *, iterations: int = 24) -> None:
     """Drain enough event-loop turns to expose self-scheduling zero timers."""
 
     for _iteration in range(iterations):
         application.processEvents()
+
+
+def _wait_for_spy(spy: QSignalSpy, *, timeout_ms: int = 3000) -> None:
+    """Wait for one Qt signal while continuing to process timer-driven UI work."""
+    elapsed = 0
+    while spy.count() == 0 and elapsed < timeout_ms:
+        QTest.qWait(10)
+        elapsed += 10
+    assert spy.count() > 0
+
+
+def _wait_for_condition(
+    predicate: Callable[[], bool],
+    *,
+    timeout_ms: int = 3000,
+) -> None:
+    """Wait for one observable Qt state without assuming queued timing."""
+    elapsed = 0
+    while not predicate() and elapsed < timeout_ms:
+        QTest.qWait(10)
+        elapsed += 10
+    assert predicate()
+
+
+def _render_without_children(widget: QWidget) -> QImage:
+    """Render one widget's own pixels without overlay child controls."""
+    image = QImage(widget.size(), QImage.Format.Format_ARGB32_Premultiplied)
+    image.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(image)
+    widget.render(
+        painter,
+        QPoint(),
+        QRegion(),
+        QWidget.RenderFlag.DrawWindowBackground,
+    )
+    painter.end()
+    return image
 
 
 def _mounted_input() -> tuple[InputCanvas, InputCanvasToolController]:
@@ -95,6 +182,7 @@ def _mounted_input() -> tuple[InputCanvas, InputCanvasToolController]:
     canvas = InputCanvas()
     runtime = create_input_canvas_tool_system()
     install_input_tool_options(runtime, canvas.document.tool_options)
+    install_input_contextual_toolbar(runtime, canvas.document.tool_options)
     controller = InputCanvasToolController(
         input_document=canvas.document,
         operation_setter=canvas.document.set_canvas_operation,
@@ -124,6 +212,56 @@ def test_top_bar_cannot_observe_its_own_layout_lifecycle() -> None:
     """Keep self-generated layout requests outside the top-bar input surface."""
 
     assert "event" not in CanvasTopBar.__dict__
+
+
+def test_empty_mask_disables_layer_transform_until_content_exists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Mounted Input chrome must follow CuteCanvas meaningful-content state."""
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, _controller = _mounted_input()
+    try:
+        transform = canvas.tool_strip.button_for(InputCanvasToolId.TRANSFORM_LAYER)
+        assert transform is not None
+        assert not canvas.document.layer_transform_available()
+        assert not transform.isEnabled()
+        assert transform.toolTip() == "Nothing to transform!"
+
+        mask_id = canvas.document.active_mask_id()
+        assert mask_id is not None
+        coverage = QImage(96, 64, QImage.Format.Format_Grayscale8)
+        coverage.fill(0)
+        coverage.setPixelColor(20, 20, QColor(255, 255, 255))
+        assert canvas.document.canvas.replaceMaskImage(mask_id, coverage)
+        app.processEvents()
+
+        transform = canvas.tool_strip.button_for(InputCanvasToolId.TRANSFORM_LAYER)
+        assert canvas.document.layer_transform_available()
+        assert transform is not None and transform.isEnabled()
+        assert transform.toolTip() == "Transform"
+
+        blank = QImage(96, 64, QImage.Format.Format_Grayscale8)
+        blank.fill(0)
+        assert canvas.document.canvas.replaceMaskImage(mask_id, blank)
+        app.processEvents()
+        assert not transform.isEnabled()
+        assert transform.toolTip() == "Nothing to transform!"
+
+        assert canvas.document.canvas.undoMaskEdit()
+        app.processEvents()
+        assert transform.isEnabled()
+        assert transform.toolTip() == "Transform"
+
+        assert canvas.document.canvas.redoMaskEdit()
+        app.processEvents()
+        assert not transform.isEnabled()
+        assert transform.toolTip() == "Nothing to transform!"
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
 
 
 def test_top_bar_reaches_idle_quiescence_after_brush_activation(
@@ -265,7 +403,10 @@ def test_brush_settings_reflow_and_state_follow_one_top_bar(
         app.processEvents()
         collapsed_following_x = following_control.x()
 
-        QTest.mouseClick(brush_settings.header_button, Qt.MouseButton.LeftButton)
+        QTest.mouseClick(
+            brush_settings.brush_settings.header_button,
+            Qt.MouseButton.LeftButton,
+        )
         app.processEvents()
         assert brush_settings.expanded
         assert canvas.tool_options_host.height() > CANVAS_CHROME_SURFACE_HEIGHT
@@ -299,15 +440,15 @@ def test_brush_settings_reflow_and_state_follow_one_top_bar(
             == floating_canvas_surface_stylesheet("QFrame#CanvasToolOptionsHost")
         )
 
-        brush_settings.size_slider.setValue(173)
-        brush_settings.hardness_slider.setValue(27)
-        brush_settings.opacity_slider.setValue(61)
+        brush_settings.brush_settings.size_slider.setValue(173)
+        brush_settings.brush_settings.hardness_slider.setValue(27)
+        brush_settings.brush_settings.opacity_slider.setValue(61)
         app.processEvents()
         preset = canvas.document.tool_options.brush_preset()
         assert preset.size == 173.0
         assert preset.hardness == 0.27
         assert preset.opacity == 0.61
-        assert brush_settings.size_value.text() == "173 px"
+        assert brush_settings.brush_settings.size_value.text() == "173 px"
 
         assert controller.request_tool(InputCanvasToolId.MASK_RECTANGLE)
         app.processEvents()
@@ -343,7 +484,7 @@ def test_brush_settings_preview_tracks_active_layer_color_and_outside_click(
 
         brush_settings = canvas.tool_options_host.options_control
         assert isinstance(brush_settings, InputBrushSettingsControl)
-        preview = brush_settings.preview_image()
+        preview = brush_settings.brush_settings.preview_image()
         assert not preview.isNull()
         center = preview.pixelColor(preview.width() // 2, preview.height() // 2)
         assert (center.red(), center.green(), center.blue()) == (
@@ -352,9 +493,23 @@ def test_brush_settings_preview_tracks_active_layer_color_and_outside_click(
             layer_color.blue(),
         )
 
-        QTest.mouseClick(brush_settings.header_button, Qt.MouseButton.LeftButton)
+        assert controller.request_tool(InputCanvasToolId.ERASER)
         app.processEvents()
-        assert brush_settings.expanded
+        eraser_settings = canvas.tool_options_host.options_control
+        assert isinstance(eraser_settings, InputBrushSettingsControl)
+        eraser_preview = eraser_settings.brush_settings.preview_image()
+        eraser_center = eraser_preview.pixelColor(
+            eraser_preview.width() // 2,
+            eraser_preview.height() // 2,
+        )
+        assert eraser_center == QColor(Qt.GlobalColor.white)
+
+        QTest.mouseClick(
+            eraser_settings.brush_settings.header_button,
+            Qt.MouseButton.LeftButton,
+        )
+        app.processEvents()
+        assert eraser_settings.expanded
 
         QTest.mouseClick(
             outside_button,
@@ -362,8 +517,987 @@ def test_brush_settings_preview_tracks_active_layer_color_and_outside_click(
             pos=QPoint(outside_button.width() // 2, outside_button.height() // 2),
         )
         app.processEvents()
-        assert not brush_settings.expanded
+        assert not eraser_settings.expanded
         assert outside_clicks == [True]
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_replaced_brush_settings_release_document_subscriptions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Removed Brush controls must stop observing document state immediately."""
+    app = _app()
+    canvas, controller = _mounted_input()
+    try:
+        assert controller.request_tool(InputCanvasToolId.BRUSH)
+        _drain_events(app)
+        control = canvas.tool_options_host.options_control
+        assert isinstance(control, InputBrushSettingsControl)
+        assert control.brush_settings.parent() is control
+
+        assert controller.request_tool(InputCanvasToolId.MASK_RECTANGLE)
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        _drain_events(app)
+
+        brush_preset_calls: list[None] = []
+        brush_preset = canvas.document.tool_options.brush_preset
+
+        def tracked_brush_preset() -> BrushPreset:
+            """Record stale option reads while preserving the real result."""
+            brush_preset_calls.append(None)
+            return brush_preset()
+
+        monkeypatch.setattr(
+            canvas.document.tool_options,
+            "brush_preset",
+            tracked_brush_preset,
+        )
+        for _iteration in range(24):
+            canvas.document.brushPresetChanged.emit()
+        _drain_events(app)
+
+        assert brush_preset_calls == []
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_modify_selection_previews_original_and_settles_explicitly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Contextual modification must replace from its base until Apply or Cancel."""
+    app = _app()
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    canvas, controller = _mounted_input()
+    try:
+        assert canvas.contextual_toolbar.page is None
+        assert not canvas.contextual_toolbar.isVisible()
+        selection = QImage(20, 16, QImage.Format.Format_Grayscale8)
+        selection.fill(255)
+        assert canvas.document.canvas.setPixelSelection(
+            selection,
+            QRect(20, 18, 20, 16),
+        )
+        app.processEvents()
+
+        page = canvas.contextual_toolbar.page
+        assert isinstance(page, InputSelectionContextualToolbarPage)
+        assert page.modify_button.text() == "Modify selection"
+        QTest.mouseClick(page.modify_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        modification_page = canvas.contextual_toolbar.page
+        assert isinstance(
+            modification_page,
+            InputSelectionModificationContextualToolbarPage,
+        )
+        _wait_for_condition(modification_page.isVisible)
+        controls = modification_page.controls
+        assert [
+            controls.operation_selector.itemText(index)
+            for index in range(controls.operation_selector.count())
+        ] == ["Expand", "Contract", "Feather"]
+        assert isinstance(controls.pixel_amount, SpinBox)
+        assert not controls.pixel_amount.isSymbolVisible()
+        assert controls.pixel_amount.maximum() == 999
+        assert controls.pixel_amount.width() == 42
+        assert controls.pixel_amount.height() == CANVAS_CHROME_CONTROL_HEIGHT
+        assert controls.operation_selector.height() == CANVAS_CHROME_CONTROL_HEIGHT
+        assert controls.pixel_amount.alignment() == Qt.AlignmentFlag.AlignCenter
+        assert modification_page.layout().count() == 2
+        assert modification_page.cancel_button.toolTip() == "Cancel"
+        assert modification_page.apply_button.toolTip() == "Apply"
+        assert modification_page.cancel_button.accessibleName() == "Cancel"
+        assert modification_page.apply_button.accessibleName() == "Apply"
+        assert modification_page.cancel_button.size() == QSize(
+            CANVAS_CHROME_CONTROL_HEIGHT,
+            CANVAS_CHROME_CONTROL_HEIGHT,
+        )
+        assert modification_page.apply_button.size() == QSize(
+            CANVAS_CHROME_CONTROL_HEIGHT,
+            CANVAS_CHROME_CONTROL_HEIGHT,
+        )
+        assert modification_page.apply_button.x() < modification_page.cancel_button.x()
+        settlement_left = modification_page.settlement_controls.mapTo(
+            modification_page,
+            modification_page.apply_button.pos(),
+        ).x()
+        assert (
+            settlement_left - modification_page.controls.geometry().right() - 1
+            >= CANVAS_CHROME_GAP
+        )
+        assert modification_page.cancel_button.y() == modification_page.apply_button.y()
+        _wait_for_condition(
+            lambda: (
+                canvas.document.canvas.pixelSelectionState().bounds
+                == QRect(16, 14, 28, 24)
+            )
+        )
+
+        controls.operation_selector.setCurrentIndex(1)
+        controls.pixel_amount.setValue(2)
+        _wait_for_condition(
+            lambda: (
+                canvas.document.canvas.pixelSelectionState().bounds
+                == QRect(22, 20, 16, 12)
+            )
+        )
+        wheel_position = controls.pixel_amount.rect().center()
+        wheel_event = QWheelEvent(
+            QPointF(wheel_position),
+            QPointF(controls.pixel_amount.mapToGlobal(wheel_position)),
+            QPoint(0, 0),
+            QPoint(0, 120),
+            Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier,
+            Qt.ScrollPhase.ScrollUpdate,
+            False,
+        )
+        QApplication.sendEvent(controls.pixel_amount, wheel_event)
+        assert wheel_event.isAccepted()
+        assert controls.pixel_amount.value() == 3
+        _wait_for_condition(
+            lambda: (
+                canvas.document.canvas.pixelSelectionState().bounds
+                == QRect(23, 21, 14, 10)
+            )
+        )
+        controls.pixel_amount.setValue(2)
+        _wait_for_condition(
+            lambda: (
+                canvas.document.canvas.pixelSelectionState().bounds
+                == QRect(22, 20, 16, 12)
+            )
+        )
+
+        QTest.mouseClick(modification_page.cancel_button, Qt.MouseButton.LeftButton)
+        _wait_for_condition(
+            lambda: (
+                canvas.document.canvas.pixelSelectionState().bounds
+                == QRect(20, 18, 20, 16)
+            )
+        )
+        page = canvas.contextual_toolbar.page
+        assert isinstance(page, InputSelectionContextualToolbarPage)
+        _wait_for_condition(page.isVisible)
+
+        QTest.mouseClick(page.modify_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        modification_page = canvas.contextual_toolbar.page
+        assert isinstance(
+            modification_page,
+            InputSelectionModificationContextualToolbarPage,
+        )
+        _wait_for_condition(modification_page.isVisible)
+        completed = QSignalSpy(
+            canvas.document.canvas.pixelSelectionModificationCompleted
+        )
+        modification_page.controls.pixel_amount.setValue(5)
+        QTest.mouseClick(modification_page.apply_button, Qt.MouseButton.LeftButton)
+        _wait_for_spy(completed)
+        _wait_for_condition(
+            lambda: (
+                canvas.document.canvas.pixelSelectionState().bounds
+                == QRect(15, 13, 30, 26)
+            )
+        )
+        assert isinstance(
+            canvas.contextual_toolbar.page,
+            InputSelectionContextualToolbarPage,
+        )
+        assert canvas.document.canvas.undoSceneEdit()
+        _wait_for_condition(
+            lambda: (
+                canvas.document.canvas.pixelSelectionState().bounds
+                == QRect(20, 18, 20, 16)
+            )
+        )
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_contextual_toolbar_drags_clamps_and_deselects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Selection chrome must retain movable placement and derive dismissal from state."""
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, _controller = _mounted_input()
+    try:
+        selection = QImage(12, 12, QImage.Format.Format_Grayscale8)
+        selection.fill(255)
+        assert canvas.document.canvas.setPixelSelection(
+            selection,
+            QRect(34, 22, 12, 12),
+        )
+        app.processEvents()
+
+        toolbar = canvas.contextual_toolbar
+        page = toolbar.page
+        assert isinstance(page, InputSelectionContextualToolbarPage)
+        assert toolbar.drag_handle.cursor().shape() is Qt.CursorShape.ArrowCursor
+        assert toolbar.drag_handle.width() < toolbar.drag_handle.height()
+        assert toolbar.drag_handle.x() < toolbar.content_host.x()
+        pill_image = toolbar.drag_handle.grab().toImage()
+        painted_accent = pill_image.pixelColor(pill_image.rect().center())
+        expected_accent = QColor(themeColor())
+        assert painted_accent.name() == expected_accent.name()
+        panel_selection = canvas.document.tool_options.pixel_selection_panel_bounds()
+        assert panel_selection is not None
+        assert toolbar.geometry().top() > panel_selection.bottom()
+        start = toolbar.pos()
+        toolbar.drag_handle.dragged.emit(QPoint(30, -70))
+        app.processEvents()
+        assert toolbar.pos() == start + QPoint(30, -70)
+
+        retained_center = toolbar.geometry().center()
+        QTest.mouseClick(page.modify_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        assert (toolbar.geometry().center() - retained_center).manhattanLength() <= 1
+        modification_page = toolbar.page
+        assert isinstance(
+            modification_page,
+            InputSelectionModificationContextualToolbarPage,
+        )
+        _wait_for_condition(modification_page.isVisible)
+        QTest.mouseClick(modification_page.cancel_button, Qt.MouseButton.LeftButton)
+        _wait_for_condition(
+            lambda: (
+                isinstance(
+                    toolbar.page,
+                    InputSelectionContextualToolbarPage,
+                )
+                and bool(toolbar.page is not None and toolbar.page.isVisible())
+            )
+        )
+
+        toolbar.drag_handle.dragged.emit(QPoint(10_000, 10_000))
+        app.processEvents()
+        assert canvas.canvas.rect().contains(toolbar.geometry())
+
+        current_page = toolbar.page
+        assert isinstance(current_page, InputSelectionContextualToolbarPage)
+        deselect = current_page.action_strip.button_for(InputCanvasToolId.DESELECT)
+        assert deselect is not None
+        deselect_widget = cast(QWidget, deselect)
+        _wait_for_condition(deselect_widget.isEnabled)
+        deselect_widget.setFocus(Qt.FocusReason.MouseFocusReason)
+        assert QApplication.focusWidget() is deselect_widget
+        QTest.mouseClick(deselect_widget, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        cleared_selection = canvas.document.canvas.pixelSelectionState()
+        assert cleared_selection is not None and not cleared_selection.has_selection
+        _wait_for_condition(lambda: toolbar.page is None)
+        _wait_for_condition(lambda: not toolbar.isVisible())
+        assert QApplication.focusWidget() is canvas.document.canvas
+        QTest.keyPress(canvas.document.canvas, Qt.Key.Key_Space)
+        assert (
+            canvas.document.canvas.getControlMode() == CuteCanvas.CONTROL_MODE_PANZOOM
+        )
+        assert not canvas.window().isMinimized()
+        QTest.keyRelease(canvas.document.canvas, Qt.Key.Key_Space)
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_contextual_toolbar_clear_erases_selected_mask_pixels_without_deselecting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Clear must edit the active layer while retaining selection context."""
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, controller = _mounted_input()
+    try:
+        mask_id = canvas.document.active_mask_id()
+        assert mask_id is not None
+        mask_pixels = QImage(96, 64, QImage.Format.Format_Grayscale8)
+        mask_pixels.fill(0)
+        mask_painter = QPainter(mask_pixels)
+        mask_painter.fillRect(QRect(34, 22, 12, 12), QColor(255, 255, 255))
+        mask_painter.end()
+        assert canvas.document.canvas.replaceMaskImage(mask_id, mask_pixels)
+        mask_info = canvas.document.canvas.listMasksForComposition()[0]
+        assert mask_info.scene_id is not None
+        assert mask_info.layer_id is not None
+        canvas.document.canvas.setRasterExtentPolicy(
+            mask_info.scene_id,
+            mask_info.layer_id,
+            RasterExtentPolicy.EXPAND_ON_WRITE,
+        )
+        compacting_selection = QImage(12, 12, QImage.Format.Format_Grayscale8)
+        compacting_selection.fill(255)
+        assert canvas.document.canvas.setPixelSelection(
+            compacting_selection,
+            QRect(34, 22, 12, 12),
+        )
+        assert canvas.document.canvas.deleteSelectedPixels()
+        assert canvas.document.canvas.undoSceneEdit()
+        selection = QImage(40, 32, QImage.Format.Format_Grayscale8)
+        selection.fill(255)
+        assert canvas.document.canvas.setPixelSelection(
+            selection,
+            QRect(24, 12, 40, 32),
+        )
+        controller.refresh_tool_context()
+        app.processEvents()
+        before = canvas.document.export_mask_image(mask_id)
+        assert before is not None
+        assert before.pixelColor(36, 24).red() == 255
+        assert canvas.document.selection_clear_available()
+        content_changes = QSignalSpy(canvas.document.maskContentChanged)
+        assert canvas.document.tool_options.clear_selected_pixels()
+        app.processEvents()
+        assert content_changes.count() == 1
+        assert canvas.document.canvas.undoSceneEdit()
+        app.processEvents()
+        assert content_changes.count() == 2
+        restored = canvas.document.export_mask_image(mask_id)
+        assert restored is not None
+        assert restored.pixelColor(36, 24).red() == 255
+
+        page = canvas.contextual_toolbar.page
+        assert isinstance(page, InputSelectionContextualToolbarPage)
+        clear = page.action_strip.button_for(InputCanvasToolId.CLEAR_SELECTION_PIXELS)
+        assert clear is not None
+        clear_presentation = controller.palette.presentation_for(
+            InputCanvasToolId.CLEAR_SELECTION_PIXELS
+        )
+        assert clear_presentation is not None
+        assert clear_presentation.icon is AppIcon.ERASER_20_REGULAR
+        _wait_for_condition(clear.isEnabled)
+        requested = QSignalSpy(canvas.toolRequested)
+        QTest.mouseClick(clear, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        assert requested.count() == 1
+        assert requested.at(0)[0] == InputCanvasToolId.CLEAR_SELECTION_PIXELS
+        assert content_changes.count() == 3
+
+        after = canvas.document.export_mask_image(mask_id)
+        assert after is not None
+        assert after.pixelColor(36, 24).red() == 0
+        assert canvas.document.has_pixel_selection()
+        assert canvas.contextual_toolbar.isVisible()
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_delete_key_clears_selection_pixels_from_any_active_tool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Delete should follow selection state instead of the current tool mode."""
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, controller = _mounted_input()
+    try:
+        mask_id = canvas.document.active_mask_id()
+        assert mask_id is not None
+        mask_pixels = QImage(96, 64, QImage.Format.Format_Grayscale8)
+        mask_pixels.fill(255)
+        assert canvas.document.canvas.replaceMaskImage(mask_id, mask_pixels)
+        selection = QImage(12, 12, QImage.Format.Format_Grayscale8)
+        selection.fill(255)
+        assert canvas.document.canvas.setPixelSelection(
+            selection,
+            QRect(34, 22, 12, 12),
+        )
+        app.processEvents()
+        content_changes = QSignalSpy(canvas.document.maskContentChanged)
+
+        assert controller.request_tool(InputCanvasToolId.SELECT_RECTANGLE)
+        QTest.keyClick(canvas.document.canvas, Qt.Key.Key_Delete)
+        app.processEvents()
+
+        cleared = canvas.document.export_mask_image(mask_id)
+        assert cleared is not None
+        assert cleared.pixelColor(36, 24).red() == 0
+        assert content_changes.count() == 1
+        assert canvas.document.has_pixel_selection()
+
+        assert canvas.document.canvas.undoSceneEdit()
+        app.processEvents()
+        assert content_changes.count() == 2
+        assert controller.request_tool(InputCanvasToolId.BRUSH)
+        QTest.keyClick(canvas.document.canvas, Qt.Key.Key_Delete)
+        app.processEvents()
+
+        cleared_from_brush = canvas.document.export_mask_image(mask_id)
+        assert cleared_from_brush is not None
+        assert cleared_from_brush.pixelColor(36, 24).red() == 0
+        assert content_changes.count() == 3
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_contextual_toolbar_hides_during_selection_authoring_and_follows_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Selection gestures must hide chrome and remount it below updated bounds."""
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, controller = _mounted_input()
+    try:
+        selection = QImage(12, 12, QImage.Format.Format_Grayscale8)
+        selection.fill(255)
+        assert canvas.document.canvas.setPixelSelection(
+            selection,
+            QRect(34, 22, 12, 12),
+        )
+        app.processEvents()
+        toolbar = canvas.contextual_toolbar
+        assert toolbar.isVisible()
+        old_panel_bounds = canvas.document.tool_options.pixel_selection_panel_bounds()
+        assert old_panel_bounds is not None
+
+        assert controller.request_tool(InputCanvasToolId.SELECT_RECTANGLE)
+        gesture = canvas.document.canvas.sceneToPanelRect(QRectF(6, 6, 18, 14))
+        assert gesture is not None
+        QTest.mousePress(
+            canvas.document.canvas,
+            Qt.MouseButton.LeftButton,
+            pos=gesture.topLeft().toPoint(),
+        )
+        app.processEvents()
+        _wait_for_condition(lambda: not toolbar.isVisible())
+        QTest.mouseMove(canvas.document.canvas, gesture.bottomRight().toPoint())
+        QTest.mouseRelease(
+            canvas.document.canvas,
+            Qt.MouseButton.LeftButton,
+            pos=gesture.bottomRight().toPoint(),
+        )
+        _wait_for_condition(toolbar.isVisible)
+
+        new_panel_bounds = canvas.document.tool_options.pixel_selection_panel_bounds()
+        assert new_panel_bounds is not None
+        assert new_panel_bounds != old_panel_bounds
+        assert toolbar.geometry().top() > new_panel_bounds.bottom()
+        assert toolbar.geometry().contains(
+            QPoint(new_panel_bounds.center().x(), toolbar.geometry().top())
+        )
+
+        previous_panel_bounds = QRect(new_panel_bounds)
+        canvas.document.canvas.applyZoom(
+            canvas.document.canvas.currentZoom() * 1.15,
+            canvas.document.canvas.rect().center(),
+        )
+        app.processEvents()
+        zoomed_panel_bounds = (
+            canvas.document.tool_options.pixel_selection_panel_bounds()
+        )
+        assert zoomed_panel_bounds is not None
+        assert zoomed_panel_bounds != previous_panel_bounds
+        assert toolbar.geometry().top() > zoomed_panel_bounds.bottom()
+
+        pan_start = canvas.document.canvas.rect().center()
+        pan_end = pan_start + QPoint(48, 24)
+        QTest.keyPress(canvas.document.canvas, Qt.Key.Key_Space)
+        QTest.mousePress(
+            canvas.document.canvas,
+            Qt.MouseButton.LeftButton,
+            pos=pan_start,
+        )
+        QTest.mouseMove(canvas.document.canvas, pan_end)
+        QTest.mouseRelease(
+            canvas.document.canvas,
+            Qt.MouseButton.LeftButton,
+            pos=pan_end,
+        )
+        QTest.keyRelease(canvas.document.canvas, Qt.Key.Key_Space)
+        app.processEvents()
+
+        panned_panel_bounds = (
+            canvas.document.tool_options.pixel_selection_panel_bounds()
+        )
+        assert panned_panel_bounds is not None
+        assert panned_panel_bounds != zoomed_panel_bounds
+        assert toolbar.geometry().top() > panned_panel_bounds.bottom()
+        assert toolbar.geometry().contains(
+            QPoint(panned_panel_bounds.center().x(), toolbar.geometry().top())
+        )
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_contextual_transform_requires_explicit_apply_or_cancel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Selected-pixel transform must morph chrome and settle through one explicit path."""
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, controller = _mounted_input()
+    try:
+        mask_id = canvas.document.active_mask_id()
+        assert mask_id is not None
+        coverage = QImage(96, 64, QImage.Format.Format_Grayscale8)
+        coverage.fill(0)
+        for y in range(22, 34):
+            for x in range(34, 46):
+                coverage.setPixelColor(x, y, QColor(255, 255, 255))
+        assert canvas.document.canvas.replaceMaskImage(mask_id, coverage)
+        before = canvas.document.export_mask_image(mask_id)
+        assert before is not None
+        selection = QImage(12, 12, QImage.Format.Format_Grayscale8)
+        selection.fill(255)
+        assert canvas.document.canvas.setPixelSelection(
+            selection,
+            QRect(34, 22, 12, 12),
+        )
+        controller.refresh_tool_context()
+        app.processEvents()
+
+        page = canvas.contextual_toolbar.page
+        assert isinstance(page, InputSelectionContextualToolbarPage)
+        _wait_for_condition(page.isVisible)
+        transform = page.action_strip.button_for(InputCanvasToolId.TRANSFORM_SELECTION)
+        assert transform is not None and transform.isEnabled()
+        QTest.mouseClick(transform, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        transaction = canvas.contextual_toolbar.page
+        assert isinstance(transaction, InputTransformContextualToolbarPage)
+        _wait_for_condition(transaction.isVisible)
+        assert transaction.apply_button.toolTip() == "Apply"
+        assert transaction.cancel_button.toolTip() == "Cancel"
+        assert transaction.apply_button.x() < transaction.cancel_button.x()
+        settlement_left = transaction.settlement_controls.mapTo(
+            transaction,
+            transaction.apply_button.pos(),
+        ).x()
+        assert (
+            settlement_left - transaction.flip_vertical_button.geometry().right() - 1
+            >= CANVAS_CHROME_GAP
+        )
+        assert (
+            canvas.document.current_canvas_operation()
+            == CuteCanvas.CONTROL_MODE_TRANSFORM
+        )
+        assert not canvas.tool_strip.isVisible()
+        assert not canvas.canvas_top_bar.isVisible()
+        assert not canvas.layer_control.isVisible()
+
+        start_rect = canvas.document.canvas.sceneToPanelRect(
+            QRectF(40.0, 28.0, 1.0, 1.0)
+        )
+        end_rect = canvas.document.canvas.sceneToPanelRect(QRectF(52.0, 28.0, 1.0, 1.0))
+        assert start_rect is not None and end_rect is not None
+        start = start_rect.topLeft()
+        end = end_rect.topLeft()
+        QTest.mousePress(
+            canvas.document.canvas,
+            Qt.MouseButton.LeftButton,
+            pos=start.toPoint(),
+        )
+        _wait_for_condition(lambda: not canvas.contextual_toolbar.isVisible())
+        QTest.mouseMove(canvas.document.canvas, end.toPoint())
+        QTest.mouseRelease(
+            canvas.document.canvas,
+            Qt.MouseButton.LeftButton,
+            pos=end.toPoint(),
+        )
+        _wait_for_condition(canvas.contextual_toolbar.isVisible)
+        assert canvas.document.canvas.floatingPixelEditState() is not None
+        transform_bounds = canvas.document.tool_options.transform_panel_bounds(
+            EditorTransformTarget.SELECTION_CONTENT
+        )
+        assert transform_bounds is not None
+        assert canvas.contextual_toolbar.geometry().top() > transform_bounds.bottom()
+        assert canvas.document.export_mask_image(mask_id) == before
+
+        QTest.mouseClick(transaction.cancel_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        assert canvas.document.canvas.floatingPixelEditState() is None
+        assert canvas.document.export_mask_image(mask_id) == before
+        assert (
+            canvas.document.current_canvas_operation()
+            != CuteCanvas.CONTROL_MODE_TRANSFORM
+        )
+        assert isinstance(
+            canvas.contextual_toolbar.page,
+            InputSelectionContextualToolbarPage,
+        )
+
+        page = canvas.contextual_toolbar.page
+        assert isinstance(page, InputSelectionContextualToolbarPage)
+        _wait_for_condition(page.isVisible)
+        transform = page.action_strip.button_for(InputCanvasToolId.TRANSFORM_SELECTION)
+        assert transform is not None
+        QTest.mouseClick(transform, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        transaction = canvas.contextual_toolbar.page
+        assert isinstance(transaction, InputTransformContextualToolbarPage)
+        _wait_for_condition(transaction.isVisible)
+        QTest.mousePress(
+            canvas.document.canvas,
+            Qt.MouseButton.LeftButton,
+            pos=start.toPoint(),
+        )
+        QTest.mouseMove(canvas.document.canvas, end.toPoint())
+        QTest.mouseRelease(
+            canvas.document.canvas,
+            Qt.MouseButton.LeftButton,
+            pos=end.toPoint(),
+        )
+        app.processEvents()
+        assert canvas.document.canvas.floatingPixelEditState() is not None
+
+        QTest.mouseClick(transaction.apply_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        after = canvas.document.export_mask_image(mask_id)
+        assert after is not None and after != before
+        assert canvas.document.canvas.floatingPixelEditState() is None
+        assert canvas.document.canvas.undoSceneEdit()
+        assert canvas.document.export_mask_image(mask_id) == before
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_move_drag_hides_then_reanchors_aligned_toolbar_to_floating_bounds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Selected-pixel movement must hide chrome and settle against its final frame."""
+
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, controller = _mounted_input()
+    try:
+        mask_id = canvas.document.active_mask_id()
+        assert mask_id is not None
+        coverage = QImage(96, 64, QImage.Format.Format_Grayscale8)
+        coverage.fill(0)
+        for y in range(8, 20):
+            for x in range(14, 30):
+                coverage.setPixelColor(x, y, QColor(255, 255, 255))
+        assert canvas.document.canvas.replaceMaskImage(mask_id, coverage)
+        selection = QImage(16, 12, QImage.Format.Format_Grayscale8)
+        selection.fill(255)
+        assert canvas.document.canvas.setPixelSelection(
+            selection,
+            QRect(14, 8, 16, 12),
+        )
+        controller.refresh_tool_context()
+        assert controller.request_tool(InputCanvasToolId.MOVE)
+        app.processEvents()
+        assert isinstance(
+            canvas.contextual_toolbar.page,
+            InputSelectionContextualToolbarPage,
+        )
+
+        start_rect = canvas.document.canvas.sceneToPanelRect(
+            QRectF(20.0, 14.0, 1.0, 1.0)
+        )
+        end_rect = canvas.document.canvas.sceneToPanelRect(QRectF(34.0, 20.0, 1.0, 1.0))
+        assert start_rect is not None and end_rect is not None
+        QTest.mousePress(
+            canvas.document.canvas,
+            Qt.MouseButton.LeftButton,
+            pos=start_rect.topLeft().toPoint(),
+        )
+        _wait_for_condition(lambda: not canvas.contextual_toolbar.isVisible())
+        QTest.mouseMove(canvas.document.canvas, end_rect.topLeft().toPoint())
+        QTest.mouseRelease(
+            canvas.document.canvas,
+            Qt.MouseButton.LeftButton,
+            pos=end_rect.topLeft().toPoint(),
+        )
+        _wait_for_condition(canvas.contextual_toolbar.isVisible)
+
+        floating = canvas.document.canvas.floatingPixelEditState()
+        assert floating is not None and not floating.dragging
+        floating_bounds = canvas.document.tool_options.floating_pixel_panel_bounds(
+            floating
+        )
+        assert floating_bounds is not None
+        assert canvas.contextual_toolbar.geometry().top() > floating_bounds.bottom()
+        page = canvas.contextual_toolbar.page
+        assert isinstance(page, InputSelectionContextualToolbarPage)
+        assert page.geometry() == canvas.contextual_toolbar.content_host.rect()
+        assert page.modify_button.y() == 0
+        assert page.action_strip.y() == 0
+        assert page.modify_button.height() == page.action_strip.height()
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_layer_transform_uses_tight_content_frame_and_contextual_settlement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Route toolbar layer transforms through the shared live-frame surface."""
+
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, controller = _mounted_input()
+    try:
+        mask_id = canvas.document.active_mask_id()
+        assert mask_id is not None
+        coverage = QImage(96, 64, QImage.Format.Format_Grayscale8)
+        coverage.fill(0)
+        for y in range(8, 20):
+            for x in range(14, 30):
+                coverage.setPixelColor(x, y, QColor(255, 255, 255))
+        assert canvas.document.canvas.replaceMaskImage(mask_id, coverage)
+        before = canvas.document.export_mask_image(mask_id)
+        assert before is not None
+        assert not canvas.document.has_pixel_selection()
+
+        controller.refresh_tool_context()
+        presentation = controller.palette.presentation_for(
+            InputCanvasToolId.TRANSFORM_LAYER
+        )
+        assert presentation is not None and presentation.enabled
+        initial_state = canvas.document.canvas.editorTransformState(
+            EditorTransformTarget.LAYER_CONTENT
+        )
+        assert initial_state.allowed, initial_state.denial
+        assert controller.request_tool(InputCanvasToolId.TRANSFORM_LAYER)
+        app.processEvents()
+
+        page = canvas.contextual_toolbar.page
+        assert isinstance(page, InputTransformContextualToolbarPage)
+        state = canvas.document.canvas.editorTransformState(
+            EditorTransformTarget.LAYER_CONTENT
+        )
+        assert state.allowed and state.corners is not None
+        panel_bounds = canvas.document.tool_options.transform_panel_bounds(
+            EditorTransformTarget.LAYER_CONTENT
+        )
+        assert panel_bounds is not None
+        assert canvas.contextual_toolbar.geometry().top() > panel_bounds.bottom()
+        assert not canvas.tool_strip.isVisible()
+        assert not canvas.canvas_top_bar.isVisible()
+        assert not canvas.layer_control.isVisible()
+
+        QTest.mouseClick(page.rotate_right_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        assert canvas.document.export_mask_image(mask_id) == before
+
+        QTest.mouseClick(page.cancel_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        assert canvas.document.export_mask_image(mask_id) == before
+        assert (
+            canvas.document.current_canvas_operation()
+            != CuteCanvas.CONTROL_MODE_TRANSFORM
+        )
+        _wait_for_condition(lambda: canvas.contextual_toolbar.page is None)
+        assert canvas.contextual_toolbar.page is None
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_contextual_transform_rejects_selection_without_active_mask_pixels(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Never advertise a selection transform that would target the whole mask."""
+
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, controller = _mounted_input()
+    try:
+        mask_id = canvas.document.active_mask_id()
+        assert mask_id is not None
+        coverage = QImage(96, 64, QImage.Format.Format_Grayscale8)
+        coverage.fill(0)
+        for y in range(6, 18):
+            for x in range(6, 18):
+                coverage.setPixelColor(x, y, QColor(255, 255, 255))
+        assert canvas.document.canvas.replaceMaskImage(mask_id, coverage)
+        selection = QImage(12, 12, QImage.Format.Format_Grayscale8)
+        selection.fill(255)
+        assert canvas.document.canvas.setPixelSelection(
+            selection,
+            QRect(68, 40, 12, 12),
+        )
+
+        controller.refresh_tool_context()
+        app.processEvents()
+
+        assert not canvas.document.selection_transform_available()
+        state = canvas.document.canvas.editorOperationState(EditorIntent.TRANSFORM)
+        assert not state.allowed
+        assert state.denial == "no-selected-pixels"
+        page = canvas.contextual_toolbar.page
+        assert isinstance(page, InputSelectionContextualToolbarPage)
+        transform = page.action_strip.button_for(InputCanvasToolId.TRANSFORM_SELECTION)
+        assert transform is not None and not transform.isEnabled()
+        previous_operation = canvas.document.current_canvas_operation()
+        assert not controller.request_tool(InputCanvasToolId.TRANSFORM_SELECTION)
+        assert canvas.document.current_canvas_operation() == previous_operation
+        assert isinstance(
+            canvas.contextual_toolbar.page,
+            InputSelectionContextualToolbarPage,
+        )
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_real_selection_tools_use_selection_modes_without_mask_capability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rectangle, ellipse, and lasso selection tools must be first-class modes."""
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, controller = _mounted_input()
+    try:
+        for tool_id in (
+            InputCanvasToolId.SELECT_RECTANGLE,
+            InputCanvasToolId.SELECT_ELLIPSE,
+            InputCanvasToolId.SELECT_LASSO,
+        ):
+            presentation = controller.palette.presentation_for(tool_id)
+            assert presentation is not None and presentation.enabled
+            assert controller.request_tool(tool_id)
+            app.processEvents()
+            assert controller.palette.active_tool_id == tool_id
+    finally:
+        canvas.close()
+        canvas.deleteLater()
+        app.processEvents()
+
+
+def test_layer_coverage_editor_previews_exclusively_and_commits_only_on_apply(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Layer coverage must use one exclusive preview with explicit settlement."""
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    canvas, _controller = _mounted_input()
+    try:
+        mask_id = canvas.document.active_mask_id()
+        assert mask_id is not None
+        coverage = QImage(96, 64, QImage.Format.Format_Grayscale8)
+        coverage.fill(0)
+        for y in range(24, 40):
+            for x in range(40, 56):
+                coverage.setPixelColor(x, y, QColor(255, 255, 255))
+        assert canvas.document.canvas.replaceMaskImage(mask_id, coverage)
+        before = canvas.document.export_mask_image(mask_id)
+        assert before is not None
+        canvas.document.canvas.setCursor(Qt.CursorShape.CrossCursor)
+        canvas.layer_control.refresh()
+        app.processEvents()
+
+        button = canvas.layer_control.findChild(InputMaskLayerButton)
+        assert button is not None
+        assert canvas.layer_control.cursor().shape() is Qt.CursorShape.ArrowCursor
+        assert button.cursor().shape() is Qt.CursorShape.ArrowCursor
+        assert button.size() == QSize(36, 36)
+        assert canvas.layer_control.width() >= 44
+        assert canvas.layer_control.height() >= 44
+        QTest.mouseClick(button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        assert canvas.layer_control.settings.isVisible()
+        assert (
+            canvas.layer_control.settings.cursor().shape() is Qt.CursorShape.ArrowCursor
+        )
+
+        canvas.layer_control.settings.opacity_slider.setValue(40)
+        app.processEvents()
+        layer = next(
+            item
+            for item in canvas.document.tool_options.mask_layers()
+            if item.mask_id == mask_id
+        )
+        assert layer.opacity == 0.4
+        assert canvas.document.export_mask_image(mask_id) == before
+
+        completed = QSignalSpy(canvas.document.canvas.layerEdgeModificationCompleted)
+        rendered_before = _render_without_children(canvas.document.canvas)
+        press_counter = _MousePressCounter()
+        canvas.document.canvas.installEventFilter(press_counter)
+        QTest.mouseClick(
+            canvas.layer_control.settings.edit_coverage_button,
+            Qt.MouseButton.LeftButton,
+        )
+        app.processEvents()
+
+        editor = canvas.coverage_editor
+        assert canvas.coverage_edit_active
+        assert editor.isVisible()
+        assert not canvas.tool_strip.isVisible()
+        assert not canvas.canvas_top_bar.isVisible()
+        assert not canvas.layer_control.isVisible()
+        assert (
+            abs(editor.geometry().center().x() - canvas.canvas.rect().center().x()) <= 1
+        )
+        assert editor.geometry().bottom() == canvas.canvas.height() - 9
+        assert editor.controls.operation_selector.itemText(0) == "Expand"
+        assert editor.controls.operation_selector.itemText(1) == "Contract"
+        assert editor.controls.operation_selector.itemText(2) == "Feather"
+        assert editor.controls.pixel_amount.value() == 4
+
+        blocked_press = QMouseEvent(
+            QEvent.Type.MouseButtonPress,
+            QPointF(20.0, 20.0),
+            QPointF(canvas.document.canvas.mapToGlobal(QPoint(20, 20))),
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        QApplication.sendEvent(canvas.document.canvas, blocked_press)
+        assert press_counter.count == 0
+
+        editor.controls.pixel_amount.setValue(2)
+        _wait_for_condition(
+            lambda: _render_without_children(canvas.document.canvas) != rendered_before
+        )
+        assert completed.count() == 0
+        assert canvas.document.export_mask_image(mask_id) == before
+
+        QTest.mouseClick(editor.apply_button, Qt.MouseButton.LeftButton)
+        _wait_for_spy(completed)
+        app.processEvents()
+        after = canvas.document.export_mask_image(mask_id)
+        assert after is not None and after != before
+        assert not canvas.coverage_edit_active
+        assert not editor.isVisible()
+        assert canvas.tool_strip.isVisible()
+        assert canvas.layer_control.isVisible()
+        assert canvas.document.canvas.undoMaskEdit()
+        assert canvas.document.export_mask_image(mask_id) == before
+
+        button = canvas.layer_control.findChild(InputMaskLayerButton)
+        assert button is not None
+        QTest.mouseClick(button, Qt.MouseButton.LeftButton)
+        QTest.mouseClick(
+            canvas.layer_control.settings.edit_coverage_button,
+            Qt.MouseButton.LeftButton,
+        )
+        app.processEvents()
+        assert canvas.coverage_edit_active
+        editor.controls.pixel_amount.setValue(3)
+        QTest.mouseClick(editor.close_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        assert not canvas.coverage_edit_active
+        assert canvas.document.export_mask_image(mask_id) == before
     finally:
         canvas.close()
         canvas.deleteLater()
