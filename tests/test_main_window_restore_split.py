@@ -205,6 +205,9 @@ def test_hidden_restore_runtime_replays_deferred_masks_after_install() -> None:
     view.input_canvas_state_service = SimpleNamespace(
         restore_input_mask=restore_input_mask
     )
+    view.restored_ordered_mask_collections = SimpleNamespace(
+        reconcile=lambda _workflows: events.append("reconcile_ordered_masks")
+    )
 
     assert (
         view.shell_prehydrated_restore_controller.prepare_initial_workspace_restore_runtime()
@@ -212,7 +215,7 @@ def test_hidden_restore_runtime_replays_deferred_masks_after_install() -> None:
     )
 
     workflow = hydrated.workflows[0].workflow
-    assert events == ["install", "restore_mask"]
+    assert events == ["install", "restore_mask", "reconcile_ordered_masks"]
     assert restore_calls == [
         {
             "workflow_id": "wf-a",
@@ -723,6 +726,10 @@ def _restore_view(snapshot: WorkspaceSnapshot) -> Any:
     view._prehydrated_settings_projection_pending = False
     view._deferred_prehydrated_input_masks = []
     view._shell_restore_lifecycle = "prehydrating"
+    view.workflow_session_service = SimpleNamespace(workflows={})
+    view.restored_ordered_mask_collections = SimpleNamespace(
+        reconcile=lambda _workflows: 0
+    )
     view.cube_stack_presentation_controller = SimpleNamespace(
         activate_document_kind=lambda _kind, *, animated: None
     )

@@ -35,13 +35,20 @@ class PromptRegionChromeRenderer:
     ) -> None:
         """Draw prepared regional chrome without querying its cache owner."""
 
-        if snapshot is None or not snapshot.paint_lines:
+        if snapshot is None or (not snapshot.strokes and not snapshot.labels):
             return
         painter.save()
         try:
             painter.translate(0.0, -scroll_offset)
-            painter.setPen(snapshot.pen)
-            painter.drawLines(snapshot.paint_lines)
+            for stroke in snapshot.strokes:
+                if not stroke.lines:
+                    continue
+                painter.setPen(stroke.pen)
+                painter.drawLines(stroke.lines)
+            for label in snapshot.labels:
+                painter.setFont(label.font)
+                painter.setPen(label.color)
+                painter.drawText(label.baseline, label.text)
         finally:
             painter.restore()
 

@@ -30,6 +30,7 @@ from substitute.application.workflows.workflow_node_definition_service import (
     WorkflowNodeDefinitionService,
 )
 from substitute.domain.workflow import (
+    InputAssetCardinality,
     InputAssetEndpointIndex,
     InputAssetRole,
     InputCanvasPlan,
@@ -60,6 +61,52 @@ def test_custom_image_upload_is_discovered_from_live_metadata() -> None:
     assert endpoint.output_index == 0
     assert endpoint.role is InputAssetRole.IMAGE
     assert bool(index.image_endpoints) is True
+
+
+def test_batch_upload_cardinality_is_discovered_from_live_metadata() -> None:
+    """Live batch metadata should classify custom ordered asset endpoints."""
+
+    index = _endpoint_index(
+        "section",
+        _graph(
+            uploader=("CustomMaskBatch", {}),
+            consumer_inputs={"mask": ["uploader", 0]},
+        ),
+        node_definitions={
+            "CustomMaskBatch": {
+                "input": {
+                    "required": {
+                        "images": [
+                            "LIST",
+                            {"image_upload": True, "allow_batch": True},
+                        ]
+                    }
+                },
+                "output": ["MASK"],
+            },
+            "Consumer": _consumer_definition(mask="MASK"),
+        },
+    )
+
+    assert len(index.mask_endpoints) == 1
+    assert index.mask_endpoints[0].cardinality is InputAssetCardinality.ORDERED
+
+
+def test_load_mask_batch_cardinality_survives_missing_live_definition() -> None:
+    """Restore should recognize persisted mask batches before definitions arrive."""
+
+    index = _endpoint_index(
+        "section",
+        _graph(
+            uploader=("SimpleSyrup.LoadMaskBatch", {"image": "stale.png"}),
+            consumer_inputs={"mask": ["uploader", 0]},
+        ),
+        node_definitions={"Consumer": _consumer_definition(mask="MASK")},
+    )
+
+    assert len(index.mask_endpoints) == 1
+    assert index.mask_endpoints[0].field_key == "image"
+    assert index.mask_endpoints[0].cardinality is InputAssetCardinality.ORDERED
 
 
 def test_mask_only_use_classifies_dual_output_upload_as_mask() -> None:

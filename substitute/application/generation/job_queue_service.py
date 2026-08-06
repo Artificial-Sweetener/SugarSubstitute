@@ -22,7 +22,7 @@ from collections.abc import Callable, Hashable
 from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol, cast
 from uuid import uuid4
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
@@ -73,6 +73,9 @@ from substitute.shared.logging.logger import (
     log_info,
     log_warning,
 )
+
+if TYPE_CHECKING:
+    from substitute.application.recipes.recipe_io_service import WorkflowLike
 
 _LOGGER = get_logger("application.generation.job_queue_service")
 ACTIVE_GENERATION_JOB_STATUSES = frozenset({"dispatching", "comfy_pending", "running"})
@@ -955,6 +958,7 @@ class GenerationJobQueueService:
             workflow_name=committed_job.snapshot.workflow_name,
             sugar_script_text=committed_job.snapshot.sugar_script_text,
             direct_workflow_plan=committed_job.snapshot.direct_workflow_plan,
+            workflow=cast("WorkflowLike | None", committed_job.snapshot.workflow),
             output_run_number=committed_job.output_run_number,
             output_job_started_at=job_started_at,
             scene_run_id=committed_job.snapshot.scene_run_id,

@@ -117,3 +117,18 @@ def test_redock_restores_durable_position_and_activates_available_canvas() -> No
     assert state.active_route_key == "Input"
     assert state.insertion_index("Input") == 0
     assert state.insertion_index("Output") == 1
+
+
+def test_release_floating_window_clears_only_the_exact_owner() -> None:
+    """Teardown cleanup must not release a newer replacement window by route alone."""
+
+    state = CanvasHostState((_entry("Input"), _entry("Output")))
+    first = cast(FloatingCanvasWindow, object())
+    replacement = cast(FloatingCanvasWindow, object())
+    state.prepare_detach("Input")
+    state.complete_detach("Input", first)
+
+    assert not state.release_floating_window("Input", replacement)
+    assert state.require_entry("Input").floating_window is first
+    assert state.release_floating_window("Input", first)
+    assert state.require_entry("Input").floating_window is None

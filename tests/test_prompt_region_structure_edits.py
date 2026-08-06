@@ -406,3 +406,61 @@ def test_stale_separator_line_end_requires_rebuild_before_backspace_below_it() -
         start=regional_start - 1,
         end=regional_start,
     )
+
+
+def test_named_separator_survives_content_edit_without_losing_metadata() -> None:
+    """Topology-preserving edits should remap named separator metadata exactly."""
+
+    previous_text = "global\n[SEP|Sky]\nblue"
+    next_text = "global!\n[SEP|Sky]\nblue"
+    structure = PromptRegionStructureView(
+        separators=(PromptRegionSeparatorView(7, 16, 7, 17, 12, 15, "Sky"),),
+        partitions=(
+            PromptRegionPartitionView(0, 0, 7, True),
+            PromptRegionPartitionView(1, 17, len(previous_text), False),
+        ),
+    )
+
+    assert not region_structure_edit_requires_rebuild(
+        previous_text,
+        next_text,
+        structure,
+        start=6,
+        end=6,
+    )
+    remapped = remap_region_structure_after_edit(
+        structure,
+        start=6,
+        end=6,
+        replacement_text="!",
+    )
+
+    assert remapped.separators == (
+        PromptRegionSeparatorView(8, 17, 8, 18, 13, 16, "Sky"),
+    )
+
+
+def test_rebuild_region_structure_recognizes_edited_named_separator() -> None:
+    """Editing a separator name should rebuild its variable-length token locally."""
+
+    previous_text = "global\n[SEP]\nblue"
+    next_text = "global\n[SEP|Sky]\nblue"
+    structure = PromptRegionStructureView(
+        separators=(PromptRegionSeparatorView(7, 12, 7, 13),),
+        partitions=(
+            PromptRegionPartitionView(0, 0, 7, True),
+            PromptRegionPartitionView(1, 13, len(previous_text), False),
+        ),
+    )
+
+    rebuilt = rebuild_region_structure_after_edit(
+        previous_text,
+        next_text,
+        structure,
+        start=11,
+        end=11,
+    )
+
+    assert rebuilt.separators == (
+        PromptRegionSeparatorView(7, 16, 7, 17, 12, 15, "Sky"),
+    )

@@ -122,7 +122,12 @@ class CanvasRouteController:
         if getattr(canvas, "input_image_uuid", None) is not None:
             return True
         mask_entries = getattr(canvas, "mask_entries", {})
-        return isinstance(mask_entries, dict) and bool(mask_entries)
+        regional_collections = getattr(canvas, "regional_mask_collections", {})
+        return (
+            isinstance(mask_entries, dict)
+            and isinstance(regional_collections, dict)
+            and bool(mask_entries or regional_collections)
+        )
 
 
 def canvas_route_controller_for(shell: Any) -> CanvasRouteController:

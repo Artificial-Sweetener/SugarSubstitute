@@ -36,9 +36,6 @@ from substitute.application.workflows.closed_workflow_snapshot_service import (
     ClosedWorkflowSnapshotService,
 )
 from substitute.application.workflows.cube_runtime_issues import WorkflowIssueState
-from substitute.application.workflows.input_canvas_capability_service import (
-    InputCanvasCapabilityService,
-)
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
@@ -47,9 +44,6 @@ from substitute.application.workflows.output_scene_run_service import (
 )
 from substitute.application.workflows.workflow_activity_service import (
     WorkflowActivityService,
-)
-from substitute.application.workflows.workflow_input_canvas_service import (
-    WorkflowInputCanvasService,
 )
 from substitute.application.cubes import CubeStackService
 from substitute.presentation.editor.panel.lora_metadata_refresh_controller import (
@@ -85,7 +79,6 @@ from .generation_result_workspace_materializer import (
     GenerationResultWorkspaceMaterializer,
 )
 from .initial_workspace_controller import InitialWorkspaceController
-from .input_canvas_shell_adapter import InputCanvasShellAdapter
 from .main_window_signal_binder import MainWindowSignalBinder
 from .generation_feedback_sink import ShellGenerationFeedbackSink
 from .generation_progress_strip_registry import GenerationProgressStripRegistry
@@ -136,51 +129,6 @@ from .workspace_restore_controller import WorkspaceRestoreController
 from .workspace_restore_image_adapter import WorkspaceRestoreImageAdapter
 from .workspace_splitter_controller import WorkspaceSplitterController
 from .workspace_layout_controller import WorkspaceLayoutController
-from substitute.presentation.canvas.input.input_canvas_presenter import (
-    InputCanvasPresenter,
-)
-from substitute.presentation.canvas.input.input_node_preview_coordinator import (
-    InputNodePreviewCoordinator,
-)
-from substitute.presentation.canvas.input.input_node_interaction_controller import (
-    InputNodeInteractionController,
-)
-from substitute.presentation.canvas.input.input_document_change_observer import (
-    InputDocumentChangeObserver,
-)
-from substitute.presentation.canvas.input.input_generation_image_materializer import (
-    InputGenerationImageMaterializer,
-)
-from substitute.presentation.canvas.input.input_generation_mask_materializer import (
-    InputGenerationMaskMaterializer,
-)
-from substitute.presentation.canvas.input.input_generation_snapshot_service import (
-    InputGenerationSnapshotService,
-)
-from substitute.presentation.canvas.input.input_editable_document_lifecycle import (
-    InputEditableDocumentLifecycle,
-)
-from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
-    create_input_canvas_tool_system,
-)
-from substitute.presentation.canvas.input.input_canvas_tool_layout import (
-    create_input_canvas_tool_layout,
-)
-from substitute.presentation.canvas.input.input_tool_options import (
-    install_input_tool_options,
-)
-from substitute.presentation.canvas.input.input_contextual_toolbar_installation import (
-    install_input_contextual_toolbar,
-)
-from substitute.presentation.canvas.input.input_canvas_tool_controller import (
-    InputCanvasToolController,
-)
-from substitute.presentation.canvas.input.mask_color_provider import (
-    input_mask_color,
-)
-from substitute.application.workflows.generation_input_image_association_service import (
-    GenerationInputImageAssociationService,
-)
 from substitute.presentation.canvas.output.output_transfer_composition import (
     OutputTransferLifecycle,
     compose_output_transfer_lifecycle,
@@ -265,21 +213,6 @@ class MainWindowControllerComposition:
     cube_stack_presentation_controller: CubeStackPresentationController
     generation_queue_panel_transition: Any
     generation_queue_controller: Any
-
-
-@dataclass(frozen=True)
-class MainWindowInputCanvasComposition:
-    """Hold input-canvas collaborators composed after canvas widgets exist."""
-
-    workflow_input_canvas_service: Any
-    input_canvas_tool_controller: Any
-    input_canvas_shell_adapter: Any
-    input_canvas_presenter: Any
-    input_node_interaction_controller: Any
-    input_document_change_observer: Any
-    input_generation_snapshot_service: Any
-    input_editable_document_lifecycle: Any
-    input_canvas_capability_service: Any
 
 
 @dataclass(frozen=True)
@@ -763,153 +696,6 @@ def _output_image_preparation_dispatcher(
     )
 
 
-def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposition:
-    """Create Input canvas services and presenter controllers for the shell."""
-
-    input_canvas = shell.canvas_host.canvas_for("Input")
-    if input_canvas is None:
-        raise RuntimeError("Canvas tabs must include an Input canvas.")
-    canvas_route_controller = canvas_route_controller_for(shell)
-
-    workflow_input_canvas_service = WorkflowInputCanvasService(
-        input_canvas_plan_service=shell.input_canvas_plan_service,
-        input_canvas_state_service=shell.input_canvas_state_service,
-        canvas_io_service=shell.canvas_io_service,
-        workflow_asset_service=shell.workflow_asset_service,
-        graph_section_service=shell.graph_section_service,
-    )
-    input_tool_runtime = create_input_canvas_tool_system()
-    input_tool_layout = create_input_canvas_tool_layout()
-    install_input_tool_options(
-        input_tool_runtime,
-        input_canvas.document.tool_options,
-    )
-    install_input_contextual_toolbar(
-        input_tool_runtime,
-        input_canvas.document.tool_options,
-    )
-    input_canvas.bind_tool_runtime(input_tool_runtime, input_tool_layout)
-    input_canvas_tool_controller = InputCanvasToolController(
-        input_document=input_canvas.document,
-        operation_setter=input_canvas.document.set_canvas_operation,
-        current_image_id_provider=input_canvas.current_image_id_for_event,
-        runtime=input_tool_runtime,
-        layout=input_tool_layout,
-    )
-    input_canvas.document.toolContextChanged.connect(
-        input_canvas_tool_controller.refresh_tool_context
-    )
-    input_canvas.document.canvasToolChanged.connect(
-        input_canvas_tool_controller.synchronize_native_tool
-    )
-    input_canvas.toolContextRefreshRequested.connect(
-        input_canvas_tool_controller.refresh_tool_context
-    )
-    input_canvas.toolRequested.connect(input_canvas_tool_controller.request_tool)
-    input_canvas_tool_controller.refresh_tool_context()
-    input_canvas_shell_adapter = InputCanvasShellAdapter(shell)
-    input_node_preview_coordinator = InputNodePreviewCoordinator(
-        bindings=input_canvas.document.preview_bindings,
-        active_panel=lambda: shell.active_editor_panel,
-    )
-    input_canvas_presenter = InputCanvasPresenter(
-        input_document=input_canvas.document,
-        current_image_id_provider=input_canvas.current_image_id_for_event,
-        active_workflow_provider=shell.get_active_workflow,
-        active_editor_panel_provider=lambda: shell.active_editor_panel,
-        workflow_session_service=shell.workflow_session_service,
-        workflow_input_canvas_service=workflow_input_canvas_service,
-        input_canvas_state_service=shell.input_canvas_state_service,
-        workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
-        projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
-        mask_color_provider=input_mask_color,
-        preview_coordinator=input_node_preview_coordinator,
-        mark_canvas_changed=input_canvas_shell_adapter.mark_input_canvas_changed,
-        error_presenter=getattr(shell, "_error_presenter", None),
-    )
-    input_node_interaction_controller = InputNodeInteractionController(
-        active_workflow=shell.get_active_workflow,
-        active_workflow_id=lambda: shell.workflow_session_service.active_workflow_id,
-        workflow_input_canvas_service=workflow_input_canvas_service,
-        input_canvas_state_service=shell.input_canvas_state_service,
-        materialize_image_selection=input_canvas_presenter.materialize_image_selection,
-        apply_mask_selection=input_canvas_presenter.apply_mask_selection,
-        activate_input_canvas=lambda: bool(
-            canvas_route_controller.activate_route(
-                "Input",
-                keyboard_focus=True,
-            )
-        ),
-        refresh_mask_pickers=input_canvas_presenter.refresh_active_mask_pickers,
-        tool_controller=input_canvas_tool_controller,
-    )
-    input_document_change_observer = InputDocumentChangeObserver(
-        changed=input_canvas.document.maskContentChanged,
-        active_workflow_id=lambda: shell.workflow_session_service.active_workflow_id,
-        mark_workflow_changed=input_canvas_shell_adapter.mark_input_canvas_changed,
-        request_autosave=shell.request_session_autosave,
-    )
-    image_association_service = GenerationInputImageAssociationService(
-        input_canvas_plan_service=shell.input_canvas_plan_service,
-        graph_section_service=shell.graph_section_service,
-        workflow_asset_service=shell.workflow_asset_service,
-    )
-    input_generation_image_materializer = InputGenerationImageMaterializer(
-        canvas_io_service=shell.canvas_io_service,
-        association_service=image_association_service,
-        workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
-        projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
-    )
-    input_generation_mask_materializer = InputGenerationMaskMaterializer(
-        canvas_io_service=shell.canvas_io_service,
-        workflow_input_canvas_service=workflow_input_canvas_service,
-        workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
-        projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
-    )
-    input_generation_snapshot_service = InputGenerationSnapshotService(
-        capture_inputs=input_canvas.document.generation_capture.capture,
-        image_materializer=input_generation_image_materializer,
-        mask_materializer=input_generation_mask_materializer,
-    )
-    input_editable_document_lifecycle = InputEditableDocumentLifecycle(
-        document=input_canvas.document.editable_persistence,
-        archive_path=(
-            Path(shell.path_bundle.session_dir) / "input-editable-document.ccanvas"
-        ),
-    )
-    input_canvas_capability_service = InputCanvasCapabilityService(
-        shell.input_canvas_plan_service,
-        shell.graph_section_service,
-    )
-    composition = MainWindowInputCanvasComposition(
-        workflow_input_canvas_service=workflow_input_canvas_service,
-        input_canvas_tool_controller=input_canvas_tool_controller,
-        input_canvas_shell_adapter=input_canvas_shell_adapter,
-        input_canvas_presenter=input_canvas_presenter,
-        input_node_interaction_controller=input_node_interaction_controller,
-        input_document_change_observer=input_document_change_observer,
-        input_generation_snapshot_service=input_generation_snapshot_service,
-        input_editable_document_lifecycle=input_editable_document_lifecycle,
-        input_canvas_capability_service=input_canvas_capability_service,
-    )
-    shell.workflow_input_canvas_service = composition.workflow_input_canvas_service
-    shell.input_canvas_tool_controller = composition.input_canvas_tool_controller
-    shell.input_canvas_shell_adapter = composition.input_canvas_shell_adapter
-    shell.input_canvas_presenter = composition.input_canvas_presenter
-    shell.input_node_interaction_controller = (
-        composition.input_node_interaction_controller
-    )
-    shell.input_document_change_observer = composition.input_document_change_observer
-    shell.input_generation_snapshot_service = (
-        composition.input_generation_snapshot_service
-    )
-    shell.input_editable_document_lifecycle = (
-        composition.input_editable_document_lifecycle
-    )
-    shell.input_canvas_capability_service = composition.input_canvas_capability_service
-    return composition
-
-
 def compose_editor_metadata_controllers(
     shell: Any,
 ) -> MainWindowEditorMetadataComposition:
@@ -1304,14 +1090,12 @@ __all__ = [
     "MainWindowEditorBusyComposition",
     "MainWindowEditorMetadataComposition",
     "MainWindowInitialComposition",
-    "MainWindowInputCanvasComposition",
     "MainWindowOutputCanvasComposition",
     "MainWindowRuntimeControllerComposition",
     "MainWindowWorkflowLifecycleComposition",
     "capture_dependencies",
     "compose_editor_busy_controller",
     "compose_editor_metadata_controllers",
-    "compose_input_canvas_controllers",
     "compose_output_canvas_controllers",
     "compose_runtime_controllers",
     "compose_shell_controllers",

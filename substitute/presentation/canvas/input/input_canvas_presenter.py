@@ -22,7 +22,7 @@ from sugarsubstitute_shared.localization import opaque_text
 
 from sugarsubstitute_shared.presentation.localization import app_text
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Protocol, cast
 from uuid import UUID
@@ -35,6 +35,12 @@ from substitute.application.errors import (
 from substitute.domain.workflow import WorkflowState
 from substitute.presentation.canvas.input.input_node_preview_coordinator import (
     InputNodePreviewCoordinator,
+)
+from substitute.presentation.canvas.input.input_materialization_presenter import (
+    InputMaterializationPresenter,
+)
+from substitute.presentation.regional.mask_collection_presenter import (
+    RegionalMaskCollectionPresenter,
 )
 from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.shared.logging.logger import (
@@ -182,6 +188,7 @@ class InputCanvasPresenter:
         workflow_name_provider: Callable[[str], str],
         projects_dir_provider: Callable[[], Path],
         mask_color_provider: Callable[[int, int], object],
+        regional_mask_presenter: RegionalMaskCollectionPresenter,
         preview_coordinator: InputNodePreviewCoordinator | None = None,
         mark_canvas_changed: Callable[[str], None] | None = None,
         error_presenter: ErrorReportPresenterProtocol | None = None,
@@ -197,10 +204,24 @@ class InputCanvasPresenter:
         self._input_canvas_state_service = input_canvas_state_service
         self._workflow_name_provider = workflow_name_provider
         self._projects_dir_provider = projects_dir_provider
-        self._mask_color_provider = mask_color_provider
         self._preview_coordinator = preview_coordinator
         self._mark_canvas_changed = mark_canvas_changed
         self._error_presenter = error_presenter
+        self._materialization_presenter = InputMaterializationPresenter(
+            input_document=input_document,
+            active_workflow=active_workflow_provider,
+            mask_color=mask_color_provider,
+            refresh_scalar_mask=lambda cube_alias, node_name, projects_dir: (
+                self.refresh_mask_picker_from_asset_state(
+                    cube_alias,
+                    node_name,
+                    projects_dir=projects_dir,
+                )
+            ),
+            refresh_ordered_mask=regional_mask_presenter.refresh,
+            activate_mask=self._set_active_workflow_mask,
+            preview_coordinator=preview_coordinator,
+        )
 
     def materialize_image_selection(
         self,
@@ -224,7 +245,7 @@ class InputCanvasPresenter:
             workflow_name=self._workflow_name_provider(workflow_id),
             projects_dir=projects_dir,
         )
-        self.apply_materialization_result(result, projects_dir=projects_dir)
+        self._materialization_presenter.apply(result, projects_dir=projects_dir)
         self._mark_changed(workflow_id)
         return isinstance(getattr(result, "image_id", None), UUID)
 
@@ -273,7 +294,7 @@ class InputCanvasPresenter:
                 projects_dir=projects_dir,
             )
         )
-        self.apply_materialization_result(result, projects_dir=projects_dir)
+        self._materialization_presenter.apply(result, projects_dir=projects_dir)
         self._mark_changed(workflow_id)
 
     def apply_mask_selection(
@@ -339,7 +360,7 @@ class InputCanvasPresenter:
             return False
         materialization_result = getattr(result, "materialization_result", None)
         if materialization_result is not None:
-            self.apply_materialization_result(
+            self._materialization_presenter.apply(
                 materialization_result,
                 projects_dir=projects_dir,
             )
@@ -387,7 +408,7 @@ class InputCanvasPresenter:
             projects_dir=projects_dir,
         )
         for result in results:
-            self.apply_materialization_result(result, projects_dir=projects_dir)
+            self._materialization_presenter.apply(result, projects_dir=projects_dir)
         self.bind_active_node_previews()
         if results:
             self._mark_changed(workflow_id)
@@ -419,48 +440,6 @@ class InputCanvasPresenter:
             image_id,
             str(image_path) if image_path is not None else "",
         )
-
-    def apply_materialization_result(
-        self,
-        result: object,
-        *,
-        projects_dir: Path | None = None,
-    ) -> None:
-        """Apply Input materialization presentation effects without path authority."""
-
-        live_mask_previews = (
-            frozenset()
-            if self._preview_coordinator is None
-            else self._preview_coordinator.bind_materialization(result)
-        )
-        raw_mask_results = getattr(result, "mask_results", ())
-        mask_results = (
-            tuple(raw_mask_results) if isinstance(raw_mask_results, Iterable) else ()
-        )
-        total_masks_in_set = len(mask_results)
-        for index, mask_result in enumerate(mask_results):
-            set_mask_properties = getattr(
-                self._input_document, "set_mask_properties", None
-            )
-            mask_id = getattr(mask_result, "mask_id", None)
-            if callable(set_mask_properties) and isinstance(mask_id, UUID):
-                color = self._mask_color_provider(index, total_masks_in_set)
-                set_mask_properties(mask_id, color=color)
-            association_key = getattr(mask_result, "association_key", None)
-            if (
-                self._valid_association_key(association_key)
-                and association_key not in live_mask_previews
-            ):
-                cube_alias, node_name = cast(tuple[str, str], association_key)
-                self.refresh_mask_picker_from_asset_state(
-                    cube_alias,
-                    node_name,
-                    projects_dir=projects_dir,
-                )
-        first_mask_id = getattr(result, "first_mask_id", None)
-        active_workflow = self._active_workflow_provider()
-        if isinstance(first_mask_id, UUID) and active_workflow is not None:
-            self._set_active_workflow_mask(active_workflow, first_mask_id)
 
     def refresh_active_mask_pickers(self) -> None:
         """Refresh active editor mask pickers from workflow asset state."""

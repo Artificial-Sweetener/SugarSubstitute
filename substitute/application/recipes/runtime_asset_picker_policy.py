@@ -14,33 +14,34 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Adapt domain mask color policy to Qt colors."""
+"""Identify picker fields whose execution values belong to asset staging."""
 
 from __future__ import annotations
 
-from typing import cast
+from collections.abc import Mapping, Sequence
 
-from PySide6.QtGui import QColor
-from qfluentwidgets.common.style_sheet import themeColor  # type: ignore[import-untyped]
+_LEGACY_RUNTIME_ASSET_PICKER_FIELDS = frozenset(
+    {
+        ("LoadImage", "image"),
+        ("LoadImageMask", "image"),
+    }
+)
 
-from substitute.domain.canvas.mask_color_scheme import mask_color_hue
+
+def is_runtime_asset_picker_field(
+    *,
+    class_type: str,
+    input_name: str,
+    field_spec: object,
+) -> bool:
+    """Return whether staging, rather than picker fallback, owns the value."""
+
+    if (class_type, input_name) in _LEGACY_RUNTIME_ASSET_PICKER_FIELDS:
+        return True
+    if not isinstance(field_spec, Sequence) or len(field_spec) < 2:
+        return False
+    metadata = field_spec[1]
+    return isinstance(metadata, Mapping) and metadata.get("image_upload") is True
 
 
-def input_mask_color(index: int, total_masks: int) -> QColor:
-    """Return the themed Qt color for one mask in a related mask set."""
-
-    base_color = QColor(themeColor())
-    hue, saturation, value, _alpha = cast(
-        tuple[int, int, int, int], base_color.getHsv()
-    )
-    saturation = max(saturation, 200)
-    value = max(value, 220)
-
-    if index <= 0:
-        return base_color
-
-    return QColor.fromHsv(
-        mask_color_hue(hue, index, total_masks),
-        saturation,
-        value,
-    )
+__all__ = ["is_runtime_asset_picker_field"]

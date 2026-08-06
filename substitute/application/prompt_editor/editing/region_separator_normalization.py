@@ -20,7 +20,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from substitute.domain.prompt.regions.parser import REGION_SEPARATOR_TOKEN
+from substitute.domain.prompt.regions.syntax import (
+    PromptRegionSeparatorSyntax,
+    region_separator_at,
+    region_separator_ending_at,
+    region_separators_in_range,
+    separator_line_window,
+)
 from substitute.domain.prompt.document.structural_scan import (
     is_escaped_prompt_character,
 )
@@ -47,20 +53,20 @@ def normalize_typed_region_separator(
 
     if replacement_text != "]" or end - start != 1:
         return _identity_normalization(text)
-    marker_start = end - len(REGION_SEPARATOR_TOKEN)
-    if marker_start < 0 or text[marker_start:end] != REGION_SEPARATOR_TOKEN:
+    match = region_separator_ending_at(text, end)
+    if match is None:
         return _identity_normalization(text)
-    if is_escaped_prompt_character(text, marker_start):
+    if is_escaped_prompt_character(text, match.token_start):
         return _identity_normalization(text)
-    normalization = _normalize_marker_starts(
+    normalization = _normalize_separators(
         text,
-        (marker_start,),
+        (match,),
         ensure_trailing_line=True,
     )
     return _map_marker_completion_after_line_ending(
         normalization,
         original_text=text,
-        marker_end=end,
+        marker_end=match.token_end,
     )
 
 
@@ -71,26 +77,25 @@ def normalize_typed_region_separator_after_deletion(
 ) -> PromptRegionSeparatorNormalization:
     """Restore line boundaries when one deletion leaves a complete marker inline."""
 
-    marker_starts = tuple(
-        marker_start
-        for marker_start in (
-            position - len(REGION_SEPARATOR_TOKEN),
-            position,
+    window_start, window_end = separator_line_window(text, position, position)
+    matches = tuple(
+        match
+        for match in region_separators_in_range(
+            text,
+            window_start,
+            window_end,
+            require_standalone=False,
         )
-        if (
-            marker_start >= 0
-            and text[marker_start : marker_start + len(REGION_SEPARATOR_TOKEN)]
-            == REGION_SEPARATOR_TOKEN
-            and not is_escaped_prompt_character(text, marker_start)
-        )
+        if not is_escaped_prompt_character(text, match.token_start)
     )
-    normalization = _normalize_marker_starts(
+    normalization = _normalize_separators(
         text,
-        marker_starts,
+        matches,
         ensure_trailing_line=False,
     )
+    match_at_position = region_separator_at(text, position)
     if (
-        text.startswith(REGION_SEPARATOR_TOKEN, position)
+        match_at_position is not None
         and position > 0
         and text[position - 1] not in "\r\n"
     ):
@@ -136,19 +141,19 @@ def normalize_pasted_region_separators(
 
     if start < 0 or end < start or end > len(text):
         raise ValueError("Prompt separator normalization range is outside source text.")
-    marker_starts: list[int] = []
-    search_start = start
-    while search_start < end:
-        marker_start = text.find(REGION_SEPARATOR_TOKEN, search_start, end)
-        if marker_start < 0:
-            break
-        marker_end = marker_start + len(REGION_SEPARATOR_TOKEN)
-        if marker_end <= end and not is_escaped_prompt_character(text, marker_start):
-            marker_starts.append(marker_start)
-        search_start = marker_end
-    return _normalize_marker_starts(
+    matches = tuple(
+        match
+        for match in region_separators_in_range(
+            text,
+            start,
+            end,
+            require_standalone=False,
+        )
+        if not is_escaped_prompt_character(text, match.token_start)
+    )
+    return _normalize_separators(
         text,
-        tuple(marker_starts),
+        matches,
         ensure_trailing_line=False,
     )
 
@@ -157,30 +162,31 @@ def _preceding_separator_line_ending(text: str, position: int) -> str | None:
     """Return the line ending after a canonical separator before a position."""
 
     for line_ending in ("\r\n", "\n", "\r"):
-        marker_start = position - len(line_ending) - len(REGION_SEPARATOR_TOKEN)
-        if marker_start < 0:
+        token_end = position - len(line_ending)
+        if token_end < 0:
             continue
-        if text[marker_start:position] != f"{REGION_SEPARATOR_TOKEN}{line_ending}":
+        line_start = _source_line_start(text, token_end)
+        match = region_separator_at(text, line_start, require_standalone=True)
+        if match is None or match.token_end != token_end:
             continue
-        if marker_start == 0 or text[marker_start - 1] in "\r\n":
-            return line_ending
+        return line_ending
     return None
 
 
 def _canonical_separator_starts_at(text: str, position: int) -> bool:
     """Return whether one canonical separator line starts at a source position."""
 
-    marker_end = position + len(REGION_SEPARATOR_TOKEN)
+    match = region_separator_at(text, position)
     return (
-        text.startswith(REGION_SEPARATOR_TOKEN, position)
-        and (marker_end == len(text) or text[marker_end] in "\r\n")
+        match is not None
+        and (match.token_end == len(text) or text[match.token_end] in "\r\n")
         and not is_escaped_prompt_character(text, position)
     )
 
 
-def _normalize_marker_starts(
+def _normalize_separators(
     text: str,
-    marker_starts: tuple[int, ...],
+    matches: tuple[PromptRegionSeparatorSyntax, ...],
     *,
     ensure_trailing_line: bool,
 ) -> PromptRegionSeparatorNormalization:
@@ -189,8 +195,9 @@ def _normalize_marker_starts(
     insertions: dict[int, str] = {}
     leading_boundaries: set[int] = set()
     trailing_boundaries: set[int] = set()
-    for marker_start in marker_starts:
-        marker_end = marker_start + len(REGION_SEPARATOR_TOKEN)
+    for match in matches:
+        marker_start = match.token_start
+        marker_end = match.token_end
         line_ending = _preferred_line_ending(text, marker_start, marker_end)
         if marker_start > 0 and text[marker_start - 1] not in "\r\n":
             insertions.setdefault(marker_start, line_ending)
@@ -250,6 +257,14 @@ def _map_marker_completion_after_line_ending(
         text=normalization.text,
         boundary_positions=tuple(boundary_positions),
     )
+
+
+def _source_line_start(text: str, line_end: int) -> int:
+    """Return the source-line start preceding one exclusive line end."""
+
+    carriage = text.rfind("\r", 0, line_end)
+    line_feed = text.rfind("\n", 0, line_end)
+    return max(carriage, line_feed) + 1
 
 
 def _preferred_line_ending(text: str, marker_start: int, marker_end: int) -> str:

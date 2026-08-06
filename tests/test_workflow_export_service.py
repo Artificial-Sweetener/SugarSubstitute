@@ -284,7 +284,7 @@ def test_compile_workflow_payload_fills_missing_classic_picker_default() -> None
 
 
 def test_compile_workflow_payload_preserves_runtime_asset_picker_values() -> None:
-    """Compile should not replace LoadImage asset references with Comfy defaults."""
+    """Compile should not replace runtime asset references with Comfy defaults."""
 
     workflow_payload: dict[str, object] = {
         "1": {
@@ -304,6 +304,16 @@ def test_compile_workflow_payload_preserves_runtime_asset_picker_values() -> Non
                 "substitute": {
                     "cube_alias": "SDXL/Inpaint",
                     "node_name": "load_image_as_mask",
+                }
+            },
+        },
+        "3": {
+            "class_type": "SimpleSyrup.LoadMaskBatch",
+            "inputs": {"image": [], "channel": "red"},
+            "_meta": {
+                "substitute": {
+                    "cube_alias": "Anima/Prompt by Region",
+                    "node_name": "load_mask_batch",
                 }
             },
         },
@@ -333,6 +343,17 @@ def test_compile_workflow_payload_preserves_runtime_asset_picker_values() -> Non
                         }
                     }
                 },
+                "SimpleSyrup.LoadMaskBatch": {
+                    "input": {
+                        "required": {
+                            "image": [
+                                ["unrelated-default.png"],
+                                {"image_upload": True, "allow_batch": True},
+                            ],
+                            "channel": [["alpha", "red"], {"default": "alpha"}],
+                        }
+                    }
+                },
             }
         ),
     )
@@ -346,12 +367,16 @@ def test_compile_workflow_payload_preserves_runtime_asset_picker_values() -> Non
     load_image_inputs = cast(dict[str, Any], load_image["inputs"])
     load_mask = cast(dict[str, Any], payload["2"])
     load_mask_inputs = cast(dict[str, Any], load_mask["inputs"])
+    load_mask_batch = cast(dict[str, Any], payload["3"])
+    load_mask_batch_inputs = cast(dict[str, Any], load_mask_batch["inputs"])
     assert load_image_inputs["image"] == r"D:\Downloads\twilight-beach-original (1).png"
     assert (
         load_mask_inputs["image"]
         == "twilight-beach-original_(1)__ae6d5e73__load_image_as_mask.png"
     )
     assert load_mask_inputs["channel"] == "alpha"
+    assert load_mask_batch_inputs["image"] == []
+    assert load_mask_batch_inputs["channel"] == "red"
 
 
 def test_compile_workflow_payload_selects_sole_picker_option() -> None:

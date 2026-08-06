@@ -2015,6 +2015,49 @@ def test_restore_input_mask_adopts_exact_editable_archive_identity() -> None:
     assert workflow.canvas.active_input_mask_uuid == mask_id
 
 
+def test_restore_input_mask_remaps_ordered_region_without_creating_scalar_entry() -> (
+    None
+):
+    """Ordered mask restore should preserve region identity and collection order."""
+
+    _service, input_service, input_pane, _output_pane, _output_canvas = (
+        _build_services()
+    )
+    workflow = WorkflowState()
+    association_key = ("AliasA", "MaskBatch")
+    image_id = uuid.uuid4()
+    snapshot_mask_ids = (uuid.uuid4(), uuid.uuid4())
+    live_mask_id = uuid.uuid4()
+    input_pane.next_loaded_mask_id = live_mask_id
+    workflow.canvas.bind_image("AliasA:@synthetic", image_id)
+    workflow.canvas.input_image_uuid = image_id
+    collection = workflow.canvas.ensure_regional_mask_collection(association_key)
+    first = collection.add_region(image_id, mask_id=snapshot_mask_ids[0])
+    second = collection.add_region(image_id, mask_id=snapshot_mask_ids[1])
+    workflow.canvas.active_input_mask_uuid = snapshot_mask_ids[0]
+
+    restored = input_service.restore_input_mask(
+        "wf",
+        workflow,
+        snapshot_mask_id=snapshot_mask_ids[0],
+        image_id=image_id,
+        path=Path("region-1.png"),
+        association_key=association_key,
+    )
+
+    assert restored == live_mask_id
+    assert tuple(entry.region_id for entry in collection.entries) == (
+        first.region_id,
+        second.region_id,
+    )
+    assert tuple(entry.mask_id for entry in collection.entries) == (
+        live_mask_id,
+        snapshot_mask_ids[1],
+    )
+    assert workflow.canvas.mask_entry(association_key) is None
+    assert workflow.canvas.active_input_mask_uuid == live_mask_id
+
+
 def test_project_workflow_restores_active_input_mask() -> None:
     """Workflow projection should restore the selected input mask for its image."""
     service, input_pane, _output_pane, _output_canvas = _build_service()

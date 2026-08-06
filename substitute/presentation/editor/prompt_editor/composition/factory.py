@@ -165,6 +165,7 @@ from ..interactions.reorder_interaction_metrics import (
 from ..interactions.reorder_preview_publication import (
     PromptReorderPreviewPublicationOwner,
 )
+from ..interactions.region_pointer_controller import PromptRegionPointerController
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
 from ..overlays import (
     PromptAutocompleteLoraWall,
@@ -217,6 +218,20 @@ class PromptEditorCompositionContext:
     autocomplete_minimum_prefix_length: int
     fill_plane_factory: PromptEditorFillPlaneFactory
     resize_handle_factory: PromptEditorResizeHandleFactory
+
+
+def _publish_region_hover(
+    editor: QWidget,
+    surface: PromptProjectionSurface,
+    region_index: int | None,
+) -> None:
+    """Update local chrome and publish panel-level regional hover intent."""
+
+    surface.set_region_hovered(region_index)
+    signal = getattr(editor, "regionHovered", None)
+    emit = getattr(signal, "emit", None)
+    if callable(emit):
+        emit(region_index)
 
 
 @dataclass(frozen=True, slots=True)
@@ -454,6 +469,27 @@ class PromptEditorCompositionFactory:
         surface.set_defer_source_rebuilds_until_prompt_state(True)
         edit_execution = surface.edit_execution
         source_commands = surface.source_commands
+        region_pointer_controller = PromptRegionPointerController(
+            parent=context.editor,
+            document_view=surface.prompt_document_view,
+            source_commands=source_commands,
+            scroll_offset=surface.projection_scroll_offset,
+            cursor_position=lambda: surface.cursor_position,
+            hover_sink=lambda index: _publish_region_hover(
+                context.editor,
+                surface,
+                index,
+            ),
+        )
+        surface.pointer_interactions.set_region_double_click_handler(
+            region_pointer_controller.handle_double_click
+        )
+        surface.pointer_interactions.set_region_hover_handler(
+            region_pointer_controller.handle_hover
+        )
+        surface.pointer_interactions.set_region_keyboard_rename_handler(
+            region_pointer_controller.handle_keyboard_rename
+        )
         autocomplete_commands = PromptAutocompleteCommandService(
             execution=edit_execution,
             normalizer=source_normalizer,

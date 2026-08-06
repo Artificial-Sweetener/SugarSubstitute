@@ -61,6 +61,19 @@ class _DimensionlessRepository:
         _ = path, width, height
         return True
 
+    def save_resampled_mask(
+        self,
+        source: Path,
+        destination: Path,
+        *,
+        width: int,
+        height: int,
+    ) -> bool:
+        """Return success for unused mask normalization calls."""
+
+        _ = source, destination, width, height
+        return True
+
     def image_dimensions(self, path: Path) -> tuple[int, int] | None:
         """Return no dimensions for unused dimension calls."""
 

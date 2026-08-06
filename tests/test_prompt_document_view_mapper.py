@@ -113,6 +113,18 @@ def test_prompt_document_view_mapper_projects_authoritative_region_structure() -
     ) == ((0, 0, True), (6, 6, False), (12, 20, False))
 
 
+def test_prompt_document_view_mapper_projects_named_separator_metadata() -> None:
+    """Application views should expose a named separator without reparsing source."""
+
+    document_view = prompt_document_view_from_domain(
+        parse_prompt_document("global\n[SEP|Sky]\nblue")
+    )
+
+    separator = document_view.region_structure.separators[0]
+    assert separator.name == "Sky"
+    assert (separator.name_start, separator.name_end) == (12, 15)
+
+
 def test_prompt_document_view_mapper_has_no_qt_presentation_or_adapter_imports() -> (
     None
 ):

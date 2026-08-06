@@ -2700,6 +2700,61 @@ def test_region_chrome_prepares_centered_dividers_and_continuous_rails_once() ->
     assert chrome.prepare_count == 1
 
 
+def test_region_chrome_renders_named_dividers_with_shared_region_palette() -> None:
+    """Named separators should expose centered labels and distinct region colors."""
+
+    layout, _projection = _layout_for(
+        "global\n[SEP|Subject]\nfirst\n[SEP|Background]\nsecond"
+    )
+    chrome = PromptRegionChrome()
+
+    snapshot = chrome.prepare(
+        layout.frame.output,
+        semantic_palette=SemanticPalette(
+            accent=RgbColor(20, 80, 160),
+            error_foreground=RgbColor(180, 20, 20),
+            warning_foreground=RgbColor(180, 140, 20),
+        ),
+    )
+
+    assert tuple(label.text for label in snapshot.labels) == (
+        "Subject",
+        "Background",
+    )
+    assert len(snapshot.strokes) == 2
+    assert snapshot.strokes[0].pen.color() != snapshot.strokes[1].pen.color()
+    assert all(len(stroke.lines) == 3 for stroke in snapshot.strokes)
+
+
+def test_region_chrome_hover_emphasizes_one_region_without_relayout() -> None:
+    """Transient linked hover should reuse geometry and only strengthen one stroke."""
+
+    layout, _projection = _layout_for("global\n[SEP]\nfirst\n[SEP]\nsecond")
+    chrome = PromptRegionChrome()
+    palette = SemanticPalette(
+        accent=RgbColor(20, 80, 160),
+        error_foreground=RgbColor(180, 20, 20),
+        warning_foreground=RgbColor(180, 140, 20),
+    )
+    chrome.prepare_active(layout.frame.output, semantic_palette=palette)
+    baseline = chrome.active_snapshot
+    assert baseline is not None
+    baseline_widths = tuple(stroke.pen.widthF() for stroke in baseline.strokes)
+    prepare_count = chrome.prepare_count
+
+    assert chrome.set_hovered_region(1) is True
+
+    hovered = chrome.active_snapshot
+    assert hovered is not None
+    assert hovered.strokes[0].pen.widthF() == baseline_widths[0]
+    assert hovered.strokes[1].pen.widthF() > baseline_widths[1]
+    assert hovered.strokes[1].lines == baseline.strokes[1].lines
+    assert chrome.prepare_count == prepare_count
+
+    assert chrome.set_hovered_region(None) is True
+    assert chrome.active_snapshot is baseline
+
+
 def test_region_chrome_renders_rail_for_empty_terminal_partition() -> None:
     """A terminal separator should expose its empty regional input row."""
 

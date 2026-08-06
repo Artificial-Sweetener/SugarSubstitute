@@ -102,14 +102,18 @@ class InputGenerationImageMaterializer:
         execution_workflow = copy.deepcopy(workflow)
         workflow_name = self._workflow_name_provider(workflow_id)
         projects_dir = self._projects_dir_provider()
+        selected_image_ids = set(snapshots)
+        materialized_image_ids: set[UUID] = set()
         for entry in sorted(
             workflow.canvas.image_entries.values(),
             key=lambda item: item.input_key,
         ):
             input_key = entry.input_key
             raw_image_id = entry.image_id
-            identity = self._resolve_input_key(input_key)
             image_id = resolve_input_mask_id(raw_image_id)
+            if image_id not in selected_image_ids:
+                continue
+            identity = self._resolve_input_key(input_key)
             snapshot = None if image_id is None else snapshots.get(image_id)
             if (
                 identity is None
@@ -200,6 +204,16 @@ class InputGenerationImageMaterializer:
                 image_revision=snapshot.revision,
                 destination=str(destination),
             )
+            materialized_image_ids.add(image_id)
+        unmatched_image_ids = selected_image_ids - materialized_image_ids
+        if unmatched_image_ids:
+            self._log_failure(
+                workflow_id=workflow_id,
+                input_key="",
+                image_id=next(iter(unmatched_image_ids)),
+                reason="snapshot_has_no_workflow_image_entry",
+            )
+            return None
         return execution_workflow
 
     @staticmethod

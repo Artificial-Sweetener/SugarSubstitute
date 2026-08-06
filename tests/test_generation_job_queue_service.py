@@ -60,6 +60,7 @@ from substitute.domain.generation import (
     GenerationQueueJob,
     OutputRunBucket,
 )
+from substitute.domain.workflow import WorkflowState
 
 _T = TypeVar("_T")
 
@@ -452,6 +453,24 @@ def test_enqueue_dispatches_first_snapshot_immediately() -> None:
         )
     ]
     assert recorder.cleared == []
+
+
+def test_enqueue_preserves_snapshot_workflow_for_generation_staging() -> None:
+    """Queue dispatch should retain the captured semantic staging authority."""
+
+    dispatcher = _FakeDispatcher()
+    service = _service(dispatcher)
+    staging_workflow = WorkflowState()
+    snapshot = GenerationJobSnapshot(
+        workflow_id="wf-staging",
+        workflow_name="Staging",
+        sugar_script_text='use "cube" as Staging',
+        workflow=staging_workflow,
+    )
+
+    service.enqueue_snapshot(snapshot, _callbacks())
+
+    assert cast(object, dispatcher.requests[0].workflow) is staging_workflow
 
 
 def test_enqueue_snapshots_batches_state_notification_and_dispatch_schedule() -> None:

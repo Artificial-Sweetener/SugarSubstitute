@@ -471,6 +471,27 @@ def test_parse_prompt_document_preserves_empty_region_partitions() -> None:
     ) == ("", "", "regional\n", "")
 
 
+@pytest.mark.parametrize("line_ending", ["\n", "\r\n", "\r"])
+def test_parse_prompt_document_preserves_named_region_separator_source(
+    line_ending: str,
+) -> None:
+    """Named separators should retain exact token, label, and partition ranges."""
+
+    text = line_ending.join(("global", "[SEP|Foreground ✨]", "regional"))
+
+    document = parse_prompt_document(text)
+
+    separator = document.region_structure.separators[0]
+    assert separator.token_range.slice(text) == "[SEP|Foreground ✨]"
+    assert separator.name == "Foreground ✨"
+    assert separator.name_range is not None
+    assert separator.name_range.slice(text) == "Foreground ✨"
+    assert tuple(
+        partition.source_range.slice(text)
+        for partition in document.region_structure.partitions
+    ) == ("global" + line_ending, "regional")
+
+
 @pytest.mark.parametrize(
     "text",
     [
@@ -478,6 +499,9 @@ def test_parse_prompt_document_preserves_empty_region_partitions() -> None:
         "[SEP] suffix\nregional",
         " [SEP]\nregional",
         "[sep]\nregional",
+        "[SEP|]\nregional",
+        "[SEP|broken] suffix\nregional",
+        "[SEP|broken\nregional",
         "[SEP\nregional",
         "SEP]\nregional",
     ],

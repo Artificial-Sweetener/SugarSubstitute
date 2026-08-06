@@ -43,6 +43,10 @@ from substitute.domain.workflow import (
     WorkflowState,
 )
 from substitute.domain.workflow.canvas_models import WorkflowCanvasState
+from substitute.domain.workflow.asset_models import (
+    workflow_asset_ref_from_json,
+    workflow_asset_ref_to_json,
+)
 from substitute.domain.workspace_snapshot.models import (
     WORKSPACE_SNAPSHOT_SCHEMA_VERSION,
     CanvasLayoutSnapshot,
@@ -539,6 +543,28 @@ def _canvas_state_to_json(canvas: WorkflowCanvasState) -> JsonObject:
             }
             for entry in canvas.mask_entries.values()
         ],
+        "regional_mask_collections": [
+            {
+                "cube_alias": collection.association_key[0],
+                "node_name": collection.association_key[1],
+                "selected_region_id": _uuid_to_text(collection.selected_region_id),
+                "entries": [
+                    {
+                        "region_id": str(entry.region_id),
+                        "image_id": str(entry.image_id),
+                        "mask_id": _uuid_to_text(entry.mask_id),
+                        "asset_ref": (
+                            workflow_asset_ref_to_json(entry.asset_ref)
+                            if entry.asset_ref is not None
+                            else None
+                        ),
+                        "authored_color": entry.authored_color,
+                    }
+                    for entry in collection.entries
+                ],
+            }
+            for collection in canvas.regional_mask_collections.values()
+        ],
         "input_image_uuid": _uuid_to_text(canvas.input_image_uuid),
         "active_input_mask_uuid": _uuid_to_text(canvas.active_input_mask_uuid),
         "active_canvas_route": canvas.active_canvas_route,
@@ -577,6 +603,7 @@ def _canvas_state_from_json(payload: Mapping[str, object]) -> WorkflowCanvasStat
                 _uuid_from_text(_required_str(entry_payload, "mask_id")),
                 _uuid_from_text(_required_str(entry_payload, "image_id")),
             )
+        _restore_regional_mask_collections(canvas, payload)
         return canvas
 
     image_by_mask = {
@@ -601,7 +628,47 @@ def _canvas_state_from_json(payload: Mapping[str, object]) -> WorkflowCanvasStat
             mask_id,
             image_id,
         )
+    _restore_regional_mask_collections(canvas, payload)
     return canvas
+
+
+def _restore_regional_mask_collections(
+    canvas: WorkflowCanvasState,
+    payload: Mapping[str, object],
+) -> None:
+    """Restore optional ordered collections while accepting pre-feature snapshots."""
+
+    for item in _optional_sequence(payload.get("regional_mask_collections")):
+        collection_payload = _required_mapping(item)
+        association_key = (
+            _required_str(collection_payload, "cube_alias"),
+            _required_str(collection_payload, "node_name"),
+        )
+        collection = canvas.ensure_regional_mask_collection(association_key)
+        for raw_entry in _optional_sequence(collection_payload.get("entries")):
+            entry_payload = _required_mapping(raw_entry)
+            asset_payload = entry_payload.get("asset_ref")
+            collection.add_region(
+                _uuid_from_text(_required_str(entry_payload, "image_id")),
+                region_id=_uuid_from_text(_required_str(entry_payload, "region_id")),
+                mask_id=_optional_uuid_from_value(entry_payload.get("mask_id")),
+                asset_ref=(
+                    workflow_asset_ref_from_json(_required_mapping(asset_payload))
+                    if asset_payload is not None
+                    else None
+                ),
+                authored_color=_optional_str(entry_payload.get("authored_color")),
+            )
+        selected_region_id = _optional_uuid_from_value(
+            collection_payload.get("selected_region_id")
+        )
+        if selected_region_id is not None:
+            try:
+                collection.select(selected_region_id)
+            except KeyError as error:
+                raise SnapshotCodecError(
+                    "Selected regional mask identity is absent from its collection"
+                ) from error
 
 
 def _image_meta_to_json(metadata: ImageMetaSnapshot) -> JsonObject:

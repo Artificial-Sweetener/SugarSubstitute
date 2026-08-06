@@ -117,8 +117,10 @@ def bind_prompt_editor_signals(
     )
 
     editor.installEventFilter(token_weight_controls)
-    surface.set_weight_click_handler(token_weight_controls.handle_exact_weight_click)
-    surface.set_weight_double_click_handler(
+    surface.pointer_interactions.set_weight_click_handler(
+        token_weight_controls.handle_exact_weight_click
+    )
+    surface.pointer_interactions.set_weight_double_click_handler(
         token_weight_controls.begin_exact_weight_edit_at_position
     )
     editor.textChanged.connect(interaction_controller.handle_text_changed)

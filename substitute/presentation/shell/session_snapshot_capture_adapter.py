@@ -46,6 +46,9 @@ from substitute.shared.logging.logger import (
     log_info,
     log_warning,
 )
+from .input_mask_snapshot_reference_service import (
+    InputMaskSnapshotReferenceService,
+)
 
 _LOGGER = get_logger("presentation.shell.session_snapshot_capture_adapter")
 
@@ -197,36 +200,15 @@ class SessionSnapshotCaptureAdapter:
     ) -> tuple[InputMaskReference, ...]:
         """Return restorable input mask references for one workflow."""
 
-        references: list[InputMaskReference] = []
         workflow_name = self.workflow_tab_label(workflow_id)
-        for entry in workflow.canvas.mask_entries.values():
-            association_key = entry.association_key
-            mask_id = entry.mask_id
-            if not isinstance(association_key, tuple) or len(association_key) != 2:
-                continue
-            cube_alias = str(association_key[0])
-            node_name = str(association_key[1])
-            image_id = entry.image_id
-            asset_ref = self._shell.workflow_input_canvas_service.input_mask_asset_ref(
-                workflow,
-                section_key=cube_alias,
-                node_name=node_name,
-            )
-            path = self.capture_path_for_asset_ref(
+        service = InputMaskSnapshotReferenceService(
+            scalar_asset_reader=self._shell.workflow_input_canvas_service,
+            path_for_asset_ref=lambda asset_ref, name: self.capture_path_for_asset_ref(
                 asset_ref,
-                workflow_name=workflow_name,
-            )
-            if path is None:
-                continue
-            references.append(
-                InputMaskReference(
-                    mask_id=str(mask_id),
-                    image_id=str(image_id),
-                    path=path,
-                    association_key=(cube_alias, node_name),
-                )
-            )
-        return tuple(references)
+                workflow_name=name,
+            ),
+        )
+        return service.references(workflow, workflow_name=workflow_name)
 
     def output_image_references(
         self,

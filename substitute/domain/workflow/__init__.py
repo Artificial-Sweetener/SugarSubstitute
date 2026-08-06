@@ -23,12 +23,17 @@ from substitute.domain.workflow.cube_contract_validator import (
     validate_cube_contract,
 )
 from substitute.domain.workflow.canvas_models import (
+    InputAssetCardinality,
     InputAssetEndpoint,
     InputAssetEndpointIndex,
     InputAssetRole,
     InputCanvasImageEntry,
     InputCanvasMaskEntry,
     WorkflowCanvasState,
+)
+from substitute.domain.workflow.regional_mask_models import (
+    RegionalMaskCollection,
+    RegionalMaskEntry,
 )
 from substitute.domain.workflow.input_canvas_plan import (
     CanvasDimensionAuthority,
@@ -110,6 +115,7 @@ __all__ = [
     "CubeContractError",
     "CubeState",
     "InputAssetEndpoint",
+    "InputAssetCardinality",
     "InputAssetEndpointIndex",
     "InputAssetRole",
     "InputCanvasImageEntry",
@@ -128,6 +134,8 @@ __all__ = [
     "OutputFocusMode",
     "ProjectAssetRef",
     "ProjectMaskAssetRef",
+    "RegionalMaskCollection",
+    "RegionalMaskEntry",
     "StackManager",
     "WorkflowAssetKind",
     "WorkflowAssetRef",

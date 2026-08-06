@@ -31,7 +31,7 @@ from substitute.domain.workspace_snapshot.codecs import (
     workspace_snapshot_from_json,
     workspace_snapshot_to_json,
 )
-from substitute.domain.workflow import CubeState, WorkflowState
+from substitute.domain.workflow import CubeState, ProjectMaskAssetRef, WorkflowState
 from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.workspace_snapshot import (
     CanvasLayoutSnapshot,
@@ -255,6 +255,56 @@ def test_workflow_state_codec_round_trips_active_canvas_route() -> None:
     assert restored_entry.image_id == image_id
     assert restored.canvas.input_image_uuid == image_id
     assert restored.canvas.active_input_mask_uuid == mask_id
+
+
+def test_workflow_state_codec_round_trips_ordered_regional_masks() -> None:
+    """Snapshots should preserve region identity, order, selection, and color."""
+
+    state = WorkflowState()
+    image_id = uuid4()
+    first_mask_id = uuid4()
+    second_mask_id = uuid4()
+    collection = state.canvas.ensure_regional_mask_collection(
+        ("Prompt by Region", "load_mask_batch")
+    )
+    first = collection.add_region(
+        image_id,
+        mask_id=first_mask_id,
+        asset_ref=ProjectMaskAssetRef("region-one.png"),
+        authored_color="#12Ab34",
+    )
+    second = collection.add_region(image_id, mask_id=second_mask_id)
+    collection.reorder(second.region_id, 0)
+    collection.select(first.region_id)
+
+    restored = workflow_state_from_json(workflow_state_to_json(state))
+
+    restored_collection = restored.canvas.regional_mask_collection(
+        ("Prompt by Region", "load_mask_batch")
+    )
+    assert restored_collection is not None
+    assert [entry.region_id for entry in restored_collection.entries] == [
+        second.region_id,
+        first.region_id,
+    ]
+    assert restored_collection.selected_region_id == first.region_id
+    assert restored_collection.entries[1].authored_color == "#12Ab34"
+    assert restored_collection.entries[1].asset_ref == ProjectMaskAssetRef(
+        "region-one.png"
+    )
+
+
+def test_workflow_state_codec_accepts_snapshots_without_regional_masks() -> None:
+    """Pre-feature canvas payloads should restore with no ordered collections."""
+
+    payload = workflow_state_to_json(WorkflowState())
+    canvas_payload = payload["canvas"]
+    assert isinstance(canvas_payload, dict)
+    canvas_payload.pop("regional_mask_collections")
+
+    restored = workflow_state_from_json(payload)
+
+    assert restored.canvas.regional_mask_collections == {}
 
 
 def test_workflow_state_codec_migrates_legacy_canvas_maps_into_complete_entries() -> (

@@ -146,7 +146,9 @@ class InputCanvasPlanService:
                 )
                 continue
             authority = resolution.authority
-            surface_key = f"{_SYNTHETIC_SURFACE_PREFIX}/{authority.fingerprint[:16]}"
+            surface_key = (
+                f"{_SYNTHETIC_SURFACE_PREFIX}/{authority.structural_fingerprint[:16]}"
+            )
             surface = synthetic_surfaces.get(surface_key)
             if surface is None:
                 surface = InputCanvasSurface(

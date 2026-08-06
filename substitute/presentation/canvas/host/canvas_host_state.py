@@ -219,6 +219,19 @@ class CanvasHostState:
         self._active_route_key = route_key
         return True
 
+    def release_floating_window(
+        self,
+        route_key: str,
+        floating_window: FloatingCanvasWindow,
+    ) -> bool:
+        """Clear one exact floating owner without changing docked selection."""
+
+        entry = self.entry(route_key)
+        if entry is None or entry.floating_window is not floating_window:
+            return False
+        entry.floating_window = None
+        return True
+
     def insertion_index(self, route_key: str) -> int:
         """Return the stack position for a selectable route in durable order."""
 

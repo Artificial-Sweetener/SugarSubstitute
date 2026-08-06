@@ -256,6 +256,9 @@ class ShellPrehydratedRestoreController:
                 "main_window.finalize_initial_workspace_restore.input_masks"
             ):
                 self._shell.workspace_restore_image_adapter.restore_deferred_prehydrated_input_masks()
+                self._shell.restored_ordered_mask_collections.reconcile(
+                    self._shell.workflow_session_service.workflows
+                )
         active_workflow_id = (
             WorkspaceRestoreController.active_workflow_id_from_snapshot(
                 hydrated_snapshot

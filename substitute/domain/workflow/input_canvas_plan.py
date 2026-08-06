@@ -62,7 +62,8 @@ class CanvasDimensionAuthority:
     node_names: tuple[str, ...]
     field_pairs: tuple[tuple[str, str], ...]
     convergence_node_names: tuple[str, ...]
-    fingerprint: str
+    structural_fingerprint: str
+    dimension_fingerprint: str
 
 
 @dataclass(frozen=True, slots=True)

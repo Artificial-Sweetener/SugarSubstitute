@@ -103,9 +103,13 @@ def test_remote_asset_stager_uploads_to_comfy_input_namespace(
         timeout: float,
     ) -> SimpleNamespace:
         calls.append((url, data, files["image"][0], timeout))
+        uploaded_name = files["image"][0]
         return SimpleNamespace(
             raise_for_status=lambda: None,
-            json=lambda: {"name": "input.png", "subfolder": "substitute/wf"},
+            json=lambda: {
+                "name": uploaded_name,
+                "subfolder": "substitute/wf",
+            },
         )
 
     staged = RemoteUploadComfyAssetStager(
@@ -122,10 +126,59 @@ def test_remote_asset_stager_uploads_to_comfy_input_namespace(
     assert calls[0][0] == "http://10.0.0.2:8189/upload/image"
     assert calls[0][1]["subfolder"] == "substitute/wf"
     assert calls[0][1]["type"] == "input"
-    assert calls[0][2] == "input.png"
+    assert calls[0][2] == "abc.png"
     assert calls[0][3] == 12.0
-    assert staged.execution_value == "substitute/wf/input.png"
+    assert staged.execution_value == "substitute/wf/abc.png"
     assert staged.operation == "uploaded"
+
+
+def test_remote_asset_stager_disambiguates_equal_source_names(
+    tmp_path: Path,
+) -> None:
+    """Distinct mask contents should never overwrite one shared Comfy input name."""
+
+    first = tmp_path / "first" / "1.png"
+    second = tmp_path / "second" / "1.png"
+    first.parent.mkdir()
+    second.parent.mkdir()
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+    uploaded_names: list[str] = []
+
+    def _post(
+        _url: str,
+        *,
+        data: dict[str, str],
+        files: dict[str, tuple[str, object, str]],
+        timeout: float,
+    ) -> SimpleNamespace:
+        del timeout
+        name = files["image"][0]
+        uploaded_names.append(name)
+        return SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {"name": name, "subfolder": data["subfolder"]},
+        )
+
+    stager = RemoteUploadComfyAssetStager(
+        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
+        post=_post,
+    )
+    first_result = stager.stage_file_for_load_image(
+        source_path=first,
+        target_subfolder="substitute/wf",
+        content_hash="a" * 64,
+        node_class="SimpleSyrup.LoadMaskBatch",
+    )
+    second_result = stager.stage_file_for_load_image(
+        source_path=second,
+        target_subfolder="substitute/wf",
+        content_hash="b" * 64,
+        node_class="SimpleSyrup.LoadMaskBatch",
+    )
+
+    assert uploaded_names == [f"{'a' * 64}.png", f"{'b' * 64}.png"]
+    assert first_result.execution_value != second_result.execution_value
 
 
 def test_local_asset_stager_rejects_mismatched_authorization(

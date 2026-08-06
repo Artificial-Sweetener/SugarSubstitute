@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from inspect import signature
 from time import perf_counter
 from typing import Any, Protocol, cast
@@ -176,7 +176,10 @@ class GenerationPreparationService:
                 scene_run_id=scene_run_id,
             )
             return GenerationPreparationResult(
-                snapshots=direct_result.snapshots,
+                snapshots=tuple(
+                    replace(snapshot, workflow=request.workflow)
+                    for snapshot in direct_result.snapshots
+                ),
                 scene_run_id=direct_result.scene_run_id,
                 scene_count=direct_result.scene_count,
             )
@@ -230,7 +233,10 @@ class GenerationPreparationService:
                 scene_run_id=scene_run_id,
             )
             return GenerationPreparationResult(
-                snapshots=direct_result.snapshots,
+                snapshots=tuple(
+                    replace(snapshot, workflow=request.workflow)
+                    for snapshot in direct_result.snapshots
+                ),
                 scene_run_id=direct_result.scene_run_id,
                 scene_count=direct_result.scene_count,
             )
@@ -291,15 +297,18 @@ class GenerationPreparationService:
                 document=direct_document,
                 endpoint_index=behavior_snapshot.prompt_endpoint_index,
             )
-            return self._direct_scene_preparation_service.prepare_one(
-                document=direct_document,
-                plan=direct_plan,
-                workflow_id=request.workflow_id,
-                workflow_name=request.workflow_name,
-                endpoint_index=behavior_snapshot.prompt_endpoint_index,
-                scene_analysis=direct_analysis,
-                scene_key=scene_key,
-                scene_run_id=scene_run_id,
+            return replace(
+                self._direct_scene_preparation_service.prepare_one(
+                    document=direct_document,
+                    plan=direct_plan,
+                    workflow_id=request.workflow_id,
+                    workflow_name=request.workflow_name,
+                    endpoint_index=behavior_snapshot.prompt_endpoint_index,
+                    scene_analysis=direct_analysis,
+                    scene_key=scene_key,
+                    scene_run_id=scene_run_id,
+                ),
+                workflow=request.workflow,
             )
         scene_analysis = self._scene_analysis_service.analyze(
             workflow=cast(Any, request.workflow),
@@ -351,6 +360,7 @@ class GenerationPreparationService:
             workflow_id=request.workflow_id,
             workflow_name=request.workflow_name,
             sugar_script_text=sugar_script_text,
+            workflow=request.workflow,
             positive_prompt_preview=positive_prompt_preview,
         )
         self._log_preparation_cache_stats(
@@ -374,6 +384,7 @@ class GenerationPreparationService:
                     workflow_id=request.workflow_id,
                     workflow_name=request.workflow_name,
                     sugar_script_text="",
+                    workflow=request.workflow,
                     direct_workflow_plan=direct_plan,
                 ),
             )
@@ -411,6 +422,7 @@ class GenerationPreparationService:
             workflow_id=request.workflow_id,
             workflow_name=f"{request.workflow_name} - {scene.title}",
             sugar_script_text=sugar_script_text,
+            workflow=request.workflow,
             positive_prompt_preview=positive_prompt_preview,
             scene_run_id=scene_run_id,
             scene_key=scene.key,

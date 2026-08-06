@@ -160,6 +160,18 @@ def test_adapter_resolves_input_image_and_mask_references(tmp_path: Path) -> Non
     canvas.bind_image("Cube:Image", image_id)
     canvas.bind_image("invalid", uuid4())
     canvas.bind_mask(("Cube", "Mask"), mask_id, image_id)
+    regional_mask_ids = (uuid4(), uuid4())
+    regional = canvas.ensure_regional_mask_collection(("Cube", "Mask Batch"))
+    regional.add_region(
+        image_id,
+        mask_id=regional_mask_ids[0],
+        asset_ref=ProjectMaskAssetRef(relative_path="region-1.png"),
+    )
+    regional.add_region(
+        image_id,
+        mask_id=regional_mask_ids[1],
+        asset_ref=ProjectMaskAssetRef(relative_path="region-2.png"),
+    )
     asset_calls: list[tuple[str, str]] = []
 
     def input_image_asset_ref(
@@ -213,6 +225,17 @@ def test_adapter_resolves_input_image_and_mask_references(tmp_path: Path) -> Non
         input_masks[0].path == tmp_path / "projects" / "Recipe" / "masks" / "mask.png"
     )
     assert input_masks[0].association_key == ("Cube", "Mask")
+    assert tuple(reference.mask_id for reference in input_masks[1:]) == tuple(
+        str(mask_id) for mask_id in regional_mask_ids
+    )
+    assert tuple(reference.path.name for reference in input_masks[1:]) == (
+        "region-1.png",
+        "region-2.png",
+    )
+    assert all(
+        reference.association_key == ("Cube", "Mask Batch")
+        for reference in input_masks[1:]
+    )
     assert asset_calls == [("Cube", "Mask")]
 
 

@@ -58,6 +58,59 @@ def test_serializer_emits_backend_safe_terminal_quote_prompt() -> None:
     assert inputs["prompt_template"] == prompt
 
 
+def test_serializer_emits_ordered_literal_list_inputs() -> None:
+    """Ordered asset values should remain authored in the generated Sugar script."""
+
+    script = SugarScriptSerializer().serialize(
+        SugarScriptSerializationRequest(
+            buffers={
+                "A": OrderedDict(
+                    cube_id="Owner/Repo/demo.cube",
+                    nodes={
+                        "load_mask_batch": {
+                            "inputs": {"image": ["first.png", "second.png"]}
+                        }
+                    },
+                )
+            },
+            ordered_aliases=("A",),
+        )
+    )
+
+    assert 'set A.load_mask_batch.image = ["first.png", "second.png"]' in script
+    parsed = parse_sugar_script_document(script)
+    nodes = cast(Mapping[str, object], parsed.buffers["A"]["nodes"])
+    load_mask_batch = cast(Mapping[str, object], nodes["load_mask_batch"])
+    inputs = cast(Mapping[str, object], load_mask_batch["inputs"])
+    assert inputs["image"] == ["first.png", "second.png"]
+
+
+def test_serializer_omits_cube_internal_node_output_references() -> None:
+    """Cube graph links should remain owned by the cube instead of becoming literals."""
+
+    script = SugarScriptSerializer().serialize(
+        SugarScriptSerializationRequest(
+            buffers={
+                "A": OrderedDict(
+                    cube_id="Owner/Repo/demo.cube",
+                    nodes={
+                        "sampler": {
+                            "inputs": {
+                                "model": ["model_loader", 0],
+                                "steps": 20,
+                            }
+                        }
+                    },
+                )
+            },
+            ordered_aliases=("A",),
+        )
+    )
+
+    assert "set A.sampler.model" not in script
+    assert "set A.sampler.steps = 20" in script
+
+
 @pytest.mark.parametrize(
     ("serialization_request", "message"),
     [

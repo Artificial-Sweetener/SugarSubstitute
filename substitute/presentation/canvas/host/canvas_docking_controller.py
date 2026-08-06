@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from functools import partial
 
 from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import QVBoxLayout, QWidget
@@ -167,8 +168,11 @@ class CanvasDockingController:
 
         self._closing = True
         for entry in self._state:
-            if entry.floating_window is not None:
-                entry.floating_window.close()
+            floating_window = entry.floating_window
+            if floating_window is None:
+                continue
+            self._state.release_floating_window(entry.route_key, floating_window)
+            floating_window.close()
 
     def _create_floating_window(self, entry: CanvasHostEntry) -> FloatingCanvasWindow:
         """Create and configure the floating window for one canvas entry."""
@@ -197,7 +201,26 @@ class CanvasDockingController:
             )
         floating_window.setWindowIcon(self._host.window().windowIcon())
         floating_window.layoutStateChanged.connect(self._layout_state_changed)
+        floating_window.destroyed.connect(
+            partial(
+                self._floating_window_destroyed,
+                entry.route_key,
+                floating_window,
+            )
+        )
         return floating_window
+
+    def _floating_window_destroyed(
+        self,
+        route_key: str,
+        floating_window: FloatingCanvasWindow,
+        _destroyed_object: object | None = None,
+    ) -> None:
+        """Release a Qt-deleted window that could no longer redock normally."""
+
+        if not self._state.release_floating_window(route_key, floating_window):
+            return
+        self._layout_state_changed()
 
     def _redock_callback(self, widget: QWidget, route_key: str) -> None:
         """Restore one closed floating window into its authoritative entry."""

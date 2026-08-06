@@ -102,6 +102,7 @@ from ..interactions.cursor_adapter import (
     PromptCursorAdapter,
 )
 from ..interactions.clipboard_history_controller import PromptClipboardHistoryActions
+from ..interactions.pointer_ports import PromptSurfacePointerInteractions
 from ..interactions import (
     PromptSurfaceKeyHandler,
     PromptSurfaceKeyHost,
@@ -516,8 +517,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             self._warm_projection_geometry_reuse_indexes
         )
         self._projection_geometry_reuse_warm_requested = False
-        self._weight_click_handler: Callable[[QPointF], bool] | None = None
-        self._weight_double_click_handler: Callable[[QPointF], bool] | None = None
+        self._pointer_interactions = PromptSurfacePointerInteractions()
         self._region_chrome = PromptRegionChrome()
         self._render_frame_owner = PromptProjectionRenderFrameOwner()
         self._render_compositor = PromptProjectionRenderCompositor()
@@ -2160,6 +2160,25 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         self._flush_pending_projection_update(reason=reason)
 
+    def projection_scroll_offset(self) -> float:
+        """Return the current document-to-viewport vertical offset."""
+
+        return self._scroll_offset()
+
+    @property
+    def pointer_interactions(self) -> PromptSurfacePointerInteractions:
+        """Return the focused owner of pointer and regional intent ports."""
+
+        return self._pointer_interactions
+
+    def set_region_hovered(self, region_index: int | None) -> None:
+        """Publish transient regional chrome without changing prompt selection."""
+
+        if not self._region_chrome.set_hovered_region(region_index):
+            return
+        self._publish_render_frame()
+        self.viewport().update()
+
     def force_collapse_expanded_token(self) -> None:
         """Collapse any expanded projection token after an explicit syntax commit."""
 
@@ -2193,22 +2212,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             exact_reorder_preview,
             forced_unavailable,
         )
-
-    def set_weight_double_click_handler(
-        self,
-        handler: Callable[[QPointF], bool] | None,
-    ) -> None:
-        """Register one number-only double-click interceptor before raw token expansion."""
-
-        self._weight_double_click_handler = handler
-
-    def set_weight_click_handler(
-        self,
-        handler: Callable[[QPointF], bool] | None,
-    ) -> None:
-        """Register one number-only click interceptor used to recognize exact-edit clicks."""
-
-        self._weight_click_handler = handler
 
     def set_wheel_scroll_permission(
         self,

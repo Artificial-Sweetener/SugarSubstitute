@@ -36,6 +36,10 @@ from substitute.application.node_behavior import (
 from substitute.application.workflows import CubeRuntimeIssueSource
 from substitute.domain.node_behavior import NodeDisplayDecision
 from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.application.generation.input_generation_errors import (
+    InputGenerationPreparationError,
+    InputGenerationPreparationFailureKind,
+)
 from substitute.presentation.shell.workspace_generation_request_builder import (
     GenerationWorkflowPruneReport,
     activation_node_keys_by_alias,
@@ -537,6 +541,44 @@ def test_build_generation_request_for_view_blocks_input_snapshot_failure() -> No
         raise AssertionError("expected Input snapshot preflight error")
 
     assert reconciled == ["called"]
+
+
+def test_build_generation_request_preserves_typed_input_failure_as_cause() -> None:
+    """Shell preflight should retain the exact failed Input preparation boundary."""
+
+    preparation_error = InputGenerationPreparationError(
+        InputGenerationPreparationFailureKind.IMAGE_MATERIALIZATION
+    )
+    expected_error = RuntimeError("Input preparation failed")
+
+    def prepare_workflow(**_kwargs: object) -> object:
+        """Raise the typed failure produced by Input preparation."""
+
+        raise preparation_error
+
+    view = SimpleNamespace(
+        input_generation_snapshot_service=SimpleNamespace(
+            prepare_workflow=prepare_workflow
+        ),
+        editor_panels={},
+        active_editor_panel=None,
+        get_active_workflow=lambda: SimpleNamespace(cubes={}, stack_order=[]),
+    )
+
+    try:
+        build_generation_request_for_view(
+            view=view,
+            workflow_id="wf-a",
+            reconcile_active_input_canvas_image=lambda: None,
+            input_snapshot_error=lambda: expected_error,
+            live_node_preflight_error=lambda error: AssertionError(error),
+            empty_workflow_error=lambda: AssertionError("unexpected empty workflow"),
+        )
+    except RuntimeError as error:
+        assert error is expected_error
+        assert error.__cause__ is preparation_error
+    else:
+        raise AssertionError("expected Input preparation preflight error")
 
 
 def test_build_generation_request_for_view_blocks_live_node_preflight_failure() -> None:

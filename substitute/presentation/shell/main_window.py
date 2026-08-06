@@ -53,11 +53,13 @@ from substitute.presentation.shell.main_window_composition import (
     capture_dependencies,
     compose_editor_busy_controller,
     compose_editor_metadata_controllers,
-    compose_input_canvas_controllers,
     compose_output_canvas_controllers,
     compose_runtime_controllers,
     compose_shell_controllers,
     compose_workflow_lifecycle_services,
+)
+from substitute.presentation.shell.input_canvas_composition import (
+    compose_input_canvas_controllers,
 )
 from substitute.presentation.shell.main_window_menu import build_main_window_menu
 from substitute.presentation.shell.main_window_workspace import (

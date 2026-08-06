@@ -115,7 +115,7 @@ def _separator_token(separator: PromptRegionSeparatorView) -> PromptProjectionTo
         kind=PromptProjectionTokenKind.REGION_SEPARATOR,
         source_start=separator.token_start,
         source_end=separator.token_end,
-        display_text=REGION_SEPARATOR_TOKEN,
+        display_text=separator.name or REGION_SEPARATOR_TOKEN,
     )
 
 

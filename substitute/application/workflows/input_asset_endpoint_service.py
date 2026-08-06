@@ -28,6 +28,7 @@ from substitute.application.workflows.workflow_node_definition_service import (
     node_class_type,
 )
 from substitute.domain.workflow import (
+    InputAssetCardinality,
     InputAssetEndpoint,
     InputAssetEndpointIndex,
     InputAssetRole,
@@ -38,11 +39,14 @@ _MASK_TYPE = "MASK"
 _LEGACY_UPLOAD_FIELDS: dict[str, str] = {
     "LoadImage": "image",
     "LoadImageMask": "image",
+    "SimpleSyrup.LoadMaskBatch": "image",
 }
 _LEGACY_OUTPUT_TYPES: dict[str, tuple[str, ...]] = {
     "LoadImage": (_IMAGE_TYPE, _MASK_TYPE),
     "LoadImageMask": (_MASK_TYPE,),
+    "SimpleSyrup.LoadMaskBatch": (_MASK_TYPE,),
 }
+_LEGACY_ORDERED_UPLOAD_CLASSES = frozenset({"SimpleSyrup.LoadMaskBatch"})
 
 
 class InputAssetEndpointService:
@@ -107,6 +111,11 @@ class InputAssetEndpointService:
                         field_key=upload_fields[0],
                         output_index=output_index,
                         role=role,
+                        cardinality=_input_cardinality(
+                            class_type,
+                            upload_fields[0],
+                            definition,
+                        ),
                     )
                 )
         return InputAssetEndpointIndex(
@@ -179,6 +188,37 @@ def _output_types(
     if isinstance(output, (list, tuple)):
         return tuple(str(value).upper() for value in output)
     return _LEGACY_OUTPUT_TYPES.get(class_type, ())
+
+
+def _input_cardinality(
+    class_type: str,
+    field_key: str,
+    definition: Mapping[str, object],
+) -> InputAssetCardinality:
+    """Classify one upload field from live metadata with a restore-safe fallback."""
+
+    metadata = field_metadata(_input_field_info(definition, field_key))
+    if metadata.get("allow_batch") is True or metadata.get("multiselect") is True:
+        return InputAssetCardinality.ORDERED
+    if class_type in _LEGACY_ORDERED_UPLOAD_CLASSES:
+        return InputAssetCardinality.ORDERED
+    return InputAssetCardinality.SCALAR
+
+
+def _input_field_info(
+    definition: Mapping[str, object],
+    field_key: str,
+) -> object:
+    """Return one input field definition from its required or optional group."""
+
+    input_groups = definition.get("input", {})
+    if not isinstance(input_groups, Mapping):
+        return None
+    for group_name in ("required", "optional"):
+        group = input_groups.get(group_name, {})
+        if isinstance(group, Mapping) and field_key in group:
+            return group[field_key]
+    return None
 
 
 def _role_for_used_types(used_types: set[str]) -> InputAssetRole | None:

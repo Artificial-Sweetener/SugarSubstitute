@@ -408,7 +408,16 @@ class InputCanvasStateService:
             )
             return False
         mask_entry = active_workflow.canvas.mask_entry(association_key)
-        if mask_entry is None or mask_entry.mask_id != mask_id:
+        regional_collection = active_workflow.canvas.regional_mask_collection(
+            association_key
+        )
+        association_matches = (
+            mask_entry is not None and mask_entry.mask_id == mask_id
+        ) or (
+            regional_collection is not None
+            and regional_collection.entry_for_mask(mask_id) is not None
+        )
+        if not association_matches:
             self._log_input_rejection(
                 workflow_id=workflow_id,
                 image_id=image_id,
@@ -455,6 +464,34 @@ class InputCanvasStateService:
             updated=updated,
         )
         return updated
+
+    def remove_workflow_mask_layer(
+        self,
+        workflow_id: str,
+        active_workflow: WorkflowState,
+        image_id: UUID,
+        mask_id: UUID,
+    ) -> bool:
+        """Remove one explicitly owned mask layer without guessing collection state."""
+
+        if not self._mask_belongs_to_image(active_workflow, mask_id, image_id):
+            self._log_input_rejection(
+                workflow_id=workflow_id,
+                image_id=image_id,
+                mask_id=mask_id,
+                reason="foreign_mask_remove",
+            )
+            return False
+        removed = self._input_document.remove_mask_from_image(image_id, mask_id)
+        log_debug(
+            _LOGGER,
+            "Removed workflow-owned input canvas mask layer",
+            workflow_id=workflow_id,
+            image_id=str(image_id),
+            mask_id=str(mask_id),
+            removed=removed,
+        )
+        return removed
 
     def drop_mask_association(
         self,
@@ -515,6 +552,23 @@ class InputCanvasStateService:
         )
         for association_key in association_keys:
             self.drop_mask_association(workflow, association_key)
+        regional_collection_keys = tuple(
+            association_key
+            for association_key, collection in workflow.canvas.regional_mask_collections.items()
+            if any(entry.image_id == image_id for entry in collection.entries)
+        )
+        regional_mask_ids: list[UUID] = []
+        for association_key in regional_collection_keys:
+            collection = workflow.canvas.remove_regional_mask_collection(
+                association_key
+            )
+            if collection is None:
+                continue
+            for entry in collection.entries:
+                if entry.mask_id is None:
+                    continue
+                regional_mask_ids.append(entry.mask_id)
+                self._input_document.remove_mask_from_image(image_id, entry.mask_id)
         if workflow.canvas.input_image_uuid == image_id:
             workflow.canvas.input_image_uuid = None
             workflow.canvas.active_input_mask_uuid = None
@@ -527,6 +581,7 @@ class InputCanvasStateService:
             input_key=input_key,
             image_id=str(image_id),
             dropped_mask_count=len(association_keys),
+            dropped_regional_mask_count=len(regional_mask_ids),
         )
         return True
 
@@ -601,10 +656,7 @@ class InputCanvasStateService:
 
         if workflow is None:
             return {}
-        return {
-            entry.mask_id: entry.image_id
-            for entry in workflow.canvas.mask_entries.values()
-        }
+        return workflow.canvas.mask_image_owners()
 
     @classmethod
     def _input_route_identity(
@@ -636,14 +688,14 @@ class InputCanvasStateService:
         mask_id = workflow.canvas.active_input_mask_uuid
         if mask_id is None:
             return None
-        mask_entry = workflow.canvas.mask_entry_for_id(mask_id)
-        if mask_entry is None:
+        image_id = workflow.canvas.mask_image_owners().get(mask_id)
+        if image_id is None:
             workflow.canvas.active_input_mask_uuid = None
             return None
         if workflow.canvas.input_image_uuid is None:
             workflow.canvas.active_input_mask_uuid = None
             return None
-        if mask_entry.image_id != workflow.canvas.input_image_uuid:
+        if image_id != workflow.canvas.input_image_uuid:
             workflow.canvas.active_input_mask_uuid = None
             return None
         return mask_id
@@ -672,6 +724,14 @@ class InputCanvasStateService:
     ) -> None:
         """Replace snapshot mask ids in workflow canvas state with live ids."""
 
+        for collection in workflow.canvas.regional_mask_collections.values():
+            regional_entry = collection.entry_for_mask(snapshot_mask_id)
+            if regional_entry is None:
+                continue
+            collection.bind_mask_layer(regional_entry.region_id, live_mask_id)
+            if workflow.canvas.active_input_mask_uuid in {None, snapshot_mask_id}:
+                workflow.canvas.active_input_mask_uuid = live_mask_id
+            return
         if association_key is not None:
             workflow.canvas.replace_mask_entry(
                 association_key,
@@ -704,8 +764,7 @@ class InputCanvasStateService:
     ) -> bool:
         """Return whether one complete mask entry proves mask ownership."""
 
-        entry = workflow.canvas.mask_entry_for_id(mask_id)
-        return entry is not None and entry.image_id == image_id
+        return workflow.canvas.owns_mask(mask_id, image_id)
 
     def _remove_input_uuid_if_unreferenced(
         self,

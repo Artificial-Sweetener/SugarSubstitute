@@ -28,6 +28,9 @@ from substitute.domain.workflow import WorkflowState
 from substitute.presentation.canvas.input.input_canvas_tool_controller import (
     InputCanvasToolController,
 )
+from substitute.presentation.regional.mask_editor_actions import (
+    RegionalMaskActionOutcome,
+)
 from substitute.shared.logging.logger import get_logger, log_warning
 
 _LOGGER = get_logger("presentation.canvas.input.input_node_interaction_controller")
@@ -85,6 +88,9 @@ class InputNodeInteractionController:
         input_canvas_state_service: _InputCanvasStateServicePort,
         materialize_image_selection: Callable[[str, str, str], bool],
         apply_mask_selection: Callable[[str, str, str], bool],
+        handle_ordered_mask_action: Callable[
+            [str, str, str], RegionalMaskActionOutcome
+        ],
         activate_input_canvas: Callable[[], bool],
         refresh_mask_pickers: Callable[[], None],
         tool_controller: InputCanvasToolController,
@@ -97,6 +103,7 @@ class InputNodeInteractionController:
         self._input_canvas_state_service = input_canvas_state_service
         self._materialize_image_selection = materialize_image_selection
         self._apply_mask_selection = apply_mask_selection
+        self._handle_ordered_mask_action = handle_ordered_mask_action
         self._activate_input_canvas = activate_input_canvas
         self._refresh_mask_pickers = refresh_mask_pickers
         self._tool_controller = tool_controller
@@ -171,7 +178,19 @@ class InputNodeInteractionController:
         node_name: str,
         _mask_path: str,
     ) -> None:
-        """Activate the exact owning image and mask, focus Input, and select Brush."""
+        """Activate one scalar or ordered mask action and focus Input editing."""
+
+        regional_outcome = self._handle_ordered_mask_action(
+            cube_alias,
+            node_name,
+            _mask_path,
+        )
+        if regional_outcome.handled:
+            if regional_outcome.activate_canvas:
+                self._activate_input_canvas()
+            if regional_outcome.request_brush:
+                self._tool_controller.request_brush_after_mask_activation()
+            return
 
         workflow = self._active_workflow()
         if workflow is None:
@@ -214,12 +233,12 @@ class InputNodeInteractionController:
             )
             return
         mask_entry = workflow.canvas.mask_entry(association_key)
-        if mask_entry is None:
+        mask_id = mask_entry.mask_id if mask_entry is not None else None
+        if mask_id is None:
             self._log_rejection(
                 workflow_id, cube_alias, node_name, "missing_canvas_mask"
             )
             return
-        mask_id = mask_entry.mask_id
         if not self._input_canvas_state_service.set_active_workflow_mask(
             workflow_id,
             workflow,
