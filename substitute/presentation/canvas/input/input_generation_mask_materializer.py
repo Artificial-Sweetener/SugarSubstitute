@@ -70,6 +70,17 @@ class GenerationMaskAssociationPort(Protocol):
     ) -> bool:
         """Associate one copied graph input with a project mask snapshot."""
 
+    def associate_project_ordered_input_mask(
+        self,
+        workflow: WorkflowState,
+        *,
+        section_key: str,
+        node_name: str,
+        region_id: UUID,
+        relative_path: Path | str,
+    ) -> bool:
+        """Associate one copied ordered region with a project mask snapshot."""
+
 
 class InputGenerationMaskMaterializer:
     """Apply already-captured mask products to an execution-only workflow."""
@@ -104,10 +115,7 @@ class InputGenerationMaskMaterializer:
             return execution_workflow
         workflow_name = self._workflow_name_provider(workflow_id)
         projects_dir = self._projects_dir_provider()
-        for association_key, raw_mask_id in sorted(
-            associations.items(),
-            key=lambda item: str(item[0]),
-        ):
+        for association_key, region_id, raw_mask_id in associations:
             key = self._resolve_association_key(association_key)
             mask_id = resolve_input_mask_id(raw_mask_id)
             if (
@@ -173,14 +181,21 @@ class InputGenerationMaskMaterializer:
                 return None
             cube_alias, node_name = key
             try:
-                associated = (
-                    self._workflow_input_canvas_service.associate_project_input_mask(
+                if region_id is None:
+                    associated = self._workflow_input_canvas_service.associate_project_input_mask(
                         execution_workflow,
                         section_key=cube_alias,
                         node_name=node_name,
                         relative_path=relative_path,
                     )
-                )
+                else:
+                    associated = self._workflow_input_canvas_service.associate_project_ordered_input_mask(
+                        execution_workflow,
+                        section_key=cube_alias,
+                        node_name=node_name,
+                        region_id=region_id,
+                        relative_path=relative_path,
+                    )
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
                 log_exception(
                     _LOGGER,
@@ -209,6 +224,7 @@ class InputGenerationMaskMaterializer:
                 workflow_name=workflow_name,
                 cube_alias=cube_alias,
                 node_name=node_name,
+                region_id=str(region_id) if region_id is not None else "",
                 mask_id=str(mask_id),
                 composition_id=str(snapshot.composition_id),
                 mask_revision=snapshot.revision,
@@ -228,12 +244,26 @@ class InputGenerationMaskMaterializer:
     @staticmethod
     def _mask_associations(
         workflow: WorkflowState,
-    ) -> Mapping[tuple[str, str], UUID]:
-        """Return graph mask identities projected from complete document entries."""
-        return {
-            entry.association_key: entry.mask_id
-            for entry in workflow.canvas.mask_entries.values()
-        }
+    ) -> tuple[tuple[tuple[str, str], UUID | None, UUID], ...]:
+        """Return scalar masks followed by each collection's exact authored order."""
+
+        scalar = tuple(
+            (entry.association_key, None, entry.mask_id)
+            for entry in sorted(
+                workflow.canvas.mask_entries.values(),
+                key=lambda candidate: candidate.association_key,
+            )
+        )
+        ordered = tuple(
+            (collection.association_key, entry.region_id, entry.mask_id)
+            for collection in sorted(
+                workflow.canvas.regional_mask_collections.values(),
+                key=lambda candidate: candidate.association_key,
+            )
+            for entry in collection.entries
+            if entry.mask_id is not None
+        )
+        return scalar + ordered
 
     @staticmethod
     def _resolve_association_key(key: object) -> tuple[str, str] | None:
@@ -253,10 +283,10 @@ class InputGenerationMaskMaterializer:
         mask_id: UUID,
     ) -> bool:
         """Require the mask to belong to one image retained by this workflow."""
-        mask_entry = workflow.canvas.mask_entry_for_id(mask_id)
-        if mask_entry is None:
+        image_id = workflow.canvas.mask_image_owners().get(mask_id)
+        if image_id is None:
             return False
-        return workflow.canvas.image_entry_for_id(mask_entry.image_id) is not None
+        return workflow.canvas.image_entry_for_id(image_id) is not None
 
     @staticmethod
     def _log_failure(

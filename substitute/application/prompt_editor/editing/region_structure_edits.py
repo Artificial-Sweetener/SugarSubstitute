@@ -18,7 +18,12 @@
 
 from __future__ import annotations
 
-from substitute.domain.prompt.regions.parser import REGION_SEPARATOR_TOKEN
+from substitute.domain.prompt.regions.syntax import (
+    PromptRegionSeparatorSyntax,
+    region_separator_at,
+    region_separators_in_range,
+    separator_line_window,
+)
 
 from substitute.application.prompt_editor.document.views import (
     PromptRegionPartitionView,
@@ -84,13 +89,16 @@ def _structure_matches_source(
     for separator in structure.separators:
         token_start = separator.token_start
         token_end = separator.token_end
+        match = region_separator_at(text, token_start, require_standalone=True)
         if (
             separator.line_start != token_start
             or token_start < 0
             or token_end > len(text)
-            or text[token_start:token_end] != REGION_SEPARATOR_TOKEN
-            or (token_start > 0 and text[token_start - 1] not in "\r\n")
-            or (token_end < len(text) and text[token_end] not in "\r\n")
+            or match is None
+            or match.token_end != token_end
+            or match.name_start != separator.name_start
+            or match.name_end != separator.name_end
+            or match.name != separator.name
             or separator.line_end != _separator_line_end(text, token_end)
         ):
             return False
@@ -152,6 +160,13 @@ def remap_region_structure_after_edit(
                     end,
                     delta,
                 ),
+                name_start=_shift_optional_position(
+                    separator.name_start, start, end, delta
+                ),
+                name_end=_shift_optional_position(
+                    separator.name_end, start, end, delta
+                ),
+                name=separator.name,
             )
             for separator in structure.separators
         ),
@@ -207,18 +222,30 @@ def rebuild_region_structure_after_edit(
             token_start=_shift_position(separator.token_start, start, end, delta),
             token_end=_shift_position(separator.token_end, start, end, delta),
             line_start=_shift_position(separator.line_start, start, end, delta),
-            line_end=_shift_position(separator.line_end, start, end, delta),
+            line_end=_shift_separator_line_end(
+                separator.line_end,
+                start,
+                end,
+                delta,
+            ),
+            name_start=_shift_optional_position(
+                separator.name_start, start, end, delta
+            ),
+            name_end=_shift_optional_position(separator.name_end, start, end, delta),
+            name=separator.name,
         )
         separators[shifted.token_start] = shifted
 
     next_edit_end = start + replacement_length
-    for token_start in _local_separator_starts(next_text, start, next_edit_end):
-        token_end = token_start + len(REGION_SEPARATOR_TOKEN)
-        separators[token_start] = PromptRegionSeparatorView(
-            token_start=token_start,
-            token_end=token_end,
-            line_start=token_start,
-            line_end=_separator_line_end(next_text, token_end),
+    for match in _local_separator_matches(next_text, start, next_edit_end):
+        separators[match.token_start] = PromptRegionSeparatorView(
+            token_start=match.token_start,
+            token_end=match.token_end,
+            line_start=match.token_start,
+            line_end=_separator_line_end(next_text, match.token_end),
+            name_start=match.name_start,
+            name_end=match.name_end,
+            name=match.name,
         )
 
     ordered_separators = tuple(
@@ -314,22 +341,26 @@ def _local_separator_starts(
 ) -> tuple[int, ...]:
     """Find canonical separator candidates only within edit-adjacent context."""
 
-    context_padding = len(REGION_SEPARATOR_TOKEN) + len("\r\n")
-    context_start = max(0, edit_start - context_padding)
-    context_end = min(len(text), edit_end + context_padding)
-    candidates: list[int] = []
-    search_start = context_start
-    while search_start < context_end:
-        marker_start = text.find(REGION_SEPARATOR_TOKEN, search_start, context_end)
-        if marker_start < 0:
-            break
-        marker_end = marker_start + len(REGION_SEPARATOR_TOKEN)
-        if (marker_start == 0 or text[marker_start - 1] in "\r\n") and (
-            marker_end == len(text) or text[marker_end] in "\r\n"
-        ):
-            candidates.append(marker_start)
-        search_start = marker_end
-    return tuple(candidates)
+    return tuple(
+        match.token_start
+        for match in _local_separator_matches(text, edit_start, edit_end)
+    )
+
+
+def _local_separator_matches(
+    text: str,
+    edit_start: int,
+    edit_end: int,
+) -> tuple[PromptRegionSeparatorSyntax, ...]:
+    """Find canonical separator tokens on complete edit-adjacent source lines."""
+
+    context_start, context_end = separator_line_window(text, edit_start, edit_end)
+    return region_separators_in_range(
+        text,
+        context_start,
+        context_end,
+        require_standalone=True,
+    )
 
 
 def _shift_position(position: int, start: int, end: int, delta: int) -> int:
@@ -340,6 +371,17 @@ def _shift_position(position: int, start: int, end: int, delta: int) -> int:
     if position >= end:
         return position + delta
     raise ValueError("Topology-preserving edits must not overlap regional structure.")
+
+
+def _shift_optional_position(
+    position: int | None,
+    start: int,
+    end: int,
+    delta: int,
+) -> int | None:
+    """Shift one optional structural position outside a changed range."""
+
+    return None if position is None else _shift_position(position, start, end, delta)
 
 
 def _shift_separator_line_end(

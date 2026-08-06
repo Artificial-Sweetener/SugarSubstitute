@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from inspect import signature
 from typing import TYPE_CHECKING, Protocol, cast
@@ -36,6 +37,7 @@ from substitute.presentation.shell.workspace_generation_request_builder import (
 
 if TYPE_CHECKING:
     from substitute.application.node_behavior import EditorBehaviorSnapshot
+    from substitute.domain.workflow import WorkflowState
 
 
 class QueuedSnapshotPreparationService(Protocol):
@@ -201,13 +203,16 @@ def generation_snapshot_from_request(
 ) -> GenerationJobSnapshot:
     """Capture one queued Sugar script snapshot from a generation request."""
 
-    workflow = preprocess_generation_workflow(
-        prompt_wildcard_preprocessing_service=prompt_wildcard_preprocessing_service,
-        workflow=request.workflow,
-        workflow_id=request.workflow_id,
-        prompt_endpoint_index=None
-        if behavior_snapshot is None
-        else behavior_snapshot.prompt_endpoint_index,
+    workflow = cast(
+        "WorkflowState",
+        preprocess_generation_workflow(
+            prompt_wildcard_preprocessing_service=prompt_wildcard_preprocessing_service,
+            workflow=deepcopy(request.workflow),
+            workflow_id=request.workflow_id,
+            prompt_endpoint_index=None
+            if behavior_snapshot is None
+            else behavior_snapshot.prompt_endpoint_index,
+        ),
     )
     positive_prompt_preview = positive_prompt_preview_from_workflow(
         workflow=workflow,
@@ -223,6 +228,7 @@ def generation_snapshot_from_request(
         workflow_id=request.workflow_id,
         workflow_name=request.workflow_name,
         sugar_script_text=sugar_script_text,
+        workflow=workflow,
         positive_prompt_preview=positive_prompt_preview,
     )
 

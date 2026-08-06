@@ -258,6 +258,34 @@ def test_real_shell_second_separator_completion_publishes_adjacent_region_immedi
     assert not harness.invariant_violations(settled)
 
 
+def test_real_shell_f2_names_separator_with_source_backed_undo(
+    harness: RealShellPromptEditorHarness,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F2 should author a hidden named marker without weakening undo or redo."""
+
+    monkeypatch.setattr(
+        "substitute.presentation.editor.prompt_editor.interactions."
+        "region_pointer_controller._prompt_for_region_name",
+        lambda _parent, _current: ("Subject", True),
+    )
+    field = harness.add_prompt_workflow(initial_text="global\n[SEP]\nregion")
+    separator_end = field.editor.toPlainText().index("[SEP]") + len("[SEP]")
+    harness.set_source_cursor_position(field, separator_end)
+
+    harness.press_key(field, Qt.Key.Key_F2)
+    named = harness.capture_state_snapshot(field, label="named-separator")
+    harness.undo(field)
+    undone = harness.capture_state_snapshot(field, label="unnamed-separator")
+    harness.redo(field)
+    redone = harness.capture_state_snapshot(field, label="renamed-separator")
+
+    assert named.source_text == "global\n[SEP|Subject]\nregion"
+    assert undone.source_text == "global\n[SEP]\nregion"
+    assert redone.source_text == named.source_text
+    assert named.projection_region_separator_count == 1
+
+
 def test_real_shell_adjacent_separator_region_accepts_text_without_collapsing(
     harness: RealShellPromptEditorHarness,
 ) -> None:

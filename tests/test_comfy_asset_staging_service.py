@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Contract tests for generation asset staging and payload rewriting."""
+"""Contract tests for generation asset staging and payload projection."""
 
 from __future__ import annotations
 
@@ -70,16 +70,18 @@ class _DefinitionGateway:
         """Store definitions by backend class name."""
 
         self._definitions = definitions
+        self.cached_calls: list[str] = []
 
     def get_node_definition(self, node_class: str) -> JsonObject:
         """Return one cached custom definition."""
 
+        self.cached_calls.append(node_class)
         return self._definitions.get(node_class, {})
 
     def get_required_node_definition(self, node_class: str) -> JsonObject:
-        """Return one required custom definition."""
+        """Return one required definition through the same fixture source."""
 
-        return self.get_node_definition(node_class)
+        return self._definitions.get(node_class, {})
 
 
 def test_stage_payload_rewrites_load_image_paths_without_mutating_authoring_payload(
@@ -415,7 +417,8 @@ def test_direct_custom_upload_fields_stage_through_semantic_plan(
             "output": [],
         },
     }
-    definition_service = WorkflowNodeDefinitionService(_DefinitionGateway(definitions))
+    definition_gateway = _DefinitionGateway(definitions)
+    definition_service = WorkflowNodeDefinitionService(definition_gateway)
     endpoint_service = InputAssetEndpointService(definition_service)
     staging_plan_service = InputAssetStagingPlanService(
         endpoint_service,
@@ -535,3 +538,203 @@ def test_mask_only_canvas_backing_surface_is_never_injected_or_staged(
     assert [call[0] for call in stager.calls] == [mask_path]
     assert len(result.staged_assets) == 1
     assert result.failures == ()
+
+
+def test_stage_payload_preserves_ordered_prompt_by_region_mask_batch(
+    tmp_path: Path,
+) -> None:
+    """Ordered staging must change only the compiler-authored literal values."""
+
+    mask_root = tmp_path / "Regional" / "masks"
+    mask_root.mkdir(parents=True)
+    first_path = mask_root / "first.png"
+    second_path = mask_root / "second.png"
+    first_path.write_bytes(b"first")
+    second_path.write_bytes(b"second")
+    graph: JsonObject = {
+        "nodes": {
+            "load_mask_batch": {
+                "class_type": "SimpleSyrup.LoadMaskBatch",
+                "inputs": {"image": ["first.png", "second.png"], "channel": "alpha"},
+            },
+            "consumer": {
+                "class_type": "RegionalSampler",
+                "inputs": {"region_masks": ["load_mask_batch", 0]},
+            },
+        }
+    }
+    workflow = WorkflowState(
+        cubes={
+            "Region": CubeState(
+                cube_id="Prompt by Region.cube",
+                version="3.2.0",
+                alias="Region",
+                original_cube=graph,
+                buffer=graph,
+            )
+        },
+        stack_order=["Region"],
+    )
+    definitions: dict[str, JsonObject] = {
+        "SimpleSyrup.LoadMaskBatch": {
+            "input": {
+                "required": {
+                    "image": ["LIST", {"image_upload": True, "allow_batch": True}],
+                    "channel": ["LIST"],
+                }
+            },
+            "output": ["MASK"],
+        },
+        "RegionalSampler": {
+            "input": {"required": {"region_masks": ["MASK", {}]}},
+            "output": ["LATENT"],
+        },
+    }
+    definition_gateway = _DefinitionGateway(definitions)
+    definition_service = WorkflowNodeDefinitionService(definition_gateway)
+    scalar_stager = _FakeStager()
+    stager = _FakeStager()
+    service = ComfyAssetStagingService.with_projects_dir(
+        stager=scalar_stager,
+        ordered_stager=stager,
+        projects_dir=tmp_path,
+        input_asset_staging_plan_service=InputAssetStagingPlanService(
+            InputAssetEndpointService(definition_service),
+            WorkflowGraphSectionService(),
+        ),
+    )
+    payload: JsonObject = {
+        "42": {
+            "class_type": "SimpleSyrup.LoadMaskBatch",
+            "inputs": {
+                "image": {"__value__": ["first.png", "second.png"]},
+                "channel": "alpha",
+            },
+            "_meta": {"title": "Region.load_mask_batch"},
+        }
+    }
+
+    result = service.stage_payload(
+        workflow_payload=payload,
+        workflow_id="wf-regional",
+        workflow_name="Regional",
+        workflow=workflow,
+    )
+
+    staged_node = cast(JsonObject, result.workflow_payload["42"])
+    staged_inputs = cast(JsonObject, staged_node["inputs"])
+    assert set(result.workflow_payload) == {"42"}
+    assert staged_node["class_type"] == "SimpleSyrup.LoadMaskBatch"
+    assert staged_node["_meta"] == {"title": "Region.load_mask_batch"}
+    assert staged_inputs == {
+        "image": {
+            "__value__": [
+                "substitute/wf-regional/first.png",
+                "substitute/wf-regional/second.png",
+            ]
+        },
+        "channel": "alpha",
+    }
+    assert [call[0] for call in stager.calls] == [first_path, second_path]
+    assert [call[3] for call in stager.calls] == [
+        "SimpleSyrup.LoadMaskBatch",
+        "SimpleSyrup.LoadMaskBatch",
+    ]
+    assert result.failures == ()
+    assert scalar_stager.calls == []
+    assert "SimpleSyrup.LoadMaskBatch" in definition_gateway.cached_calls
+
+
+def test_stage_payload_resolves_nested_generation_mask_paths_from_project(
+    tmp_path: Path,
+) -> None:
+    """Generated ordered masks should resolve beneath their project mask root."""
+
+    mask_root = tmp_path / "Regional" / "masks"
+    first_path = mask_root / ".generation" / "mask-a" / "1.png"
+    second_path = mask_root / ".generation" / "mask-b" / "1.png"
+    first_path.parent.mkdir(parents=True)
+    second_path.parent.mkdir(parents=True)
+    first_path.write_bytes(b"first")
+    second_path.write_bytes(b"second")
+    graph: JsonObject = {
+        "nodes": {
+            "load_mask_batch": {
+                "class_type": "SimpleSyrup.LoadMaskBatch",
+                "inputs": {
+                    "image": [
+                        ".generation/mask-a/1.png",
+                        ".generation/mask-b/1.png",
+                    ],
+                    "channel": "red",
+                },
+            },
+            "consumer": {
+                "class_type": "RegionalSampler",
+                "inputs": {"region_masks": ["load_mask_batch", 0]},
+            },
+        }
+    }
+    workflow = WorkflowState(
+        cubes={
+            "Region": CubeState(
+                cube_id="Prompt by Region.cube",
+                version="3.2.0",
+                alias="Region",
+                original_cube=graph,
+                buffer=graph,
+            )
+        },
+        stack_order=["Region"],
+    )
+    definitions: dict[str, JsonObject] = {
+        "SimpleSyrup.LoadMaskBatch": {
+            "input": {
+                "required": {
+                    "image": ["LIST", {"image_upload": True, "allow_batch": True}],
+                    "channel": ["LIST"],
+                }
+            },
+            "output": ["MASK"],
+        },
+        "RegionalSampler": {
+            "input": {"required": {"region_masks": ["MASK", {}]}},
+            "output": ["LATENT"],
+        },
+    }
+    stager = _FakeStager()
+    service = ComfyAssetStagingService.with_projects_dir(
+        stager=stager,
+        ordered_stager=stager,
+        projects_dir=tmp_path,
+        input_asset_staging_plan_service=InputAssetStagingPlanService(
+            InputAssetEndpointService(
+                WorkflowNodeDefinitionService(_DefinitionGateway(definitions))
+            ),
+            WorkflowGraphSectionService(),
+        ),
+    )
+
+    result = service.stage_payload(
+        workflow_payload={
+            "42": {
+                "class_type": "SimpleSyrup.LoadMaskBatch",
+                "inputs": {
+                    "image": {
+                        "__value__": [
+                            ".generation/mask-a/1.png",
+                            ".generation/mask-b/1.png",
+                        ]
+                    },
+                    "channel": "red",
+                },
+                "_meta": {"title": "Region.load_mask_batch"},
+            }
+        },
+        workflow_id="wf-regional",
+        workflow_name="Regional",
+        workflow=workflow,
+    )
+
+    assert result.failures == ()
+    assert [call[0] for call in stager.calls] == [first_path, second_path]

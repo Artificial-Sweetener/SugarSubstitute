@@ -21,14 +21,15 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from PySide6.QtCore import QLineF, Qt
-from PySide6.QtGui import QPen
+from PySide6.QtCore import QLineF, QPointF, Qt
+from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPen
 
 from substitute.application.appearance import SemanticPalette
 from substitute.application.prompt_editor.document.views import (
     PromptRegionPartitionView,
 )
 from substitute.domain.appearance import RgbColor
+from substitute.presentation.regional import region_color
 
 from .metrics import PromptProjectionMetrics
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
@@ -38,12 +39,19 @@ from substitute.presentation.editor.prompt_editor.core.projection.document impor
 from ..layout.contracts import PromptLayoutOutput
 from ..layout.models import PromptProjectionLineSnapshot
 from .theme import qcolor_from_rgb
-from .region_chrome_state import PromptRegionChromeSnapshot
+from .region_chrome_state import (
+    PromptRegionChromeLabel,
+    PromptRegionChromeSnapshot,
+    PromptRegionChromeStroke,
+)
 
 _DIVIDER_MAX_WIDTH = 36.0
 _DIVIDER_CONTENT_WIDTH_RATIO = 0.2
 _STROKE_WIDTH = 2.0
 _RAIL_CONTENT_GAP = 3.0
+_NAMED_DIVIDER_MAX_WIDTH = 240.0
+_NAMED_DIVIDER_CONTENT_WIDTH_RATIO = 0.72
+_LABEL_RULE_GAP = 8.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +93,8 @@ class PromptRegionChrome:
 
         self._entries_by_snapshot_id: dict[int, _RegionChromeCacheEntry] = {}
         self._prepare_count = 0
+        self._hovered_region_index: int | None = None
+        self._active_base_snapshot: PromptRegionChromeSnapshot | None = None
         self._active_snapshot: PromptRegionChromeSnapshot | None = None
 
     @property
@@ -134,6 +144,9 @@ class PromptRegionChrome:
         )
         line_probe = _RegionLineProbe(output.snapshot.lines)
         divider_lines: list[QLineF] = []
+        paint_lines: list[QLineF] = []
+        labels: list[PromptRegionChromeLabel] = []
+        strokes: list[PromptRegionChromeStroke] = []
         divider_width = min(
             _DIVIDER_MAX_WIDTH,
             metrics.content_width * _DIVIDER_CONTENT_WIDTH_RATIO,
@@ -141,7 +154,19 @@ class PromptRegionChrome:
         divider_left = (
             metrics.content_left + (metrics.content_width - divider_width) / 2.0
         )
-        for separator in structure.separators:
+        total_regions = len(structure.separators)
+        region_pens = tuple(
+            _region_pen(
+                region_color(
+                    index,
+                    total_regions,
+                    base_color=qcolor_from_rgb(semantic_palette.accent),
+                )
+            )
+            for index in range(total_regions)
+        )
+        separator_stroke_lines: list[tuple[QLineF, ...]] = []
+        for index, separator in enumerate(structure.separators):
             line = _line_for_exact_source_range(
                 line_probe,
                 source_start=separator.line_start,
@@ -150,32 +175,62 @@ class PromptRegionChrome:
             if line is None:
                 continue
             divider_y = line.top + line.height / 2.0
-            divider_lines.append(
-                QLineF(
-                    divider_left,
-                    divider_y,
-                    divider_left + divider_width,
-                    divider_y,
-                )
+            conceptual_divider = QLineF(
+                divider_left,
+                divider_y,
+                divider_left + divider_width,
+                divider_y,
             )
+            divider_lines.append(conceptual_divider)
+            region_lines, label = _separator_paint_geometry(
+                separator_name=separator.name,
+                divider_y=divider_y,
+                metrics=metrics,
+                base_font=output.configuration.base_font,
+                color=region_pens[index].color(),
+                plain_divider=conceptual_divider,
+            )
+            separator_stroke_lines.append(region_lines)
+            paint_lines.extend(region_lines)
+            if label is not None:
+                labels.append(label)
 
         rail_x = max(1.0, metrics.content_left - _RAIL_CONTENT_GAP)
         rail_lines_list: list[QLineF] = []
+        rail_lines_by_region: list[QLineF | None] = []
         for partition in regional_partitions:
             extent = _partition_line_extent(line_probe, partition)
             if extent is None:
+                rail_lines_by_region.append(None)
                 continue
-            rail_lines_list.append(QLineF(rail_x, extent[0], rail_x, extent[1]))
+            rail = QLineF(rail_x, extent[0], rail_x, extent[1])
+            rail_lines_list.append(rail)
+            rail_lines_by_region.append(rail)
         rail_lines = tuple(rail_lines_list)
         pen = _accent_pen(semantic_palette)
-        paint_lines = (*rail_lines, *divider_lines)
+        for index, separator_lines in enumerate(separator_stroke_lines):
+            lines = list(separator_lines)
+            if index < len(rail_lines_by_region):
+                region_rail = rail_lines_by_region[index]
+                if region_rail is not None:
+                    lines.insert(0, region_rail)
+                    paint_lines.append(region_rail)
+            strokes.append(
+                PromptRegionChromeStroke(
+                    region_index=index,
+                    lines=tuple(lines),
+                    pen=region_pens[index],
+                )
+            )
         snapshot = PromptRegionChromeSnapshot(
             layout_snapshot_identity=id(output.snapshot),
             accent=semantic_palette.accent,
             divider_lines=tuple(divider_lines),
             rail_lines=rail_lines,
-            paint_lines=paint_lines,
+            paint_lines=tuple(paint_lines),
             pen=pen,
+            strokes=tuple(strokes),
+            labels=tuple(labels),
             visited_line_count=line_probe.visited_line_count,
         )
         self._store_snapshot(
@@ -203,6 +258,8 @@ class PromptRegionChrome:
             rail_lines=(),
             paint_lines=(),
             pen=_accent_pen(semantic_palette),
+            strokes=(),
+            labels=(),
             visited_line_count=0,
         )
         self._store_snapshot(
@@ -283,12 +340,67 @@ class PromptRegionChrome:
             projection_document.display_mode is PromptProjectionDisplayMode.RAW
             or not projection_document.region_structure.separators
         ):
+            self._active_base_snapshot = None
             self._active_snapshot = None
             return
-        self._active_snapshot = self.prepare(
+        self._active_base_snapshot = self.prepare(
             output,
             semantic_palette=semantic_palette,
         )
+        self._active_snapshot = _snapshot_with_hover(
+            self._active_base_snapshot,
+            self._hovered_region_index,
+        )
+
+    def set_hovered_region(self, region_index: int | None) -> bool:
+        """Publish transient emphasis without recomputing layout geometry."""
+
+        if region_index == self._hovered_region_index:
+            return False
+        self._hovered_region_index = region_index
+        if self._active_base_snapshot is None:
+            return False
+        self._active_snapshot = _snapshot_with_hover(
+            self._active_base_snapshot,
+            region_index,
+        )
+        return True
+
+
+def _snapshot_with_hover(
+    snapshot: PromptRegionChromeSnapshot,
+    region_index: int | None,
+) -> PromptRegionChromeSnapshot:
+    """Return paint-ready hover emphasis while reusing prepared geometry."""
+
+    if region_index is None:
+        return snapshot
+    strokes: list[PromptRegionChromeStroke] = []
+    for stroke in snapshot.strokes:
+        if stroke.region_index != region_index:
+            strokes.append(stroke)
+            continue
+        pen = QPen(stroke.pen)
+        pen.setWidthF(stroke.pen.widthF() + 1.5)
+        pen.setColor(stroke.pen.color().lighter(135))
+        strokes.append(
+            PromptRegionChromeStroke(
+                region_index=stroke.region_index,
+                lines=stroke.lines,
+                pen=pen,
+            )
+        )
+    return PromptRegionChromeSnapshot(
+        layout_snapshot_identity=snapshot.layout_snapshot_identity,
+        accent=snapshot.accent,
+        divider_lines=snapshot.divider_lines,
+        rail_lines=snapshot.rail_lines,
+        paint_lines=snapshot.paint_lines,
+        pen=snapshot.pen,
+        strokes=tuple(strokes),
+        labels=snapshot.labels,
+        visited_line_count=snapshot.visited_line_count,
+    )
 
 
 def _line_intersects_partition(
@@ -395,11 +507,66 @@ def _first_line_starting_at_or_after(
 def _accent_pen(semantic_palette: SemanticPalette) -> QPen:
     """Return the immutable accent stroke shared by one prepared snapshot."""
 
-    pen = QPen(qcolor_from_rgb(semantic_palette.accent))
+    return _region_pen(qcolor_from_rgb(semantic_palette.accent))
+
+
+def _region_pen(color: QColor) -> QPen:
+    """Return one immutable solid stroke for a regional identity color."""
+
+    pen = QPen(color)
     pen.setWidthF(_STROKE_WIDTH)
     pen.setStyle(Qt.PenStyle.SolidLine)
     pen.setCapStyle(Qt.PenCapStyle.FlatCap)
     return pen
+
+
+def _separator_paint_geometry(
+    *,
+    separator_name: str | None,
+    divider_y: float,
+    metrics: PromptProjectionMetrics,
+    base_font: QFont,
+    color: QColor,
+    plain_divider: QLineF,
+) -> tuple[tuple[QLineF, ...], PromptRegionChromeLabel | None]:
+    """Prepare a plain rule or a centered named rule without changing source."""
+
+    if separator_name is None:
+        return (plain_divider,), None
+    label_font = QFont(base_font)
+    label_font.setBold(True)
+    font_metrics = QFontMetricsF(label_font)
+    available_width = min(
+        _NAMED_DIVIDER_MAX_WIDTH,
+        metrics.content_width * _NAMED_DIVIDER_CONTENT_WIDTH_RATIO,
+    )
+    maximum_label_width = max(1.0, available_width - (2.0 * _LABEL_RULE_GAP))
+    label_text = font_metrics.elidedText(
+        separator_name,
+        Qt.TextElideMode.ElideRight,
+        int(maximum_label_width),
+    )
+    label_width = font_metrics.horizontalAdvance(label_text)
+    content_center = metrics.content_left + metrics.content_width / 2.0
+    label_left = content_center - label_width / 2.0
+    label_right = content_center + label_width / 2.0
+    rule_left = content_center - available_width / 2.0
+    rule_right = content_center + available_width / 2.0
+    lines = tuple(
+        line
+        for line in (
+            QLineF(rule_left, divider_y, label_left - _LABEL_RULE_GAP, divider_y),
+            QLineF(label_right + _LABEL_RULE_GAP, divider_y, rule_right, divider_y),
+        )
+        if line.length() > 0.0
+    )
+    baseline_y = divider_y + (font_metrics.ascent() - font_metrics.descent()) / 2.0
+    return lines, PromptRegionChromeLabel(
+        text=label_text,
+        baseline=QPointF(label_left, baseline_y),
+        color=QColor(color),
+        font=label_font,
+    )
 
 
 __all__ = [

@@ -261,6 +261,23 @@ class CanvasIoService:
 
         return self._image_repository.image_dimensions(path)
 
+    def save_resampled_mask(
+        self,
+        source: Path,
+        destination: Path,
+        *,
+        width: int,
+        height: int,
+    ) -> bool:
+        """Persist one imported mask normalized to exact canvas dimensions."""
+
+        return self._image_repository.save_resampled_mask(
+            source,
+            destination,
+            width=width,
+            height=height,
+        )
+
     def load_output_image(self, path: Path) -> object | None:
         """Load output image from filesystem for output-canvas updates."""
 

@@ -39,6 +39,9 @@ class InputCanvasStateServicePort(Protocol):
     ) -> UUID:
         """Load one input image and return its live canvas UUID."""
 
+    def input_image_path(self, image_id: UUID) -> Path | None:
+        """Return the persisted source path for one live Input image."""
+
     def load_mask_from_file(
         self,
         workflow_id: str,
@@ -66,6 +69,14 @@ class InputCanvasStateServicePort(Protocol):
         image_id: UUID,
     ) -> bool:
         """Persist and project one active Input image."""
+
+    def set_active_workflow_mask(
+        self,
+        workflow_id: str,
+        workflow: WorkflowState,
+        mask_id: UUID,
+    ) -> bool:
+        """Persist and project one active Input mask layer."""
 
     def claim_loaded_input_image(
         self,
@@ -103,6 +114,15 @@ class InputCanvasStateServicePort(Protocol):
         mask_dimensions: tuple[int, int] | None,
     ) -> bool:
         """Update one associated mask layer after Input ownership validation."""
+
+    def remove_workflow_mask_layer(
+        self,
+        workflow_id: str,
+        active_workflow: WorkflowState,
+        image_id: UUID,
+        mask_id: UUID,
+    ) -> bool:
+        """Remove one explicitly owned mask layer without changing its collection."""
 
 
 class CanvasIoServicePort(Protocol):
@@ -158,6 +178,16 @@ class CanvasIoServicePort(Protocol):
 
     def image_dimensions(self, path: Path) -> tuple[int, int] | None:
         """Return image dimensions for a filesystem image."""
+
+    def save_resampled_mask(
+        self,
+        source: Path,
+        destination: Path,
+        *,
+        width: int,
+        height: int,
+    ) -> bool:
+        """Persist one imported mask at exact synthetic-canvas dimensions."""
 
     def resolve_mask_path(
         self,

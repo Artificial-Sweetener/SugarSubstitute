@@ -24,6 +24,7 @@ from types import SimpleNamespace
 import pytest
 
 from substitute.presentation.shell import main_window_composition
+from substitute.presentation.shell import input_canvas_composition
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
     InputCanvasToolId,
 )
@@ -876,37 +877,37 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     """Ensure Input canvas presenter composition stays outside MainWindow.__init__."""
 
     monkeypatch.setattr(
-        main_window_composition,
+        input_canvas_composition,
         "WorkflowInputCanvasService",
         _FakeWorkflowInputCanvasService,
     )
     monkeypatch.setattr(
-        main_window_composition,
+        input_canvas_composition,
         "InputCanvasToolController",
         _FakeInputCanvasToolController,
     )
     monkeypatch.setattr(
-        main_window_composition,
+        input_canvas_composition,
         "InputCanvasShellAdapter",
         _FakeInputCanvasShellAdapter,
     )
     monkeypatch.setattr(
-        main_window_composition,
+        input_canvas_composition,
         "InputCanvasPresenter",
         _FakeInputCanvasPresenter,
     )
     monkeypatch.setattr(
-        main_window_composition,
+        input_canvas_composition,
         "InputNodeInteractionController",
         _FakeInputNodeInteractionController,
     )
     monkeypatch.setattr(
-        main_window_composition,
+        input_canvas_composition,
         "InputDocumentChangeObserver",
         _FakeInputDocumentChangeObserver,
     )
     monkeypatch.setattr(
-        main_window_composition,
+        input_canvas_composition,
         "InputCanvasCapabilityService",
         _FakeInputCanvasCapabilityService,
     )
@@ -924,7 +925,7 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         ),
     )
     monkeypatch.setattr(
-        main_window_composition,
+        input_canvas_composition,
         "create_input_canvas_tool_system",
         lambda: runtime,
     )
@@ -941,6 +942,7 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         toolContextChanged=_FakeSignal(),
         canvasToolChanged=_FakeSignal(),
         maskContentChanged=_FakeSignal(),
+        activeMaskChanged=_FakeSignal(),
     )
     current_image_id_for_event = object()
     bound_runtimes: list[tuple[object, object]] = []
@@ -959,6 +961,7 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
             canvas_for=lambda route_key: input_canvas if route_key == "Input" else None
         ),
         input_canvas_plan_service=object(),
+        input_asset_endpoint_service=object(),
         graph_section_service=object(),
         input_canvas_state_service=object(),
         canvas_io_service=object(),
@@ -974,7 +977,7 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         request_session_autosave=object(),
     )
 
-    composition = main_window_composition.compose_input_canvas_controllers(shell)
+    composition = input_canvas_composition.compose_input_canvas_controllers(shell)
 
     assert (
         composition.workflow_input_canvas_service is shell.workflow_input_canvas_service

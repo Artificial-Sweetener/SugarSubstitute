@@ -67,6 +67,12 @@ from substitute.presentation.canvas.input.input_route_projector import (
 from substitute.presentation.canvas.input.input_node_interaction_controller import (
     InputNodeInteractionController,
 )
+from substitute.presentation.regional.mask_collection_presenter import (
+    RegionalMaskCollectionPresenter,
+)
+from substitute.presentation.regional.mask_editor_actions import (
+    RegionalMaskActionOutcome,
+)
 
 
 class _DefinitionGateway:
@@ -258,6 +264,12 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
         workflow_name_provider=lambda _workflow_id: workflow_name,
         projects_dir_provider=lambda: tmp_path,
         mask_color_provider=lambda _index, _total: QColor("red"),
+        regional_mask_presenter=RegionalMaskCollectionPresenter(
+            input_document=document,
+            active_workflow=lambda: workflow,
+            active_panel=lambda: panel,
+            mask_color=lambda _index, _total: QColor("red"),
+        ),
     )
     interaction_controller = InputNodeInteractionController(
         active_workflow=lambda: workflow,
@@ -266,6 +278,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
         input_canvas_state_service=state_service,
         materialize_image_selection=presenter.materialize_image_selection,
         apply_mask_selection=presenter.apply_mask_selection,
+        handle_ordered_mask_action=lambda *_args: RegionalMaskActionOutcome(False),
         activate_input_canvas=lambda: canvas_host.activate_canvas("Input"),
         refresh_mask_pickers=presenter.refresh_active_mask_pickers,
         tool_controller=tool_controller,

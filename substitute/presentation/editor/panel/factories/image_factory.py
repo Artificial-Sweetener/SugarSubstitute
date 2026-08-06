@@ -24,6 +24,9 @@ from typing import Any, cast
 from substitute.application.node_behavior import FieldBehavior, FieldPresentation
 from substitute.presentation.editor.panel.widgets.fields.load_image import ImagePicker
 from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
+from substitute.presentation.editor.panel.widgets.fields.regional_mask_batch import (
+    RegionalMaskBatchEditor,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +63,36 @@ class ImageMaskFieldFactory:
                 request.value,
                 request.field_meta,
             )
+        if request.field_behavior.presentation == FieldPresentation.MASK_BATCH_EDITOR:
+            return build_regional_mask_batch_widget(
+                request.parent,
+                request.node_name,
+                request.value,
+                request.field_meta,
+            )
         return None
+
+
+def build_regional_mask_batch_widget(
+    parent: Any,
+    node_name: str,
+    value: object,
+    field_meta: dict[str, object],
+) -> RegionalMaskBatchEditor:
+    """Build the native ordered mask collection editor for one batch endpoint."""
+
+    cube_alias = field_meta.get("cube_alias")
+    values = (
+        [item for item in value if isinstance(item, str)]
+        if isinstance(value, list)
+        else []
+    )
+    return RegionalMaskBatchEditor(
+        cube_alias=cube_alias if isinstance(cube_alias, str) else "",
+        node_name=node_name,
+        values=values,
+        parent=parent,
+    )
 
 
 def build_image_picker_widget(

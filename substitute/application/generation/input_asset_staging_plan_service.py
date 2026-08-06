@@ -30,7 +30,11 @@ from substitute.application.workflows.input_asset_endpoint_service import (
 from substitute.application.workflows.workflow_graph_section_service import (
     WorkflowGraphSectionService,
 )
-from substitute.domain.workflow import InputAssetRole, WorkflowState
+from substitute.domain.workflow import (
+    InputAssetCardinality,
+    InputAssetRole,
+    WorkflowState,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +46,7 @@ class InputAssetStagingTarget:
     node_name: str
     field_key: str
     role: InputAssetRole
+    cardinality: InputAssetCardinality = InputAssetCardinality.SCALAR
 
 
 class InputAssetStagingPlanService:
@@ -64,7 +69,10 @@ class InputAssetStagingPlanService:
     ) -> tuple[InputAssetStagingTarget, ...]:
         """Return executable upload targets that correspond to authored endpoints."""
 
-        authored: dict[tuple[str, str], tuple[str, InputAssetRole]] = {}
+        authored: dict[
+            tuple[str, str],
+            tuple[str, InputAssetRole, InputAssetCardinality],
+        ] = {}
         for section_key in self._graph_section_service.section_keys(workflow):
             graph = self._graph_section_service.graph(workflow, section_key)
             if graph is None:
@@ -74,6 +82,7 @@ class InputAssetStagingPlanService:
                 authored[(section_key, endpoint.node_name)] = (
                     endpoint.field_key,
                     endpoint.role,
+                    endpoint.cardinality,
                 )
 
         targets: list[InputAssetStagingTarget] = []
@@ -85,7 +94,7 @@ class InputAssetStagingPlanService:
             authored_endpoint = authored.get(identity)
             if authored_endpoint is None:
                 continue
-            field_key, role = authored_endpoint
+            field_key, role, cardinality = authored_endpoint
             targets.append(
                 InputAssetStagingTarget(
                     executable_node_id=node_id,
@@ -93,6 +102,7 @@ class InputAssetStagingPlanService:
                     node_name=identity[1],
                     field_key=field_key,
                     role=role,
+                    cardinality=cardinality,
                 )
             )
         return tuple(targets)

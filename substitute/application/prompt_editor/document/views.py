@@ -125,6 +125,9 @@ class PromptRegionSeparatorView:
     token_end: int
     line_start: int
     line_end: int
+    name_start: int | None = None
+    name_end: int | None = None
+    name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

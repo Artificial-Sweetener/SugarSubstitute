@@ -24,8 +24,11 @@ from substitute.domain.prompt.regions.models import (
     PromptRegionSeparator,
     PromptRegionStructure,
 )
-
-REGION_SEPARATOR_TOKEN = "[SEP]"
+from substitute.domain.prompt.regions.syntax import (
+    REGION_SEPARATOR_TOKEN,
+    PromptRegionSeparatorSyntax,
+    region_separator_at,
+)
 
 
 class PromptRegionStructureBuilder:
@@ -36,18 +39,16 @@ class PromptRegionStructureBuilder:
 
         self._separators: list[PromptRegionSeparator] = []
 
-    def accept_separator_at(self, text: str, index: int) -> bool:
+    def accept_separator_at(
+        self, text: str, index: int
+    ) -> PromptRegionSeparatorSyntax | None:
         """Record an exact whole-line separator beginning at one scan position."""
 
-        token_end = index + len(REGION_SEPARATOR_TOKEN)
-        if text[index:token_end] != REGION_SEPARATOR_TOKEN:
-            return False
-        if index > 0 and text[index - 1] not in "\r\n":
-            return False
-        if token_end < len(text) and text[token_end] not in "\r\n":
-            return False
+        match = region_separator_at(text, index, require_standalone=True)
+        if match is None:
+            return None
 
-        line_end = token_end
+        line_end = match.token_end
         if line_end < len(text):
             if text.startswith("\r\n", line_end):
                 line_end += 2
@@ -55,11 +56,17 @@ class PromptRegionStructureBuilder:
                 line_end += 1
         self._separators.append(
             PromptRegionSeparator(
-                token_range=SourceRange(index, token_end),
+                token_range=SourceRange(index, match.token_end),
                 line_range=SourceRange(index, line_end),
+                name_range=(
+                    SourceRange(match.name_start, match.name_end)
+                    if match.name_start is not None and match.name_end is not None
+                    else None
+                ),
+                name=match.name,
             )
         )
-        return True
+        return match
 
     def build(self, source_length: int) -> PromptRegionStructure:
         """Return immutable partitions spanning source outside separator lines."""

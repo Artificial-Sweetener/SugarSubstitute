@@ -139,6 +139,7 @@ class PromptEditor(QWidget):
     manualScrollHeightChanged: Any
     richPromptRenderingEnabledChanged: Any
     sceneQueueRequested: Any
+    regionHovered: Any
     scrollDelegate: Any
     _surface: Any
     _feature_profile_controller: PromptFeatureProfileController

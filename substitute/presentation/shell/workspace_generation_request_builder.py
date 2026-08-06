@@ -27,6 +27,9 @@ from substitute.application.generation import (
     SeedRandomizationResult,
     WorkflowIssuePruningService,
 )
+from substitute.application.generation.input_generation_errors import (
+    InputGenerationPreparationError,
+)
 from substitute.application.node_behavior import LiveNodeDefinitionError
 from substitute.application.workflows import (
     CubeRuntimeIssueSource,
@@ -209,10 +212,13 @@ def build_generation_request_for_view(
     reconcile_active_input_canvas_image()
     behavior_snapshot = active_behavior_snapshot(view, workflow_id)
     workflow = view.get_active_workflow()
-    captured_workflow = view.input_generation_snapshot_service.prepare_workflow(
-        workflow_id=workflow_id,
-        workflow=workflow,
-    )
+    try:
+        captured_workflow = view.input_generation_snapshot_service.prepare_workflow(
+            workflow_id=workflow_id,
+            workflow=workflow,
+        )
+    except InputGenerationPreparationError as error:
+        raise input_snapshot_error() from error
     if captured_workflow is None:
         raise input_snapshot_error()
     workflow = captured_workflow

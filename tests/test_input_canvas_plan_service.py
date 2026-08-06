@@ -32,7 +32,10 @@ from substitute.application.workflows.input_canvas_plan_service import (
 from substitute.application.workflows.workflow_node_definition_service import (
     WorkflowNodeDefinitionService,
 )
-from substitute.domain.workflow import InputCanvasSurfaceKind
+from substitute.domain.workflow import (
+    InputAssetCardinality,
+    InputCanvasSurfaceKind,
+)
 
 
 def test_custom_named_spatial_root_creates_mask_only_canvas() -> None:
@@ -58,6 +61,79 @@ def test_custom_named_spatial_root_creates_mask_only_canvas() -> None:
         "mask"
     ]
     assert plan.rejected_mask_nodes == ()
+
+
+def test_prompt_by_region_mask_batch_creates_ordered_synthetic_canvas_binding() -> None:
+    """SimpleSyrup mask batches should expose an ordered mask endpoint."""
+
+    definitions = _regional_definitions("EmptyLatentImage")
+    definitions["SimpleSyrup.LoadMaskBatch"] = {
+        "input": {
+            "required": {
+                "image": ["LIST"],
+                "channel": ["LIST"],
+            }
+        },
+        "output": ["MASK"],
+    }
+    graph = _graph(
+        {
+            "load_mask_batch": _node(
+                "SimpleSyrup.LoadMaskBatch",
+                image=[],
+                channel="alpha",
+            ),
+            "latent_dimensions": _node(
+                "EmptyLatentImage",
+                width=960,
+                height=1344,
+                batch_size=1,
+            ),
+            "ksampler": _node(
+                "Sampler",
+                latent_image=["latent_dimensions", 0],
+                positive=["load_mask_batch", 0],
+            ),
+        }
+    )
+
+    plan = _service().build_plan(
+        "Prompt by Region", graph, node_definitions=definitions
+    )
+
+    assert len(plan.surfaces) == 1
+    assert plan.surfaces[0].dimensions is not None
+    assert plan.surfaces[0].dimensions.width == 960
+    assert plan.surfaces[0].dimensions.height == 1344
+    assert len(plan.mask_bindings) == 1
+    assert (
+        plan.mask_bindings[0].mask_endpoint.cardinality is InputAssetCardinality.ORDERED
+    )
+
+
+def test_synthetic_surface_identity_survives_dimension_value_changes() -> None:
+    """Editing latent dimensions should revise size without replacing the surface."""
+
+    definitions = _regional_definitions("NoiseRoot")
+    first = _service().build_plan(
+        "workflow",
+        _regional_graph(root_class="NoiseRoot", width=960, height=1344),
+        node_definitions=definitions,
+    )
+    second = _service().build_plan(
+        "workflow",
+        _regional_graph(root_class="NoiseRoot", width=1024, height=1024),
+        node_definitions=definitions,
+    )
+
+    assert first.surfaces[0].surface_key == second.surfaces[0].surface_key
+    first_authority = first.surfaces[0].dimension_authority
+    second_authority = second.surfaces[0].dimension_authority
+    assert first_authority is not None
+    assert second_authority is not None
+    assert (
+        first_authority.dimension_fingerprint != second_authority.dimension_fingerprint
+    )
 
 
 def test_spatial_transformer_dimensions_do_not_create_canvas_authority() -> None:

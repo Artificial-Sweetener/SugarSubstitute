@@ -29,9 +29,6 @@ if TYPE_CHECKING:
     from substitute.presentation.canvas.input.input_canvas_tool_controller import (
         InputCanvasToolController,
     )
-    from substitute.presentation.canvas.input.mask_color_provider import (
-        input_mask_color,
-    )
 
 _EXPORT_MODULES = {
     "InputCanvas": "substitute.presentation.canvas.input.input_canvas_view",
@@ -41,14 +38,12 @@ _EXPORT_MODULES = {
     "InputCanvasToolController": (
         "substitute.presentation.canvas.input.input_canvas_tool_controller"
     ),
-    "input_mask_color": "substitute.presentation.canvas.input.mask_color_provider",
 }
 
 __all__ = [
     "InputCanvas",
     "InputCanvasPresenter",
     "InputCanvasToolController",
-    "input_mask_color",
 ]
 
 

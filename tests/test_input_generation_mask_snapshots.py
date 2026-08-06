@@ -26,7 +26,11 @@ from uuid import UUID, uuid4
 from cutecanvas import MaskExportSnapshot
 from PySide6.QtGui import QColor, QImage
 
-from substitute.domain.workflow import CubeState, WorkflowState
+from substitute.domain.workflow import (
+    CubeState,
+    ProjectMaskAssetRef,
+    WorkflowState,
+)
 from substitute.presentation.canvas.input.input_generation_mask_materializer import (
     InputGenerationMaskMaterializer,
 )
@@ -128,6 +132,94 @@ def test_generation_snapshot_fails_closed_on_write_or_stale_identity(
     assert _nodes(workflow)["MaskNode"]["inputs"]["image"] == "authoring-mask.png"
 
 
+def test_generation_snapshot_persists_every_ordered_region_in_batch_order(
+    tmp_path: Path,
+) -> None:
+    """Execution copies should reference exact regional revisions in authored order."""
+
+    image_id = uuid4()
+    first_mask_id = uuid4()
+    second_mask_id = uuid4()
+    cube = CubeState(
+        cube_id="Prompt by Region.cube",
+        version="3.2.0",
+        alias="Region",
+        original_cube={},
+        buffer={
+            "nodes": {
+                "Masks": {
+                    "class_type": "SimpleSyrup.LoadMaskBatch",
+                    "inputs": {"image": ["first.png", "second.png"]},
+                }
+            }
+        },
+    )
+    workflow = WorkflowState(cubes={"Region": cube}, stack_order=["Region"])
+    workflow.canvas.bind_image("Region:@synthetic/surface", image_id)
+    collection = workflow.canvas.ensure_regional_mask_collection(("Region", "Masks"))
+    first = collection.add_region(image_id, mask_id=first_mask_id)
+    second = collection.add_region(image_id, mask_id=second_mask_id)
+    persisted: list[Path] = []
+
+    def save_snapshot(*, destination: Path, image: object) -> bool:
+        """Record one ordered generation mask destination."""
+
+        _ = image
+        persisted.append(destination)
+        return True
+
+    materializer = InputGenerationMaskMaterializer(
+        canvas_io_service=_Io(
+            tmp_path,
+            save_snapshot,
+        ),
+        workflow_input_canvas_service=_Associations(),
+        workflow_name_provider=lambda _workflow_id: "Regional",
+        projects_dir_provider=lambda: tmp_path,
+    )
+
+    prepared = materializer.prepare_workflow(
+        workflow_id="wf-region",
+        workflow=workflow,
+        snapshots={
+            first_mask_id: MaskExportSnapshot(
+                mask_id=first_mask_id,
+                composition_id=uuid4(),
+                revision=3,
+                image=_mask_image(10),
+            ),
+            second_mask_id: MaskExportSnapshot(
+                mask_id=second_mask_id,
+                composition_id=uuid4(),
+                revision=7,
+                image=_mask_image(20),
+            ),
+        },
+    )
+
+    assert isinstance(prepared, WorkflowState)
+    assert _nodes(prepared, "Region")["Masks"]["inputs"]["image"] == [
+        f".generation/{first_mask_id}/3.png",
+        f".generation/{second_mask_id}/7.png",
+    ]
+    assert persisted == [
+        tmp_path / "Regional" / "masks" / f".generation/{first_mask_id}/3.png",
+        tmp_path / "Regional" / "masks" / f".generation/{second_mask_id}/7.png",
+    ]
+    prepared_collection = prepared.canvas.regional_mask_collection(("Region", "Masks"))
+    assert prepared_collection is not None
+    prepared_first = prepared_collection.entry(first.region_id)
+    prepared_second = prepared_collection.entry(second.region_id)
+    assert prepared_first is not None
+    assert prepared_second is not None
+    assert prepared_first.asset_ref == ProjectMaskAssetRef(
+        f".generation/{first_mask_id}/3.png"
+    )
+    assert prepared_second.asset_ref == ProjectMaskAssetRef(
+        f".generation/{second_mask_id}/7.png"
+    )
+
+
 class _Io:
     """Provide deterministic project path resolution and persistence."""
 
@@ -171,6 +263,31 @@ class _Associations:
         _nodes(workflow, section_key)[node_name]["inputs"]["image"] = Path(
             relative_path
         ).as_posix()
+        return True
+
+    def associate_project_ordered_input_mask(
+        self,
+        workflow: WorkflowState,
+        *,
+        section_key: str,
+        node_name: str,
+        region_id: UUID,
+        relative_path: Path | str,
+    ) -> bool:
+        """Update one copied region and rewrite its complete ordered graph list."""
+
+        collection = workflow.canvas.regional_mask_collection((section_key, node_name))
+        if collection is None:
+            return False
+        collection.bind_asset(
+            region_id,
+            ProjectMaskAssetRef(Path(relative_path).as_posix()),
+        )
+        _nodes(workflow, section_key)[node_name]["inputs"]["image"] = [
+            entry.asset_ref.relative_path
+            for entry in collection.entries
+            if isinstance(entry.asset_ref, ProjectMaskAssetRef)
+        ]
         return True
 
 

@@ -30,6 +30,9 @@ from substitute.presentation.canvas.host.floating_canvas_snapshot import (
     apply_restored_floating_snapshot,
     floating_canvas_snapshot,
 )
+from sugarsubstitute_shared.presentation.fluent_tooltips import (
+    release_fluent_tooltips,
+)
 from substitute.presentation.shell.chrome_style import connect_theme_refresh
 from substitute.presentation.shell.window_frame import (
     ShellBackdropMode,
@@ -192,6 +195,7 @@ class FloatingCanvasWindow(AcrylicWindow):  # type: ignore[misc]
     def closeEvent(self, event: Any) -> None:
         """Redock the canvas into its host unless the parent is closing."""
 
+        release_fluent_tooltips(self.canvas_widget)
         floating_chrome = getattr(self, "_floating_chrome", None)
         if floating_chrome is not None:
             floating_chrome.dispose(self)

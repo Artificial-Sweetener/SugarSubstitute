@@ -24,6 +24,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID, uuid4
 
+from PySide6.QtGui import QColor
 from cutecanvas import CuteCanvas
 from substitute.domain.workflow import WorkflowCanvasState
 from substitute.presentation.canvas.input import (
@@ -35,6 +36,12 @@ from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
 )
 from substitute.presentation.canvas.input.input_node_interaction_controller import (
     InputNodeInteractionController,
+)
+from substitute.presentation.regional.mask_collection_presenter import (
+    RegionalMaskCollectionPresenter,
+)
+from substitute.presentation.regional.mask_editor_actions import (
+    RegionalMaskActionOutcome,
 )
 
 
@@ -189,6 +196,7 @@ def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
         input_canvas_state_service=cast(Any, state_service),
         materialize_image_selection=lambda *_args: True,
         apply_mask_selection=lambda *_args: True,
+        handle_ordered_mask_action=lambda *_args: RegionalMaskActionOutcome(False),
         activate_input_canvas=activate_input,
         refresh_mask_pickers=lambda: None,
         tool_controller=tool_controller,
@@ -220,19 +228,26 @@ def test_presenter_refreshes_materialized_picker_from_asset_state(
         workflow=workflow,
         panel=panel,
         asset_path=asset_path,
+        workflow_input_canvas_service=SimpleNamespace(
+            materialize_input_image=lambda **_kwargs: SimpleNamespace(
+                image_id=image_id,
+                mask_results=(
+                    SimpleNamespace(
+                        association_key=("CubeA", "MaskNode"),
+                        mask_id=mask_id,
+                        resolved_path=stale_result_path,
+                    ),
+                ),
+                first_mask_id=mask_id,
+            ),
+            resolve_input_mask_path=lambda *_args, **_kwargs: asset_path,
+        ),
     )
 
-    presenter.apply_materialization_result(
-        SimpleNamespace(
-            mask_results=(
-                SimpleNamespace(
-                    association_key=("CubeA", "MaskNode"),
-                    mask_id=mask_id,
-                    resolved_path=stale_result_path,
-                ),
-            ),
-            first_mask_id=mask_id,
-        )
+    assert presenter.materialize_image_selection(
+        "CubeA",
+        "ImageNode",
+        str(tmp_path / "chosen.png"),
     )
 
     assert panel.refreshes == [("CubeA", "MaskNode", str(asset_path))]
@@ -452,4 +467,10 @@ def _presenter(
         workflow_name_provider=lambda _workflow_id: "Recipe",
         projects_dir_provider=lambda: asset_path.parent,
         mask_color_provider=lambda index, total: f"color-{index}/{total}",
+        regional_mask_presenter=RegionalMaskCollectionPresenter(
+            input_document=document,
+            active_workflow=lambda: cast(Any, workflow),
+            active_panel=lambda: panel,
+            mask_color=lambda index, total: QColor(index, total, 0),
+        ),
     )

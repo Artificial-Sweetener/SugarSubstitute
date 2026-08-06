@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Rewrite execution payload asset paths through a Comfy target staging boundary."""
+"""Stage execution payload assets through the active Comfy target boundary."""
 
 from __future__ import annotations
 
@@ -31,7 +31,12 @@ from substitute.application.ports.comfy_asset_stager import ComfyAssetStager
 from substitute.application.recipes.workflow_payload_nodes import (
     executable_prompt_nodes,
 )
-from substitute.application.workflows.workflow_asset_service import WorkflowAssetService
+from substitute.application.generation.input_asset_source_resolver import (
+    InputAssetSourceResolver,
+)
+from substitute.application.generation.ordered_input_asset_staging_service import (
+    OrderedInputAssetStagingService,
+)
 from substitute.application.generation.input_asset_staging_plan_service import (
     InputAssetStagingPlanService,
     InputAssetStagingTarget,
@@ -48,8 +53,8 @@ from substitute.application.workflows.workflow_graph_section_service import (
 from substitute.domain.common import JsonObject, WorkflowId
 from substitute.domain.generation import AssetStagingFailure, ComfyStagedAsset
 from substitute.domain.workflow import (
+    InputAssetCardinality,
     InputAssetRole,
-    ProjectMaskAssetRef,
     WorkflowState,
 )
 from substitute.shared.logging.logger import (
@@ -59,8 +64,8 @@ from substitute.shared.logging.logger import (
 )
 
 _LOGGER = get_logger("application.generation.asset_staging_service")
-_LOAD_IMAGE_CLASSES = frozenset({"LoadImage", "LoadImageMask"})
 _SAFE_SUBFOLDER_RE = re.compile(r"[^A-Za-z0-9_.-]+")
+_LOAD_IMAGE_CLASSES = frozenset({"LoadImage", "LoadImageMask"})
 
 
 @dataclass(frozen=True)
@@ -72,21 +77,14 @@ class ComfyAssetStagingResult:
     failures: tuple[AssetStagingFailure, ...]
 
 
-@dataclass(frozen=True, slots=True)
-class _TypedSourceResolution:
-    """Distinguish absent metadata from a typed asset that needs no staging."""
-
-    handled: bool
-    path: Path | None
-
-
 class ComfyAssetStagingService:
-    """Own generation-time rewriting of local assets for the active Comfy target."""
+    """Own generation-time staging of local assets for the active Comfy target."""
 
     def __init__(
         self,
         *,
         stager: ComfyAssetStager,
+        ordered_stager: ComfyAssetStager | None = None,
         input_asset_staging_plan_service: InputAssetStagingPlanService | None = None,
     ) -> None:
         """Capture the concrete target stager used for source files."""
@@ -99,13 +97,18 @@ class ComfyAssetStagingService:
                 WorkflowGraphSectionService(),
             )
         )
-        self._projects_dir: Path | None = None
+        self._source_resolver = InputAssetSourceResolver()
+        self._ordered_staging_service = OrderedInputAssetStagingService(
+            stager=ordered_stager or stager,
+            source_resolver=self._source_resolver,
+        )
 
     @classmethod
     def with_projects_dir(
         cls,
         *,
         stager: ComfyAssetStager,
+        ordered_stager: ComfyAssetStager | None = None,
         projects_dir: Path,
         input_asset_staging_plan_service: InputAssetStagingPlanService | None = None,
     ) -> "ComfyAssetStagingService":
@@ -113,9 +116,14 @@ class ComfyAssetStagingService:
 
         service = cls(
             stager=stager,
+            ordered_stager=ordered_stager,
             input_asset_staging_plan_service=input_asset_staging_plan_service,
         )
-        service._projects_dir = projects_dir
+        service._source_resolver = InputAssetSourceResolver(projects_dir)
+        service._ordered_staging_service = OrderedInputAssetStagingService(
+            stager=ordered_stager or stager,
+            source_resolver=service._source_resolver,
+        )
         return service
 
     @property
@@ -160,6 +168,20 @@ class ComfyAssetStagingService:
             if not isinstance(inputs, dict):
                 continue
             image_value = inputs.get(target.field_key)
+            if target.cardinality is InputAssetCardinality.ORDERED:
+                ordered_result = self._ordered_staging_service.stage(
+                    node_id=str(node_id),
+                    node_class=str(node_class),
+                    values=image_value,
+                    target=target,
+                    target_subfolder=target_subfolder,
+                    workflow_name=workflow_name,
+                )
+                staged_assets.extend(ordered_result.staged_assets)
+                failures.extend(ordered_result.failures)
+                if ordered_result.execution_value is not None:
+                    inputs[target.field_key] = ordered_result.execution_value
+                continue
             if not isinstance(image_value, str) or not image_value:
                 failures.append(
                     AssetStagingFailure(
@@ -173,7 +195,7 @@ class ComfyAssetStagingService:
                     )
                 )
                 continue
-            source_path = self._source_path_for_load_image_value(
+            source_path = self._source_resolver.scalar_source(
                 image_value=image_value,
                 target=target,
                 workflow_name=workflow_name,
@@ -231,7 +253,7 @@ class ComfyAssetStagingService:
             inputs[target.field_key] = staged_asset.execution_value
             if staged_asset.execution_node_class is not None:
                 node_data["class_type"] = staged_asset.execution_node_class
-            if self._should_use_project_mask_color_channel(
+            if self._source_resolver.should_use_project_mask_color_channel(
                 image_value=image_value,
                 target=target,
                 source_path=source_path,
@@ -307,153 +329,12 @@ class ComfyAssetStagingService:
             )
         return tuple(targets)
 
-    def _source_path_for_load_image_value(
-        self,
-        *,
-        image_value: str,
-        target: InputAssetStagingTarget,
-        workflow_name: str,
-        workflow: object | None,
-    ) -> Path | None:
-        """Return a filesystem source path for local or project asset values."""
-
-        typed_source = self._typed_source_path(
-            target=target,
-            workflow_name=workflow_name,
-            workflow=workflow,
-        )
-        if typed_source.handled:
-            return typed_source.path
-
-        if _looks_like_local_path(image_value):
-            return Path(image_value)
-        if target.role is not InputAssetRole.MASK or self._projects_dir is None:
-            return None
-        candidate = self._projects_dir / workflow_name / "masks" / image_value
-        if candidate.exists():
-            log_debug(
-                _LOGGER,
-                "Resolved project mask asset for Comfy staging",
-                workflow_name=workflow_name,
-                image_value=image_value,
-                source_path=str(candidate),
-                asset_ref_kind="project_mask",
-            )
-            return candidate
-        if self._is_project_mask_asset(
-            workflow=workflow,
-            target=target,
-        ):
-            return candidate
-        return None
-
-    def _typed_source_path(
-        self,
-        *,
-        target: InputAssetStagingTarget,
-        workflow_name: str,
-        workflow: object | None,
-    ) -> _TypedSourceResolution:
-        """Resolve typed workflow assets before applying legacy path heuristics."""
-        if not isinstance(workflow, WorkflowState) or self._projects_dir is None:
-            return _TypedSourceResolution(False, None)
-        assets = WorkflowAssetService()
-        if target.role is InputAssetRole.IMAGE:
-            asset_ref = assets.input_image_asset_ref(
-                workflow,
-                section_key=target.section_key,
-                node_name=target.node_name,
-                field_key=target.field_key,
-            )
-            if asset_ref is None:
-                return _TypedSourceResolution(False, None)
-            return _TypedSourceResolution(
-                True,
-                assets.resolve_input_image_path(
-                    workflow,
-                    workflow_name=workflow_name,
-                    section_key=target.section_key,
-                    node_name=target.node_name,
-                    field_key=target.field_key,
-                    projects_dir=self._projects_dir,
-                ),
-            )
-        asset_ref = assets.input_mask_asset_ref(
-            workflow,
-            section_key=target.section_key,
-            node_name=target.node_name,
-            field_key=target.field_key,
-        )
-        if asset_ref is None:
-            return _TypedSourceResolution(False, None)
-        return _TypedSourceResolution(
-            True,
-            assets.resolve_input_mask_path(
-                workflow,
-                workflow_name=workflow_name,
-                section_key=target.section_key,
-                node_name=target.node_name,
-                field_key=target.field_key,
-                projects_dir=self._projects_dir,
-            ),
-        )
-
-    def _is_project_mask_asset(
-        self,
-        *,
-        workflow: object | None,
-        target: InputAssetStagingTarget,
-    ) -> bool:
-        """Return whether compiled metadata points to a project mask asset ref."""
-
-        if not isinstance(workflow, WorkflowState):
-            return False
-        asset_ref = WorkflowAssetService().input_mask_asset_ref(
-            workflow,
-            section_key=target.section_key,
-            node_name=target.node_name,
-            field_key=target.field_key,
-        )
-        return isinstance(asset_ref, ProjectMaskAssetRef)
-
-    def _should_use_project_mask_color_channel(
-        self,
-        *,
-        image_value: str,
-        target: InputAssetStagingTarget,
-        source_path: Path,
-        workflow_name: str,
-        workflow: object | None,
-    ) -> bool:
-        """Return whether a staged LoadImageMask is a Substitute grayscale mask."""
-
-        if target.role is not InputAssetRole.MASK:
-            return False
-        if self._is_project_mask_asset(workflow=workflow, target=target):
-            return True
-        if self._projects_dir is None:
-            return False
-        project_mask_dir = (self._projects_dir / workflow_name / "masks").resolve()
-        resolved_source = source_path.resolve()
-        try:
-            resolved_source.relative_to(project_mask_dir)
-        except ValueError:
-            return False
-        return source_path.name == image_value or resolved_source.exists()
-
 
 def _prompt_nodes(workflow_payload: JsonObject) -> dict[str, object] | None:
     """Return mutable executable prompt nodes from a copied workflow payload."""
 
     nodes = executable_prompt_nodes(workflow_payload)
     return nodes if isinstance(nodes, dict) else None
-
-
-def _looks_like_local_path(value: str) -> bool:
-    """Return whether a graph value appears to reference a filesystem path."""
-
-    path = Path(value)
-    return path.is_absolute() or "\\" in value or "/" in value
 
 
 def _file_sha256(path: Path) -> str:

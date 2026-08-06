@@ -29,15 +29,13 @@ from substitute.application.node_behavior.list_value_resolver import (
     resolve_picker_fallback as resolve_shared_picker_fallback,
 )
 from substitute.application.ports import NodeDefinitionGateway
+from substitute.application.recipes.runtime_asset_picker_policy import (
+    is_runtime_asset_picker_field,
+)
+from substitute.domain.recipes.sugar_links import is_symbolic_node_output_reference
 from substitute.shared.logging.logger import get_logger, log_debug
 
 _LOGGER = get_logger("application.recipes.picker_defaults")
-_RUNTIME_ASSET_PICKER_FIELDS = frozenset(
-    {
-        ("LoadImage", "image"),
-        ("LoadImageMask", "image"),
-    }
-)
 
 
 class PickerDefaultResolutionError(RuntimeError):
@@ -68,7 +66,11 @@ def hydrate_prompt_picker_defaults(
         for input_name, field_spec in _iter_required_input_fields(definition):
             if not is_picker_field_spec(field_spec):
                 continue
-            if _is_runtime_asset_picker_field(class_type, input_name):
+            if is_runtime_asset_picker_field(
+                class_type=class_type,
+                input_name=input_name,
+                field_spec=field_spec,
+            ):
                 continue
             context = _node_context(
                 node_id,
@@ -92,7 +94,7 @@ def hydrate_prompt_picker_defaults(
                     fallback_source=fallback.source,
                 )
                 continue
-            if _is_prompt_link(authored_value):
+            if is_symbolic_node_output_reference(authored_value):
                 continue
             options = picker_options(field_spec)
             if options and authored_value not in options:
@@ -158,25 +160,6 @@ def _node_inputs(
     created: dict[object, object] = {}
     node_payload["inputs"] = created
     return created
-
-
-def _is_prompt_link(value: object) -> bool:
-    """Return whether a value is a Comfy prompt link rather than a literal."""
-
-    return (
-        isinstance(value, Sequence)
-        and not isinstance(value, (str, bytes))
-        and len(value) == 2
-        and isinstance(value[0], str)
-        and isinstance(value[1], int)
-        and not isinstance(value[1], bool)
-    )
-
-
-def _is_runtime_asset_picker_field(class_type: str, input_name: str) -> bool:
-    """Return whether a picker carries a runtime asset reference."""
-
-    return (class_type, input_name) in _RUNTIME_ASSET_PICKER_FIELDS
 
 
 def _cube_ids_by_alias(workflow_nodes: Mapping[str, object]) -> dict[str, str]:

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from substitute.domain.common import JsonValue
 from substitute.domain.recipes.sugar_path_codec import SugarPathCodec
 
@@ -75,7 +77,21 @@ def node_reference(from_cube: str | None, from_node: str | None) -> str | None:
     )
 
 
+def is_symbolic_node_output_reference(value: object) -> bool:
+    """Return whether a value identifies one cube-local node output."""
+
+    return (
+        isinstance(value, Sequence)
+        and not isinstance(value, (str, bytes))
+        and len(value) == 2
+        and isinstance(value[0], str)
+        and isinstance(value[1], int)
+        and not isinstance(value[1], bool)
+    )
+
+
 __all__ = [
+    "is_symbolic_node_output_reference",
     "linkable_prompt_fields",
     "node_reference",
     "prompt_field_reference",

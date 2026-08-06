@@ -248,6 +248,21 @@ def ensure_fluent_tooltip_filter(
     return tooltip_filter
 
 
+def release_fluent_tooltips(root: QWidget) -> None:
+    """Release tooltip windows before their surviving controls are reparented."""
+
+    for tooltip_filter in root.findChildren(FluentToolTipFilter):
+        tooltip = tooltip_filter._tooltip
+        if tooltip is None:
+            continue
+        try:
+            tooltip_filter.hideToolTip()
+        except RuntimeError as error:
+            if "already deleted" not in str(error):
+                raise
+        tooltip_filter._tooltip = None
+
+
 def cursor_tooltip_position(
     *,
     cursor_global_pos: QPoint,

@@ -25,6 +25,16 @@ from uuid import UUID
 
 from cutecanvas import EmbeddedImageExportSnapshot, MaskExportSnapshot
 
+from substitute.application.generation.input_generation_errors import (
+    InputGenerationPreparationError,
+    InputGenerationPreparationFailureKind,
+)
+from substitute.application.workflows.generation_input_image_selection_service import (
+    GenerationInputImageSelection,
+)
+from substitute.application.workflows.regional_prompt_validation_service import (
+    RegionalPromptValidationService,
+)
 from substitute.domain.workflow import WorkflowState
 from substitute.presentation.canvas.input.input_generation_capture import (
     InputGenerationCapture,
@@ -47,6 +57,13 @@ class InputCapturePort(Protocol):
         mask_ids: tuple[UUID, ...],
     ) -> InputGenerationCapture | None:
         """Capture one coherent set of detached Input products."""
+
+
+class GenerationInputImageSelectionPort(Protocol):
+    """Describe graph-derived generation image selection."""
+
+    def __call__(self, workflow: WorkflowState) -> GenerationInputImageSelection:
+        """Return authored image products and unresolved canvas entries."""
 
 
 class InputImageProductMaterializerPort(Protocol):
@@ -82,13 +99,19 @@ class InputGenerationSnapshotService:
         self,
         *,
         capture_inputs: InputCapturePort,
+        select_generation_images: GenerationInputImageSelectionPort,
         image_materializer: InputImageProductMaterializerPort,
         mask_materializer: InputMaskProductMaterializerPort,
+        regional_prompt_validator: RegionalPromptValidationService | None = None,
     ) -> None:
         """Bind coherent capture and format-specific external product owners."""
         self._capture_inputs = capture_inputs
+        self._select_generation_images = select_generation_images
         self._image_materializer = image_materializer
         self._mask_materializer = mask_materializer
+        self._regional_prompt_validator = (
+            regional_prompt_validator or RegionalPromptValidationService()
+        )
 
     def prepare_workflow(
         self,
@@ -99,27 +122,64 @@ class InputGenerationSnapshotService:
         """Return an execution copy pinned to one coherent Input document state."""
         if not isinstance(workflow, WorkflowState):
             return copy.deepcopy(workflow)
-        image_ids = self._identities(workflow.canvas.image_ids())
+        regional_issues = self._regional_prompt_validator.validate(workflow)
+        if regional_issues:
+            issue = regional_issues[0]
+            log_error(
+                _LOGGER,
+                "Regional prompt is missing an associated mask",
+                workflow_id=workflow_id,
+                section_key=issue.association_key[0],
+                mask_node_name=issue.association_key[1],
+                required_region_count=issue.required_region_count,
+                available_mask_count=issue.available_mask_count,
+            )
+            raise InputGenerationPreparationError(
+                InputGenerationPreparationFailureKind.REGIONAL_MASK_ASSOCIATION
+            )
+        image_selection = self._select_generation_images(workflow)
+        if not image_selection.is_valid:
+            log_error(
+                _LOGGER,
+                "Failed to resolve Input canvas surfaces for generation",
+                workflow_id=workflow_id,
+                unresolved_input_keys=image_selection.unresolved_input_keys,
+            )
+            raise InputGenerationPreparationError(
+                InputGenerationPreparationFailureKind.CANVAS_SURFACE_AUTHORITY
+            )
+        image_ids = self._identities(image_selection.image_ids)
         mask_ids = self._identities(workflow.canvas.mask_ids())
         if image_ids is None or mask_ids is None:
             self._log_capture_failure(workflow_id, "invalid_workflow_identity")
-            return None
+            raise InputGenerationPreparationError(
+                InputGenerationPreparationFailureKind.WORKFLOW_IDENTITY
+            )
         capture = self._capture_inputs(image_ids=image_ids, mask_ids=mask_ids)
         if capture is None:
             self._log_capture_failure(workflow_id, "incoherent_document_revision")
-            return None
+            raise InputGenerationPreparationError(
+                InputGenerationPreparationFailureKind.DOCUMENT_CAPTURE
+            )
         prepared = self._image_materializer.prepare_workflow(
             workflow_id=workflow_id,
             workflow=workflow,
             snapshots=capture.images,
         )
         if prepared is None:
-            return None
-        return self._mask_materializer.prepare_workflow(
+            raise InputGenerationPreparationError(
+                InputGenerationPreparationFailureKind.IMAGE_MATERIALIZATION
+            )
+        prepared_with_masks = self._mask_materializer.prepare_workflow(
             workflow_id=workflow_id,
             workflow=prepared,
             snapshots=capture.masks,
         )
+        if prepared_with_masks is None:
+            raise InputGenerationPreparationError(
+                InputGenerationPreparationFailureKind.MASK_MATERIALIZATION
+            )
+        return prepared_with_masks
 
     @staticmethod
     def _identities(values: Iterable[object]) -> tuple[UUID, ...] | None:
@@ -143,4 +203,6 @@ class InputGenerationSnapshotService:
         )
 
 
-__all__ = ["InputGenerationSnapshotService"]
+__all__ = [
+    "InputGenerationSnapshotService",
+]

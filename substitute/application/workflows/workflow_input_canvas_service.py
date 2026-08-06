@@ -40,6 +40,18 @@ from substitute.application.workflows.input_canvas_ports import (
 from substitute.application.workflows.input_mask_materialization_service import (
     InputMaskMaterializationService,
 )
+from substitute.application.workflows.input_mask_binding_materialization_service import (
+    InputMaskBindingMaterializationService,
+)
+from substitute.application.workflows.ordered_mask_materialization_service import (
+    OrderedMaskMaterializationService,
+)
+from substitute.application.workflows.ordered_mask_graph_value_service import (
+    OrderedMaskGraphValueService,
+)
+from substitute.application.workflows.ordered_mask_region_authoring_service import (
+    OrderedMaskRegionAuthoringService,
+)
 from substitute.application.workflows.synthetic_input_canvas_surface_service import (
     SyntheticInputCanvasSurfaceService,
 )
@@ -48,10 +60,12 @@ from substitute.application.workflows.workflow_graph_section_service import (
     WorkflowGraphSectionService,
 )
 from substitute.domain.workflow import (
+    InputAssetCardinality,
     InputCanvasMaskBinding,
     InputCanvasPlan,
     InputCanvasSurface,
     InputCanvasSurfaceKind,
+    ProjectMaskAssetRef,
     WorkflowAssetRef,
     WorkflowState,
 )
@@ -95,9 +109,102 @@ class WorkflowInputCanvasService:
             workflow_asset_service=self._workflow_asset_service,
             graph_section_service=self._graph_section_service,
         )
+        self._ordered_mask_materialization_service = OrderedMaskMaterializationService(
+            input_canvas_state_service=input_canvas_state_service,
+            canvas_io_service=canvas_io_service,
+            graph_section_service=self._graph_section_service,
+        )
+        self._ordered_mask_graph_values = OrderedMaskGraphValueService(
+            self._graph_section_service
+        )
+        self._mask_binding_materialization_service = (
+            InputMaskBindingMaterializationService(
+                scalar_service=self._mask_materialization_service,
+                ordered_service=self._ordered_mask_materialization_service,
+            )
+        )
         self._synthetic_surface_service = SyntheticInputCanvasSurfaceService(
             input_canvas_state_service=input_canvas_state_service,
             canvas_io_service=canvas_io_service,
+        )
+        self._ordered_mask_region_authoring_service = OrderedMaskRegionAuthoringService(
+            binding_resolver=self.binding_for_mask,
+            ensure_section_materialized=lambda workflow, workflow_id, section_key, workflow_name, projects_dir: (
+                self.materialize_loaded_section(
+                    workflows={workflow_id: workflow},
+                    workflow_id=workflow_id,
+                    section_key=section_key,
+                    workflow_name=workflow_name,
+                    projects_dir=projects_dir,
+                )
+            ),
+            input_canvas_state_service=input_canvas_state_service,
+            canvas_io_service=canvas_io_service,
+            materialization_service=self._ordered_mask_materialization_service,
+            graph_values=self._ordered_mask_graph_values,
+        )
+
+    def add_ordered_mask_region(
+        self,
+        *,
+        workflow: WorkflowState,
+        workflow_id: str,
+        section_key: str,
+        node_name: str,
+        workflow_name: str,
+        projects_dir: Path,
+    ) -> UUID | None:
+        """Append and activate one blank region on an existing synthetic surface."""
+
+        return self._ordered_mask_region_authoring_service.add_region(
+            workflow=workflow,
+            workflow_id=workflow_id,
+            section_key=section_key,
+            node_name=node_name,
+            workflow_name=workflow_name,
+            projects_dir=projects_dir,
+        )
+
+    def import_ordered_mask_region(
+        self,
+        *,
+        workflow: WorkflowState,
+        workflow_id: str,
+        section_key: str,
+        node_name: str,
+        source_path: Path,
+        workflow_name: str,
+        projects_dir: Path,
+    ) -> UUID | None:
+        """Append one imported mask normalized to its synthetic Input surface."""
+
+        return self._ordered_mask_region_authoring_service.import_region(
+            workflow=workflow,
+            workflow_id=workflow_id,
+            section_key=section_key,
+            node_name=node_name,
+            source_path=source_path,
+            workflow_name=workflow_name,
+            projects_dir=projects_dir,
+        )
+
+    def remove_ordered_mask_region(
+        self,
+        *,
+        workflow: WorkflowState,
+        workflow_id: str,
+        section_key: str,
+        node_name: str,
+        region_index: int,
+    ) -> bool:
+        """Remove one ordered region and its materialized canvas mask layer."""
+
+        return self._ordered_mask_region_authoring_service.remove_region(
+            workflow=workflow,
+            workflow_id=workflow_id,
+            section_key=section_key,
+            node_name=node_name,
+            region_index=region_index,
         )
 
     def bindings_for_image(
@@ -144,6 +251,37 @@ class WorkflowInputCanvasService:
             field_key=binding.mask_field_key,
             relative_path=relative_path,
         )
+
+    def associate_project_ordered_input_mask(
+        self,
+        workflow: WorkflowState,
+        *,
+        section_key: str,
+        node_name: str,
+        region_id: UUID,
+        relative_path: Path | str,
+    ) -> bool:
+        """Associate one ordered region with a project mask and rewrite batch order."""
+
+        binding = self.binding_for_mask(workflow, section_key, node_name)
+        if (
+            binding is None
+            or binding.mask_endpoint.cardinality is not InputAssetCardinality.ORDERED
+        ):
+            return False
+        collection = workflow.canvas.regional_mask_collection(binding.association_key)
+        if collection is None or collection.entry(region_id) is None:
+            return False
+        collection.bind_asset(
+            region_id,
+            ProjectMaskAssetRef(Path(relative_path).as_posix()),
+        )
+        self._ordered_mask_graph_values.synchronize(
+            workflow,
+            binding,
+            collection,
+        )
+        return True
 
     def input_image_asset_ref(
         self,
@@ -699,77 +837,22 @@ class WorkflowInputCanvasService:
         projects_dir: Path,
         started_at: float,
     ) -> InputCanvasMaterializationResult:
-        """Reconcile every editable mask binding for one loaded input image."""
+        """Delegate surface mask materialization to its cardinality-aware owner."""
 
-        mask_results: list[MaskMaterializationResult] = []
-        phase_started_at = perf_counter()
         bindings = self.bindings_for_image(workflow, cube_alias, image_node_name)
-        log_timing(
-            _LOGGER,
-            "Resolved editable mask bindings for input image",
-            started_at=phase_started_at,
+        return self._mask_binding_materialization_service.materialize(
+            workflow=workflow,
             workflow_id=workflow_id,
-            cube_alias=cube_alias,
-            image_node_name=image_node_name,
-            binding_count=len(bindings),
-            level="debug",
-        )
-        for binding in bindings:
-            phase_started_at = perf_counter()
-            materialized = self._mask_materialization_service.materialize(
-                workflow=workflow,
-                workflow_id=workflow_id,
-                binding=binding,
-                image_id=image_id,
-                image=image,
-                associated_image_path=associated_image_path,
-                workflow_name=workflow_name,
-                projects_dir=projects_dir,
-            )
-            log_timing(
-                _LOGGER,
-                "Materialized editable mask binding",
-                started_at=phase_started_at,
-                workflow_id=workflow_id,
-                section_key=binding.section_key,
-                canvas_surface_key=binding.surface_key,
-                mask_node_name=binding.mask_node_name,
-                materialized=materialized is not None,
-                source=materialized.source if materialized is not None else "",
-                level="debug",
-            )
-            if materialized is not None:
-                mask_results.append(materialized)
-        if bindings and not mask_results:
-            log_warning(
-                _LOGGER,
-                "Editable mask bindings resolved but no input canvas masks materialized",
-                workflow_id=workflow_id,
-                workflow_name=workflow_name,
-                cube_alias=cube_alias,
-                image_node_name=image_node_name,
-                image_id=str(image_id),
-                binding_count=len(bindings),
-                mask_result_count=0,
-            )
-
-        result = InputCanvasMaterializationResult(
             section_key=cube_alias,
             surface_key=image_node_name,
+            bindings=bindings,
             image_id=image_id,
-            mask_results=tuple(mask_results),
-        )
-        log_timing(
-            _LOGGER,
-            "Materialized input image and editable masks",
+            image=image,
+            associated_image_path=associated_image_path,
+            workflow_name=workflow_name,
+            projects_dir=projects_dir,
             started_at=started_at,
-            workflow_id=workflow_id,
-            cube_alias=cube_alias,
-            image_node_name=image_node_name,
-            mask_result_count=len(mask_results),
-            level="debug",
         )
-        return result
 
     def _materialize_synthetic_surface(
         self,

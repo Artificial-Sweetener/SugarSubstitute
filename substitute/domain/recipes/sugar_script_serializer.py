@@ -35,7 +35,10 @@ from substitute.domain.cube_library import CubeUpdatePolicy
 from substitute.domain.recipes.recipe_buffers import recipe_buffer_update_policy
 from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
 from substitute.domain.recipes.sugar_literal_codec import SugarLiteralCodec
-from substitute.domain.recipes.sugar_links import node_reference
+from substitute.domain.recipes.sugar_links import (
+    is_symbolic_node_output_reference,
+    node_reference,
+)
 from substitute.domain.recipes.sugar_path_codec import SugarPathCodec
 from substitute.domain.workflow.override_keys import canonicalize_global_override_key
 
@@ -543,7 +546,7 @@ class SugarScriptSerializer:
             )
             return
 
-        if isinstance(value, (list, dict)):
+        if isinstance(value, dict) or is_symbolic_node_output_reference(value):
             return
         self._append_literal_assignment(
             request=request,

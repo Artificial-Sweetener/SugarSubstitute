@@ -29,6 +29,14 @@ from substitute.application.prompt_editor.editing.source_normalization import (
     ("text", "start", "end", "replacement_text", "expected", "caret"),
     [
         ("global[SEP]regional", 10, 11, "]", "global\n[SEP]\nregional", 13),
+        (
+            "global[SEP|Foreground]regional",
+            21,
+            22,
+            "]",
+            "global\n[SEP|Foreground]\nregional",
+            24,
+        ),
         ("global\n[SEP]regional", 11, 12, "]", "global\n[SEP]\nregional", 13),
         ("global[SEP]\nregional", 10, 11, "]", "global\n[SEP]\nregional", 13),
         ("[SEP]", 4, 5, "]", "[SEP]\n", 6),
@@ -70,6 +78,20 @@ def test_paste_normalization_canonicalizes_only_markers_in_the_inserted_range() 
     assert normalization.text == "α before  [sep]  βglobal\n[SEP]\nregional終"
 
 
+def test_paste_normalization_canonicalizes_named_markers() -> None:
+    """Pasted named markers should use the same line-boundary policy."""
+
+    text = "global[SEP|Sky]regional"
+
+    normalization = PromptSourceNormalizationService().normalize_for_paste_range(
+        text,
+        start=0,
+        end=len(text),
+    )
+
+    assert normalization.text == "global\n[SEP|Sky]\nregional"
+
+
 def test_typed_malformed_separator_remains_ordinary_source() -> None:
     """Partial and lowercase markers should remain directly editable text."""
 
@@ -91,6 +113,11 @@ def test_typed_malformed_separator_remains_ordinary_source() -> None:
         ("global\n[SEP]pink", len("global\n[SEP]"), "global\n[SEP]\npink"),
         ("global[SEP]\npink", len("global"), "global\n[SEP]\npink"),
         ("global\r\n[SEP]pink", len("global\r\n[SEP]"), "global\r\n[SEP]\r\npink"),
+        (
+            "global\n[SEP|Sky]blue",
+            len("global\n[SEP|Sky]"),
+            "global\n[SEP|Sky]\nblue",
+        ),
     ),
 )
 def test_typed_deletion_restores_complete_separator_line_boundaries(

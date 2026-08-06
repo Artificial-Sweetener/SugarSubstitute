@@ -23,6 +23,10 @@ from enum import StrEnum
 from uuid import UUID
 
 from substitute.domain.common import ImageIdentity, MaskAssociationKey
+from substitute.domain.workflow.regional_mask_models import (
+    RegionalMaskCollection,
+    RegionalMaskEntry,
+)
 
 
 class InputAssetRole(StrEnum):
@@ -30,6 +34,13 @@ class InputAssetRole(StrEnum):
 
     IMAGE = "image"
     MASK = "mask"
+
+
+class InputAssetCardinality(StrEnum):
+    """Describe whether one editable endpoint authors one asset or an ordered batch."""
+
+    SCALAR = "scalar"
+    ORDERED = "ordered"
 
 
 @dataclass(frozen=True)
@@ -41,6 +52,7 @@ class InputAssetEndpoint:
     field_key: str
     output_index: int
     role: InputAssetRole
+    cardinality: InputAssetCardinality = InputAssetCardinality.SCALAR
 
     @property
     def identity(self) -> ImageIdentity:
@@ -113,6 +125,9 @@ class WorkflowCanvasState:
 
     image_entries: dict[str, InputCanvasImageEntry] = field(default_factory=dict)
     mask_entries: dict[MaskAssociationKey, InputCanvasMaskEntry] = field(
+        default_factory=dict
+    )
+    regional_mask_collections: dict[MaskAssociationKey, RegionalMaskCollection] = field(
         default_factory=dict
     )
     input_image_uuid: UUID | None = None
@@ -229,10 +244,79 @@ class WorkflowCanvasState:
     def mask_ids(self) -> tuple[UUID, ...]:
         """Return Input document mask identities owned by this workflow."""
 
-        return tuple(entry.mask_id for entry in self.mask_entries.values())
+        return tuple(entry.mask_id for entry in self.mask_entries.values()) + tuple(
+            entry.mask_id
+            for collection in self.regional_mask_collections.values()
+            for entry in collection.entries
+            if entry.mask_id is not None
+        )
+
+    def regional_mask_collection(
+        self,
+        association_key: MaskAssociationKey,
+    ) -> RegionalMaskCollection | None:
+        """Return the ordered regional mask collection for one graph endpoint."""
+
+        return self.regional_mask_collections.get(association_key)
+
+    def ensure_regional_mask_collection(
+        self,
+        association_key: MaskAssociationKey,
+    ) -> RegionalMaskCollection:
+        """Return or create the ordered collection for one graph endpoint."""
+
+        collection = self.regional_mask_collections.get(association_key)
+        if collection is None:
+            collection = RegionalMaskCollection(association_key=association_key)
+            self.regional_mask_collections[association_key] = collection
+        return collection
+
+    def remove_regional_mask_collection(
+        self,
+        association_key: MaskAssociationKey,
+    ) -> RegionalMaskCollection | None:
+        """Remove one ordered regional endpoint collection."""
+
+        return self.regional_mask_collections.pop(association_key, None)
+
+    def regional_mask_entry_for_id(self, mask_id: UUID) -> RegionalMaskEntry | None:
+        """Return one ordered-region entry by canvas mask identity."""
+
+        return next(
+            (
+                entry
+                for collection in self.regional_mask_collections.values()
+                if (entry := collection.entry_for_mask(mask_id)) is not None
+            ),
+            None,
+        )
+
+    def owns_mask(self, mask_id: UUID, image_id: UUID) -> bool:
+        """Return whether scalar or ordered state owns one image-bound mask."""
+
+        scalar = self.mask_entry_for_id(mask_id)
+        if scalar is not None:
+            return scalar.image_id == image_id
+        regional = self.regional_mask_entry_for_id(mask_id)
+        return regional is not None and regional.image_id == image_id
+
+    def mask_image_owners(self) -> dict[UUID, UUID]:
+        """Return every materialized mask layer and its owning image."""
+
+        owners = {entry.mask_id: entry.image_id for entry in self.mask_entries.values()}
+        owners.update(
+            {
+                entry.mask_id: entry.image_id
+                for collection in self.regional_mask_collections.values()
+                for entry in collection.entries
+                if entry.mask_id is not None
+            }
+        )
+        return owners
 
 
 __all__ = [
+    "InputAssetCardinality",
     "InputAssetEndpoint",
     "InputAssetEndpointIndex",
     "InputAssetRole",

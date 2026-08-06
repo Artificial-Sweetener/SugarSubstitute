@@ -29,6 +29,9 @@ from substitute.application.node_behavior.list_value_resolver import (
     resolve_picker_fallback,
 )
 from substitute.application.ports import NodeDefinitionGateway
+from substitute.application.recipes.runtime_asset_picker_policy import (
+    is_runtime_asset_picker_field,
+)
 from substitute.domain.common import JsonObject
 from substitute.domain.recipes.sugar_ast import SugarBufferMap
 from substitute.shared.logging.logger import get_logger, log_debug, log_error
@@ -150,7 +153,10 @@ def _prepare_node_required_pickers(
     if not isinstance(definition, Mapping):
         return
     inputs = _mutable_node_inputs(node)
-    for field_key, field_spec in _required_picker_fields(definition):
+    for field_key, field_spec in _required_picker_fields(
+        definition,
+        class_type=class_type,
+    ):
         raw_value = inputs.get(field_key)
         if field_key in inputs and not is_blank_picker_value(raw_value):
             continue
@@ -215,6 +221,8 @@ def _prepare_node_required_pickers(
 
 def _required_picker_fields(
     definition: Mapping[object, object],
+    *,
+    class_type: str,
 ) -> tuple[tuple[str, object], ...]:
     """Return required live picker fields from one node definition."""
 
@@ -227,7 +235,13 @@ def _required_picker_fields(
     return tuple(
         (field_key, field_spec)
         for field_key, field_spec in required.items()
-        if isinstance(field_key, str) and is_picker_field_spec(field_spec)
+        if isinstance(field_key, str)
+        and is_picker_field_spec(field_spec)
+        and not is_runtime_asset_picker_field(
+            class_type=class_type,
+            input_name=field_key,
+            field_spec=field_spec,
+        )
     )
 
 

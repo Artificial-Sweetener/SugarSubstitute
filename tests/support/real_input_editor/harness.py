@@ -50,7 +50,7 @@ from substitute.infrastructure.persistence import QtImageStore
 from substitute.presentation.canvas.input.input_canvas_view import InputCanvas
 from substitute.presentation.editor.panel.widgets.fields.load_image import ImagePicker
 from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
-from substitute.presentation.shell.main_window_composition import (
+from substitute.presentation.shell.input_canvas_composition import (
     compose_input_canvas_controllers,
 )
 from substitute.presentation.shell.main_window_dependencies import (
@@ -84,9 +84,12 @@ class RealShellInputEditorHarness:
         definition_service = WorkflowNodeDefinitionService(
             self.shell.node_definition_gateway
         )
+        self.shell.input_asset_endpoint_service = InputAssetEndpointService(
+            definition_service
+        )
         self.shell.input_canvas_plan_service = InputCanvasPlanService(
             node_definition_service=definition_service,
-            endpoint_service=InputAssetEndpointService(definition_service),
+            endpoint_service=self.shell.input_asset_endpoint_service,
         )
         self.shell.graph_section_service = WorkflowGraphSectionService()
         self.shell.workflow_asset_service = WorkflowAssetService(

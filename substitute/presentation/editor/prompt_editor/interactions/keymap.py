@@ -34,6 +34,7 @@ from .undo_coalescing import PromptUndoCoalescingController
 from ..models import PromptEditorInteractionMode
 from .clipboard_history_controller import PromptClipboardHistoryActions
 from .deletion_controller import PromptDeletionActions
+from .pointer_ports import PromptSurfacePointerInteractions
 
 TPayload = TypeVar("TPayload")
 
@@ -50,6 +51,7 @@ class PromptSurfaceKeyHost(Protocol):
 
     emphasisShortcutTriggered: _PromptSurfaceEmphasisShortcutSignal
     _editing_enabled: bool
+    _pointer_interactions: PromptSurfacePointerInteractions
 
     @property
     def anchor_position(self) -> int:
@@ -120,6 +122,12 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
         host._clear_pending_segment_word_selection()
         if event.key() not in {Qt.Key.Key_Backspace, Qt.Key.Key_Delete}:
             undo_coalescing.finish_delete_group(reason="non_delete_key")
+
+        if event.key() == Qt.Key.Key_F2:
+            undo_coalescing.finish_typing_group(reason="rename_prompt_region")
+            if host._pointer_interactions.handle_region_keyboard_rename():
+                event.accept()
+                return True
 
         if _has_plain_control_modifier(event.modifiers()):
             if event.key() == Qt.Key.Key_Up:

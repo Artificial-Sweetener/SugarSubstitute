@@ -50,11 +50,12 @@ def test_build_generation_snapshot_randomizes_before_serialization(
         """Serialize only after seed randomization."""
 
         order.append("serialize")
-        assert candidate is workflow
+        assert candidate is not workflow
+        assert getattr(candidate, "seed") == "randomized"
         assert workflow.seed == "randomized"
         assert isinstance(global_override_scopes, dict)
         assert global_override_scopes["seed"].value == 1
-        return f"# sugar {workflow.seed}"
+        return f"# sugar {getattr(candidate, 'seed')}"
 
     def _prepare_workflow(**kwargs: object) -> object:
         """Record exact-mask capture and preserve the workflow."""

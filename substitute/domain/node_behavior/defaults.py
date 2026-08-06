@@ -79,6 +79,16 @@ _CLASS_DEFAULTS: Final[dict[str, NodeBehaviorPatch]] = {
             )
         },
     ),
+    "SimpleSyrup.LoadMaskBatch": NodeBehaviorPatch(
+        card=CardBehaviorPatch(icon_name="folder"),
+        field_patches={
+            "image": FieldBehaviorPatch(
+                presentation=FieldPresentation.MASK_BATCH_EDITOR,
+                row_mode=RowMode.FULL_WIDTH,
+                label_mode=LabelMode.HIDDEN,
+            )
+        },
+    ),
     "EmptyLatentImage": NodeBehaviorPatch(
         card=CardBehaviorPatch(icon_name="photo"),
     ),

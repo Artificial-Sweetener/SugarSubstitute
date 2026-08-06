@@ -81,6 +81,7 @@ class FieldPresentation(StrEnum):
     PROMPT_BOX = "prompt_box"
     IMAGE_PICKER = "image_picker"
     MASK_PICKER = "mask_picker"
+    MASK_BATCH_EDITOR = "mask_batch_editor"
     MODEL_PICKER = "model_picker"
     SEED_BOX = "seed_box"
     CUSTOM = "custom"

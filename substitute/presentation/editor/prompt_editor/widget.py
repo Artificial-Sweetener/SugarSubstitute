@@ -237,6 +237,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     manualScrollHeightChanged = Signal(object)
     richPromptRenderingEnabledChanged = Signal(bool)
     sceneQueueRequested = Signal(str)
+    regionHovered = Signal(object)
 
     def __init__(
         self,

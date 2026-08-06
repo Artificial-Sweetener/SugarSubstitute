@@ -100,7 +100,7 @@ def test_floating_window_close_redocks_only_while_host_is_open() -> None:
 
     redocked: list[tuple[object, str]] = []
     accepted: list[bool] = []
-    canvas = object()
+    canvas = SimpleNamespace(findChildren=lambda _type: [])
     open_window = cast(
         FloatingCanvasWindow,
         SimpleNamespace(
@@ -256,7 +256,7 @@ def test_floating_window_disposes_domain_chrome_before_redocking() -> None:
         FloatingCanvasWindow,
         SimpleNamespace(
             _floating_chrome=chrome,
-            canvas_widget=object(),
+            canvas_widget=SimpleNamespace(findChildren=lambda _type: []),
             label="Output",
             redock_callback=lambda _widget, _label: calls.append("redock"),
             parent=lambda: SimpleNamespace(closing=False),

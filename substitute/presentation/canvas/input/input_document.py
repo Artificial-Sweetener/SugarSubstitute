@@ -94,6 +94,7 @@ class InputCanvasDocument(QObject):
     canvasToolChanged = Signal(str)
     brushPresetChanged = Signal()
     maskContentChanged = Signal()
+    activeMaskChanged = Signal(object)
 
     def __init__(
         self,
@@ -154,9 +155,7 @@ class InputCanvasDocument(QObject):
         self._canvas.compositionSelectionChanged.connect(
             lambda _composition_id: self.toolContextChanged.emit()
         )
-        self._canvas.selectedLayerChanged.connect(
-            lambda _selection: self.toolContextChanged.emit()
-        )
+        self._canvas.selectedLayerChanged.connect(self._on_selected_layer_changed)
         self._canvas.pixelSelectionChanged.connect(
             lambda _selection: self.toolContextChanged.emit()
         )
@@ -171,6 +170,12 @@ class InputCanvasDocument(QObject):
         """Return the single widget presenting this document."""
 
         return self._canvas
+
+    def _on_selected_layer_changed(self, _selection: object) -> None:
+        """Publish the active mask identity after CuteCanvas layer selection."""
+
+        self.toolContextChanged.emit()
+        self.activeMaskChanged.emit(self.active_mask_id())
 
     @property
     def runtime(self) -> CanvasDocumentRuntime:

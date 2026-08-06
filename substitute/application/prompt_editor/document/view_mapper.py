@@ -197,6 +197,17 @@ def _region_structure_view_from_domain(
                 token_end=separator.token_range.end,
                 line_start=separator.line_range.start,
                 line_end=separator.line_range.end,
+                name_start=(
+                    separator.name_range.start
+                    if separator.name_range is not None
+                    else None
+                ),
+                name_end=(
+                    separator.name_range.end
+                    if separator.name_range is not None
+                    else None
+                ),
+                name=separator.name,
             )
             for separator in structure.separators
         ),

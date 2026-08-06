@@ -177,6 +177,29 @@ class QtImageStore:
             )
             return False
 
+    def save_resampled_mask(
+        self,
+        source: Path,
+        destination: Path,
+        *,
+        width: int,
+        height: int,
+    ) -> bool:
+        """Resample one mask to exact canvas dimensions and publish it atomically."""
+
+        if width <= 0 or height <= 0:
+            return False
+        image = self.load_image(source)
+        if not isinstance(image, QImage) or image.isNull():
+            return False
+        resized = image.scaled(
+            width,
+            height,
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        return not resized.isNull() and self.save_image(destination, image=resized)
+
     def image_dimensions(self, path: Path) -> tuple[int, int] | None:
         """Return readable image dimensions after Qt reader transformations."""
 

@@ -29,12 +29,20 @@ class PromptRegionSeparator:
 
     token_range: SourceRange
     line_range: SourceRange
+    name_range: SourceRange | None = None
+    name: str | None = None
 
     def __post_init__(self) -> None:
         """Require the structural line to contain the separator token."""
 
         if not self.line_range.encloses(self.token_range):
             raise ValueError("Separator line range must enclose its token range.")
+        if (self.name_range is None) != (self.name is None):
+            raise ValueError("Separator name and name range must be present together.")
+        if self.name_range is not None and not self.token_range.encloses(
+            self.name_range
+        ):
+            raise ValueError("Separator token range must enclose its name range.")
 
 
 @dataclass(frozen=True, slots=True)

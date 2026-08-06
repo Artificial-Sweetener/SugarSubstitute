@@ -18,15 +18,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from collections.abc import Mapping
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from sugarsubstitute_shared.localization import ApplicationText
 
 from substitute.domain.comfy_workflow import DirectWorkflowGenerationPlan
+
+if TYPE_CHECKING:
+    from substitute.domain.workflow.models import WorkflowState
 
 GenerationJobStatus = Literal[
     "pending",
@@ -41,11 +44,16 @@ GenerationJobStatus = Literal[
 
 @dataclass(frozen=True)
 class GenerationJobSnapshot:
-    """Store immutable workflow inputs captured when Generate was clicked."""
+    """Store detached workflow inputs captured when Generate was clicked."""
 
     workflow_id: str
     workflow_name: str
     sugar_script_text: str
+    workflow: WorkflowState | None = field(
+        default=None,
+        compare=False,
+        repr=False,
+    )
     direct_workflow_plan: DirectWorkflowGenerationPlan | None = None
     positive_prompt_preview: str | None = None
     scene_run_id: str | None = None

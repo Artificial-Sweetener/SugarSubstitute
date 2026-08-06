@@ -175,6 +175,27 @@ def test_generation_preparation_service_reuses_plan_across_scene_snapshots() -> 
     assert result.scene_count == 2
 
 
+def test_generation_preparation_preserves_detached_workflow_for_dispatch() -> None:
+    """Prepared snapshots should retain detached workflow staging authority."""
+
+    live_workflow = _scene_workflow()
+    captured = CapturedGenerationRequest.capture(
+        request=GenerationRequest(
+            workflow_id="wf",
+            workflow_name="Recipe",
+            workflow=cast(Any, live_workflow),
+        ),
+        behavior_snapshot=None,
+    )
+
+    result = GenerationPreparationService(
+        recipe_io_service=_RecipeSerializer()
+    ).prepare_queued_snapshots(request=captured)
+
+    assert result.snapshots[0].workflow is captured.workflow
+    assert result.snapshots[0].workflow is not live_workflow
+
+
 def test_generation_preparation_builds_direct_comfy_graph_without_sugar() -> None:
     """A direct workflow should snapshot an API graph without recipe serialization."""
 

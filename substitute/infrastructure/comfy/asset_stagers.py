@@ -114,6 +114,7 @@ class RemoteUploadComfyAssetStager:
         source_path = operational_path(source_path)
         if not source_path.exists():
             raise FileNotFoundError(str(source_path))
+        upload_name = f"{content_hash}{source_path.suffix.lower() or '.png'}"
         with source_path.open("rb") as handle:
             response = self.post(
                 self.endpoint.upload_image_url(),
@@ -122,7 +123,7 @@ class RemoteUploadComfyAssetStager:
                     "type": "input",
                     "overwrite": "true",
                 },
-                files={"image": (source_path.name, handle, "application/octet-stream")},
+                files={"image": (upload_name, handle, "application/octet-stream")},
                 timeout=self.timeout_seconds,
             )
         response.raise_for_status()

@@ -1197,10 +1197,15 @@ def _build_comfy_asset_staging_service(
         stager: ComfyAssetStager = RemoteUploadComfyAssetStager(
             endpoint=context.comfy_target.endpoint
         )
+        ordered_stager = stager
     else:
         stager = LocalComfyAssetStager(endpoint=context.comfy_target.endpoint)
+        ordered_stager = RemoteUploadComfyAssetStager(
+            endpoint=context.comfy_target.endpoint
+        )
     return ComfyAssetStagingService.with_projects_dir(
         stager=stager,
+        ordered_stager=ordered_stager,
         projects_dir=context.projects_dir,
         input_asset_staging_plan_service=input_asset_staging_plan_service,
     )

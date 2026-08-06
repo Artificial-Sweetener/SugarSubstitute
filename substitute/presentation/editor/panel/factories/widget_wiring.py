@@ -22,6 +22,12 @@ from typing import Any
 
 from substitute.presentation.editor.panel.widgets.fields.load_image import ImagePicker
 from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
+from substitute.presentation.regional.panel_signal_binding import (
+    bind_regional_panel_signals,
+)
+from substitute.presentation.regional.panel_initial_projection import (
+    project_regional_panel_widget,
+)
 
 
 def bind_picker_signals(
@@ -32,6 +38,19 @@ def bind_picker_signals(
     node_name: str,
 ) -> None:
     """Connect picker widgets to the editor-panel signals that own UI routing."""
+
+    bind_regional_panel_signals(
+        widget,
+        panel,
+        cube_alias=cube_alias,
+        node_name=node_name,
+    )
+    project_regional_panel_widget(
+        widget,
+        panel,
+        cube_alias=cube_alias,
+        node_name=node_name,
+    )
 
     if isinstance(widget, ImagePicker):
         widget.imageSelected.connect(
@@ -53,6 +72,7 @@ def bind_picker_signals(
         widget.clicked.connect(
             lambda alias, name: panel.inputMaskClicked.emit(alias, name, "")
         )
+        return
 
 
 __all__ = ["bind_picker_signals"]

@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Encode and decode scalar Sugar DSL values without losing recipe data."""
+"""Encode and decode Sugar DSL literal values without losing recipe data."""
 
 from __future__ import annotations
 
@@ -40,12 +40,20 @@ class SugarLiteralCodec:
         return str(value)
 
     def decode_scalar(self, source: str) -> JsonValue:
-        """Decode one non-multiline Sugar scalar used by recipe persistence."""
+        """Decode one non-multiline Sugar literal used by recipe persistence."""
 
         if source in ("True", "False"):
             return source == "True"
         if source == "null":
             return None
+        if source.startswith("[") and source.endswith("]"):
+            try:
+                parsed = json.loads(source)
+            except json.JSONDecodeError:
+                pass
+            else:
+                if isinstance(parsed, list):
+                    return parsed
         try:
             return int(source)
         except ValueError:

@@ -23,7 +23,11 @@ from uuid import uuid4
 
 from cutecanvas import EmbeddedImageExportSnapshot, MaskExportSnapshot
 from PySide6.QtGui import QColor, QImage
+import pytest
 
+from substitute.application.workflows.generation_input_image_selection_service import (
+    GenerationInputImageSelection,
+)
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.presentation.canvas.input.input_generation_capture import (
     InputGenerationCapture,
@@ -33,6 +37,10 @@ from substitute.presentation.canvas.input.input_generation_image_materializer im
 )
 from substitute.presentation.canvas.input.input_generation_mask_materializer import (
     InputGenerationMaskMaterializer,
+)
+from substitute.application.generation.input_generation_errors import (
+    InputGenerationPreparationError,
+    InputGenerationPreparationFailureKind,
 )
 from substitute.presentation.canvas.input.input_generation_snapshot_service import (
     InputGenerationSnapshotService,
@@ -70,6 +78,9 @@ def test_generation_materializes_one_coherent_bundle_without_mutating_authoring(
     associations = _Associations()
     service = InputGenerationSnapshotService(
         capture_inputs=lambda **_kwargs: capture,
+        select_generation_images=lambda _workflow: GenerationInputImageSelection(
+            (image_id,)
+        ),
         image_materializer=InputGenerationImageMaterializer(
             canvas_io_service=io,
             association_service=associations,
@@ -131,6 +142,9 @@ def test_generation_blocks_before_any_mask_write_when_image_product_fails(
     associations = _Associations()
     service = InputGenerationSnapshotService(
         capture_inputs=lambda **_kwargs: capture,
+        select_generation_images=lambda _workflow: GenerationInputImageSelection(
+            (image_id,)
+        ),
         image_materializer=InputGenerationImageMaterializer(
             canvas_io_service=io,
             association_service=associations,
@@ -145,8 +159,123 @@ def test_generation_blocks_before_any_mask_write_when_image_product_fails(
         ),
     )
 
-    assert service.prepare_workflow(workflow_id="wf-a", workflow=workflow) is None
+    with pytest.raises(InputGenerationPreparationError) as error_info:
+        service.prepare_workflow(workflow_id="wf-a", workflow=workflow)
+
+    assert (
+        error_info.value.kind
+        is InputGenerationPreparationFailureKind.IMAGE_MATERIALIZATION
+    )
     assert not any("masks" in path.parts for path, _image_value in io.saved)
+
+
+def test_generation_materializes_synthetic_canvas_masks_without_backing_image(
+    tmp_path: Path,
+) -> None:
+    """A synthetic canvas surface must remain canvas-only during generation."""
+
+    image_id = uuid4()
+    mask_id = uuid4()
+    workflow = _synthetic_workflow(image_id, mask_id)
+    capture = InputGenerationCapture(
+        images={},
+        masks={
+            mask_id: MaskExportSnapshot(
+                mask_id,
+                image_id,
+                5,
+                _mask(255),
+            )
+        },
+    )
+
+    def capture_inputs(
+        *,
+        image_ids: tuple[UUID, ...],
+        mask_ids: tuple[UUID, ...],
+    ) -> InputGenerationCapture:
+        """Require generation to request only the graph-owned mask product."""
+
+        assert image_ids == ()
+        assert mask_ids == (mask_id,)
+        return capture
+
+    io = _Io(tmp_path)
+    associations = _Associations()
+    service = InputGenerationSnapshotService(
+        capture_inputs=capture_inputs,
+        select_generation_images=lambda _workflow: GenerationInputImageSelection(()),
+        image_materializer=InputGenerationImageMaterializer(
+            canvas_io_service=io,
+            association_service=associations,
+            workflow_name_provider=lambda _workflow_id: "Regional",
+            projects_dir_provider=lambda: tmp_path,
+        ),
+        mask_materializer=InputGenerationMaskMaterializer(
+            canvas_io_service=io,
+            workflow_input_canvas_service=associations,
+            workflow_name_provider=lambda _workflow_id: "Regional",
+            projects_dir_provider=lambda: tmp_path,
+        ),
+    )
+
+    prepared = service.prepare_workflow(workflow_id="wf-region", workflow=workflow)
+
+    assert isinstance(prepared, WorkflowState)
+    assert not any("input_images" in path.parts for path, _image_value in io.saved)
+    assert _nodes(prepared, "Region")["MaskNode"]["inputs"]["image"] == (
+        f".generation/{mask_id}/5.png"
+    )
+    assert _nodes(prepared, "Region")["Latent"]["inputs"] == {
+        "width": 960,
+        "height": 1344,
+        "batch_size": 1,
+    }
+
+
+def test_generation_fails_before_capture_when_canvas_surface_is_stale(
+    tmp_path: Path,
+) -> None:
+    """Unresolved persisted canvas state must not become a partial request."""
+
+    image_id = uuid4()
+    mask_id = uuid4()
+    workflow = _workflow(image_id, mask_id)
+    io = _Io(tmp_path)
+    associations = _Associations()
+
+    def unexpected_capture(**_kwargs: object) -> InputGenerationCapture:
+        """Reject capture after graph authority resolution has failed."""
+
+        raise AssertionError("capture must not run")
+
+    service = InputGenerationSnapshotService(
+        capture_inputs=unexpected_capture,
+        select_generation_images=lambda _workflow: GenerationInputImageSelection(
+            (),
+            unresolved_input_keys=("CubeA:RemovedImage",),
+        ),
+        image_materializer=InputGenerationImageMaterializer(
+            canvas_io_service=io,
+            association_service=associations,
+            workflow_name_provider=lambda _workflow_id: "Recipe",
+            projects_dir_provider=lambda: tmp_path,
+        ),
+        mask_materializer=InputGenerationMaskMaterializer(
+            canvas_io_service=io,
+            workflow_input_canvas_service=associations,
+            workflow_name_provider=lambda _workflow_id: "Recipe",
+            projects_dir_provider=lambda: tmp_path,
+        ),
+    )
+
+    with pytest.raises(InputGenerationPreparationError) as error_info:
+        service.prepare_workflow(workflow_id="wf-a", workflow=workflow)
+
+    assert (
+        error_info.value.kind
+        is InputGenerationPreparationFailureKind.CANVAS_SURFACE_AUTHORITY
+    )
 
 
 class _Io:
@@ -222,6 +351,21 @@ class _Associations:
         self._set(workflow, section_key, node_name, relative_path)
         return True
 
+    def associate_project_ordered_input_mask(
+        self,
+        workflow: WorkflowState,
+        *,
+        section_key: str,
+        node_name: str,
+        region_id: UUID,
+        relative_path: Path | str,
+    ) -> bool:
+        """Accept ordered association through the same execution-copy fake."""
+
+        _ = region_id
+        self._set(workflow, section_key, node_name, relative_path)
+        return True
+
     @staticmethod
     def _set(
         workflow: WorkflowState,
@@ -258,6 +402,40 @@ def _workflow(image_id: UUID, mask_id: UUID) -> WorkflowState:
     workflow = WorkflowState(cubes={"CubeA": cube}, stack_order=["CubeA"])
     workflow.canvas.bind_image("CubeA:ImageNode", image_id)
     workflow.canvas.bind_mask(("CubeA", "MaskNode"), mask_id, image_id)
+    return workflow
+
+
+def _synthetic_workflow(image_id: UUID, mask_id: UUID) -> WorkflowState:
+    """Return one mask-only graph backed by latent dimensions."""
+
+    cube = CubeState(
+        cube_id="regional.cube",
+        version="1",
+        alias="Region",
+        original_cube={},
+        buffer={
+            "nodes": {
+                "MaskNode": {
+                    "class_type": "LoadImageMask",
+                    "inputs": {"image": "authoring-mask.png"},
+                },
+                "Latent": {
+                    "class_type": "EmptyLatentImage",
+                    "inputs": {"width": 960, "height": 1344, "batch_size": 1},
+                },
+                "Sampler": {
+                    "class_type": "Sampler",
+                    "inputs": {
+                        "region_masks": ["MaskNode", 0],
+                        "latent_image": ["Latent", 0],
+                    },
+                },
+            }
+        },
+    )
+    workflow = WorkflowState(cubes={"Region": cube}, stack_order=["Region"])
+    workflow.canvas.bind_image("Region:@synthetic/surface", image_id)
+    workflow.canvas.bind_mask(("Region", "MaskNode"), mask_id, image_id)
     return workflow
 
 

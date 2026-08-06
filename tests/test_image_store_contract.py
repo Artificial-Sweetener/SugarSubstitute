@@ -97,6 +97,26 @@ def test_image_dimensions_returns_none_for_missing_image(tmp_path: Path) -> None
     assert dimensions is None
 
 
+def test_save_resampled_mask_uses_exact_target_dimensions(tmp_path: Path) -> None:
+    """Imported regional masks should match a non-proportional latent surface."""
+
+    source = tmp_path / "source.png"
+    destination = tmp_path / "normalized.png"
+    image = QImage(17, 41, QImage.Format.Format_ARGB32)
+    image.fill(0xFFFFFFFF)
+    assert image.save(str(source))
+
+    saved = QtImageStore().save_resampled_mask(
+        source,
+        destination,
+        width=96,
+        height=134,
+    )
+
+    assert saved is True
+    assert QtImageStore().image_dimensions(destination) == (96, 134)
+
+
 def test_failed_encoding_preserves_the_previous_destination(tmp_path: Path) -> None:
     """A rejected image encoding must never expose or replace partial bytes."""
 

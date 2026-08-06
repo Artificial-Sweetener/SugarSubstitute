@@ -117,7 +117,14 @@ class CanvasDimensionAuthorityService:
                     for node_name in candidate.convergence_node_names
                 )
             ),
-            fingerprint=_authority_fingerprint(ordered),
+            structural_fingerprint=_authority_fingerprint(
+                ordered,
+                include_dimensions=False,
+            ),
+            dimension_fingerprint=_authority_fingerprint(
+                ordered,
+                include_dimensions=True,
+            ),
         )
         return CanvasDimensionResolution.resolved(authority)
 
@@ -188,8 +195,12 @@ def _is_positive_int(value: object) -> TypeGuard[int]:
     return isinstance(value, int) and not isinstance(value, bool) and value > 0
 
 
-def _authority_fingerprint(candidates: tuple[_DimensionCandidate, ...]) -> str:
-    """Return a stable invalidation identity for resolved graph evidence."""
+def _authority_fingerprint(
+    candidates: tuple[_DimensionCandidate, ...],
+    *,
+    include_dimensions: bool,
+) -> str:
+    """Return structural identity or dimension-revision identity for graph evidence."""
 
     payload = [
         {
@@ -198,8 +209,14 @@ def _authority_fingerprint(candidates: tuple[_DimensionCandidate, ...]) -> str:
             "type": candidate.output_type,
             "width_key": candidate.pair.width_key,
             "height_key": candidate.pair.height_key,
-            "width": candidate.dimensions.width,
-            "height": candidate.dimensions.height,
+            **(
+                {
+                    "width": candidate.dimensions.width,
+                    "height": candidate.dimensions.height,
+                }
+                if include_dimensions
+                else {}
+            ),
             "convergence": candidate.convergence_node_names,
         }
         for candidate in candidates

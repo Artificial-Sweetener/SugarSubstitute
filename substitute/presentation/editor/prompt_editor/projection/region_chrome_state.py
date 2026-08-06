@@ -20,10 +20,29 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QLineF
-from PySide6.QtGui import QPen
+from PySide6.QtCore import QLineF, QPointF
+from PySide6.QtGui import QColor, QFont, QPen
 
 from substitute.domain.appearance import RgbColor
+
+
+@dataclass(frozen=True, slots=True)
+class PromptRegionChromeStroke:
+    """Bind same-colored regional geometry for one paint operation."""
+
+    region_index: int
+    lines: tuple[QLineF, ...]
+    pen: QPen
+
+
+@dataclass(frozen=True, slots=True)
+class PromptRegionChromeLabel:
+    """Describe one centered authored separator name."""
+
+    text: str
+    baseline: QPointF
+    color: QColor
+    font: QFont
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +55,13 @@ class PromptRegionChromeSnapshot:
     rail_lines: tuple[QLineF, ...]
     paint_lines: tuple[QLineF, ...]
     pen: QPen
+    strokes: tuple[PromptRegionChromeStroke, ...]
+    labels: tuple[PromptRegionChromeLabel, ...]
     visited_line_count: int
 
 
-__all__ = ["PromptRegionChromeSnapshot"]
+__all__ = [
+    "PromptRegionChromeLabel",
+    "PromptRegionChromeSnapshot",
+    "PromptRegionChromeStroke",
+]
