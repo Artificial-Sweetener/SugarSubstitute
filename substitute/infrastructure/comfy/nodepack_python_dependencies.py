@@ -14,18 +14,17 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Install and inspect Python distributions for Comfy nodepacks."""
+"""Install only the declared Python dependencies of trusted nodepacks."""
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from pathlib import Path
+import tomllib
 
 from substitute.infrastructure.comfy.nodepack_manifest import (
     CLI_INSTALL_TIMEOUT_SECONDS,
-    CoreComfyNodepack,
 )
-from substitute.infrastructure.filesystem import remove_app_owned_path
 from substitute.infrastructure.process.hidden_process_runner import (
     run_command,
     stream_command_collecting_output,
@@ -37,47 +36,10 @@ from substitute.shared.logging.logger import get_logger, log_info
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 LogCallback = Callable[[str], None]
-
-_LOGGER = get_logger(__name__)
-
-
-def install_backend_python_dependencies(
-    *,
-    python_executable: Path,
-    nodepack_root: Path,
-    on_log: LogCallback | None = None,
-    env: Mapping[str, str] | None = None,
-) -> None:
-    """Install BackEnd runtime dependencies from the custom node folder."""
-
-    install_nodepack_python_project(
-        python_executable=python_executable,
-        nodepack_root=nodepack_root,
-        display_name="Substitute BackEnd",
-        on_log=on_log,
-        env=env,
-    )
+_LOGGER = get_logger("infrastructure.comfy.nodepack_python_dependencies")
 
 
-def install_sugarcubes_python_dependencies(
-    *,
-    python_executable: Path,
-    nodepack_root: Path,
-    on_log: LogCallback | None = None,
-    env: Mapping[str, str] | None = None,
-) -> None:
-    """Install SugarCubes runtime dependencies from the custom node folder."""
-
-    install_nodepack_python_project(
-        python_executable=python_executable,
-        nodepack_root=nodepack_root,
-        display_name="SugarCubes",
-        on_log=on_log,
-        env=env,
-    )
-
-
-def install_nodepack_python_project(
+def install_nodepack_python_dependencies(
     *,
     python_executable: Path,
     nodepack_root: Path,
@@ -85,18 +47,21 @@ def install_nodepack_python_project(
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
 ) -> None:
-    """Install one pyproject-backed nodepack into the workspace runtime."""
+    """Install `[project].dependencies` without installing the nodepack itself."""
 
+    dependencies = read_nodepack_python_dependencies(nodepack_root / "pyproject.toml")
+    if not dependencies:
+        return
     _emit_log(
         on_log,
-        f"[ComfyNodepacks] Updating {display_name} Python dependencies.",
+        f"[ComfyNodepacks] Installing {display_name} Python dependencies.",
     )
     command = [
         subprocess_path(python_executable),
         "-m",
         "pip",
         "install",
-        subprocess_path(nodepack_root),
+        *dependencies,
     ]
     exit_code, output_lines = stream_command_collecting_output(
         command,
@@ -105,12 +70,13 @@ def install_nodepack_python_project(
         timeout_seconds=CLI_INSTALL_TIMEOUT_SECONDS,
         env=env,
     )
-    if exit_code != 0:
-        raise_pip_path_compatibility_error(
-            fallback_path=nodepack_root,
-            output="\n".join(output_lines),
-        )
-        raise RuntimeError(f"Could not update {display_name} Python dependencies.")
+    if exit_code == 0:
+        return
+    raise_pip_path_compatibility_error(
+        fallback_path=nodepack_root,
+        output="\n".join(output_lines),
+    )
+    raise RuntimeError(f"Could not install {display_name} Python dependencies.")
 
 
 def install_nodepack_requirements(
@@ -121,12 +87,15 @@ def install_nodepack_requirements(
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
 ) -> None:
-    """Install a trusted nodepack's conventional requirements file when present."""
+    """Install a trusted companion nodepack's conventional requirements file."""
 
     requirements_path = nodepack_root / "requirements.txt"
     if not requirements_path.is_file():
         return
-    _emit_log(on_log, f"[ComfyNodepacks] Installing {display_name} dependencies.")
+    _emit_log(
+        on_log,
+        f"[ComfyNodepacks] Installing {display_name} Python dependencies.",
+    )
     exit_code, output_lines = stream_command_collecting_output(
         [
             subprocess_path(python_executable),
@@ -141,141 +110,73 @@ def install_nodepack_requirements(
         timeout_seconds=CLI_INSTALL_TIMEOUT_SECONDS,
         env=env,
     )
-    if exit_code != 0:
-        raise_pip_path_compatibility_error(
-            fallback_path=nodepack_root,
-            output="\n".join(output_lines),
-        )
-        raise RuntimeError(f"Could not install {display_name} dependencies.")
-
-
-def nodepack_python_distributions_match_required_version(
-    *,
-    python_executable: Path,
-    cwd: Path,
-    nodepack: CoreComfyNodepack,
-    on_log: LogCallback | None,
-    env: Mapping[str, str] | None,
-) -> bool:
-    """Return whether the canonical Python distribution satisfies the nodepack contract."""
-
-    return python_distribution_matches_required_version(
-        python_executable=python_executable,
-        cwd=cwd,
-        distribution_name=nodepack.python_distribution_name,
-        required_version=nodepack.required_python_distribution_version,
-        on_log=on_log,
-        env=env,
-    )
-
-
-def remove_noncanonical_python_distribution_metadata(
-    *,
-    nodepack_root: Path,
-    nodepack: CoreComfyNodepack,
-    on_log: LogCallback | None,
-) -> None:
-    """Remove local egg-info metadata that does not match the canonical package name."""
-
-    if nodepack.python_distribution_name is None:
+    if exit_code == 0:
         return
-    canonical_name = normalized_distribution_name(nodepack.python_distribution_name)
-    for metadata_dir in nodepack_root.glob("*.egg-info"):
-        metadata_name = egg_info_distribution_name(metadata_dir)
-        if metadata_name is None:
-            continue
-        if normalized_distribution_name(metadata_name) == canonical_name:
-            continue
-        remove_app_owned_path(metadata_dir)
-        _emit_log(
-            on_log,
-            (
-                f"[ComfyNodepacks] Removed non-canonical {metadata_name} "
-                f"metadata from {metadata_dir}."
-            ),
+    raise_pip_path_compatibility_error(
+        fallback_path=nodepack_root,
+        output="\n".join(output_lines),
+    )
+    raise RuntimeError(f"Could not install {display_name} Python dependencies.")
+
+
+def read_nodepack_python_dependencies(pyproject_path: Path) -> tuple[str, ...]:
+    """Return validated dependency strings from one nodepack project manifest."""
+
+    try:
+        with pyproject_path.open("rb") as pyproject_file:
+            payload = tomllib.load(pyproject_file)
+    except (OSError, tomllib.TOMLDecodeError) as error:
+        raise RuntimeError(
+            f"Could not read nodepack dependency manifest: {pyproject_path}"
+        ) from error
+    project = payload.get("project")
+    if not isinstance(project, dict):
+        raise RuntimeError(f"Nodepack manifest has no project table: {pyproject_path}")
+    raw_dependencies = project.get("dependencies", [])
+    if not isinstance(raw_dependencies, list) or not all(
+        isinstance(item, str) and item.strip() for item in raw_dependencies
+    ):
+        raise RuntimeError(
+            f"Nodepack manifest has invalid project dependencies: {pyproject_path}"
         )
+    return tuple(item.strip() for item in raw_dependencies)
 
 
-def egg_info_distribution_name(metadata_dir: Path) -> str | None:
-    """Return the distribution name recorded by one local egg-info directory."""
-
-    package_info_path = metadata_dir / "PKG-INFO"
-    if not package_info_path.exists():
-        return None
-    for line in package_info_path.read_text(
-        encoding="utf-8",
-        errors="replace",
-    ).splitlines():
-        if line.lower().startswith("name:"):
-            return line.partition(":")[2].strip()
-    return None
-
-
-def normalized_distribution_name(distribution_name: str) -> str:
-    """Return the package-name normalization used by Python metadata."""
-
-    return distribution_name.replace("_", "-").lower()
-
-
-def python_distribution_matches_required_version(
+def nodepack_python_dependencies_satisfied(
     *,
     python_executable: Path,
-    cwd: Path,
-    distribution_name: str | None,
-    required_version: str | None,
-    on_log: LogCallback | None,
+    nodepack_root: Path,
     env: Mapping[str, str] | None,
 ) -> bool:
-    """Return whether the workspace Python sees the required distribution version."""
+    """Return whether Comfy Python satisfies every declared project dependency."""
 
-    if distribution_name is None or required_version is None:
-        return True
-    installed_version = installed_python_distribution_version(
-        python_executable=python_executable,
-        cwd=cwd,
-        distribution_name=distribution_name,
-        on_log=on_log,
-        env=env,
-    )
-    if installed_version is None:
-        return False
-    return installed_version == required_version
-
-
-def installed_python_distribution_version(
-    *,
-    python_executable: Path,
-    cwd: Path,
-    distribution_name: str,
-    on_log: LogCallback | None,
-    env: Mapping[str, str] | None,
-) -> str | None:
-    """Read one installed Python distribution version from the workspace runtime."""
-
+    dependencies = read_nodepack_python_dependencies(nodepack_root / "pyproject.toml")
     script = (
-        "from importlib import metadata\n"
-        f"print(metadata.version({distribution_name!r}))\n"
+        "from importlib.metadata import PackageNotFoundError, version\n"
+        "from packaging.requirements import Requirement\n"
+        f"requirements = {dependencies!r}\n"
+        "for raw in requirements:\n"
+        "    requirement = Requirement(raw)\n"
+        "    if requirement.marker and not requirement.marker.evaluate():\n"
+        "        continue\n"
+        "    try:\n"
+        "        installed = version(requirement.name)\n"
+        "    except PackageNotFoundError:\n"
+        "        raise SystemExit(2)\n"
+        "    if requirement.specifier and installed not in requirement.specifier:\n"
+        "        raise SystemExit(2)\n"
     )
     result = run_command(
-        [str(python_executable), "-c", script],
-        cwd=cwd,
+        [subprocess_path(python_executable), "-c", script],
+        cwd=nodepack_root,
         check=False,
         env=env,
     )
-    if result.returncode != 0:
-        _emit_log(
-            on_log,
-            (
-                f"[ComfyNodepacks] Could not read installed {distribution_name} "
-                "version from Comfy Python."
-            ),
-        )
-        return None
-    return result.stdout.strip()
+    return result.returncode == 0
 
 
 def _emit_log(callback: LogCallback | None, message: str) -> None:
-    """Emit one nodepack dependency line to logs and optional setup output."""
+    """Emit dependency activity to structured and setup logs."""
 
     log_info(_LOGGER, message)
     if callback is not None:
@@ -283,15 +184,8 @@ def _emit_log(callback: LogCallback | None, message: str) -> None:
 
 
 __all__ = [
-    "LogCallback",
-    "egg_info_distribution_name",
-    "install_backend_python_dependencies",
-    "install_nodepack_python_project",
+    "install_nodepack_python_dependencies",
     "install_nodepack_requirements",
-    "install_sugarcubes_python_dependencies",
-    "installed_python_distribution_version",
-    "nodepack_python_distributions_match_required_version",
-    "normalized_distribution_name",
-    "python_distribution_matches_required_version",
-    "remove_noncanonical_python_distribution_metadata",
+    "nodepack_python_dependencies_satisfied",
+    "read_nodepack_python_dependencies",
 ]

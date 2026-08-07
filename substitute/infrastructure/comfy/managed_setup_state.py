@@ -57,6 +57,10 @@ from substitute.infrastructure.comfy.nodepack_manifest import (
     CORE_COMFY_NODEPACKS,
     SUGARCUBES_BASE_NODEPACK_INSTALLS,
     SUGARCUBES_COMPANION_NODEPACKS,
+    CoreComfyNodepack,
+)
+from substitute.infrastructure.comfy.nodepack_workspace_inspector import (
+    resolve_installed_nodepack_root,
 )
 from substitute.infrastructure.comfy.sugarcubes_installation_contract import (
     sugarcubes_maintenance_path,
@@ -68,7 +72,7 @@ from substitute.infrastructure.version_control import (
 )
 from substitute.shared.startup_trace import trace_mark
 
-_MANAGED_SETUP_FRESHNESS_SCHEMA_VERSION = 4
+_MANAGED_SETUP_FRESHNESS_SCHEMA_VERSION = 5
 _MANAGED_SETUP_FRESHNESS_MAX_AGE_SECONDS = 6 * 60 * 60
 _MANAGED_SETUP_FRESHNESS_DISABLE_ENV = "SUGARSUB_DISABLE_MANAGED_SETUP_CACHE"
 
@@ -533,29 +537,26 @@ def _manager_freshness_key(workspace: Path) -> dict[str, object]:
 
 def _core_nodepack_freshness_key(
     workspace: Path,
-    nodepack: object,
+    nodepack: CoreComfyNodepack,
 ) -> dict[str, object]:
     """Return freshness inputs for one required core nodepack."""
 
-    expected_folder = getattr(nodepack, "expected_folder")
-    nodepack_root = workspace / expected_folder
+    nodepack_root = resolve_installed_nodepack_root(workspace, nodepack)
     return {
-        "id": _enum_value(getattr(nodepack, "nodepack_id", None)),
-        "project": getattr(nodepack, "project_name", None),
-        "registry": getattr(nodepack, "registry_id", None),
-        "folder": str(expected_folder),
+        "id": nodepack.nodepack_id.value,
+        "registry": nodepack.registry_id,
+        "required_version": nodepack.required_version,
+        "folder": str(nodepack_root.relative_to(workspace)),
         "folder_signature": _path_signature(nodepack_root),
         "git": _git_head_signature(nodepack_root),
+        "project_manifest": _content_signature(nodepack_root / "pyproject.toml"),
+        "registry_tracking": _content_signature(nodepack_root / ".tracking"),
         "sentinels": [
             _path_signature(nodepack_root / sentinel)
-            for sentinel in getattr(nodepack, "sentinel_files", ())
+            for sentinel in nodepack.sentinel_files
         ],
-        "source_url": getattr(nodepack, "source_url", None),
-        "python_distribution": getattr(nodepack, "python_distribution_name", None),
-        "required_version": getattr(
-            nodepack, "required_python_distribution_version", None
-        ),
-        "pinned_archive": getattr(nodepack, "pinned_source_archive_url", None),
+        "fallback_repository": nodepack.fallback_repository_url,
+        "fallback_archive": nodepack.fallback_archive_url,
     }
 
 

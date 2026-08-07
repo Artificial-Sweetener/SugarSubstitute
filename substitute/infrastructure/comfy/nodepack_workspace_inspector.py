@@ -26,10 +26,43 @@ from substitute.infrastructure.comfy.nodepack_manifest import CoreComfyNodepack
 def core_nodepack_installed(workspace: Path, nodepack: CoreComfyNodepack) -> bool:
     """Return whether a required core nodepack has all sentinel files."""
 
-    root = workspace / nodepack.expected_folder
-    return root.is_dir() and all(
-        (root / sentinel).exists() for sentinel in nodepack.sentinel_files
+    return any(
+        root.is_dir()
+        and all((root / sentinel).exists() for sentinel in nodepack.sentinel_files)
+        for root in (workspace / folder for folder in nodepack.candidate_folders)
     )
+
+
+def resolve_installed_nodepack_root(
+    workspace: Path,
+    nodepack: CoreComfyNodepack,
+) -> Path:
+    """Return an existing canonical or legacy root, otherwise the canonical root."""
+
+    for relative_path in nodepack.candidate_folders:
+        candidate = workspace / relative_path
+        actual_candidate = _directory_with_actual_case(candidate)
+        if actual_candidate is not None:
+            return actual_candidate
+    return workspace / nodepack.expected_folder
+
+
+def _directory_with_actual_case(path: Path) -> Path | None:
+    """Return an existing directory while preserving its on-disk name casing."""
+
+    if not path.is_dir():
+        return None
+    try:
+        children = tuple(child for child in path.parent.iterdir() if child.is_dir())
+        exact_match = next(
+            (child for child in children if child.name == path.name),
+            None,
+        )
+        if exact_match is not None:
+            return exact_match
+        return next((child for child in children if child.samefile(path)), path)
+    except OSError:
+        return path
 
 
 def source_contains_sentinels(
@@ -72,10 +105,14 @@ def tracked_source_files(source_path: Path) -> tuple[Path, ...]:
 
     ignored_directory_names = {
         ".git",
+        ".generated",
+        ".sugarcubes",
         ".mypy_cache",
         ".pytest_cache",
         ".ruff_cache",
         "__pycache__",
+        "cache",
+        "artifacts",
         "node_modules",
         "tests",
     }
@@ -98,6 +135,7 @@ __all__ = [
     "nodepack_has_git_metadata",
     "nodepack_has_registry_metadata",
     "path_is_relative_to",
+    "resolve_installed_nodepack_root",
     "source_contains_sentinels",
     "tracked_source_files",
 ]

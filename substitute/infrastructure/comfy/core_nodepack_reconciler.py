@@ -14,57 +14,337 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Install and refresh core Comfy nodepacks required by Substitute."""
+"""Orchestrate Registry-first reconciliation of Substitute core nodepacks."""
 
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Mapping
+from collections.abc import Collection, Mapping
 from pathlib import Path
 
 from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan import (
-    plan_core_nodepack_dependency_refresh,
-    plan_core_nodepack_refresh_route,
+    CoreNodepackAction,
+    plan_after_registry_attempt,
+    plan_initial_reconciliation,
 )
-from substitute.domain.comfy_nodepacks import CoreNodepackId
+from substitute.domain.comfy_nodepacks import CoreNodepackId, NodepackManagementKind
+from substitute.infrastructure.comfy.legacy_nodepack_distribution import (
+    LegacyNodepackDistributionCleaner,
+)
 from substitute.infrastructure.comfy.local_nodepack_source import (
     copy_local_nodepack_source,
-    nodepack_uses_configured_local_source,
     resolve_local_nodepack_source,
 )
-from substitute.infrastructure.comfy.nodepack_git_maintenance import (
-    refresh_git_nodepack as _refresh_git_nodepack,
+from substitute.infrastructure.comfy.nodepack_installation_inspector import (
+    NodepackInstallationInspector,
+    NodepackInstallationSnapshot,
+)
+from substitute.infrastructure.comfy.nodepack_installation_path_migrator import (
+    canonicalize_nodepack_root,
 )
 from substitute.infrastructure.comfy.nodepack_manifest import (
     CORE_COMFY_NODEPACKS,
     CoreComfyNodepack,
 )
 from substitute.infrastructure.comfy.nodepack_python_dependencies import (
-    install_backend_python_dependencies,
-    install_sugarcubes_python_dependencies,
-    python_distribution_matches_required_version as _python_distribution_matches_required_version,
-    remove_noncanonical_python_distribution_metadata as _remove_noncanonical_python_distribution_metadata,
+    install_nodepack_python_dependencies,
+    nodepack_python_dependencies_satisfied,
 )
-from substitute.infrastructure.comfy.nodepack_reconciliation_logger import (
-    LogCallback,
-    emit_log as _emit_log,
+from substitute.infrastructure.comfy.nodepack_reconciliation_logger import LogCallback
+from substitute.infrastructure.comfy.nodepack_registry_installer import (
+    ComfyNodepackRegistryInstaller,
 )
-from substitute.infrastructure.comfy.nodepack_workspace_inspector import (
-    core_nodepack_installed,
-    nodepack_has_git_metadata as _nodepack_has_git_metadata,
+from substitute.infrastructure.comfy.nodepack_registry_source_migrator import (
+    NodepackRegistrySourceMigrator,
+)
+from substitute.infrastructure.comfy.nodepack_registry_update_settler import (
+    ComfyNodepackRegistryUpdateSettler,
 )
 from substitute.infrastructure.comfy.pinned_nodepack_source import (
-    apply_pinned_source_fallback as _apply_pinned_source_fallback,
-    replace_with_pinned_source_archive as _replace_with_pinned_source_archive,
-)
-from substitute.infrastructure.comfy.trusted_nodepack_installer import (
-    install_trusted_nodepack_repository,
+    PinnedNodepackSourceInstaller,
 )
 from substitute.infrastructure.comfy.workspace_python_resolver import (
     resolve_workspace_python,
 )
-from substitute.infrastructure.version_control import RepositoryService
+from substitute.infrastructure.version_control import (
+    RepositoryService,
+    repository_service,
+)
+from substitute.shared.logging.logger import get_logger, log_info
 
-DependencyInstaller = Callable[..., None]
+_LOGGER = get_logger("infrastructure.comfy.core_nodepack_reconciler")
+
+
+class CoreNodepackReconciler:
+    """Coordinate focused owners without duplicating their policy or mechanics."""
+
+    def __init__(
+        self,
+        *,
+        repositories: RepositoryService,
+        registry_installer: ComfyNodepackRegistryInstaller | None = None,
+        registry_update_settler: ComfyNodepackRegistryUpdateSettler | None = None,
+        source_migrator: NodepackRegistrySourceMigrator | None = None,
+        fallback_installer: PinnedNodepackSourceInstaller | None = None,
+        legacy_cleaner: LegacyNodepackDistributionCleaner | None = None,
+    ) -> None:
+        """Compose the focused owners used by nodepack reconciliation."""
+
+        self._inspector = NodepackInstallationInspector(repositories)
+        self._registry = registry_installer or ComfyNodepackRegistryInstaller()
+        self._registry_update_settler = (
+            registry_update_settler or ComfyNodepackRegistryUpdateSettler()
+        )
+        self._source_migrator = source_migrator or NodepackRegistrySourceMigrator(
+            repositories
+        )
+        self._fallback = fallback_installer or PinnedNodepackSourceInstaller()
+        self._legacy_cleaner = legacy_cleaner or LegacyNodepackDistributionCleaner()
+
+    def ensure(
+        self,
+        workspace: Path,
+        *,
+        python_executable: Path,
+        refresh_nodepacks: Collection[CoreNodepackId],
+        on_log: LogCallback | None,
+        env: Mapping[str, str] | None,
+    ) -> None:
+        """Converge every required nodepack through the Registry-first policy."""
+
+        refresh_targets = frozenset(refresh_nodepacks)
+        for nodepack in CORE_COMFY_NODEPACKS:
+            self._ensure_one(
+                workspace=workspace,
+                python_executable=python_executable,
+                nodepack=nodepack,
+                refresh_requested=nodepack.nodepack_id in refresh_targets,
+                on_log=on_log,
+                env=env,
+            )
+
+    def _ensure_one(
+        self,
+        *,
+        workspace: Path,
+        python_executable: Path,
+        nodepack: CoreComfyNodepack,
+        refresh_requested: bool,
+        on_log: LogCallback | None,
+        env: Mapping[str, str] | None,
+    ) -> None:
+        """Converge one nodepack while preserving its mutable installed state."""
+
+        snapshot = self._inspector.inspect(workspace=workspace, nodepack=nodepack)
+        local_source = resolve_local_nodepack_source(nodepack, env=env)
+        action = plan_initial_reconciliation(
+            management=snapshot.management,
+            matches_required_version=snapshot.matches(nodepack),
+            tracked_worktree_dirty=snapshot.tracked_worktree_dirty,
+            official_git_remote=snapshot.official_git_remote,
+            local_source_configured=local_source is not None,
+            refresh_requested=refresh_requested,
+        )
+        if action is CoreNodepackAction.USE_LOCAL_SOURCE:
+            assert local_source is not None
+            self._use_local_source(
+                source_path=local_source,
+                snapshot=snapshot,
+                nodepack=nodepack,
+                python_executable=python_executable,
+                on_log=on_log,
+                env=env,
+            )
+            return
+        if action is CoreNodepackAction.BLOCK_DIRTY:
+            raise RuntimeError(
+                f"{nodepack.display_name} contains tracked local changes and does not "
+                f"match required version {nodepack.required_version}. Preserve or "
+                "publish those changes before managed repair."
+            )
+        if action is CoreNodepackAction.BLOCK_UNMANAGED_GIT:
+            raise RuntimeError(
+                f"{nodepack.display_name} is a non-managed Git checkout and does not "
+                f"match required version {nodepack.required_version}. Configure its "
+                "local source environment variable or install the required release."
+            )
+        changed = False
+        if snapshot.management is NodepackManagementKind.REGISTRY:
+            canonical_root = canonicalize_nodepack_root(
+                workspace=workspace,
+                current_root=snapshot.root,
+                nodepack=nodepack,
+                on_log=on_log,
+            )
+            if canonical_root.name != snapshot.root.name:
+                changed = True
+                snapshot = self._inspector.inspect(
+                    workspace=workspace,
+                    nodepack=nodepack,
+                )
+        if action is CoreNodepackAction.MIGRATE_GIT:
+            self._source_migrator.migrate_clean_git_installation(
+                target_path=snapshot.root,
+                nodepack=nodepack,
+                on_log=on_log,
+            )
+            canonicalize_nodepack_root(
+                workspace=workspace,
+                current_root=snapshot.root,
+                nodepack=nodepack,
+                on_log=on_log,
+            )
+            changed = True
+            snapshot = self._inspector.inspect(workspace=workspace, nodepack=nodepack)
+            action = plan_initial_reconciliation(
+                management=snapshot.management,
+                matches_required_version=snapshot.matches(nodepack),
+                tracked_worktree_dirty=False,
+                official_git_remote=False,
+                local_source_configured=False,
+                refresh_requested=refresh_requested,
+            )
+        elif action is CoreNodepackAction.INSTALL_REGISTRY and (
+            snapshot.management is NodepackManagementKind.PLAIN
+        ):
+            if snapshot.project_name is None or not snapshot.sentinels_present:
+                raise RuntimeError(
+                    f"Refusing to overwrite unrecognized nodepack folder: {snapshot.root}"
+                )
+            self._source_migrator.migrate_plain_installation(
+                target_path=snapshot.root,
+                nodepack=nodepack,
+                on_log=on_log,
+            )
+            canonicalize_nodepack_root(
+                workspace=workspace,
+                current_root=snapshot.root,
+                nodepack=nodepack,
+                on_log=on_log,
+            )
+            changed = True
+            snapshot = self._inspector.inspect(workspace=workspace, nodepack=nodepack)
+        if action is CoreNodepackAction.INSTALL_REGISTRY:
+            registry_result = self._registry.install_exact(
+                workspace=workspace,
+                python_executable=python_executable,
+                nodepack=nodepack,
+                on_log=on_log,
+                env=env,
+            )
+            snapshot = self._inspector.inspect(workspace=workspace, nodepack=nodepack)
+            action = plan_after_registry_attempt(
+                outcome=registry_result.outcome,
+                registry_installation_matches=(
+                    snapshot.management is NodepackManagementKind.REGISTRY
+                    and snapshot.matches(nodepack)
+                ),
+            )
+            changed = True
+        if action is CoreNodepackAction.SETTLE_REGISTRY_UPDATE:
+            self._registry_update_settler.settle(
+                workspace=workspace,
+                python_executable=python_executable,
+                nodepack=nodepack,
+                on_log=on_log,
+                env=env,
+            )
+            snapshot = self._inspector.inspect(workspace=workspace, nodepack=nodepack)
+            action = (
+                CoreNodepackAction.READY
+                if snapshot.management is NodepackManagementKind.REGISTRY
+                and snapshot.matches(nodepack)
+                else CoreNodepackAction.FAIL
+            )
+        if action is CoreNodepackAction.INSTALL_FALLBACK:
+            self._fallback.install_fallback(
+                target_path=snapshot.root,
+                nodepack=nodepack,
+                on_log=on_log,
+                env=env,
+            )
+            snapshot = self._inspector.inspect(workspace=workspace, nodepack=nodepack)
+            changed = True
+            action = (
+                CoreNodepackAction.READY
+                if snapshot.management is NodepackManagementKind.REGISTRY
+                and snapshot.matches(nodepack)
+                else CoreNodepackAction.FAIL
+            )
+        if action is not CoreNodepackAction.READY:
+            raise RuntimeError(
+                f"Could not install {nodepack.display_name} "
+                f"{nodepack.required_version} through Comfy Registry or its pinned fallback."
+            )
+        self._finish_ready_installation(
+            python_executable=python_executable,
+            snapshot=snapshot,
+            nodepack=nodepack,
+            source_changed=changed,
+            on_log=on_log,
+            env=env,
+        )
+
+    def _use_local_source(
+        self,
+        *,
+        source_path: Path,
+        snapshot: NodepackInstallationSnapshot,
+        nodepack: CoreComfyNodepack,
+        python_executable: Path,
+        on_log: LogCallback | None,
+        env: Mapping[str, str] | None,
+    ) -> None:
+        """Project an explicit developer source without handing it to Registry updates."""
+
+        target_path = snapshot.root
+        if source_path.resolve() != target_path.resolve():
+            copy_local_nodepack_source(
+                source_path=source_path,
+                target_path=target_path,
+                allow_existing=target_path.exists(),
+            )
+        install_nodepack_python_dependencies(
+            python_executable=python_executable,
+            nodepack_root=target_path,
+            display_name=nodepack.display_name,
+            on_log=on_log,
+            env=env,
+        )
+        _emit_ready(on_log, nodepack, source="local")
+
+    def _finish_ready_installation(
+        self,
+        *,
+        python_executable: Path,
+        snapshot: NodepackInstallationSnapshot,
+        nodepack: CoreComfyNodepack,
+        source_changed: bool,
+        on_log: LogCallback | None,
+        env: Mapping[str, str] | None,
+    ) -> None:
+        """Remove legacy duplication and ensure declared dependencies are satisfied."""
+
+        legacy_removed = self._legacy_cleaner.remove_if_owned(
+            python_executable=python_executable,
+            nodepack_root=snapshot.root,
+            distribution_name=nodepack.legacy_distribution_name,
+            on_log=on_log,
+            env=env,
+        )
+        dependencies_ready = nodepack_python_dependencies_satisfied(
+            python_executable=python_executable,
+            nodepack_root=snapshot.root,
+            env=env,
+        )
+        if source_changed or legacy_removed or not dependencies_ready:
+            install_nodepack_python_dependencies(
+                python_executable=python_executable,
+                nodepack_root=snapshot.root,
+                display_name=nodepack.display_name,
+                on_log=on_log,
+                env=env,
+            )
+        _emit_ready(on_log, nodepack, source="registry")
 
 
 def ensure_core_comfy_nodepacks(
@@ -76,101 +356,16 @@ def ensure_core_comfy_nodepacks(
     python_executable: Path | None = None,
     repositories: RepositoryService | None = None,
 ) -> None:
-    """Ensure Substitute's required Comfy nodepacks are installed and current."""
+    """Ensure required core nodepacks through the production composition."""
 
-    if python_executable is None:
-        python_executable = resolve_workspace_python(workspace)
-    refresh_targets = frozenset(refresh_nodepacks)
-    for nodepack in CORE_COMFY_NODEPACKS:
-        if core_nodepack_installed(workspace, nodepack):
-            if nodepack.nodepack_id in refresh_targets:
-                _emit_log(
-                    on_log,
-                    f"[ComfyNodepacks] Refreshing {nodepack.display_name}.",
-                    operation="core_nodepack_refresh",
-                    nodepack_id=nodepack.nodepack_id.value,
-                    display_name=nodepack.display_name,
-                    registry_id=nodepack.registry_id,
-                )
-                _refresh_core_nodepack(
-                    workspace,
-                    nodepack,
-                    on_log=on_log,
-                    env=env,
-                    repositories=repositories,
-                )
-                if not core_nodepack_installed(workspace, nodepack):
-                    raise RuntimeError(
-                        f"{nodepack.display_name} refresh finished, but sentinels are missing."
-                    )
-                _refresh_nodepack_python_dependencies(
-                    python_executable=python_executable,
-                    workspace=workspace,
-                    nodepack=nodepack,
-                    on_log=on_log,
-                    env=env,
-                )
-            else:
-                if _installed_core_nodepack_matches_required_version(
-                    python_executable=python_executable,
-                    workspace=workspace,
-                    nodepack=nodepack,
-                    on_log=on_log,
-                    env=env,
-                ):
-                    _emit_log(
-                        on_log,
-                        f"[ComfyNodepacks] {nodepack.display_name} is installed.",
-                        operation="core_nodepack_ready",
-                        nodepack_id=nodepack.nodepack_id.value,
-                        display_name=nodepack.display_name,
-                        registry_id=nodepack.registry_id,
-                    )
-                else:
-                    _emit_log(
-                        on_log,
-                        (
-                            f"[ComfyNodepacks] {nodepack.display_name} is installed "
-                            "but does not match the required version; refreshing before launch."
-                        ),
-                        operation="core_nodepack_dependency_refresh",
-                        nodepack_id=nodepack.nodepack_id.value,
-                        display_name=nodepack.display_name,
-                        registry_id=nodepack.registry_id,
-                    )
-                    _refresh_nodepack_python_dependencies(
-                        python_executable=python_executable,
-                        workspace=workspace,
-                        nodepack=nodepack,
-                        on_log=on_log,
-                        env=env,
-                    )
-            continue
-        _emit_log(
-            on_log,
-            f"[ComfyNodepacks] Installing trusted {nodepack.display_name} source.",
-            operation="core_nodepack_install",
-            nodepack_id=nodepack.nodepack_id.value,
-            display_name=nodepack.display_name,
-            registry_id=nodepack.registry_id,
-        )
-        _install_core_nodepack(
-            workspace,
-            nodepack,
-            on_log=on_log,
-            repositories=repositories,
-        )
-        if not core_nodepack_installed(workspace, nodepack):
-            raise RuntimeError(
-                f"{nodepack.display_name} installation finished, but sentinels are missing."
-            )
-        _refresh_nodepack_python_dependencies(
-            python_executable=python_executable,
-            workspace=workspace,
-            nodepack=nodepack,
-            on_log=on_log,
-            env=env,
-        )
+    resolved_python = python_executable or resolve_workspace_python(workspace)
+    CoreNodepackReconciler(repositories=repositories or repository_service()).ensure(
+        workspace,
+        python_executable=resolved_python,
+        refresh_nodepacks=refresh_nodepacks,
+        on_log=on_log,
+        env=env,
+    )
 
 
 def refresh_core_comfy_nodepacks(
@@ -180,7 +375,7 @@ def refresh_core_comfy_nodepacks(
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
 ) -> None:
-    """Refresh installed core nodepacks during managed repair."""
+    """Refresh selected core nodepacks through Registry-first reconciliation."""
 
     ensure_core_comfy_nodepacks(
         workspace,
@@ -190,363 +385,31 @@ def refresh_core_comfy_nodepacks(
     )
 
 
-def _installed_core_nodepack_matches_required_version(
-    *,
-    python_executable: Path,
-    workspace: Path,
-    nodepack: CoreComfyNodepack,
-    on_log: LogCallback | None,
-    env: Mapping[str, str] | None,
-) -> bool:
-    """Return whether an installed core nodepack satisfies its package contract."""
-
-    return _nodepack_python_distribution_matches_required_version(
-        python_executable=python_executable,
-        cwd=workspace / nodepack.expected_folder,
-        nodepack=nodepack,
-        on_log=on_log,
-        env=env,
-    )
-
-
-def _install_core_nodepack(
-    workspace: Path,
+def _emit_ready(
+    callback: LogCallback | None,
     nodepack: CoreComfyNodepack,
     *,
-    on_log: LogCallback | None,
-    repositories: RepositoryService | None,
+    source: str,
 ) -> None:
-    """Install one core nodepack from its explicit trusted source."""
+    """Emit one bounded ready-state event."""
 
-    target_path = workspace / nodepack.expected_folder
-    if nodepack.source_url is not None:
-        _emit_log(
-            on_log,
-            (
-                f"[ComfyNodepacks] Installing {nodepack.display_name} from "
-                f"{nodepack.source_url}."
-            ),
-            operation="core_nodepack_install_source_fallback",
-            nodepack_id=nodepack.nodepack_id.value,
-            display_name=nodepack.display_name,
-            registry_id=nodepack.registry_id,
-            source_kind="github",
-        )
-        install_trusted_nodepack_repository(
-            repository_url=nodepack.source_url,
-            target_path=target_path,
-            display_name=nodepack.display_name,
-            on_log=on_log,
-            repositories=repositories,
-        )
-        return
-    source_path = resolve_local_nodepack_source(nodepack)
-    if source_path is not None:
-        _emit_log(
-            on_log,
-            (
-                f"[ComfyNodepacks] Installing {nodepack.display_name} from local "
-                f"source {source_path}."
-            ),
-            operation="core_nodepack_install_source_fallback",
-            nodepack_id=nodepack.nodepack_id.value,
-            display_name=nodepack.display_name,
-            registry_id=nodepack.registry_id,
-            source_kind="local",
-        )
-        copy_local_nodepack_source(
-            source_path=source_path,
-            target_path=target_path,
-        )
-        return
-    _emit_log(
-        on_log,
-        (
-            f"[ComfyNodepacks] {nodepack.display_name} is not published in this "
-            "trusted source manifest and no local source is available."
-        ),
-        operation="core_nodepack_install_failed",
+    message = (
+        f"[ComfyNodepacks] {nodepack.display_name} "
+        f"{nodepack.required_version} is ready."
+    )
+    log_info(
+        _LOGGER,
+        message,
         nodepack_id=nodepack.nodepack_id.value,
-        display_name=nodepack.display_name,
-        registry_id=nodepack.registry_id,
+        required_version=nodepack.required_version,
+        source=source,
     )
-    raise RuntimeError(f"Could not install required nodepack: {nodepack.display_name}")
-
-
-def _refresh_core_nodepack(
-    workspace: Path,
-    nodepack: CoreComfyNodepack,
-    *,
-    on_log: LogCallback | None,
-    env: Mapping[str, str] | None,
-    repositories: RepositoryService | None,
-) -> None:
-    """Refresh one existing core nodepack using managed ownership rules."""
-
-    target_path = workspace / nodepack.expected_folder
-    git_managed = _nodepack_has_git_metadata(target_path)
-    refresh_route = plan_core_nodepack_refresh_route(
-        registry_id=nodepack.registry_id,
-        git_managed=git_managed,
-        git_refresh_succeeded=None,
-        pinned_archive_available=nodepack.pinned_source_archive_url is not None,
-        registry_available=False,
-        source_url=nodepack.source_url,
-        local_source_available=False,
-    )
-    if refresh_route.source == "git_refresh":
-        git_refresh_succeeded = _refresh_git_nodepack(
-            target_path,
-            on_log=on_log,
-            env=env,
-            repositories=repositories,
-        )
-        if git_refresh_succeeded:
-            return
-        refresh_route = plan_core_nodepack_refresh_route(
-            registry_id=nodepack.registry_id,
-            git_managed=git_managed,
-            git_refresh_succeeded=False,
-            pinned_archive_available=nodepack.pinned_source_archive_url is not None,
-            registry_available=False,
-            source_url=nodepack.source_url,
-            local_source_available=False,
-        )
-        if refresh_route.source == "pinned_archive":
-            if nodepack.pinned_source_archive_url is None:
-                raise RuntimeError(
-                    f"Could not refresh required nodepack: {nodepack.display_name}"
-                )
-            _replace_with_pinned_source_archive(
-                archive_url=nodepack.pinned_source_archive_url,
-                target_path=target_path,
-                nodepack=nodepack,
-                on_log=on_log,
-                env=env,
-            )
-            return
-    source_path = resolve_local_nodepack_source(nodepack)
-    refresh_route = plan_core_nodepack_refresh_route(
-        registry_id=nodepack.registry_id,
-        git_managed=git_managed,
-        git_refresh_succeeded=False if git_managed else None,
-        pinned_archive_available=nodepack.pinned_source_archive_url is not None,
-        registry_available=False,
-        source_url=None,
-        local_source_available=source_path is not None,
-    )
-    if refresh_route.source == "local_source":
-        if source_path is None:
-            raise RuntimeError(
-                f"Could not refresh required nodepack: {nodepack.display_name}"
-            )
-        _emit_log(
-            on_log,
-            (
-                f"[ComfyNodepacks] Overlaying {nodepack.display_name} from local "
-                f"source {source_path}."
-            ),
-            operation="core_nodepack_refresh_source_fallback",
-            nodepack_id=nodepack.nodepack_id.value,
-            display_name=nodepack.display_name,
-            registry_id=nodepack.registry_id,
-            source_kind="local",
-        )
-        copy_local_nodepack_source(
-            source_path=source_path,
-            target_path=target_path,
-            allow_existing=True,
-        )
-        return
-    if nodepack.pinned_source_archive_url is not None:
-        _replace_with_pinned_source_archive(
-            archive_url=nodepack.pinned_source_archive_url,
-            target_path=target_path,
-            nodepack=nodepack,
-            on_log=on_log,
-            env=env,
-        )
-        return
-    raise RuntimeError(f"Could not refresh required nodepack: {nodepack.display_name}")
-
-
-def _refresh_nodepack_python_dependencies(
-    *,
-    python_executable: Path,
-    workspace: Path,
-    nodepack: CoreComfyNodepack,
-    on_log: LogCallback | None,
-    env: Mapping[str, str] | None,
-) -> None:
-    """Refresh Python dependencies for nodepacks that own runtime packages."""
-
-    if nodepack.nodepack_id is CoreNodepackId.SUBSTITUTE_BACKEND:
-        _refresh_python_distribution_nodepack_dependencies(
-            python_executable=python_executable,
-            workspace=workspace,
-            nodepack=nodepack,
-            on_log=on_log,
-            env=env,
-            install_dependencies=install_backend_python_dependencies,
-        )
-        return
-    if nodepack.nodepack_id is CoreNodepackId.SUGARCUBES:
-        _refresh_python_distribution_nodepack_dependencies(
-            python_executable=python_executable,
-            workspace=workspace,
-            nodepack=nodepack,
-            on_log=on_log,
-            env=env,
-            install_dependencies=install_sugarcubes_python_dependencies,
-        )
-
-
-def _refresh_python_distribution_nodepack_dependencies(
-    *,
-    python_executable: Path,
-    workspace: Path,
-    nodepack: CoreComfyNodepack,
-    on_log: LogCallback | None,
-    env: Mapping[str, str] | None,
-    install_dependencies: DependencyInstaller,
-) -> None:
-    """Refresh nodepack dependencies and apply pinned fallback when needed."""
-
-    nodepack_root = workspace / nodepack.expected_folder
-    _remove_noncanonical_python_distribution_metadata(
-        nodepack_root=nodepack_root,
-        nodepack=nodepack,
-        on_log=on_log,
-    )
-    install_dependencies(
-        python_executable=python_executable,
-        nodepack_root=nodepack_root,
-        on_log=on_log,
-        env=env,
-    )
-    _remove_noncanonical_python_distribution_metadata(
-        nodepack_root=nodepack_root,
-        nodepack=nodepack,
-        on_log=on_log,
-    )
-    primary_required_version_installed = (
-        _nodepack_python_distribution_matches_required_version(
-            python_executable=python_executable,
-            cwd=nodepack_root,
-            nodepack=nodepack,
-            on_log=on_log,
-            env=env,
-        )
-    )
-    dependency_plan = plan_core_nodepack_dependency_refresh(
-        required_version_installed=primary_required_version_installed,
-        pinned_archive_available=nodepack.pinned_source_archive_url is not None,
-        pinned_fallback_already_applied=False,
-    )
-    if dependency_plan.action == "ready":
-        return
-    if nodepack_uses_configured_local_source(
-        nodepack=nodepack,
-        target_path=nodepack_root,
-        env=env,
-    ):
-        _emit_log(
-            on_log,
-            (
-                f"[ComfyNodepacks] Using configured local {nodepack.display_name} "
-                "checkout before its pinned release is available."
-            ),
-            operation="core_nodepack_dependency_local_source",
-            nodepack_id=nodepack.nodepack_id.value,
-            display_name=nodepack.display_name,
-            registry_id=nodepack.registry_id,
-            required_version=nodepack.required_python_distribution_version,
-            source_kind="local",
-        )
-        return
-    if dependency_plan.action == "failed":
-        raise RuntimeError(
-            f"{nodepack.display_name} dependency refresh did not install the required version."
-        )
-    if nodepack.pinned_source_archive_url is None:
-        raise RuntimeError(
-            f"{nodepack.display_name} dependency refresh did not install the required version."
-        )
-    _emit_log(
-        on_log,
-        (
-            f"[ComfyNodepacks] Registry refresh did not provide "
-            f"{nodepack.display_name} {nodepack.required_python_distribution_version}; "
-            "applying pinned GitHub fallback while preserving nodepack metadata shape."
-        ),
-        operation="core_nodepack_dependency_pinned_fallback",
-        nodepack_id=nodepack.nodepack_id.value,
-        display_name=nodepack.display_name,
-        registry_id=nodepack.registry_id,
-        required_version=nodepack.required_python_distribution_version,
-        fallback_kind="pinned_archive",
-    )
-    _apply_pinned_source_fallback(
-        backend_root=nodepack_root,
-        archive_url=nodepack.pinned_source_archive_url,
-        target_path=nodepack_root,
-        nodepack=nodepack,
-        on_log=on_log,
-        env=env,
-    )
-    install_dependencies(
-        python_executable=python_executable,
-        nodepack_root=nodepack_root,
-        on_log=on_log,
-        env=env,
-    )
-    _remove_noncanonical_python_distribution_metadata(
-        nodepack_root=nodepack_root,
-        nodepack=nodepack,
-        on_log=on_log,
-    )
-    fallback_required_version_installed = (
-        _nodepack_python_distribution_matches_required_version(
-            python_executable=python_executable,
-            cwd=nodepack_root,
-            nodepack=nodepack,
-            on_log=on_log,
-            env=env,
-        )
-    )
-    dependency_plan = plan_core_nodepack_dependency_refresh(
-        required_version_installed=fallback_required_version_installed,
-        pinned_archive_available=nodepack.pinned_source_archive_url is not None,
-        pinned_fallback_already_applied=True,
-    )
-    if dependency_plan.action == "failed":
-        raise RuntimeError(
-            f"Could not install {nodepack.display_name} "
-            f"{nodepack.required_python_distribution_version} from fallback source."
-        )
-
-
-def _nodepack_python_distribution_matches_required_version(
-    *,
-    python_executable: Path,
-    cwd: Path,
-    nodepack: CoreComfyNodepack,
-    on_log: LogCallback | None,
-    env: Mapping[str, str] | None,
-) -> bool:
-    """Return whether the canonical Python distribution satisfies the nodepack contract."""
-
-    return _python_distribution_matches_required_version(
-        python_executable=python_executable,
-        cwd=cwd,
-        distribution_name=nodepack.python_distribution_name,
-        required_version=nodepack.required_python_distribution_version,
-        on_log=on_log,
-        env=env,
-    )
+    if callback is not None:
+        callback(message)
 
 
 __all__ = [
+    "CoreNodepackReconciler",
     "ensure_core_comfy_nodepacks",
     "refresh_core_comfy_nodepacks",
 ]

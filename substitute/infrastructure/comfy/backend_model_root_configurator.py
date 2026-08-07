@@ -20,9 +20,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from substitute.domain.comfy_nodepacks import CoreNodepackId
+from substitute.infrastructure.comfy.nodepack_manifest import CORE_COMFY_NODEPACKS
+from substitute.infrastructure.comfy.nodepack_workspace_inspector import (
+    resolve_installed_nodepack_root,
+)
 from substitute.infrastructure.process.hidden_process_runner import run_command
 
-_BACKEND_DIRECTORY = Path("custom_nodes") / "Substitute-BackEnd"
 _CONFIGURATOR = "configure_model_root.py"
 
 
@@ -34,7 +38,12 @@ def configure_backend_model_root(
 ) -> None:
     """Ask the installed BackEnd to persist an offline model-root selection."""
 
-    backend_root = workspace / _BACKEND_DIRECTORY
+    backend = next(
+        item
+        for item in CORE_COMFY_NODEPACKS
+        if item.nodepack_id is CoreNodepackId.SUBSTITUTE_BACKEND
+    )
+    backend_root = resolve_installed_nodepack_root(workspace, backend)
     configurator = backend_root / _CONFIGURATOR
     if not configurator.is_file():
         raise RuntimeError(

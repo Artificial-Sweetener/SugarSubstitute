@@ -26,7 +26,6 @@ from substitute.infrastructure.comfy.nodepack_manifest import (
     ARCHIVE_DOWNLOAD_TIMEOUT_SECONDS,
     CLI_INSTALL_TIMEOUT_SECONDS,
     CORE_COMFY_NODEPACKS,
-    NODEPACK_BACKUP_KEEP_COUNT,
     SUGARCUBES_BASE_NODEPACK_INSTALLS,
     SUGARCUBES_COMPANION_NODEPACKS,
 )
@@ -71,36 +70,37 @@ def test_nodepack_manifest_imports_no_process_archive_or_ui_boundaries() -> None
 def test_core_nodepack_manifest_contains_expected_install_identities() -> None:
     """Core nodepack definitions should keep install identities centralized."""
 
-    by_project = {nodepack.project_name: nodepack for nodepack in CORE_COMFY_NODEPACKS}
+    by_project = {nodepack.registry_id: nodepack for nodepack in CORE_COMFY_NODEPACKS}
 
     assert (
         by_project["substitute-backend"].nodepack_id
         is CoreNodepackId.SUBSTITUTE_BACKEND
     )
     assert by_project["substitute-backend"].registry_id == "substitute-backend"
-    assert by_project["substitute-backend"].source_url == (
+    assert by_project["substitute-backend"].fallback_repository_url == (
         "https://github.com/Artificial-Sweetener/Substitute-BackEnd.git"
     )
-    assert by_project["substitute-backend"].required_python_distribution_version == (
-        "1.9.0"
-    )
-    assert by_project["substitute-backend"].pinned_source_archive_url == (
+    assert by_project["substitute-backend"].required_version == "1.9.1"
+    assert by_project["substitute-backend"].fallback_archive_url == (
         "https://github.com/Artificial-Sweetener/Substitute-BackEnd/archive/refs/tags/"
-        "v1.9.0.zip"
+        "v1.9.1.zip"
     )
     assert by_project["substitute-backend"].expected_folder == (
-        Path("custom_nodes") / "Substitute-BackEnd"
+        Path("custom_nodes") / "substitute-backend"
+    )
+    assert by_project["substitute-backend"].legacy_folders == (
+        Path("custom_nodes") / "Substitute-BackEnd",
     )
     assert by_project["SugarCubes"].nodepack_id is CoreNodepackId.SUGARCUBES
     assert by_project["SugarCubes"].registry_id == "SugarCubes"
-    assert by_project["SugarCubes"].source_url == (
+    assert by_project["SugarCubes"].fallback_repository_url == (
         "https://github.com/Artificial-Sweetener/SugarCubes.git"
     )
     assert by_project["SugarCubes"].local_source_environment_variable == (
         "SUGARSUBSTITUTE_SUGARCUBES_SOURCE"
     )
-    assert by_project["SugarCubes"].required_python_distribution_version == "0.11.0"
-    assert by_project["SugarCubes"].pinned_source_archive_url == (
+    assert by_project["SugarCubes"].required_version == "0.11.0"
+    assert by_project["SugarCubes"].fallback_archive_url == (
         "https://github.com/Artificial-Sweetener/SugarCubes/archive/refs/tags/"
         "v0.11.0.zip"
     )
@@ -129,12 +129,11 @@ def test_sugarcubes_nodepack_manifest_contains_trusted_install_fallbacks() -> No
     }
 
 
-def test_nodepack_manifest_centralizes_timeout_and_retention_policy() -> None:
-    """Nodepack timeout and backup retention policy should be manifest-owned."""
+def test_nodepack_manifest_centralizes_network_timeout_policy() -> None:
+    """Nodepack network timeout policy should be manifest-owned."""
 
     assert CLI_INSTALL_TIMEOUT_SECONDS == 900
     assert ARCHIVE_DOWNLOAD_TIMEOUT_SECONDS == 120
-    assert NODEPACK_BACKUP_KEEP_COUNT == 5
 
 
 def _imported_module_names(tree: ast.AST) -> set[str]:

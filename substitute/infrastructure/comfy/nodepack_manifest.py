@@ -38,7 +38,6 @@ SUGARCUBES_FALLBACK_ARCHIVE_URL = (
     "https://github.com/Artificial-Sweetener/SugarCubes/archive/refs/tags/"
     f"v{SUGARCUBES_REQUIRED_VERSION}.zip"
 )
-NODEPACK_BACKUP_KEEP_COUNT = 5
 
 
 @dataclass(frozen=True)
@@ -46,17 +45,23 @@ class CoreComfyNodepack:
     """Describe one trusted Comfy Registry nodepack Substitute requires."""
 
     nodepack_id: CoreNodepackId
-    project_name: str
     registry_id: str
     display_name: str
     publisher: str
     expected_folder: Path
     sentinel_files: tuple[Path, ...]
-    source_url: str | None = None
+    required_version: str
+    fallback_repository_url: str
+    fallback_archive_url: str
+    legacy_folders: tuple[Path, ...] = ()
     local_source_environment_variable: str | None = None
-    python_distribution_name: str | None = None
-    required_python_distribution_version: str | None = None
-    pinned_source_archive_url: str | None = None
+    legacy_distribution_name: str | None = None
+
+    @property
+    def candidate_folders(self) -> tuple[Path, ...]:
+        """Return canonical and persisted legacy installation locations."""
+
+        return (self.expected_folder, *self.legacy_folders)
 
 
 @dataclass(frozen=True)
@@ -103,24 +108,25 @@ SUGARCUBES_COMPANION_NODEPACKS: Mapping[str, tuple[str, ...]] = {
 CORE_COMFY_NODEPACKS: tuple[CoreComfyNodepack, ...] = (
     CoreComfyNodepack(
         nodepack_id=CoreNodepackId.SUBSTITUTE_BACKEND,
-        project_name="substitute-backend",
         registry_id="substitute-backend",
         display_name="Substitute BackEnd",
         publisher="artificialsweetener",
-        expected_folder=Path("custom_nodes") / "Substitute-BackEnd",
+        expected_folder=Path("custom_nodes") / "substitute-backend",
         sentinel_files=(
             Path("__init__.py"),
             Path("substitute_backend") / "__init__.py",
         ),
-        source_url="https://github.com/Artificial-Sweetener/Substitute-BackEnd.git",
+        required_version=SUBSTITUTE_BACKEND_REQUIRED_VERSION,
+        fallback_repository_url=(
+            "https://github.com/Artificial-Sweetener/Substitute-BackEnd.git"
+        ),
+        fallback_archive_url=SUBSTITUTE_BACKEND_FALLBACK_ARCHIVE_URL,
+        legacy_folders=(Path("custom_nodes") / "Substitute-BackEnd",),
         local_source_environment_variable="SUGARSUBSTITUTE_BACKEND_SOURCE",
-        python_distribution_name="substitute-backend",
-        required_python_distribution_version=SUBSTITUTE_BACKEND_REQUIRED_VERSION,
-        pinned_source_archive_url=SUBSTITUTE_BACKEND_FALLBACK_ARCHIVE_URL,
+        legacy_distribution_name="substitute-backend",
     ),
     CoreComfyNodepack(
         nodepack_id=CoreNodepackId.SUGARCUBES,
-        project_name="SugarCubes",
         registry_id="SugarCubes",
         display_name="SugarCubes",
         publisher="artificialsweetener",
@@ -129,11 +135,13 @@ CORE_COMFY_NODEPACKS: tuple[CoreComfyNodepack, ...] = (
             Path("__init__.py"),
             Path("pyproject.toml"),
         ),
-        source_url="https://github.com/Artificial-Sweetener/SugarCubes.git",
+        required_version=SUGARCUBES_REQUIRED_VERSION,
+        fallback_repository_url=(
+            "https://github.com/Artificial-Sweetener/SugarCubes.git"
+        ),
+        fallback_archive_url=SUGARCUBES_FALLBACK_ARCHIVE_URL,
         local_source_environment_variable="SUGARSUBSTITUTE_SUGARCUBES_SOURCE",
-        python_distribution_name="SugarCubes",
-        required_python_distribution_version=SUGARCUBES_REQUIRED_VERSION,
-        pinned_source_archive_url=SUGARCUBES_FALLBACK_ARCHIVE_URL,
+        legacy_distribution_name="SugarCubes",
     ),
 )
 
@@ -143,7 +151,6 @@ __all__ = [
     "CLI_INSTALL_TIMEOUT_SECONDS",
     "CORE_COMFY_NODEPACKS",
     "CoreComfyNodepack",
-    "NODEPACK_BACKUP_KEEP_COUNT",
     "SUGARCUBES_BASE_NODEPACK_INSTALLS",
     "SUGARCUBES_COMPANION_NODEPACKS",
     "SUGARCUBES_FALLBACK_ARCHIVE_URL",

@@ -14,338 +14,505 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Tests for trusted core Comfy nodepack reconciliation."""
+"""Tests for Registry-first core Comfy nodepack lifecycle orchestration."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
-import shutil
 from typing import cast
 
 import pytest
 
-from substitute.domain.comfy_nodepacks import CoreNodepackId
+from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan import (
+    RegistryInstallOutcome,
+)
 from substitute.infrastructure.comfy import core_nodepack_reconciler
 from substitute.infrastructure.comfy.core_nodepack_reconciler import (
-    ensure_core_comfy_nodepacks,
+    CoreNodepackReconciler,
+)
+from substitute.infrastructure.comfy.legacy_nodepack_distribution import (
+    LegacyNodepackDistributionCleaner,
 )
 from substitute.infrastructure.comfy.nodepack_manifest import (
     CORE_COMFY_NODEPACKS,
     CoreComfyNodepack,
 )
+from substitute.infrastructure.comfy.nodepack_registry_installer import (
+    ComfyNodepackRegistryInstaller,
+    RegistryInstallResult,
+)
+from substitute.infrastructure.comfy.nodepack_registry_update_settler import (
+    ComfyNodepackRegistryUpdateSettler,
+    RegistryUpdateSettlement,
+)
+from substitute.infrastructure.comfy.pinned_nodepack_source import (
+    PinnedNodepackSourceInstaller,
+)
 from tests.repository_service_test_double import RecordingRepositoryService
 
 
-def test_missing_core_nodepacks_clone_explicit_trusted_sources(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Missing core nodepacks should clone without invoking Comfy Manager CLI."""
+class _RegistryInstaller:
+    """Provide deterministic CNR install effects for orchestration tests."""
 
-    python = _prepare_python(tmp_path)
-    dependency_installs: list[Path] = []
-    repositories = RecordingRepositoryService(
-        clone_callback=lambda url, target: _materialize_clone(url, target)
-    )
-    _patch_dependency_contracts(monkeypatch, dependency_installs)
+    def __init__(self, outcome: RegistryInstallOutcome) -> None:
+        """Store the requested result and initialize observed calls."""
 
-    ensure_core_comfy_nodepacks(
-        tmp_path,
-        python_executable=python,
-        repositories=repositories,
-    )
+        self.outcome = outcome
+        self.calls: list[tuple[Path, CoreComfyNodepack]] = []
 
-    assert repositories.calls == [
-        ("clone", (nodepack.source_url, tmp_path / nodepack.expected_folder))
-        for nodepack in CORE_COMFY_NODEPACKS
-    ]
-    assert dependency_installs == [
-        tmp_path / nodepack.expected_folder for nodepack in CORE_COMFY_NODEPACKS
-    ]
-
-
-def test_targeted_git_refresh_uses_repository_service_only_for_target(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Repair should fast-forward only the selected libgit2-backed nodepack."""
-
-    python = _prepare_python(tmp_path)
-    _materialize_installed_nodepacks(tmp_path, git_managed=True)
-    dependency_installs: list[Path] = []
-    repositories = RecordingRepositoryService()
-    _patch_dependency_contracts(monkeypatch, dependency_installs)
-
-    ensure_core_comfy_nodepacks(
-        tmp_path,
-        python_executable=python,
-        refresh_nodepacks=frozenset({CoreNodepackId.SUBSTITUTE_BACKEND}),
-        repositories=repositories,
-    )
-
-    backend = _nodepack(CoreNodepackId.SUBSTITUTE_BACKEND)
-    assert repositories.calls == [
-        ("sync_fast_forward", tmp_path / backend.expected_folder)
-    ]
-    assert dependency_installs == [tmp_path / backend.expected_folder]
-
-
-def test_git_refresh_failure_replaces_with_pinned_source(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """An unmergeable core checkout should use the existing pinned replacement."""
-
-    python = _prepare_python(tmp_path)
-    _materialize_installed_nodepacks(tmp_path, git_managed=True)
-    backend = _nodepack(CoreNodepackId.SUBSTITUTE_BACKEND)
-    backend_root = tmp_path / backend.expected_folder
-    replacements: list[tuple[str, Path]] = []
-    dependency_installs: list[Path] = []
-    repositories = RecordingRepositoryService(failing_operations={"sync_fast_forward"})
-
-    def replace_source(
+    def install_exact(
+        self,
         *,
-        archive_url: str,
+        workspace: Path,
+        python_executable: Path,
+        nodepack: CoreComfyNodepack,
+        on_log: object | None,
+        env: object | None,
+    ) -> RegistryInstallResult:
+        """Materialize exact CNR state only for successful Registry results."""
+
+        _ = python_executable, on_log, env
+        self.calls.append((workspace, nodepack))
+        if self.outcome in {
+            RegistryInstallOutcome.INSTALLED,
+            RegistryInstallOutcome.ALREADY_INSTALLED,
+        }:
+            root = _existing_or_canonical_root(workspace, nodepack)
+            _materialize_nodepack(root, nodepack, tracking=True)
+        return RegistryInstallResult(self.outcome, ())
+
+
+class _FallbackInstaller:
+    """Record pinned fallback while producing Manager-readable ownership."""
+
+    def __init__(self) -> None:
+        """Initialize observed fallback requests."""
+
+        self.calls: list[tuple[Path, CoreComfyNodepack]] = []
+
+    def install_fallback(
+        self,
+        *,
         target_path: Path,
-        nodepack: object,
+        nodepack: CoreComfyNodepack,
         on_log: object | None,
         env: object | None,
     ) -> None:
-        """Materialize a deterministic pinned replacement."""
+        """Install an exact fallback fixture without a network request."""
 
         _ = on_log, env
-        replacements.append((archive_url, target_path))
-        shutil.rmtree(target_path)
-        _materialize_nodepack(cast(CoreComfyNodepack, nodepack), target_path)
+        self.calls.append((target_path, nodepack))
+        _materialize_nodepack(target_path, nodepack, tracking=True)
 
-    monkeypatch.setattr(
-        core_nodepack_reconciler,
-        "_replace_with_pinned_source_archive",
-        replace_source,
-    )
-    _patch_dependency_contracts(monkeypatch, dependency_installs)
+    def migrate_clean_git_installation(self, **kwargs: object) -> None:
+        """Reject unexpected use of the fake's migration path."""
 
-    ensure_core_comfy_nodepacks(
+        _ = kwargs
+        raise AssertionError("test should use the real Git migration owner")
+
+    def migrate_plain_installation(self, **kwargs: object) -> None:
+        """Reject unexpected use of the fake's plain migration path."""
+
+        _ = kwargs
+        raise AssertionError("test should not adopt a plain source")
+
+
+class _RegistryUpdateSettler:
+    """Provide deterministic Manager pre-startup effects for orchestration tests."""
+
+    def __init__(self, *, materialize: bool = True) -> None:
+        """Configure whether Manager's queued switch reaches exact disk state."""
+
+        self.materialize = materialize
+        self.calls: list[tuple[Path, CoreComfyNodepack]] = []
+
+    def settle(
+        self,
+        *,
+        workspace: Path,
+        python_executable: Path,
+        nodepack: CoreComfyNodepack,
+        on_log: object | None,
+        env: object | None,
+    ) -> RegistryUpdateSettlement:
+        """Apply the queued Registry fixture when configured to succeed."""
+
+        _ = python_executable, on_log, env
+        self.calls.append((workspace, nodepack))
+        if self.materialize:
+            root = _existing_or_canonical_root(workspace, nodepack)
+            _materialize_nodepack(root, nodepack, tracking=True)
+        return RegistryUpdateSettlement(self.materialize, ())
+
+
+class _LegacyCleaner:
+    """Record completion-time duplicate cleanup requests."""
+
+    def __init__(self) -> None:
+        """Initialize observed cleanup roots."""
+
+        self.roots: list[Path] = []
+
+    def remove_if_owned(self, **kwargs: object) -> bool:
+        """Record the installed root and report no duplicate metadata."""
+
+        self.roots.append(cast(Path, kwargs["nodepack_root"]))
+        return False
+
+
+def test_missing_nodepack_installs_through_registry_and_only_then_dependencies(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Use Comfy Registry as source authority for a new installation."""
+
+    nodepack = CORE_COMFY_NODEPACKS[0]
+    _select_nodepacks(monkeypatch, nodepack)
+    registry = _RegistryInstaller(RegistryInstallOutcome.INSTALLED)
+    cleaner = _LegacyCleaner()
+    dependency_installs: list[Path] = []
+    _patch_dependencies(monkeypatch, dependency_installs, satisfied=True)
+
+    _reconciler(registry=registry, cleaner=cleaner).ensure(
         tmp_path,
-        python_executable=python,
-        refresh_nodepacks=frozenset({CoreNodepackId.SUBSTITUTE_BACKEND}),
+        python_executable=tmp_path / ".venv" / "Scripts" / "python.exe",
+        refresh_nodepacks=(),
+        on_log=None,
+        env=None,
+    )
+
+    root = tmp_path / nodepack.expected_folder
+    assert registry.calls == [(tmp_path, nodepack)]
+    assert (root / ".tracking").is_file()
+    assert dependency_installs == [root]
+    assert cleaner.roots == [root]
+
+
+def test_exact_registry_installation_is_idempotent(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Perform no acquisition or dependency process work on a settled startup."""
+
+    nodepack = CORE_COMFY_NODEPACKS[0]
+    _select_nodepacks(monkeypatch, nodepack)
+    root = tmp_path / nodepack.expected_folder
+    _materialize_nodepack(root, nodepack, tracking=True)
+    registry = _RegistryInstaller(RegistryInstallOutcome.FAILED)
+    dependency_installs: list[Path] = []
+    _patch_dependencies(monkeypatch, dependency_installs, satisfied=True)
+
+    _reconciler(registry=registry).ensure(
+        tmp_path,
+        python_executable=tmp_path / "python.exe",
+        refresh_nodepacks=(),
+        on_log=None,
+        env=None,
+    )
+
+    assert registry.calls == []
+    assert dependency_installs == []
+
+
+def test_existing_clean_official_git_install_migrates_then_registry_updates(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Move existing users to CNR ownership without losing mutable nodepack data."""
+
+    nodepack = CORE_COMFY_NODEPACKS[0]
+    _select_nodepacks(monkeypatch, nodepack)
+    root = tmp_path / nodepack.legacy_folders[0]
+    _materialize_nodepack(root, nodepack, version="1.9.0", git=True)
+    _write(root / "cache" / "user.json", "keep")
+    tracked = tuple(
+        path.relative_to(root) for path in root.rglob("*") if path.is_file()
+    )
+    repositories = RecordingRepositoryService(
+        tracked_paths=tracked,
+        status="## main\n?? cache/user.json",
+        remotes={"origin": nodepack.fallback_repository_url},
+    )
+    registry = _RegistryInstaller(RegistryInstallOutcome.PENDING_STARTUP)
+    settler = _RegistryUpdateSettler()
+    dependency_installs: list[Path] = []
+    _patch_dependencies(monkeypatch, dependency_installs, satisfied=True)
+
+    CoreNodepackReconciler(
         repositories=repositories,
-    )
-
-    assert replacements == [(backend.pinned_source_archive_url, backend_root)]
-    assert dependency_installs == [backend_root]
-
-
-def test_existing_nodepack_below_minimum_refreshes_dependencies(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """An installed nodepack below its minimum should refresh before launch."""
-
-    python = _prepare_python(tmp_path)
-    _materialize_installed_nodepacks(tmp_path)
-    dependency_installs: list[Path] = []
-    version_checks = {
-        "substitute-backend": [True],
-        "SugarCubes": [False, True],
-    }
-
-    def version_satisfied(**kwargs: object) -> bool:
-        """Return an old SugarCubes version until dependencies are refreshed."""
-
-        name = cast(str, kwargs["distribution_name"])
-        return version_checks[name].pop(0)
-
-    monkeypatch.setattr(
-        core_nodepack_reconciler,
-        "_python_distribution_matches_required_version",
-        version_satisfied,
-    )
-    monkeypatch.setattr(
-        core_nodepack_reconciler,
-        "install_backend_python_dependencies",
-        lambda **kwargs: dependency_installs.append(kwargs["nodepack_root"]),
-    )
-    monkeypatch.setattr(
-        core_nodepack_reconciler,
-        "install_sugarcubes_python_dependencies",
-        lambda **kwargs: dependency_installs.append(kwargs["nodepack_root"]),
-    )
-
-    ensure_core_comfy_nodepacks(tmp_path, python_executable=python)
-
-    sugarcubes = _nodepack(CoreNodepackId.SUGARCUBES)
-    assert dependency_installs == [tmp_path / sugarcubes.expected_folder]
-
-
-def test_configured_sugarcubes_checkout_can_precede_pinned_release(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """An explicit development checkout should not require an unpublished tag."""
-
-    python = _prepare_python(tmp_path)
-    _materialize_installed_nodepacks(tmp_path)
-    sugarcubes = _nodepack(CoreNodepackId.SUGARCUBES)
-    sugarcubes_root = (tmp_path / sugarcubes.expected_folder).resolve()
-    env_var = sugarcubes.local_source_environment_variable
-    assert env_var is not None
-    dependency_installs: list[Path] = []
-    version_checks = {
-        "substitute-backend": [True],
-        "SugarCubes": [False, False],
-    }
-
-    def version_satisfied(**kwargs: object) -> bool:
-        """Keep the development checkout below the future release version."""
-
-        name = cast(str, kwargs["distribution_name"])
-        return version_checks[name].pop(0)
-
-    monkeypatch.setattr(
-        core_nodepack_reconciler,
-        "_python_distribution_matches_required_version",
-        version_satisfied,
-    )
-    monkeypatch.setattr(
-        core_nodepack_reconciler,
-        "install_backend_python_dependencies",
-        lambda **kwargs: dependency_installs.append(kwargs["nodepack_root"]),
-    )
-    monkeypatch.setattr(
-        core_nodepack_reconciler,
-        "install_sugarcubes_python_dependencies",
-        lambda **kwargs: dependency_installs.append(kwargs["nodepack_root"]),
-    )
-    monkeypatch.setattr(
-        core_nodepack_reconciler,
-        "_apply_pinned_source_fallback",
-        lambda **_kwargs: pytest.fail("local checkout must not use pinned fallback"),
-    )
-
-    ensure_core_comfy_nodepacks(
+        registry_installer=cast(ComfyNodepackRegistryInstaller, registry),
+        registry_update_settler=cast(
+            ComfyNodepackRegistryUpdateSettler,
+            settler,
+        ),
+        legacy_cleaner=cast(LegacyNodepackDistributionCleaner, _LegacyCleaner()),
+    ).ensure(
         tmp_path,
-        python_executable=python,
-        env={env_var: str(sugarcubes_root)},
+        python_executable=tmp_path / "python.exe",
+        refresh_nodepacks=(),
+        on_log=None,
+        env=None,
     )
 
-    assert dependency_installs == [sugarcubes_root]
+    canonical_root = tmp_path / nodepack.expected_folder
+    assert not (canonical_root / ".git").exists()
+    assert (canonical_root / ".tracking").is_file()
+    assert (canonical_root / "cache" / "user.json").read_text(
+        encoding="utf-8"
+    ) == "keep"
+    assert _project_version(canonical_root) == nodepack.required_version
+    assert registry.calls == [(tmp_path, nodepack)]
+    assert settler.calls == [(tmp_path, nodepack)]
+    assert nodepack.expected_folder.name in {
+        child.name for child in canonical_root.parent.iterdir()
+    }
 
 
-def test_non_git_refresh_uses_pinned_archive_without_manager_cli(
+def test_fallback_install_is_later_adopted_by_exact_registry_update(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """A non-git core nodepack should refresh from its pinned trusted archive."""
+    """Make an unavailable release updateable by Manager on a later app release."""
 
-    python = _prepare_python(tmp_path)
-    _materialize_installed_nodepacks(tmp_path)
-    sugarcubes = _nodepack(CoreNodepackId.SUGARCUBES)
-    replacements: list[tuple[str, Path]] = []
-    dependency_installs: list[Path] = []
+    first_release = CORE_COMFY_NODEPACKS[0]
+    _select_nodepacks(monkeypatch, first_release)
+    unavailable_registry = _RegistryInstaller(
+        RegistryInstallOutcome.VERSION_UNAVAILABLE
+    )
+    fallback = _FallbackInstaller()
+    _patch_dependencies(monkeypatch, [], satisfied=True)
 
-    def replace_source(**kwargs: object) -> None:
-        """Record the selected pinned archive without changing the fixture."""
+    _reconciler(registry=unavailable_registry, fallback=fallback).ensure(
+        tmp_path,
+        python_executable=tmp_path / "python.exe",
+        refresh_nodepacks=(),
+        on_log=None,
+        env=None,
+    )
 
-        replacements.append(
-            (cast(str, kwargs["archive_url"]), cast(Path, kwargs["target_path"]))
+    root = tmp_path / first_release.expected_folder
+    _write(root / "cache" / "user.json", "keep")
+    assert (root / ".tracking").is_file()
+    assert fallback.calls == [(root, first_release)]
+
+    next_release = replace(first_release, required_version="1.9.2")
+    _select_nodepacks(monkeypatch, next_release)
+    available_registry = _RegistryInstaller(RegistryInstallOutcome.INSTALLED)
+    _reconciler(registry=available_registry).ensure(
+        tmp_path,
+        python_executable=tmp_path / "python.exe",
+        refresh_nodepacks=(),
+        on_log=None,
+        env=None,
+    )
+
+    assert _project_version(root) == "1.9.2"
+    assert (root / "cache" / "user.json").read_text(encoding="utf-8") == "keep"
+    assert available_registry.calls == [(tmp_path, next_release)]
+
+
+def test_dirty_outdated_git_checkout_is_preserved_and_blocks_repair(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Never erase tracked development work to satisfy managed version policy."""
+
+    nodepack = CORE_COMFY_NODEPACKS[0]
+    _select_nodepacks(monkeypatch, nodepack)
+    root = tmp_path / nodepack.legacy_folders[0]
+    _materialize_nodepack(root, nodepack, version="1.9.0", git=True)
+    repositories = RecordingRepositoryService(
+        status="## main\n M pyproject.toml",
+        remotes={"origin": nodepack.fallback_repository_url},
+    )
+    registry = _RegistryInstaller(RegistryInstallOutcome.INSTALLED)
+    _patch_dependencies(monkeypatch, [], satisfied=True)
+
+    with pytest.raises(RuntimeError, match="tracked local changes"):
+        CoreNodepackReconciler(
+            repositories=repositories,
+            registry_installer=cast(ComfyNodepackRegistryInstaller, registry),
+        ).ensure(
+            tmp_path,
+            python_executable=tmp_path / "python.exe",
+            refresh_nodepacks=(),
+            on_log=None,
+            env=None,
         )
 
-    monkeypatch.setattr(
-        core_nodepack_reconciler,
-        "_replace_with_pinned_source_archive",
-        replace_source,
-    )
-    _patch_dependency_contracts(monkeypatch, dependency_installs)
+    assert (root / ".git").exists()
+    assert _project_version(root) == "1.9.0"
+    assert registry.calls == []
 
-    ensure_core_comfy_nodepacks(
+
+def test_queued_registry_update_must_reach_exact_disk_state(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Reject a nominal Manager settlement that leaves stale nodepack source."""
+
+    nodepack = CORE_COMFY_NODEPACKS[0]
+    _select_nodepacks(monkeypatch, nodepack)
+    root = tmp_path / nodepack.expected_folder
+    _materialize_nodepack(root, nodepack, version="1.9.0", tracking=True)
+    registry = _RegistryInstaller(RegistryInstallOutcome.PENDING_STARTUP)
+    settler = _RegistryUpdateSettler(materialize=False)
+    _patch_dependencies(monkeypatch, [], satisfied=True)
+
+    with pytest.raises(RuntimeError, match="Could not install"):
+        CoreNodepackReconciler(
+            repositories=RecordingRepositoryService(),
+            registry_installer=cast(ComfyNodepackRegistryInstaller, registry),
+            registry_update_settler=cast(
+                ComfyNodepackRegistryUpdateSettler,
+                settler,
+            ),
+        ).ensure(
+            tmp_path,
+            python_executable=tmp_path / "python.exe",
+            refresh_nodepacks=(),
+            on_log=None,
+            env=None,
+        )
+
+    assert _project_version(root) == "1.9.0"
+    assert settler.calls == [(tmp_path, nodepack)]
+
+
+def test_explicit_local_source_bypasses_registry_acquisition(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Retain the declared developer-source override as an explicit escape hatch."""
+
+    nodepack = CORE_COMFY_NODEPACKS[1]
+    _select_nodepacks(monkeypatch, nodepack)
+    source = tmp_path / "development" / "SugarCubes"
+    _materialize_nodepack(source, nodepack, version="0.12.0")
+    registry = _RegistryInstaller(RegistryInstallOutcome.INSTALLED)
+    dependencies: list[Path] = []
+    _patch_dependencies(monkeypatch, dependencies, satisfied=False)
+    env_name = nodepack.local_source_environment_variable
+    assert env_name is not None
+
+    _reconciler(registry=registry).ensure(
         tmp_path,
-        python_executable=python,
-        refresh_nodepacks=frozenset({CoreNodepackId.SUGARCUBES}),
+        python_executable=tmp_path / "python.exe",
+        refresh_nodepacks=(),
+        on_log=None,
+        env={env_name: str(source)},
     )
 
-    assert replacements == [
-        (sugarcubes.pinned_source_archive_url, tmp_path / sugarcubes.expected_folder)
-    ]
-    assert dependency_installs == [tmp_path / sugarcubes.expected_folder]
+    installed = tmp_path / nodepack.expected_folder
+    assert registry.calls == []
+    assert _project_version(installed) == "0.12.0"
+    assert dependencies == [installed]
 
 
-def _prepare_python(workspace: Path) -> Path:
-    """Create one workspace Python fixture."""
-
-    python = workspace / ".venv" / "Scripts" / "python.exe"
-    python.parent.mkdir(parents=True)
-    python.write_text("", encoding="utf-8")
-    return python
-
-
-def _materialize_clone(repository_url: str, target_path: Path) -> None:
-    """Create the manifest sentinels associated with a trusted source URL."""
-
-    nodepack = next(
-        item for item in CORE_COMFY_NODEPACKS if item.source_url == repository_url
-    )
-    _materialize_nodepack(nodepack, target_path, git_managed=True)
-
-
-def _materialize_installed_nodepacks(
-    workspace: Path,
+def _reconciler(
     *,
-    git_managed: bool = False,
-) -> None:
-    """Create installed fixtures for every core nodepack."""
+    registry: _RegistryInstaller,
+    fallback: _FallbackInstaller | None = None,
+    cleaner: _LegacyCleaner | None = None,
+) -> CoreNodepackReconciler:
+    """Compose the reconciler with deterministic effect owners."""
 
-    for nodepack in CORE_COMFY_NODEPACKS:
-        _materialize_nodepack(
-            nodepack,
-            workspace / nodepack.expected_folder,
-            git_managed=git_managed,
-        )
+    selected_cleaner = cleaner or _LegacyCleaner()
+    return CoreNodepackReconciler(
+        repositories=RecordingRepositoryService(),
+        registry_installer=cast(ComfyNodepackRegistryInstaller, registry),
+        fallback_installer=(
+            cast(PinnedNodepackSourceInstaller, fallback)
+            if fallback is not None
+            else None
+        ),
+        legacy_cleaner=cast(LegacyNodepackDistributionCleaner, selected_cleaner),
+    )
+
+
+def _patch_dependencies(
+    monkeypatch: pytest.MonkeyPatch,
+    installs: list[Path],
+    *,
+    satisfied: bool,
+) -> None:
+    """Control dependency state while recording dependency-only installs."""
+
+    monkeypatch.setattr(
+        core_nodepack_reconciler,
+        "nodepack_python_dependencies_satisfied",
+        lambda **kwargs: satisfied,
+    )
+    monkeypatch.setattr(
+        core_nodepack_reconciler,
+        "install_nodepack_python_dependencies",
+        lambda **kwargs: installs.append(cast(Path, kwargs["nodepack_root"])),
+    )
+
+
+def _select_nodepacks(
+    monkeypatch: pytest.MonkeyPatch,
+    *nodepacks: CoreComfyNodepack,
+) -> None:
+    """Limit one orchestration scenario to the specified manifest entries."""
+
+    monkeypatch.setattr(core_nodepack_reconciler, "CORE_COMFY_NODEPACKS", nodepacks)
+
+
+def _existing_or_canonical_root(
+    workspace: Path,
+    nodepack: CoreComfyNodepack,
+) -> Path:
+    """Return an existing persisted root before selecting the canonical path."""
+
+    for folder in nodepack.candidate_folders:
+        root = workspace / folder
+        if root.is_dir():
+            return root
+    return workspace / nodepack.expected_folder
 
 
 def _materialize_nodepack(
+    root: Path,
     nodepack: CoreComfyNodepack,
-    target_path: Path,
     *,
-    git_managed: bool = False,
+    version: str | None = None,
+    tracking: bool = False,
+    git: bool = False,
 ) -> None:
-    """Create one core nodepack's required filesystem contract."""
+    """Write one nodepack source tree with chosen ownership metadata."""
 
-    if git_managed:
-        (target_path / ".git").mkdir(parents=True, exist_ok=True)
     for sentinel in nodepack.sentinel_files:
-        sentinel_path = target_path / sentinel
-        sentinel_path.parent.mkdir(parents=True, exist_ok=True)
-        sentinel_path.write_text("fixture", encoding="utf-8")
-
-
-def _patch_dependency_contracts(
-    monkeypatch: pytest.MonkeyPatch,
-    dependency_installs: list[Path],
-) -> None:
-    """Make dependency validation deterministic while recording refreshes."""
-
-    monkeypatch.setattr(
-        core_nodepack_reconciler,
-        "_python_distribution_matches_required_version",
-        lambda **kwargs: True,
+        _write(root / sentinel, "source")
+    _write(
+        root / "pyproject.toml",
+        (
+            "[project]\n"
+            f'name = "{nodepack.registry_id}"\n'
+            f'version = "{version or nodepack.required_version}"\n'
+            "dependencies = []\n"
+            "[project.urls]\n"
+            f'Repository = "{nodepack.fallback_repository_url}"\n'
+        ),
     )
-    monkeypatch.setattr(
-        core_nodepack_reconciler,
-        "install_backend_python_dependencies",
-        lambda **kwargs: dependency_installs.append(kwargs["nodepack_root"]),
-    )
-    monkeypatch.setattr(
-        core_nodepack_reconciler,
-        "install_sugarcubes_python_dependencies",
-        lambda **kwargs: dependency_installs.append(kwargs["nodepack_root"]),
-    )
+    if tracking:
+        _write(root / ".tracking", "pyproject.toml")
+    if git:
+        _write(root / ".git" / "HEAD", "ref: refs/heads/main\n")
 
 
-def _nodepack(nodepack_id: CoreNodepackId) -> CoreComfyNodepack:
-    """Return one core manifest entry by domain identifier."""
+def _project_version(root: Path) -> str:
+    """Return the fixture project version without duplicating TOML parsing logic."""
 
-    return next(
-        item for item in CORE_COMFY_NODEPACKS if item.nodepack_id is nodepack_id
-    )
+    for line in (root / "pyproject.toml").read_text(encoding="utf-8").splitlines():
+        if line.startswith("version = "):
+            return line.partition("=")[2].strip().strip('"')
+    raise AssertionError("fixture has no project version")
+
+
+def _write(path: Path, content: str) -> None:
+    """Write a fixture file with its parent directories."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")

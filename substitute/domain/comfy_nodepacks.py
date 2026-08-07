@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-SUBSTITUTE_BACKEND_REQUIRED_VERSION = "1.9.0"
+SUBSTITUTE_BACKEND_REQUIRED_VERSION = "1.9.1"
 SUGARCUBES_REQUIRED_VERSION = "0.11.0"
 
 
@@ -29,3 +29,12 @@ class CoreNodepackId(str, Enum):
 
     SUBSTITUTE_BACKEND = "substitute-backend"
     SUGARCUBES = "SugarCubes"
+
+
+class NodepackManagementKind(str, Enum):
+    """Identify how Comfy owns an installed custom-node package."""
+
+    MISSING = "missing"
+    REGISTRY = "registry"
+    GIT = "git"
+    PLAIN = "plain"

@@ -62,7 +62,7 @@ def test_compatibility_blocks_too_old_backend() -> None:
 
     assert result.status is RuntimeCompatibilityStatus.BACKEND_TOO_OLD
     assert result.repairable is True
-    assert result.required_backend_version == "1.9.0"
+    assert result.required_backend_version == "1.9.1"
 
 
 def test_compatibility_blocks_sugarcubes_before_required_release() -> None:
@@ -78,7 +78,7 @@ def test_compatibility_blocks_sugarcubes_before_required_release() -> None:
 def test_compatibility_blocks_newer_patch_versions() -> None:
     """Exact pins should reject versions newer than this application build requires."""
 
-    backend_result = _service(_capabilities(extension_version="1.9.1")).assess()
+    backend_result = _service(_capabilities(extension_version="1.9.2")).assess()
     sugarcubes_result = _service(_capabilities(sugar_cubes_version="0.11.1")).assess()
 
     assert backend_result.status is RuntimeCompatibilityStatus.BACKEND_TOO_NEW
@@ -138,7 +138,7 @@ def _service(
 
 def _capabilities(
     *,
-    extension_version: str = "1.9.0",
+    extension_version: str = "1.9.1",
     sugar_cubes_version: str = "0.11.0",
     sugarcubes_available: bool = True,
     features: tuple[str, ...] = (

@@ -24,6 +24,7 @@ from subprocess import CompletedProcess
 import pytest
 
 from substitute.infrastructure.comfy import backend_model_root_configurator
+from substitute.infrastructure.comfy.nodepack_manifest import CORE_COMFY_NODEPACKS
 
 
 def test_configurator_selects_backend_default(
@@ -117,7 +118,7 @@ def _workspace(tmp_path: Path) -> tuple[Path, Path, Path]:
 
     workspace = tmp_path / "ComfyUI"
     python_executable = workspace / ".venv" / "Scripts" / "python.exe"
-    backend_root = workspace / "custom_nodes" / "Substitute-BackEnd"
+    backend_root = workspace / CORE_COMFY_NODEPACKS[0].expected_folder
     backend_root.mkdir(parents=True)
     (backend_root / "configure_model_root.py").write_text("", encoding="utf-8")
     return workspace, python_executable, backend_root

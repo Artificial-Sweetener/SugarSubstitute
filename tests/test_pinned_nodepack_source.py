@@ -14,12 +14,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Tests for pinned Comfy nodepack source archives."""
+"""Tests for CNR-compatible pinned nodepack fallback and migration."""
 
 from __future__ import annotations
 
 import io
 from pathlib import Path
+import shutil
 import ssl
 import zipfile
 
@@ -27,6 +28,9 @@ import pytest
 
 from substitute.infrastructure.comfy import pinned_nodepack_source
 from substitute.infrastructure.comfy.nodepack_manifest import CORE_COMFY_NODEPACKS
+from substitute.infrastructure.comfy.pinned_nodepack_source import (
+    PinnedNodepackSourceInstaller,
+)
 from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 
@@ -34,9 +38,8 @@ def test_pinned_archive_download_uses_system_trust_context(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Pinned GitHub archives must honor native certificate administration."""
+    """Honor native certificate administration for trusted fallback downloads."""
 
-    content = b"pinned archive"
     tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     observed: list[ssl.SSLContext] = []
 
@@ -46,298 +49,108 @@ def test_pinned_archive_download_uses_system_trust_context(
         timeout: float,
         context: ssl.SSLContext,
     ) -> io.BytesIO:
-        """Record the selected TLS context and return an archive response."""
+        """Return deterministic content while recording transport policy."""
 
         assert timeout > 0
         observed.append(context)
-        return io.BytesIO(content)
+        return io.BytesIO(b"archive")
 
-    monkeypatch.setattr(
-        SystemTrustTlsContext,
-        "create",
-        lambda: tls_context,
-    )
+    monkeypatch.setattr(SystemTrustTlsContext, "create", lambda: tls_context)
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
-    target = tmp_path / "source.zip"
 
     pinned_nodepack_source.download_file(
         archive_url="https://github.example/source.zip",
-        target_path=target,
+        target_path=tmp_path / "source.zip",
     )
 
-    assert target.read_bytes() == content
+    assert (tmp_path / "source.zip").read_bytes() == b"archive"
     assert observed == [tls_context]
 
 
-def test_pinned_source_overlay_writes_comfy_registry_tracking_metadata(
+def test_fallback_install_is_registry_owned_and_preserves_mutable_data(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Pinned fallback should preserve Comfy Manager CNR metadata shape."""
+    """Overlay only source-owned files and retain user/runtime nodepack state."""
 
-    nodepack = CORE_COMFY_NODEPACKS[0]
-    source_root = tmp_path / "archive" / "Substitute-BackEnd-1.5.1"
-    target_root = tmp_path / "custom_nodes" / "Substitute-BackEnd"
-    _write_file(source_root / "__init__.py", "")
-    _write_file(source_root / "substitute_backend" / "__init__.py", "")
-    _write_file(
-        source_root / "pyproject.toml",
-        '[project]\nname = "substitute-backend"\nversion = "1.5.1"\n',
-    )
-    _write_file(source_root / "tests" / "test_ignored.py", "")
-    _write_file(source_root / "node_modules" / "package" / "index.js", "")
-    _write_file(target_root / "user-extra.txt", "keep")
+    nodepack = CORE_COMFY_NODEPACKS[1]
+    source = tmp_path / "release"
+    target = tmp_path / nodepack.expected_folder
+    _materialize_release(source, nodepack_index=1, marker="new")
+    _write(target / "obsolete.py", "old")
+    _write(target / ".tracking", "obsolete.py")
+    _write(target / ".sugarcubes" / "Base-Cubes" / "local.cube", "user")
+    _write(target / ".generated" / "catalog.json", "runtime")
+    _write(source / "tests" / "test_ignored.py", "ignored")
+    _patch_archive_source(monkeypatch, source)
 
-    def fake_download_file(*, archive_url: str, target_path: Path) -> None:
-        """Create a placeholder archive without using the network."""
-
-        _ = archive_url
-        target_path.write_text("archive", encoding="utf-8")
-
-    def fake_extract_single_root_zip(*, archive_path: Path, target_path: Path) -> Path:
-        """Return the prepared source checkout without extracting an archive."""
-
-        _ = archive_path, target_path
-        return source_root
-
-    monkeypatch.setattr(pinned_nodepack_source, "download_file", fake_download_file)
-    monkeypatch.setattr(
-        pinned_nodepack_source,
-        "extract_single_root_zip",
-        fake_extract_single_root_zip,
-    )
-
-    pinned_nodepack_source.overlay_pinned_source_archive(
-        archive_url="https://example.invalid/source.zip",
-        target_path=target_root,
-        nodepack=nodepack,
-        write_registry_tracking=True,
-        on_log=None,
-    )
-
-    tracked_files = set(
-        (target_root / ".tracking").read_text(encoding="utf-8").splitlines()
-    )
-    assert tracked_files == {
-        "__init__.py",
-        "pyproject.toml",
-        "substitute_backend/__init__.py",
-    }
-    assert (target_root / "user-extra.txt").read_text(encoding="utf-8") == "keep"
-    assert "user-extra.txt" not in tracked_files
-    assert not any(path.startswith("tests/") for path in tracked_files)
-    assert not any(path.startswith("node_modules/") for path in tracked_files)
-
-
-def test_pinned_source_overlay_preserves_plain_folder_without_registry_tracking(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Plain fallback folders should not be converted into Registry-managed folders."""
-
-    nodepack = CORE_COMFY_NODEPACKS[0]
-    source_root = tmp_path / "archive" / "Substitute-BackEnd-1.5.1"
-    target_root = tmp_path / "custom_nodes" / "Substitute-BackEnd"
-    _write_file(source_root / "__init__.py", "")
-    _write_file(source_root / "substitute_backend" / "__init__.py", "")
-    _write_file(
-        source_root / "pyproject.toml",
-        '[project]\nname = "substitute-backend"\nversion = "1.5.1"\n',
-    )
-
-    def fake_download_file(*, archive_url: str, target_path: Path) -> None:
-        """Create a placeholder archive without using the network."""
-
-        _ = archive_url
-        target_path.write_text("archive", encoding="utf-8")
-
-    def fake_extract_single_root_zip(*, archive_path: Path, target_path: Path) -> Path:
-        """Return the prepared source checkout without extracting an archive."""
-
-        _ = archive_path, target_path
-        return source_root
-
-    monkeypatch.setattr(pinned_nodepack_source, "download_file", fake_download_file)
-    monkeypatch.setattr(
-        pinned_nodepack_source,
-        "extract_single_root_zip",
-        fake_extract_single_root_zip,
-    )
-
-    pinned_nodepack_source.overlay_pinned_source_archive(
-        archive_url="https://example.invalid/source.zip",
-        target_path=target_root,
-        nodepack=nodepack,
-        write_registry_tracking=False,
-        on_log=None,
-    )
-
-    assert (target_root / "pyproject.toml").is_file()
-    assert not (target_root / ".tracking").exists()
-
-
-def test_apply_pinned_source_fallback_preserves_registry_tracking_shape(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Pinned fallback should overlay Registry-managed folders as Registry-managed."""
-
-    nodepack = CORE_COMFY_NODEPACKS[0]
-    target_root = tmp_path / "custom_nodes" / "Substitute-BackEnd"
-    _write_file(target_root / "pyproject.toml", "")
-    _write_file(target_root / ".tracking", "pyproject.toml")
-    overlays: list[tuple[str, Path, bool]] = []
-
-    def fake_overlay_pinned_source_archive(
-        *,
-        archive_url: str,
-        target_path: Path,
-        nodepack: object,
-        write_registry_tracking: bool,
-        on_log: object | None,
-        temp_dir: Path | None = None,
-    ) -> None:
-        """Record pinned overlay requests without touching archives."""
-
-        _ = nodepack, on_log, temp_dir
-        overlays.append((archive_url, target_path, write_registry_tracking))
-
-    monkeypatch.setattr(
-        pinned_nodepack_source,
-        "overlay_pinned_source_archive",
-        fake_overlay_pinned_source_archive,
-    )
-
-    pinned_nodepack_source.apply_pinned_source_fallback(
-        backend_root=target_root,
-        archive_url="https://example.invalid/source.zip",
-        target_path=target_root,
+    PinnedNodepackSourceInstaller().install_fallback(
+        target_path=target,
         nodepack=nodepack,
         on_log=None,
         env=None,
     )
 
-    assert overlays == [("https://example.invalid/source.zip", target_root, True)]
+    tracked = set((target / ".tracking").read_text(encoding="utf-8").splitlines())
+    assert "obsolete.py" not in tracked
+    assert not (target / "obsolete.py").exists()
+    assert (target / "__init__.py").read_text(encoding="utf-8") == "new"
+    assert (target / ".sugarcubes" / "Base-Cubes" / "local.cube").read_text(
+        encoding="utf-8"
+    ) == "user"
+    assert (target / ".generated" / "catalog.json").read_text(
+        encoding="utf-8"
+    ) == "runtime"
+    assert not (target / "tests").exists()
+    assert not any(path.startswith(".sugarcubes/") for path in tracked)
 
 
-def test_apply_pinned_source_fallback_checks_out_git_tag_without_overlay(
+def test_fallback_transaction_restores_previous_owned_source_on_copy_failure(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Pinned fallback should keep git-backed nodepacks git-managed."""
+    """Restore both source and ownership metadata after a partial overlay failure."""
 
     nodepack = CORE_COMFY_NODEPACKS[0]
-    target_root = tmp_path / "custom_nodes" / "Substitute-BackEnd"
-    (target_root / ".git").mkdir(parents=True)
-    checkouts: list[Path] = []
-    overlays: list[str] = []
+    source = tmp_path / "release"
+    target = tmp_path / nodepack.expected_folder
+    _materialize_release(source, nodepack_index=0, marker="new")
+    _write(target / "old.py", "old")
+    _write(target / ".tracking", "old.py")
+    _write(target / "cache" / "preserved.json", "cache")
+    _patch_archive_source(monkeypatch, source)
+    real_copy = shutil.copy2
 
-    def fake_checkout_pinned_git_tag(
-        *,
-        target_path: Path,
-        nodepack: object,
-        on_log: object | None,
-        env: object | None,
-    ) -> None:
-        """Record checkout requests without running git."""
+    def failing_copy(source_path: Path, destination: Path) -> str:
+        """Fail only while copying one new release file into the target."""
 
-        _ = nodepack, on_log, env
-        checkouts.append(target_path)
+        if Path(source_path) == source / "substitute_backend" / "__init__.py":
+            raise OSError("forced copy failure")
+        return str(real_copy(source_path, destination))
 
     monkeypatch.setattr(
-        pinned_nodepack_source,
-        "checkout_pinned_git_tag",
-        fake_checkout_pinned_git_tag,
-    )
-    monkeypatch.setattr(
-        pinned_nodepack_source,
-        "overlay_pinned_source_archive",
-        lambda **kwargs: overlays.append("overlay"),
+        "substitute.infrastructure.comfy.pinned_nodepack_source.shutil.copy2",
+        failing_copy,
     )
 
-    pinned_nodepack_source.apply_pinned_source_fallback(
-        backend_root=target_root,
-        archive_url="https://example.invalid/source.zip",
-        target_path=target_root,
-        nodepack=nodepack,
-        on_log=None,
-        env=None,
+    with pytest.raises(OSError, match="forced copy failure"):
+        PinnedNodepackSourceInstaller().install_fallback(
+            target_path=target,
+            nodepack=nodepack,
+            on_log=None,
+            env=None,
+        )
+
+    assert (target / "old.py").read_text(encoding="utf-8") == "old"
+    assert (target / ".tracking").read_text(encoding="utf-8") == "old.py"
+    assert (target / "cache" / "preserved.json").read_text(encoding="utf-8") == (
+        "cache"
     )
-
-    assert checkouts == [target_root]
-    assert overlays == []
-
-
-def test_replace_with_pinned_source_archive_replaces_git_checkout(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Pinned replacement should backup and replace unmergeable git checkouts."""
-
-    nodepack = CORE_COMFY_NODEPACKS[0]
-    source_root = tmp_path / "archive" / "Substitute-BackEnd-1.8.0"
-    target_root = tmp_path / "custom_nodes" / "Substitute-BackEnd"
-    _write_file(source_root / "__init__.py", "new")
-    _write_file(source_root / "substitute_backend" / "__init__.py", "new")
-    _write_file(source_root / "pyproject.toml", "")
-    _write_file(target_root / ".git" / "HEAD", "ref: refs/heads/main\n")
-    _write_file(target_root / "old.py", "old")
-    backups: list[tuple[Path, str]] = []
-
-    def fake_download_file(*, archive_url: str, target_path: Path) -> None:
-        """Create a placeholder archive without using the network."""
-
-        _ = archive_url
-        target_path.write_text("archive", encoding="utf-8")
-
-    def fake_extract_single_root_zip(*, archive_path: Path, target_path: Path) -> Path:
-        """Return the prepared source checkout without extracting an archive."""
-
-        _ = archive_path, target_path
-        return source_root
-
-    def fake_backup_before_replacement(
-        *,
-        target_path: Path,
-        nodepack: object,
-        reason: str,
-        on_log: object | None,
-        env: object | None,
-    ) -> None:
-        """Record backup requests without invoking git."""
-
-        _ = nodepack, on_log, env
-        backups.append((target_path, reason))
-
-    monkeypatch.setattr(pinned_nodepack_source, "download_file", fake_download_file)
-    monkeypatch.setattr(
-        pinned_nodepack_source,
-        "extract_single_root_zip",
-        fake_extract_single_root_zip,
-    )
-    monkeypatch.setattr(
-        pinned_nodepack_source,
-        "try_backup_git_nodepack_before_replacement",
-        fake_backup_before_replacement,
-    )
-
-    pinned_nodepack_source.replace_with_pinned_source_archive(
-        archive_url="https://example.invalid/source.zip",
-        target_path=target_root,
-        nodepack=nodepack,
-        on_log=None,
-        env=None,
-    )
-
-    assert backups == [(target_root, "git_fast_forward_failed")]
-    assert (target_root / "__init__.py").read_text(encoding="utf-8") == "new"
-    assert (target_root / "substitute_backend" / "__init__.py").is_file()
-    assert not (target_root / ".git").exists()
-    assert not (target_root / "old.py").exists()
+    assert not (target / "substitute_backend" / "__init__.py").exists()
 
 
 def test_extract_single_root_zip_rejects_unsafe_paths(tmp_path: Path) -> None:
-    """Pinned archive extraction should fail closed on path traversal entries."""
+    """Fail closed on an archive path traversal entry."""
 
     archive_path = tmp_path / "source.zip"
     with zipfile.ZipFile(archive_path, mode="w") as archive:
@@ -350,73 +163,47 @@ def test_extract_single_root_zip_rejects_unsafe_paths(tmp_path: Path) -> None:
         )
 
 
-def test_extract_single_root_zip_requires_one_root(tmp_path: Path) -> None:
-    """Pinned archive extraction should reject archives with multiple roots."""
+def _patch_archive_source(
+    monkeypatch: pytest.MonkeyPatch,
+    source: Path,
+) -> None:
+    """Route one fallback operation to a prepared release fixture."""
 
-    archive_path = tmp_path / "source.zip"
-    with zipfile.ZipFile(archive_path, mode="w") as archive:
-        archive.writestr("first/file.txt", "first")
-        archive.writestr("second/file.txt", "second")
-
-    with pytest.raises(RuntimeError, match="one root folder"):
-        pinned_nodepack_source.extract_single_root_zip(
-            archive_path=archive_path,
-            target_path=tmp_path / "extracted",
-        )
-
-
-def test_extract_single_root_zip_returns_extracted_root(tmp_path: Path) -> None:
-    """Pinned archive extraction should return the extracted top-level directory."""
-
-    archive_path = tmp_path / "source.zip"
-    target_path = tmp_path / "extracted"
-    with zipfile.ZipFile(archive_path, mode="w") as archive:
-        archive.writestr("root/file.txt", "content")
-        archive.writestr("root/nested/child.txt", "child")
-
-    source_root = pinned_nodepack_source.extract_single_root_zip(
-        archive_path=archive_path,
-        target_path=target_path,
+    monkeypatch.setattr(
+        pinned_nodepack_source,
+        "download_file",
+        lambda **kwargs: Path(kwargs["target_path"]).write_bytes(b"archive"),
     )
-
-    assert source_root == target_path / "root"
-    assert (source_root / "file.txt").read_text(encoding="utf-8") == "content"
-    assert (source_root / "nested" / "child.txt").read_text(encoding="utf-8") == (
-        "child"
+    monkeypatch.setattr(
+        pinned_nodepack_source,
+        "extract_single_root_zip",
+        lambda **kwargs: source,
     )
 
 
-def test_write_registry_tracking_file_uses_registry_path_format(tmp_path: Path) -> None:
-    """Registry tracking metadata should use forward-slash relative paths."""
+def _materialize_release(root: Path, *, nodepack_index: int, marker: str) -> None:
+    """Create one exact trusted release source tree."""
 
-    target_path = tmp_path / "nodepack"
-    target_path.mkdir()
-
-    pinned_nodepack_source.write_registry_tracking_file(
-        target_path=target_path,
-        tracked_files=(Path("pkg") / "module.py", Path("pyproject.toml")),
+    nodepack = CORE_COMFY_NODEPACKS[nodepack_index]
+    for sentinel in nodepack.sentinel_files:
+        _write(root / sentinel, marker)
+    package = "substitute_backend" if nodepack_index == 0 else "sugarcubes"
+    _write(root / package / "__init__.py", marker)
+    _write(
+        root / "pyproject.toml",
+        (
+            "[project]\n"
+            f'name = "{nodepack.registry_id}"\n'
+            f'version = "{nodepack.required_version}"\n'
+            "dependencies = []\n"
+            "[project.urls]\n"
+            f'Repository = "{nodepack.fallback_repository_url.removesuffix(".git")}"\n'
+        ),
     )
 
-    assert (target_path / ".tracking").read_text(encoding="utf-8") == (
-        "pkg/module.py\npyproject.toml"
-    )
 
-
-def test_temp_dir_from_env_creates_managed_temp_override(tmp_path: Path) -> None:
-    """Pinned source temp folders should honor managed subprocess temp env values."""
-
-    temp_path = tmp_path / "temp"
-
-    assert (
-        pinned_nodepack_source.temp_dir_from_env({"TEMP": str(temp_path)}) == temp_path
-    )
-    assert temp_path.is_dir()
-    assert pinned_nodepack_source.temp_dir_from_env({}) is None
-    assert pinned_nodepack_source.temp_dir_from_env(None) is None
-
-
-def _write_file(path: Path, content: str) -> None:
-    """Write a test fixture file, creating parents first."""
+def _write(path: Path, content: str) -> None:
+    """Write a fixture file with its parents."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")

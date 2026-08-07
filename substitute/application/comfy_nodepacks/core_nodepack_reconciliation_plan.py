@@ -14,91 +14,98 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Plan pure core nodepack reconciliation decisions."""
+"""Plan pure Registry-first core nodepack reconciliation decisions."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal
+from enum import Enum
 
-CoreNodepackRefreshSource = Literal[
-    "git_refresh",
-    "git_refreshed",
-    "pinned_archive",
-    "registry",
-    "source_url",
-    "local_source",
-    "unavailable",
-]
-CoreNodepackDependencyRefreshAction = Literal[
-    "ready",
-    "pinned_fallback",
-    "failed",
-]
+from substitute.domain.comfy_nodepacks import NodepackManagementKind
 
 
-@dataclass(frozen=True)
-class CoreNodepackRefreshRoute:
-    """Describe the selected source for refreshing one core nodepack."""
+class CoreNodepackAction(str, Enum):
+    """Describe the next effect required for one core nodepack."""
 
-    source: CoreNodepackRefreshSource
-    install_id: str | None
+    READY = "ready"
+    USE_LOCAL_SOURCE = "use_local_source"
+    MIGRATE_GIT = "migrate_git"
+    INSTALL_REGISTRY = "install_registry"
+    SETTLE_REGISTRY_UPDATE = "settle_registry_update"
+    INSTALL_FALLBACK = "install_fallback"
+    BLOCK_DIRTY = "block_dirty"
+    BLOCK_UNMANAGED_GIT = "block_unmanaged_git"
+    FAIL = "fail"
 
 
-@dataclass(frozen=True)
-class CoreNodepackDependencyRefreshPlan:
-    """Describe the next dependency-refresh action for one core nodepack."""
+class RegistryInstallOutcome(str, Enum):
+    """Classify one exact-version Comfy Registry installation attempt."""
 
-    action: CoreNodepackDependencyRefreshAction
+    INSTALLED = "installed"
+    ALREADY_INSTALLED = "already_installed"
+    PENDING_STARTUP = "pending_startup"
+    VERSION_UNAVAILABLE = "version_unavailable"
+    REGISTRY_UNREACHABLE = "registry_unreachable"
+    FAILED = "failed"
 
 
-def plan_core_nodepack_refresh_route(
+def plan_initial_reconciliation(
     *,
-    registry_id: str,
-    git_managed: bool,
-    git_refresh_succeeded: bool | None,
-    pinned_archive_available: bool,
-    registry_available: bool,
-    source_url: str | None,
-    local_source_available: bool,
-) -> CoreNodepackRefreshRoute:
-    """Return the refresh source selected from known nodepack availability facts."""
+    management: NodepackManagementKind,
+    matches_required_version: bool,
+    tracked_worktree_dirty: bool,
+    official_git_remote: bool,
+    local_source_configured: bool,
+    refresh_requested: bool,
+) -> CoreNodepackAction:
+    """Select the first action from installed source and ownership evidence."""
 
-    if git_managed and git_refresh_succeeded is None:
-        return CoreNodepackRefreshRoute(source="git_refresh", install_id=None)
-    if git_managed and git_refresh_succeeded is True:
-        return CoreNodepackRefreshRoute(source="git_refreshed", install_id=None)
-    if git_managed and git_refresh_succeeded is False and pinned_archive_available:
-        return CoreNodepackRefreshRoute(source="pinned_archive", install_id=None)
-    if registry_available:
-        return CoreNodepackRefreshRoute(source="registry", install_id=registry_id)
-    if source_url is not None:
-        return CoreNodepackRefreshRoute(source="source_url", install_id=source_url)
-    if local_source_available:
-        return CoreNodepackRefreshRoute(source="local_source", install_id=None)
-    return CoreNodepackRefreshRoute(source="unavailable", install_id=None)
+    if local_source_configured:
+        return CoreNodepackAction.USE_LOCAL_SOURCE
+    if management is NodepackManagementKind.GIT:
+        if tracked_worktree_dirty:
+            return (
+                CoreNodepackAction.READY
+                if matches_required_version
+                else CoreNodepackAction.BLOCK_DIRTY
+            )
+        if not official_git_remote:
+            return (
+                CoreNodepackAction.READY
+                if matches_required_version
+                else CoreNodepackAction.BLOCK_UNMANAGED_GIT
+            )
+        return CoreNodepackAction.MIGRATE_GIT
+    if (
+        management is NodepackManagementKind.REGISTRY
+        and matches_required_version
+        and not refresh_requested
+    ):
+        return CoreNodepackAction.READY
+    return CoreNodepackAction.INSTALL_REGISTRY
 
 
-def plan_core_nodepack_dependency_refresh(
+def plan_after_registry_attempt(
     *,
-    required_version_installed: bool,
-    pinned_archive_available: bool,
-    pinned_fallback_already_applied: bool,
-) -> CoreNodepackDependencyRefreshPlan:
-    """Return the next dependency-refresh action from version and fallback facts."""
+    outcome: RegistryInstallOutcome,
+    registry_installation_matches: bool,
+) -> CoreNodepackAction:
+    """Select completion or fallback from Registry outcome and disk evidence."""
 
-    if required_version_installed:
-        return CoreNodepackDependencyRefreshPlan(action="ready")
-    if pinned_archive_available and not pinned_fallback_already_applied:
-        return CoreNodepackDependencyRefreshPlan(action="pinned_fallback")
-    return CoreNodepackDependencyRefreshPlan(action="failed")
+    if registry_installation_matches:
+        return CoreNodepackAction.READY
+    if outcome is RegistryInstallOutcome.PENDING_STARTUP:
+        return CoreNodepackAction.SETTLE_REGISTRY_UPDATE
+    if outcome in {
+        RegistryInstallOutcome.VERSION_UNAVAILABLE,
+        RegistryInstallOutcome.REGISTRY_UNREACHABLE,
+    }:
+        return CoreNodepackAction.INSTALL_FALLBACK
+    return CoreNodepackAction.FAIL
 
 
 __all__ = [
-    "CoreNodepackDependencyRefreshAction",
-    "CoreNodepackDependencyRefreshPlan",
-    "CoreNodepackRefreshRoute",
-    "CoreNodepackRefreshSource",
-    "plan_core_nodepack_dependency_refresh",
-    "plan_core_nodepack_refresh_route",
+    "CoreNodepackAction",
+    "RegistryInstallOutcome",
+    "plan_after_registry_attempt",
+    "plan_initial_reconciliation",
 ]
