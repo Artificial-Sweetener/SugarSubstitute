@@ -1,0 +1,185 @@
+#    SugarSubstitute - The desktop native Qt front-end for ComfyUI
+#    Copyright (C) 2026  Artificial Sweetener and contributors
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Remove legacy pip-installed copies of custom-node source safely."""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping
+from pathlib import Path
+from urllib.parse import unquote
+
+from substitute.infrastructure.comfy.nodepack_manifest import (
+    CLI_INSTALL_TIMEOUT_SECONDS,
+)
+from substitute.infrastructure.filesystem import remove_app_owned_path
+from substitute.infrastructure.process.hidden_process_runner import (
+    run_command,
+    stream_command_collecting_output,
+)
+from substitute.shared.logging.logger import get_logger, log_info
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
+
+LogCallback = Callable[[str], None]
+_LOGGER = get_logger("infrastructure.comfy.legacy_nodepack_distribution")
+
+
+class LegacyNodepackDistributionCleaner:
+    """Delete only distributions proven to originate from a nodepack folder."""
+
+    def remove_if_owned(
+        self,
+        *,
+        python_executable: Path,
+        nodepack_root: Path,
+        distribution_name: str | None,
+        on_log: LogCallback | None,
+        env: Mapping[str, str] | None,
+    ) -> bool:
+        """Uninstall a duplicate distribution when direct-url evidence matches."""
+
+        if distribution_name is None:
+            return False
+        direct_url = self._direct_url(
+            python_executable=python_executable,
+            cwd=nodepack_root,
+            distribution_name=distribution_name,
+            env=env,
+        )
+        if direct_url is None or not _same_file_url(
+            direct_url,
+            nodepack_root.resolve().as_uri(),
+        ):
+            return False
+        _emit_log(
+            on_log,
+            (
+                f"[ComfyNodepacks] Removing legacy pip-installed "
+                f"{distribution_name} nodepack copy."
+            ),
+        )
+        exit_code, _output = stream_command_collecting_output(
+            [
+                subprocess_path(python_executable),
+                "-m",
+                "pip",
+                "uninstall",
+                "--yes",
+                distribution_name,
+            ],
+            cwd=nodepack_root,
+            on_line=on_log,
+            timeout_seconds=CLI_INSTALL_TIMEOUT_SECONDS,
+            env=env,
+        )
+        if exit_code != 0:
+            raise RuntimeError(
+                f"Could not remove legacy pip-installed {distribution_name}."
+            )
+        self._remove_local_egg_info(
+            nodepack_root=nodepack_root,
+            distribution_name=distribution_name,
+        )
+        return True
+
+    @staticmethod
+    def _direct_url(
+        *,
+        python_executable: Path,
+        cwd: Path,
+        distribution_name: str,
+        env: Mapping[str, str] | None,
+    ) -> str | None:
+        """Read PEP 610 origin metadata from the selected Comfy environment."""
+
+        script = (
+            "from importlib.metadata import distributions\n"
+            "import json, re, site\n"
+            f"name = {distribution_name!r}\n"
+            "normalize = lambda value: re.sub(r'[-_.]+', '-', value).lower()\n"
+            "paths = [*site.getsitepackages(), site.getusersitepackages()]\n"
+            "for candidate in distributions(path=paths):\n"
+            "    if normalize(candidate.metadata.get('Name', '')) != normalize(name):\n"
+            "        continue\n"
+            "    value = candidate.read_text('direct_url.json')\n"
+            "    if value is None:\n"
+            "        continue\n"
+            "    url = json.loads(value).get('url')\n"
+            "    if isinstance(url, str):\n"
+            "        print(url)\n"
+            "        raise SystemExit(0)\n"
+            "raise SystemExit(3)\n"
+        )
+        result = run_command(
+            [subprocess_path(python_executable), "-c", script],
+            cwd=cwd,
+            check=False,
+            env=env,
+        )
+        return result.stdout.strip() if result.returncode == 0 else None
+
+    @staticmethod
+    def _remove_local_egg_info(
+        *,
+        nodepack_root: Path,
+        distribution_name: str,
+    ) -> None:
+        """Remove build metadata generated by the obsolete local project install."""
+
+        expected = _normalized_distribution_name(distribution_name)
+        for metadata_path in nodepack_root.glob("*.egg-info"):
+            package_info = metadata_path / "PKG-INFO"
+            if not package_info.is_file():
+                continue
+            recorded_name = next(
+                (
+                    line.partition(":")[2].strip()
+                    for line in package_info.read_text(
+                        encoding="utf-8",
+                        errors="replace",
+                    ).splitlines()
+                    if line.casefold().startswith("name:")
+                ),
+                None,
+            )
+            if (
+                recorded_name is not None
+                and _normalized_distribution_name(recorded_name) == expected
+            ):
+                remove_app_owned_path(metadata_path)
+
+
+def _same_file_url(left: str, right: str) -> bool:
+    """Compare local direct-reference URLs across Windows case differences."""
+
+    return unquote(left).rstrip("/").casefold() == unquote(right).rstrip("/").casefold()
+
+
+def _normalized_distribution_name(value: str) -> str:
+    """Return the normalized spelling used for Python distribution identity."""
+
+    return value.replace("_", "-").casefold()
+
+
+def _emit_log(callback: LogCallback | None, message: str) -> None:
+    """Emit cleanup activity to structured and setup logs."""
+
+    log_info(_LOGGER, message)
+    if callback is not None:
+        callback(message)
+
+
+__all__ = ["LegacyNodepackDistributionCleaner"]

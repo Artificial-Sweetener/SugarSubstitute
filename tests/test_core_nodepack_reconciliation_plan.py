@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Tests for pure core nodepack reconciliation plans."""
+"""Tests for pure Registry-first core nodepack reconciliation policy."""
 
 from __future__ import annotations
 
@@ -24,22 +24,21 @@ from pathlib import Path
 import pytest
 
 from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan import (
-    CoreNodepackDependencyRefreshPlan,
-    CoreNodepackRefreshRoute,
-    plan_core_nodepack_dependency_refresh,
-    plan_core_nodepack_refresh_route,
+    CoreNodepackAction,
+    RegistryInstallOutcome,
+    plan_after_registry_attempt,
+    plan_initial_reconciliation,
 )
+from substitute.domain.comfy_nodepacks import NodepackManagementKind
 
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-PLAN_MODULE = (
-    PROJECT_ROOT
+_PLAN_MODULE = (
+    Path(__file__).resolve().parents[1]
     / "substitute"
     / "application"
     / "comfy_nodepacks"
     / "core_nodepack_reconciliation_plan.py"
 )
-FORBIDDEN_IMPORT_PREFIXES = (
+_FORBIDDEN_IMPORT_PREFIXES = (
     "PySide6",
     "qfluentwidgets",
     "qframelesswindow",
@@ -53,178 +52,186 @@ FORBIDDEN_IMPORT_PREFIXES = (
 
 
 def test_core_nodepack_reconciliation_plan_imports_no_side_effect_boundaries() -> None:
-    """Core nodepack plans must stay pure and host-portable."""
+    """Keep lifecycle policy independent from process and filesystem adapters."""
 
     imported_modules = _imported_module_names(
-        ast.parse(PLAN_MODULE.read_text(encoding="utf-8"))
+        ast.parse(_PLAN_MODULE.read_text(encoding="utf-8"))
     )
 
-    forbidden_imports = {
+    assert not {
         imported_module
         for imported_module in imported_modules
-        for forbidden_import in FORBIDDEN_IMPORT_PREFIXES
+        for forbidden_import in _FORBIDDEN_IMPORT_PREFIXES
         if imported_module == forbidden_import
         or imported_module.startswith(f"{forbidden_import}.")
     }
 
-    assert forbidden_imports == set()
-
 
 @pytest.mark.parametrize(
     (
-        "git_managed",
-        "git_refresh_succeeded",
-        "pinned_archive_available",
-        "registry_available",
-        "source_url",
-        "local_source_available",
+        "management",
+        "matches",
+        "dirty",
+        "official_remote",
+        "local",
+        "refresh",
         "expected",
     ),
     (
         (
+            NodepackManagementKind.MISSING,
+            False,
+            False,
+            False,
             True,
-            None,
-            True,
-            True,
-            "https://example.invalid/source.git",
-            True,
-            CoreNodepackRefreshRoute(source="git_refresh", install_id=None),
+            False,
+            CoreNodepackAction.USE_LOCAL_SOURCE,
         ),
         (
-            True,
-            True,
-            True,
-            True,
-            "https://example.invalid/source.git",
-            True,
-            CoreNodepackRefreshRoute(source="git_refreshed", install_id=None),
+            NodepackManagementKind.MISSING,
+            False,
+            False,
+            False,
+            False,
+            False,
+            CoreNodepackAction.INSTALL_REGISTRY,
         ),
         (
+            NodepackManagementKind.REGISTRY,
             True,
             False,
-            True,
-            True,
-            "https://example.invalid/source.git",
-            True,
-            CoreNodepackRefreshRoute(source="pinned_archive", install_id=None),
+            False,
+            False,
+            False,
+            CoreNodepackAction.READY,
         ),
         (
+            NodepackManagementKind.REGISTRY,
             True,
             False,
             False,
+            False,
             True,
-            "https://example.invalid/source.git",
-            True,
-            CoreNodepackRefreshRoute(source="registry", install_id="nodepack-id"),
+            CoreNodepackAction.INSTALL_REGISTRY,
         ),
         (
+            NodepackManagementKind.REGISTRY,
             False,
-            None,
             False,
             False,
-            "https://example.invalid/source.git",
-            True,
-            CoreNodepackRefreshRoute(
-                source="source_url",
-                install_id="https://example.invalid/source.git",
-            ),
+            False,
+            False,
+            CoreNodepackAction.INSTALL_REGISTRY,
         ),
         (
-            False,
-            None,
-            False,
-            False,
-            None,
+            NodepackManagementKind.GIT,
             True,
-            CoreNodepackRefreshRoute(source="local_source", install_id=None),
+            False,
+            True,
+            False,
+            False,
+            CoreNodepackAction.MIGRATE_GIT,
         ),
         (
+            NodepackManagementKind.GIT,
+            True,
+            True,
+            True,
             False,
-            None,
+            True,
+            CoreNodepackAction.READY,
+        ),
+        (
+            NodepackManagementKind.GIT,
+            False,
+            True,
+            True,
             False,
             False,
-            None,
+            CoreNodepackAction.BLOCK_DIRTY,
+        ),
+        (
+            NodepackManagementKind.GIT,
+            True,
             False,
-            CoreNodepackRefreshRoute(source="unavailable", install_id=None),
+            False,
+            False,
+            False,
+            CoreNodepackAction.READY,
+        ),
+        (
+            NodepackManagementKind.GIT,
+            False,
+            False,
+            False,
+            False,
+            False,
+            CoreNodepackAction.BLOCK_UNMANAGED_GIT,
         ),
     ),
 )
-def test_plan_core_nodepack_refresh_route_prioritizes_sources(
+def test_initial_plan_protects_local_work_and_prefers_registry(
     *,
-    git_managed: bool,
-    git_refresh_succeeded: bool | None,
-    pinned_archive_available: bool,
-    registry_available: bool,
-    source_url: str | None,
-    local_source_available: bool,
-    expected: CoreNodepackRefreshRoute,
+    management: NodepackManagementKind,
+    matches: bool,
+    dirty: bool,
+    official_remote: bool,
+    local: bool,
+    refresh: bool,
+    expected: CoreNodepackAction,
 ) -> None:
-    """Refresh plans should prefer git, then pinned archive, then install fallbacks."""
+    """Choose Registry updates while preserving explicit and implicit dev work."""
 
     assert (
-        plan_core_nodepack_refresh_route(
-            registry_id="nodepack-id",
-            git_managed=git_managed,
-            git_refresh_succeeded=git_refresh_succeeded,
-            pinned_archive_available=pinned_archive_available,
-            registry_available=registry_available,
-            source_url=source_url,
-            local_source_available=local_source_available,
+        plan_initial_reconciliation(
+            management=management,
+            matches_required_version=matches,
+            tracked_worktree_dirty=dirty,
+            official_git_remote=official_remote,
+            local_source_configured=local,
+            refresh_requested=refresh,
         )
-        == expected
+        is expected
     )
 
 
 @pytest.mark.parametrize(
+    ("outcome", "matches", "expected"),
     (
-        "required_version_installed",
-        "pinned_archive_available",
-        "pinned_fallback_already_applied",
-        "expected",
-    ),
-    (
+        (RegistryInstallOutcome.INSTALLED, True, CoreNodepackAction.READY),
+        (RegistryInstallOutcome.ALREADY_INSTALLED, True, CoreNodepackAction.READY),
         (
-            True,
+            RegistryInstallOutcome.PENDING_STARTUP,
             False,
-            False,
-            CoreNodepackDependencyRefreshPlan(action="ready"),
+            CoreNodepackAction.SETTLE_REGISTRY_UPDATE,
         ),
         (
+            RegistryInstallOutcome.VERSION_UNAVAILABLE,
             False,
-            True,
-            False,
-            CoreNodepackDependencyRefreshPlan(action="pinned_fallback"),
+            CoreNodepackAction.INSTALL_FALLBACK,
         ),
         (
+            RegistryInstallOutcome.REGISTRY_UNREACHABLE,
             False,
-            False,
-            False,
-            CoreNodepackDependencyRefreshPlan(action="failed"),
+            CoreNodepackAction.INSTALL_FALLBACK,
         ),
-        (
-            False,
-            True,
-            True,
-            CoreNodepackDependencyRefreshPlan(action="failed"),
-        ),
+        (RegistryInstallOutcome.FAILED, False, CoreNodepackAction.FAIL),
     ),
 )
-def test_plan_core_nodepack_dependency_refresh_selects_next_action(
+def test_registry_result_requires_disk_evidence_before_completion(
     *,
-    required_version_installed: bool,
-    pinned_archive_available: bool,
-    pinned_fallback_already_applied: bool,
-    expected: CoreNodepackDependencyRefreshPlan,
+    outcome: RegistryInstallOutcome,
+    matches: bool,
+    expected: CoreNodepackAction,
 ) -> None:
-    """Dependency plans should allow one pinned fallback before failing."""
+    """Use inspected CNR state as authority and fallback only on availability failures."""
 
     assert (
-        plan_core_nodepack_dependency_refresh(
-            required_version_installed=required_version_installed,
-            pinned_archive_available=pinned_archive_available,
-            pinned_fallback_already_applied=pinned_fallback_already_applied,
+        plan_after_registry_attempt(
+            outcome=outcome,
+            registry_installation_matches=matches,
         )
-        == expected
+        is expected
     )
 
 

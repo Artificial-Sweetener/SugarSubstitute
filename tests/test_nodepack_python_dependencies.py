@@ -14,33 +14,24 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Tests for Comfy nodepack Python dependency management."""
+"""Tests for nodepack dependency-only Python reconciliation."""
 
 from __future__ import annotations
 
 import ast
 from pathlib import Path
-import subprocess
-from typing import Any, cast
+from typing import Any
 
 import pytest
 
-from substitute.infrastructure.comfy.nodepack_manifest import CORE_COMFY_NODEPACKS
 from substitute.infrastructure.comfy.nodepack_python_dependencies import (
-    egg_info_distribution_name,
-    install_nodepack_python_project,
-    installed_python_distribution_version,
-    nodepack_python_distributions_match_required_version,
-    normalized_distribution_name,
-    python_distribution_matches_required_version,
-    remove_noncanonical_python_distribution_metadata,
-)
-from sugarsubstitute_shared.external_path_failure import (
-    ExternalLongPathCompatibilityError,
+    install_nodepack_python_dependencies,
+    nodepack_python_dependencies_satisfied,
+    read_nodepack_python_dependencies,
 )
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
-_DEPENDENCIES_MODULE = (
+_MODULE = (
     Path(__file__).resolve().parents[1]
     / "substitute"
     / "infrastructure"
@@ -48,58 +39,38 @@ _DEPENDENCIES_MODULE = (
     / "nodepack_python_dependencies.py"
 )
 
-_FORBIDDEN_IMPORT_PREFIXES = (
-    "PySide6",
-    "qfluentwidgets",
-    "qframelesswindow",
-    "substitute.presentation",
-    "substitute.app",
-    "urllib",
-    "zipfile",
-)
 
+def test_dependency_owner_imports_no_nodepack_acquisition_or_ui_boundaries() -> None:
+    """Keep dependency reconciliation separate from archives, Registry, and UI."""
 
-def test_nodepack_python_dependencies_imports_no_ui_or_archive_boundaries() -> None:
-    """Dependency management must stay GUI-free and avoid archive/network work."""
+    imported = _imported_module_names(ast.parse(_MODULE.read_text(encoding="utf-8")))
 
-    source = _DEPENDENCIES_MODULE.read_text(encoding="utf-8")
-    imported_modules = _imported_module_names(ast.parse(source))
-
-    forbidden_imports = {
-        imported_module
-        for imported_module in imported_modules
-        for forbidden_import in _FORBIDDEN_IMPORT_PREFIXES
-        if imported_module == forbidden_import
-        or imported_module.startswith(f"{forbidden_import}.")
+    assert not {
+        name
+        for name in imported
+        if name.startswith(("PySide6", "substitute.presentation", "urllib", "zipfile"))
     }
 
-    assert forbidden_imports == set()
 
-
-def test_install_nodepack_python_project_uses_noneditable_local_install(
+def test_install_uses_only_declared_dependencies_not_nodepack_root(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Local nodepack installs should avoid editable metadata that probes Git."""
+    """Never create a second importable nodepack copy in site-packages."""
 
-    python_path = tmp_path / ".venv" / "Scripts" / "python.exe"
-    nodepack_root = tmp_path / "custom_nodes" / "Substitute-BackEnd"
-    emitted: list[str] = []
+    nodepack_root = tmp_path / "custom_nodes" / "substitute-backend"
+    _write_pyproject(
+        nodepack_root,
+        dependencies=("aiohttp>=3", "sugar-dsl==1.2.0"),
+    )
+    python = tmp_path / ".venv" / "Scripts" / "python.exe"
     observed: dict[str, object] = {}
 
-    def fake_stream(
-        command: list[str],
-        *,
-        cwd: Path,
-        on_line: object | None,
-        timeout_seconds: int | None = None,
-        env: object | None = None,
-    ) -> tuple[int, tuple[str, ...]]:
+    def fake_stream(command: list[str], **kwargs: Any) -> tuple[int, tuple[str, ...]]:
+        """Capture the dependency-only pip invocation."""
+
         observed["command"] = command
-        observed["cwd"] = cwd
-        observed["on_line"] = on_line
-        observed["timeout_seconds"] = timeout_seconds
-        observed["env"] = env
+        observed.update(kwargs)
         return 0, ()
 
     monkeypatch.setattr(
@@ -107,274 +78,104 @@ def test_install_nodepack_python_project_uses_noneditable_local_install(
         fake_stream,
     )
 
-    install_nodepack_python_project(
-        python_executable=python_path,
+    install_nodepack_python_dependencies(
+        python_executable=python,
         nodepack_root=nodepack_root,
         display_name="Substitute BackEnd",
-        on_log=emitted.append,
         env={"EXAMPLE": "1"},
     )
 
     assert observed["command"] == [
-        subprocess_path(python_path),
+        subprocess_path(python),
         "-m",
         "pip",
         "install",
-        subprocess_path(nodepack_root),
+        "aiohttp>=3",
+        "sugar-dsl==1.2.0",
     ]
+    assert subprocess_path(nodepack_root) not in observed["command"]
     assert observed["cwd"] == nodepack_root
-    assert observed["on_line"] == emitted.append
     assert observed["env"] == {"EXAMPLE": "1"}
-    assert emitted == [
-        "[ComfyNodepacks] Updating Substitute BackEnd Python dependencies."
-    ]
 
 
-def test_install_nodepack_python_project_raises_on_failure(
+def test_empty_dependency_list_performs_no_pip_install(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Failed local project installs should raise an actionable setup error."""
+    """Avoid unnecessary process work for dependency-free nodepacks."""
 
-    def fake_stream(
-        command: list[str],
-        **kwargs: object,
-    ) -> tuple[int, tuple[str, ...]]:
-        _ = command, kwargs
-        return 9, ()
-
+    _write_pyproject(tmp_path, dependencies=())
     monkeypatch.setattr(
         "substitute.infrastructure.comfy.nodepack_python_dependencies.stream_command_collecting_output",
-        fake_stream,
+        lambda *args, **kwargs: pytest.fail("pip must not run"),
     )
 
-    with pytest.raises(RuntimeError, match="Could not update SugarCubes"):
-        install_nodepack_python_project(
-            python_executable=tmp_path / "python.exe",
-            nodepack_root=tmp_path,
-            display_name="SugarCubes",
-        )
+    install_nodepack_python_dependencies(
+        python_executable=tmp_path / "python.exe",
+        nodepack_root=tmp_path,
+        display_name="Example",
+    )
 
 
-@pytest.mark.platforms("windows")
-def test_install_nodepack_project_translates_pip_errno_two_long_path(
+def test_dependency_manifest_rejects_invalid_values(tmp_path: Path) -> None:
+    """Fail closed when a nodepack project manifest is structurally invalid."""
+
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "example"\ndependencies = "requests"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="invalid project dependencies"):
+        read_nodepack_python_dependencies(tmp_path / "pyproject.toml")
+
+
+def test_dependency_probe_uses_selected_python_and_honors_markers(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Nodepack installation should retain pip's overlong wheel-output evidence."""
+    """Evaluate exact requirements inside Comfy's selected interpreter."""
 
-    failing_path = (
-        r"E:\Documents\Everything\Artificial Sweetener\runtime\installer-temp"
-        r"\managed-comfy\401c2092-bb13-4f3b-a377-997f1fab4ccd\temp"
-        r"\pip-ephem-wheel-cache-pmo9xg0b\wheels\59\1d\00"
-        r"\729d4b9dcecc8342dac49bcf6ab1415de9f48be12e466feb73"
-        r"\tmpzx280yzl\.tmp-by7a27ea\sugarcubes-0.11.0-py3-none-any.whl"
+    _write_pyproject(
+        tmp_path,
+        dependencies=("pip>=1", "missing-package; python_version < '2'"),
     )
-    output = f"error: [Errno 2] No such file or directory: '{failing_path}'"
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_python_dependencies.stream_command_collecting_output",
-        lambda *args, **kwargs: (1, (output,)),
-    )
-
-    with pytest.raises(ExternalLongPathCompatibilityError) as failure:
-        install_nodepack_python_project(
-            python_executable=tmp_path / "python.exe",
-            nodepack_root=tmp_path,
-            display_name="SugarCubes",
-        )
-
-    assert failure.value.path == Path(failing_path)
-
-
-def test_installed_python_distribution_version_reads_metadata(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Installed distribution probes should execute importlib metadata in workspace Python."""
-
-    python_path = tmp_path / ".venv" / "Scripts" / "python.exe"
     observed: dict[str, object] = {}
 
-    def fake_run(
-        command: list[str],
-        **kwargs: Any,
-    ) -> subprocess.CompletedProcess[str]:
+    def fake_run(command: list[str], **kwargs: Any) -> object:
+        """Capture the isolated dependency probe."""
+
         observed["command"] = command
         observed.update(kwargs)
-        return subprocess.CompletedProcess(command, 0, stdout="1.6.0\n", stderr="")
+        return type("Result", (), {"returncode": 0})()
 
     monkeypatch.setattr(
         "substitute.infrastructure.comfy.nodepack_python_dependencies.run_command",
         fake_run,
     )
 
-    assert (
-        installed_python_distribution_version(
-            python_executable=python_path,
-            cwd=tmp_path,
-            distribution_name="substitute-backend",
-            on_log=None,
-            env={"EXAMPLE": "1"},
-        )
-        == "1.6.0"
-    )
-    command = cast(list[str], observed["command"])
-    assert command[0] == str(python_path)
-    assert command[1] == "-c"
-    assert "metadata.version('substitute-backend')" in command[2]
-    assert observed["cwd"] == tmp_path
-    assert observed["env"] == {"EXAMPLE": "1"}
-
-
-def test_installed_python_distribution_version_logs_probe_failure(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Missing distribution metadata should return None and emit context."""
-
-    def fake_run(
-        command: list[str],
-        **kwargs: Any,
-    ) -> subprocess.CompletedProcess[str]:
-        _ = kwargs
-        return subprocess.CompletedProcess(command, 1, stdout="", stderr="missing")
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_python_dependencies.run_command",
-        fake_run,
-    )
-    emitted: list[str] = []
-
-    assert (
-        installed_python_distribution_version(
-            python_executable=tmp_path / "python.exe",
-            cwd=tmp_path,
-            distribution_name="SugarCubes",
-            on_log=emitted.append,
-            env=None,
-        )
-        is None
-    )
-    assert emitted == [
-        "[ComfyNodepacks] Could not read installed SugarCubes version from Comfy Python."
-    ]
-
-
-def test_nodepack_python_distributions_match_required_version_uses_manifest_metadata(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Nodepack version checks should derive distribution policy from the manifest."""
-
-    backend_nodepack = next(
-        nodepack
-        for nodepack in CORE_COMFY_NODEPACKS
-        if nodepack.project_name == "substitute-backend"
-    )
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_python_dependencies.installed_python_distribution_version",
-        lambda **kwargs: "1.9.0",
-    )
-
-    assert nodepack_python_distributions_match_required_version(
+    assert nodepack_python_dependencies_satisfied(
         python_executable=tmp_path / "python.exe",
-        cwd=tmp_path,
-        nodepack=backend_nodepack,
-        on_log=None,
+        nodepack_root=tmp_path,
         env=None,
     )
+    command = observed["command"]
+    assert isinstance(command, list)
+    assert "requirement.marker.evaluate()" in command[2]
 
 
-@pytest.mark.parametrize(
-    ("installed_version", "expected"),
-    (("1.9.0", True), ("1.8.0", False), ("1.9.1", False)),
-)
-def test_python_distribution_requires_exact_version(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    installed_version: str,
-    expected: bool,
-) -> None:
-    """Distribution checks should reject both older and newer versions."""
+def _write_pyproject(root: Path, *, dependencies: tuple[str, ...]) -> None:
+    """Write one dependency manifest fixture."""
 
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_python_dependencies.installed_python_distribution_version",
-        lambda **kwargs: installed_version,
-    )
-
-    assert (
-        python_distribution_matches_required_version(
-            python_executable=tmp_path / "python.exe",
-            cwd=tmp_path,
-            distribution_name="substitute-backend",
-            required_version="1.9.0",
-            on_log=None,
-            env=None,
-        )
-        is expected
-    )
-
-
-def test_remove_noncanonical_python_distribution_metadata_keeps_canonical(
-    tmp_path: Path,
-) -> None:
-    """Metadata cleanup should delete stale egg-info while preserving canonical names."""
-
-    sugarcubes_nodepack = next(
-        nodepack
-        for nodepack in CORE_COMFY_NODEPACKS
-        if nodepack.project_name == "SugarCubes"
-    )
-    canonical_metadata = tmp_path / "SugarCubes.egg-info"
-    stale_metadata = tmp_path / "obsolete_sugarcubes.egg-info"
-    missing_name_metadata = tmp_path / "unknown.egg-info"
-    canonical_metadata.mkdir()
-    stale_metadata.mkdir()
-    missing_name_metadata.mkdir()
-    (canonical_metadata / "PKG-INFO").write_text(
-        "Metadata-Version: 2.4\nName: SugarCubes\nVersion: 0.9.1\n",
+    root.mkdir(parents=True, exist_ok=True)
+    rendered = ", ".join(repr(value) for value in dependencies)
+    (root / "pyproject.toml").write_text(
+        f'[project]\nname = "example"\nversion = "1.0.0"\ndependencies = [{rendered}]\n',
         encoding="utf-8",
     )
-    (stale_metadata / "PKG-INFO").write_text(
-        "Metadata-Version: 2.4\nName: ObsoleteSugarCubes\nVersion: 0.9.0\n",
-        encoding="utf-8",
-    )
-    (missing_name_metadata / "PKG-INFO").write_text(
-        "Metadata-Version: 2.4\nVersion: 0.9.0\n",
-        encoding="utf-8",
-    )
-    emitted: list[str] = []
-
-    remove_noncanonical_python_distribution_metadata(
-        nodepack_root=tmp_path,
-        nodepack=sugarcubes_nodepack,
-        on_log=emitted.append,
-    )
-
-    assert canonical_metadata.exists()
-    assert missing_name_metadata.exists()
-    assert not stale_metadata.exists()
-    assert len(emitted) == 1
-    assert "Removed non-canonical ObsoleteSugarCubes metadata" in emitted[0]
-
-
-def test_egg_info_distribution_name_reads_pkg_info(tmp_path: Path) -> None:
-    """Egg-info package metadata should expose the declared distribution name."""
-
-    metadata = tmp_path / "example.egg-info"
-    metadata.mkdir()
-    (metadata / "PKG-INFO").write_text(
-        "Metadata-Version: 2.4\nName: Example_Package\n",
-        encoding="utf-8",
-    )
-
-    assert egg_info_distribution_name(metadata) == "Example_Package"
-    assert normalized_distribution_name("Example_Package") == "example-package"
 
 
 def _imported_module_names(tree: ast.AST) -> set[str]:
-    """Return imported module names from a parsed Python syntax tree."""
+    """Return imported module names from a parsed source tree."""
 
     modules: set[str] = set()
     for node in ast.walk(tree):

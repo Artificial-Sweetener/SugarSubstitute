@@ -27,6 +27,7 @@ from substitute.infrastructure.comfy.nodepack_workspace_inspector import (
     nodepack_has_git_metadata,
     nodepack_has_registry_metadata,
     path_is_relative_to,
+    resolve_installed_nodepack_root,
     source_contains_sentinels,
     tracked_source_files,
 )
@@ -83,6 +84,22 @@ def test_core_nodepack_installed_requires_all_sentinels(tmp_path: Path) -> None:
     assert core_nodepack_installed(tmp_path, nodepack) is True
 
 
+def test_legacy_backend_folder_is_resolved_for_in_place_migration(
+    tmp_path: Path,
+) -> None:
+    """Keep persisted BackEnd installs discoverable after adopting its Registry ID path."""
+
+    nodepack = CORE_COMFY_NODEPACKS[0]
+    legacy_root = tmp_path / nodepack.legacy_folders[0]
+    for sentinel in nodepack.sentinel_files:
+        _write_file(legacy_root / sentinel, "")
+
+    resolved = resolve_installed_nodepack_root(tmp_path, nodepack)
+    assert resolved == legacy_root
+    assert resolved.name == legacy_root.name
+    assert core_nodepack_installed(tmp_path, nodepack)
+
+
 def test_old_sugarcubes_layout_is_recognized_for_version_reconciliation(
     tmp_path: Path,
 ) -> None:
@@ -137,6 +154,10 @@ def test_tracked_source_files_filters_generated_and_untrusted_metadata(
     _write_file(source / "tests" / "test_node.py", "")
     _write_file(source / "node_modules" / "package" / "index.js", "")
     _write_file(source / "__pycache__" / "node.pyc", "")
+    _write_file(source / ".sugarcubes" / "Base-Cubes" / "local.cube", "")
+    _write_file(source / ".generated" / "catalog.json", "")
+    _write_file(source / "cache" / "response.json", "")
+    _write_file(source / "artifacts" / "generated.json", "")
 
     assert tracked_source_files(source) == (
         Path("__init__.py"),
